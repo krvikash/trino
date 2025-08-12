@@ -200,7 +200,9 @@ public class IcebergSplitManager
                 SplitWeight.standard(),
                 icebergSplit.getFileStatisticsDomain(),
                 icebergSplit.getFileIoProperties(),
-                icebergSplit.getDataSequenceNumber());
+                icebergSplit.getDataSequenceNumber(),
+                icebergSplit.getFirstRowId(),
+                icebergSplit.getFormatVersion());
 
         return Optional.of(new CacheSplitId(splitIdCodec.toJson(new IcebergCacheSplitId(
                 icebergSplit.getPath(),

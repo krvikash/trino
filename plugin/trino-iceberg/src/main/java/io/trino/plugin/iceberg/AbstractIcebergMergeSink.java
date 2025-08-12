@@ -34,7 +34,10 @@ import org.roaringbitmap.longlong.Roaring64Bitmap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.IntStream;
 
+import static io.trino.plugin.iceberg.IcebergUtil.supportsRowLineage;
 import static io.trino.spi.connector.MergePage.createDeleteAndInsertPages;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.IntegerType.INTEGER;
@@ -54,7 +57,9 @@ public abstract class AbstractIcebergMergeSink
     protected final Schema schema;
     protected final Map<Integer, PartitionSpec> partitionsSpecs;
     protected final ConnectorPageSink insertPageSink;
+    protected final Optional<ConnectorPageSink> updateInsertPageSink;
     protected final int columnCount;
+    protected final int formatVersion;
     protected final Map<Slice, FileDeletion> fileDeletions = new HashMap<>();
 
     protected AbstractIcebergMergeSink(
@@ -69,7 +74,9 @@ public abstract class AbstractIcebergMergeSink
             Schema schema,
             Map<Integer, PartitionSpec> partitionsSpecs,
             ConnectorPageSink insertPageSink,
-            int columnCount)
+            Optional<ConnectorPageSink> updateInsertPageSink,
+            int columnCount,
+            int formatVersion)
     {
         this.locationProvider = requireNonNull(locationProvider, "locationProvider is null");
         this.fileWriterFactory = requireNonNull(fileWriterFactory, "fileWriterFactory is null");
@@ -82,7 +89,9 @@ public abstract class AbstractIcebergMergeSink
         this.schema = requireNonNull(schema, "schema is null");
         this.partitionsSpecs = ImmutableMap.copyOf(partitionsSpecs);
         this.insertPageSink = requireNonNull(insertPageSink, "insertPageSink is null");
+        this.updateInsertPageSink = requireNonNull(updateInsertPageSink, "updateInsertPageSink is null");
         this.columnCount = columnCount;
+        this.formatVersion = formatVersion;
     }
 
     @Override
@@ -90,7 +99,17 @@ public abstract class AbstractIcebergMergeSink
     {
         MergePage mergePage = createDeleteAndInsertPages(page, columnCount);
 
-        mergePage.getInsertionsPage().ifPresent(insertPageSink::appendPage);
+        mergePage.getInsertInsertionsPage().ifPresent(insertionPage -> insertPageSink.appendPage(insertionPage.getColumns(IntStream.range(0, columnCount).toArray())));
+
+        mergePage.getUpdateInsertionsPage().ifPresent(updateInsertPage -> {
+            List<Block> mergeRowIdBlock = RowBlock.getRowFieldsFromBlock(updateInsertPage.getBlock(updateInsertPage.getChannelCount() - 1));
+            updateInsertPageSink.orElse(insertPageSink)
+                    .appendPage(supportsRowLineage(formatVersion) ?
+                            // Merge row id consists of 5 blocks: file path, partition spec, partition data, row id, and last Update sequence
+                            // we include block 4 - row id
+                            updateInsertPage.getColumns(IntStream.range(0, columnCount).toArray()).appendColumn(mergeRowIdBlock.get(4)) :
+                            updateInsertPage.getColumns(IntStream.range(0, columnCount).toArray()));
+        });
 
         mergePage.getDeletionsPage().ifPresent(deletions -> {
             List<Block> fields = RowBlock.getRowFieldsFromBlock(deletions.getBlock(deletions.getChannelCount() - 1));

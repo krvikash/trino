@@ -26,7 +26,8 @@ public record IcebergTableExecuteHandle(
         IcebergTableProcedureId procedureId,
         IcebergProcedureHandle procedureHandle,
         String tableLocation,
-        Map<String, String> fileIoProperties)
+        Map<String, String> fileIoProperties,
+        int formatVersion)
         implements ConnectorTableExecuteHandle
 {
     public IcebergTableExecuteHandle

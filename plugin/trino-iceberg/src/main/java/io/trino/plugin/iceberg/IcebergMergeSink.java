@@ -39,8 +39,6 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 public class IcebergMergeSink
         extends AbstractIcebergMergeSink
 {
-    private final int formatVersion;
-
     public IcebergMergeSink(
             LocationProvider locationProvider,
             IcebergFileWriterFactory fileWriterFactory,
@@ -54,6 +52,7 @@ public class IcebergMergeSink
             Schema schema,
             Map<Integer, PartitionSpec> partitionsSpecs,
             ConnectorPageSink insertPageSink,
+            Optional<ConnectorPageSink> updateInsertPageSink,
             int columnCount)
     {
         super(
@@ -68,14 +67,17 @@ public class IcebergMergeSink
                 schema,
                 partitionsSpecs,
                 insertPageSink,
-                columnCount);
-        this.formatVersion = formatVersion;
+                updateInsertPageSink,
+                columnCount,
+                formatVersion);
     }
 
     @Override
     public CompletableFuture<Collection<Slice>> finish()
     {
         List<Slice> fragments = new ArrayList<>(insertPageSink.finish().join());
+
+        updateInsertPageSink.ifPresent(pageSink -> fragments.addAll(pageSink.finish().join()));
 
         fileDeletions.forEach((dataFilePath, deletion) -> {
             PositionDeleteWriter writer = createPositionDeleteWriter(

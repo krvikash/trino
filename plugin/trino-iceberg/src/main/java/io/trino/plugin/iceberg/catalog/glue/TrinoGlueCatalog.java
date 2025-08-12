@@ -478,7 +478,8 @@ public class TrinoGlueCatalog
             uncheckedCacheGet(glueTableCache, tableName, () -> table);
             List<ColumnMetadata> columns;
             try {
-                columns = getColumnMetadatas(loadTable(session, tableName).schema(), typeManager);
+                BaseTable baseTable = loadTable(session, tableName);
+                columns = getColumnMetadatas(baseTable.schema(), typeManager, baseTable.operations().current().formatVersion());
             }
             catch (RuntimeException e) {
                 // Table may be concurrently deleted

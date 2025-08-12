@@ -30,10 +30,12 @@ import jakarta.annotation.Nullable;
 import org.apache.iceberg.MetadataTableType;
 import org.apache.iceberg.MetricsUtil.ReadableMetricsStruct;
 import org.apache.iceberg.PartitionField;
+import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.transforms.Transforms;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Type;
+import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.StructProjection;
 
@@ -52,6 +54,7 @@ import static io.trino.plugin.iceberg.IcebergTypes.convertIcebergValueToTrino;
 import static io.trino.plugin.iceberg.IcebergUtil.getPartitionColumnType;
 import static io.trino.plugin.iceberg.IcebergUtil.partitionTypes;
 import static io.trino.plugin.iceberg.IcebergUtil.primitiveFieldTypes;
+import static io.trino.plugin.iceberg.IcebergUtil.supportsRowLineage;
 import static io.trino.plugin.iceberg.PartitionsTable.getAllPartitionFields;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.IntegerType.INTEGER;
@@ -63,8 +66,11 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.util.Objects.requireNonNull;
 import static org.apache.iceberg.MetadataColumns.DELETE_FILE_PATH;
 import static org.apache.iceberg.MetadataColumns.DELETE_FILE_POS;
+import static org.apache.iceberg.MetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER;
+import static org.apache.iceberg.MetadataColumns.ROW_ID;
 import static org.apache.iceberg.MetadataTableType.ALL_ENTRIES;
 import static org.apache.iceberg.MetadataTableType.ENTRIES;
+import static org.apache.iceberg.TableUtil.formatVersion;
 
 // https://iceberg.apache.org/docs/latest/spark-queries/#all-entries
 // https://iceberg.apache.org/docs/latest/spark-queries/#entries
@@ -86,13 +92,19 @@ public class EntriesTable
                 metadataTableType,
                 executor);
         checkArgument(metadataTableType == ALL_ENTRIES || metadataTableType == ENTRIES, "Unexpected metadata table type: %s", metadataTableType);
-        idToTypeMapping = getIcebergIdToTypeMapping(icebergTable.schema());
+        idToTypeMapping = getIcebergIdToTypeMapping(supportsRowLineage(formatVersion(icebergTable)) ? schemaWithRowLineage(icebergTable.schema()) : icebergTable.schema());
         primitiveFields = IcebergUtil.primitiveFields(icebergTable.schema()).stream()
                 .sorted(Comparator.comparing(Types.NestedField::name))
                 .collect(toImmutableList());
         List<PartitionField> partitionFields = getAllPartitionFields(icebergTable);
         partitionColumn = getPartitionColumnType(partitionFields, icebergTable.schema(), typeManager);
         partitionTypes = partitionTypes(partitionFields, primitiveFieldTypes(icebergTable.schema()));
+    }
+
+    // TODO Use org.apache.iceberg.MetadataColumns#schemaWithRowLineage once Iceberg 1.10.0 is released
+    private static Schema schemaWithRowLineage(Schema schema)
+    {
+        return TypeUtil.join(schema, new Schema(ROW_ID, LAST_UPDATED_SEQUENCE_NUMBER));
     }
 
     private static List<ColumnMetadata> columns(TypeManager typeManager, Table icebergTable)

@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.iceberg;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.airlift.json.JsonCodec;
@@ -26,6 +27,7 @@ import io.trino.plugin.iceberg.procedure.IcebergOptimizeHandle;
 import io.trino.plugin.iceberg.procedure.IcebergTableExecuteHandle;
 import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.PageSorter;
+import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorInsertTableHandle;
 import io.trino.spi.connector.ConnectorMergeSink;
 import io.trino.spi.connector.ConnectorMergeTableHandle;
@@ -39,22 +41,28 @@ import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.type.TypeManager;
 import org.apache.iceberg.ContentFileParsers;
 import org.apache.iceberg.DeleteFile;
+import org.apache.iceberg.MetadataColumns;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionSpecParser;
 import org.apache.iceberg.RowLevelOperationMode;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SchemaParser;
 import org.apache.iceberg.io.LocationProvider;
+import org.apache.iceberg.types.TypeUtil;
+import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.DeleteFileSet;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.Maps.transformValues;
+import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_BAD_DATA;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.maxPartitionsPerWriter;
 import static io.trino.plugin.iceberg.IcebergUtil.getLocationProvider;
+import static io.trino.plugin.iceberg.IcebergUtil.supportsRowLineage;
 import static java.util.Objects.requireNonNull;
 
 public class IcebergPageSinkProvider
@@ -110,6 +118,11 @@ public class IcebergPageSinkProvider
     private ConnectorPageSink createPageSink(ConnectorSession session, IcebergWritableTableHandle tableHandle)
     {
         Schema schema = SchemaParser.fromJson(tableHandle.schemaAsJson());
+        return createPageSink(session, tableHandle, schema, tableHandle.inputColumns());
+    }
+
+    private ConnectorPageSink createPageSink(ConnectorSession session, IcebergWritableTableHandle tableHandle, Schema schema, List<IcebergColumnHandle> columns)
+    {
         String partitionSpecJson = tableHandle.partitionsSpecsAsJson().get(tableHandle.partitionSpecId());
         PartitionSpec partitionSpec = PartitionSpecParser.fromJson(schema, partitionSpecJson);
         LocationProvider locationProvider = getLocationProvider(tableHandle.name(), tableHandle.outputPath(), tableHandle.storageProperties());
@@ -120,7 +133,7 @@ public class IcebergPageSinkProvider
                 fileWriterFactory,
                 pageIndexerFactory,
                 fileSystemFactory.create(session.getIdentity(), tableHandle.fileIoProperties()),
-                tableHandle.inputColumns(),
+                columns,
                 jsonCodec,
                 session,
                 tableHandle.fileFormat(),
@@ -140,7 +153,9 @@ public class IcebergPageSinkProvider
         switch (executeHandle.procedureId()) {
             case OPTIMIZE:
                 IcebergOptimizeHandle optimizeHandle = (IcebergOptimizeHandle) executeHandle.procedureHandle();
-                Schema schema = SchemaParser.fromJson(optimizeHandle.schemaAsJson());
+                Schema schema = supportsRowLineage(executeHandle.formatVersion()) ?
+                        TypeUtil.join(SchemaParser.fromJson(optimizeHandle.schemaAsJson()), new Schema(MetadataColumns.ROW_ID, MetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER)) :
+                        SchemaParser.fromJson(optimizeHandle.schemaAsJson());
                 PartitionSpec partitionSpec = PartitionSpecParser.fromJson(schema, optimizeHandle.partitionSpecAsJson());
                 LocationProvider locationProvider = getLocationProvider(executeHandle.schemaTableName(),
                         executeHandle.tableLocation(), optimizeHandle.tableStorageProperties());
@@ -193,9 +208,25 @@ public class IcebergPageSinkProvider
         // TODO: remove once the DeleteFile supporting the dataSequenceNumber in serialization and deserialization
         //  https://github.com/apache/iceberg/issues/13320
         ImmutableMap.Builder<String, Long> dataSequenceNumbers = ImmutableMap.builder();
+        ImmutableMap.Builder<String, Long> firstRowIds = ImmutableMap.builder();
         for (PositionDeleteFiles previousDeleteFile : tableHandle.previousDeleteFiles()) {
             dataSequenceNumbers.put(previousDeleteFile.dataFileLocation(), previousDeleteFile.dataSequenceNumber());
             dataSequenceNumbers.putAll(previousDeleteFile.dataSequenceNumbers());
+            if (previousDeleteFile.firstRowId() != null) {
+                firstRowIds.put(previousDeleteFile.dataFileLocation(), previousDeleteFile.firstRowId());
+            }
+        }
+
+        Schema newSchema = schema;
+        Optional<ConnectorPageSink> updateInsertPageSink = Optional.empty();
+        if (supportsRowLineage(tableHandle.formatVersion())) {
+            verifyExistingRowIdColumn(schema, tableHandle.inputColumns());
+            newSchema = TypeUtil.join(schema, new Schema(MetadataColumns.ROW_ID));
+            ImmutableList.Builder<IcebergColumnHandle> columns = ImmutableList.builder();
+            columns.addAll(tableHandle.inputColumns());
+            columns.add(IcebergColumnHandle.rowIdColumnHandle());
+
+            updateInsertPageSink = Optional.of(createPageSink(session, tableHandle, newSchema, columns.build()));
         }
 
         RowLevelOperationMode rowLevelOperationMode = merge.getInsertTableHandle().operationMode();
@@ -213,6 +244,7 @@ public class IcebergPageSinkProvider
                     schema,
                     partitionsSpecs,
                     pageSink,
+                    updateInsertPageSink,
                     schema.columns().size());
             case COPY_ON_WRITE -> new CopyOnWriteIcebergMergeSink(
                     locationProvider,
@@ -223,9 +255,10 @@ public class IcebergPageSinkProvider
                     session,
                     tableHandle.fileFormat(),
                     tableHandle.storageProperties(),
-                    schema,
+                    newSchema,
                     partitionsSpecs,
                     pageSink,
+                    updateInsertPageSink,
                     schema.columns().size(),
                     pageSourceProviderFactory,
                     tableHandle.inputColumns(),
@@ -233,8 +266,26 @@ public class IcebergPageSinkProvider
                     tableHandle.previousDeleteFiles().stream()
                             .collect(toImmutableMap(PositionDeleteFiles::dataFileLocation, PositionDeleteFiles::dataFileRecordCount)),
                     dataSequenceNumbers.buildOrThrow(),
-                    merge.getTableHandle().getNameMappingJson());
+                    firstRowIds.buildOrThrow(),
+                    merge.getTableHandle().getNameMappingJson(),
+                    tableHandle.formatVersion());
         };
+    }
+
+    private static void verifyExistingRowIdColumn(Schema schema, List<IcebergColumnHandle> columns)
+    {
+        Types.NestedField rowIdField = schema.findField(MetadataColumns.ROW_ID.name());
+        if (rowIdField != null && rowIdField.fieldId() != MetadataColumns.ROW_ID.fieldId()) {
+            throw new TrinoException(ICEBERG_BAD_DATA, "Table column names conflict with names reserved for Iceberg metadata columns: [_row_id]");
+        }
+
+        columns.stream()
+                .filter(column -> column.getName().equals(MetadataColumns.ROW_ID.name()))
+                .filter(column -> !column.isRowIdColumn())
+                .findFirst()
+                .ifPresent(column -> {
+                    throw new TrinoException(ICEBERG_BAD_DATA, "Table column names conflict with names reserved for Iceberg metadata columns: [_row_id]");
+                });
     }
 
     private ConnectorPageSink createGenerateEmbeddingsPageSink(ConnectorSession session, IcebergTableExecuteHandle executeHandle)

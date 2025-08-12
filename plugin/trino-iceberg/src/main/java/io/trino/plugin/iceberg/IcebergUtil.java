@@ -116,10 +116,12 @@ import static io.trino.plugin.hive.HiveCompressionCodecs.toCompressionCodec;
 import static io.trino.plugin.iceberg.ColumnIdentity.createColumnIdentity;
 import static io.trino.plugin.iceberg.IcebergColumnHandle.fileModifiedTimeColumnHandle;
 import static io.trino.plugin.iceberg.IcebergColumnHandle.fileModifiedTimeColumnMetadata;
+import static io.trino.plugin.iceberg.IcebergColumnHandle.lastUpdatedSequenceNumberColumnMetadata;
 import static io.trino.plugin.iceberg.IcebergColumnHandle.partitionColumnHandle;
 import static io.trino.plugin.iceberg.IcebergColumnHandle.partitionColumnMetadata;
 import static io.trino.plugin.iceberg.IcebergColumnHandle.pathColumnHandle;
 import static io.trino.plugin.iceberg.IcebergColumnHandle.pathColumnMetadata;
+import static io.trino.plugin.iceberg.IcebergColumnHandle.rowIdColumnMetadata;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_FILESYSTEM_ERROR;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_INVALID_METADATA;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_INVALID_PARTITION_VALUE;
@@ -411,7 +413,7 @@ public final class IcebergUtil
                 .collect(toImmutableList());
     }
 
-    public static List<ColumnMetadata> getColumnMetadatas(Schema schema, TypeManager typeManager)
+    public static List<ColumnMetadata> getColumnMetadatas(Schema schema, TypeManager typeManager, int formatVersion)
     {
         List<NestedField> icebergColumns = schema.columns();
         ImmutableList.Builder<ColumnMetadata> columns = builderWithExpectedSize(icebergColumns.size() + 2);
@@ -433,6 +435,10 @@ public final class IcebergUtil
         columns.add(partitionColumnMetadata());
         columns.add(pathColumnMetadata());
         columns.add(fileModifiedTimeColumnMetadata());
+        if (supportsRowLineage(formatVersion)) {
+            columns.add(rowIdColumnMetadata());
+            columns.add(lastUpdatedSequenceNumberColumnMetadata());
+        }
         return columns.build();
     }
 
@@ -1268,5 +1274,10 @@ public final class IcebergUtil
             partitionTypeBuilder.add(type);
         }
         return partitionTypeBuilder.build();
+    }
+
+    public static boolean supportsRowLineage(int formatVersion)
+    {
+        return formatVersion >= 3;
     }
 }

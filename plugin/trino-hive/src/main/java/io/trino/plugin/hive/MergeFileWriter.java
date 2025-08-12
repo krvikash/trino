@@ -139,7 +139,12 @@ public final class MergeFileWriter
             getOrCreateDeleteFileWriter().appendRows(orcDeletePage);
             deleteRowCount += deletePage.getPositionCount();
         });
-        mergePage.getInsertionsPage().ifPresent(insertPage -> {
+        mergePage.getInsertInsertionsPage().ifPresent(insertPage -> {
+            Page orcInsertPage = buildInsertPage(insertPage, transaction.getWriteId(), inputColumns, bucketValueBlock, insertRowCount);
+            getOrCreateInsertFileWriter().appendRows(orcInsertPage);
+            insertRowCount += insertPage.getPositionCount();
+        });
+        mergePage.getUpdateInsertionsPage().ifPresent(insertPage -> {
             Page orcInsertPage = buildInsertPage(insertPage, transaction.getWriteId(), inputColumns, bucketValueBlock, insertRowCount);
             getOrCreateInsertFileWriter().appendRows(orcInsertPage);
             insertRowCount += insertPage.getPositionCount();

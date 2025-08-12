@@ -2769,6 +2769,296 @@ public class TestIcebergSparkCompatibility
     }
 
     @Test(groups = {ICEBERG, PROFILE_SPECIFIC_TESTS})
+    public void testRowLineageIdOnTrinoTable()
+    {
+        String baseTableName = "test_row_id_" + randomNameSuffix();
+        String trinoTableName = trinoTableName(baseTableName);
+        String sparkTableName = sparkTableName(baseTableName);
+        onTrino().executeQuery("DROP TABLE IF EXISTS " + trinoTableName);
+        onTrino().executeQuery("CREATE TABLE " + trinoTableName + " WITH (format_version = 3) AS SELECT regionkey FROM tpch.tiny.region");
+
+        onSpark().executeQuery(format("UPDATE %s SET regionkey = 10 WHERE regionkey = 0", sparkTableName));
+
+        List<Row> expected = List.of(row(0, 2, 10), row(1, 1, 1), row(2, 1, 2), row(3, 1, 3), row(4, 1, 4));
+        assertThat(onTrino().executeQuery("SELECT \"$row_id\", \"$last_updated_sequence_number\", regionkey FROM " + trinoTableName)).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT _row_id, _last_updated_sequence_number, regionkey FROM " + sparkTableName)).containsOnly(expected);
+
+        onTrino().executeQuery(format("UPDATE %s SET regionkey = 11 WHERE regionkey = 1", trinoTableName));
+
+        expected = List.of(row(0, 2, 10), row(1, 3, 11), row(2, 1, 2), row(3, 1, 3), row(4, 1, 4));
+        assertThat(onTrino().executeQuery("SELECT \"$row_id\", \"$last_updated_sequence_number\", regionkey FROM " + trinoTableName)).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT _row_id, _last_updated_sequence_number, regionkey FROM " + sparkTableName)).containsOnly(expected);
+
+        onTrino().executeQuery(format("UPDATE %s SET regionkey = 111 WHERE regionkey = 11", trinoTableName));
+
+        expected = List.of(row(0, 2, 10), row(1, 4, 111), row(2, 1, 2), row(3, 1, 3), row(4, 1, 4));
+        assertThat(onTrino().executeQuery("SELECT \"$row_id\", \"$last_updated_sequence_number\", regionkey FROM " + trinoTableName)).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT _row_id, _last_updated_sequence_number, regionkey FROM " + sparkTableName)).containsOnly(expected);
+
+        onSpark().executeQuery(format("UPDATE %s SET regionkey = 1111 WHERE regionkey = 111", sparkTableName));
+
+        expected = List.of(row(0, 2, 10), row(1, 5, 1111), row(2, 1, 2), row(3, 1, 3), row(4, 1, 4));
+        assertThat(onTrino().executeQuery("SELECT \"$row_id\", \"$last_updated_sequence_number\", regionkey FROM " + trinoTableName)).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT _row_id, _last_updated_sequence_number, regionkey FROM " + sparkTableName)).containsOnly(expected);
+
+        onTrino().executeQuery("DROP TABLE " + trinoTableName);
+    }
+
+    @Test(groups = {ICEBERG, PROFILE_SPECIFIC_TESTS})
+    public void testRowLineageOnSparkTable()
+    {
+        testRowLineageOnSparkTable("copy-on-write");
+        testRowLineageOnSparkTable("merge-on-read");
+    }
+
+    private static void testRowLineageOnSparkTable(String mergeMode)
+    {
+        String baseTableName = "test_row_id_" + randomNameSuffix();
+        String trinoTableName = trinoTableName(baseTableName);
+        String sparkTableName = sparkTableName(baseTableName);
+        onTrino().executeQuery("DROP TABLE IF EXISTS " + trinoTableName);
+        onSpark().executeQuery(format("CREATE TABLE %1$s (regionkey BIGINT) USING ICEBERG TBLPROPERTIES('format-version' = 3, 'write.merge.mode' = '%2$s', 'write.update.mode' = '%2$s')", sparkTableName, mergeMode));
+        onSpark().executeQuery(format("INSERT INTO %s values(0),(1),(2),(3),(4)", sparkTableName));
+
+        onSpark().executeQuery(format("UPDATE %s SET regionkey = 10 WHERE regionkey = 0", sparkTableName));
+
+        List<Row> expected = List.of(row(0, 2, 10), row(1, 1, 1), row(2, 1, 2), row(3, 1, 3), row(4, 1, 4));
+        assertThat(onTrino().executeQuery("SELECT \"$row_id\", \"$last_updated_sequence_number\", regionkey FROM " + trinoTableName)).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT _row_id, _last_updated_sequence_number, regionkey FROM " + sparkTableName)).containsOnly(expected);
+
+        onTrino().executeQuery(format("UPDATE %s SET regionkey = 11 WHERE regionkey = 1", trinoTableName));
+
+        expected = List.of(row(0, 2, 10), row(1, 3, 11), row(2, 1, 2), row(3, 1, 3), row(4, 1, 4));
+        assertThat(onTrino().executeQuery("SELECT \"$row_id\", \"$last_updated_sequence_number\", regionkey FROM " + trinoTableName)).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT _row_id, _last_updated_sequence_number, regionkey FROM " + sparkTableName)).containsOnly(expected);
+
+        onTrino().executeQuery(format("UPDATE %s SET regionkey = 111 WHERE regionkey = 11", trinoTableName));
+
+        expected = List.of(row(0, 2, 10), row(1, 4, 111), row(2, 1, 2), row(3, 1, 3), row(4, 1, 4));
+        assertThat(onTrino().executeQuery("SELECT \"$row_id\", \"$last_updated_sequence_number\", regionkey FROM " + trinoTableName)).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT _row_id, _last_updated_sequence_number, regionkey FROM " + sparkTableName)).containsOnly(expected);
+
+        onSpark().executeQuery(format("UPDATE %s SET regionkey = 1111 WHERE regionkey = 111", sparkTableName));
+
+        expected = List.of(row(0, 2, 10), row(1, 5, 1111), row(2, 1, 2), row(3, 1, 3), row(4, 1, 4));
+        assertThat(onTrino().executeQuery("SELECT \"$row_id\", \"$last_updated_sequence_number\", regionkey FROM " + trinoTableName)).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT _row_id, _last_updated_sequence_number, regionkey FROM " + sparkTableName)).containsOnly(expected);
+
+        onTrino().executeQuery("DROP TABLE " + trinoTableName);
+    }
+
+    @Test(groups = {ICEBERG, PROFILE_SPECIFIC_TESTS})
+    public void testOptimizeRowLineage()
+    {
+        testOptimizeRowLineage("copy-on-write");
+        testOptimizeRowLineage("merge-on-read");
+    }
+
+    private static void testOptimizeRowLineage(String mergeMode)
+    {
+        String baseTableName = "test_optimize_" + randomNameSuffix();
+        String trinoTableName = trinoTableName(baseTableName);
+        String sparkTableName = sparkTableName(baseTableName);
+        onTrino().executeQuery("DROP TABLE IF EXISTS " + trinoTableName);
+        onSpark().executeQuery(format("CREATE TABLE %1$s (key BIGINT, value STRING) USING ICEBERG TBLPROPERTIES('format-version' = 3, 'write.merge.mode' = '%2$s', 'write.update.mode' = '%2$s')", sparkTableName, mergeMode));
+
+        onSpark().executeQuery(format("INSERT INTO %s values (0, 'zero'), (1, 'one')", sparkTableName));
+        onSpark().executeQuery(format("INSERT INTO %s values (2, 'two')", sparkTableName));
+        onSpark().executeQuery(format("INSERT INTO %s values (3, 'three')", sparkTableName));
+        onSpark().executeQuery(format("INSERT INTO %s values (4, 'four')", sparkTableName));
+
+        List<Row> expected = List.of(row(0, 1, 0, "zero"), row(1, 1, 1, "one"), row(2, 2, 2, "two"), row(3, 3, 3, "three"), row(4, 4, 4, "four"));
+        assertThat(onTrino().executeQuery("SELECT \"$row_id\", \"$last_updated_sequence_number\", key, value FROM " + trinoTableName)).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT _row_id, _last_updated_sequence_number, key, value FROM " + sparkTableName)).containsOnly(expected);
+
+        onTrino().executeQuery(format("UPDATE %s SET value = 'zero update' WHERE key = 0", trinoTableName));
+        onSpark().executeQuery(format("UPDATE %s SET value = 'four update' WHERE key = 4", sparkTableName));
+
+        expected = List.of(row(0, 5, 0, "zero update"), row(1, 1, 1, "one"), row(2, 2, 2, "two"), row(3, 3, 3, "three"), row(4, 6, 4, "four update"));
+        assertThat(onTrino().executeQuery("SELECT \"$row_id\", \"$last_updated_sequence_number\", key, value FROM " + trinoTableName)).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT _row_id, _last_updated_sequence_number, key, value FROM " + sparkTableName)).containsOnly(expected);
+
+        onTrino().executeQuery("ALTER TABLE " + trinoTableName + " EXECUTE OPTIMIZE");
+
+        assertThat(onTrino().executeQuery("SELECT \"$row_id\", \"$last_updated_sequence_number\", key, value FROM " + trinoTableName)).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT _row_id, _last_updated_sequence_number, key, value FROM " + sparkTableName)).containsOnly(expected);
+
+        onTrino().executeQuery("DROP TABLE " + trinoTableName);
+    }
+
+    @Test(groups = {ICEBERG, PROFILE_SPECIFIC_TESTS})
+    public void testMergeMultipleOperationsRowLineage()
+    {
+        testMergeMultipleOperationsRowLineage("copy-on-write");
+        testMergeMultipleOperationsRowLineage("merge-on-read");
+    }
+
+    private static void testMergeMultipleOperationsRowLineage(String mergeMode)
+    {
+        String baseTableName = "test_row_id_merge_" + randomNameSuffix();
+        String trinoTableName = trinoTableName(baseTableName);
+        String sparkTableName = sparkTableName(baseTableName);
+        onTrino().executeQuery("DROP TABLE IF EXISTS " + trinoTableName);
+
+        onSpark().executeQuery(format("CREATE TABLE %1$s (customer STRING, zipcode BIGINT, purchase BIGINT) USING ICEBERG TBLPROPERTIES('format-version' = 3, 'write.merge.mode' = '%2$s', 'write.update.mode' = '%2$s')", sparkTableName, mergeMode));
+
+        onTrino().executeQuery(format("""
+                INSERT INTO %s (customer, zipcode, purchase)
+                        VALUES ('joe_0', 91000, 0),
+                               ('joe_1', 91000, 1),
+                               ('joe_2', 92000, 2),
+                               ('joe_3', 92000, 3)
+                """, trinoTableName));
+
+        List<Row> expected = List.of(
+                row("joe_0", 91000, 0, 0, 1),
+                row("joe_1", 91000, 1, 1, 1),
+                row("joe_2", 92000, 2, 2, 1),
+                row("joe_3", 92000, 3, 3, 1));
+        assertThat(onTrino().executeQuery("SELECT customer, zipcode, purchase, \"$row_id\", \"$last_updated_sequence_number\" FROM " + trinoTableName)).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT customer, zipcode, purchase, _row_id, _last_updated_sequence_number FROM " + sparkTableName)).containsOnly(expected);
+
+        onSpark().executeQuery(format("MERGE INTO %s t USING (VALUES ('joe_2', 83000, 2), ('joe_3', 83000, 3)) AS s", sparkTableName) +
+                "    ON t.customer = s.col1" +
+                "    WHEN MATCHED THEN UPDATE SET purchase = s.col3, zipcode = s.col2");
+
+        expected = List.of(
+                row("joe_0", 91000, 0, 0, 1),
+                row("joe_1", 91000, 1, 1, 1),
+                row("joe_2", 83000, 2, 2, 2),
+                row("joe_3", 83000, 3, 3, 2));
+
+        assertThat(onTrino().executeQuery("SELECT customer, zipcode, purchase, \"$row_id\", \"$last_updated_sequence_number\" FROM " + trinoTableName)).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT customer, zipcode, purchase, _row_id, _last_updated_sequence_number FROM " + sparkTableName)).containsOnly(expected);
+
+
+        onSpark().executeQuery(format("INSERT INTO %s (customer, zipcode, purchase) VALUES ('joe_4', 74000, 4), ('joe_5', 74000, 5)", sparkTableName));
+        // we keep original _row_id for updated rows, but new rows get new _row_id - increasing but mandatory continuous
+
+        // new row_id could differ for different merge modes for insert operations
+        // they should be unique and increasing, but not mandatory continuous to previous ones
+        int joe4RowId = mergeMode.equals("merge-on-read") ? 6 : 8;
+        int joe5RowId = mergeMode.equals("merge-on-read") ? 7 : 9;
+        expected = List.of(
+                row("joe_0", 91000, 0, 0, 1),
+                row("joe_1", 91000, 1, 1, 1),
+                row("joe_2", 83000, 2, 2, 2),
+                row("joe_3", 83000, 3, 3, 2),
+                row("joe_4", 74000, 4, joe4RowId, 3),
+                row("joe_5", 74000, 5, joe5RowId, 3));
+
+        assertThat(onTrino().executeQuery("SELECT customer, zipcode, purchase, \"$row_id\", \"$last_updated_sequence_number\" FROM " + trinoTableName)).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT customer, zipcode, purchase, _row_id, _last_updated_sequence_number FROM " + sparkTableName)).containsOnly(expected);
+
+        onTrino().executeQuery(format("MERGE INTO %s t USING (VALUES ('joe_0', 85000, 0), ('joe_1', 85000, 1), ('joe_2', 85000, 2), ('joe_3', 85000, 3), ('joe_4', 85000, 4), ('joe_6', 85000, 6)) AS s(customer, zipcode, purchase)", trinoTableName) +
+                        "    ON t.customer = s.customer" +
+                        "    WHEN MATCHED AND t.zipcode = 91000 THEN DELETE" +
+                        "    WHEN MATCHED AND s.zipcode = 85000 THEN UPDATE SET zipcode = 60000" +
+                        "    WHEN MATCHED THEN UPDATE SET zipcode = s.zipcode" +
+                        "    WHEN NOT MATCHED THEN INSERT (customer, zipcode, purchase) VALUES(s.customer, s.zipcode, s.purchase)");
+        // we keep original _row_id for updated rows, but new rows get new _row_id - increasing but mandatory sequential
+        expected = List.of(
+                row("joe_2", 60000, 2, 2, 4),
+                row("joe_3", 60000, 3, 3, 4),
+                row("joe_4", 60000, 4, joe4RowId, 4),
+                row("joe_5", 74000, 5, joe5RowId, 3));
+
+        assertThat(onTrino().executeQuery("SELECT customer, zipcode, purchase, \"$row_id\", \"$last_updated_sequence_number\" FROM " + trinoTableName + " WHERE \"$row_id\" <= " + joe5RowId)).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT customer, zipcode, purchase, _row_id, _last_updated_sequence_number FROM " + sparkTableName + " WHERE _row_id <= " + joe5RowId)).containsOnly(expected);
+
+        // The new added row we just know the _row_id is greater than last added row_id, but we don't know the exact value
+        assertThat(onTrino().executeQuery(("SELECT customer, zipcode, purchase, \"$last_updated_sequence_number\" FROM " + trinoTableName + " WHERE \"$row_id\" > " + joe5RowId)))
+                .containsOnly(row("joe_6", 85000, 6, 4));
+
+        onTrino().executeQuery("DROP TABLE " + trinoTableName);
+    }
+
+    @Test(groups = {ICEBERG, PROFILE_SPECIFIC_TESTS})
+    public void testUpgradeTableToV3FromTrinoWithRowLineage()
+    {
+        String baseTableName = "test_row_id_upgrade_" + randomNameSuffix();
+        String trinoTableName = trinoTableName(baseTableName);
+        String sparkTableName = sparkTableName(baseTableName);
+        onTrino().executeQuery("DROP TABLE IF EXISTS " + trinoTableName);
+        onTrino().executeQuery("CREATE TABLE " + trinoTableName + " WITH (format_version = 2) AS SELECT * FROM tpch.tiny.nation");
+
+        assertQueryFailure(() -> onTrino().executeQuery("SELECT \"$row_id\" FROM " + trinoTableName))
+                .hasStackTraceContaining("Column '$row_id' cannot be resolved");
+
+        onTrino().executeQuery("ALTER TABLE " + trinoTableName + " SET PROPERTIES format_version = 3");
+
+        List<Row> expectedTrino = List.of(row(null, 1, 10));
+        assertThat(onTrino().executeQuery("SELECT \"$row_id\",\"$last_updated_sequence_number\", nationkey FROM " + trinoTableName + " WHERE nationkey = 10")).containsOnly(expectedTrino);
+        // Spark not able to read sequence number after upgrade but Trino can
+        List<Row> expectedSpark = List.of(row(null, null, 10));
+        assertThat(onSpark().executeQuery("SELECT _row_id, _last_updated_sequence_number, nationkey FROM " + sparkTableName + " WHERE nationkey = 10")).containsOnly(expectedSpark);
+
+        onTrino().executeQuery("UPDATE " + trinoTableName + " SET nationkey = 110 WHERE nationkey = 10");
+
+        List<Row> expected = List.of(row(0, 2, 110));
+        assertThat(onTrino().executeQuery("SELECT \"$row_id\",\"$last_updated_sequence_number\", nationkey FROM " + trinoTableName + " WHERE nationkey = 110")).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT _row_id, _last_updated_sequence_number, nationkey FROM " + sparkTableName + " WHERE nationkey = 110")).containsOnly(expected);
+    }
+
+    @Test(groups = {ICEBERG, PROFILE_SPECIFIC_TESTS})
+    public void testUpgradeTableToV3FromSparkWithRowLineageMergeOnRead()
+    {
+        String baseTableName = "test_row_id_upgrade_" + randomNameSuffix();
+        String trinoTableName = trinoTableName(baseTableName);
+        String sparkTableName = sparkTableName(baseTableName);
+        onTrino().executeQuery("DROP TABLE IF EXISTS " + trinoTableName);
+
+        onSpark().executeQuery(format("CREATE TABLE %s (nationkey BIGINT) USING ICEBERG TBLPROPERTIES('format-version' = 2, 'write.merge.mode' = 'merge-on-read', 'write.update.mode' = 'merge-on-read')", sparkTableName));
+        onSpark().executeQuery(format("INSERT INTO %s values(0),(1),(2),(3),(4),(10)", sparkTableName));
+
+        assertQueryFailure(() -> onTrino().executeQuery("SELECT \"$row_id\" FROM " + trinoTableName))
+                .hasStackTraceContaining("Column '$row_id' cannot be resolved");
+
+        onSpark().executeQuery(format("ALTER TABLE %s SET TBLPROPERTIES ('format-version' = 3, 'write.merge.mode' = 'merge-on-read', 'write.update.mode' = 'merge-on-read')", sparkTableName));
+
+        List<Row> expectedTrino = List.of(row(null, 1, 10));
+        assertThat(onTrino().executeQuery("SELECT \"$row_id\",\"$last_updated_sequence_number\", nationkey FROM " + trinoTableName + " WHERE nationkey = 10")).containsOnly(expectedTrino);
+        // Spark not able to read sequence number after upgrade but Trino can
+        List<Row> expectedSpark = List.of(row(null, null, 10));
+        assertThat(onSpark().executeQuery("SELECT _row_id, _last_updated_sequence_number, nationkey FROM " + sparkTableName + " WHERE nationkey = 10")).containsOnly(expectedSpark);
+
+        onTrino().executeQuery("UPDATE " + trinoTableName + " SET nationkey = 110 WHERE nationkey = 10");
+
+        List<Row> expected = List.of(row(0, 2, 110));
+        assertThat(onTrino().executeQuery("SELECT \"$row_id\",\"$last_updated_sequence_number\", nationkey FROM " + trinoTableName + " WHERE nationkey = 110")).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT _row_id, _last_updated_sequence_number, nationkey FROM " + sparkTableName + " WHERE nationkey = 110")).containsOnly(expected);
+    }
+
+    @Test(groups = {ICEBERG, PROFILE_SPECIFIC_TESTS})
+    public void testUpgradeTableToV3FromSparkWithRowLineageCopyOnWrite()
+    {
+        String baseTableName = "test_row_id_upgrade_" + randomNameSuffix();
+        String trinoTableName = trinoTableName(baseTableName);
+        String sparkTableName = sparkTableName(baseTableName);
+        onTrino().executeQuery("DROP TABLE IF EXISTS " + trinoTableName);
+
+        onSpark().executeQuery(format("CREATE TABLE %s (nationkey BIGINT) USING ICEBERG TBLPROPERTIES('format-version' = 2, 'write.merge.mode' = 'copy-on-write', 'write.update.mode' = 'copy-on-write')", sparkTableName));
+        onSpark().executeQuery(format("INSERT INTO %s values(0),(1),(2),(3),(4),(10)", sparkTableName));
+
+        assertQueryFailure(() -> onTrino().executeQuery("SELECT \"$row_id\" FROM " + trinoTableName))
+                .hasStackTraceContaining("Column '$row_id' cannot be resolved");
+
+        onSpark().executeQuery(format("ALTER TABLE %s SET TBLPROPERTIES ('format-version' = 3, 'write.merge.mode' = 'copy-on-write', 'write.update.mode' = 'copy-on-write')", sparkTableName));
+
+        List<Row> expectedTrino = List.of(row(null, 1, 10));
+        assertThat(onTrino().executeQuery("SELECT \"$row_id\",\"$last_updated_sequence_number\", nationkey FROM " + trinoTableName + " WHERE nationkey = 10")).containsOnly(expectedTrino);
+        // Spark not able to read sequence number after upgrade but Trino can
+        List<Row> expectedSpark = List.of(row(null, null, 10));
+        assertThat(onSpark().executeQuery("SELECT _row_id, _last_updated_sequence_number, nationkey FROM " + sparkTableName + " WHERE nationkey = 10")).containsOnly(expectedSpark);
+
+        onTrino().executeQuery("UPDATE " + trinoTableName + " SET nationkey = 110 WHERE nationkey = 10");
+
+        List<Row> expected = List.of(row(0, 2, 110));
+        assertThat(onTrino().executeQuery("SELECT \"$row_id\",\"$last_updated_sequence_number\", nationkey FROM " + trinoTableName + " WHERE nationkey = 110")).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT _row_id, _last_updated_sequence_number, nationkey FROM " + sparkTableName + " WHERE nationkey = 110")).containsOnly(expected);
+    }
+
+    @Test(groups = {ICEBERG, PROFILE_SPECIFIC_TESTS})
     public void testTrinoAnalyzeWithNonLowercaseColumnName()
     {
         String baseTableName = "test_trino_analyze_with_uppercase_field" + randomNameSuffix();

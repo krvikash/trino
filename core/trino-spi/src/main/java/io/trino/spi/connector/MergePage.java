@@ -17,7 +17,6 @@ import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 
 import java.util.Optional;
-import java.util.stream.IntStream;
 
 import static io.trino.spi.connector.ConnectorMergeSink.DELETE_OPERATION_NUMBER;
 import static io.trino.spi.connector.ConnectorMergeSink.INSERT_OPERATION_NUMBER;
@@ -35,11 +34,13 @@ public final class MergePage
 {
     private final Optional<Page> deletionsPage;
     private final Optional<Page> insertionsPage;
+    private final Optional<Page> updateInsertionsPage;
 
-    private MergePage(Optional<Page> deletionsPage, Optional<Page> insertionsPage)
+    private MergePage(Optional<Page> deletionsPage, Optional<Page> insertionsPage, Optional<Page> updateInsertionsPage)
     {
         this.deletionsPage = requireNonNull(deletionsPage);
         this.insertionsPage = requireNonNull(insertionsPage);
+        this.updateInsertionsPage = requireNonNull(updateInsertionsPage);
     }
 
     /**
@@ -51,11 +52,19 @@ public final class MergePage
     }
 
     /**
-     * @return insert page with data columns
+     * @return insert page with data columns, only contains new added rows
      */
-    public Optional<Page> getInsertionsPage()
+    public Optional<Page> getInsertInsertionsPage()
     {
         return insertionsPage;
+    }
+
+    /**
+     * @return insert page with data columns, only contains rows that are updated
+     */
+    public Optional<Page> getUpdateInsertionsPage()
+    {
+        return updateInsertionsPage;
     }
 
     public static MergePage createDeleteAndInsertPages(Page inputPage, int dataColumnCount)
@@ -74,8 +83,10 @@ public final class MergePage
 
         int[] deletePositions = new int[positionCount];
         int[] insertPositions = new int[positionCount];
+        int[] updateInsertPositions = new int[positionCount];
         int deletePositionCount = 0;
         int insertPositionCount = 0;
+        int updateInsertPositionCount = 0;
 
         for (int position = 0; position < positionCount; position++) {
             byte operation = TINYINT.getByte(operationBlock, position);
@@ -84,9 +95,13 @@ public final class MergePage
                     deletePositions[deletePositionCount] = position;
                     deletePositionCount++;
                     break;
-                case INSERT_OPERATION_NUMBER, UPDATE_INSERT_OPERATION_NUMBER:
+                case INSERT_OPERATION_NUMBER:
                     insertPositions[insertPositionCount] = position;
                     insertPositionCount++;
+                    break;
+                case UPDATE_INSERT_OPERATION_NUMBER:
+                    updateInsertPositions[updateInsertPositionCount] = position;
+                    updateInsertPositionCount++;
                     break;
                 default:
                     throw new IllegalArgumentException("Invalid merge operation: " + operation);
@@ -107,11 +122,21 @@ public final class MergePage
 
         Optional<Page> insertPage = Optional.empty();
         if (insertPositionCount > 0) {
-            insertPage = Optional.of(inputPage
-                    .getColumns(IntStream.range(0, dataColumnCount).toArray())
-                    .getPositions(insertPositions, 0, insertPositionCount));
+            insertPage = Optional.of(inputPage.getPositions(insertPositions, 0, insertPositionCount));
         }
 
-        return new MergePage(deletePage, insertPage);
+        Optional<Page> updateInsertPage = Optional.empty();
+        if (updateInsertPositionCount > 0) {
+            int[] columns = new int[dataColumnCount + 1];
+            for (int i = 0; i < dataColumnCount; i++) {
+                columns[i] = i;
+            }
+            columns[dataColumnCount] = dataColumnCount + 2; // row ID channel
+            updateInsertPage = Optional.of(inputPage
+                    .getColumns(columns)
+                    .getPositions(updateInsertPositions, 0, updateInsertPositionCount));
+        }
+
+        return new MergePage(deletePage, insertPage, updateInsertPage);
     }
 }

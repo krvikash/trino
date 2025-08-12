@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.units.DataSize;
 import io.trino.plugin.iceberg.IcebergColumnHandle;
+import io.trino.plugin.iceberg.IcebergConfig;
 import io.trino.plugin.iceberg.IcebergFileFormat;
 import io.trino.plugin.iceberg.IcebergSplit;
 import io.trino.plugin.iceberg.IcebergTableHandle;
@@ -261,8 +262,9 @@ public class IcebergProxiedConnectorTransformerTest
                 SplitWeight.standard(),
                 TupleDomain.all(),
                 ImmutableMap.of(),
-                1L
-        );
+                1L,
+                null,
+                new IcebergConfig().getFormatVersion());
         DispatcherTableHandle dispatcherTableHandle = new DispatcherTableHandle(
                 SCHEMA_NAME,
                 TABLE_NAME,

@@ -122,7 +122,7 @@ public final class IcebergAvroDataConversion
             requireNonNull(page, "page is null");
             this.types = ImmutableList.copyOf(requireNonNull(types, "types is null"));
             this.icebergSchema = requireNonNull(icebergSchema, "icebergSchema is null");
-            checkArgument(page.getChannelCount() == types.size(), "the page's channel count must be equal to the size of types");
+            checkArgument(page.getChannelCount() == types.size(), "the page's channel count must be equal to the size of types, page channel count %s, types count: %s", page.getChannelCount(), types.size());
             checkArgument(types.size() == icebergSchema.columns().size(), "the size of types must be equal to the number of columns in icebergSchema");
             icebergTypes = icebergSchema.columns().stream()
                     .map(Types.NestedField::type)

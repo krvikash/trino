@@ -344,7 +344,9 @@ public class TestIcebergCacheIds
                 SplitWeight.standard(),
                 TupleDomain.all(),
                 ImmutableMap.of(),
-                0);
+                0L,
+                null,
+                2);
     }
 
     private static IcebergTableHandle createIcebergTableHandle(

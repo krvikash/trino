@@ -131,8 +131,11 @@ public class TableChangesFunctionProcessor
                 split.partitionDataJson(),
                 split.fileFormat(),
                 split.fileIoProperties(),
-                0,
-                functionHandle.nameMappingJson().map(NameMappingParser::fromJson));
+                0L,
+                null,
+                functionHandle.nameMappingJson().map(NameMappingParser::fromJson),
+                // looks like version doesn't matter for table changes
+                2);
         this.delegateColumnMap = delegateColumnMap;
 
         this.changeTypeIndex = changeTypeIndex;

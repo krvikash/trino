@@ -33,7 +33,9 @@ import static io.airlift.slice.SizeOf.instanceSize;
 import static io.airlift.slice.SizeOf.sizeOf;
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.FILE_MODIFIED_TIME;
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.FILE_PATH;
+import static io.trino.plugin.iceberg.IcebergMetadataColumn.LAST_UPDATED_SEQUENCE_NUMBER;
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.PARTITION;
+import static io.trino.plugin.iceberg.IcebergMetadataColumn.ROW_ID;
 import static java.util.Objects.requireNonNull;
 import static org.apache.iceberg.MetadataColumns.IS_DELETED;
 import static org.apache.iceberg.MetadataColumns.ROW_POSITION;
@@ -224,6 +226,18 @@ public class IcebergColumnHandle
         return id == FILE_MODIFIED_TIME.getId();
     }
 
+    @JsonIgnore
+    public boolean isRowIdColumn()
+    {
+        return id == ROW_ID.getId();
+    }
+
+    @JsonIgnore
+    public boolean isLastUpdatedSequenceNumberColumn()
+    {
+        return id == LAST_UPDATED_SEQUENCE_NUMBER.getId();
+    }
+
     @Override
     public int hashCode()
     {
@@ -309,6 +323,38 @@ public class IcebergColumnHandle
         return ColumnMetadata.builder()
                 .setName(FILE_MODIFIED_TIME.getColumnName())
                 .setType(FILE_MODIFIED_TIME.getType())
+                .setHidden(true)
+                .build();
+    }
+
+    public static IcebergColumnHandle rowIdColumnHandle()
+    {
+        return IcebergColumnHandle.builder(columnIdentity(ROW_ID))
+                .fieldType(ROW_ID.getType(), ROW_ID.getType())
+                .build();
+    }
+
+    public static ColumnMetadata rowIdColumnMetadata()
+    {
+        return ColumnMetadata.builder()
+                .setName(ROW_ID.getColumnName())
+                .setType(ROW_ID.getType())
+                .setHidden(true)
+                .build();
+    }
+
+    public static IcebergColumnHandle lastUpdatedSequenceNumberColumnColumnHandle()
+    {
+        return IcebergColumnHandle.builder(columnIdentity(LAST_UPDATED_SEQUENCE_NUMBER))
+                .fieldType(LAST_UPDATED_SEQUENCE_NUMBER.getType(), LAST_UPDATED_SEQUENCE_NUMBER.getType())
+                .build();
+    }
+
+    public static ColumnMetadata lastUpdatedSequenceNumberColumnMetadata()
+    {
+        return ColumnMetadata.builder()
+                .setName(LAST_UPDATED_SEQUENCE_NUMBER.getColumnName())
+                .setType(LAST_UPDATED_SEQUENCE_NUMBER.getType())
                 .setHidden(true)
                 .build();
     }

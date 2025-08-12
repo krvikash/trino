@@ -26,6 +26,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static io.trino.testing.TestingNames.randomNameSuffix;
+import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestIcebergAddFilesProcedure
         extends AbstractTestQueryFramework
@@ -442,6 +443,47 @@ final class TestIcebergAddFilesProcedure
         assertUpdate("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + directory + "', 'ORC')");
 
         assertQuery("SELECT * FROM " + icebergTableName, "VALUES 1, 2");
+
+        assertUpdate("DROP TABLE hive.tpch." + hiveTableName);
+        assertUpdate("DROP TABLE iceberg.tpch." + icebergTableName);
+    }
+
+    @Test
+    void testAddFilesRowLineagePreExistingColumn()
+    {
+        String hiveTableName = "test_add_files_pre_existing_" + randomNameSuffix();
+        String icebergTableName = "test_add_files_pre_existing_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE iceberg.tpch." + icebergTableName + " AS SELECT 1 _row_id", 1);
+        assertUpdate("CREATE TABLE hive.tpch." + hiveTableName + " AS SELECT 2 _row_id", 1);
+
+        String path = (String) computeScalar("SELECT \"$path\" FROM hive.tpch." + hiveTableName);
+        String directory = Location.of(path).parentDirectory().toString();
+
+        assertUpdate("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + directory + "', 'ORC')");
+
+        assertThat(query("SELECT \"$row_id\" FROM " + icebergTableName)).failure().hasStackTraceContaining("Column '$row_id' cannot be resolved");
+        assertThat(query("SELECT \"$last_updated_sequence_number\" FROM " + icebergTableName)).failure().hasStackTraceContaining("Column '$last_updated_sequence_number' cannot be resolved");
+        assertThat(query("SELECT _row_id FROM " + icebergTableName)).matches("VALUES (1), (2)");
+
+        assertUpdate("DROP TABLE hive.tpch." + hiveTableName);
+        assertUpdate("DROP TABLE iceberg.tpch." + icebergTableName);
+    }
+
+    @Test
+    void testAddFilesFromTableRowLineagePreExistingColumn()
+    {
+        String hiveTableName = "test_add_files_from_table_pre_existing_" + randomNameSuffix();
+        String icebergTableName = "test_add_files_from_table_pre_existing_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE iceberg.tpch." + icebergTableName + " AS SELECT 1 _row_id", 1);
+        assertUpdate("CREATE TABLE hive.tpch." + hiveTableName + " AS SELECT 2 _row_id", 1);
+
+        assertUpdate("ALTER TABLE " + icebergTableName + " EXECUTE add_files_from_table('tpch', '" + hiveTableName + "')");
+
+        assertThat(query("SELECT \"$row_id\" FROM " + icebergTableName)).failure().hasStackTraceContaining("Column '$row_id' cannot be resolved");
+        assertThat(query("SELECT \"$last_updated_sequence_number\" FROM " + icebergTableName)).failure().hasStackTraceContaining("Column '$last_updated_sequence_number' cannot be resolved");
+        assertThat(query("SELECT _row_id FROM " + icebergTableName)).matches("VALUES (1), (2)");
 
         assertUpdate("DROP TABLE hive.tpch." + hiveTableName);
         assertUpdate("DROP TABLE iceberg.tpch." + icebergTableName);

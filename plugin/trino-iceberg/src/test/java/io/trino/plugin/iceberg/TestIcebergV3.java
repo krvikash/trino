@@ -13,9 +13,12 @@
  */
 package io.trino.plugin.iceberg;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
+import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.metastore.HiveMetastore;
+import io.trino.plugin.hive.TestingHivePlugin;
 import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.OutputNode;
 import io.trino.sql.planner.plan.ValuesNode;
@@ -28,15 +31,35 @@ import org.apache.iceberg.types.Types;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Stream;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static io.trino.plugin.iceberg.IcebergFileFormat.AVRO;
+import static io.trino.plugin.iceberg.IcebergFileFormat.ORC;
+import static io.trino.plugin.iceberg.IcebergFileFormat.PARQUET;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getHiveMetastore;
 import static io.trino.plugin.iceberg.IcebergTestUtils.listFiles;
+import static io.trino.plugin.iceberg.util.EqualityDeleteUtils.writeEqualityDeleteForTable;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.node;
 import static io.trino.testing.TestingConnectorSession.SESSION;
 import static io.trino.testing.TestingNames.randomNameSuffix;
+import static java.lang.String.format;
+import static java.time.ZoneOffset.UTC;
 import static org.apache.iceberg.TableProperties.ENCRYPTION_TABLE_KEY;
 import static org.apache.iceberg.TableUtil.formatVersion;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,10 +76,18 @@ public class TestIcebergV3
     protected QueryRunner createQueryRunner()
             throws Exception
     {
+        Path dataDirectory = Files.createTempDirectory("_test_hidden");
         QueryRunner queryRunner = IcebergQueryRunner.builder()
+                .setMetastoreDirectory(dataDirectory.toFile())
                 .addIcebergProperty("iceberg.format-version", "3")
                 .addIcebergProperty("iceberg.max-format-version", "3")
+                .addIcebergProperty("iceberg.add-files-procedure.enabled", "true")
                 .build();
+
+        queryRunner.installPlugin(new TestingHivePlugin(dataDirectory));
+        queryRunner.createCatalog("hive", "hive", ImmutableMap.<String, String>builder()
+                .put("hive.security", "allow-all")
+                .buildOrThrow());
 
         metastore = getHiveMetastore(queryRunner);
         fileSystemFactory = getFileSystemFactory(queryRunner);
@@ -142,6 +173,38 @@ public class TestIcebergV3
         assertUpdate("ALTER TABLE " + tableName + " SET PROPERTIES format_version = 3");
         assertThat(formatVersion(loadTable(tableName))).isEqualTo(3);
         assertQuery("SELECT * FROM " + tableName, "SELECT * FROM nation");
+    }
+
+    @ParameterizedTest
+    @MethodSource("formatMergeMode")
+    void testUpgradeTableToV3FromTrinoWithRowLineage(IcebergFileFormat format, String mergeMode)
+    {
+        String tableName = "test_upgrade_table_to_v3_from_trino_" + randomNameSuffix();
+        assertUpdate("CREATE TABLE " + tableName + " WITH (format_version = 2, format = '" + format + "') AS SELECT * FROM tpch.tiny.nation", 25);
+        assertThat(formatVersion(loadTable(tableName))).isEqualTo(2);
+
+        assertThat(query("SELECT \"$row_id\" FROM " + tableName)).failure()
+                .hasMessage("line 1:8: Column '$row_id' cannot be resolved");
+        assertThat(query("SELECT \"$last_updated_sequence_number\" FROM " + tableName)).failure()
+                .hasMessage("line 1:8: Column '$last_updated_sequence_number' cannot be resolved");
+
+        // v2 -> v3
+        assertUpdate("ALTER TABLE " + tableName + " SET PROPERTIES format_version = 3");
+        assertThat(formatVersion(loadTable(tableName))).isEqualTo(3);
+        Table icebergTable = loadTable(tableName);
+        icebergTable.updateProperties().set("write.merge.mode", mergeMode).commit();
+        assertQuery("SELECT * FROM " + tableName, "SELECT * FROM nation");
+
+        // data sequence number from file is 1, first_row_id is null
+        assertThat(query("SELECT \"$row_id\",\"$last_updated_sequence_number\", nationkey FROM " + tableName + " WHERE nationkey = 10"))
+                .matches("VALUES ( CAST(NULL AS bigint), BIGINT '1', BIGINT '10')");
+        assertUpdate("UPDATE " + tableName + " SET nationkey = 110 WHERE nationkey = 10", 1);
+        assertThat(query("SELECT \"$last_updated_sequence_number\", nationkey FROM " + tableName + " WHERE nationkey = 110"))
+                .matches("VALUES (BIGINT '2', BIGINT '110')");
+
+        // sometimes first_row_id from file is 0, as freshly created table, sometimes it is 24, as next index of row_id in nation table
+        assertThat(query("SELECT \"$row_id\" FROM " + tableName + " WHERE nationkey = 110")).result().onlyColumnAsSet()
+                .containsAnyOf(0L, 24L);
     }
 
     @Test
@@ -256,6 +319,1031 @@ public class TestIcebergV3
                     .matches("VALUES 1");
             assertThat(query("SELECT * FROM " + table.getName() + " WHERE x = timestamp '2022-07-26 12:13:14.123456789'"))
                     .isFullyPushedDown();
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
+    void testRowLineageWithPreExistingRowId(IcebergFileFormat format)
+    {
+        try (TestTable table = newTrinoTable("test_existing_row_id", "(name varchar, _row_id bigint) WITH (format = '" + format + "')")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES ('alice', BIGINT '0')", 1);
+            assertThat(query("SELECT * FROM " + table.getName())).failure()
+                    .hasMessage("Table column names conflict with names reserved for Iceberg metadata columns: [_row_id]");
+            assertThat(query("SELECT _row_id FROM " + table.getName())).failure()
+                    .hasMessage("Table column names conflict with names reserved for Iceberg metadata columns: [_row_id]");
+            assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
+                    .matches("VALUES (VARCHAR 'alice', CAST(NULL AS bigint), BIGINT '2')");
+            assertThat(query("UPDATE " + table.getName() + " SET name = 'BOB' WHERE name = 'alice'")).failure()
+                    .hasMessage("Table column names conflict with names reserved for Iceberg metadata columns: [_row_id]");
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("formatMergeMode")
+    void dropRowLineageColumns(IcebergFileFormat format, String mergeMode)
+    {
+        try (TestTable table = newTrinoTable("test_row_" + mergeMode.replaceAll("-", "_"), "(x varchar, y varchar) WITH (format = '" + format + "')")) {
+            Table icebergTable = loadTable(table.getName());
+            icebergTable.updateProperties().set("write.merge.mode", mergeMode).commit();
+
+            assertQueryFails("ALTER TABLE " + table.getName() + " DROP COLUMN \"$row_id\"", "line 1:1: Cannot drop hidden column");
+            assertQueryFails("ALTER TABLE " + table.getName() + " DROP COLUMN _row_id", "line 1:1: Column '_row_id' does not exist");
+
+            assertQueryFails("ALTER TABLE " + table.getName() + " DROP COLUMN \"$last_updated_sequence_number\"", "line 1:1: Cannot drop hidden column");
+            assertQueryFails("ALTER TABLE " + table.getName() + " DROP COLUMN _last_updated_sequence_number", "line 1:1: Column '_last_updated_sequence_number' does not exist");
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("formatMergeMode")
+    void testRowLineage(IcebergFileFormat format, String mergeMode)
+    {
+        // snapshot 1 - create table
+        try (TestTable table = newTrinoTable("test_row_" + mergeMode.replaceAll("-", "_"), "(name varchar) WITH (format = '" + format + "')")) {
+            Table icebergTable = loadTable(table.getName());
+            icebergTable.updateProperties().set("write.merge.mode", mergeMode).commit();
+            // snapshot 2 - insert alice bob
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES 'alice', 'bob'", 2);
+
+            // snapshot 3 - insert carol david
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES 'carol', 'david'", 2);
+
+            // no _row_id in data files at this point, row_lineage fields calculated on the fly
+            assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
+                    .matches("""
+                            VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
+                                   ('bob', 1, 2),
+                                   ('carol', 2, 3),
+                                   ('david', 3, 3)
+                            """);
+
+            // snapshot 4 - update bob to BOB, _row_id is written to data file
+            assertUpdate("UPDATE " + table.getName() + " SET name = 'BOB' WHERE name = 'bob'", 1);
+
+            // expect BOB $last_updated_sequence_number - 4 as from snapshot, who actually updates BOB
+            // we keep original row_id $last_updated_sequence_number
+            assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
+                    .matches("""
+                            VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
+                                   ('BOB', 1, 4),
+                                   ('carol', 2, 3),
+                                   ('david', 3, 3)
+                            """);
+
+            // expect BOB $last_updated_sequence_number - 5 as from snapshot, who actually updates BOB1
+            assertUpdate("UPDATE " + table.getName() + " SET name = 'BOB1' WHERE name = 'BOB'", 1);
+            assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
+                    .matches("""
+                            VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
+                                   ('BOB1', 1, 5),
+                                   ('carol', 2, 3),
+                                   ('david', 3, 3)
+                            """);
+
+            // no snapshot creation
+            assertUpdate(format("COMMENT ON TABLE %s is 'my-table-comment'", table.getName()));
+            // lineage values should remain the same
+            assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
+                    .matches("""
+                            VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
+                                   ('BOB1', 1, 5),
+                                   ('carol', 2, 3),
+                                   ('david', 3, 3)
+                            """);
+            // schema evolution - add column info
+            assertUpdate("ALTER TABLE " + table.getName() + " ADD COLUMN info varchar");
+
+            // lineage values should remain the same
+            assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
+                    .matches("""
+                            VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
+                                   ('BOB1', 1, 5),
+                                   ('carol', 2, 3),
+                                   ('david', 3, 3)
+                            """);
+            assertUpdate("UPDATE " + table.getName() + " SET info = 'info' WHERE name = 'BOB1'", 1);
+            assertThat(query("SELECT name, info, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
+                    .matches("""
+                            VALUES (VARCHAR 'alice', CAST(NULL AS varchar), BIGINT '0', BIGINT '2'),
+                                   ('BOB1', 'info', 1, 6),
+                                   ('carol', NULL, 2, 3),
+                                   ('david', NULL, 3, 3)
+                            """);
+
+            assertThat(query("SELECT name FROM " + table.getName() + " WHERE \"$row_id\" = 2"))
+                    .matches("VALUES (VARCHAR 'carol')");
+
+            assertThat(query("SELECT name FROM " + table.getName() + " WHERE \"$last_updated_sequence_number\" = 3"))
+                    .matches("VALUES (VARCHAR 'carol'), (VARCHAR 'david')");
+        }
+    }
+
+    @Test
+    void testDirectUpdateRowLineageColumns()
+    {
+        try (TestTable table = newTrinoTable("test_row_direct_update_", "(name varchar)")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES 'alice', 'bob'", 2);
+            assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
+                    .matches("""
+                            VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
+                                   ('bob', 1, 2)
+                            """);
+
+            assertUpdate("UPDATE " + table.getName() + " SET name = 'BOB' WHERE name = 'bob'", 1);
+
+            // we can not perform update on metadata columns in the way like "$row_id", it will fail in the same way as for "$path"
+            // with QueryFailedException
+            assertThat(query("UPDATE " + table.getName() + " SET _row_id = 1 WHERE name = 'bob'")).failure()
+                    .hasMessage("line 1:46: The UPDATE SET target column _row_id doesn't exist");
+            assertThat(query("UPDATE " + table.getName() + " SET _last_updated_sequence_number = 1 WHERE name = 'bob'")).failure()
+                    .hasMessage("line 1:46: The UPDATE SET target column _last_updated_sequence_number doesn't exist");
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("formatMergeMode")
+    void testRowLineageDelete(IcebergFileFormat format, String mergeMode)
+    {
+        // snapshot 1 - create table
+        try (TestTable table = newTrinoTable("test_row_" + mergeMode.replaceAll("-", "_"), "(name varchar) WITH (format = '" + format + "')")) {
+            Table icebergTable = loadTable(table.getName());
+            icebergTable.updateProperties().set("write.merge.mode", mergeMode).commit();
+
+            // snapshot 2 - insert alice bob
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES 'alice', 'bob'", 2);
+
+            // snapshot 3 - insert carol david
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES 'carol', 'david'", 2);
+
+            // no _row_id in data files at this point, row_lineage fields calculated on the fly
+            assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
+                    .matches("""
+                            VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
+                                   ('bob', 1, 2),
+                                   ('carol', 2, 3),
+                                   ('david', 3, 3)
+                            """);
+
+            // snapshot 4 - update bob to BOB, _row_id is written to data file
+            assertUpdate("UPDATE " + table.getName() + " SET name = 'BOB' WHERE name = 'bob'", 1);
+
+            // expect BOB $last_updated_sequence_number - 4 as from snapshot, who actually updates BOB
+            // we keep original row_id $last_updated_sequence_number
+            assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
+                    .matches("""
+                            VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
+                                   ('BOB', 1, 4),
+                                   ('carol', 2, 3),
+                                   ('david', 3, 3)
+                            """);
+
+            assertUpdate("DELETE FROM " + table.getName() + " WHERE name = 'BOB'", 1);
+            // expect BOB $last_updated_sequence_number - 4 as from snapshot, who actually updates BOB
+            // we keep original row_id $last_updated_sequence_number
+            assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
+                    .matches("""
+                            VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
+                                   ('carol', 2, 3),
+                                   ('david', 3, 3)
+                            """);
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("formatMergeMode")
+    void testRowLineageWithOperationsOnRowLineageFields(IcebergFileFormat format, String mergeMode)
+    {
+        // snapshot 1 - create table
+        try (TestTable table = newTrinoTable("test_row_" + mergeMode.replaceAll("-", "_"), "(name varchar) WITH (format = '" + format + "')")) {
+            Table icebergTable = loadTable(table.getName());
+            icebergTable.updateProperties().set("write.merge.mode", mergeMode).commit();
+
+            // snapshot 2 - insert alice bob
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES 'alice', 'bob'", 2);
+
+            // snapshot 3 - insert carol david
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES 'carol', 'david'", 2);
+
+            // no _row_id in data files at this point, row_lineage fields calculated on the fly
+            assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
+                    .matches("""
+                            VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
+                                   ('bob', 1, 2),
+                                   ('carol', 2, 3),
+                                   ('david', 3, 3)
+                            """);
+
+            // snapshot 4 - update bob to BOB, _row_id is written to data file
+            assertUpdate("UPDATE " + table.getName() + " SET name = 'BOB' WHERE \"$row_id\" = 1", 1);
+
+            // expect BOB $last_updated_sequence_number - 4 as from snapshot, who actually updates BOB
+            // we keep original row_id $last_updated_sequence_number
+            assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
+                    .matches("""
+                            VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
+                                   ('BOB', 1, 4),
+                                   ('carol', 2, 3),
+                                   ('david', 3, 3)
+                            """);
+
+            assertUpdate("DELETE FROM " + table.getName() + " WHERE \"$row_id\" = 1", 1);
+            // expect BOB $last_updated_sequence_number - 4 as from snapshot, who actually updates BOB
+            // we keep original row_id $last_updated_sequence_number
+            assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
+                    .matches("""
+                            VALUES (VARCHAR 'alice', BIGINT '0', BIGINT '2'),
+                                   ('carol', 2, 3),
+                                   ('david', 3, 3)
+                            """);
+
+            assertUpdate("UPDATE " + table.getName() + " SET name = 'ALICE' WHERE \"$last_updated_sequence_number\" = 2", 1);
+
+            assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
+                    .matches("""
+                            VALUES (VARCHAR 'ALICE', BIGINT '0', BIGINT '6'),
+                                   ('carol', 2, 3),
+                                   ('david', 3, 3)
+                            """);
+
+            assertUpdate("DELETE FROM " + table.getName() + " WHERE \"$last_updated_sequence_number\" = 6", 1);
+
+            assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
+                    .matches("""
+                            VALUES (VARCHAR 'carol', BIGINT '2', BIGINT '3'),
+                                   ('david', 3, 3)
+                            """);
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("formatMergeMode")
+    void testRowLineagePartitioned(IcebergFileFormat format, String mergeMode)
+    {
+        // snapshot 1 - create table
+        try (TestTable table = newTrinoTable("test_row_" + mergeMode.replaceAll("-", "_"), "(name varchar, x bigint) WITH (format = '" + format + "', partitioning = ARRAY['x'])")) {
+            Table icebergTable = loadTable(table.getName());
+            icebergTable.updateProperties().set("write.merge.mode", mergeMode).commit();
+
+            // snapshot 2 - insert alice bob
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES ('alice', 1), ('bob', 2)", 2);
+
+            // snapshot 3 - insert carol david
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES ('carol', 1), ('david', 2)", 2);
+
+            // no _row_id in data files at this point, row_lineage fields calculated on the fly
+            assertThat(query("SELECT name, \"$last_updated_sequence_number\" FROM " + table.getName()))
+                    .matches("""
+                            VALUES (VARCHAR 'alice', BIGINT '2'),
+                                   ('bob', 2),
+                                   ('carol', 3),
+                                   ('david', 3)
+                            """);
+
+            // we don't know how row_id is assigned between partitioned files, but we know that they are increasing like 0, 1, 2, 3
+            assertThat(query("SELECT name FROM " + table.getName() + " WHERE \"$row_id\" IN (0, 1, 2, 3)"))
+                    .matches("""
+                            VALUES (VARCHAR 'alice'),
+                                   ('bob'),
+                                   ('carol'),
+                                   ('david')
+                            """);
+
+            // snapshot 4 - update bob to BOB, _row_id is written to data file
+            assertUpdate("UPDATE " + table.getName() + " SET name = 'BOB' WHERE name = 'bob'", 1);
+
+            // expect BOB $last_updated_sequence_number - 4 as from snapshot, who actually updates BOB
+            // we keep original row_id $last_updated_sequence_number
+            assertThat(query("SELECT name, \"$last_updated_sequence_number\" FROM " + table.getName()))
+                    .matches("""
+                            VALUES (VARCHAR 'alice', BIGINT '2'),
+                                   ('BOB', 4),
+                                   ('carol', 3),
+                                   ('david', 3)
+                            """);
+
+            // we don't know how row_id is assigned between partitioned files, but we know that they are increasing like 0, 1, 2, 3 and should remain the same after update
+            assertThat(query("SELECT name FROM " + table.getName() + " WHERE \"$row_id\" IN (0, 1, 2, 3)"))
+                    .matches("""
+                            VALUES (VARCHAR 'alice'),
+                                   ('BOB'),
+                                   ('carol'),
+                                   ('david')
+                            """);
+
+            // expect BOB $last_updated_sequence_number - 5 as from snapshot, who actually updates BOB1
+            assertUpdate("UPDATE " + table.getName() + " SET name = 'BOB1' WHERE name = 'BOB'", 1);
+            assertThat(query("SELECT name, \"$last_updated_sequence_number\" FROM " + table.getName()))
+                    .matches("""
+                            VALUES (VARCHAR 'alice', BIGINT '2'),
+                                   ('BOB1', 5),
+                                   ('carol', 3),
+                                   ('david', 3)
+                            """);
+
+            // we don't know how row_id is assigned between partitioned files, but we know that they are increasing like 0, 1, 2, 3 and should remain the same after update
+            assertThat(query("SELECT name FROM " + table.getName() + " WHERE \"$row_id\" IN (0, 1, 2, 3)"))
+                    .matches("""
+                            VALUES (VARCHAR 'alice'),
+                                   ('BOB1'),
+                                   ('carol'),
+                                   ('david')
+                            """);
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(mode = EnumSource.Mode.EXCLUDE, names = {"DATA", "MATERIALIZED_VIEW_STORAGE"})
+    void testRowLineageMetadataTables(TableType tableType)
+    {
+        try (TestTable table = newTrinoTable("test_row_lineage", "(x int)", List.of("1", "2", "3"))) {
+            assertUpdate("UPDATE " + table.getName() + " SET x = 10 WHERE x = 1", 1);
+
+            assertQuerySucceeds("SELECT * FROM \"" + table.getName() + "$" + tableType.name() + "\"");
+        }
+    }
+
+    public static Stream<Arguments> formatMergeMode()
+    {
+        return Stream.of(
+                Arguments.of(ORC, "copy-on-write"),
+                Arguments.of(PARQUET, "copy-on-write"),
+                Arguments.of(AVRO, "copy-on-write"),
+                Arguments.of(ORC, "merge-on-read"),
+                Arguments.of(PARQUET, "merge-on-read"),
+                Arguments.of(AVRO, "merge-on-read"));
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
+    void testUnsupportedRowLineage(IcebergFileFormat format)
+    {
+        try (TestTable table = newTrinoTable("test_row_lineage", "WITH (format = '" + format + "', format_version = 1) AS SELECT 1 AS x")) {
+            assertThat(query("SELECT \"$row_id\" FROM " + table.getName())).failure()
+                    .hasMessage("line 1:8: Column '$row_id' cannot be resolved");
+            assertThat(query("SELECT \"$last_updated_sequence_number\" FROM " + table.getName())).failure()
+                    .hasMessage("line 1:8: Column '$last_updated_sequence_number' cannot be resolved");
+        }
+
+        try (TestTable table = newTrinoTable("test_row_lineage", "WITH (format = '" + format + "', format_version = 2) AS SELECT 1 AS x")) {
+            assertThat(query("SELECT \"$row_id\" FROM " + table.getName())).failure()
+                    .hasMessage("line 1:8: Column '$row_id' cannot be resolved");
+            assertThat(query("SELECT \"$last_updated_sequence_number\" FROM " + table.getName())).failure()
+                    .hasMessage("line 1:8: Column '$last_updated_sequence_number' cannot be resolved");
+        }
+    }
+
+    @Test
+    void testRowLineageWithViews()
+    {
+        try (TestTable table = newTrinoTable("test_views", "(id int, name varchar) WITH (format_version = 3)")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 'Alice'), (2, 'Bob')", 2);
+
+            String viewName = "test_view_" + randomNameSuffix();
+            assertUpdate("CREATE VIEW " + viewName + " AS SELECT id, name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName());
+
+            assertThat(query("SELECT id, name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + viewName))
+                    .matches("""
+                            VALUES (1, VARCHAR 'Alice', BIGINT '0', BIGINT '2'),
+                                   (2, 'Bob', BIGINT '1', BIGINT '2')
+                            """);
+
+            assertUpdate("UPDATE " + table.getName() + " SET name = 'Alice Updated' WHERE id = 1", 1);
+
+            assertThat(query("SELECT id, name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + viewName))
+                    .matches("""
+                            VALUES (1, VARCHAR 'Alice Updated', BIGINT '0', BIGINT '3'),
+                                   (2, 'Bob', BIGINT '1', BIGINT '2')
+                            """);
+
+            assertUpdate("DROP VIEW " + viewName);
+        }
+    }
+
+    @Test
+    void testRowLineageWithMaterializedViews()
+    {
+        try (TestTable table = newTrinoTable("test_materialized_views", "(id int, name varchar) WITH (format_version = 3)")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 'Alice'), (2, 'Bob')", 2);
+
+            String materializedViewName = "test_materialized_view_" + randomNameSuffix();
+            assertUpdate("CREATE MATERIALIZED VIEW " + materializedViewName + " AS SELECT id, name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName());
+
+            assertUpdate("REFRESH MATERIALIZED VIEW " + materializedViewName, 2);
+
+            assertThat(query("SELECT id, name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + materializedViewName))
+                    .matches("""
+                            VALUES (1, VARCHAR 'Alice', BIGINT '0', BIGINT '2'),
+                                   (2, 'Bob', BIGINT '1', BIGINT '2')
+                            """);
+
+            assertUpdate("UPDATE " + table.getName() + " SET name = 'Alice Updated' WHERE id = 1", 1);
+
+            assertUpdate("REFRESH MATERIALIZED VIEW " + materializedViewName, 2);
+
+            assertThat(query("SELECT id, name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + materializedViewName))
+                    .matches("""
+                            VALUES (1, VARCHAR 'Alice Updated', BIGINT '0', BIGINT '3'),
+                                   (2, 'Bob', BIGINT '1', BIGINT '2')
+                            """);
+
+            assertUpdate("DROP MATERIALIZED VIEW " + materializedViewName);
+        }
+    }
+
+    @Test
+    void testAddFilesRowLineage()
+    {
+        String hiveTableName = "test_add_files_location_" + randomNameSuffix();
+        String icebergTableName = "test_add_files_location_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE iceberg.tpch." + icebergTableName + " AS SELECT 1 x", 1);
+        assertUpdate("CREATE TABLE hive.tpch." + hiveTableName + " AS SELECT 2 x", 1);
+
+        String path = (String) computeScalar("SELECT \"$path\" FROM hive.tpch." + hiveTableName);
+        String directory = Location.of(path).parentDirectory().toString();
+
+        assertUpdate("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + directory + "', 'ORC')");
+
+        assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + icebergTableName))
+                .matches("VALUES (BIGINT '0', BIGINT '1', 1), (1, 2, 2)");
+
+        assertUpdate("DROP TABLE hive.tpch." + hiveTableName);
+        assertUpdate("DROP TABLE iceberg.tpch." + icebergTableName);
+    }
+
+    @Test
+    void testAddFilesFromTableRowLineage()
+    {
+        String hiveTableName = "test_add_files_location_" + randomNameSuffix();
+        String icebergTableName = "test_add_files_location_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE iceberg.tpch." + icebergTableName + " AS SELECT 1 x", 1);
+        assertUpdate("CREATE TABLE hive.tpch." + hiveTableName + " AS SELECT 2 x", 1);
+
+        assertUpdate("ALTER TABLE " + icebergTableName + " EXECUTE add_files_from_table('tpch', '" + hiveTableName + "')");
+
+        assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + icebergTableName))
+                .matches("VALUES (BIGINT '0', BIGINT '1', 1), (1, 2, 2)");
+
+        assertUpdate("DROP TABLE hive.tpch." + hiveTableName);
+        assertUpdate("DROP TABLE iceberg.tpch." + icebergTableName);
+    }
+
+    @Test
+    void testAddFilesRowLineagePreExistingColumn()
+    {
+        String hiveTableName = "test_add_files_pre_existing_" + randomNameSuffix();
+        String icebergTableName = "test_add_files_pre_existing_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE iceberg.tpch." + icebergTableName + " AS SELECT 1 _row_id", 1);
+        assertUpdate("CREATE TABLE hive.tpch." + hiveTableName + " AS SELECT 2 _row_id", 1);
+
+        String path = (String) computeScalar("SELECT \"$path\" FROM hive.tpch." + hiveTableName);
+        String directory = Location.of(path).parentDirectory().toString();
+
+        assertThat(query("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + directory + "', 'ORC')")).failure()
+                .hasMessage("Cannot execute add_files procedure when the table contains _row_id column");
+
+        assertThat(query("SELECT \"$row_id\", * FROM " + icebergTableName)).failure()
+                .hasMessage("Table column names conflict with names reserved for Iceberg metadata columns: [_row_id]");
+
+        assertUpdate("DROP TABLE hive.tpch." + hiveTableName);
+        assertUpdate("DROP TABLE iceberg.tpch." + icebergTableName);
+    }
+
+    @Test
+    void testAddFilesFromTableRowLineagePreExistingColumn()
+    {
+        String hiveTableName = "test_add_files_from_table_pre_existing_" + randomNameSuffix();
+        String icebergTableName = "test_add_files_from_table_pre_existing_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE iceberg.tpch." + icebergTableName + " AS SELECT 1 _row_id", 1);
+        assertUpdate("CREATE TABLE hive.tpch." + hiveTableName + " AS SELECT 2 _row_id", 1);
+
+        assertThat(query("ALTER TABLE " + icebergTableName + " EXECUTE add_files_from_table('tpch', '" + hiveTableName + "')")).failure()
+                .hasMessage("Cannot execute add_files_from_table procedure when the table contains _row_id column");
+
+        assertThat(query("SELECT \"$row_id\", * FROM " + icebergTableName)).failure()
+                .hasMessage("Table column names conflict with names reserved for Iceberg metadata columns: [_row_id]");
+
+        assertUpdate("DROP TABLE hive.tpch." + hiveTableName);
+        assertUpdate("DROP TABLE iceberg.tpch." + icebergTableName);
+    }
+
+    @Test
+    void testAddFilesFromTableRowLineagePreExistingColumnOnlyInSourceTable()
+    {
+        String hiveTableName = "test_add_files_from_table_pre_existing_" + randomNameSuffix();
+        String icebergTableName = "test_add_files_from_table_pre_existing_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE iceberg.tpch." + icebergTableName + " AS SELECT 1 x", 1);
+        assertUpdate("CREATE TABLE hive.tpch." + hiveTableName + " AS SELECT 3 x, 2 _row_id", 1);
+        // make sure _row_id column physically presents in iceberg table
+        assertUpdate("UPDATE " + icebergTableName + " SET x = 4 WHERE x = 1", 1);
+
+        assertUpdate("ALTER TABLE hive.tpch." + hiveTableName + " DROP COLUMN _row_id");
+
+        // _row_id column is metadata colum, despite it presents physically in data file
+        assertThat(query("ALTER TABLE " + icebergTableName + " EXECUTE add_files_from_table('tpch', '" + hiveTableName + "')")).failure()
+                .hasMessage("Failed to add files: ORC column OrcType{orcTypeKind=INT, fieldTypeIndexes=[], fieldNames=[]} doesn't have an associated Iceberg ID");
+
+        assertThat(query("SELECT \"$row_id\", * FROM " + icebergTableName)).matches("VALUES (BIGINT '0', 4)");
+
+        assertUpdate("DROP TABLE hive.tpch." + hiveTableName);
+        assertUpdate("DROP TABLE iceberg.tpch." + icebergTableName);
+    }
+
+    @Test
+    void testAddFilesRowLineagePreExistingColumnOnlyInSourceTable()
+    {
+        String hiveTableName = "test_add_files_pre_existing_" + randomNameSuffix();
+        String icebergTableName = "test_add_files_pre_existing_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE iceberg.tpch." + icebergTableName + " AS SELECT 1 x", 1);
+        assertUpdate("CREATE TABLE hive.tpch." + hiveTableName + " AS SELECT 3 x, 2 _row_id", 1);
+        // make sure _row_id column physically presents in iceberg table
+        assertUpdate("UPDATE " + icebergTableName + " SET x = 4 WHERE x = 1", 1);
+
+        String path = (String) computeScalar("SELECT \"$path\" FROM hive.tpch." + hiveTableName);
+        String directory = Location.of(path).parentDirectory().toString();
+
+        assertThat(query("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + directory + "', 'ORC')")).failure()
+                .hasMessage("Failed to add files: ORC column OrcType{orcTypeKind=INT, fieldTypeIndexes=[], fieldNames=[]} doesn't have an associated Iceberg ID");
+
+        assertThat(query("SELECT \"$row_id\", * FROM " + icebergTableName)).matches("VALUES (BIGINT '0', 4)");
+
+        assertUpdate("DROP TABLE hive.tpch." + hiveTableName);
+        assertUpdate("DROP TABLE iceberg.tpch." + icebergTableName);
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
+    public void testMigrateTable(IcebergFileFormat fileFormat)
+    {
+        String tableName = "test_migrate_" + randomNameSuffix();
+        String hiveTableName = "hive.tpch." + tableName;
+        String icebergTableName = "iceberg.tpch." + tableName;
+
+        assertUpdate("CREATE TABLE " + hiveTableName + " WITH (format='" + fileFormat + "')  AS SELECT 1 x, 2 _row_id", 1);
+        assertQueryFails("SELECT * FROM " + icebergTableName, "Not an Iceberg table: .*");
+
+        assertUpdate("CALL iceberg.system.migrate('tpch', '" + tableName + "')");
+
+        assertThat((String) computeScalar("SHOW CREATE TABLE " + icebergTableName))
+                .contains("format = '%s'".formatted(fileFormat));
+
+        assertThat(query("SELECT x, _row_id FROM " + icebergTableName)).failure()
+                .hasMessage("Table column names conflict with names reserved for Iceberg metadata columns: [_row_id]");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @ParameterizedTest
+    @MethodSource("mergeMode")
+    public void testOptimize(String mergeMode)
+            throws Exception
+    {
+        String tableName = "test_optimize_" + randomNameSuffix();
+        assertUpdate("CREATE TABLE " + tableName + " (key integer, value varchar)");
+        Table icebergTable = loadTable(tableName);
+        icebergTable.updateProperties().set("write.merge.mode", mergeMode).commit();
+
+        // DistributedQueryRunner sets node-scheduler.include-coordinator by default, so include coordinator
+        int workerCount = getQueryRunner().getNodeCount();
+
+        assertThat(getActiveFiles(tableName)).isEmpty();
+
+        assertUpdate("INSERT INTO " + tableName + " VALUES (0, 'zero'), (1, 'one')", 2);
+        assertUpdate("INSERT INTO " + tableName + " VALUES (2, 'two')", 1);
+        assertUpdate("INSERT INTO " + tableName + " VALUES (3, 'three')", 1);
+        assertUpdate("INSERT INTO " + tableName + " VALUES (4, 'four')", 1);
+
+        List<String> initialFiles = getActiveFiles(tableName);
+        assertThat(initialFiles)
+                .hasSize(4)
+                // Verify we have sufficiently many test rows with respect to worker count.
+                .hasSizeGreaterThan(workerCount);
+
+        assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", key, value FROM " + tableName))
+                .matches("""
+                        VALUES (BIGINT '0', BIGINT '2', 0, VARCHAR 'zero'),
+                               (1, 2, 1, 'one'),
+                               (2, 3, 2, 'two'),
+                               (3, 4, 3, 'three'),
+                               (4, 5, 4, 'four')
+                        """);
+
+        assertUpdate("UPDATE " + tableName + " SET value = 'zero update' WHERE key = 0", 1);
+        assertUpdate("UPDATE " + tableName + " SET value = 'four update' WHERE key = 4", 1);
+
+        assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", key, value FROM " + tableName))
+                .matches("""
+                        VALUES (BIGINT '0', BIGINT '6', 0, VARCHAR 'zero update'),
+                               (1, 2, 1, 'one'),
+                               (2, 3, 2, 'two'),
+                               (3, 4, 3, 'three'),
+                               (4, 7, 4, 'four update')
+                        """);
+
+        // For optimize we need to set task_min_writer_count to 1, otherwise it will create more than one file.
+        assertQuerySucceeds(withSingleWriterPerTask(getSession()), "ALTER TABLE " + tableName + " EXECUTE OPTIMIZE");
+
+        initialFiles = getActiveFiles(tableName);
+        assertThat(initialFiles)
+                .hasSize(1);
+
+        assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", key, value FROM " + tableName))
+                .matches("""
+                        VALUES (BIGINT '0', BIGINT '6', 0, VARCHAR 'zero update'),
+                               (1, 2, 1, 'one'),
+                               (2, 3, 2, 'two'),
+                               (3, 4, 3, 'three'),
+                               (4, 7, 4, 'four update')
+                        """);
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    public static Stream<Arguments> mergeMode()
+    {
+        return Stream.of(
+                Arguments.of("merge-on-read"),
+                Arguments.of("copy-on-write"));
+    }
+
+    @Test
+    void testMergeMultipleOperations()
+    {
+        String targetTable = "merge_multiple_" + randomNameSuffix();
+        assertUpdate(format("CREATE TABLE %s (customer VARCHAR, zipcode INT, purchase INT)", targetTable));
+
+        assertUpdate(format("""
+                INSERT INTO %s (customer, zipcode, purchase)
+                        VALUES ('joe_0', 91000, 0),
+                               ('joe_1', 91000, 1),
+                               ('joe_2', 92000, 2),
+                               ('joe_3', 92000, 3)
+                """, targetTable), 4);
+
+        assertQuery(
+                "SELECT customer, zipcode, purchase, \"$row_id\", \"$last_updated_sequence_number\" FROM " + targetTable,
+                """
+                        VALUES ('joe_0', 91000, 0, 0, 2),
+                               ('joe_1', 91000, 1, 1, 2),
+                               ('joe_2', 92000, 2, 2, 2),
+                               ('joe_3', 92000, 3, 3, 2)
+                        """);
+
+        assertUpdate(format("MERGE INTO %s t USING (VALUES ('joe_2', 83000, 2), ('joe_3', 83000, 3)) AS s(customer, zipcode, purchase)", targetTable) +
+                     "    ON t.customer = s.customer" +
+                     "    WHEN MATCHED THEN UPDATE SET purchase = s.purchase, zipcode = s.zipcode",
+                2);
+
+        assertQuery(
+                "SELECT customer, zipcode, purchase, \"$row_id\", \"$last_updated_sequence_number\" FROM " + targetTable,
+                """
+                        VALUES ('joe_0', 91000, 0, 0, 2),
+                               ('joe_1', 91000, 1, 1, 2),
+                               ('joe_2', 83000, 2, 2, 3),
+                               ('joe_3', 83000, 3, 3, 3)
+                        """);
+
+        assertUpdate(format("INSERT INTO %s (customer, zipcode, purchase) VALUES ('joe_4', 74000, 4), ('joe_5', 74000, 5)", targetTable), 2);
+
+        // we keep original _row_id for updated rows, but new rows get new _row_id - increasing but mandatory continuous
+        assertQuery(
+                "SELECT customer, zipcode, purchase, \"$row_id\", \"$last_updated_sequence_number\" FROM " + targetTable,
+                """
+                        VALUES ('joe_0', 91000, 0, 0, 2),
+                               ('joe_1', 91000, 1, 1, 2),
+                               ('joe_2', 83000, 2, 2, 3),
+                               ('joe_3', 83000, 3, 3, 3),
+                               ('joe_4', 74000, 4, 6, 4),
+                               ('joe_5', 74000, 5, 7, 4)
+                        """);
+
+        assertUpdate(format("MERGE INTO %s t USING (VALUES ('joe_0', 85000, 0), ('joe_1', 85000, 1), ('joe_2', 85000, 2), ('joe_3', 85000, 3), ('joe_4', 85000, 4), ('joe_6', 85000, 6)) AS s(customer, zipcode, purchase)", targetTable) +
+                     "    ON t.customer = s.customer" +
+                     "    WHEN MATCHED AND t.zipcode = 91000 THEN DELETE" +
+                     "    WHEN MATCHED AND s.zipcode = 85000 THEN UPDATE SET zipcode = 60000" +
+                     "    WHEN MATCHED THEN UPDATE SET zipcode = s.zipcode" +
+                     "    WHEN NOT MATCHED THEN INSERT (customer, zipcode, purchase) VALUES(s.customer, s.zipcode, s.purchase)",
+                6);
+        // we keep original _row_id for updated rows, but new rows get new _row_id - increasing but mandatory sequential
+        assertQuery(
+                "SELECT customer, zipcode, purchase, \"$row_id\", \"$last_updated_sequence_number\" FROM " + targetTable + " WHERE \"$row_id\" < 8",
+                """
+                        VALUES ('joe_2', 60000, 2, 2, 5),
+                               ('joe_3', 60000, 3, 3, 5),
+                               ('joe_4', 60000, 4, 6, 5),
+                               ('joe_5', 74000, 5, 7, 4)
+                        """);
+
+        // The new added row we just know the _row_id is greater than 7, but we don't know the exact value
+        assertThat(query("SELECT customer, zipcode, purchase, \"$last_updated_sequence_number\" FROM " + targetTable + " WHERE \"$row_id\" >= 8"))
+                .matches("VALUES (varchar 'joe_6', 85000, 6, BIGINT '5')");
+
+        assertUpdate("DROP TABLE " + targetTable);
+    }
+
+    @Test
+    void testMergeMultipleOperationsPartitioned()
+    {
+        String targetTable = "merge_multiple_" + randomNameSuffix();
+        assertUpdate(format("CREATE TABLE %s (customer VARCHAR, zipcode INT, purchase INT) WITH (partitioning = ARRAY['purchase'])", targetTable));
+
+        // joe_0 and joe_1 goes to the same partition
+        assertUpdate(format("""
+                INSERT INTO %s (customer, zipcode, purchase)
+                        VALUES ('joe_0', 91000, 0),
+                               ('joe_1', 91000, 0),
+                               ('joe_2', 92000, 2),
+                               ('joe_3', 92000, 3)
+                """, targetTable), 4);
+
+        assertQuery(
+                "SELECT customer, zipcode, purchase, \"$last_updated_sequence_number\" FROM " + targetTable,
+                """
+                        VALUES ('joe_0', 91000, 0, 2),
+                               ('joe_1', 91000, 0, 2),
+                               ('joe_2', 92000, 2, 2),
+                               ('joe_3', 92000, 3, 2)
+                        """);
+
+        // we don't know how row_id is assigned between partitioned files, but we know that they are increasing like 0, 1, 2, 3
+        assertThat(query("SELECT customer FROM " + targetTable + " WHERE \"$row_id\" IN (0, 1, 2, 3)"))
+                .matches("""
+                        VALUES (VARCHAR 'joe_0'),
+                               ('joe_1'),
+                               ('joe_2'),
+                               ('joe_3')
+                        """);
+
+        assertUpdate(format("MERGE INTO %s t USING (VALUES ('joe_2', 83000, 2), ('joe_3', 83000, 3)) AS s(customer, zipcode, purchase)", targetTable) +
+                     "    ON t.customer = s.customer" +
+                     "    WHEN MATCHED THEN UPDATE SET purchase = s.purchase, zipcode = s.zipcode",
+                2);
+
+        assertQuery(
+                "SELECT customer, zipcode, purchase, \"$last_updated_sequence_number\" FROM " + targetTable,
+                """
+                        VALUES ('joe_0', 91000, 0, 2),
+                               ('joe_1', 91000, 0, 2),
+                               ('joe_2', 83000, 2, 3),
+                               ('joe_3', 83000, 3, 3)
+                        """);
+
+        // we don't know how row_id is assigned between partitioned files, but we know that they are increasing like 0, 1, 2, 3 and should remain the same after update
+        assertThat(query("SELECT customer FROM " + targetTable + " WHERE \"$row_id\" IN (0, 1, 2, 3)"))
+                .matches("""
+                        VALUES (VARCHAR 'joe_0'),
+                               ('joe_1'),
+                               ('joe_2'),
+                               ('joe_3')
+                        """);
+
+        assertUpdate(format("INSERT INTO %s (customer, zipcode, purchase) VALUES ('joe_4', 74000, 4), ('joe_5', 74000, 5)", targetTable), 2);
+
+        // we keep original _row_id for updated rows, but new rows get new _row_id - increasing but mandatory continuous
+        assertQuery(
+                "SELECT customer, zipcode, purchase, \"$last_updated_sequence_number\" FROM " + targetTable,
+                """
+                        VALUES ('joe_0', 91000, 0, 2),
+                               ('joe_1', 91000, 0, 2),
+                               ('joe_2', 83000, 2, 3),
+                               ('joe_3', 83000, 3, 3),
+                               ('joe_4', 74000, 4, 4),
+                               ('joe_5', 74000, 5, 4)
+                        """);
+
+        // we don't know how row_id is assigned between partitioned files, but we know that they are increasing like 0, 1, 2, 3 and should remain the same after update
+        assertThat(query("SELECT customer FROM " + targetTable + " WHERE \"$row_id\" IN (0, 1, 2, 3, 6, 7)"))
+                .matches("""
+                        VALUES (VARCHAR 'joe_0'),
+                               ('joe_1'),
+                               ('joe_2'),
+                               ('joe_3'),
+                               ('joe_4'),
+                               ('joe_5')
+                        """);
+
+        assertUpdate(format("MERGE INTO %s t USING (VALUES ('joe_0', 85000, 0), ('joe_1', 85000, 1), ('joe_2', 85000, 2), ('joe_3', 85000, 3), ('joe_4', 85000, 4), ('joe_6', 85000, 6)) AS s(customer, zipcode, purchase)", targetTable) +
+                     "    ON t.customer = s.customer" +
+                     "    WHEN MATCHED AND t.zipcode = 91000 THEN DELETE" +
+                     "    WHEN MATCHED AND s.zipcode = 85000 THEN UPDATE SET zipcode = 60000" +
+                     "    WHEN MATCHED THEN UPDATE SET zipcode = s.zipcode" +
+                     "    WHEN NOT MATCHED THEN INSERT (customer, zipcode, purchase) VALUES(s.customer, s.zipcode, s.purchase)",
+                6);
+        // we keep original _row_id for updated rows, but new rows get new _row_id - increasing but mandatory sequential
+        assertQuery(
+                "SELECT customer, zipcode, purchase, \"$last_updated_sequence_number\" FROM " + targetTable,
+                """
+                        VALUES ('joe_2', 60000, 2, 5),
+                               ('joe_3', 60000, 3, 5),
+                               ('joe_4', 60000, 4, 5),
+                               ('joe_5', 74000, 5, 4),
+                               ('joe_6', 85000, 6, 5)
+                        """);
+
+        // The new added row we just know the _row_id is greater than 7, but we don't know the exact value
+        assertThat(query("SELECT customer, zipcode, purchase, \"$last_updated_sequence_number\" FROM " + targetTable + " WHERE \"$row_id\" >= 8"))
+                .matches("VALUES (varchar 'joe_6', 85000, 6, BIGINT '5')");
+
+        assertUpdate("DROP TABLE " + targetTable);
+    }
+
+    @Test
+    void testTimeTravelRowLineage()
+            throws Exception
+    {
+        String tableName = "test_iceberg_read_versioned_table_" + randomNameSuffix();
+        assertUpdate(format("CREATE TABLE %s(a_string varchar, an_integer integer)", tableName));
+        assertUpdate(format("INSERT INTO %s VALUES ('a', 1)", tableName), 1);
+        long v1SnapshotId = getLatestSnapshotId(tableName);
+        long v1EpochMillis = getCommittedAtInEpochMilliSeconds(tableName, v1SnapshotId);
+        Thread.sleep(1);
+        assertUpdate(format("INSERT INTO %s VALUES ('b', 2)", tableName), 1);
+        long v2SnapshotId = getLatestSnapshotId(tableName);
+        long v2EpochMillis = getCommittedAtInEpochMilliSeconds(tableName, v2SnapshotId);
+        Thread.sleep(1);
+        assertUpdate(format("UPDATE %s SET an_integer = 3 WHERE a_string = 'b'", tableName), 1);
+        long v3SnapshotId = getLatestSnapshotId(tableName);
+        long v3EpochMillis = getCommittedAtInEpochMilliSeconds(tableName, v3SnapshotId);
+
+        assertThat(query(format("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM %s FOR VERSION AS OF %s", tableName, v1SnapshotId)))
+                .matches("VALUES (BIGINT '0', BIGINT '2', VARCHAR 'a', 1)");
+        assertThat(query(format("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM %s FOR VERSION AS OF %s", tableName, v2SnapshotId)))
+                .matches("VALUES (BIGINT '0', BIGINT '2', VARCHAR 'a', 1), (1, 3, 'b', 2)");
+        assertThat(query(format("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM %s FOR VERSION AS OF %s", tableName, v3SnapshotId)))
+                .matches("VALUES (BIGINT '0', BIGINT '2', VARCHAR 'a', 1), (1, 4, 'b', 3)");
+
+        assertThat(query(format("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM %s FOR TIMESTAMP AS OF %s", tableName, timestampLiteral(v1EpochMillis, 9))))
+                .matches("VALUES (BIGINT '0', BIGINT '2', VARCHAR 'a', 1)");
+        assertThat(query(format("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM %s FOR TIMESTAMP AS OF %s", tableName, timestampLiteral(v2EpochMillis, 9))))
+                .matches("VALUES (BIGINT '0', BIGINT '2', VARCHAR 'a', 1), (1, 3, 'b', 2)");
+        assertThat(query(format("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM %s FOR TIMESTAMP AS OF %s", tableName, timestampLiteral(v3EpochMillis, 9))))
+                .matches("VALUES (BIGINT '0', BIGINT '2', VARCHAR 'a', 1), (1, 4, 'b', 3)");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
+    void testSortedBy()
+    {
+        try (TestTable table = newTrinoTable("test_sorted_by", "(id int, x varchar) WITH (sorted_by = ARRAY['x'])")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 'a'), (3, 'c'), (2, 'b')", 3);
+
+            assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName() + " ORDER BY x"))
+                    .matches("""
+                            VALUES (BIGINT '0', BIGINT '2', 1, VARCHAR 'a'),
+                                   (1, 2, 2, 'b'),
+                                   (2, 2, 3, 'c')
+                            """);
+            assertUpdate(format("UPDATE %s SET id = 11 WHERE id = 1", table.getName()), 1);
+
+            assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName() + " ORDER BY x"))
+                    .matches("""
+                            VALUES (BIGINT '0', BIGINT '3', 11, VARCHAR 'a'),
+                                   (1, 2, 2, 'b'),
+                                   (2, 2, 3, 'c')
+                            """);
+        }
+        assertQueryFails("CREATE TABLE test_sorted_by_invalid (id int, x varchar) WITH (sorted_by = ARRAY['$row_id'])", "Unable to parse sort field: \\[\\$row_id\\]");
+    }
+
+    @Test
+    void testEqualityDeletes()
+            throws Exception
+    {
+        try (TestTable table = newTrinoTable("test_equality_deletes", "AS SELECT * FROM tpch.tiny.nation")) {
+            assertUpdate(format("UPDATE %s SET regionkey = 333 WHERE regionkey = 1", table.getName()), 5);
+            assertUpdate(format("UPDATE %s SET comment = 'some comment' WHERE regionkey = 2", table.getName()), 5);
+            assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", name FROM " + table.getName() + " WHERE regionkey = 2"))
+                    .matches("""
+                            VALUES (BIGINT '12', BIGINT '3', VARCHAR 'JAPAN'),
+                                   (9, 3, 'INDONESIA'),
+                                   (8, 3, 'INDIA'),
+                                   (21, 3, 'VIETNAM'),
+                                   (18, 3, 'CHINA')
+                            """);
+            BaseTable icebergTable = loadTable(table.getName());
+            writeEqualityDeleteForTable(icebergTable, fileSystemFactory, Optional.empty(), Optional.empty(), ImmutableMap.of("regionkey", 333L), Optional.empty());
+
+            assertThat(query("SELECT name, regionkey FROM " + table.getName()))
+                    .skippingTypesCheck()
+                    .matches("SELECT name, regionkey FROM tpch.tiny.nation WHERE regionkey != 1");
+            assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", name FROM " + table.getName() + " WHERE regionkey = 2"))
+                    .matches("""
+                            VALUES (BIGINT '12', BIGINT '3', VARCHAR 'JAPAN'),
+                                   (9, 3, 'INDONESIA'),
+                                   (8, 3, 'INDIA'),
+                                   (21, 3, 'VIETNAM'),
+                                   (18, 3, 'CHINA')
+                            """);
+        }
+    }
+
+    @Test
+    void testOptimizeManifests()
+    {
+        try (TestTable table = newTrinoTable("test_optimize_manifests", "(x int)")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES 1", 1);
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES 2", 1);
+
+            assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName()))
+                    .matches("""
+                            VALUES (BIGINT '0', BIGINT '2', 1),
+                                   (1, 3, 2)
+                            """);
+
+            Set<String> manifestFiles = manifestFiles(table.getName());
+            assertThat(manifestFiles).hasSize(2);
+
+            assertUpdate("ALTER TABLE " + table.getName() + " EXECUTE optimize_manifests");
+            assertThat(manifestFiles(table.getName()))
+                    .hasSize(1)
+                    .doesNotContainAnyElementsOf(manifestFiles);
+
+            assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName()))
+                    .matches("""
+                            VALUES (BIGINT '0', BIGINT '2', 1),
+                                   (1, 3, 2)
+                            """);
+        }
+    }
+
+    @Test
+    void testOptimizeManifestsWithUpdate()
+    {
+        try (TestTable table = newTrinoTable("test_optimize_manifests", "(x int)")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES 1", 1);
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES 2", 1);
+            assertUpdate(format("UPDATE %s SET x = 3 WHERE x = 2", table.getName()), 1);
+
+            assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName()))
+                    .matches("""
+                            VALUES (BIGINT '0', BIGINT '2', 1),
+                                   (1, 4, 3)
+                            """);
+
+            Set<String> manifestFiles = manifestFiles(table.getName());
+            assertThat(manifestFiles).hasSize(4);
+
+            assertUpdate("ALTER TABLE " + table.getName() + " EXECUTE optimize_manifests");
+            assertThat(manifestFiles(table.getName()))
+                    .hasSize(2);
+
+            assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName()))
+                    .matches("""
+                            VALUES (BIGINT '0', BIGINT '2', 1),
+                                   (1, 4, 3)
+                            """);
+        }
+    }
+
+    @Test
+    public void testBranchRowLineage()
+    {
+        try (TestTable table = newTrinoTable("test_update_branch", "(x int)")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES 0", 1);
+            assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName()))
+                    .matches("""
+                            VALUES (BIGINT '0', BIGINT '2', 0)
+                            """);
+            assertUpdate("CREATE BRANCH \"" + "dev" + "\" IN TABLE " + table.getName());
+            assertUpdate("INSERT INTO " + table.getName() + " @ dev VALUES 1, 2, 3", 3);
+
+            assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName() + " FOR VERSION AS OF 'dev'"))
+                    .matches("""
+                            VALUES (BIGINT '0', BIGINT '2', 0),
+                                   (1, 3, 1),
+                                   (2, 3, 2),
+                                   (3, 3, 3)
+                            """);
+
+            assertUpdate("UPDATE " + table.getName() + " @ dev SET x = x * 2", 4);
+            assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName()))
+                    .matches("""
+                            VALUES (BIGINT '0', BIGINT '2', 0)
+                            """);
+            assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName() + " FOR VERSION AS OF 'dev'"))
+                    .matches("""
+                            VALUES (BIGINT '0', BIGINT '4', 0),
+                                   (1, 4, 2),
+                                   (2, 4, 4),
+                                   (3, 4, 6)
+                            """);
+
+            assertUpdate("ALTER BRANCH main IN TABLE " + table.getName() + " FAST FORWARD TO dev");
+
+            assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + table.getName()))
+                    .matches("""
+                            VALUES (BIGINT '0', BIGINT '4', 0),
+                                   (1, 4, 2),
+                                   (2, 4, 4),
+                                   (3, 4, 6)
+                            """);
         }
     }
 
@@ -939,8 +2027,84 @@ public class TestIcebergV3
         }
     }
 
+    @Test
+    void testShowEmptyStatsForRowLineageColumn()
+    {
+        try (TestTable table = newTrinoTable("test_stats_row_lineage", "AS SELECT * FROM tpch.tiny.nation")) {
+            assertThat(query("SHOW STATS FOR " + table.getName()))
+                    .matches("""
+                            VALUES
+                            (varchar 'nationkey', cast(null AS double), cast(25.0 AS double), cast(0.0 AS double), cast(null AS double), varchar '0', varchar '24'),
+                            ('name', 583.0, 25.0, 0.0, null, null, null),
+                            ('regionkey', null, 5.0, 0.0, null, '0', '4'),
+                            ('comment', 2162.0, 25.0, 0.0, null, null, null),
+                            (null, null, null, null, 25.0, null, null)
+                            """);
+
+            // show stats with row lineage column $row_id, returns null for all stats
+            assertThat(query("SHOW STATS FOR (SELECT * FROM " + table.getName() + " WHERE \"$row_id\" = 1)"))
+                    .matches("""
+                            VALUES
+                            (varchar 'nationkey', cast(null AS double), cast(null AS double), cast(null AS double), cast(null AS double), cast(null AS varchar), cast(null AS varchar)),
+                            ('regionkey', null, null, null, null, null, null),
+                            ('comment', null, null, null, null, null, null),
+                            ('name', null, null, null, null, null, null),
+                            (null, null, null, null, null, null, null)
+                            """);
+
+            // show stats with row lineage column $last_updated_sequence_number, returns null for all stats
+            assertThat(query("SHOW STATS FOR (SELECT * FROM " + table.getName() + " WHERE \"$last_updated_sequence_number\" = 1)"))
+                    .matches("""
+                            VALUES
+                            (varchar 'nationkey', cast(null AS double), cast(null AS double), cast(null AS double), cast(null AS double), cast(null AS varchar), cast(null AS varchar)),
+                            ('regionkey', null, null, null, null, null, null),
+                            ('comment', null, null, null, null, null, null),
+                            ('name', null, null, null, null, null, null),
+                            (null, null, null, null, null, null, null)
+                            """);
+        }
+    }
+
     private BaseTable loadTable(String tableName)
     {
         return IcebergTestUtils.loadTable(tableName, metastore, fileSystemFactory, "iceberg", "tpch");
+    }
+
+    private Set<String> manifestFiles(String tableName)
+    {
+        return computeActual("SELECT path FROM \"" + tableName + "$manifests\"").getOnlyColumnAsSet().stream()
+                .map(path -> (String) path)
+                .collect(toImmutableSet());
+    }
+
+    private static Session withSingleWriterPerTask(Session session)
+    {
+        return Session.builder(session)
+                .setSystemProperty("task_min_writer_count", "1")
+                .build();
+    }
+
+    private List<String> getActiveFiles(String tableName)
+    {
+        return computeActual(format("SELECT file_path FROM \"%s$files\"", tableName)).getOnlyColumn()
+                .map(String.class::cast)
+                .collect(toImmutableList());
+    }
+
+    private long getLatestSnapshotId(String tableName)
+    {
+        return (long) computeScalar(format("SELECT snapshot_id FROM \"%s$snapshots\" ORDER BY committed_at DESC FETCH FIRST 1 ROW WITH TIES", tableName));
+    }
+
+    private long getCommittedAtInEpochMilliSeconds(String tableName, long snapshotId)
+    {
+        return ((ZonedDateTime) computeScalar(format("SELECT committed_at FROM \"%s$snapshots\" WHERE snapshot_id=%s", tableName, snapshotId)))
+                .toInstant().toEpochMilli();
+    }
+
+    private static String timestampLiteral(long epochMilliSeconds, int precision)
+    {
+        return DateTimeFormatter.ofPattern("'TIMESTAMP '''uuuu-MM-dd HH:mm:ss." + "S".repeat(precision) + " VV''")
+                .format(Instant.ofEpochMilli(epochMilliSeconds).atZone(UTC));
     }
 }

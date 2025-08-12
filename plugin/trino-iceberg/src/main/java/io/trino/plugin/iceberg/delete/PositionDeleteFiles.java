@@ -25,6 +25,7 @@ public record PositionDeleteFiles(
         String dataFileLocation,
         long dataFileRecordCount,
         Long dataSequenceNumber,
+        Long firstRowId,
         int partitionSpecId,
         List<String> deletes,
         Map<String, Long> dataSequenceNumbers)

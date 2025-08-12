@@ -29,6 +29,7 @@ import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.predicate.TupleDomain;
 import org.apache.iceberg.FileContent;
+import org.apache.iceberg.MetadataColumns;
 import org.apache.iceberg.Metrics;
 import org.apache.iceberg.MetricsConfig;
 import org.apache.iceberg.PartitionSpec;
@@ -37,6 +38,7 @@ import org.apache.iceberg.Schema;
 import org.apache.iceberg.io.LocationProvider;
 import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.types.Type;
+import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.util.DeleteFileSet;
 
 import java.io.IOException;
@@ -50,6 +52,7 @@ import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 
 import static io.airlift.slice.Slices.wrappedBuffer;
+import static io.trino.plugin.iceberg.IcebergUtil.supportsRowLineage;
 import static java.util.Objects.requireNonNull;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.CompletableFuture.completedFuture;
@@ -62,6 +65,7 @@ public class CopyOnWriteIcebergMergeSink
     private final Map<String, String> fileIoProperties;
     private final Map<String, Long> fileCounts;
     private final Map<String, Long> dataSequenceNumbers;
+    private final Map<String, Long> firstRowIds;
     private final Optional<String> nameMapping;
 
     public CopyOnWriteIcebergMergeSink(
@@ -76,13 +80,16 @@ public class CopyOnWriteIcebergMergeSink
             Schema schema,
             Map<Integer, PartitionSpec> partitionsSpecs,
             ConnectorPageSink insertPageSink,
+            Optional<ConnectorPageSink> updateInsertPageSink,
             int columnCount,
             IcebergPageSourceProviderFactory pageSourceProviderFactory,
             List<IcebergColumnHandle> columns,
             Map<String, String> fileIoProperties,
             Map<String, Long> fileCounts,
             Map<String, Long> dataSequenceNumbers,
-            Optional<String> nameMapping)
+            Map<String, Long> firstRowIds,
+            Optional<String> nameMapping,
+            int formatVersion)
     {
         super(
                 locationProvider,
@@ -96,12 +103,15 @@ public class CopyOnWriteIcebergMergeSink
                 schema,
                 partitionsSpecs,
                 insertPageSink,
-                columnCount);
+                updateInsertPageSink,
+                columnCount,
+                formatVersion);
         this.pageSourceProviderFactory = requireNonNull(pageSourceProviderFactory, "pageSourceProviderFactory is null");
         this.columns = ImmutableList.copyOf(columns);
         this.fileIoProperties = ImmutableMap.copyOf(fileIoProperties);
         this.fileCounts = ImmutableMap.copyOf(fileCounts);
         this.dataSequenceNumbers = ImmutableMap.copyOf(dataSequenceNumbers);
+        this.firstRowIds = ImmutableMap.copyOf(firstRowIds);
         this.nameMapping = requireNonNull(nameMapping, "nameMapping is null");
     }
 
@@ -109,6 +119,8 @@ public class CopyOnWriteIcebergMergeSink
     public CompletableFuture<Collection<Slice>> finish()
     {
         List<Slice> fragments = new ArrayList<>(insertPageSink.finish().join());
+
+        updateInsertPageSink.ifPresent(pageSink -> fragments.addAll(pageSink.finish().join()));
 
         fileDeletions.forEach((dataFilePath, deletion) -> {
             PartitionSpec partitionSpec = partitionsSpecs.get(deletion.partitionSpecId());
@@ -120,7 +132,7 @@ public class CopyOnWriteIcebergMergeSink
             Location dataFile = Location.of(dataFilePath.toStringUtf8());
             String fileName = fileFormat.toIceberg().addExtension(session.getQueryId() + "-" + randomUUID());
             Location outputPath = Location.of(partitionSpec.isPartitioned() ? locationProvider.newDataLocation(partitionSpec, partitionData, fileName) : locationProvider.newDataLocation(fileName));
-            IcebergFileWriter fileWriter = fileWriterFactory.createDataFileWriter(fileSystem, outputPath, schema, session, fileFormat, MetricsConfig.getDefault(), storageProperties);
+            IcebergFileWriter fileWriter = fileWriterFactory.createDataFileWriter(fileSystem, outputPath, supportsRowLineage(formatVersion) ? TypeUtil.join(schema, new Schema(MetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER)) : schema, session, fileFormat, MetricsConfig.getDefault(), storageProperties);
             try {
                 rewriteFile(fileWriter, dataFile, deletion, partitionSpec, partitionData).ifPresent(fragments::add);
             }
@@ -221,7 +233,7 @@ public class CopyOnWriteIcebergMergeSink
         long fileSize = inputFile.length();
         return icebergPageSourceProvider.createPageSource(
                 session,
-                columns,
+                supportsRowLineage(formatVersion) ? withRowLineageColumns(columns) : columns,
                 schema,
                 partitionSpec,
                 partitionData,
@@ -238,6 +250,17 @@ public class CopyOnWriteIcebergMergeSink
                 fileFormat,
                 fileIoProperties,
                 dataSequenceNumbers.get(path.toString()),
-                nameMapping.map(NameMappingParser::fromJson));
+                supportsRowLineage(formatVersion) ? firstRowIds.get(path.toString()) : null,
+                nameMapping.map(NameMappingParser::fromJson),
+                formatVersion);
+    }
+
+    private static List<IcebergColumnHandle> withRowLineageColumns(List<IcebergColumnHandle> columns)
+    {
+        return ImmutableList.<IcebergColumnHandle>builder()
+                .addAll(columns)
+                .add(IcebergColumnHandle.rowIdColumnHandle())
+                .add(IcebergColumnHandle.lastUpdatedSequenceNumberColumnColumnHandle())
+                .build();
     }
 }
