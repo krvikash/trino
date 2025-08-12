@@ -30,6 +30,7 @@ import io.trino.plugin.hive.coercions.FloatToDoubleCoercer;
 import io.trino.plugin.hive.coercions.IntegerNumberToDoubleCoercer;
 import io.trino.plugin.hive.coercions.IntegerNumberToVarcharCoercer;
 import io.trino.plugin.hive.coercions.IntegerNumberUpscaleCoercer;
+import io.trino.plugin.hive.coercions.TimestampCoercer;
 import io.trino.plugin.hive.coercions.TimestampCoercer.LongTimestampToDateCoercer;
 import io.trino.plugin.hive.coercions.TimestampCoercer.LongTimestampToVarcharCoercer;
 import io.trino.plugin.hive.coercions.TimestampCoercer.VarcharToLongTimestampCoercer;
@@ -196,6 +197,11 @@ public final class OrcTypeTranslator
             return switch (toTrinoType) {
                 case DateType dateType -> Optional.of(new LongTimestampToDateCoercer(TIMESTAMP_NANOS, dateType));
                 case VarcharType varcharType -> Optional.of(new LongTimestampToVarcharCoercer(TIMESTAMP_NANOS, varcharType));
+                case TimestampType timestampType -> convertDateToProleptic
+                        ? Optional.of(timestampType.isShort()
+                            ? new TimestampCoercer.ShortTimestampHybridToProlepticGregorianCoercer(timestampType)
+                            : new TimestampCoercer.LongTimestampHybridToProlepticGregorianCoercer(timestampType))
+                        : Optional.empty();
                 default -> Optional.empty();
             };
         }

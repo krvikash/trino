@@ -104,6 +104,27 @@ public class TestHiveLegacyTimestampCompatibility
                 .build();
 
         testHiveParquetLegacyTimestampCompatibility(MILLISECONDS, timestamps, expectedTimestamps);
+        testHiveOrcLegacyTimestampCompatibility(false, MILLISECONDS, timestamps, expectedTimestamps);
+    }
+
+    @Test(groups = {HIVE4, PROFILE_SPECIFIC_TESTS})
+    public void testHiveOrcLegacyTimestampCompatibilityWithHybridCalendar()
+    {
+        testHiveOrcLegacyTimestampCompatibility(false, MILLISECONDS, timestampsWithPrecision(MILLISECONDS));
+
+        testHiveOrcLegacyTimestampCompatibility(false, MICROSECONDS, timestampsWithPrecision(MICROSECONDS));
+
+        testHiveOrcLegacyTimestampCompatibility(false, NANOSECONDS, timestampsWithPrecision(NANOSECONDS));
+    }
+
+    @Test(groups = {HIVE4, PROFILE_SPECIFIC_TESTS})
+    public void testHiveOrcLegacyTimestampCompatibilityWithProlepticCalendar()
+    {
+        testHiveOrcLegacyTimestampCompatibility(true, MILLISECONDS, timestampsWithPrecision(MILLISECONDS));
+
+        testHiveOrcLegacyTimestampCompatibility(true, MICROSECONDS, timestampsWithPrecision(MICROSECONDS));
+
+        testHiveOrcLegacyTimestampCompatibility(true, NANOSECONDS, timestampsWithPrecision(NANOSECONDS));
     }
 
     @Test(groups = {HIVE4, PROFILE_SPECIFIC_TESTS})
@@ -167,6 +188,42 @@ public class TestHiveLegacyTimestampCompatibility
             String ctasTable = hiveTableName + "_ctas";
             onTrino().executeQuery("CREATE TABLE %s AS SELECT * FROM %s".formatted(ctasTable, trinoTableName));
             assertThat(onTrino().executeQuery("SELECT * from %s".formatted(ctasTable))).containsOnly(expectedRows);
+        }
+        finally {
+            onHive().executeQuery("DROP TABLE IF EXISTS " + hiveTableName);
+        }
+    }
+
+    private void testHiveOrcLegacyTimestampCompatibility(
+            boolean hiveWritesInProlepticGregorian,
+            HiveTimestampPrecision trinoTimestampPrecision,
+            List<String> timestamps)
+    {
+        testHiveOrcLegacyTimestampCompatibility(hiveWritesInProlepticGregorian, trinoTimestampPrecision, timestamps, timestamps);
+    }
+
+    private void testHiveOrcLegacyTimestampCompatibility(
+            boolean hiveWritesInProlepticGregorian,
+            HiveTimestampPrecision trinoTimestampPrecision,
+            List<String> timestamps,
+            List<String> expectedTimestamps)
+    {
+        String hiveTableName = "test_hive_orc_legacy_timestamp_compatibility_%s".formatted(randomNameSuffix());
+        String trinoTableName = format("%s.%s.%s", TRINO_CATALOG, SCHEMA, hiveTableName);
+
+        try {
+            onTrino().executeQuery("SET SESSION hive.timestamp_precision = '%s'".formatted(trinoTimestampPrecision.toString()));
+
+            onHive().executeQuery("CREATE TABLE %s.%s (tmst timestamp) STORED AS ORC tblproperties (\"orc.proleptic.gregorian\" = \"%s\")".formatted(SCHEMA, hiveTableName, hiveWritesInProlepticGregorian));
+            onHive().executeQuery("INSERT INTO %s.%s VALUES %s".formatted(SCHEMA, hiveTableName, toValues(timestamps)));
+
+            List<QueryAssert.Row> expectedRows = toExpectedRows(expectedTimestamps);
+            assertThat(onHive().executeQuery("SELECT tmst FROM " + hiveTableName)).containsOnly(expectedRows);
+            assertThat(onTrino().executeQuery("SELECT tmst FROM " + trinoTableName)).containsOnly(expectedRows);
+
+            String ctasTable = hiveTableName + "_ctas";
+            onTrino().executeQuery("CREATE TABLE %s AS SELECT * FROM %s".formatted(ctasTable, trinoTableName));
+            assertThat(onTrino().executeQuery("SELECT tmst FROM %s".formatted(ctasTable))).containsOnly(expectedRows);
         }
         finally {
             onHive().executeQuery("DROP TABLE IF EXISTS " + hiveTableName);
