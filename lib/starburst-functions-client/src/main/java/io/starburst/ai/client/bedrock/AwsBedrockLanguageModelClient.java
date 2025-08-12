@@ -29,6 +29,7 @@ import software.amazon.awssdk.services.bedrockruntime.model.SystemContentBlock;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Executor;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.opentelemetry.api.trace.StatusCode.ERROR;
@@ -67,10 +68,12 @@ public class AwsBedrockLanguageModelClient
             Optional<Float> temperature,
             Optional<Float> topP,
             PromptDao promptDao,
+            Executor executor,
+            int batchParallelism,
             Tracer tracer,
             BedrockRuntimeClient client)
     {
-        super(promptDao);
+        super(promptDao, executor, batchParallelism);
         this.maxTokens = requireNonNull(maxTokens, "maxTokens is null");
         this.temperature = requireNonNull(temperature, "temperature is null");
         this.topP = requireNonNull(topP, "topP is null");

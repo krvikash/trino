@@ -21,11 +21,13 @@ import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static dev.failsafe.Failsafe.with;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
+import static io.starburst.ai.client.TestingUtils.createLlmExecutor;
 import static io.starburst.ai.client.TestingUtils.createModelConnectionSpecsFile;
 import static io.starburst.ai.client.TestingUtils.reloadingModelClientProvider;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
@@ -99,8 +101,9 @@ public class TestFileBackedModelClientProvider
         // This is not an error condition, this test is to verify the reloading behavior.
         File modelSpecsFile = createModelConnectionSpecsFile(TEST_MODELS_CONFIG);
         ScheduledExecutorService reloadingExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("reloading-model-client-provider"));
+        ExecutorService llmExecutor = createLlmExecutor();
         try {
-            ReloadingModelClientProvider modelClientProvider = reloadingModelClientProvider(modelSpecsFile, reloadingExecutor);
+            ReloadingModelClientProvider modelClientProvider = reloadingModelClientProvider(modelSpecsFile, reloadingExecutor, llmExecutor);
             Collection<LanguageModelConnectionSpec> originalSpecs = modelClientProvider.languageModelConnectionSpecs();
             assertThat(originalSpecs.size()).isEqualTo(2);
             assertThat(originalSpecs.stream()
@@ -135,6 +138,7 @@ public class TestFileBackedModelClientProvider
         }
         finally {
             reloadingExecutor.shutdownNow();
+            llmExecutor.shutdownNow();
         }
     }
 }

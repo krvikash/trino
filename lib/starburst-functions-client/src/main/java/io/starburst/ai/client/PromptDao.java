@@ -21,7 +21,11 @@ public interface PromptDao
         return Optional.empty();
     }
 
+    String analyzeSentimentPromptBatch();
+
     String classifyPrompt();
+
+    String classifyPromptBatch();
 
     default Optional<String> classifySystemPrompt()
     {
@@ -30,12 +34,16 @@ public interface PromptDao
 
     String fixGrammarPrompt();
 
+    String fixGrammarPromptBatch();
+
     default Optional<String> fixGrammarSystemPrompt()
     {
         return Optional.empty();
     }
 
     String maskPrompt();
+
+    String maskPromptBatch();
 
     default Optional<String> maskSystemPrompt()
     {
@@ -44,12 +52,16 @@ public interface PromptDao
 
     String translatePrompt();
 
+    String translatePromptBatch();
+
     default Optional<String> translateSystemPrompt()
     {
         return Optional.empty();
     }
 
     String summarizePrompt();
+
+    String summarizePromptBatch();
 
     default Optional<String> summarizeSystemPrompt()
     {

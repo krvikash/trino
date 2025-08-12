@@ -26,14 +26,20 @@ import io.trino.spi.function.FunctionDependencyDeclaration;
 import io.trino.spi.function.FunctionId;
 import io.trino.spi.function.FunctionMetadata;
 import io.trino.spi.function.SchemaFunctionName;
+import io.trino.spi.function.Signature;
 import io.trino.spi.function.table.ConnectorTableFunctionHandle;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.starburstdata.trino.plugin.functions.AiSessionPropertiesProvider.isBatchCallingEnabled;
+import static io.trino.spi.function.FunctionKind.BATCH;
+import static io.trino.spi.function.FunctionKind.SCALAR;
 import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.groupingBy;
 
 public class FunctionsMetadata
         implements ConnectorMetadata
@@ -61,9 +67,28 @@ public class FunctionsMetadata
         if (!listSchemaNames(session).contains(name.getSchemaName())) {
             return ImmutableList.of();
         }
-        return functions.stream()
+        boolean batchCallingEnabled = isBatchCallingEnabled(session);
+        Map<Signature, List<FunctionMetadata>> candidates = functions.stream()
                 .filter(function -> function.getCanonicalName().equals(name.getFunctionName()))
-                .toList();
+                .collect(groupingBy(FunctionMetadata::getSignature));
+        ImmutableList.Builder<FunctionMetadata> builder = ImmutableList.builder();
+        for (List<FunctionMetadata> functions : candidates.values()) {
+            if (functions.size() == 1) {
+                builder.add(functions.getFirst());
+            }
+            else {
+                // pick the one that matches the batch calling preference
+                for (FunctionMetadata function : functions) {
+                    if (batchCallingEnabled && function.getKind() == BATCH) {
+                        builder.add(function);
+                    }
+                    else if (!batchCallingEnabled && function.getKind() == SCALAR) {
+                        builder.add(function);
+                    }
+                }
+            }
+        }
+        return builder.build();
     }
 
     @Override

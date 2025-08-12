@@ -18,7 +18,9 @@ import com.openai.client.okhttp.OpenAIOkHttpClient;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.log.Logger;
 import io.opentelemetry.api.trace.Tracer;
+import io.starburst.ai.client.AiClientConfig;
 import io.starburst.ai.client.EmbeddingModelClient;
+import io.starburst.ai.client.ForAiClient;
 import io.starburst.ai.client.LanguageModelClient;
 import io.starburst.ai.client.ModelClientFactory;
 import io.starburst.ai.client.PromptDao;
@@ -30,6 +32,7 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.starburst.ai.client.AiClientErrorCode.INVALID_MODEL_CONFIGURATION;
@@ -49,11 +52,15 @@ public class OpenAiClientFactory
     private static final String AZURE_OPENAI_API_VERSION_QUERY_PARAM = "api-version";
 
     private final SecretsResolver secretsResolver;
+    private final Executor executor;
+    private final int batchParallelism;
 
     @Inject
-    public OpenAiClientFactory(SecretsResolver secretsResolver)
+    public OpenAiClientFactory(SecretsResolver secretsResolver, AiClientConfig config, @ForAiClient Executor executor)
     {
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
+        this.executor = requireNonNull(executor, "executor is null");
+        batchParallelism = config.getBatchParallelism();
     }
 
     @Override
@@ -77,6 +84,8 @@ public class OpenAiClientFactory
                 spec.topP(),
                 spec.useDeveloperForSystemRole(),
                 promptDao,
+                executor,
+                batchParallelism,
                 tracer,
                 isGeminiEndpoint,
                 createOpenAiClient(updatedConnectionInfo, azureOpenAiConnectionInfo));

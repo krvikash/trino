@@ -26,7 +26,11 @@ import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
+import static java.util.concurrent.Executors.newCachedThreadPool;
 
 public class TestingUtils
 {
@@ -137,20 +141,20 @@ public class TestingUtils
                   ]
                 }""";
 
-    public static ModelClientProvider staticModelClientProvider(String modelSpecJson, ScheduledExecutorService reloadingExecutor)
+    public static ModelClientProvider staticModelClientProvider(String modelSpecJson, ScheduledExecutorService reloadingExecutor, ExecutorService llmExecutor)
     {
         File modelsFile = createModelConnectionSpecsFile(modelSpecJson);
-        return createModelClientProvider(modelsFile, false, reloadingExecutor);
+        return createModelClientProvider(modelsFile, false, reloadingExecutor, llmExecutor);
     }
 
-    public static ReloadingModelClientProvider reloadingModelClientProvider(File modelsFile, ScheduledExecutorService reloadingExecutor)
+    public static ReloadingModelClientProvider reloadingModelClientProvider(File modelsFile, ScheduledExecutorService reloadingExecutor, ExecutorService llmExecutor)
     {
-        ReloadingModelClientProvider reloadingModelClientProvider = createModelClientProvider(modelsFile, true, reloadingExecutor);
+        ReloadingModelClientProvider reloadingModelClientProvider = createModelClientProvider(modelsFile, true, reloadingExecutor, llmExecutor);
         reloadingModelClientProvider.start();
         return reloadingModelClientProvider;
     }
 
-    private static ReloadingModelClientProvider createModelClientProvider(File modelsFile, boolean clientCacheRefreshEnabled, ScheduledExecutorService reloadingExecutor)
+    private static ReloadingModelClientProvider createModelClientProvider(File modelsFile, boolean clientCacheRefreshEnabled, ScheduledExecutorService reloadingExecutor, ExecutorService llmExecutor)
     {
         AiFileStorageConfig config = new AiFileStorageConfig().setModelConnectionSpecsFile(modelsFile.getAbsolutePath());
         FileBackedModelConnectionSpecsLoader modelSpecsLoader = new FileBackedModelConnectionSpecsLoader(config);
@@ -163,8 +167,9 @@ public class TestingUtils
                 .buildOrThrow();
 
         SecretsResolver secretsResolver = new SecretsResolver(ImmutableMap.of("env", new EnvironmentVariableSecretProvider()));
-        AwsBedrockClientFactory bedrockClientFactory = new AwsBedrockClientFactory(awsEmbeddingCodecFactories, secretsResolver);
-        OpenAiClientFactory openAiClientFactory = new OpenAiClientFactory(secretsResolver);
+        AiClientConfig aiClientConfig = new AiClientConfig();
+        AwsBedrockClientFactory bedrockClientFactory = new AwsBedrockClientFactory(awsEmbeddingCodecFactories, secretsResolver, aiClientConfig, llmExecutor);
+        OpenAiClientFactory openAiClientFactory = new OpenAiClientFactory(secretsResolver, aiClientConfig, llmExecutor);
         return new ReloadingModelClientProvider(
                 tracer,
                 promptDao,
@@ -190,5 +195,10 @@ public class TestingUtils
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    public static ExecutorService createLlmExecutor()
+    {
+        return newCachedThreadPool(daemonThreadsNamed("llm-invoker-executor-%s"));
     }
 }

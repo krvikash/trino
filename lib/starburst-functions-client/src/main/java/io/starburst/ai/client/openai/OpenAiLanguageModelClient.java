@@ -12,11 +12,14 @@ package io.starburst.ai.client.openai;
 import com.google.common.collect.ImmutableList;
 import com.openai.client.OpenAIClient;
 import com.openai.core.JsonValue;
+import com.openai.errors.RateLimitException;
 import com.openai.models.chat.completions.ChatCompletion;
 import com.openai.models.chat.completions.ChatCompletionAssistantMessageParam;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import com.openai.models.chat.completions.ChatCompletionMessage;
 import com.openai.models.completions.CompletionUsage;
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
@@ -25,8 +28,10 @@ import io.starburst.ai.client.LlmMessage;
 import io.starburst.ai.client.PromptDao;
 import io.trino.spi.TrinoException;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 
 import static io.opentelemetry.api.trace.StatusCode.ERROR;
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_OPENAI_RESPONSE_SERVICE_TIER;
@@ -49,6 +54,12 @@ public class OpenAiLanguageModelClient
         extends AbstractLanguageModelClient
 {
     private static final int SEED = 37;
+    private static final RetryPolicy<ChatCompletion> RATE_LIMIT_RETRY_POLICY = RetryPolicy.<ChatCompletion>builder()
+            .handleIf(OpenAiLanguageModelClient::isRetryable)
+            .withMaxRetries(4)
+            .withBackoff(Duration.ofMillis(500), Duration.ofMinutes(2))
+            .withJitter(0.25)
+            .build();
 
     private final Optional<Float> temperature;
     private final Optional<Integer> maxTokens;
@@ -66,11 +77,13 @@ public class OpenAiLanguageModelClient
             Optional<Float> topP,
             boolean useDeveloperForSystemRole,
             PromptDao promptDao,
+            Executor executor,
+            int batchParallelism,
             Tracer tracer,
             boolean isGeminiEndpoint,
             OpenAIClient client)
     {
-        super(promptDao);
+        super(promptDao, executor, batchParallelism);
         this.temperature = requireNonNull(temperature, "temperature is null");
         this.maxTokens = requireNonNull(maxTokens, "maxTokens is null");
         this.topP = requireNonNull(topP, "topP is null");
@@ -123,7 +136,9 @@ public class OpenAiLanguageModelClient
 
         ChatCompletion response;
         try (var _ = span.makeCurrent()) {
-            response = client.chat().completions().create(builder.build());
+            ChatCompletionCreateParams params = builder.build();
+            response = Failsafe.with(RATE_LIMIT_RETRY_POLICY).get(() -> client.chat().completions().create(params));
+
             span.setAttribute(GEN_AI_RESPONSE_ID, response.id());
             span.setAttribute(GEN_AI_RESPONSE_MODEL, response.model());
             span.setAttribute(GEN_AI_OPENAI_RESPONSE_SERVICE_TIER, response.serviceTier()
@@ -160,5 +175,10 @@ public class OpenAiLanguageModelClient
                 .role(JsonValue.from("assistant"))
                 .content(content)
                 .build();
+    }
+
+    private static boolean isRetryable(Throwable t)
+    {
+        return t instanceof RateLimitException;
     }
 }

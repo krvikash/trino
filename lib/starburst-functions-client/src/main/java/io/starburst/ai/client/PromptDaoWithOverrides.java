@@ -36,6 +36,13 @@ public class PromptDaoWithOverrides
     }
 
     @Override
+    public String analyzeSentimentPromptBatch()
+    {
+        // we don't allow customizations of batch prompts for now
+        return baseProvider.analyzeSentimentPromptBatch();
+    }
+
+    @Override
     public Optional<String> analyzeSentimentSystemPrompt()
     {
         return overrides.flatMap(PromptOverrides::analyzeSentimentSystemPrompt).or(baseProvider::analyzeSentimentSystemPrompt);
@@ -45,6 +52,13 @@ public class PromptDaoWithOverrides
     public String classifyPrompt()
     {
         return overrides.flatMap(PromptOverrides::classifyPrompt).orElseGet(baseProvider::classifyPrompt);
+    }
+
+    @Override
+    public String classifyPromptBatch()
+    {
+        // we don't allow customizations of batch prompts for now
+        return baseProvider.classifyPromptBatch();
     }
 
     @Override
@@ -60,6 +74,13 @@ public class PromptDaoWithOverrides
     }
 
     @Override
+    public String fixGrammarPromptBatch()
+    {
+        // we don't allow customizations of batch prompts for now
+        return baseProvider.fixGrammarPromptBatch();
+    }
+
+    @Override
     public Optional<String> fixGrammarSystemPrompt()
     {
         return overrides.flatMap(PromptOverrides::fixGrammarSystemPrompt).or(baseProvider::fixGrammarSystemPrompt);
@@ -69,6 +90,13 @@ public class PromptDaoWithOverrides
     public String maskPrompt()
     {
         return overrides.flatMap(PromptOverrides::maskPrompt).orElseGet(baseProvider::maskPrompt);
+    }
+
+    @Override
+    public String maskPromptBatch()
+    {
+        // we don't allow customizations of batch prompts for now
+        return baseProvider.maskPromptBatch();
     }
 
     @Override
@@ -84,6 +112,13 @@ public class PromptDaoWithOverrides
     }
 
     @Override
+    public String translatePromptBatch()
+    {
+        // we don't allow customizations of batch prompts for now
+        return baseProvider.translatePromptBatch();
+    }
+
+    @Override
     public Optional<String> translateSystemPrompt()
     {
         return overrides.flatMap(PromptOverrides::translateSystemPrompt).or(baseProvider::translateSystemPrompt);
@@ -93,6 +128,13 @@ public class PromptDaoWithOverrides
     public String summarizePrompt()
     {
         return overrides.flatMap(PromptOverrides::summarizePrompt).orElseGet(baseProvider::summarizePrompt);
+    }
+
+    @Override
+    public String summarizePromptBatch()
+    {
+        // we don't allow customizations of batch prompts for now
+        return baseProvider.summarizePromptBatch();
     }
 
     @Override

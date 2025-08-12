@@ -14,6 +14,7 @@ import io.airlift.configuration.ConfigDescription;
 import io.airlift.units.Duration;
 import io.airlift.units.MaxDuration;
 import io.airlift.units.MinDuration;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 import java.util.concurrent.TimeUnit;
@@ -24,6 +25,7 @@ public class AiClientConfig
     private boolean clientCacheRefreshEnabled;
     private Duration clientCacheRefreshInterval = new Duration(1, TimeUnit.SECONDS);
     private Duration clientCacheTtl = new Duration(1, TimeUnit.HOURS);
+    private int batchParallelism = 4;
 
     @NotNull
     public StorageType getStorageType()
@@ -79,6 +81,20 @@ public class AiClientConfig
     public AiClientConfig setClientCacheTtl(Duration clientCacheTtl)
     {
         this.clientCacheTtl = clientCacheTtl;
+        return this;
+    }
+
+    @Min(1)
+    public int getBatchParallelism()
+    {
+        return batchParallelism;
+    }
+
+    @Config("ai.client.batch.parallelism")
+    @ConfigDescription("Per split parallelism level used in batch processing")
+    public AiClientConfig setBatchParallelism(int batchParallelism)
+    {
+        this.batchParallelism = batchParallelism;
         return this;
     }
 

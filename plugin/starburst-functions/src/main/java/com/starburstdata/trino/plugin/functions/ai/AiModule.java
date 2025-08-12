@@ -12,12 +12,14 @@ package com.starburstdata.trino.plugin.functions.ai;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
+import com.starburstdata.trino.plugin.functions.AiSessionPropertiesProvider;
 import com.starburstdata.trino.plugin.functions.FunctionsConnector;
 import com.starburstdata.trino.plugin.functions.FunctionsMetadata;
 import com.starburstdata.trino.plugin.functions.StarburstFunctions;
 import com.starburstdata.trino.plugin.functions.ai.embedding.GenerateEmbeddingsTableFunction;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.starburst.ai.client.AiClientModule;
+import io.trino.plugin.base.session.SessionPropertiesProvider;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.SystemTable;
@@ -47,6 +49,7 @@ public class AiModule
         binder.bind(FunctionsConnector.class).in(Scopes.SINGLETON);
         binder.bind(FunctionsMetadata.class).in(Scopes.SINGLETON);
         binder.bind(StarburstFunctions.class).in(Scopes.SINGLETON);
+        newSetBinder(binder, SessionPropertiesProvider.class).addBinding().to(AiSessionPropertiesProvider.class).in(Scopes.SINGLETON);
 
         binder.bind(Connector.class).to(FunctionsConnector.class).in(Scopes.SINGLETON);
         binder.bind(ConnectorMetadata.class).to(FunctionsMetadata.class).in(Scopes.SINGLETON);

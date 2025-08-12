@@ -15,9 +15,15 @@ public interface LanguageModelClient
 {
     String analyzeSentiment(String text);
 
+    List<String> analyzeSentimentBatch(List<String> texts);
+
     String classify(String text, List<String> labels);
 
+    List<String> classifyBatch(List<String> texts, List<String> labels);
+
     String fixGrammar(String text);
+
+    List<String> fixGrammarBatch(List<String> texts);
 
     String generate(String prompt);
 
@@ -31,7 +37,13 @@ public interface LanguageModelClient
 
     String mask(String text, List<String> labels);
 
+    List<String> maskBatch(List<String> texts, List<String> labels);
+
     String translate(String text, String language);
 
+    List<String> translateBatch(List<String> texts, String language);
+
     String summarize(String text);
+
+    List<String> summarizeBatch(List<String> text);
 }

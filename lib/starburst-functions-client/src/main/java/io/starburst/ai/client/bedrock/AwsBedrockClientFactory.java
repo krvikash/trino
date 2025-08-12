@@ -12,7 +12,9 @@ package io.starburst.ai.client.bedrock;
 import com.google.inject.Inject;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.opentelemetry.api.trace.Tracer;
+import io.starburst.ai.client.AiClientConfig;
 import io.starburst.ai.client.EmbeddingModelClient;
+import io.starburst.ai.client.ForAiClient;
 import io.starburst.ai.client.LanguageModelClient;
 import io.starburst.ai.client.ModelClientFactory;
 import io.starburst.ai.client.PromptDao;
@@ -39,6 +41,7 @@ import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
+import java.util.concurrent.Executor;
 
 import static io.starburst.ai.client.AiClientErrorCode.INVALID_MODEL_CONFIGURATION;
 import static io.starburst.ai.client.AiClientErrorCode.UNSUPPORTED_MODEL;
@@ -51,12 +54,16 @@ public class AwsBedrockClientFactory
 {
     private final Map<String, AwsEmbeddingCodec.Factory> awsEmbeddingCodecFactories;
     private final SecretsResolver secretsResolver;
+    private final Executor executor;
+    private final int batchParallelism;
 
     @Inject
-    public AwsBedrockClientFactory(Map<String, AwsEmbeddingCodec.Factory> awsEmbeddingCodecFactories, SecretsResolver secretsResolver)
+    public AwsBedrockClientFactory(Map<String, AwsEmbeddingCodec.Factory> awsEmbeddingCodecFactories, SecretsResolver secretsResolver, AiClientConfig config, @ForAiClient Executor executor)
     {
         this.awsEmbeddingCodecFactories = requireNonNull(awsEmbeddingCodecFactories, "awsEmbeddingCodecFactories is null");
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
+        this.executor = requireNonNull(executor, "executor is null");
+        batchParallelism = config.getBatchParallelism();
     }
 
     @Override
@@ -70,6 +77,8 @@ public class AwsBedrockClientFactory
                 spec.temperature(),
                 spec.topP(),
                 promptDao,
+                executor,
+                batchParallelism,
                 tracer,
                 createBedrockClient(connectionInfo));
     }

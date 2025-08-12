@@ -30,7 +30,8 @@ public class TestAiClientConfig
                 .setStorageType(StorageType.NONE)
                 .setClientCacheRefreshInterval(new Duration(1, TimeUnit.SECONDS))
                 .setClientCacheTtl(new Duration(1, TimeUnit.HOURS))
-                .setClientCacheRefreshEnabled(false));
+                .setClientCacheRefreshEnabled(false)
+                .setBatchParallelism(4));
     }
 
     @Test
@@ -41,12 +42,14 @@ public class TestAiClientConfig
                 .put("ai.client.cache.refresh.interval", "5s")
                 .put("ai.client.cache.ttl", "30m")
                 .put("ai.client.cache.refresh.enabled", "true")
+                .put("ai.client.batch.parallelism", "8")
                 .buildOrThrow();
         AiClientConfig expected = new AiClientConfig()
                 .setStorageType(StorageType.FILE)
                 .setClientCacheRefreshInterval(new Duration(5, TimeUnit.SECONDS))
                 .setClientCacheTtl(new Duration(30, TimeUnit.MINUTES))
-                .setClientCacheRefreshEnabled(true);
+                .setClientCacheRefreshEnabled(true)
+                .setBatchParallelism(8);
 
         assertFullMapping(properties, expected);
     }

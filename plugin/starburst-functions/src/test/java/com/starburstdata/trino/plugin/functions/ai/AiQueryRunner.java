@@ -32,6 +32,10 @@ public final class AiQueryRunner
     public static final Session TEST_AI_SESSION = testSessionBuilder()
             .setCatalog(STARBURST_FUNCTIONS_CATALOG)
             .build();
+    public static final Session TEST_AI_SESSION_BATCH = testSessionBuilder()
+            .setCatalog(STARBURST_FUNCTIONS_CATALOG)
+            .setCatalogSessionProperty(STARBURST_FUNCTIONS_CATALOG, "batch_calling_enabled", "true")
+            .build();
 
     private AiQueryRunner() {}
 
@@ -105,8 +109,7 @@ public final class AiQueryRunner
                             "id": "meta_llama",
                             "modelName": "us.meta.llama3-3-70b-instruct-v1:0",
                             "kind": "GENERATE",
-                            "maxTokens": 1024,
-                            "temperature": 0.7,
+                            "temperature": 0.1,
                             "prompts": {
                                 "systemPrompts": [
                                     "You are a useful assistant"

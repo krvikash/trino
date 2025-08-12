@@ -24,8 +24,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.regex.Pattern;
+import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
@@ -33,6 +35,7 @@ import static io.airlift.json.JsonCodec.listJsonCodec;
 import static io.airlift.json.JsonCodec.mapJsonCodec;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.starburst.ai.client.TestingUtils.LANGUAGE_MODEL_PROVIDERS;
+import static io.starburst.ai.client.TestingUtils.createLlmExecutor;
 import static io.starburst.ai.client.TestingUtils.staticModelClientProvider;
 import static java.util.Locale.ENGLISH;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
@@ -44,6 +47,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 public class TestLanguageModelClient
 {
     private ScheduledExecutorService reloadingExecutor;
+    private ExecutorService llmExecutor;
     private ModelClientProvider modelClientProvider;
 
     @BeforeAll
@@ -51,13 +55,15 @@ public class TestLanguageModelClient
             throws IOException
     {
         reloadingExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("reloading-model-client-provider"));
-        modelClientProvider = staticModelClientProvider(LANGUAGE_MODEL_PROVIDERS, reloadingExecutor);
+        llmExecutor = createLlmExecutor();
+        modelClientProvider = staticModelClientProvider(LANGUAGE_MODEL_PROVIDERS, reloadingExecutor, llmExecutor);
     }
 
     @AfterAll
     public void cleanup()
     {
         reloadingExecutor.shutdownNow();
+        llmExecutor.shutdownNow();
     }
 
     @ParameterizedTest
@@ -157,6 +163,48 @@ public class TestLanguageModelClient
     {
         String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).classify("I love this product!", ImmutableList.of("positive", "negative", "neutral"));
         assertThat(result).contains("positive");
+    }
+
+    @ParameterizedTest
+    @MethodSource("modelIds")
+    public void testAnalyzeSentimentBatch(String modelId)
+    {
+        List<List<String>> data = List.of(
+                List.of("I love this product!", "positive"),
+                List.of("Wow... Loved this place.", "positive"),
+                List.of("It's okay", "neutral"),
+                List.of("Absolutely terrible. Broke after one use.", "negative"),
+                List.of("It's fine, nothing special.", "neutral"),
+                List.of("Amazing experience, would buy again!", "positive"),
+                List.of("Not worth the money", "negative"),
+                List.of("The food was great, but service was terrible", "mixed"),
+                List.of("The battery lasts forever, I'm impressed", "positive"),
+                List.of("Packaging was damaged.", "negative")
+        );
+        List<List<String>> expandedData = IntStream.range(0, 30)
+                .boxed()
+                .flatMap(i -> data.stream())
+                .collect(ImmutableList.toImmutableList());
+
+        List<String> texts = expandedData.stream()
+                .map(list -> list.get(0))
+                .toList();
+        List<String> expectedSentiments = expandedData.stream()
+                .map(list -> list.get(1))
+                .toList();
+
+        List<String> result = modelClientProvider.languageModelClient(utf8Slice(modelId)).analyzeSentimentBatch(texts);
+        assertThat(result.size()).isEqualTo(expectedSentiments.size());
+        assertThat(result).isEqualTo(expectedSentiments);
+    }
+
+    @ParameterizedTest
+    @MethodSource("modelIds")
+    public void testAnalyzeSentiment(String modelId)
+    {
+        String text = "The food was great, but service was terrible";
+        String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).analyzeSentiment(text);
+        assertThat(result.strip()).isEqualTo("mixed");
     }
 
     @ParameterizedTest
