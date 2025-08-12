@@ -415,7 +415,7 @@ public class TestTimestampCoercer
         long hybridMillis = toHybridMillis(writtenTimestamp);
         Block writtenBlock = nativeValueToBlock(TIMESTAMP_MICROS, multiplyExact(hybridMillis, MICROSECONDS_PER_MILLISECOND));
 
-        Optional<TypeCoercer<? extends Type, ? extends Type>> coercer = ParquetTypeTranslator.createCoercer(INT96, null, TIMESTAMP_MICROS, new ParquetTypeTranslator.CoercionContext(false, convertTimestampToProleptic));
+        Optional<TypeCoercer<? extends Type, ? extends Type>> coercer = ParquetTypeTranslator.createCoercer(INT96, null, TIMESTAMP_MICROS, new ParquetTypeTranslator.CoercionContext(false, convertTimestampToProleptic, false, false));
         Block readBlock = coercer.isPresent() ? coercer.get().apply(writtenBlock) : writtenBlock;
 
         long actualMillis = floorDiv((long) blockToNativeValue(TIMESTAMP_MICROS, readBlock), MICROSECONDS_PER_MILLISECOND);
@@ -450,7 +450,7 @@ public class TestTimestampCoercer
         LongTimestamp givenTimestamp = fromHybridTimestamp(writtenTimestamp);
         Block writtenBlock = nativeValueToBlock(TIMESTAMP_NANOS, givenTimestamp);
 
-        Optional<TypeCoercer<? extends Type, ? extends Type>> coercer = ParquetTypeTranslator.createCoercer(INT96, null, TIMESTAMP_NANOS, new ParquetTypeTranslator.CoercionContext(false, convertTimestampToProleptic));
+        Optional<TypeCoercer<? extends Type, ? extends Type>> coercer = ParquetTypeTranslator.createCoercer(INT96, null, TIMESTAMP_NANOS, new ParquetTypeTranslator.CoercionContext(false, convertTimestampToProleptic, false, false));
         Block readBlock = coercer.isPresent() ? coercer.orElseThrow().apply(writtenBlock) : writtenBlock;
         LongTimestamp actualLongTimestamp = (LongTimestamp) blockToNativeValue(TIMESTAMP_NANOS, readBlock);
 

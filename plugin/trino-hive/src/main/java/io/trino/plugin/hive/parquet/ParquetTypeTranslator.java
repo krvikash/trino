@@ -92,7 +92,13 @@ public final class ParquetTypeTranslator
             }
         }
         if (toTrinoType instanceof TimestampType timestampType) {
-            if (coercionContext.convertHiveInt96TimestampToProleptic() && fromParquetType == INT96) {
+            if (fromParquetType == INT96 && (coercionContext.convertHiveInt96TimestampToProleptic() || coercionContext.convertSparkTimestampInt96ToProleptic())) {
+                return Optional.of(timestampType.isShort()
+                        ? new ShortTimestampHybridToProlepticGregorianCoercer(timestampType)
+                        : new LongTimestampHybridToProlepticGregorianCoercer(timestampType));
+            }
+
+            if (fromParquetType == INT64 && coercionContext.convertSparkTimestampToProleptic()) {
                 return Optional.of(timestampType.isShort()
                         ? new ShortTimestampHybridToProlepticGregorianCoercer(timestampType)
                         : new LongTimestampHybridToProlepticGregorianCoercer(timestampType));
@@ -101,8 +107,12 @@ public final class ParquetTypeTranslator
         return Optional.empty();
     }
 
-    public record CoercionContext(boolean convertDateToProleptic, boolean convertHiveInt96TimestampToProleptic)
+    public record CoercionContext(
+            boolean convertDateToProleptic,
+            boolean convertHiveInt96TimestampToProleptic,
+            boolean convertSparkTimestampToProleptic,
+            boolean convertSparkTimestampInt96ToProleptic)
     {
-        public static final CoercionContext DEFAULT = new CoercionContext(false, false);
+        public static final CoercionContext DEFAULT = new CoercionContext(false, false, false, false);
     }
 }

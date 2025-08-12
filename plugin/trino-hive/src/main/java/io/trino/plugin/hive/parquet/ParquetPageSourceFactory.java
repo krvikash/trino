@@ -109,6 +109,7 @@ import static io.trino.plugin.hive.HiveSessionProperties.useParquetBloomFilter;
 import static io.trino.plugin.hive.parquet.ParquetPageSource.handleException;
 import static io.trino.plugin.hive.parquet.ParquetTypeTranslator.createCoercer;
 import static io.trino.plugin.hive.parquet.SparkVersion.SPARK_3_0_0;
+import static io.trino.plugin.hive.parquet.SparkVersion.SPARK_3_1_0;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -135,6 +136,7 @@ public class ParquetPageSourceFactory
     private static final String HIVE_METADATA_KEY_WRITER_MODEL_NAME = "writer.model.name";
     private static final String APACHE_SPARK_METADATA_KEY_VERSION = "org.apache.spark.version";
     private static final String APACHE_SPARK_METADATA_KEY_LEGACY_DATE_TIME = "org.apache.spark.legacyDateTime";
+    private static final String APACHE_SPARK_METADATA_KEY_LEGACY_INT96 = "org.apache.spark.legacyINT96";
 
     private static final Set<String> PARQUET_SERDE_CLASS_NAMES = ImmutableSet.<String>builder()
             .add(PARQUET_HIVE_SERDE_CLASS)
@@ -569,6 +571,9 @@ public class ParquetPageSourceFactory
         boolean convertDateToProleptic = false;
         boolean convertHiveInt96TimestampToProleptic = false;
 
+        boolean convertSparkTimestampProleptic = false;
+        boolean convertSparkTimestampInt96ToProleptic = false;
+
         // Hive: if entry exists and explicitly states 'false' then we should convert to Proleptic, in other cases no
         if ("false".equalsIgnoreCase(keyValueMetaData.get(HIVE_METADATA_KEY_WRITER_DATE_PROLEPTIC))) {
             convertDateToProleptic = true;
@@ -591,9 +596,21 @@ public class ParquetPageSourceFactory
 
         if (sparkDatetimeInHybrid) {
             convertDateToProleptic = true;
+            convertSparkTimestampProleptic = true;
         }
 
-        return new CoercionContext(convertDateToProleptic, convertHiveInt96TimestampToProleptic);
+        // For INT96 timestamps, Spark followed the hybrid calendar up to Spark 3.0.x, and switched to Proleptic Gregorian in Spark 3.1.0
+        // https://spark.apache.org/docs/latest/sql-migration-guide.html#upgrading-from-spark-sql-30-to-31
+        // https://github.com/apache/spark/blob/c4f62d459f245fa391a5c7361ef2a434f8b869df/sql/core/src/main/scala/org/apache/spark/sql/execution/datasources/DataSourceUtils.scala#L175
+        boolean sparkInt96InHybrid = sparkVersion
+                .map(version -> version.isBelow(SPARK_3_1_0))
+                .orElse(false) || keyValueMetaData.containsKey(APACHE_SPARK_METADATA_KEY_LEGACY_INT96);
+
+        if (sparkInt96InHybrid) {
+            convertSparkTimestampInt96ToProleptic = true;
+        }
+
+        return new CoercionContext(convertDateToProleptic, convertHiveInt96TimestampToProleptic, convertSparkTimestampProleptic, convertSparkTimestampInt96ToProleptic);
     }
 
     private static boolean isParquetWrittenByHive(Map<String, String> keyValueMetaData)

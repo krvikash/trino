@@ -185,7 +185,7 @@ public class TestDateCoercer
                         INT32,
                         LogicalTypeAnnotation.dateType(),
                         DATE,
-                        new ParquetTypeTranslator.CoercionContext(convertDateToProleptic, false));
+                        new ParquetTypeTranslator.CoercionContext(convertDateToProleptic, false, false, false));
         Block readBlock = coercer.isPresent() ? coercer.get().apply(writtenBlock) : writtenBlock;
 
         Object actualDays = blockToNativeValue(DATE, readBlock);
