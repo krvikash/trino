@@ -189,7 +189,7 @@ public class TestPagesSerde
         // empty page
         Page page = new Page(builder.build());
         int pageSize = serializedSize(ImmutableList.of(BIGINT), page);
-        assertThat(pageSize).isEqualTo(47);
+        assertThat(pageSize).isEqualTo(43);
 
         // page with one value
         BIGINT.writeLong(builder, 123);
