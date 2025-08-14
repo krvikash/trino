@@ -2173,11 +2173,38 @@ public final class MetadataManager
         ConnectorMetadata metadata = getMetadata(session, catalogHandle);
 
         return metadata.unifyTables(session.toConnectorSession(catalogHandle), first.connectorHandle(), second.connectorHandle())
-                .map(result -> new UnificationResult<>(
-                        new TableHandle(catalogHandle, result.unifiedHandle(), transaction),
-                        result.firstCompensationFilter(),
-                        result.secondCompensationFilter(),
-                        result.enforcedProperties()));
+                .map(result -> {
+                    verifyAssignments(result.firstCompensationExpression(), result.firstAssignments());
+                    verifyAssignments(result.secondCompensationExpression(), result.secondAssignments());
+                    verifyAssignments(result.enforcedProperties().connectorExpressionConstraint(), result.enforcedProperties().connectorExpressionAssignments());
+
+                    return new UnificationResult<>(
+                            new TableHandle(catalogHandle, result.unifiedHandle(), transaction),
+                            result.firstCompensationFilter(),
+                            result.firstCompensationExpression(),
+                            result.firstAssignments(),
+                            result.secondCompensationFilter(),
+                            result.secondCompensationExpression(),
+                            result.secondAssignments(),
+                            result.enforcedProperties());
+                });
+    }
+
+    private void verifyAssignments(ConnectorExpression expression, Map<String, Assignment> assignments)
+    {
+        assignments.entrySet().stream()
+                .filter(entry -> !entry.getValue().getVariable().equals(entry.getKey()))
+                .findAny()
+                .ifPresent(entry -> {
+                    throw new IllegalStateException(
+                            format("Mismatch variable: key=%s, value.variable=%s", entry.getKey(), entry.getValue().getVariable()));
+                });
+
+        extractVariables(expression).stream()
+                .map(Variable::getName)
+                .filter(variableName -> !assignments.containsKey(variableName))
+                .findAny()
+                .ifPresent(variableName -> { throw new IllegalStateException("Unbound variable: " + variableName); });
     }
 
     private void verifyProjection(TableHandle table, List<ConnectorExpression> projections, List<Assignment> assignments, int expectedProjectionSize)

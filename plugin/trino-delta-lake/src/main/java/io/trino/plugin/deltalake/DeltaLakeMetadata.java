@@ -353,6 +353,7 @@ import static io.trino.spi.StandardErrorCode.UNSUPPORTED_TABLE_TYPE;
 import static io.trino.spi.connector.RetryMode.NO_RETRIES;
 import static io.trino.spi.connector.RowChangeParadigm.DELETE_ROW_AND_INSERT_ROW;
 import static io.trino.spi.connector.SchemaTableName.schemaTableName;
+import static io.trino.spi.expression.Constant.TRUE;
 import static io.trino.spi.predicate.Range.greaterThanOrEqual;
 import static io.trino.spi.predicate.Range.lessThanOrEqual;
 import static io.trino.spi.predicate.Range.range;
@@ -383,6 +384,7 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.Math.floorDiv;
 import static java.lang.String.format;
 import static java.time.Instant.EPOCH;
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.unmodifiableMap;
 import static java.util.Comparator.naturalOrder;
@@ -4015,6 +4017,8 @@ public class DeltaLakeMetadata
                 secondCompensationFilter.transformKeys(ColumnHandle.class::cast),
                 new UnificationResult.Properties(
                         unified.getEnforcedPartitionConstraint().transformKeys(ColumnHandle.class::cast),
+                        TRUE,
+                        emptyMap(),
                         OptionalLong.empty()))); // Deltalake doesn't support limit pushdown
     }
 

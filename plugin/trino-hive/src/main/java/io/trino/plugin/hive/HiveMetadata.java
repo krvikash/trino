@@ -344,6 +344,7 @@ import static io.trino.spi.connector.Constraint.alwaysTrue;
 import static io.trino.spi.connector.RetryMode.NO_RETRIES;
 import static io.trino.spi.connector.RowChangeParadigm.DELETE_ROW_AND_INSERT_ROW;
 import static io.trino.spi.connector.SaveMode.REPLACE;
+import static io.trino.spi.expression.Constant.TRUE;
 import static io.trino.spi.predicate.TupleDomain.columnWiseUnion;
 import static io.trino.spi.predicate.TupleDomain.withColumnDomains;
 import static io.trino.spi.statistics.TableStatisticType.ROW_COUNT;
@@ -353,6 +354,7 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static java.lang.Boolean.parseBoolean;
 import static java.lang.String.format;
+import static java.util.Collections.emptyMap;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
@@ -3253,6 +3255,8 @@ public class HiveMetadata
                 secondCompensationFilter,
                 new UnificationResult.Properties(
                         unified.getEnforcedConstraint(),
+                        TRUE,
+                        emptyMap(),
                         OptionalLong.empty()))); // Hive doesn't support limit pushdown
     }
 

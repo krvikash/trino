@@ -28,9 +28,14 @@ import io.trino.Session;
 import io.trino.connector.CatalogHandle;
 import io.trino.metadata.Metadata;
 import io.trino.metadata.TableHandle;
+import io.trino.plugin.base.expression.ConnectorExpressions;
+import io.trino.plugin.base.util.ConnectorExpressionUtil.ExpressionAndAssignments;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.Assignment;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.UnificationResult;
+import io.trino.spi.expression.ConnectorExpression;
+import io.trino.spi.expression.Variable;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.RowType;
@@ -53,6 +58,7 @@ import io.trino.sql.dialect.trino.operation.TrinoOperation;
 import io.trino.sql.dialect.trino.operationmetadata.DynamicFilterSourceOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
 import io.trino.sql.ir.Expression;
+import io.trino.sql.ir.IrUtils;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
@@ -62,6 +68,7 @@ import io.trino.sql.newir.Program;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.SourceNode;
 import io.trino.sql.newir.Value;
+import io.trino.sql.planner.ConnectorExpressionTranslator;
 import io.trino.sql.planner.DomainTranslator;
 import io.trino.sql.planner.Plan;
 import io.trino.sql.planner.Symbol;
@@ -71,6 +78,7 @@ import io.trino.sql.planner.optimizations.ctereuse.Checkpoint.BottomCheckpoint;
 import io.trino.sql.planner.optimizations.ctereuse.Checkpoint.IntermediateCheckpoint;
 import io.trino.sql.planner.optimizations.ctereuse.DynamicFilterUtils.DynamicFilterExtractionResult;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -83,6 +91,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -92,6 +101,8 @@ import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.SystemSessionProperties.isDebugCteReuseEnabled;
+import static io.trino.plugin.base.expression.ConnectorExpressions.and;
+import static io.trino.plugin.base.expression.ConnectorExpressions.extractVariables;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -208,7 +219,7 @@ public class CteReuse
 
         // merge each group
         for (UnifiedGroup unifiedGroup : unifiedGroups) {
-            UnifiedStates initializedGroup = initializeTraversalForGroup(unifiedGroup, plannerContext.getMetadata(), operationToDownstream, nameAllocator, newOperations);
+            UnifiedStates initializedGroup = initializeTraversalForGroup(unifiedGroup, plannerContext.getMetadata(), operationToDownstream, nameAllocator, newOperations, plannerContext, session);
             mergeGroupRecursively(
                     initializedGroup,
                     ImmutableList.of(new BottomCheckpoint(unifiedGroup.tableScans())),
@@ -218,6 +229,7 @@ public class CteReuse
                     nameAllocator,
                     newOperations,
                     multiGroupMerger,
+                    plannerContext,
                     session,
                     plannerContext.getMetadata());
         }
@@ -414,14 +426,16 @@ public class CteReuse
             Metadata metadata,
             Map<Operation, Operation> operationToDownstream,
             ProgramBuilder.ValueNameAllocator nameAllocator,
-            Map<Value, Operation> newOperations)
+            Map<Value, Operation> newOperations,
+            PlannerContext plannerContext,
+            Session session)
     {
         // unified TableScan is the first unified operation
         TableScan unifiedTableScan = getUnifiedTableScan(unifiedGroup, nameAllocator);
         newOperations.put(unifiedTableScan.result(), unifiedTableScan);
 
         // initialize traversal context for each branch on top of the unified TableScan
-        List<TraversalContext> traversalContexts = initializeTraversalContexts(unifiedGroup, unifiedTableScan, metadata, nameAllocator);
+        List<TraversalContext> traversalContexts = initializeTraversalContexts(unifiedGroup, unifiedTableScan, metadata, nameAllocator, plannerContext, session);
 
         // initialize traversal state for each branch by combining the TraversalContext with the next downstream operation
         ImmutableList.Builder<TraversalState> traversalStates = ImmutableList.builder();
@@ -460,10 +474,7 @@ public class CteReuse
             if (outputRowType instanceof RowType rowType) {
                 List<ColumnHandle> columnHandles = COLUMN_HANDLES.getAttribute(tableScan.attributes());
                 for (int i = 0; i < rowType.getTypeParameters().size(); i++) {
-                    Type previous = typesMap.put(columnHandles.get(i), rowType.getTypeParameters().get(i));
-                    if (previous != null && !rowType.getTypeParameters().get(i).equals(previous)) {
-                        throw new TrinoException(IR_ERROR, format("different types: %s and %s for the same column handle: %s", previous.getDisplayName(), rowType.getTypeParameters().get(i).getDisplayName(), columnHandles.get(i)));
-                    }
+                    addType(typesMap, columnHandles.get(i), rowType.getTypeParameters().get(i));
                 }
             }
         }
@@ -474,14 +485,13 @@ public class CteReuse
                         unificationResult.secondCompensationFilter()))
                 .filter(tupleDomain -> !tupleDomain.isNone())
                 .flatMap(tupleDomain -> tupleDomain.getDomains().orElseThrow().entrySet().stream())
-                .forEach(entry -> {
-                    ColumnHandle columnHandle = entry.getKey();
-                    Type type = entry.getValue().getType();
-                    Type previous = typesMap.put(columnHandle, type);
-                    if (previous != null && !type.equals(previous)) {
-                        throw new TrinoException(IR_ERROR, format("different types: %s and %s for the same column handle: %s", previous.getDisplayName(), type.getDisplayName(), columnHandle));
-                    }
-                });
+                .forEach(entry -> addType(typesMap, entry.getKey(), entry.getValue().getType()));
+
+        // compute a set of columns used in compensation expressions
+        for (UnificationResult<TableHandle> unificationResult : unifiedGroup.unificationResults()) {
+            addExpressionTypes(typesMap, unificationResult.firstCompensationExpression(), unificationResult.firstAssignments());
+            addExpressionTypes(typesMap, unificationResult.secondCompensationExpression(), unificationResult.secondAssignments());
+        }
 
         List<Map.Entry<ColumnHandle, Type>> columnsList = typesMap.entrySet().stream().collect(toImmutableList());
 
@@ -500,12 +510,29 @@ public class CteReuse
                 unificationResult.unifiedHandle(),
                 unifiedColumnHandles,
                 // the enforcedConstraint must be based on columns exposed by the TableScan
-                unificationResult.enforcedProperties().filter()
+                unificationResult.enforcedProperties().tupleDomainConstraint()
                         .filter((columnHandle, domain) -> unifiedColumnHandlesSet.contains(columnHandle)),
                 // TODO use the method deriveTableStatisticsForPushdown() to get the statistics for the unified TableScan
                 Optional.empty(),
                 false,
                 Optional.ofNullable(USE_CONNECTOR_NODE_PARTITIONING.getAttribute(unifiedGroup.tableScans().getFirst().attributes())));
+    }
+
+    private static void addExpressionTypes(Map<ColumnHandle, Type> typesMap, ConnectorExpression compensationExpression, Map<String, Assignment> assignments)
+    {
+        extractVariables(compensationExpression).stream()
+                .map(Variable::getName)
+                .distinct()
+                .map(assignments::get)
+                .forEach(assignment -> addType(typesMap, assignment.getColumn(), assignment.getType()));
+    }
+
+    private static void addType(Map<ColumnHandle, Type> typesMap, ColumnHandle columnHandle, Type type)
+    {
+        Type previous = typesMap.put(columnHandle, type);
+        if (previous != null && !type.equals(previous)) {
+            throw new TrinoException(IR_ERROR, format("different types: %s and %s for the same column handle: %s", previous.getDisplayName(), type.getDisplayName(), columnHandle));
+        }
     }
 
     /**
@@ -517,7 +544,7 @@ public class CteReuse
      * Additionally, the TraversalContext carries the properties of the unified TableScan. It will help us to avoid
      * repetition when we apply filter or limit operations.
      */
-    private static List<TraversalContext> initializeTraversalContexts(UnifiedGroup unifiedGroup, TableScan unifiedTableScan, Metadata metadata, ProgramBuilder.ValueNameAllocator nameAllocator)
+    private static List<TraversalContext> initializeTraversalContexts(UnifiedGroup unifiedGroup, TableScan unifiedTableScan, Metadata metadata, ProgramBuilder.ValueNameAllocator nameAllocator, PlannerContext plannerContext, Session session)
     {
         ImmutableList.Builder<TraversalContext> resultBuilder = ImmutableList.builder();
 
@@ -525,9 +552,15 @@ public class CteReuse
         UnificationResult.Properties enforcedProperties = unifiedGroup.unificationResults().getLast().enforcedProperties();
         // prune the parts of enforced filter which are not supported by the exposed columns
         Set<ColumnHandle> unifiedHandlesSet = ImmutableSet.copyOf(COLUMN_HANDLES.getAttribute(unifiedTableScan.attributes()));
-        TupleDomain<ColumnHandle> prunedEnforcedFilter = enforcedProperties.filter()
+        TupleDomain<ColumnHandle> prunedEnforcedTupleDomain = enforcedProperties.tupleDomainConstraint()
                 .filter((columnHandle, domain) -> unifiedHandlesSet.contains(columnHandle));
-        Block enforcedPredicate = translateToBlock(unifiedTableScan, prunedEnforcedFilter, metadata, nameAllocator);
+
+        List<ConnectorExpression> conjuncts = ConnectorExpressions.extractConjuncts(enforcedProperties.connectorExpressionConstraint()).stream()
+                .filter(conjunct -> extractVariables(conjunct).stream()
+                        .allMatch(variable -> unifiedHandlesSet.contains(enforcedProperties.connectorExpressionAssignments().get(variable.getName()).getColumn())))
+                .toList();
+        List<ExpressionAndAssignments> enforcedExpressionAndAssignments = List.of(new ExpressionAndAssignments(and(conjuncts), toColumnHandleMap(enforcedProperties.connectorExpressionAssignments())));
+        Block enforcedPredicate = translateToBlock(unifiedTableScan, prunedEnforcedTupleDomain, enforcedExpressionAndAssignments, plannerContext, session, metadata, nameAllocator);
         OptionalLong enforcedLimit = enforcedProperties.limit();
 
         // map ColumnHandles to field indexes in the unifiedTableScan
@@ -541,13 +574,18 @@ public class CteReuse
 
         // process component tables in reverse order to compose compensations
         TupleDomain<ColumnHandle> currentCompensationPredicate = TupleDomain.all();
+        List<ExpressionAndAssignments> currentCompensationConjuncts = new ArrayList<>();
         for (int i = unifiedGroup.tableScans().size() - 1; i >= 1; i--) {
             TableScan tableScan = unifiedGroup.tableScans().get(i);
             UnificationResult<TableHandle> unificationResult = unifiedGroup.unificationResults().get(i - 1);
             FieldMapping fieldMapping = computeMapping(tableScan, unifiedIndexes);
             Set<Integer> fieldsToPrune = computeFieldsToPrune(tableScan, unifiedIndexes);
-            Block compensationPredicate = translateToBlock(unifiedTableScan, currentCompensationPredicate.intersect(unificationResult.secondCompensationFilter()), metadata, nameAllocator);
+            TupleDomain<ColumnHandle> tupleDomain = currentCompensationPredicate.intersect(unificationResult.secondCompensationFilter());
+            List<ExpressionAndAssignments> expressionAndAssignments = new ArrayList<>(currentCompensationConjuncts);
+            expressionAndAssignments.add(new ExpressionAndAssignments(unificationResult.secondCompensationExpression(), toColumnHandleMap(unificationResult.secondAssignments())));
+            Block compensationPredicate = translateToBlock(unifiedTableScan, tupleDomain, expressionAndAssignments, plannerContext, session, metadata, nameAllocator);
             currentCompensationPredicate = currentCompensationPredicate.intersect(unificationResult.firstCompensationFilter());
+            currentCompensationConjuncts.add(new ExpressionAndAssignments(unificationResult.firstCompensationExpression(), toColumnHandleMap(unificationResult.firstAssignments())));
             resultBuilder.add(new TraversalContext(fieldMapping, fieldsToPrune, compensationPredicate, enforcedPredicate, enforcedLimit));
         }
 
@@ -555,22 +593,36 @@ public class CteReuse
         TableScan tableScan = unifiedGroup.tableScans().get(0);
         FieldMapping fieldMapping = computeMapping(tableScan, unifiedIndexes);
         Set<Integer> fieldsToPrune = computeFieldsToPrune(tableScan, unifiedIndexes);
-        Block compensationPredicate = translateToBlock(unifiedTableScan, currentCompensationPredicate, metadata, nameAllocator);
+        Block compensationPredicate = translateToBlock(unifiedTableScan, currentCompensationPredicate, currentCompensationConjuncts, plannerContext, session, metadata, nameAllocator);
         resultBuilder.add(new TraversalContext(fieldMapping, fieldsToPrune, compensationPredicate, enforcedPredicate, enforcedLimit));
 
         return resultBuilder.build().reverse();
     }
 
+    private static Map<String, ColumnHandle> toColumnHandleMap(Map<String, Assignment> assignments)
+    {
+        return assignments.entrySet().stream()
+                .collect(toImmutableMap(Map.Entry::getKey, entry -> entry.getValue().getColumn()));
+    }
+
     /**
-     * Translate TupleDomain to Block based on the output type of the provided TableScan.
+     * Translate TupleDomain and {@code List<ConnectorExpression>} to Block based on the output type of the provided TableScan.
      * <p>
-     * This method uses a temporary hack. It invokes the DomainTranslator to translate the TupleDomain to the old IR: TupleDomain -> Expression.
-     * Then we translate from the old IR to the new IR: Expression -> Block. We should translate directly: TupleDomain -> Block.
-     * However, the translation is not trivial, and it involves optimization of the created predicate. It will not be migrated to the new IR
+     * This method uses a temporary hack. It invokes DomainTranslator and ConnectorExpressionTranslator
+     * to translate the TupleDomain and the {@code List<ConnectorExpression>} to the old IR: TupleDomain -> Expression and each ConnectorExpression -> Expression.
+     * Then we translate from the old IR to the new IR: Expression -> Block. We should translate directly: TupleDomain -> Block and ConnectorExpression -> Block.
+     * However, the domain translation is not trivial, and it involves optimization of the created predicate. It will not be migrated to the new IR
      * as part of the CTE reuse POC.
-     * TODO rewrite DomainTranslator to new IR
+     * TODO rewrite DomainTranslator and ConnectorExpressionTranslator to new IR
      */
-    private static Block translateToBlock(TableScan tableScan, TupleDomain<ColumnHandle> tupleDomain, Metadata metadata, ProgramBuilder.ValueNameAllocator nameAllocator)
+    private static Block translateToBlock(
+            TableScan tableScan,
+            TupleDomain<ColumnHandle> tupleDomain,
+            List<ExpressionAndAssignments> expressionAndAssignmentsList,
+            PlannerContext plannerContext,
+            Session session,
+            Metadata metadata,
+            ProgramBuilder.ValueNameAllocator nameAllocator)
     {
         SymbolAllocator symbolAllocator = new SymbolAllocator();
         List<ColumnHandle> columnHandles = COLUMN_HANDLES.getAttribute(tableScan.attributes());
@@ -584,8 +636,21 @@ public class CteReuse
         }
         Map<ColumnHandle, Symbol> columnMap = columnMapBuilder.buildOrThrow();
         List<Symbol> symbolList = symbolListBuilder.build();
+
+        List<Expression> expressionConjuncts = new ArrayList<>(expressionAndAssignmentsList.size() + 1);
+        for (ExpressionAndAssignments expressionAndAssignments : expressionAndAssignmentsList) {
+            Map<String, Symbol> variableMappings = expressionAndAssignments.assignments().entrySet().stream()
+                    .filter(entry -> columnMap.containsKey(entry.getValue()))
+                    .collect(Collectors.toMap(
+                            Map.Entry::getKey,
+                            entry -> columnMap.get(entry.getValue())));
+
+            expressionConjuncts.add(ConnectorExpressionTranslator.translate(session, expressionAndAssignments.expression(), plannerContext, variableMappings));
+        }
         TupleDomain<Symbol> symbolTupleDomain = tupleDomain.transformKeys(columnMap::get);
-        Expression expression = new DomainTranslator(metadata).toPredicate(symbolTupleDomain);
+        expressionConjuncts.add(new DomainTranslator(metadata).toPredicate(symbolTupleDomain));
+        Expression expression = IrUtils.combineConjuncts(expressionConjuncts);
+
         Block.Parameter parameter = new Block.Parameter(nameAllocator.newName(), irType(relationRowType));
         Block.Builder blockBuilder = new Block.Builder(Optional.empty(), ImmutableList.of(parameter));
         ImmutableMap.Builder<Symbol, Context.RowField> symbolMapping = ImmutableMap.builder();
@@ -745,6 +810,7 @@ public class CteReuse
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations,
             MultiGroupMerger multiGroupMerger,
+            PlannerContext plannerContext,
             Session session,
             Metadata metadata)
     {
@@ -765,7 +831,7 @@ public class CteReuse
         setCheckpoint |= commonPartMergedAndCheckpointRequirement.requireCheckpoint();
 
         // analyze the next operations for all branches and find subgroups that can be merged
-        Subgroups subgroups = identifySubgroupsToMerge(commonPartMerged, operationToDownstream, nameAllocator, newOperations, multiGroupMerger, session, metadata);
+        Subgroups subgroups = identifySubgroupsToMerge(commonPartMerged, operationToDownstream, nameAllocator, newOperations, multiGroupMerger, plannerContext, session, metadata);
         verifySubgroups(subgroups, commonPartMerged.residualStates().size());
 
         // case 1: all branches belong to one single-group merge or to one multi-group merge. Merge and proceed.
@@ -800,6 +866,7 @@ public class CteReuse
                         nameAllocator,
                         newOperations,
                         multiGroupMerger,
+                        plannerContext,
                         session,
                         metadata);
             }
@@ -828,7 +895,7 @@ public class CteReuse
                     for (int branch : subgroupIndexes) {
                         checkpointReferences.addAll(branchToCheckpoint.getMappingForBranch(branch).getReferencesForCheckpoint(i));
                     }
-                    UnifiedStates backtrackSubgroup = checkpoint.extractSubgroup(checkpointReferences.build(), operationToDownstream, nameAllocator, newOperations, session, metadata);
+                    UnifiedStates backtrackSubgroup = checkpoint.extractSubgroup(checkpointReferences.build(), operationToDownstream, nameAllocator, newOperations, plannerContext, session, metadata);
                     Checkpoint backtrackCheckpoint = checkpoint.extractSubgroupCheckpoint(checkpointReferences.build());
                     mergeGroupRecursively(
                             backtrackSubgroup,
@@ -839,6 +906,7 @@ public class CteReuse
                             nameAllocator,
                             newOperations,
                             multiGroupMerger,
+                            plannerContext,
                             session,
                             metadata);
                 }
@@ -1081,11 +1149,12 @@ public class CteReuse
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations,
             MultiGroupMerger multiGroupMerger,
+            PlannerContext plannerContext,
             Session session,
             Metadata metadata)
     {
         SingleGroupMerger.SingleGroupMergeDecomposition singleGroupSubgroups = SingleGroupMerger.identifySingleGroupSubgroupsToMerge(unifiedStates, nameAllocator);
-        MultiGroupMerger.MultiGroupMergeDecomposition multiGroupSubgroups = multiGroupMerger.identifyMultiGroupSubgroupsToMerge(unifiedStates, operationToDownstream, nameAllocator, newOperations, session, metadata);
+        MultiGroupMerger.MultiGroupMergeDecomposition multiGroupSubgroups = multiGroupMerger.identifyMultiGroupSubgroupsToMerge(unifiedStates, operationToDownstream, nameAllocator, newOperations, plannerContext, session, metadata);
 
         Set<Integer> categorizedIndexes = Sets.union(singleGroupSubgroups.getIndexes(), multiGroupSubgroups.getIndexes());
         List<Integer> remainingIndexes = IntStream.range(0, unifiedStates.residualStates().size())

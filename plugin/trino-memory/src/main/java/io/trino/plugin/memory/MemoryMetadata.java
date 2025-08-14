@@ -88,7 +88,9 @@ import static io.trino.spi.StandardErrorCode.SCHEMA_NOT_EMPTY;
 import static io.trino.spi.connector.RetryMode.NO_RETRIES;
 import static io.trino.spi.connector.SampleType.SYSTEM;
 import static io.trino.spi.connector.SaveMode.REPLACE;
+import static io.trino.spi.expression.Constant.TRUE;
 import static java.lang.String.format;
+import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
 
@@ -681,6 +683,8 @@ public class MemoryMetadata
                 TupleDomain.all(),
                 new UnificationResult.Properties(
                         TupleDomain.all(),
+                        TRUE,
+                        emptyMap(),
                         firstTable.limit())));
     }
 

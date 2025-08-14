@@ -87,6 +87,7 @@ import static com.google.common.collect.Maps.asMap;
 import static io.trino.plugin.tpch.util.PredicateUtils.convertToPredicate;
 import static io.trino.plugin.tpch.util.PredicateUtils.filterOutColumnFromPredicate;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
+import static io.trino.spi.expression.Constant.TRUE;
 import static io.trino.spi.predicate.TupleDomain.columnWiseUnion;
 import static io.trino.spi.statistics.TableStatisticType.ROW_COUNT;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -590,6 +591,8 @@ public class TpchMetadata
                 secondCompensationFilter,
                 new UnificationResult.Properties(
                         unified.constraint(),
+                        TRUE,
+                        emptyMap(),
                         OptionalLong.empty())));
     }
 

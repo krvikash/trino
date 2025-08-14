@@ -438,6 +438,7 @@ import static io.trino.spi.connector.MaterializedViewFreshness.Freshness.STALE;
 import static io.trino.spi.connector.MaterializedViewFreshness.Freshness.UNKNOWN;
 import static io.trino.spi.connector.RetryMode.NO_RETRIES;
 import static io.trino.spi.connector.RowChangeParadigm.DELETE_ROW_AND_INSERT_ROW;
+import static io.trino.spi.expression.Constant.TRUE;
 import static io.trino.spi.predicate.TupleDomain.columnWiseUnion;
 import static io.trino.spi.predicate.TupleDomain.withColumnDomains;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -456,6 +457,7 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.Boolean.parseBoolean;
 import static java.lang.Math.floorDiv;
 import static java.lang.String.format;
+import static java.util.Collections.emptyMap;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 import static java.util.UUID.randomUUID;
@@ -4353,6 +4355,8 @@ public class IcebergMetadata
                 secondCompensationFilter.transformKeys(ColumnHandle.class::cast),
                 new UnificationResult.Properties(
                         unified.getEnforcedPredicate().transformKeys(ColumnHandle.class::cast),
+                        TRUE,
+                        emptyMap(),
                         // limit is not guaranteed by iceberg connector
                         OptionalLong.empty())));
     }

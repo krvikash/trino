@@ -29,6 +29,7 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Streams.stream;
 import static io.trino.spi.expression.Constant.TRUE;
 import static io.trino.spi.expression.StandardFunctions.AND_FUNCTION_NAME;
+import static io.trino.spi.expression.StandardFunctions.OR_FUNCTION_NAME;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static java.util.Objects.requireNonNull;
 
@@ -77,6 +78,22 @@ public final class ConnectorExpressions
     {
         if (expressions.size() > 1) {
             return new Call(BOOLEAN, AND_FUNCTION_NAME, expressions);
+        }
+        if (expressions.isEmpty()) {
+            return TRUE;
+        }
+        return getOnlyElement(expressions);
+    }
+
+    public static ConnectorExpression or(ConnectorExpression... expressions)
+    {
+        return or(Arrays.asList(expressions));
+    }
+
+    public static ConnectorExpression or(List<ConnectorExpression> expressions)
+    {
+        if (expressions.size() > 1) {
+            return new Call(BOOLEAN, OR_FUNCTION_NAME, expressions);
         }
         if (expressions.isEmpty()) {
             return TRUE;

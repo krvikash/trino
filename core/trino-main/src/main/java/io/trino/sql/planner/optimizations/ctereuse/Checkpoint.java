@@ -16,6 +16,7 @@ package io.trino.sql.planner.optimizations.ctereuse;
 import com.google.common.collect.ImmutableList;
 import io.trino.Session;
 import io.trino.metadata.Metadata;
+import io.trino.sql.PlannerContext;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.TableScan;
@@ -43,6 +44,7 @@ public sealed interface Checkpoint
             Map<Operation, Operation> operationToDownstream,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations,
+            PlannerContext plannerContext,
             Session session,
             Metadata metadata);
 
@@ -69,6 +71,7 @@ public sealed interface Checkpoint
                 Map<Operation, Operation> operationToDownstream,
                 ProgramBuilder.ValueNameAllocator nameAllocator,
                 Map<Value, Operation> newOperations,
+                PlannerContext plannerContext,
                 Session session,
                 Metadata metadata)
         {
@@ -81,7 +84,7 @@ public sealed interface Checkpoint
             List<CteReuse.UnifiedGroup> unifiedGroups = CteReuse.unifyTableSubgroups(subgroupScans, session, metadata);
             checkState(unifiedGroups.size() == 1 && getOnlyElement(unifiedGroups).tableScans().size() == subgroupScans.size(), "failed to unify a subgroup");
 
-            return CteReuse.initializeTraversalForGroup(getOnlyElement(unifiedGroups), metadata, operationToDownstream, nameAllocator, newOperations);
+            return CteReuse.initializeTraversalForGroup(getOnlyElement(unifiedGroups), metadata, operationToDownstream, nameAllocator, newOperations, plannerContext, session);
         }
 
         @Override
@@ -120,6 +123,7 @@ public sealed interface Checkpoint
                 Map<Operation, Operation> operationToDownstream,
                 ProgramBuilder.ValueNameAllocator nameAllocator,
                 Map<Value, Operation> newOperations,
+                PlannerContext plannerContext,
                 Session session,
                 Metadata metadata)
         {

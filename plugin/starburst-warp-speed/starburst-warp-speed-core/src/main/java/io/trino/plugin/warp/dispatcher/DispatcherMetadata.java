@@ -110,6 +110,7 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.createFixedStatKey;
+import static io.trino.spi.expression.Constant.TRUE;
 import static io.trino.spi.predicate.TupleDomain.columnWiseUnion;
 import static java.util.Objects.requireNonNull;
 
@@ -1172,8 +1173,12 @@ public class DispatcherMetadata
         // union limits from the first and second table handles
         // we can do this only if we're not extracting and returning to the engine any compensating filters for the unified table handles
         // the compensating filters are applied later by the engine, which would mean that we pulled filter above limit
-        if (unifiedProxyResult.get().firstCompensationFilter().isAll() && unifiedProxyResult.get().secondCompensationFilter().isAll() &&
-                firstTable.getLimit().isPresent() && secondTable.getLimit().isPresent()) {
+        if (unifiedProxyResult.get().firstCompensationFilter().isAll() &&
+                TRUE.equals(unifiedProxyResult.get().firstCompensationExpression()) &&
+                unifiedProxyResult.get().secondCompensationFilter().isAll() &&
+                TRUE.equals(unifiedProxyResult.get().secondCompensationExpression()) &&
+                firstTable.getLimit().isPresent() &&
+                secondTable.getLimit().isPresent()) {
             unified = createTableHandleBuilder(
                     session,
                     Optional.of(unified),
@@ -1186,10 +1191,12 @@ public class DispatcherMetadata
         return Optional.of(new UnificationResult<>(
                 unified,
                 unifiedProxyResult.get().firstCompensationFilter(),
+                unifiedProxyResult.get().firstCompensationExpression(),
+                unifiedProxyResult.get().firstAssignments(),
                 unifiedProxyResult.get().secondCompensationFilter(),
-                new UnificationResult.Properties(
-                        unifiedProxyResult.get().enforcedProperties().filter(),
-                        unifiedProxyResult.get().enforcedProperties().limit())));
+                unifiedProxyResult.get().secondCompensationExpression(),
+                unifiedProxyResult.get().secondAssignments(),
+                unifiedProxyResult.get().enforcedProperties())); // All properties are the same as proxy's
     }
 
     @Override
