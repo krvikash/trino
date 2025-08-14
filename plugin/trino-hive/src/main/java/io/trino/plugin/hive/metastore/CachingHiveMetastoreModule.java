@@ -13,10 +13,12 @@
  */
 package io.trino.plugin.hive.metastore;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
+import com.google.inject.TypeLiteral;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.metastore.HiveMetastore;
 import io.trino.metastore.HiveMetastoreFactory;
@@ -27,16 +29,14 @@ import io.trino.metastore.cache.CachingHiveMetastoreConfig;
 import io.trino.metastore.cache.ImpersonationCachingConfig;
 import io.trino.metastore.cache.SharedHiveMetastoreCache;
 import io.trino.metastore.cache.SharedHiveMetastoreCache.CachingHiveMetastoreFactory;
+import io.trino.plugin.base.Decorator;
 import io.trino.spi.security.ConnectorIdentity;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
-import static java.util.Comparator.comparing;
 import static java.util.Objects.requireNonNull;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
@@ -46,7 +46,7 @@ public final class CachingHiveMetastoreModule
     @Override
     protected void setup(Binder binder)
     {
-        newSetBinder(binder, HiveMetastoreDecorator.class);
+        newSetBinder(binder, new TypeLiteral<Decorator<HiveMetastore>>() {});
         configBinder(binder).bindConfig(CachingHiveMetastoreConfig.class);
         // TODO this should only be bound when impersonation is actually enabled
         configBinder(binder).bindConfig(ImpersonationCachingConfig.class);
@@ -72,7 +72,7 @@ public final class CachingHiveMetastoreModule
     @Singleton
     public static HiveMetastoreFactory createHiveMetastore(
             @RawHiveMetastoreFactory HiveMetastoreFactory metastoreFactory,
-            Set<HiveMetastoreDecorator> decorators,
+            Set<Decorator<HiveMetastore>> decorators,
             SharedHiveMetastoreCache sharedHiveMetastoreCache)
     {
         metastoreFactory = new DecoratingHiveMetastoreFactory(metastoreFactory, decorators);
@@ -85,15 +85,12 @@ public final class CachingHiveMetastoreModule
             implements HiveMetastoreFactory
     {
         private final HiveMetastoreFactory delegate;
-        private final List<HiveMetastoreDecorator> sortedDecorators;
+        private final Set<Decorator<HiveMetastore>> decorators;
 
-        public DecoratingHiveMetastoreFactory(HiveMetastoreFactory delegate, Set<HiveMetastoreDecorator> decorators)
+        public DecoratingHiveMetastoreFactory(HiveMetastoreFactory delegate, Set<Decorator<HiveMetastore>> decorators)
         {
             this.delegate = requireNonNull(delegate, "delegate is null");
-
-            this.sortedDecorators = decorators.stream()
-                    .sorted(comparing(HiveMetastoreDecorator::getPriority))
-                    .collect(toImmutableList());
+            this.decorators = ImmutableSet.copyOf(requireNonNull(decorators, "decorators is null"));
         }
 
         @Override
@@ -111,11 +108,7 @@ public final class CachingHiveMetastoreModule
         @Override
         public HiveMetastore createMetastore(Optional<ConnectorIdentity> identity)
         {
-            HiveMetastore metastore = delegate.createMetastore(identity);
-            for (HiveMetastoreDecorator decorator : sortedDecorators) {
-                metastore = decorator.decorate(metastore);
-            }
-            return metastore;
+            return Decorator.combine(() -> delegate.createMetastore(identity), decorators);
         }
     }
 
