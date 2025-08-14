@@ -16,11 +16,12 @@ package io.trino.plugin.deltalake;
 import com.google.inject.Binder;
 import com.google.inject.Provider;
 import com.google.inject.Scopes;
+import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.filesystem.cache.CacheKeyProvider;
-import io.trino.plugin.base.ConnectorSplitManagerDecorator;
 import io.trino.plugin.base.DecoratingConnectorSplitManager;
+import io.trino.plugin.base.Decorator;
 import io.trino.plugin.base.ForDecorator;
 import io.trino.plugin.base.connector.SystemTableProvider;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
@@ -114,7 +115,7 @@ public class DeltaLakeModule
                 .setDefault().to(DeltaLakePageSourceProvider.class).in(Scopes.SINGLETON);
         binder.bind(ConnectorPageSinkProvider.class).to(DeltaLakePageSinkProvider.class).in(Scopes.SINGLETON);
         binder.bind(ConnectorNodePartitioningProvider.class).to(DeltaLakeNodePartitioningProvider.class).in(Scopes.SINGLETON);
-        newSetBinder(binder, ConnectorSplitManagerDecorator.class);
+        newSetBinder(binder, new TypeLiteral<Decorator<ConnectorSplitManager>>() {});
         binder.bind(ConnectorSplitManager.class).to(DecoratingConnectorSplitManager.class).in(Scopes.SINGLETON);
 
         binder.bind(DeltaLakeMetadataFactory.class).in(Scopes.SINGLETON);

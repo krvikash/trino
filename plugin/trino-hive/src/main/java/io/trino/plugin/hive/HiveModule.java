@@ -18,10 +18,11 @@ import com.google.inject.Key;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
+import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.trino.plugin.base.ConnectorSplitManagerDecorator;
 import io.trino.plugin.base.DecoratingConnectorSplitManager;
+import io.trino.plugin.base.Decorator;
 import io.trino.plugin.base.ForDecorator;
 import io.trino.plugin.base.connector.SystemTableProvider;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
@@ -91,7 +92,7 @@ public class HiveModule
 
         binder.bind(ConnectorSplitManager.class).annotatedWith(ForDecorator.class).to(HiveSplitManager.class).in(Scopes.SINGLETON);
         newExporter(binder).export(Key.get(ConnectorSplitManager.class, ForDecorator.class)).as(generator -> generator.generatedNameOf(HiveSplitManager.class));
-        newSetBinder(binder, ConnectorSplitManagerDecorator.class);
+        newSetBinder(binder, new TypeLiteral<Decorator<ConnectorSplitManager>>() {});
         binder.bind(ConnectorSplitManager.class).to(DecoratingConnectorSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(ConnectorPageSourceProvider.class).to(HivePageSourceProvider.class).in(Scopes.SINGLETON);
         binder.bind(ConnectorPageSinkProvider.class).to(HivePageSinkProvider.class).in(Scopes.SINGLETON);

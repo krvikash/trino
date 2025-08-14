@@ -36,14 +36,11 @@ public class DecoratingConnectorSplitManager
     private final ConnectorSplitManager delegate;
 
     @Inject
-    public DecoratingConnectorSplitManager(@ForDecorator ConnectorSplitManager splitManager, Set<ConnectorSplitManagerDecorator> decorators)
+    public DecoratingConnectorSplitManager(@ForDecorator ConnectorSplitManager splitManager, Set<Decorator<ConnectorSplitManager>> decorators)
     {
-        ConnectorSplitManager baseSplitManager = requireNonNull(splitManager, "splitManager is null");
-        requireNonNull(decorators, "decorators is null");
-        for (ConnectorSplitManagerDecorator decorator : decorators) {
-            baseSplitManager = decorator.decorate(baseSplitManager);
-        }
-        this.delegate = baseSplitManager;
+        this.delegate = Decorator.combine(
+                () -> requireNonNull(splitManager, "splitManager is null"),
+                requireNonNull(decorators, "decorators is null"));
     }
 
     @Override
