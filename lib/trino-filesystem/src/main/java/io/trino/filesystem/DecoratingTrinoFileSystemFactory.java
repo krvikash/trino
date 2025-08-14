@@ -14,6 +14,7 @@
 package io.trino.filesystem;
 
 import com.google.common.collect.ImmutableSet;
+import io.trino.plugin.base.Decorator;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.security.ConnectorIdentity;
 
@@ -25,9 +26,9 @@ public class DecoratingTrinoFileSystemFactory
         implements TrinoFileSystemFactory
 {
     private final TrinoFileSystemFactory delegate;
-    private final Set<TrinoFileSystemDecorator> decorators;
+    private final Set<Decorator<TrinoFileSystem>> decorators;
 
-    public DecoratingTrinoFileSystemFactory(TrinoFileSystemFactory delegate, Set<TrinoFileSystemDecorator> decorators)
+    public DecoratingTrinoFileSystemFactory(TrinoFileSystemFactory delegate, Set<Decorator<TrinoFileSystem>> decorators)
     {
         this.delegate = requireNonNull(delegate, "delegate is null");
         this.decorators = ImmutableSet.copyOf(requireNonNull(decorators, "decorators is null"));
@@ -36,20 +37,12 @@ public class DecoratingTrinoFileSystemFactory
     @Override
     public TrinoFileSystem create(ConnectorIdentity identity)
     {
-        return decorate(delegate.create(identity));
+        return Decorator.combine(() -> delegate.create(identity), decorators);
     }
 
     @Override
     public TrinoFileSystem create(ConnectorSession session)
     {
-        return decorate(delegate.create(session));
-    }
-
-    private TrinoFileSystem decorate(TrinoFileSystem baseFileSystem)
-    {
-        for (TrinoFileSystemDecorator decorator : decorators) {
-            baseFileSystem = decorator.decorate(baseFileSystem);
-        }
-        return baseFileSystem;
+        return Decorator.combine(() -> delegate.create(session), decorators);
     }
 }

@@ -18,12 +18,13 @@ import com.google.inject.Key;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
+import com.google.inject.TypeLiteral;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.configuration.ConfigPropertyMetadata;
 import io.opentelemetry.api.trace.Tracer;
 import io.trino.filesystem.DecoratingTrinoFileSystemFactory;
 import io.trino.filesystem.Location;
-import io.trino.filesystem.TrinoFileSystemDecorator;
+import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.azure.AzureFileSystemFactory;
 import io.trino.filesystem.azure.AzureFileSystemModule;
@@ -42,6 +43,7 @@ import io.trino.filesystem.s3.S3FileSystemModule;
 import io.trino.filesystem.switching.SwitchingFileSystemFactory;
 import io.trino.filesystem.tracing.TracingFileSystemFactory;
 import io.trino.filesystem.tracking.TrackingFileSystemFactory;
+import io.trino.plugin.base.Decorator;
 import io.trino.spi.TrinoException;
 import io.trino.spi.cache.BlobCache;
 import io.trino.spi.cache.CacheRequirements;
@@ -141,7 +143,7 @@ public class FileSystemModule
             newOptionalBinder(binder, SplitAffinityProvider.class).setBinding().to(CacheSplitAffinityProvider.class).in(Scopes.SINGLETON);
         }
 
-        newSetBinder(binder, TrinoFileSystemDecorator.class);
+        newSetBinder(binder, new TypeLiteral<Decorator<TrinoFileSystem>>() {});
     }
 
     @Provides
@@ -172,7 +174,7 @@ public class FileSystemModule
             Map<String, TrinoFileSystemFactory> factories,
             Optional<BlobCache> blobCache,
             Optional<CacheKeyProvider> keyProvider,
-            Set<TrinoFileSystemDecorator> decorators,
+            Set<Decorator<TrinoFileSystem>> decorators,
             Tracer tracer)
     {
         Optional<TrinoFileSystemFactory> hdfsFactory = hdfsFileSystemLoader.map(HdfsFileSystemLoader::create);
