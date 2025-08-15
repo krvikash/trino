@@ -68,7 +68,6 @@ public class TestFeaturesConfig
                 .setHideInaccessibleColumns(false)
                 .setForceSpillingJoin(false)
                 .setColumnarFilterEvaluationEnabled(true)
-                .setFaultTolerantExecutionExchangeEncryptionEnabled(true)
                 .setSuperSetPredicatePushdownEnabled(true)
                 .setLegacyArithmeticDecimalOperators(false)
                 .setFaultTolerantExecutionExchangeEncryptionEnabled(true));
@@ -142,7 +141,6 @@ public class TestFeaturesConfig
                 .setHideInaccessibleColumns(true)
                 .setForceSpillingJoin(true)
                 .setColumnarFilterEvaluationEnabled(false)
-                .setFaultTolerantExecutionExchangeEncryptionEnabled(false)
                 .setSuperSetPredicatePushdownEnabled(false)
                 .setLegacyArithmeticDecimalOperators(true)
                 .setFaultTolerantExecutionExchangeEncryptionEnabled(false);

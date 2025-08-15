@@ -742,7 +742,6 @@
                                     <new>method void io.trino.spi.resourcegroups.ResourceGroup::setPhysicalDataScanQuotaGenerationBytesPerSecond(long)</new>
                                     <justification>Add physical data scan tracking to resource groups</justification>
                                 </item>
-<<<<<<< HEAD
                                 <item>
                                     <ignore>true</ignore>
                                     <code>java.method.visibilityIncreased</code>
@@ -791,8 +790,6 @@
                                     <old>method io.trino.spi.Page io.trino.spi.connector.RecordPageSource::getNextPage()</old>
                                     <justification>Deprecated</justification>
                                 </item>
-=======
->>>>>>> ed4c11b6ce4 (Add physical data scan tracking to resource groups)
                             </differences>
                         </revapi.differences>
                     </analysisConfiguration>
