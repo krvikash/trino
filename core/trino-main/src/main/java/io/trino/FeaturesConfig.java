@@ -127,6 +127,8 @@ public class FeaturesConfig
 
     private boolean superSetPredicatePushdownEnabled = true;
 
+    private boolean legacyArithmeticDecimalOperators;
+
     public enum DataIntegrityVerification
     {
         NONE,
@@ -561,6 +563,18 @@ public class FeaturesConfig
     public FeaturesConfig setSuperSetPredicatePushdownEnabled(boolean superSetPredicatePushdownEnabled)
     {
         this.superSetPredicatePushdownEnabled = superSetPredicatePushdownEnabled;
+        return this;
+    }
+
+    public boolean isLegacyArithmeticDecimalOperators()
+    {
+        return legacyArithmeticDecimalOperators;
+    }
+
+    @Config("deprecated.legacy-arithmetic-decimal-operators")
+    public FeaturesConfig setLegacyArithmeticDecimalOperators(boolean value)
+    {
+        this.legacyArithmeticDecimalOperators = value;
         return this;
     }
 }

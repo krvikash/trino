@@ -689,6 +689,78 @@
                                     <old>method java.lang.String io.trino.spi.predicate.ValueSet::toString(io.trino.spi.connector.ConnectorSession, int)</old>
                                     <justification>Type cleanup</justification>
                                 </item>
+                                <item>
+                                    <ignore>true</ignore>
+                                    <code>java.method.removed</code>
+                                    <old>method java.lang.String io.trino.spi.NodeManager::getEnvironment()</old>
+                                    <justification>Unused</justification>
+                                </item>
+                                <item>
+                                    <code>java.class.removed</code>
+                                    <annotationType>@interface io.trino.spi.Experimental</annotationType>
+                                </item>
+                                <item>
+                                    <code>java.annotation.removed</code>
+                                    <annotationType>io.trino.spi.Experimental</annotationType>
+                                </item>
+                                <item>
+                                    <ignore>true</ignore>
+                                    <code>java.method.removed</code>
+                                    <old>method io.trino.spi.Page io.trino.spi.connector.EmptyPageSource::getNextPage()</old>
+                                    <justification>Deprecated</justification>
+                                </item>
+                                <item>
+                                    <ignore>true</ignore>
+                                    <code>java.method.removed</code>
+                                    <old>method io.trino.spi.Page io.trino.spi.connector.FixedPageSource::getNextPage()</old>
+                                    <justification>Deprecated</justification>
+                                </item>
+                                <item>
+                                    <ignore>true</ignore>
+                                    <code>java.method.removed</code>
+                                    <old>method io.trino.spi.Page io.trino.spi.connector.RecordPageSource::getNextPage()</old>
+                                    <justification>Deprecated</justification>
+                                </item>
+                                <item>
+                                    <ignore>true</ignore>
+                                    <code>java.method.addedToInterface</code>
+                                    <new>method long io.trino.spi.resourcegroups.ResourceGroup::getHardPhysicalDataScanLimitBytes()</new>
+                                    <justification>Add physical data scan tracking to resource groups</justification>
+                                </item>
+                                <item>
+                                    <ignore>true</ignore>
+                                    <code>java.method.addedToInterface</code>
+                                    <new>method void io.trino.spi.resourcegroups.ResourceGroup::setHardPhysicalDataScanLimitBytes(long)</new>
+                                    <justification>Add physical data scan tracking to resource groups</justification>
+                                </item>
+                                <item>
+                                    <ignore>true</ignore>
+                                    <code>java.method.addedToInterface</code>
+                                    <new>method long io.trino.spi.resourcegroups.ResourceGroup::getPhysicalDataScanQuotaGenerationBytesPerSecond()</new>
+                                    <justification>Add physical data scan tracking to resource groups</justification>
+                                </item>
+                                <item>
+                                    <ignore>true</ignore>
+                                    <code>java.method.addedToInterface</code>
+                                    <new>method void io.trino.spi.resourcegroups.ResourceGroup::setPhysicalDataScanQuotaGenerationBytesPerSecond(long)</new>
+                                    <justification>Add physical data scan tracking to resource groups</justification>
+                                </item>
+                                <item>
+                                    <ignore>true</ignore>
+                                    <code>java.method.visibilityIncreased</code>
+                                    <old>method void io.trino.spi.type.Int128Math::multiply(long, long, long, long, long[], int)</old>
+                                    <new>method void io.trino.spi.type.Int128Math::multiply(long, long, long, long, long[], int)</new>
+                                    <oldVisibility>private</oldVisibility>
+                                    <newVisibility>public</newVisibility>
+                                </item>
+                                <item>
+                                    <ignore>true</ignore>
+                                    <code>java.method.visibilityIncreased</code>
+                                    <old>method long io.trino.spi.type.Int128Math::signExtension(long)</old>
+                                    <new>method long io.trino.spi.type.Int128Math::signExtension(long)</new>
+                                    <oldVisibility>private</oldVisibility>
+                                    <newVisibility>public</newVisibility>
+                                </item>
                             </differences>
                         </revapi.differences>
                     </analysisConfiguration>
