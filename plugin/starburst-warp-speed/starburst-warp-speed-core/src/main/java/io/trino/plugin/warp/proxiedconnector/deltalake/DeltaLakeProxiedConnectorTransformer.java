@@ -23,7 +23,6 @@ import io.trino.plugin.deltalake.DeltaLakeTableHandle;
 import io.trino.plugin.warp.config.ProxiedConnectorConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherSplit;
-import io.trino.plugin.warp.dispatcher.DispatcherStatisticsProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.PartitionKey;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
@@ -35,7 +34,6 @@ import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.TupleDomain;
-import io.trino.spi.statistics.ColumnStatistics;
 import io.trino.spi.type.Type;
 
 import java.nio.charset.StandardCharsets;
@@ -43,7 +41,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static io.trino.plugin.deltalake.transactionlog.TransactionLogParser.deserializePartitionValue;
 import static java.util.Objects.requireNonNull;
@@ -87,18 +84,6 @@ public class DeltaLakeProxiedConnectorTransformer
     {
         DeltaLakeTableHandle tableHandle = (DeltaLakeTableHandle) dispatcherTableHandle.getProxyConnectorTableHandle();
         return !tableHandle.getNonPartitionConstraint().isAll();
-    }
-
-    @Override
-    public Map<String, Integer> calculateColumnsStatisticsBucketPriority(
-            DispatcherStatisticsProvider statisticsProvider,
-            Map<ColumnHandle, ColumnStatistics> columnStatistics)
-    {
-        return columnStatistics.entrySet()
-                .stream()
-                .collect(Collectors.toMap(
-                        entry -> ((DeltaLakeColumnHandle) entry.getKey()).columnName(),
-                        entry -> statisticsProvider.getColumnCardinalityBucket(entry.getValue().getDistinctValuesCount())));
     }
 
     @Override

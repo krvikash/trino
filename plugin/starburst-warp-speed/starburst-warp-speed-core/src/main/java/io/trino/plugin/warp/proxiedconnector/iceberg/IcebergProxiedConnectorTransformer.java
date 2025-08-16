@@ -26,7 +26,6 @@ import io.trino.plugin.iceberg.delete.DeleteFile;
 import io.trino.plugin.warp.config.ProxiedConnectorConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherSplit;
-import io.trino.plugin.warp.dispatcher.DispatcherStatisticsProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.PartitionKey;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
@@ -39,7 +38,6 @@ import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.TupleDomain;
-import io.trino.spi.statistics.ColumnStatistics;
 import io.trino.spi.type.Type;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
@@ -114,18 +112,6 @@ public class IcebergProxiedConnectorTransformer
     {
         IcebergTableHandle tableHandle = (IcebergTableHandle) dispatcherTableHandle.getProxyConnectorTableHandle();
         return !tableHandle.getUnenforcedPredicate().isAll();
-    }
-
-    @Override
-    public Map<String, Integer> calculateColumnsStatisticsBucketPriority(
-            DispatcherStatisticsProvider statisticsProvider,
-            Map<ColumnHandle, ColumnStatistics> columnStatistics)
-    {
-        return columnStatistics.entrySet()
-                .stream()
-                .collect(Collectors.toMap(
-                        entry -> ((IcebergColumnHandle) entry.getKey()).getName(),
-                        entry -> statisticsProvider.getColumnCardinalityBucket(entry.getValue().getDistinctValuesCount())));
     }
 
     @Override

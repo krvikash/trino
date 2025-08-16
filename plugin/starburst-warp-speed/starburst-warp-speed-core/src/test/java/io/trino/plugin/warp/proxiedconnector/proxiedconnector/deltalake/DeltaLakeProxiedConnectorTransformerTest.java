@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.proxiedconnector.proxiedconnector.deltalake;
 
-import io.trino.plugin.deltalake.DeltaLakeColumnHandle;
 import io.trino.plugin.deltalake.DeltaLakeSplit;
 import io.trino.plugin.deltalake.DeltaLakeTableHandle;
 import io.trino.plugin.deltalake.transactionlog.MetadataEntry;
@@ -37,33 +36,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 public class DeltaLakeProxiedConnectorTransformerTest
         extends ProxyConnectorTransformerBaseTest
 {
     private final DeltaLakeProxiedConnectorTransformer deltaLakeProxiedConnectorTransformer =
             new DeltaLakeProxiedConnectorTransformer(new ProxiedConnectorConfig());
-
-    @Test
-    public void testCalculateColumnsStatisticsBucketPriority()
-    {
-        super.testCalculateColumnsStatisticsBucketPriority(
-                deltaLakeProxiedConnectorTransformer,
-                Stream.of(1D, 2D, 3D)
-                        .collect(Collectors.toMap(doubleVal ->
-                        {
-                            DeltaLakeColumnHandle columnHandle = mock(DeltaLakeColumnHandle.class);
-                            when(columnHandle.columnName()).thenReturn("name-" + doubleVal);
-                            return columnHandle;
-                        }, Function.identity())),
-                columnHandle -> ((DeltaLakeColumnHandle) columnHandle).columnName());
-    }
 
     @Test
     public void testCreateDispatcherSplit()

@@ -52,9 +52,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -65,24 +62,6 @@ public class HudiProxiedConnectorTransformerTest
 {
     private final HudiProxiedConnectorTransformer hudiProxiedConnectorTransformer =
             new HudiProxiedConnectorTransformer(new ProxiedConnectorConfig());
-
-    @Test
-    public void testCalculateColumnsStatisticsBucketPriority()
-    {
-        super.testCalculateColumnsStatisticsBucketPriority(
-                hudiProxiedConnectorTransformer,
-                Stream.of(1D, 2D, 3D)
-                        .collect(Collectors.toMap(doubleVal ->
-                                        new HiveColumnHandle("baseColumnName" + doubleVal,
-                                                1,
-                                                HiveType.HIVE_INT,
-                                                IntegerType.INTEGER,
-                                                Optional.empty(),
-                                                HiveColumnHandle.ColumnType.REGULAR,
-                                                Optional.empty()),
-                                Function.identity())),
-                columnHandle -> ((HiveColumnHandle) columnHandle).getName());
-    }
 
     @Test
     public void testCreateDispatcherSplit()

@@ -24,7 +24,6 @@ import io.trino.plugin.hudi.HudiTableHandle;
 import io.trino.plugin.warp.config.ProxiedConnectorConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherSplit;
-import io.trino.plugin.warp.dispatcher.DispatcherStatisticsProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.PartitionKey;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
@@ -41,14 +40,11 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.TupleDomain;
-import io.trino.spi.statistics.ColumnStatistics;
 import io.trino.spi.type.Type;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.spi.connector.ConnectorBucketNodeMap.createBucketNodeMap;
@@ -121,17 +117,6 @@ public class HudiProxiedConnectorTransformer
     {
         return !proxiedConnectorConfig.getPassThroughDispatcherSet()
                 .contains(ProxiedConnectorConfig.HUDI_CONNECTOR_NAME);
-    }
-
-    @Override
-    public Map<String, Integer> calculateColumnsStatisticsBucketPriority(DispatcherStatisticsProvider statisticsProvider, Map<ColumnHandle, ColumnStatistics> columnStatistics)
-    {
-        return columnStatistics.entrySet()
-                .stream()
-                .filter(entry -> !((HiveColumnHandle) entry.getKey()).isHidden())
-                .collect(Collectors.toMap(
-                        entry -> ((HiveColumnHandle) entry.getKey()).getName(),
-                        entry -> statisticsProvider.getColumnCardinalityBucket(entry.getValue().getDistinctValuesCount())));
     }
 
     @Override

@@ -76,10 +76,6 @@ public interface DispatcherProxiedConnectorTransformer
         return format("%s-%d-%d", path, start, length);
     }
 
-    Map<String, Integer> calculateColumnsStatisticsBucketPriority(
-            DispatcherStatisticsProvider statisticsProvider,
-            Map<ColumnHandle, ColumnStatistics> columnStatistics);
-
     default Set<String> calculateColumnsNotFitForDictionary(Map<ColumnHandle, ColumnStatistics> columnStatistics, int dictionaryMaxSize)
     {
         return columnStatistics.entrySet()

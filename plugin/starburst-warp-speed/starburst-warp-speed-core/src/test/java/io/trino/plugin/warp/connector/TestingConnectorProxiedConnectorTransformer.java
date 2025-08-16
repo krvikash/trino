@@ -17,7 +17,6 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherSplit;
-import io.trino.plugin.warp.dispatcher.DispatcherStatisticsProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
@@ -28,13 +27,10 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.SchemaTableName;
-import io.trino.spi.statistics.ColumnStatistics;
 import io.trino.spi.type.Type;
 import org.apache.commons.collections4.CollectionUtils;
 
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 @Singleton
@@ -48,12 +44,6 @@ public class TestingConnectorProxiedConnectorTransformer
     public ConnectorTableHandle createProxyTableHandleForWarming(DispatcherTableHandle dispatcherTableHandle)
     {
         return dispatcherTableHandle.getProxyConnectorTableHandle();
-    }
-
-    @Override
-    public Map<String, Integer> calculateColumnsStatisticsBucketPriority(DispatcherStatisticsProvider statisticsProvider, Map<ColumnHandle, ColumnStatistics> columnStatistics)
-    {
-        return Collections.emptyMap();
     }
 
     @Override

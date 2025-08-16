@@ -18,7 +18,6 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherSplit;
-import io.trino.plugin.warp.dispatcher.DispatcherStatisticsProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
@@ -86,18 +85,6 @@ public class ObjectStoreProxiedConnectorTransformer
     {
         return transformerMap.get(getTransformerKey(connectorTableHandle))
                 .isValidForTableStatistics(connectorTableHandle);
-    }
-
-    @Override
-    public Map<String, Integer> calculateColumnsStatisticsBucketPriority(
-            DispatcherStatisticsProvider statisticsProvider,
-            Map<ColumnHandle, ColumnStatistics> columnStatistics)
-    {
-        if (columnStatistics.isEmpty()) {
-            return Map.of();
-        }
-        return transformerMap.get(getTransformerKey(columnStatistics.keySet().stream().findFirst().orElseThrow()))
-                .calculateColumnsStatisticsBucketPriority(statisticsProvider, columnStatistics);
     }
 
     @Override

@@ -51,9 +51,6 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static io.trino.metastore.HiveType.HIVE_INT;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.REGULAR;
@@ -68,24 +65,6 @@ public class ObjectStoreProxiedConnectorTransformerTest
     final Map<String, DispatcherProxiedConnectorTransformer> transformerMap =
             Map.of(ObjectStoreProxiedConnectorTransformer.getTransformerKey(HiveColumnHandle.class),
                     hiveProxiedConnectorTransformer);
-
-    @Test
-    public void testCalculateColumnsStatisticsBucketPriority()
-    {
-        super.testCalculateColumnsStatisticsBucketPriority(
-                new ObjectStoreProxiedConnectorTransformer(transformerMap),
-                Stream.of(1D, 2D, 3D)
-                        .collect(Collectors.toMap(doubleVal ->
-                                        new HiveColumnHandle("name" + doubleVal,
-                                                1,
-                                                HIVE_INT,
-                                                INTEGER,
-                                                Optional.empty(),
-                                                REGULAR,
-                                                Optional.empty()),
-                                Function.identity())),
-                columnHandle -> ((HiveColumnHandle) columnHandle).getName());
-    }
 
     @Test
     public void testCreateDispatcherSplit()

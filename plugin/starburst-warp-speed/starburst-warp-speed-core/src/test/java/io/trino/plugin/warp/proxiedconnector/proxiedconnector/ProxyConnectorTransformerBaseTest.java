@@ -15,22 +15,13 @@ package io.trino.plugin.warp.proxiedconnector.proxiedconnector;
 
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherSplit;
-import io.trino.plugin.warp.dispatcher.DispatcherStatisticsProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
 import io.trino.plugin.warp.util.NodeUtils;
 import io.trino.spi.Node;
-import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
-import io.trino.spi.statistics.ColumnStatistics;
-import io.trino.spi.statistics.Estimate;
-
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -40,36 +31,6 @@ import static org.mockito.Mockito.when;
 public abstract class ProxyConnectorTransformerBaseTest
 {
     protected final Node node = NodeUtils.node(1, true);
-
-    protected void testCalculateColumnsStatisticsBucketPriority(
-            DispatcherProxiedConnectorTransformer transformer,
-            Map<ColumnHandle, Double> columnHandleEstimateMap,
-            Function<ColumnHandle, String> columnNameFunction)
-    {
-        Map<ColumnHandle, ColumnStatistics> columnStatisticsMap = columnHandleEstimateMap.entrySet()
-                .stream()
-                .collect(Collectors.toMap(Map.Entry::getKey,
-                        entry -> new ColumnStatistics(
-                                Estimate.of(1D),
-                                Estimate.of(entry.getValue()),
-                                Estimate.of(entry.getValue()),
-                                Optional.empty())));
-
-        DispatcherStatisticsProvider statisticsProvider = mock(DispatcherStatisticsProvider.class);
-        when(statisticsProvider.getColumnCardinalityBucket(any(Estimate.class)))
-                .thenAnswer(invocation -> {
-                    Estimate estimate = (Estimate) invocation.getArguments()[0];
-                    return Double.valueOf(estimate.getValue()).intValue();
-                });
-
-        Map<String, Integer> expectedResult = columnHandleEstimateMap.entrySet()
-                .stream()
-                .collect(Collectors.toMap(entry -> columnNameFunction.apply(entry.getKey()),
-                        entry -> entry.getValue().intValue()));
-
-        Map<String, Integer> result = transformer.calculateColumnsStatisticsBucketPriority(statisticsProvider, columnStatisticsMap);
-        assertThat(result).isEqualTo(expectedResult);
-    }
 
     protected void testCreateDispatcherSplit(
             DispatcherProxiedConnectorTransformer transformer,

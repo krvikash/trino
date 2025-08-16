@@ -17,7 +17,6 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherSplit;
-import io.trino.plugin.warp.dispatcher.DispatcherStatisticsProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
@@ -28,13 +27,9 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.SchemaTableName;
-import io.trino.spi.statistics.ColumnStatistics;
 import io.trino.spi.type.Type;
 
-import java.util.Map;
 import java.util.Optional;
-
-import static java.util.Collections.emptyMap;
 
 @Singleton
 public class DispatcherCacheTransformer
@@ -47,12 +42,6 @@ public class DispatcherCacheTransformer
     @Inject
     public DispatcherCacheTransformer()
     {
-    }
-
-    @Override
-    public Map<String, Integer> calculateColumnsStatisticsBucketPriority(DispatcherStatisticsProvider statisticsProvider, Map<ColumnHandle, ColumnStatistics> columnStatistics)
-    {
-        return emptyMap();
     }
 
     @Override

@@ -46,9 +46,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -67,21 +64,6 @@ public class IcebergProxiedConnectorTransformerTest
 
     private final IcebergProxiedConnectorTransformer icebergProxiedConnectorTransformer =
             new IcebergProxiedConnectorTransformer(new ProxiedConnectorConfig());
-
-    @Test
-    public void testCalculateColumnsStatisticsBucketPriority()
-    {
-        super.testCalculateColumnsStatisticsBucketPriority(
-                icebergProxiedConnectorTransformer,
-                Stream.of(1D, 2D, 3D)
-                        .collect(Collectors.toMap(doubleVal ->
-                        {
-                            IcebergColumnHandle columnHandle = mock(IcebergColumnHandle.class);
-                            when(columnHandle.getName()).thenReturn("name-" + doubleVal);
-                            return columnHandle;
-                        }, Function.identity())),
-                columnHandle -> ((IcebergColumnHandle) columnHandle).getName());
-    }
 
     @Test
     public void testCreateProxyTableHandleForWarming()
