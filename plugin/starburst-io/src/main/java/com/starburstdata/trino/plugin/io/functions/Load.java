@@ -237,7 +237,7 @@ public class Load
 
         private static HiveColumnHandle toHiveColumn(Descriptor.Field field, int index)
         {
-            String name = field.getName().orElseThrow().toLowerCase(ENGLISH);
+            String name = field.getName().orElseThrow();
             Type type = field.getType().orElseThrow(() -> new TrinoException(INVALID_FUNCTION_ARGUMENT, "Type is required for column: " + name));
             return createBaseColumn(
                     name,

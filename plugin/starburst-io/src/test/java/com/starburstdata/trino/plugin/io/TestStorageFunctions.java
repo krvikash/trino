@@ -10,6 +10,7 @@
 package com.starburstdata.trino.plugin.io;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Resources;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import io.opentelemetry.api.OpenTelemetry;
@@ -128,11 +129,11 @@ final class TestStorageFunctions
             assertThat(query("SELECT * FROM TABLE(load('" + tableLocation + "/part=part2/'))"))
                     .matches("VALUES 3, 4");
 
-            assertThat(query("SELECT * FROM TABLE(load('" + tableLocation + "/', 'ORC', DESCRIPTOR(id INT)))"))
+            assertThat(query("SELECT * FROM TABLE(load('" + tableLocation + "/', 'ORC', DESCRIPTOR(\"id\" INT)))"))
                     .matches("VALUES 1, 2, 3, 4");
-            assertThat(query("SELECT * FROM TABLE(load('" + tableLocation + "/part=part1/', 'ORC', DESCRIPTOR(id INT)))"))
+            assertThat(query("SELECT * FROM TABLE(load('" + tableLocation + "/part=part1/', 'ORC', DESCRIPTOR(\"id\" INT)))"))
                     .matches("VALUES 1, 2");
-            assertThat(query("SELECT * FROM TABLE(load('" + tableLocation + "/part=part2/', 'ORC', DESCRIPTOR(id INT)))"))
+            assertThat(query("SELECT * FROM TABLE(load('" + tableLocation + "/part=part2/', 'ORC', DESCRIPTOR(\"id\" INT)))"))
                     .matches("VALUES 3, 4");
         }
     }
@@ -197,11 +198,11 @@ final class TestStorageFunctions
     {
         try (TestTable table = newTrinoTable("test_descriptor", "WITH (format = 'PARQUET') AS SELECT * FROM tpch.tiny.region")) {
             String tableLocation = loadTableLocation(table.getName());
-            assertThat(query("SELECT * FROM TABLE(load('" + tableLocation + "/', 'PARQUET', DESCRIPTOR(regionkey BIGINT, name VARCHAR(25), comment VARCHAR(152))))"))
+            assertThat(query("SELECT * FROM TABLE(load('" + tableLocation + "/', 'PARQUET', DESCRIPTOR(\"regionkey\" BIGINT, \"name\" VARCHAR(25), \"comment\" VARCHAR(152))))"))
                     .matches("SELECT * FROM tpch.tiny.region");
 
             String filePath = (String) computeScalar("SELECT DISTINCT \"$path\" FROM " + table.getName());
-            assertThat(query("SELECT * FROM TABLE(load('" + filePath + "', 'PARQUET', DESCRIPTOR(regionkey BIGINT, name VARCHAR(25), comment VARCHAR(152))))"))
+            assertThat(query("SELECT * FROM TABLE(load('" + filePath + "', 'PARQUET', DESCRIPTOR(\"regionkey\" BIGINT, \"name\" VARCHAR(25), \"comment\" VARCHAR(152))))"))
                     .matches("SELECT * FROM tpch.tiny.region");
         }
     }
@@ -216,7 +217,7 @@ final class TestStorageFunctions
                 "location => '" + location + "/'," +
                 "format => '" + format + "'))");
 
-        assertThat(query("SELECT * FROM TABLE(load('" + location + "/', '" + format + "', DESCRIPTOR(regionkey BIGINT, name VARCHAR(25), comment VARCHAR(152))))"))
+        assertThat(query("SELECT * FROM TABLE(load('" + location + "/', '" + format + "', DESCRIPTOR(\"regionkey\" BIGINT, \"name\" VARCHAR(25), \"comment\" VARCHAR(152))))"))
                 .matches("SELECT * FROM tpch.tiny.region");
     }
 
@@ -229,8 +230,20 @@ final class TestStorageFunctions
                 "location => '" + location + "'," +
                 "format => 'CSV'))");
 
-        assertThat(query("SELECT * FROM TABLE(load('" + location + "/', 'CSV', DESCRIPTOR(name VARCHAR, comment VARCHAR)))"))
+        assertThat(query("SELECT * FROM TABLE(load('" + location + "/', 'CSV', DESCRIPTOR(\"name\" VARCHAR, \"comment\" VARCHAR)))"))
                 .matches("SELECT CAST(name AS VARCHAR), CAST(comment AS VARCHAR) FROM tpch.tiny.region");
+    }
+
+    @Test
+    void testLoadAvroCaseSensitivity()
+            throws Exception
+    {
+        Location location = Location.of("s3://%s/%s".formatted("test-bucket", randomNameSuffix()));
+        byte[] bytes = Resources.toByteArray(Resources.getResource("case_sensitivity.avro"));
+        fileSystem.newOutputFile(location).createExclusive(bytes);
+
+        assertThat(query("SELECT * FROM TABLE(load('" + location + "', 'AVRO', DESCRIPTOR(id INTEGER, \"Name\" VARCHAR)))"))
+                .matches("VALUES (1, VARCHAR 'alice'), (2, VARCHAR 'bob')");
     }
 
     @Test
@@ -252,7 +265,7 @@ final class TestStorageFunctions
                 "SELECT * FROM TABLE(load(location=>'s3://dummy', format=>'PARQUET'))",
                 "FORMAT and COLUMNS arguments must be both specified or both omitted");
         assertQueryFails(
-                "SELECT * FROM TABLE(load(location=>'s3://dummy', columns=>DESCRIPTOR(regionkey BIGINT)))",
+                "SELECT * FROM TABLE(load(location=>'s3://dummy', columns=>DESCRIPTOR(\"regionkey\" BIGINT)))",
                 "FORMAT and COLUMNS arguments must be both specified or both omitted");
     }
 

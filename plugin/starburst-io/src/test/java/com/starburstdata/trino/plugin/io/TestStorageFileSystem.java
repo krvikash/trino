@@ -93,9 +93,9 @@ final class TestStorageFileSystem
             byte[] bytes = Resources.toByteArray(Resources.getResource("tpch_tiny_region.orc"));
             fileSystem.newOutputFile(filePath).createExclusive(bytes);
 
-            assertThat(query("SELECT * FROM TABLE(load('" + location + "/', 'ORC', DESCRIPTOR(regionkey BIGINT, name VARCHAR(25), comment VARCHAR(152))))"))
+            assertThat(query("SELECT * FROM TABLE(load('" + location + "/', 'ORC', DESCRIPTOR(\"regionkey\" BIGINT, \"name\" VARCHAR(25), \"comment\" VARCHAR(152))))"))
                     .matches("SELECT * FROM tpch.tiny.region");
-            assertThat(query("SELECT * FROM TABLE(load('" + filePath + "', 'ORC', DESCRIPTOR(regionkey BIGINT, name VARCHAR(25), comment VARCHAR(152))))"))
+            assertThat(query("SELECT * FROM TABLE(load('" + filePath + "', 'ORC', DESCRIPTOR(\"regionkey\" BIGINT, \"name\" VARCHAR(25), \"comment\" VARCHAR(152))))"))
                     .matches("SELECT * FROM tpch.tiny.region");
         }
         finally {
