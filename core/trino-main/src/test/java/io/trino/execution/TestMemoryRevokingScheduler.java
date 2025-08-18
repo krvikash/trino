@@ -61,7 +61,6 @@ import static io.airlift.tracing.Tracing.noopTracer;
 import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.execution.SqlTask.createSqlTask;
-import static io.trino.execution.TaskTestUtils.createTestSplitMonitor;
 import static io.trino.execution.TaskTestUtils.createTestingPlanner;
 import static io.trino.execution.TaskTestUtils.updateTask;
 import static io.trino.execution.TestSqlTask.OUT;
@@ -104,7 +103,6 @@ public class TestMemoryRevokingScheduler
                 executor,
                 taskExecutor,
                 planner,
-                createTestSplitMonitor(),
                 noopTracer(),
                 new TaskManagerConfig());
 
