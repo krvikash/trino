@@ -156,20 +156,28 @@ public class TestReloadingModelClientProvider
         Files.write(modelSpecsFile.toPath(), MODEL_SPECS_V2.getBytes(StandardCharsets.UTF_8));
         assertEventually(() -> assertThat(simplePrompt("haiku35")).isEqualTo("paris"));
         assertEventually(() -> assertThat(simplePrompt("meta_llama")).isEqualTo("paname"));
-        assertThatThrownBy(() -> simplePrompt("gpt4o_mini"))
-                .hasMessage("Language model client not found for id: gpt4o_mini");
+        assertEventually(() -> {
+            assertThatThrownBy(() -> simplePrompt("gpt4o_mini"))
+                    .hasMessage("Language model client not found for id: gpt4o_mini");
+        });
         // Assert that the system prompt change was picked up
-        assertThat(simpleEmbedding("openai_embed_3_large"))
-                .isNotEmpty()
-                .allMatch(Objects::nonNull);
-        assertThatThrownBy(() -> simpleEmbedding("titan_v2"))
-                .hasMessage("Embedding model client not found for id: titan_v2");
+        assertEventually(() -> {
+            assertThat(simpleEmbedding("openai_embed_3_large"))
+                    .isNotEmpty()
+                    .allMatch(Objects::nonNull);
+        });
+        assertEventually(() -> {
+            assertThatThrownBy(() -> simpleEmbedding("titan_v2"))
+                    .hasMessage("Embedding model client not found for id: titan_v2");
+        });
         // Verify that the updated classify prompt is set to the mask prompt.
         String prompt = "My credit card number is 1234-5678-9012-3456 and my password is hunter2";
-        String modifiedPromptResult = (String) computeActual(TEST_AI_SESSION,
-                "SELECT ai.classify('%s', ARRAY['credit card number', 'password'], '%s')".formatted(prompt, "meta_llama")).getOnlyValue();
-        assertEventually(() -> assertThat(modifiedPromptResult.strip())
-                .isEqualTo("My credit card number is [MASKED] and my password is [MASKED]"));
+        assertEventually(() -> {
+            String modifiedPromptResult = (String) computeActual(TEST_AI_SESSION,
+                    "SELECT ai.classify('%s', ARRAY['credit card number', 'password'], '%s')".formatted(prompt, "meta_llama")).getOnlyValue();
+            assertThat(modifiedPromptResult.strip())
+                    .isEqualTo("My credit card number is [MASKED] and my password is [MASKED]");
+        });
     }
 
     private String simplePrompt(String modelId)
