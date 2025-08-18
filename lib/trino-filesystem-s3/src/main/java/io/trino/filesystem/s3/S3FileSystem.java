@@ -75,6 +75,8 @@ import static java.util.stream.Collectors.toMap;
 public final class S3FileSystem
         implements TrinoFileSystem
 {
+    static final int DELETE_BATCH_SIZE = 1000;
+
     private final Executor uploadExecutor;
     private final S3Client client;
     private final S3Presigner preSigner;
@@ -194,7 +196,7 @@ public final class S3FileSystem
             String bucket = entry.getKey();
             Collection<String> allKeys = entry.getValue();
 
-            for (List<String> keys : partition(allKeys, 250)) {
+            for (List<String> keys : partition(allKeys, DELETE_BATCH_SIZE)) {
                 List<ObjectIdentifier> objects = keys.stream()
                         .map(key -> ObjectIdentifier.builder().key(key).build())
                         .toList();
