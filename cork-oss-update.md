@@ -124,7 +124,7 @@ Action items:
 - [ ] No pinned items left on \`#tmp-cork-trino-update-${TO_VERSION}-${TO_SHORT}\` channel if it exists
       (check it only before final merge, as new pinned items can be added)
 EOF
-)&labels=salesforce,synapse,snowflake"
+)&labels=redshift,salesforce,synapse,snowflake"
 ```
 
 ### Create Slack channel
