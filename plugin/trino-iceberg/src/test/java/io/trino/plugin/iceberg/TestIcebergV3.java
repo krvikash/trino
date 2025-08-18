@@ -249,6 +249,8 @@ public class TestIcebergV3
                     .matches("VALUES timestamp '2022-07-26 12:13:14.123456789'");
             assertThat(query("SELECT 1 FROM " + table.getName() + " WHERE x = timestamp '2022-07-26 12:13:14.123456789'"))
                     .matches("VALUES 1");
+            assertThat(query("SELECT * FROM " + table.getName() + " WHERE x = timestamp '2022-07-26 12:13:14.123456789'"))
+                    .isFullyPushedDown();
         }
     }
 
@@ -287,6 +289,8 @@ public class TestIcebergV3
                     .matches("VALUES 1");
             assertThat(query("SELECT 2 FROM " + table.getName() + " WHERE x = timestamp '2022-07-26 12:13:14.012345 America/Los_Angeles'"))
                     .matches("VALUES 2");
+            assertThat(query("SELECT * FROM " + table.getName() + " WHERE x = timestamp '2022-07-26 12:13:14.012345 America/Los_Angeles'"))
+                    .isFullyPushedDown();
         }
     }
 
