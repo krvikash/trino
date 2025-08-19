@@ -95,7 +95,6 @@ public abstract class BaseIcebergTimeZoneTest
                 .setIcebergProperties(ImmutableMap.<String, String>builder()
                         .put("iceberg.file-format", format.name())
                         .put("iceberg.format-version", Integer.toString(formatVersion))
-                        .put("iceberg.max-format-version", "3")
                         .put("iceberg.register-table-procedure.enabled", "true")
                         .put("iceberg.time-zone", "Asia/Kolkata")
                         .buildOrThrow())
@@ -113,7 +112,6 @@ public abstract class BaseIcebergTimeZoneTest
                         .put("fs.hadoop.enabled", "true")
                         .put("iceberg.file-format", format.name())
                         .put("iceberg.format-version", Integer.toString(formatVersion))
-                        .put("iceberg.max-format-version", "3")
                         .put("iceberg.register-table-procedure.enabled", "true")
                         .buildOrThrow());
         queryRunner.execute("CREATE SCHEMA " + ICEBERG_WITHOUT_TIME_ZONE_CATALOG_SCHEMA_NAME);

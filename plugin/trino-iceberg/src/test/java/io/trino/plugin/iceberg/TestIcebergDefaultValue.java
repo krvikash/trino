@@ -32,7 +32,6 @@ final class TestIcebergDefaultValue
     {
         return IcebergQueryRunner.builder()
                 .addIcebergProperty("iceberg.format-version", "3")
-                .addIcebergProperty("iceberg.max-format-version", "3")
                 .build();
     }
 

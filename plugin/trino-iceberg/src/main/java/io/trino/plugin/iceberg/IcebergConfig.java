@@ -80,7 +80,7 @@ public class IcebergConfig
     private boolean addFilesProcedureEnabled;
     private Optional<String> hiveCatalogName = Optional.empty();
     private int formatVersion = FORMAT_VERSION_DEFAULT;
-    private int maxFormatVersion = 2;
+    private int maxFormatVersion = 3;
     private Duration expireSnapshotsMinRetention = new Duration(7, DAYS);
     private Duration removeOrphanFilesMinRetention = new Duration(7, DAYS);
     private DataSize targetMaxFileSize = DataSize.of(1, GIGABYTE);
@@ -337,7 +337,7 @@ public class IcebergConfig
         return maxFormatVersion;
     }
 
-    @ConfigHidden // Expose V3 spec once we support all V3 requirements
+    @ConfigHidden
     @Config("iceberg.max-format-version")
     @ConfigDescription("Max Iceberg table format version")
     public IcebergConfig setMaxFormatVersion(int maxFormatVersion)

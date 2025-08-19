@@ -212,7 +212,6 @@ public abstract class BaseIcebergConnectorTest
                 .setIcebergProperties(ImmutableMap.<String, String>builder()
                         .put("iceberg.file-format", format.name())
                         .put("iceberg.format-version", Integer.toString(formatVersion))
-                        .put("iceberg.max-format-version", "3")
                         // Only allow some extra properties. Add "sorted_by" so that we can test that the property is disallowed by the connector explicitly.
                         .put("iceberg.allowed-extra-properties", "extra.property.one,extra.property.two,extra.property.three,sorted_by")
                         // Allows testing the sorting writer flushing to the file system with smaller tables

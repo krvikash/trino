@@ -66,9 +66,7 @@ final class TestIcebergOptimizePositionDeletesProcedure
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        DistributedQueryRunner queryRunner = IcebergQueryRunner.builder()
-                .addIcebergProperty("iceberg.max-format-version", "3")
-                .build();
+        DistributedQueryRunner queryRunner = IcebergQueryRunner.builder().build();
         metastore = getHiveMetastore(queryRunner);
         fileSystemFactory = getFileSystemFactory(queryRunner);
         return queryRunner;

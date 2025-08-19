@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.iceberg;
 
-import com.google.common.collect.ImmutableMap;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.metastore.HiveMetastore;
 import io.trino.testing.AbstractTestQueryFramework;
@@ -41,11 +40,7 @@ final class TestIcebergBranching
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        QueryRunner queryRunner = IcebergQueryRunner.builder()
-                .setIcebergProperties(ImmutableMap.<String, String>builder()
-                        .put("iceberg.max-format-version", "3")
-                        .buildOrThrow())
-                .build();
+        QueryRunner queryRunner = IcebergQueryRunner.builder().build();
         metastore = getHiveMetastore(queryRunner);
         fileSystemFactory = getFileSystemFactory(queryRunner);
         return queryRunner;

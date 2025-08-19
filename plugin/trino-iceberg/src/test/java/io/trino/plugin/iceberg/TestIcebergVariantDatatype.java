@@ -109,7 +109,6 @@ final class TestIcebergVariantDatatype
                 .setIcebergProperties(ImmutableMap.<String, String>builder()
                         .put("iceberg.register-table-procedure.enabled", "true")
                         .put("iceberg.format-version", "3")
-                        .put("iceberg.max-format-version", "3")
                         .buildOrThrow())
                 .setMetastoreDirectory(metastoreDir)
                 .build();
