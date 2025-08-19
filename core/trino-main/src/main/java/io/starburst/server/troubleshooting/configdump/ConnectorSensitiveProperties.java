@@ -1096,7 +1096,7 @@ public final class ConnectorSensitiveProperties
                             "sqlserver.tls.truststore-password",
                             "web-ui.shared-secret",
                             "gcp.credentials-key"))
-            .put("starburst_ai",
+            .put("starburst_functions",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
                             "http-client.http-proxy.password",
