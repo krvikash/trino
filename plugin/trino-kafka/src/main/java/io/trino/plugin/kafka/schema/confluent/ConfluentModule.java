@@ -31,6 +31,7 @@ import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.entities.Schema;
 import io.confluent.kafka.schemaregistry.client.rest.entities.SchemaReference;
+import io.confluent.kafka.schemaregistry.json.JsonSchemaProvider;
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchemaProvider;
 import io.trino.decoder.DispatchingRowDecoderFactory;
 import io.trino.decoder.RowDecoderFactory;
@@ -40,6 +41,9 @@ import io.trino.decoder.avro.AvroReaderSupplier;
 import io.trino.decoder.avro.AvroRowDecoderFactory;
 import io.trino.decoder.dummy.DummyRowDecoder;
 import io.trino.decoder.dummy.DummyRowDecoderFactory;
+import io.trino.decoder.json.JsonPayloadProvider;
+import io.trino.decoder.json.JsonRowDecoder;
+import io.trino.decoder.json.JsonRowDecoderFactory;
 import io.trino.decoder.protobuf.DescriptorProvider;
 import io.trino.decoder.protobuf.DummyDescriptorProvider;
 import io.trino.decoder.protobuf.DynamicMessageProvider;
@@ -49,6 +53,7 @@ import io.trino.plugin.base.session.SessionPropertiesProvider;
 import io.trino.plugin.kafka.encoder.DispatchingRowEncoderFactory;
 import io.trino.plugin.kafka.encoder.RowEncoderFactory;
 import io.trino.plugin.kafka.encoder.avro.AvroRowEncoder;
+import io.trino.plugin.kafka.encoder.json.JsonRowEncoder;
 import io.trino.plugin.kafka.encoder.protobuf.ProtobufRowEncoder;
 import io.trino.plugin.kafka.encoder.protobuf.ProtobufSchemaParser;
 import io.trino.plugin.kafka.schema.ContentSchemaProvider;
@@ -101,11 +106,14 @@ public class ConfluentModule
         newSetBinder(binder, SchemaProvider.class).addBinding().to(AvroSchemaProvider.class).in(Scopes.SINGLETON);
         // Each SchemaRegistry object should have a new instance of SchemaProvider
         newSetBinder(binder, SchemaProvider.class).addBinding().to(LazyLoadedProtobufSchemaProvider.class);
+        newSetBinder(binder, SchemaProvider.class).addBinding().to(LazyLoadedJsonSchemaProvider.class);
+        binder.bind(JsonPayloadProvider.class).to(ConfluentSchemaRegistryJsonPayloadProvider.class).in(SINGLETON);
         binder.bind(DynamicMessageProvider.Factory.class).to(ConfluentSchemaRegistryDynamicMessageProvider.Factory.class).in(SINGLETON);
         newSetBinder(binder, SessionPropertiesProvider.class).addBinding().to(ConfluentSessionProperties.class).in(Scopes.SINGLETON);
         binder.bind(TableDescriptionSupplier.class).toProvider(ConfluentSchemaRegistryTableDescriptionSupplier.Factory.class).in(Scopes.SINGLETON);
         newMapBinder(binder, String.class, SchemaParser.class).addBinding("AVRO").to(AvroSchemaParser.class).in(Scopes.SINGLETON);
         newMapBinder(binder, String.class, SchemaParser.class).addBinding("PROTOBUF").to(LazyLoadedProtobufSchemaParser.class).in(Scopes.SINGLETON);
+        newMapBinder(binder, String.class, SchemaParser.class).addBinding("JSON").to(LazyLoadedJsonSchemaParser.class).in(Scopes.SINGLETON);
 
         closingBinder(binder)
                 .registerCloseable(SchemaRegistryClient.class);
@@ -150,6 +158,7 @@ public class ConfluentModule
             binder.bind(AvroDeserializer.Factory.class).to(AvroBytesDeserializer.Factory.class).in(Scopes.SINGLETON);
             newMapBinder(binder, String.class, RowDecoderFactory.class).addBinding(AvroRowDecoderFactory.NAME).to(AvroRowDecoderFactory.class).in(Scopes.SINGLETON);
             newMapBinder(binder, String.class, RowDecoderFactory.class).addBinding(ProtobufRowDecoder.NAME).to(ProtobufRowDecoderFactory.class).in(Scopes.SINGLETON);
+            newMapBinder(binder, String.class, RowDecoderFactory.class).addBinding(JsonRowDecoder.NAME).to(JsonRowDecoderFactory.class).in(Scopes.SINGLETON);
             newMapBinder(binder, String.class, RowDecoderFactory.class).addBinding(DummyRowDecoder.NAME).to(DummyRowDecoderFactory.class).in(SINGLETON);
             binder.bind(DispatchingRowDecoderFactory.class).in(SINGLETON);
 
@@ -169,6 +178,9 @@ public class ConfluentModule
         {
             MapBinder<String, RowEncoderFactory> encoderFactoriesByName = encoderFactory(binder);
             encoderFactoriesByName.addBinding(AvroRowEncoder.NAME).toInstance((session, rowEncoderSpec) -> {
+                throw new TrinoException(NOT_SUPPORTED, "Insert not supported");
+            });
+            encoderFactoriesByName.addBinding(JsonRowEncoder.NAME).toInstance((session, rowEncoderSpec) -> {
                 throw new TrinoException(NOT_SUPPORTED, "Insert not supported");
             });
             encoderFactoriesByName.addBinding(ProtobufRowEncoder.NAME).toInstance((session, rowEncoderSpec) -> {
@@ -245,6 +257,43 @@ public class ConfluentModule
         }
     }
 
+    private static class LazyLoadedJsonSchemaProvider
+            implements SchemaProvider
+    {
+        // Make JVM to load lazily JsonSchemaProvider, so Kafka connector can be used
+        // without confluent schema provider dependency for non json schema based topics
+        private final Supplier<SchemaProvider> delegate = Suppliers.memoize(this::create);
+        private final AtomicReference<Map<String, ?>> configuration = new AtomicReference<>();
+
+        @Override
+        public String schemaType()
+        {
+            return "JSON";
+        }
+
+        @Override
+        public void configure(Map<String, ?> configuration)
+        {
+            Map<String, ?> oldConfiguration = this.configuration.getAndSet(ImmutableMap.copyOf(configuration));
+            checkState(oldConfiguration == null, "JsonSchemaProvider is already configured");
+        }
+
+        @Override
+        public ParsedSchema parseSchemaOrElseThrow(Schema schema, boolean isNew, boolean normalize)
+        {
+            return delegate.get().parseSchemaOrElseThrow(schema, isNew, normalize);
+        }
+
+        private SchemaProvider create()
+        {
+            JsonSchemaProvider schemaProvider = new JsonSchemaProvider();
+            Map<String, ?> configuration = this.configuration.get();
+            checkState(configuration != null, "JsonSchemaProvider is not already configured");
+            schemaProvider.configure(configuration);
+            return schemaProvider;
+        }
+    }
+
     public static class LazyLoadedProtobufSchemaParser
             extends ForwardingSchemaParser
     {
@@ -257,6 +306,20 @@ public class ConfluentModule
         {
             this.delegate = Suppliers.memoize(() -> new ProtobufSchemaParser(requireNonNull(typeManager, "typeManager is null"), config));
         }
+
+        @Override
+        protected SchemaParser delegate()
+        {
+            return delegate.get();
+        }
+    }
+
+    public static class LazyLoadedJsonSchemaParser
+            extends ForwardingSchemaParser
+    {
+        // Make JVM to load lazily JsonSchemaParser, so Kafka connector can be used
+        // without confluent schema provider dependency for non json schema based topics
+        private final Supplier<SchemaParser> delegate = Suppliers.memoize(JsonSchemaParser::new);
 
         @Override
         protected SchemaParser delegate()

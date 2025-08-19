@@ -274,6 +274,13 @@
                                     <destFileName>kafka-protobuf-types.jar</destFileName>
                                 </artifactItem>
                                 <artifactItem>
+                                    <groupId>io.confluent</groupId>
+                                    <artifactId>kafka-json-schema-provider</artifactId>
+                                    <type>jar</type>
+                                    <outputDirectory>${project.build.directory}</outputDirectory>
+                                    <destFileName>kafka-json-schema-provider.jar</destFileName>
+                                </artifactItem>
+                                <artifactItem>
                                     <groupId>org.apache.hive</groupId>
                                     <artifactId>hive-jdbc</artifactId>
                                     <classifier>standalone</classifier>

@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "all_datatypes_json",
+  "description": "A basic json schema for product tests",
+  "type": "object",
+  "properties": {
+    "a_varchar": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string" }
+      ]
+    },
+    "a_bigint": {
+      "oneOf": [
+        { "type": "null" },
+        {
+            "type": "integer",
+            "minimum": -9223372036854775808,
+            "maximum": 9223372036854775807
+        }
+      ]
+    },
+    "a_double": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "number" }
+      ]
+    },
+    "a_boolean": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "boolean" }
+      ]
+    },
+    "a_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "string",
+          "format": "date-time"
+        }
+      ]
+    },
+    "a_date": {
+       "oneOf": [
+         { "type": "null" },
+         {
+           "type": "string",
+           "format": "date"
+         }
+       ]
+    },
+    "a_time": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "string",
+          "format": "time"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

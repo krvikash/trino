@@ -18,6 +18,8 @@ import io.confluent.kafka.schemaregistry.ParsedSchema;
 import io.confluent.kafka.schemaregistry.avro.AvroSchema;
 import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.entities.SchemaReference;
+import io.confluent.kafka.schemaregistry.json.JsonSchema;
+import io.confluent.kafka.schemaregistry.json.JsonSchemaProvider;
 import io.trino.decoder.avro.AvroRowDecoderFactory;
 import io.trino.plugin.kafka.KafkaTableHandle;
 import io.trino.spi.TrinoException;
@@ -55,6 +57,25 @@ public class TestConfluentContentSchemaProvider
     }
 
     @Test
+    void testJsonConfluentSchemaProvider()
+            throws Exception
+    {
+        MockSchemaRegistryClient mockSchemaRegistryClient = new MockSchemaRegistryClient(ImmutableList.of(new JsonSchemaProvider()));
+        JsonSchema schema = getJsonSchema();
+        mockSchemaRegistryClient.register(SUBJECT_NAME, schema);
+        ConfluentContentSchemaProvider confluentContentSchemaProvider = new ConfluentContentSchemaProvider(mockSchemaRegistryClient);
+        KafkaTableHandle tableHandle = new KafkaTableHandle("default", TOPIC, TOPIC, "json", "json", Optional.empty(), Optional.empty(), Optional.empty(), Optional.of(SUBJECT_NAME), ImmutableList.of(), TupleDomain.all());
+        assertThat(confluentContentSchemaProvider.getMessage(tableHandle).map(JsonSchema::new).map(JsonSchema::rawSchema))
+                .hasValue(schema.rawSchema());
+        assertThat(confluentContentSchemaProvider.getKey(tableHandle))
+                .isEmpty();
+        KafkaTableHandle invalidTableHandle = new KafkaTableHandle("default", TOPIC, TOPIC, "json", "json", Optional.empty(), Optional.empty(), Optional.empty(), Optional.of("another-schema"), ImmutableList.of(), TupleDomain.all());
+        assertThatThrownBy(() -> confluentContentSchemaProvider.getMessage(invalidTableHandle))
+                .isInstanceOf(TrinoException.class)
+                .hasMessage("Could not resolve schema for the 'another-schema' subject");
+    }
+
+    @Test
     public void testAvroSchemaWithReferences()
             throws Exception
     {
@@ -68,6 +89,45 @@ public class TestConfluentContentSchemaProvider
         assertThat(avroConfluentSchemaProvider.readSchema(Optional.empty(), Optional.of(SUBJECT_NAME)).map(schema -> new Parser().parse(schema))).isPresent();
     }
 
+    @Test
+    void testJsonSchemaWithReferences()
+            throws Exception
+    {
+        MockSchemaRegistryClient mockSchemaRegistryClient = new MockSchemaRegistryClient(ImmutableList.of(new JsonSchemaProvider()));
+        JsonSchema schema = getJsonSchemaWithReference();
+        mockSchemaRegistryClient.register(SUBJECT_NAME, schema);
+        ConfluentContentSchemaProvider confluentContentSchemaProvider = new ConfluentContentSchemaProvider(mockSchemaRegistryClient);
+        KafkaTableHandle tableHandle = new KafkaTableHandle("default", TOPIC, TOPIC, "json", "json", Optional.empty(), Optional.empty(), Optional.empty(), Optional.of(SUBJECT_NAME), ImmutableList.of(), TupleDomain.all());
+        assertThat(confluentContentSchemaProvider.getMessage(tableHandle).map(JsonSchema::new).map(JsonSchema::rawSchema)).hasValue(schema.rawSchema());
+        assertThat(confluentContentSchemaProvider.getKey(tableHandle)).isEqualTo(Optional.empty());
+        KafkaTableHandle invalidTableHandle = new KafkaTableHandle("default", TOPIC, TOPIC, "json", "json", Optional.empty(), Optional.empty(), Optional.empty(), Optional.of("another-schema"), ImmutableList.of(), TupleDomain.all());
+        assertThatThrownBy(() -> confluentContentSchemaProvider.getMessage(invalidTableHandle))
+                .isInstanceOf(TrinoException.class)
+                .hasMessage("Could not resolve schema for the 'another-schema' subject");
+    }
+
+    private static JsonSchema getJsonSchemaWithReference()
+    {
+        return new JsonSchema("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "referred": { "$ref": "#/refs/test" },
+                        "col3": { "type": "string" }
+                    },
+                    "refs": {
+                        "test": {
+                            "type": "object",
+                            "properties": {
+                                "col1": { "type": "integer" },
+                                "col2": { "type": "string" }
+                            }
+                        }
+                    }
+                }
+                """);
+    }
+
     private static String getAvroSchemaWithReference()
     {
         return "{\n" +
@@ -78,6 +138,19 @@ public class TestConfluentContentSchemaProvider
                 "        {\"name\":\"col3\",\"type\": \"string\"}\n" +
                 "    ]\n" +
                 "}";
+    }
+
+    private static JsonSchema getJsonSchema()
+    {
+        return new JsonSchema("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "col1": { "type": "integer" },
+                        "col2": { "type": "string" }
+                    }
+                }
+                """);
     }
 
     private static AvroSchema getAvroSchema()

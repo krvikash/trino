@@ -1,0 +1,49 @@
+{
+  "tableName": "read_all_basic_datatypes_json",
+  "schemaName": "product_tests",
+  "topicName": "read_all_basic_datatypes_json",
+  "message": {
+    "dataFormat": "json",
+    "dataSchema": "/docker/trino-product-tests/conf/trino/etc/catalog/kafka/basic_datatypes_json.json.schema",
+    "fields": [
+      {
+        "name": "a_varchar",
+        "type": "VARCHAR",
+        "mapping": "a_varchar"
+      },
+      {
+        "name": "a_bigint",
+        "type": "BIGINT",
+        "mapping": "a_bigint"
+      },
+      {
+        "name": "a_double",
+        "type": "DOUBLE",
+        "mapping": "a_double"
+      },
+      {
+        "name": "a_boolean",
+        "type": "BOOLEAN",
+        "mapping": "a_boolean"
+      },
+      {
+        "name": "a_timestamp",
+        "type": "TIMESTAMP WITH TIME ZONE",
+        "mapping": "a_timestamp",
+        "dataFormat": "iso8601"
+      },
+      {
+        "name": "a_date",
+        "type": "DATE",
+        "mapping": "a_date",
+        "dataFormat": "iso8601"
+      },
+      {
+        "name": "a_time",
+        "type": "TIME WITH TIME ZONE",
+        "mapping": "a_time",
+        "dataFormat": "iso8601"
+      }
+    ]
+  }
+}

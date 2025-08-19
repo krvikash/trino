@@ -45,6 +45,7 @@ public final class EnvMultinodeConfluentKafka
 {
     private static final File KAFKA_PROTOBUF_PROVIDER = new File("testing/trino-product-tests-launcher/target/kafka-protobuf-provider.jar");
     private static final File KAFKA_PROTOBUF_TYPES = new File("testing/trino-product-tests-launcher/target/kafka-protobuf-types.jar");
+    private static final File KAFKA_JSON_SCHEMA_PROVIDER = new File("testing/trino-product-tests-launcher/target/kafka-json-schema-provider.jar");
 
     private final ResourceProvider configDir;
 
@@ -66,7 +67,8 @@ public final class EnvMultinodeConfluentKafka
                 container
                         .withCopyFileToContainer(forHostPath(KAFKA_PROTOBUF_PROVIDER.getAbsolutePath()), "/docker/kafka-protobuf-provider/kafka-protobuf-provider.jar")
                         .withCopyFileToContainer(forHostPath(KAFKA_PROTOBUF_TYPES.getAbsolutePath()), "/docker/kafka-protobuf-provider/kafka-protobuf-types.jar")
-                        .withCopyFileToContainer(forClasspathResource("install-kafka-protobuf-provider.sh", 0755), "/docker/presto-init.d/install-kafka-protobuf-provider.sh");
+                        .withCopyFileToContainer(forHostPath(KAFKA_JSON_SCHEMA_PROVIDER.getAbsolutePath()), "/docker/kafka-json-schema-provider/kafka-json-schema-provider.jar")
+                        .withCopyFileToContainer(forClasspathResource("install-kafka-providers.sh", 0755), "/docker/presto-init.d/install-kafka-providers.sh");
             }
         });
 

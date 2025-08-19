@@ -30,6 +30,22 @@
         </dependency>
 
         <dependency>
+            <groupId>com.github.erosb</groupId>
+            <artifactId>everit-json-schema</artifactId>
+            <!-- Found duplicate and different classes in [commons-logging:commons-logging:1.2, org.slf4j:jcl-over-slf4j:2.0.17]-->
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>jcl-over-slf4j</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
         </dependency>
@@ -141,6 +157,13 @@
 
         <dependency>
             <groupId>io.confluent</groupId>
+            <artifactId>kafka-json-schema-provider</artifactId>
+            <!-- This is under Confluent Community License and it should not be used with compile scope -->
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.confluent</groupId>
             <artifactId>kafka-protobuf-provider</artifactId>
             <!-- This is under Confluent Community License and it should not be used with compile scope -->
             <scope>provided</scope>
@@ -170,6 +193,23 @@
             <scope>provided</scope>
         </dependency>
 
+        <dependency>
+            <groupId>com.github.erosb</groupId>
+            <artifactId>json-sKema</artifactId>
+            <scope>runtime</scope>
+            <!-- Found duplicate and different classes in [commons-logging:commons-logging:1.2, org.slf4j:jcl-over-slf4j:2.0.17]-->
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>jcl-over-slf4j</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
         <!-- used by kafka-protobuf-provider -->
         <dependency>
             <groupId>com.google.api.grpc</groupId>
@@ -181,6 +221,23 @@
             <groupId>com.google.errorprone</groupId>
             <artifactId>error_prone_annotations</artifactId>
             <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.kjetland</groupId>
+            <artifactId>mbknor-jackson-jsonschema_2.13</artifactId>
+            <scope>runtime</scope>
+            <!-- Found duplicate and different classes in [commons-logging:commons-logging:1.2, org.slf4j:jcl-over-slf4j:2.0.17]-->
+            <exclusions>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>jcl-over-slf4j</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
@@ -388,6 +445,7 @@
                 <extensions>true</extensions>
                 <configuration>
                     <allowedProvidedDependencies>
+                        <id>io.confluent:kafka-json-schema-provider</id>
                         <id>io.confluent:kafka-protobuf-provider</id>
                         <id>io.confluent:kafka-protobuf-types</id>
                     </allowedProvidedDependencies>

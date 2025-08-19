@@ -263,6 +263,9 @@
         <dep.tempto.version>202</dep.tempto.version>
         <dep.wire.version>5.2.1</dep.wire.version>
         <dep.zookeeper.version>3.9.3</dep.zookeeper.version>
+        <dep.erosb.everit.json.version>1.14.3</dep.erosb.everit.json.version>
+        <dep.erosb.json.skema.version>0.20.0</dep.erosb.json.skema.version>
+        <dep.kjetland.jackson.schema.version>1.0.39</dep.kjetland.jackson.schema.version>
         <extraJavaVectorArgs>--add-modules=jdk.incubator.vector</extraJavaVectorArgs>
         <!--
         Instructs Provisio to write runtime dependencies in the format groupId_artifactId-version.jar.
@@ -501,6 +504,24 @@
             </dependency>
 
             <dependency>
+                <groupId>com.github.erosb</groupId>
+                <artifactId>everit-json-schema</artifactId>
+                <version>${dep.erosb.everit.json.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.github.erosb</groupId>
+                <artifactId>json-sKema</artifactId>
+                <version>${dep.erosb.json.skema.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>commons-validator</groupId>
+                        <artifactId>commons-validator</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
+            <dependency>
                 <groupId>com.github.luben</groupId>
                 <artifactId>zstd-jni</artifactId>
                 <version>1.5.7-4</version>
@@ -572,6 +593,12 @@
                 <groupId>com.h2database</groupId>
                 <artifactId>h2</artifactId>
                 <version>2.3.232</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.kjetland</groupId>
+                <artifactId>mbknor-jackson-jsonschema_2.13</artifactId>
+                <version>${dep.kjetland.jackson.schema.version}</version>
             </dependency>
 
             <dependency>
@@ -2567,6 +2594,36 @@
                 <groupId>org.yaml</groupId>
                 <artifactId>snakeyaml</artifactId>
                 <version>2.4</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.confluent</groupId>
+                <artifactId>kafka-json-schema-provider</artifactId>
+                <version>${dep.confluent.version}</version>
+                <!-- This is under Confluent Community License and it should not be used with compile scope -->
+                <scope>provided</scope>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.github.erosb</groupId>
+                        <artifactId>everit-json-schema</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.github.erosb</groupId>
+                        <artifactId>json-sKema</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.kjetland</groupId>
+                        <artifactId>mbknor-jackson-jsonschema_2.13</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.jetbrains.kotlin</groupId>
+                        <artifactId>kotlin-scripting-compiler-embeddable</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.jetbrains.kotlin</groupId>
+                        <artifactId>kotlin-scripting-jvm</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
 
             <dependency>

@@ -18,7 +18,6 @@ import com.google.common.collect.ImmutableMap;
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
-import io.confluent.kafka.serializers.json.KafkaJsonSchemaSerializer;
 import io.confluent.kafka.serializers.subject.RecordNameStrategy;
 import io.confluent.kafka.serializers.subject.TopicRecordNameStrategy;
 import io.trino.plugin.kafka.KafkaQueryRunner;
@@ -39,7 +38,6 @@ import org.junit.jupiter.api.parallel.Execution;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 import static io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG;
@@ -226,32 +224,6 @@ public class TestKafkaWithConfluentSchemaRegistryMinimalFunctionality
 
         assertThatThrownBy(() -> getQueryRunner().execute(format("INSERT INTO %s VALUES(0, 0, '')", toDoubleQuoted(topicName))))
                 .hasMessage("Insert not supported");
-    }
-
-    @Test
-    public void testUnsupportedFormat()
-    {
-        String topicName = "topic-unsupported-format-" + randomNameSuffix();
-
-        assertNotExists(topicName);
-
-        testingKafka.sendMessages(
-                IntStream.range(0, MESSAGE_COUNT)
-                        .mapToObj(id -> new ProducerRecord<>(topicName, (long) id, new JsonValue(id, "value_" + id))),
-                schemaRegistryAwareProducer(testingKafka)
-                        .put(KEY_SERIALIZER_CLASS_CONFIG, LongSerializer.class.getName())
-                        .put(VALUE_SERIALIZER_CLASS_CONFIG, KafkaJsonSchemaSerializer.class.getName())
-                        .buildOrThrow());
-
-        assertThat(tableExists(topicName)).isTrue();
-
-        String errorMessage = "Not supported schema: JSON";
-        assertThatThrownBy(() -> getQueryRunner().execute("SHOW COLUMNS FROM " + toDoubleQuoted(topicName)))
-                .hasMessage(errorMessage);
-        assertThatThrownBy(() -> getQueryRunner().execute("SELECT * FROM " + toDoubleQuoted(topicName)))
-                .hasMessage(errorMessage);
-        assertThatThrownBy(() -> getQueryRunner().execute(format("INSERT INTO %s VALUES(0, 0, '')", toDoubleQuoted(topicName))))
-                .hasMessage(errorMessage);
     }
 
     private static ImmutableMap.Builder<String, String> schemaRegistryAwareProducer(TestingKafka testingKafka)
