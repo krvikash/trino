@@ -19,6 +19,7 @@ import io.trino.spi.type.LongTimestamp;
 import io.trino.spi.type.LongTimestampWithTimeZone;
 
 import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
+import static io.trino.spi.type.TimestampType.TIMESTAMP_NANOS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MICROS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_NANOS;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_MILLISECOND;
@@ -72,6 +73,11 @@ public final class Timestamps
         long epochMillis = floorDiv(epochMicros, MICROSECONDS_PER_MILLISECOND);
         int picosOfMillis = floorMod(epochNanos, NANOSECONDS_PER_MILLISECOND) * PICOSECONDS_PER_NANOSECOND;
         return LongTimestampWithTimeZone.fromEpochMillisAndFraction(epochMillis, picosOfMillis, UTC_KEY);
+    }
+
+    public static LongTimestamp getTimestampNanos(Block block, int position)
+    {
+        return (LongTimestamp) TIMESTAMP_NANOS.getObject(block, position);
     }
 
     public static LongTimestampWithTimeZone getTimestampTz(Block block, int position)

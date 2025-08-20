@@ -16,12 +16,16 @@ package io.trino.plugin.iceberg;
 import io.trino.Session;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.metastore.HiveMetastore;
+import io.trino.sql.planner.plan.FilterNode;
+import io.trino.sql.planner.plan.OutputNode;
+import io.trino.sql.planner.plan.ValuesNode;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.types.Types;
+import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
@@ -30,6 +34,7 @@ import java.util.List;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getHiveMetastore;
 import static io.trino.plugin.iceberg.IcebergTestUtils.listFiles;
+import static io.trino.sql.planner.assertions.PlanMatchPattern.node;
 import static io.trino.testing.TestingConnectorSession.SESSION;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static org.apache.iceberg.TableProperties.ENCRYPTION_TABLE_KEY;
@@ -252,6 +257,630 @@ public class TestIcebergV3
             assertThat(query("SELECT * FROM " + table.getName() + " WHERE x = timestamp '2022-07-26 12:13:14.123456789'"))
                     .isFullyPushedDown();
         }
+    }
+
+    @Test
+    public void testHourTransformTimestampNano()
+    {
+        assertUpdate("CREATE TABLE test_hour_transform_timestamp (d TIMESTAMP(9), b BIGINT) WITH (partitioning = ARRAY['hour(d)'])");
+
+        @Language("SQL") String values = "VALUES " +
+                "(NULL, 101)," +
+                "(TIMESTAMP '1969-12-31 22:59:59.999999999', 1)," +
+                "(TIMESTAMP '1969-12-31 23:00:00.000000000', 2)," +
+                "(TIMESTAMP '1970-01-01 00:00:00.000000000', 3)," +
+                "(TIMESTAMP '1970-01-01 00:59:59.999999999', 4)," +
+                "(TIMESTAMP '2015-01-01 09:59:59.999999999', 5)," +
+                "(TIMESTAMP '2015-01-01 10:00:00.000000000', 6)," +
+                "(TIMESTAMP '2015-01-01 10:30:00.123456789', 7)," +
+                "(TIMESTAMP '2015-01-01 11:00:00.000000000', 8)," +
+                "(TIMESTAMP '2015-05-15 13:15:00.000000000', 9)," +
+                "(TIMESTAMP '2015-05-15 14:45:00.000000000', 10)," +
+                "(TIMESTAMP '2020-02-21 15:11:11.876543210', 11)," +
+                "(TIMESTAMP '2020-02-21 16:12:12.654321000', 12)";
+        assertUpdate("INSERT INTO test_hour_transform_timestamp " + values, 13);
+        assertQuery("SELECT * FROM test_hour_transform_timestamp", values);
+
+        @Language("SQL") String expected = "VALUES " +
+                "(NULL, 1, NULL, NULL, 101, 101), " +
+                "(-2, 1, TIMESTAMP '1969-12-31 22:59:59.999999999', TIMESTAMP '1969-12-31 22:59:59.999999999', 1, 1), " +
+                "(-1, 1, TIMESTAMP '1969-12-31 23:00:00.000000000', TIMESTAMP '1969-12-31 23:00:00.000000000', 2, 2), " +
+                "(0, 2, TIMESTAMP '1970-01-01 00:00:00.000000000', TIMESTAMP '1970-01-01 00:59:59.999999999', 3, 4), " +
+                "(394473, 1, TIMESTAMP '2015-01-01 09:59:59.999999999', TIMESTAMP '2015-01-01 09:59:59.999999999', 5, 5), " +
+                "(394474, 2, TIMESTAMP '2015-01-01 10:00:00.000000000', TIMESTAMP '2015-01-01 10:30:00.123456789', 6, 7), " +
+                "(394475, 1, TIMESTAMP '2015-01-01 11:00:00.000000000', TIMESTAMP '2015-01-01 11:00:00.000000000', 8, 8), " +
+                "(397693, 1, TIMESTAMP '2015-05-15 13:15:00.000000000', TIMESTAMP '2015-05-15 13:15:00.000000000', 9, 9), " +
+                "(397694, 1, TIMESTAMP '2015-05-15 14:45:00.000000000', TIMESTAMP '2015-05-15 14:45:00.000000000', 10, 10), " +
+                "(439527, 1, TIMESTAMP '2020-02-21 15:11:11.876543210', TIMESTAMP '2020-02-21 15:11:11.876543210', 11, 11), " +
+                "(439528, 1, TIMESTAMP '2020-02-21 16:12:12.654321000', TIMESTAMP '2020-02-21 16:12:12.654321000', 12, 12)";
+
+        assertQuery("SELECT partition.d_hour, record_count, data.d.min, data.d.max, data.b.min, data.b.max FROM \"test_hour_transform_timestamp$partitions\"", expected);
+        String expectedStats = "VALUES " +
+                "  ('d', NULL, 12e0, 0.0769231e0, NULL, '1969-12-31 22:59:59.999999', '2020-02-21 16:12:12.654321'), " +
+                "  ('b', NULL, 13e0, 0e0, NULL, '1', '101'), " +
+                "  (NULL, NULL, NULL, NULL, 13e0, NULL, NULL)";
+
+        // Pushdown checks
+        assertThat(query("SHOW STATS FOR test_hour_transform_timestamp"))
+                .skippingTypesCheck()
+                .matches(expectedStats);
+
+        assertThat(query("SELECT * FROM test_hour_transform_timestamp WHERE d IS NOT NULL"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_hour_transform_timestamp WHERE d IS NULL"))
+                .isFullyPushedDown();
+
+        assertThat(query("SELECT * FROM test_hour_transform_timestamp WHERE d >= TIMESTAMP '2015-05-15 14:00:00'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_hour_transform_timestamp WHERE CAST(d AS timestamp(9)) >= TIMESTAMP '2015-05-15 14:00:00'"))
+                .isFullyPushedDown();
+
+        assertThat(query("SELECT * FROM test_hour_transform_timestamp WHERE d >= TIMESTAMP '2015-05-15 14:00:00.000000001'"))
+                .isNotFullyPushedDown(FilterNode.class);
+
+        // date_trunc
+        assertThat(query("SELECT * FROM test_hour_transform_timestamp WHERE date_trunc('hour', d) = TIMESTAMP '2015-05-15 14:00:00'"))
+                .isFullyPushedDown();
+
+        assertUpdate("DROP TABLE test_hour_transform_timestamp");
+    }
+
+    @Test
+    public void testHourTransformTimestampNanoWithTimeZone()
+    {
+        assertUpdate("CREATE TABLE test_hour_transform_timestamptz (d timestamp(9) with time zone, b integer) WITH (partitioning = ARRAY['hour(d)'])");
+
+        String values = "VALUES " +
+                "(NULL, 101)," +
+                "(TIMESTAMP '1969-12-31 22:59:59.999999999 UTC', 1)," +
+                "(TIMESTAMP '1969-12-31 23:00:00.000000000 UTC', 2)," +
+                "(TIMESTAMP '1970-01-01 00:00:00.000000000 UTC', 3)," +
+                "(TIMESTAMP '1970-01-01 00:59:59.999999999 UTC', 4)," +
+                "(TIMESTAMP '2015-01-01 09:59:59.999999999 UTC', 5)," +
+                "(TIMESTAMP '2015-01-01 10:00:00.000000000 UTC', 6)," +
+                "(TIMESTAMP '2015-01-01 10:30:00.123456789 UTC', 7)," +
+                "(TIMESTAMP '2015-01-01 11:00:00.000000000 UTC', 8)," +
+                "(TIMESTAMP '2015-05-15 13:15:00.000000000 UTC', 9)," +
+                "(TIMESTAMP '2015-05-15 14:45:00.000000000 UTC', 10)," +
+                "(TIMESTAMP '2020-02-21 15:11:11.876543210 UTC', 11)," +
+                "(TIMESTAMP '2020-02-21 16:12:12.654321000 UTC', 12)";
+        assertUpdate("INSERT INTO test_hour_transform_timestamptz " + values, 13);
+        assertThat(query("SELECT * FROM test_hour_transform_timestamptz")).matches(values);
+
+        String expected = "VALUES " +
+                "(NULL, BIGINT '1', NULL, NULL, 101, 101), " +
+                "(-2, 1, TIMESTAMP '1969-12-31 22:59:59.999999999 UTC', TIMESTAMP '1969-12-31 22:59:59.999999999 UTC', 1, 1), " +
+                "(-1, 1, TIMESTAMP '1969-12-31 23:00:00.000000000 UTC', TIMESTAMP '1969-12-31 23:00:00.000000000 UTC', 2, 2), " +
+                "(0, 2, TIMESTAMP '1970-01-01 00:00:00.000000000 UTC', TIMESTAMP '1970-01-01 00:59:59.999999999 UTC', 3, 4), " +
+                "(394473, 1, TIMESTAMP '2015-01-01 09:59:59.999999999 UTC', TIMESTAMP '2015-01-01 09:59:59.999999999 UTC', 5, 5), " +
+                "(394474, 2, TIMESTAMP '2015-01-01 10:00:00.000000000 UTC', TIMESTAMP '2015-01-01 10:30:00.123456789 UTC', 6, 7), " +
+                "(394475, 1, TIMESTAMP '2015-01-01 11:00:00.000000000 UTC', TIMESTAMP '2015-01-01 11:00:00.000000000 UTC', 8, 8), " +
+                "(397693, 1, TIMESTAMP '2015-05-15 13:15:00.000000000 UTC', TIMESTAMP '2015-05-15 13:15:00.000000000 UTC', 9, 9), " +
+                "(397694, 1, TIMESTAMP '2015-05-15 14:45:00.000000000 UTC', TIMESTAMP '2015-05-15 14:45:00.000000000 UTC', 10, 10), " +
+                "(439527, 1, TIMESTAMP '2020-02-21 15:11:11.876543210 UTC', TIMESTAMP '2020-02-21 15:11:11.876543210 UTC', 11, 11), " +
+                "(439528, 1, TIMESTAMP '2020-02-21 16:12:12.654321000 UTC', TIMESTAMP '2020-02-21 16:12:12.654321000 UTC', 12, 12)";
+        assertThat(query("SELECT partition.d_hour, record_count, data.d.min, data.d.max, data.b.min, data.b.max FROM \"test_hour_transform_timestamptz$partitions\""))
+                .matches(expected);
+
+        String expectedStats = "VALUES " +
+                "  ('d', NULL, 12e0, 0.07692307692307693, NULL, '1969-12-31 22:59:59.999 UTC', '2020-02-21 16:12:12.654 UTC'), " +
+                "  ('b', NULL, 13e0, 0e0, NULL, '1', '101'), " +
+                "  (NULL, NULL, NULL, NULL, 13e0, NULL, NULL)";
+        assertThat(query("SHOW STATS FOR test_hour_transform_timestamptz"))
+                .skippingTypesCheck()
+                .matches(expectedStats);
+
+        // Pushdown checks
+        assertThat(query("SELECT * FROM test_hour_transform_timestamptz WHERE d IS NOT NULL"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_hour_transform_timestamptz WHERE d IS NULL"))
+                .isFullyPushedDown();
+
+        assertThat(query("SELECT * FROM test_hour_transform_timestamptz WHERE d >= TIMESTAMP '2015-05-15 14:00:00 UTC'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_hour_transform_timestamptz WHERE d >= TIMESTAMP '2015-05-15 14:00:00.000000001 UTC'"))
+                .isNotFullyPushedDown(FilterNode.class);
+
+        // date_trunc
+        assertThat(query("SELECT * FROM test_hour_transform_timestamptz WHERE date_trunc('hour', d) = TIMESTAMP '2015-05-15 14:00:00 UTC'"))
+                .isFullyPushedDown();
+
+        assertUpdate("DROP TABLE test_hour_transform_timestamptz");
+    }
+
+    @Test
+    public void testDayTransformTimestampNano()
+    {
+        assertUpdate("CREATE TABLE test_day_transform_timestamp (d TIMESTAMP(9), b BIGINT) WITH (partitioning = ARRAY['day(d)'])");
+
+        @Language("SQL") String values = "VALUES " +
+                "(NULL, 101)," +
+                "(TIMESTAMP '1969-12-25 15:13:12.876543210', 8)," +
+                "(TIMESTAMP '1969-12-30 18:47:33.345678900', 9)," +
+                "(TIMESTAMP '1969-12-31 00:00:00.000000000', 10)," +
+                "(TIMESTAMP '1969-12-31 05:06:07.234567890', 11)," +
+                "(TIMESTAMP '1970-01-01 12:03:08.456789000', 12)," +
+                "(TIMESTAMP '2015-01-01 10:01:23.123456789', 1)," +
+                "(TIMESTAMP '2015-01-01 11:10:02.987654321', 2)," +
+                "(TIMESTAMP '2015-01-01 12:55:00.456789000', 3)," +
+                "(TIMESTAMP '2015-05-15 13:05:01.234567890', 4)," +
+                "(TIMESTAMP '2015-05-15 14:21:02.345678900', 5)," +
+                "(TIMESTAMP '2020-02-21 15:11:11.876543210', 6)," +
+                "(TIMESTAMP '2020-02-21 16:12:12.654321000', 7)";
+        assertUpdate("INSERT INTO test_day_transform_timestamp " + values, 13);
+        assertQuery("SELECT * FROM test_day_transform_timestamp", values);
+
+        @Language("SQL") String expected = "VALUES " +
+                "(NULL, 1, NULL, NULL, 101, 101), " +
+                "(DATE '1969-12-25', 1, TIMESTAMP '1969-12-25 15:13:12.876543210', TIMESTAMP '1969-12-25 15:13:12.876543210', 8, 8), " +
+                "(DATE '1969-12-30', 1, TIMESTAMP '1969-12-30 18:47:33.345678900', TIMESTAMP '1969-12-30 18:47:33.345678900', 9, 9), " +
+                "(DATE '1969-12-31', 2, TIMESTAMP '1969-12-31 00:00:00.000000000', TIMESTAMP '1969-12-31 05:06:07.234567890', 10, 11), " +
+                "(DATE '1970-01-01', 1, TIMESTAMP '1970-01-01 12:03:08.456789000', TIMESTAMP '1970-01-01 12:03:08.456789000', 12, 12), " +
+                "(DATE '2015-01-01', 3, TIMESTAMP '2015-01-01 10:01:23.123456789', TIMESTAMP '2015-01-01 12:55:00.456789000', 1, 3), " +
+                "(DATE '2015-05-15', 2, TIMESTAMP '2015-05-15 13:05:01.234567890', TIMESTAMP '2015-05-15 14:21:02.345678900', 4, 5), " +
+                "(DATE '2020-02-21', 2, TIMESTAMP '2020-02-21 15:11:11.876543210', TIMESTAMP '2020-02-21 16:12:12.654321000', 6, 7)";
+        String expectedTimestampStats = "VALUES " +
+                "  ('d', NULL, 12e0, 0.0769231e0, NULL, '1969-12-25 15:13:12.876543', '2020-02-21 16:12:12.654321'), " +
+                "  ('b', NULL, 13e0, 0e0, NULL, '1', '101'), " +
+                "  (NULL, NULL, NULL, NULL, 13e0, NULL, NULL)";
+
+        assertQuery("SELECT partition.d_day, record_count, data.d.min, data.d.max, data.b.min, data.b.max FROM \"test_day_transform_timestamp$partitions\"", expected);
+
+        // Exercise IcebergMetadata.applyFilter with non-empty Constraint.predicate, via non-pushdownable predicates
+        assertQuery(
+                "SELECT * FROM test_day_transform_timestamp WHERE day_of_week(d) = 3 AND b % 7 = 3",
+                "VALUES (TIMESTAMP '1969-12-31 00:00:00.000000000', 10)");
+
+        assertThat(query("SHOW STATS FOR test_day_transform_timestamp"))
+                .skippingTypesCheck()
+                .matches(expectedTimestampStats);
+
+        assertThat(query("SELECT * FROM test_day_transform_timestamp WHERE d IS NOT NULL"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_day_transform_timestamp WHERE d IS NULL"))
+                .isFullyPushedDown();
+
+        assertThat(query("SELECT * FROM test_day_transform_timestamp WHERE d >= DATE '2015-05-15'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_day_transform_timestamp WHERE CAST(d AS date) >= DATE '2015-05-15'"))
+                .isFullyPushedDown();
+
+        assertThat(query("SELECT * FROM test_day_transform_timestamp WHERE d >= TIMESTAMP '2015-05-15 00:00:00'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_day_transform_timestamp WHERE d >= TIMESTAMP '2015-05-15 00:00:00.000000001'"))
+                .isNotFullyPushedDown(FilterNode.class);
+
+        // date()
+        assertThat(query("SELECT * FROM test_day_transform_timestamp WHERE date(d) = DATE '2015-05-15'"))
+                .isFullyPushedDown();
+
+        // year()
+        assertThat(query("SELECT * FROM test_day_transform_timestamp WHERE year(d) = 2015"))
+                .isFullyPushedDown();
+
+        // date_trunc
+        assertThat(query("SELECT * FROM test_day_transform_timestamp WHERE date_trunc('day', d) = DATE '2015-05-15'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_day_transform_timestamp WHERE date_trunc('month', d) = DATE '2015-05-01'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_day_transform_timestamp WHERE date_trunc('year', d) = DATE '2015-01-01'"))
+                .isFullyPushedDown();
+
+        assertUpdate("DROP TABLE test_day_transform_timestamp");
+    }
+
+    @Test
+    public void testDayTransformTimestampNanoWithTimeZone()
+    {
+        assertUpdate("CREATE TABLE test_day_transform_timestamptz (d timestamp(9) with time zone, b integer) WITH (partitioning = ARRAY['day(d)'])");
+
+        String values = "VALUES " +
+                "(NULL, 101)," +
+                "(TIMESTAMP '1969-12-25 15:13:12.876543210 UTC', 8)," +
+                "(TIMESTAMP '1969-12-30 18:47:33.345678900 UTC', 9)," +
+                "(TIMESTAMP '1969-12-31 00:00:00.000000000 UTC', 10)," +
+                "(TIMESTAMP '1969-12-31 05:06:07.234567890 UTC', 11)," +
+                "(TIMESTAMP '1970-01-01 12:03:08.456789000 UTC', 12)," +
+                "(TIMESTAMP '2015-01-01 10:01:23.123456789 UTC', 1)," +
+                "(TIMESTAMP '2015-01-01 11:10:02.987654321 UTC', 2)," +
+                "(TIMESTAMP '2015-01-01 12:55:00.456789000 UTC', 3)," +
+                "(TIMESTAMP '2015-05-15 13:05:01.234567890 UTC', 4)," +
+                "(TIMESTAMP '2015-05-15 14:21:02.345678900 UTC', 5)," +
+                "(TIMESTAMP '2020-02-21 15:11:11.876543210 UTC', 6)," +
+                "(TIMESTAMP '2020-02-21 16:12:12.654321000 UTC', 7)";
+        assertUpdate("INSERT INTO test_day_transform_timestamptz " + values, 13);
+        assertThat(query("SELECT * FROM test_day_transform_timestamptz"))
+                .matches(values);
+
+        String expected = "VALUES " +
+                "(NULL, BIGINT '1', NULL, NULL, 101, 101), " +
+                "(DATE '1969-12-25', 1, TIMESTAMP '1969-12-25 15:13:12.876543210 UTC', TIMESTAMP '1969-12-25 15:13:12.876543210 UTC', 8, 8), " +
+                "(DATE '1969-12-30', 1, TIMESTAMP '1969-12-30 18:47:33.345678900 UTC', TIMESTAMP '1969-12-30 18:47:33.345678900 UTC', 9, 9), " +
+                "(DATE '1969-12-31', 2, TIMESTAMP '1969-12-31 00:00:00.000000000 UTC', TIMESTAMP '1969-12-31 05:06:07.234567890 UTC', 10, 11), " +
+                "(DATE '1970-01-01', 1, TIMESTAMP '1970-01-01 12:03:08.456789000 UTC', TIMESTAMP '1970-01-01 12:03:08.456789000 UTC', 12, 12), " +
+                "(DATE '2015-01-01', 3, TIMESTAMP '2015-01-01 10:01:23.123456789 UTC', TIMESTAMP '2015-01-01 12:55:00.456789000 UTC', 1, 3), " +
+                "(DATE '2015-05-15', 2, TIMESTAMP '2015-05-15 13:05:01.234567890 UTC', TIMESTAMP '2015-05-15 14:21:02.345678900 UTC', 4, 5), " +
+                "(DATE '2020-02-21', 2, TIMESTAMP '2020-02-21 15:11:11.876543210 UTC', TIMESTAMP '2020-02-21 16:12:12.654321000 UTC', 6, 7)";
+        String expectedTimestampStats = "NULL, 12e0, 0.0769231e0, NULL, '1969-12-25 15:13:12.876 UTC', '2020-02-21 16:12:12.654 UTC'";
+        String expectedIntegerStats = "NULL, 13e0, 0e0, NULL, '1', '101'";
+
+        assertThat(query("SELECT partition.d_day, record_count, data.d.min, data.d.max, data.b.min, data.b.max FROM \"test_day_transform_timestamptz$partitions\""))
+                .skippingTypesCheck()
+                .matches(expected);
+
+        // Exercise IcebergMetadata.applyFilter with non-empty Constraint.predicate, via non-pushdownable predicates
+        assertThat(query("SELECT * FROM test_day_transform_timestamptz WHERE day_of_week(d) = 3 AND b % 7 = 3"))
+                .matches("VALUES (TIMESTAMP '1969-12-31 00:00:00.000000000 UTC', 10)");
+
+        assertThat(query("SHOW STATS FOR test_day_transform_timestamptz"))
+                .skippingTypesCheck()
+                .matches("VALUES " +
+                        "  ('d', " + expectedTimestampStats + "), " +
+                        "  ('b', " + expectedIntegerStats + "), " +
+                        "  (NULL, NULL, NULL, NULL, 13e0, NULL, NULL)");
+
+        assertThat(query("SELECT * FROM test_day_transform_timestamptz WHERE d IS NOT NULL"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_day_transform_timestamptz WHERE d IS NULL"))
+                .isFullyPushedDown();
+
+        // Tests run with non-UTC session, so timestamp_tz > a_date will not align with partition boundaries. Use with_timezone to align it.
+        assertThat(query("SELECT * FROM test_day_transform_timestamptz WHERE d >= with_timezone(DATE '2015-05-15', 'UTC')"))
+                .isFullyPushedDown();
+
+        assertThat(query("SELECT * FROM test_day_transform_timestamptz WHERE CAST(d AS date) >= DATE '2015-05-15'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_day_transform_timestamptz WHERE CAST(d AS date) >= DATE '2015-05-15' AND d < TIMESTAMP '2015-05-15 02:00:00 Europe/Warsaw'"))
+                // Engine can eliminate the table scan after connector accepts the filter pushdown
+                .hasPlan(node(OutputNode.class, node(ValuesNode.class)))
+                .returnsEmptyResult();
+
+        assertThat(query("SELECT * FROM test_day_transform_timestamptz WHERE d >= TIMESTAMP '2015-05-15 00:00:00 UTC'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_day_transform_timestamptz WHERE d >= TIMESTAMP '2015-05-15 00:00:00.000001 UTC'"))
+                .isNotFullyPushedDown(FilterNode.class);
+
+        // date()
+        assertThat(query("SELECT * FROM test_day_transform_timestamptz WHERE date(d) = DATE '2015-05-15'"))
+                .isFullyPushedDown();
+
+        // year()
+        assertThat(query("SELECT * FROM test_day_transform_timestamptz WHERE year(d) = 2015"))
+                .isFullyPushedDown();
+
+        // date_trunc
+        assertThat(query("SELECT * FROM test_day_transform_timestamptz WHERE date_trunc('day', d) = TIMESTAMP '2015-05-15 00:00:00.000000 UTC'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_day_transform_timestamptz WHERE date_trunc('month', d) = TIMESTAMP '2015-05-01 00:00:00.000000 UTC'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_day_transform_timestamptz WHERE date_trunc('year', d) = TIMESTAMP '2015-01-01 00:00:00.000000 UTC'"))
+                .isFullyPushedDown();
+
+        assertUpdate("DROP TABLE test_day_transform_timestamptz");
+    }
+
+    @Test
+    public void testMonthTransformTimestampNano()
+    {
+        assertUpdate("CREATE TABLE test_month_transform_timestamp (d TIMESTAMP(9), b BIGINT) WITH (partitioning = ARRAY['month(d)'])");
+
+        @Language("SQL") String values = "VALUES " +
+                "(NULL, 101)," +
+                "(TIMESTAMP '1969-11-15 15:13:12.876543210', 8)," +
+                "(TIMESTAMP '1969-11-19 18:47:33.345678900', 9)," +
+                "(TIMESTAMP '1969-12-01 00:00:00.000000000', 10)," +
+                "(TIMESTAMP '1969-12-01 05:06:07.234567890', 11)," +
+                "(TIMESTAMP '1970-01-01 12:03:08.456789000', 12)," +
+                "(TIMESTAMP '2015-01-01 10:01:23.123456789', 1)," +
+                "(TIMESTAMP '2015-01-01 11:10:02.987654321', 2)," +
+                "(TIMESTAMP '2015-01-01 12:55:00.456789000', 3)," +
+                "(TIMESTAMP '2015-05-15 13:05:01.234567890', 4)," +
+                "(TIMESTAMP '2015-05-15 14:21:02.345678900', 5)," +
+                "(TIMESTAMP '2020-02-21 15:11:11.876543210', 6)," +
+                "(TIMESTAMP '2020-02-21 16:12:12.654321000', 7)";
+        assertUpdate("INSERT INTO test_month_transform_timestamp " + values, 13);
+        assertQuery("SELECT * FROM test_month_transform_timestamp", values);
+
+        @Language("SQL") String expected = "VALUES " +
+                "(NULL, 1, NULL, NULL, 101, 101), " +
+                "(-2, 2,  TIMESTAMP '1969-11-15 15:13:12.876543210', TIMESTAMP '1969-11-19 18:47:33.345678900', 8, 9), " +
+                "(-1, 2,  TIMESTAMP '1969-12-01 00:00:00.000000000', TIMESTAMP '1969-12-01 05:06:07.234567890', 10, 11), " +
+                "(0,  1,  TIMESTAMP '1970-01-01 12:03:08.456789000', TIMESTAMP '1970-01-01 12:03:08.456789000', 12, 12), " +
+                "(540, 3, TIMESTAMP '2015-01-01 10:01:23.123456789', TIMESTAMP '2015-01-01 12:55:00.456789000', 1, 3), " +
+                "(544, 2, TIMESTAMP '2015-05-15 13:05:01.234567890', TIMESTAMP '2015-05-15 14:21:02.345678900', 4, 5), " +
+                "(601, 2, TIMESTAMP '2020-02-21 15:11:11.876543210', TIMESTAMP '2020-02-21 16:12:12.654321000', 6, 7)";
+        String expectedTimestampStats = "VALUES " +
+                "  ('d', NULL, 12e0, 0.0769231e0, NULL, '1969-11-15 15:13:12.876543', '2020-02-21 16:12:12.654321'), " +
+                "  ('b', NULL, 13e0, 0e0, NULL, '1', '101'), " +
+                "  (NULL, NULL, NULL, NULL, 13e0, NULL, NULL)";
+
+        assertQuery("SELECT partition.d_month, record_count, data.d.min, data.d.max, data.b.min, data.b.max FROM \"test_month_transform_timestamp$partitions\"", expected);
+
+        // Exercise IcebergMetadata.applyFilter with non-empty Constraint.predicate, via non-pushdownable predicates
+        assertQuery(
+                "SELECT * FROM test_month_transform_timestamp WHERE day_of_week(d) = 1 AND b % 7 = 3",
+                "VALUES (TIMESTAMP '1969-12-01 00:00:00.000000000', 10)");
+
+        assertThat(query("SHOW STATS FOR test_month_transform_timestamp"))
+                .skippingTypesCheck()
+                .matches(expectedTimestampStats);
+
+        assertThat(query("SELECT * FROM test_month_transform_timestamp WHERE d IS NOT NULL"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_month_transform_timestamp WHERE d IS NULL"))
+                .isFullyPushedDown();
+
+        assertThat(query("SELECT * FROM test_month_transform_timestamp WHERE d >= DATE '2015-05-01'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_month_transform_timestamp WHERE d >= DATE '2015-05-02'"))
+                .isNotFullyPushedDown(FilterNode.class);
+        assertThat(query("SELECT * FROM test_month_transform_timestamp WHERE CAST(d AS date) >= DATE '2015-05-01'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_month_transform_timestamp WHERE CAST(d AS date) >= DATE '2015-05-02'"))
+                .isNotFullyPushedDown(FilterNode.class);
+
+        assertThat(query("SELECT * FROM test_month_transform_timestamp WHERE d >= TIMESTAMP '2015-05-01 00:00:00'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_month_transform_timestamp WHERE d >= TIMESTAMP '2015-05-01 00:00:00.000001'"))
+                .isNotFullyPushedDown(FilterNode.class);
+
+        // year()
+        assertThat(query("SELECT * FROM test_month_transform_timestamp WHERE year(d) = 2015"))
+                .isFullyPushedDown();
+
+        // date_trunc
+        assertThat(query("SELECT * FROM test_month_transform_timestamp WHERE date_trunc('month', d) = DATE '2015-05-01'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_month_transform_timestamp WHERE date_trunc('year', d) = DATE '2015-01-01'"))
+                .isFullyPushedDown();
+
+        assertUpdate("DROP TABLE test_month_transform_timestamp");
+    }
+
+    @Test
+    public void testMonthTransformTimestampNanoWithTimeZone()
+    {
+        assertUpdate("CREATE TABLE test_month_transform_timestamptz (d timestamp(9) with time zone, b integer) WITH (partitioning = ARRAY['month(d)'])");
+
+        String values = "VALUES " +
+                "(NULL, 101)," +
+                "(TIMESTAMP '1969-11-15 15:13:12.876543210 UTC', 8)," +
+                "(TIMESTAMP '1969-11-19 18:47:33.345678900 UTC', 9)," +
+                "(TIMESTAMP '1969-12-01 00:00:00.000000000 UTC', 10)," +
+                "(TIMESTAMP '1969-12-01 05:06:07.234567890 UTC', 11)," +
+                "(TIMESTAMP '1970-01-01 12:03:08.456789000 UTC', 12)," +
+                "(TIMESTAMP '2015-01-01 10:01:23.123456789 UTC', 1)," +
+                "(TIMESTAMP '2015-01-01 11:10:02.987654321 UTC', 2)," +
+                "(TIMESTAMP '2015-01-01 12:55:00.456789000 UTC', 3)," +
+                "(TIMESTAMP '2015-05-15 13:05:01.234567890 UTC', 4)," +
+                "(TIMESTAMP '2015-05-15 14:21:02.345678900 UTC', 5)," +
+                "(TIMESTAMP '2020-02-21 15:11:11.876543210 UTC', 6)," +
+                "(TIMESTAMP '2020-02-21 16:12:12.654321000 UTC', 7)";
+        assertUpdate("INSERT INTO test_month_transform_timestamptz " + values, 13);
+        assertThat(query("SELECT * FROM test_month_transform_timestamptz"))
+                .matches(values);
+
+        String expected = "VALUES " +
+                "(NULL, BIGINT '1', NULL, NULL, 101, 101), " +
+                "(-2, 2, TIMESTAMP '1969-11-15 15:13:12.876543210 UTC', TIMESTAMP '1969-11-19 18:47:33.345678900 UTC', 8, 9), " +
+                "(-1, 2, TIMESTAMP '1969-12-01 00:00:00.000000000 UTC', TIMESTAMP '1969-12-01 05:06:07.234567890 UTC', 10, 11), " +
+                "(0, 1, TIMESTAMP '1970-01-01 12:03:08.456789000 UTC', TIMESTAMP '1970-01-01 12:03:08.456789000 UTC', 12, 12), " +
+                "(540, 3, TIMESTAMP '2015-01-01 10:01:23.123456789 UTC', TIMESTAMP '2015-01-01 12:55:00.456789000 UTC', 1, 3), " +
+                "(544, 2, TIMESTAMP '2015-05-15 13:05:01.234567890 UTC', TIMESTAMP '2015-05-15 14:21:02.345678900 UTC', 4, 5), " +
+                "(601, 2, TIMESTAMP '2020-02-21 15:11:11.876543210 UTC', TIMESTAMP '2020-02-21 16:12:12.654321000 UTC', 6, 7)";
+        String expectedTimestampStats = "NULL, 12e0, 0.0769231e0, NULL, '1969-11-15 15:13:12.876 UTC', '2020-02-21 16:12:12.654 UTC'";
+        String expectedIntegerStats = "NULL, 13e0, 0e0, NULL, '1', '101'";
+
+        assertThat(query("SELECT partition.d_month, record_count, data.d.min, data.d.max, data.b.min, data.b.max FROM \"test_month_transform_timestamptz$partitions\""))
+                .skippingTypesCheck()
+                .matches(expected);
+
+        // Exercise IcebergMetadata.applyFilter with non-empty Constraint.predicate, via non-pushdownable predicates
+        assertThat(query("SELECT * FROM test_month_transform_timestamptz WHERE day_of_week(d) = 1 AND b % 7 = 3"))
+                .matches("VALUES (TIMESTAMP '1969-12-01 00:00:00.000000000 UTC', 10)");
+
+        assertThat(query("SHOW STATS FOR test_month_transform_timestamptz"))
+                .skippingTypesCheck()
+                .matches("VALUES " +
+                        "  ('d', " + expectedTimestampStats + "), " +
+                        "  ('b', " + expectedIntegerStats + "), " +
+                        "  (NULL, NULL, NULL, NULL, 13e0, NULL, NULL)");
+
+        assertThat(query("SELECT * FROM test_month_transform_timestamptz WHERE d IS NOT NULL"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_month_transform_timestamptz WHERE d IS NULL"))
+                .isFullyPushedDown();
+
+        // Tests run with non-UTC session, so timestamp_tz > a_date will not align with partition boundaries. Use with_timezone to align it.
+        assertThat(query("SELECT * FROM test_month_transform_timestamptz WHERE d >= with_timezone(DATE '2015-05-01', 'UTC')"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_month_transform_timestamptz WHERE d >= with_timezone(DATE '2015-05-02', 'UTC')"))
+                .isNotFullyPushedDown(FilterNode.class);
+
+        assertThat(query("SELECT * FROM test_month_transform_timestamptz WHERE CAST(d AS date) >= DATE '2015-05-01'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_month_transform_timestamptz WHERE CAST(d AS date) >= DATE '2015-05-02'"))
+                .isNotFullyPushedDown(FilterNode.class);
+        assertThat(query("SELECT * FROM test_month_transform_timestamptz WHERE CAST(d AS date) >= DATE '2015-05-01' AND d < TIMESTAMP '2015-05-01 02:00:00 Europe/Warsaw'"))
+                // Engine can eliminate the table scan after connector accepts the filter pushdown
+                .hasPlan(node(OutputNode.class, node(ValuesNode.class)))
+                .returnsEmptyResult();
+
+        assertThat(query("SELECT * FROM test_month_transform_timestamptz WHERE d >= TIMESTAMP '2015-05-01 00:00:00 UTC'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_month_transform_timestamptz WHERE d >= TIMESTAMP '2015-05-01 00:00:00.000001 UTC'"))
+                .isNotFullyPushedDown(FilterNode.class);
+
+        // year()
+        assertThat(query("SELECT * FROM test_month_transform_timestamptz WHERE year(d) = 2015"))
+                .isFullyPushedDown();
+
+        // date_trunc
+        assertThat(query("SELECT * FROM test_month_transform_timestamptz WHERE date_trunc('month', d) = TIMESTAMP '2015-05-01 00:00:00.000000 UTC'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_month_transform_timestamptz WHERE date_trunc('year', d) = TIMESTAMP '2015-01-01 00:00:00.000000 UTC'"))
+                .isFullyPushedDown();
+
+        assertUpdate("DROP TABLE test_month_transform_timestamptz");
+    }
+
+    @Test
+    public void testYearTransformTimestampNano()
+    {
+        assertUpdate("CREATE TABLE test_year_transform_timestamp (d TIMESTAMP(9), b BIGINT) WITH (partitioning = ARRAY['year(d)'])");
+
+        @Language("SQL") String values = "VALUES " +
+                "(NULL, 101)," +
+                "(TIMESTAMP '1968-03-15 15:13:12.876543210', 1)," +
+                "(TIMESTAMP '1968-11-19 18:47:33.345678900', 2)," +
+                "(TIMESTAMP '1969-01-01 00:00:00.000000000', 3)," +
+                "(TIMESTAMP '1969-01-01 05:06:07.234567890', 4)," +
+                "(TIMESTAMP '1970-01-18 12:03:08.456789000', 5)," +
+                "(TIMESTAMP '1970-03-14 10:01:23.123456789', 6)," +
+                "(TIMESTAMP '1970-08-19 11:10:02.987654321', 7)," +
+                "(TIMESTAMP '1970-12-31 12:55:00.456789000', 8)," +
+                "(TIMESTAMP '2015-05-15 13:05:01.234567890', 9)," +
+                "(TIMESTAMP '2015-09-15 14:21:02.345678900', 10)," +
+                "(TIMESTAMP '2020-02-21 15:11:11.876543210', 11)," +
+                "(TIMESTAMP '2020-08-21 16:12:12.654321000', 12)";
+        assertUpdate("INSERT INTO test_year_transform_timestamp " + values, 13);
+        assertQuery("SELECT * FROM test_year_transform_timestamp", values);
+
+        @Language("SQL") String expected = "VALUES " +
+                "(NULL, 1, NULL, NULL, 101, 101), " +
+                "(-2, 2, TIMESTAMP '1968-03-15 15:13:12.876543210', TIMESTAMP '1968-11-19 18:47:33.345678900', 1, 2), " +
+                "(-1, 2, TIMESTAMP '1969-01-01 00:00:00.000000000', TIMESTAMP '1969-01-01 05:06:07.234567890', 3, 4), " +
+                "(0, 4, TIMESTAMP '1970-01-18 12:03:08.456789000', TIMESTAMP '1970-12-31 12:55:00.456789000', 5, 8), " +
+                "(45, 2, TIMESTAMP '2015-05-15 13:05:01.234567890', TIMESTAMP '2015-09-15 14:21:02.345678900', 9, 10), " +
+                "(50, 2, TIMESTAMP '2020-02-21 15:11:11.876543210', TIMESTAMP '2020-08-21 16:12:12.654321000', 11, 12)";
+        String expectedTimestampStats = "VALUES " +
+                "  ('d', NULL, 12e0, 0.0769231e0, NULL, '1968-03-15 15:13:12.876543', '2020-08-21 16:12:12.654321'), " +
+                "  ('b', NULL, 13e0, 0e0, NULL, '1', '101'), " +
+                "  (NULL, NULL, NULL, NULL, 13e0, NULL, NULL)";
+
+        assertQuery("SELECT partition.d_year, record_count, data.d.min, data.d.max, data.b.min, data.b.max FROM \"test_year_transform_timestamp$partitions\"", expected);
+
+        // Exercise IcebergMetadata.applyFilter with non-empty Constraint.predicate, via non-pushdownable predicates
+        assertQuery(
+                "SELECT * FROM test_year_transform_timestamp WHERE day_of_week(d) = 2 AND b % 7 = 3",
+                "VALUES (TIMESTAMP '2015-09-15 14:21:02.345678900', 10)");
+
+        assertThat(query("SHOW STATS FOR test_year_transform_timestamp"))
+                .skippingTypesCheck()
+                .matches(expectedTimestampStats);
+
+        assertThat(query("SELECT * FROM test_year_transform_timestamp WHERE d IS NOT NULL"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_year_transform_timestamp WHERE d IS NULL"))
+                .isFullyPushedDown();
+
+        assertThat(query("SELECT * FROM test_year_transform_timestamp WHERE d >= DATE '2015-01-01'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_year_transform_timestamp WHERE d >= DATE '2015-01-02'"))
+                .isNotFullyPushedDown(FilterNode.class);
+        assertThat(query("SELECT * FROM test_year_transform_timestamp WHERE CAST(d AS date) >= DATE '2015-01-01'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_year_transform_timestamp WHERE CAST(d AS date) >= DATE '2015-01-02'"))
+                .isNotFullyPushedDown(FilterNode.class);
+
+        assertThat(query("SELECT * FROM test_year_transform_timestamp WHERE d >= TIMESTAMP '2015-01-01 00:00:00'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_year_transform_timestamp WHERE d >= TIMESTAMP '2015-01-01 00:00:00.000001'"))
+                .isNotFullyPushedDown(FilterNode.class);
+
+        // year()
+        assertThat(query("SELECT * FROM test_year_transform_timestamp WHERE year(d) = 2015"))
+                .isFullyPushedDown();
+
+        // date_trunc
+        assertThat(query("SELECT * FROM test_year_transform_timestamp WHERE date_trunc('year', d) = DATE '2015-01-01'"))
+                .isFullyPushedDown();
+
+        assertUpdate("DROP TABLE test_year_transform_timestamp");
+    }
+
+    @Test
+    public void testYearTransformTimestampNanoWithTimeZone()
+    {
+        assertUpdate("CREATE TABLE test_year_transform_timestamptz (d timestamp(9) with time zone, b integer) WITH (partitioning = ARRAY['year(d)'])");
+
+        String values = "VALUES " +
+                "(NULL, 101)," +
+                "(TIMESTAMP '1968-03-15 15:13:12.876543210 UTC', 1)," +
+                "(TIMESTAMP '1968-11-19 18:47:33.345678900 UTC', 2)," +
+                "(TIMESTAMP '1969-01-01 00:00:00.000000000 UTC', 3)," +
+                "(TIMESTAMP '1969-01-01 05:06:07.234567890 UTC', 4)," +
+                "(TIMESTAMP '1970-01-18 12:03:08.456789000 UTC', 5)," +
+                "(TIMESTAMP '1970-03-14 10:01:23.123456789 UTC', 6)," +
+                "(TIMESTAMP '1970-08-19 11:10:02.987654321 UTC', 7)," +
+                "(TIMESTAMP '1970-12-31 12:55:00.456789000 UTC', 8)," +
+                "(TIMESTAMP '2015-05-15 13:05:01.234567890 UTC', 9)," +
+                "(TIMESTAMP '2015-09-15 14:21:02.345678900 UTC', 10)," +
+                "(TIMESTAMP '2020-02-21 15:11:11.876543210 UTC', 11)," +
+                "(TIMESTAMP '2020-08-21 16:12:12.654321000 UTC', 12)";
+        assertUpdate("INSERT INTO test_year_transform_timestamptz " + values, 13);
+        assertThat(query("SELECT * FROM test_year_transform_timestamptz"))
+                .matches(values);
+
+        String expected = "VALUES " +
+                "(NULL, BIGINT '1', NULL, NULL, 101, 101), " +
+                "(-2, 2, TIMESTAMP '1968-03-15 15:13:12.876543210 UTC', TIMESTAMP '1968-11-19 18:47:33.345678900 UTC', 1, 2), " +
+                "(-1, 2, TIMESTAMP '1969-01-01 00:00:00.000000000 UTC', TIMESTAMP '1969-01-01 05:06:07.234567890 UTC', 3, 4), " +
+                "(0, 4,  TIMESTAMP '1970-01-18 12:03:08.456789000 UTC', TIMESTAMP '1970-12-31 12:55:00.456789000 UTC', 5, 8), " +
+                "(45, 2, TIMESTAMP '2015-05-15 13:05:01.234567890 UTC', TIMESTAMP '2015-09-15 14:21:02.345678900 UTC', 9, 10), " +
+                "(50, 2, TIMESTAMP '2020-02-21 15:11:11.876543210 UTC', TIMESTAMP '2020-08-21 16:12:12.654321000 UTC', 11, 12)";
+        String expectedTimestampStats = "NULL, 12e0, 0.0769231e0, NULL, '1968-03-15 15:13:12.876 UTC', '2020-08-21 16:12:12.654 UTC'";
+        String expectedIntegerStats = "NULL, 13e0, 0e0, NULL, '1', '101'";
+
+        assertThat(query("SELECT partition.d_year, record_count, data.d.min, data.d.max, data.b.min, data.b.max FROM \"test_year_transform_timestamptz$partitions\""))
+                .skippingTypesCheck()
+                .matches(expected);
+
+        // Exercise IcebergMetadata.applyFilter with non-empty Constraint.predicate, via non-pushdownable predicates
+        assertThat(query("SELECT * FROM test_year_transform_timestamptz WHERE day_of_week(d) = 2 AND b % 7 = 3"))
+                .matches("VALUES (TIMESTAMP '2015-09-15 14:21:02.345678900 UTC', 10)");
+
+        assertThat(query("SHOW STATS FOR test_year_transform_timestamptz"))
+                .skippingTypesCheck()
+                .matches("VALUES " +
+                        "  ('d', " + expectedTimestampStats + "), " +
+                        "  ('b', " + expectedIntegerStats + "), " +
+                        "  (NULL, NULL, NULL, NULL, 13e0, NULL, NULL)");
+
+        assertThat(query("SELECT * FROM test_year_transform_timestamptz WHERE d IS NOT NULL"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_year_transform_timestamptz WHERE d IS NULL"))
+                .isFullyPushedDown();
+
+        // Tests run with non-UTC session, so timestamp_tz > a_date will not align with partition boundaries. Use with_timezone to align it.
+        assertThat(query("SELECT * FROM test_year_transform_timestamptz WHERE d >= with_timezone(DATE '2015-01-01', 'UTC')"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_year_transform_timestamptz WHERE d >= with_timezone(DATE '2015-01-02', 'UTC')"))
+                .isNotFullyPushedDown(FilterNode.class);
+
+        assertThat(query("SELECT * FROM test_year_transform_timestamptz WHERE CAST(d AS date) >= DATE '2015-01-01'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_year_transform_timestamptz WHERE CAST(d AS date) >= DATE '2015-01-02'"))
+                .isNotFullyPushedDown(FilterNode.class);
+        assertThat(query("SELECT * FROM test_year_transform_timestamptz WHERE CAST(d AS date) >= DATE '2015-01-01' AND d < TIMESTAMP '2015-01-01 01:00:00 Europe/Warsaw'"))
+                // Engine can eliminate the table scan after connector accepts the filter pushdown
+                .hasPlan(node(OutputNode.class, node(ValuesNode.class)))
+                .returnsEmptyResult();
+
+        assertThat(query("SELECT * FROM test_year_transform_timestamptz WHERE d >= TIMESTAMP '2015-01-01 00:00:00 UTC'"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_year_transform_timestamptz WHERE d >= TIMESTAMP '2015-01-01 00:00:00.000001 UTC'"))
+                .isNotFullyPushedDown(FilterNode.class);
+
+        // year()
+        assertThat(query("SELECT * FROM test_year_transform_timestamptz WHERE year(d) = 2015"))
+                .isFullyPushedDown();
+
+        // date_trunc
+        assertThat(query("SELECT * FROM test_year_transform_timestamptz WHERE date_trunc('year', d) = TIMESTAMP '2015-01-01 00:00:00.000000 UTC'"))
+                .isFullyPushedDown();
+
+        assertUpdate("DROP TABLE test_year_transform_timestamptz");
     }
 
     @Test

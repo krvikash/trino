@@ -173,6 +173,46 @@ final class LongTimestampType
         return Optional.of(range);
     }
 
+    @Override
+    public Optional<Object> getPreviousValue(Object value)
+    {
+        if (range.getMin().equals(value)) {
+            return Optional.empty();
+        }
+        LongTimestamp timestamp = (LongTimestamp) value;
+        long epochMicros = timestamp.getEpochMicros();
+        long picosOfMicro = timestamp.getPicosOfMicro();
+        picosOfMicro -= toIntExact(rescale(1, 0, 12 - getPrecision()));
+        if (picosOfMicro < 0) {
+            if (epochMicros == Long.MIN_VALUE) {
+                return Optional.empty();
+            }
+            epochMicros--;
+            picosOfMicro += PICOSECONDS_PER_MICROSECOND;
+        }
+        return Optional.of(new LongTimestamp(epochMicros, toIntExact(picosOfMicro)));
+    }
+
+    @Override
+    public Optional<Object> getNextValue(Object value)
+    {
+        if (range.getMax().equals(value)) {
+            return Optional.empty();
+        }
+        LongTimestamp timestamp = (LongTimestamp) value;
+        long epochMicros = timestamp.getEpochMicros();
+        long picosOfMicro = timestamp.getPicosOfMicro();
+        picosOfMicro += toIntExact(rescale(1, 0, 12 - getPrecision()));
+        if (picosOfMicro >= PICOSECONDS_PER_MICROSECOND) {
+            if (epochMicros == Long.MAX_VALUE) {
+                return Optional.empty();
+            }
+            epochMicros++;
+            picosOfMicro -= PICOSECONDS_PER_MICROSECOND;
+        }
+        return Optional.of(new LongTimestamp(epochMicros, toIntExact(picosOfMicro)));
+    }
+
     @ScalarOperator(READ_VALUE)
     private static LongTimestamp readFlat(
             @FlatFixed byte[] fixedSizeSlice,

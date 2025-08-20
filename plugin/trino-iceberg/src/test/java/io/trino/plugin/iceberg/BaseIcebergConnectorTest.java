@@ -2874,8 +2874,6 @@ public abstract class BaseIcebergConnectorTest
         assertUpdate("DROP TABLE test_month_transform_timestamp");
     }
 
-    // TODO https://starburstdata.atlassian.net/browse/CONNECT-568 Support partition transform on timestamp_ns column
-
     @Test
     public void testMonthTransformTimestampWithTimeZone()
     {
