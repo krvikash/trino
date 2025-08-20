@@ -104,7 +104,6 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
@@ -553,22 +552,11 @@ public class DispatcherMetadata
     }
 
     @Override
-    public boolean delegateMaterializedViewRefreshToConnector(ConnectorSession session, SchemaTableName viewName)
-    {
-        return proxiedConnectorMetadata.delegateMaterializedViewRefreshToConnector(session, viewName);
-    }
-
-    @Override
-    public CompletableFuture<?> refreshMaterializedView(ConnectorSession session, SchemaTableName viewName)
-    {
-        return proxiedConnectorMetadata.refreshMaterializedView(session, viewName);
-    }
-
-    @Override
     public ConnectorInsertTableHandle beginRefreshMaterializedView(
             ConnectorSession session,
             ConnectorTableHandle tableHandle,
             List<ConnectorTableHandle> sourceTableHandles,
+            boolean hasForeignSourceTables,
             RetryMode retryMode,
             RefreshType refreshType)
     {
@@ -583,6 +571,7 @@ public class DispatcherMetadata
                             return connectorTableHandle;
                         })
                         .toList(),
+                hasForeignSourceTables,
                 retryMode,
                 refreshType);
     }
@@ -594,7 +583,8 @@ public class DispatcherMetadata
             Collection<Slice> fragments,
             Collection<ComputedStatistics> computedStatistics,
             List<ConnectorTableHandle> sourceTableHandles,
-            List<String> sourceTableFunctions)
+            boolean hasForeignSourceTables,
+            boolean hasSourceTableFunctions)
     {
         return proxiedConnectorMetadata.finishRefreshMaterializedView(
                 session,
@@ -610,7 +600,8 @@ public class DispatcherMetadata
                             return connectorTableHandle;
                         })
                         .collect(Collectors.toList()),
-                sourceTableFunctions);
+                hasForeignSourceTables,
+                hasSourceTableFunctions);
     }
 
     @Override

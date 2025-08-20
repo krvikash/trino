@@ -34,7 +34,6 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.TestingBlockJsonSerde;
 import io.trino.spi.cache.CacheTableId;
 import io.trino.spi.catalog.CatalogName;
-import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
@@ -117,7 +116,6 @@ public class TestIcebergCacheIds
                 LocationAccessControl.ALLOW_ALL,
                 AiModelAccessControl.ALLOW_ALL,
                 TESTING_TYPE_MANAGER,
-                CatalogHandle.fromId("iceberg:NORMAL:v12345"),
                 createJsonCodec(CommitTaskData.class),
                 new TrinoHiveCatalogFactory(
                         icebergConfig,
@@ -170,65 +168,58 @@ public class TestIcebergCacheIds
         IcebergColumnHandle timestampColumnHandle = newPrimitiveColumn(TIMESTAMP_TZ_MICROS);
         Optional<String> partitionSpecJson = Optional.of("partitionSpecJson");
         SchemaTableName schemaTableName = new SchemaTableName(DATABASE_NAME, "testing");
-        CatalogHandle catalogHandle = CatalogHandle.fromId("iceberg:NORMAL:v12345");
 
         // table id without snapshot id is empty
         assertThat(icebergMetadata.getCacheTableId(
-                createIcebergTableHandle(catalogHandle, schemaTableName, Optional.empty(), "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")))
+                createIcebergTableHandle(schemaTableName, Optional.empty(), "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")))
                 .isEqualTo(Optional.empty());
-
-        // `catalogHandle` should be part of table id
-        assertThat(icebergMetadata.getCacheTableId(
-                createIcebergTableHandle(catalogHandle, schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")))
-                .isNotEqualTo(icebergMetadata.getCacheTableId(
-                        createIcebergTableHandle(CatalogHandle.fromId("iceberg:NORMAL:v12346"), schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")));
 
         // `schemaName` should be part of table id
         assertThat(icebergMetadata.getCacheTableId(
-                createIcebergTableHandle(catalogHandle, schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")))
+                createIcebergTableHandle(schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")))
                 .isNotEqualTo(icebergMetadata.getCacheTableId(
-                        createIcebergTableHandle(catalogHandle, new SchemaTableName("different", "testing"), "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")));
+                        createIcebergTableHandle(new SchemaTableName("different", "testing"), "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")));
 
         // `tableName` should be part of table id
         assertThat(icebergMetadata.getCacheTableId(
-                createIcebergTableHandle(catalogHandle, schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")))
+                createIcebergTableHandle(schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")))
                 .isNotEqualTo(icebergMetadata.getCacheTableId(
-                        createIcebergTableHandle(catalogHandle, new SchemaTableName(DATABASE_NAME, "different"), "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")));
+                        createIcebergTableHandle(new SchemaTableName(DATABASE_NAME, "different"), "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")));
 
         // `tableSchemaJson`  is not part of table id
         assertThat(icebergMetadata.getCacheTableId(
-                createIcebergTableHandle(catalogHandle, schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")))
+                createIcebergTableHandle(schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")))
                 .isEqualTo(icebergMetadata.getCacheTableId(
-                        createIcebergTableHandle(catalogHandle, schemaTableName, "different", partitionSpecJson, Set.of(), Optional.empty(), "location")));
+                        createIcebergTableHandle(schemaTableName, "different", partitionSpecJson, Set.of(), Optional.empty(), "location")));
 
         // `partitionSpecJson` is not part of table id
         assertThat(icebergMetadata.getCacheTableId(
-                createIcebergTableHandle(catalogHandle, schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")))
+                createIcebergTableHandle(schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")))
                 .isEqualTo(icebergMetadata.getCacheTableId(
-                        createIcebergTableHandle(catalogHandle, schemaTableName, "tableSchemaJson", Optional.of("different"), Set.of(), Optional.empty(), "location")));
+                        createIcebergTableHandle(schemaTableName, "tableSchemaJson", Optional.of("different"), Set.of(), Optional.empty(), "location")));
 
         // `projectedColumns` is not part of table id
         assertThat(icebergMetadata.getCacheTableId(
-                createIcebergTableHandle(catalogHandle, schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(bigIntColumnHandle), Optional.empty(), "location")))
+                createIcebergTableHandle(schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(bigIntColumnHandle), Optional.empty(), "location")))
                 .isEqualTo(icebergMetadata.getCacheTableId(
-                        createIcebergTableHandle(catalogHandle, schemaTableName, "tableSchemaJson", Optional.of("different"), Set.of(), Optional.empty(), "location")));
+                        createIcebergTableHandle(schemaTableName, "tableSchemaJson", Optional.of("different"), Set.of(), Optional.empty(), "location")));
 
         // `nameMappingJson` is not part of table id
         assertThat(icebergMetadata.getCacheTableId(
-                createIcebergTableHandle(catalogHandle, schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")))
+                createIcebergTableHandle(schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")))
                 .isEqualTo(icebergMetadata.getCacheTableId(
-                        createIcebergTableHandle(catalogHandle, schemaTableName, "tableSchemaJson", Optional.of("different"), Set.of(), Optional.of("different"), "location")));
+                        createIcebergTableHandle(schemaTableName, "tableSchemaJson", Optional.of("different"), Set.of(), Optional.of("different"), "location")));
 
         // `location` should be part of table id
         assertThat(icebergMetadata.getCacheTableId(
-                createIcebergTableHandle(catalogHandle, schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")))
+                createIcebergTableHandle(schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")))
                 .isNotEqualTo(icebergMetadata.getCacheTableId(
-                        createIcebergTableHandle(catalogHandle, schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "different")));
+                        createIcebergTableHandle(schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "different")));
 
         // unenforce predicate should not be part of table id
-        assertThat(icebergMetadata.getCacheTableId(createIcebergTableHandle(catalogHandle, schemaTableName, "tableSchemaJson", partitionSpecJson, TupleDomain.withColumnDomains(ImmutableMap.of(bigIntColumnHandle, singleValue(BIGINT, 1L))), TupleDomain.all(), Set.of(), Optional.empty(), "location")))
+        assertThat(icebergMetadata.getCacheTableId(createIcebergTableHandle(schemaTableName, "tableSchemaJson", partitionSpecJson, TupleDomain.withColumnDomains(ImmutableMap.of(bigIntColumnHandle, singleValue(BIGINT, 1L))), TupleDomain.all(), Set.of(), Optional.empty(), "location")))
                 .isEqualTo(icebergMetadata.getCacheTableId(
-                        createIcebergTableHandle(catalogHandle, schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")));
+                        createIcebergTableHandle(schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")));
 
         // unenforce predicate timestamp(6) should be part of table id
         LocalDate someDate = LocalDate.of(2022, 3, 22);
@@ -237,7 +228,6 @@ public class TestIcebergCacheIds
         LongTimestampWithTimeZone startOfDateUtc = timestampTzFromEpochMillis(startOfDateUtcEpochMillis);
         LongTimestampWithTimeZone startOfNextDateUtc = timestampTzFromEpochMillis(startOfDateUtcEpochMillis + MILLISECONDS_PER_DAY);
         assertThat(icebergMetadata.getCacheTableId(createIcebergTableHandle(
-                catalogHandle,
                 schemaTableName,
                 "tableSchemaJson",
                 partitionSpecJson,
@@ -246,25 +236,25 @@ public class TestIcebergCacheIds
                 Set.of(),
                 Optional.empty(),
                 "location")))
-                .isEqualTo(Optional.of(new CacheTableId("{\"catalog\":\"iceberg:normal:v12345\",\"schemaName\":\"iceberg_cache\",\"tableName\":\"testing\",\"tableLocation\":\"location\",\"storageProperties\":{}}")));
+                .isEqualTo(Optional.of(new CacheTableId("{\"schemaName\":\"iceberg_cache\",\"tableName\":\"testing\",\"tableLocation\":\"location\",\"storageProperties\":{}}")));
 
         // enforce predicate is not part of table id
         assertThat(icebergMetadata.getCacheTableId(
-                createIcebergTableHandle(catalogHandle, schemaTableName, "tableSchemaJson", partitionSpecJson, TupleDomain.all(), TupleDomain.withColumnDomains(ImmutableMap.of(bigIntColumnHandle, singleValue(BIGINT, 1L))), Set.of(), Optional.empty(), "location")))
+                createIcebergTableHandle(schemaTableName, "tableSchemaJson", partitionSpecJson, TupleDomain.all(), TupleDomain.withColumnDomains(ImmutableMap.of(bigIntColumnHandle, singleValue(BIGINT, 1L))), Set.of(), Optional.empty(), "location")))
                 .isEqualTo(icebergMetadata.getCacheTableId(
-                        createIcebergTableHandle(catalogHandle, schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")));
+                        createIcebergTableHandle(schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")));
 
         // storage options is part of table id
         assertThat(icebergMetadata.getCacheTableId(
-                createIcebergTableHandle(catalogHandle, schemaTableName, Map.of("read.split.target-size", "1"))))
+                createIcebergTableHandle(schemaTableName, Map.of("read.split.target-size", "1"))))
                 .isNotEqualTo(icebergMetadata.getCacheTableId(
-                        createIcebergTableHandle(catalogHandle, schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")));
+                        createIcebergTableHandle(schemaTableName, "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")));
 
         // statistics in storage options support was dropped in https://github.com/trinodb/trino/pull/19803, so it is part of table id if exists
         assertThat(icebergMetadata.getCacheTableId(
-                createIcebergTableHandle(catalogHandle, schemaTableName, Map.of("trino.stats.ndv.1231.ndv", "111", "other", "other"))))
+                createIcebergTableHandle(schemaTableName, Map.of("trino.stats.ndv.1231.ndv", "111", "other", "other"))))
                 .isEqualTo(icebergMetadata.getCacheTableId(
-                        createIcebergTableHandle(catalogHandle, schemaTableName, Map.of("trino.stats.ndv.1231.ndv", "111", "other", "other"))));
+                        createIcebergTableHandle(schemaTableName, Map.of("trino.stats.ndv.1231.ndv", "111", "other", "other"))));
     }
 
     @Test
@@ -352,7 +342,6 @@ public class TestIcebergCacheIds
     }
 
     private static IcebergTableHandle createIcebergTableHandle(
-            CatalogHandle catalogHandle,
             SchemaTableName schemaTableName,
             Optional<Long> snapshotId,
             String tableSchemaJson,
@@ -362,7 +351,6 @@ public class TestIcebergCacheIds
             String tableLocation)
     {
         return new IcebergTableHandle(
-                catalogHandle,
                 schemaTableName.getSchemaName(),
                 schemaTableName.getTableName(),
                 TableType.DATA,
@@ -387,7 +375,6 @@ public class TestIcebergCacheIds
     }
 
     private static IcebergTableHandle createIcebergTableHandle(
-            CatalogHandle catalogHandle,
             SchemaTableName schemaTableName,
             String tableSchemaJson,
             Optional<String> partitionSpecJson,
@@ -396,7 +383,6 @@ public class TestIcebergCacheIds
             String tableLocation)
     {
         return new IcebergTableHandle(
-                catalogHandle,
                 schemaTableName.getSchemaName(),
                 schemaTableName.getTableName(),
                 TableType.DATA,
@@ -421,7 +407,6 @@ public class TestIcebergCacheIds
     }
 
     private static IcebergTableHandle createIcebergTableHandle(
-            CatalogHandle catalogHandle,
             SchemaTableName schemaTableName,
             String tableSchemaJson,
             Optional<String> partitionSpecJson,
@@ -432,7 +417,6 @@ public class TestIcebergCacheIds
             String tableLocation)
     {
         return new IcebergTableHandle(
-                catalogHandle,
                 schemaTableName.getSchemaName(),
                 schemaTableName.getTableName(),
                 TableType.DATA,
@@ -457,12 +441,10 @@ public class TestIcebergCacheIds
     }
 
     private static IcebergTableHandle createIcebergTableHandle(
-            CatalogHandle catalogHandle,
             SchemaTableName schemaTableName,
             Map<String, String> storageProperties)
     {
         return new IcebergTableHandle(
-                catalogHandle,
                 schemaTableName.getSchemaName(),
                 schemaTableName.getTableName(),
                 TableType.DATA,

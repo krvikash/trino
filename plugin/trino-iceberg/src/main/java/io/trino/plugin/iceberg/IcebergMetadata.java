@@ -89,7 +89,6 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.Assignment;
 import io.trino.spi.connector.BeginTableExecuteResult;
-import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ColumnMetadata;
@@ -541,7 +540,6 @@ public class IcebergMetadata
     private final LocationAccessControl locationAccessControl;
     private final AiModelAccessControl aiModelAccessControl;
     private final TypeManager typeManager;
-    private final CatalogHandle trinoCatalogHandle;
     private final JsonCodec<CommitTaskData> commitTaskCodec;
     private final TrinoCatalog catalog;
     private final IcebergFileSystemFactory fileSystemFactory;
@@ -566,7 +564,6 @@ public class IcebergMetadata
             LocationAccessControl locationAccessControl,
             AiModelAccessControl aiModelAccessControl,
             TypeManager typeManager,
-            CatalogHandle trinoCatalogHandle,
             JsonCodec<CommitTaskData> commitTaskCodec,
             TrinoCatalog catalog,
             IcebergFileSystemFactory fileSystemFactory,
@@ -585,7 +582,6 @@ public class IcebergMetadata
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
-        this.trinoCatalogHandle = requireNonNull(trinoCatalogHandle, "trinoCatalogHandle is null");
         this.commitTaskCodec = requireNonNull(commitTaskCodec, "commitTaskCodec is null");
         this.catalog = requireNonNull(catalog, "catalog is null");
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
@@ -757,7 +753,6 @@ public class IcebergMetadata
     {
         Map<String, String> tableProperties = table.properties();
         return new IcebergTableHandle(
-                trinoCatalogHandle,
                 tableName.getSchemaName(),
                 tableName.getTableName(),
                 DATA,
@@ -3978,7 +3973,6 @@ public class IcebergMetadata
         }
 
         table = new IcebergTableHandle(
-                table.getCatalog(),
                 table.getSchemaName(),
                 table.getTableName(),
                 table.getTableType(),
@@ -4096,7 +4090,6 @@ public class IcebergMetadata
 
         return Optional.of(new ConstraintApplicationResult<>(
                 new IcebergTableHandle(
-                        table.getCatalog(),
                         table.getSchemaName(),
                         table.getTableName(),
                         table.getTableType(),
@@ -4269,7 +4262,6 @@ public class IcebergMetadata
 
         // create a unified table handle containing all columns from the first and second table handles
         IcebergTableHandle unified = new IcebergTableHandle(
-                firstTable.getCatalog(),
                 firstTable.getSchemaName(),
                 firstTable.getTableName(),
                 firstTable.getTableType(),
@@ -4364,8 +4356,7 @@ public class IcebergMetadata
      */
     private boolean similar(IcebergTableHandle first, IcebergTableHandle second)
     {
-        return Objects.equals(first.getCatalog(), second.getCatalog()) &&
-                Objects.equals(first.getSchemaTableName(), second.getSchemaTableName()) &&
+        return Objects.equals(first.getSchemaTableName(), second.getSchemaTableName()) &&
                 first.getTableType() == second.getTableType() &&
                 Objects.equals(first.getSnapshotId(), second.getSnapshotId()) &&
                 Objects.equals(first.getTableSchemaJson(), second.getTableSchemaJson()) &&
@@ -4400,7 +4391,6 @@ public class IcebergMetadata
         }
 
         IcebergTableHandle cacheKey = new IcebergTableHandle(
-                originalHandle.getCatalog(),
                 originalHandle.getSchemaName(),
                 originalHandle.getTableName(),
                 originalHandle.getTableType(),
@@ -4479,7 +4469,13 @@ public class IcebergMetadata
     }
 
     @Override
-    public ConnectorInsertTableHandle beginRefreshMaterializedView(ConnectorSession session, ConnectorTableHandle tableHandle, List<ConnectorTableHandle> sourceTableHandles, RetryMode retryMode, RefreshType refreshType)
+    public ConnectorInsertTableHandle beginRefreshMaterializedView(
+            ConnectorSession session,
+            ConnectorTableHandle tableHandle,
+            List<ConnectorTableHandle> sourceTableHandles,
+            boolean hasForeignSourceTables,
+            RetryMode retryMode,
+            RefreshType refreshType)
     {
         checkState(fromSnapshotForRefresh.isEmpty(), "From Snapshot must be empty at the start of MV refresh operation.");
         IcebergTableHandle table = (IcebergTableHandle) tableHandle;
@@ -4494,10 +4490,8 @@ public class IcebergMetadata
                 && refreshType == RefreshType.INCREMENTAL
                 // there is a single source table
                 && sourceTableHandles.size() == 1
-                // and source table is an Iceberg table
-                && getOnlyElement(sourceTableHandles) instanceof IcebergTableHandle handle
-                // and source table is from the same catalog
-                && handle.getCatalog().equals(trinoCatalogHandle)
+                // and there are no other foreign sources
+                && !hasForeignSourceTables
                 // and the source table's fromSnapshot is available in the MV snapshot summary
                 && dependencies.isPresent() && !dependencies.get().equals(UNKNOWN_SNAPSHOT_TOKEN);
 
@@ -4524,7 +4518,8 @@ public class IcebergMetadata
             Collection<Slice> fragments,
             Collection<ComputedStatistics> computedStatistics,
             List<ConnectorTableHandle> sourceTableHandles,
-            List<String> sourceTableFunctions)
+            boolean hasForeignSourceTables,
+            boolean hasSourceTableFunctions)
     {
         IcebergWritableTableHandle table = (IcebergWritableTableHandle) insertHandle;
 
@@ -4568,24 +4563,20 @@ public class IcebergMetadata
             appendFiles.appendFile(builder.build());
         }
 
-        String tableDependencies = sourceTableHandles.stream()
-                .map(handle -> {
-                    if (!(handle instanceof IcebergTableHandle icebergHandle)) {
-                        return UNKNOWN_SNAPSHOT_TOKEN;
-                    }
-                    // Currently the catalogs are isolated in separate classloaders, and the above instanceof check is sufficient to know "our" handles.
-                    // This isolation will be removed after we remove Hadoop dependencies, so check that this is "our" handle explicitly.
-                    if (!trinoCatalogHandle.equals(icebergHandle.getCatalog())) {
-                        return UNKNOWN_SNAPSHOT_TOKEN;
-                    }
-                    return icebergHandle.getSchemaTableName() + "=" + icebergHandle.getSnapshotId().map(Object.class::cast).orElse("");
-                })
-                .distinct()
-                .collect(joining(","));
+        List<String> tableDependencies = new ArrayList<>();
+        sourceTableHandles.stream()
+                .map(IcebergTableHandle.class::cast)
+                .map(handle -> "%s=%s".formatted(
+                        handle.getSchemaTableName(),
+                        handle.getSnapshotId().map(Object::toString).orElse("")))
+                .forEach(tableDependencies::add);
+        if (hasForeignSourceTables) {
+            tableDependencies.add(UNKNOWN_SNAPSHOT_TOKEN);
+        }
 
         // Update the 'dependsOnTables' property that tracks tables on which the materialized view depends and the corresponding snapshot ids of the tables
-        appendFiles.set(DEPENDS_ON_TABLES, tableDependencies);
-        appendFiles.set(DEPENDS_ON_TABLE_FUNCTIONS, Boolean.toString(!sourceTableFunctions.isEmpty()));
+        appendFiles.set(DEPENDS_ON_TABLES, String.join(",", tableDependencies));
+        appendFiles.set(DEPENDS_ON_TABLE_FUNCTIONS, String.valueOf(hasSourceTableFunctions));
         appendFiles.set(TRINO_QUERY_START_TIME, session.getStart().toString());
         appendFiles.scanManifestsWith(icebergScanExecutor);
         commitUpdateAndTransaction(appendFiles, session, transaction, "refresh materialized view");

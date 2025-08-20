@@ -34,8 +34,6 @@ import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
 import io.trino.plugin.warp.util.NodeUtils;
 import io.trino.spi.Node;
 import io.trino.spi.SplitWeight;
-import io.trino.spi.catalog.CatalogName;
-import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
@@ -70,7 +68,6 @@ public class IcebergProxiedConnectorTransformerTest
     public void testCreateProxyTableHandleForWarming()
     {
         IcebergTableHandle icebergTableHandle = new IcebergTableHandle(
-                CatalogHandle.createRootCatalogHandle(new CatalogName("warp"), new CatalogHandle.CatalogVersion("422")),
                 "schema",
                 "table",
                 TableType.DATA,
@@ -106,7 +103,6 @@ public class IcebergProxiedConnectorTransformerTest
                 Set.of());
 
         IcebergTableHandle expectedTableHandleForWarming = new IcebergTableHandle(
-                icebergTableHandle.getCatalog(),
                 icebergTableHandle.getSchemaName(),
                 icebergTableHandle.getTableName(),
                 icebergTableHandle.getTableType(),
@@ -139,7 +135,6 @@ public class IcebergProxiedConnectorTransformerTest
     public void testCreateProxiedConnectorTableHandleForMixedQuery()
     {
         IcebergTableHandle icebergTableHandle = new IcebergTableHandle(
-                CatalogHandle.createRootCatalogHandle(new CatalogName("warp"), new CatalogHandle.CatalogVersion("422")),
                 "schema",
                 "table",
                 TableType.DATA,
@@ -175,7 +170,6 @@ public class IcebergProxiedConnectorTransformerTest
                 Set.of());
 
         IcebergTableHandle expectedTableHandleMixedQuery = new IcebergTableHandle(
-                icebergTableHandle.getCatalog(),
                 icebergTableHandle.getSchemaName(),
                 icebergTableHandle.getTableName(),
                 icebergTableHandle.getTableType(),
@@ -209,7 +203,6 @@ public class IcebergProxiedConnectorTransformerTest
     {
         ConnectorSplitNodeDistributor splitDistributor = mock(ConnectorSplitNodeDistributor.class);
         IcebergTableHandle icebergTableHandle = new IcebergTableHandle(
-                CatalogHandle.createRootCatalogHandle(mock(io.trino.spi.catalog.CatalogName.class), new CatalogHandle.CatalogVersion("1")),
                 SCHEMA_NAME,
                 TABLE_NAME,
                 TableType.DATA,

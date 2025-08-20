@@ -83,7 +83,6 @@ public class IcebergProxiedConnectorTransformer
     {
         IcebergTableHandle icebergTableHandle = (IcebergTableHandle) dispatcherTableHandle.getProxyConnectorTableHandle();
         return new IcebergTableHandle(
-                icebergTableHandle.getCatalog(),
                 icebergTableHandle.getSchemaName(),
                 icebergTableHandle.getTableName(),
                 icebergTableHandle.getTableType(),
@@ -119,7 +118,6 @@ public class IcebergProxiedConnectorTransformer
     {
         IcebergTableHandle tableHandle = (IcebergTableHandle) dispatcherTableHandle.getProxyConnectorTableHandle();
         return new IcebergTableHandle(
-                tableHandle.getCatalog(),
                 tableHandle.getSchemaName(),
                 tableHandle.getTableName(),
                 tableHandle.getTableType(),

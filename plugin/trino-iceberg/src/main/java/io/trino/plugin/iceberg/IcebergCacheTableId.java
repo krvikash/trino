@@ -14,7 +14,6 @@
 package io.trino.plugin.iceberg;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.trino.spi.connector.CatalogHandle;
 
 import java.util.Map;
 
@@ -24,30 +23,21 @@ public class IcebergCacheTableId
 {
     private static final String STORAGE_PROPERTIES_READ_PREFIX = "read.";
 
-    private final CatalogHandle catalog;
     private final String schemaName;
     private final String tableName;
     private final String tableLocation;
     private final Map<String, String> storageProperties;
 
     public IcebergCacheTableId(
-            CatalogHandle catalog,
             String schemaName,
             String tableName,
             String tableLocation,
             Map<String, String> storageProperties)
     {
-        this.catalog = requireNonNull(catalog, "catalog is null");
         this.schemaName = requireNonNull(schemaName, "schemaName is null");
         this.tableName = requireNonNull(tableName, "tableName is null");
         this.tableLocation = requireNonNull(tableLocation, "tableLocation is null");
         this.storageProperties = requireNonNull(storageProperties, "storageProperties is null");
-    }
-
-    @JsonProperty
-    public CatalogHandle getCatalog()
-    {
-        return catalog;
     }
 
     @JsonProperty

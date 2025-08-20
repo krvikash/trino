@@ -108,7 +108,6 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.UnaryOperator;
 
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -509,27 +508,15 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
-    public boolean delegateMaterializedViewRefreshToConnector(ConnectorSession session, SchemaTableName viewName)
+    public ConnectorInsertTableHandle beginRefreshMaterializedView(ConnectorSession session, ConnectorTableHandle tableHandle, List<ConnectorTableHandle> sourceTableHandles, boolean hasForeignSourceTables, RetryMode retryMode, RefreshType refreshType)
     {
-        return delegate.delegateMaterializedViewRefreshToConnector(session, viewName);
+        return delegate.beginRefreshMaterializedView(session, getDelegate(tableHandle), sourceTableHandles, hasForeignSourceTables, retryMode, refreshType);
     }
 
     @Override
-    public CompletableFuture<?> refreshMaterializedView(ConnectorSession session, SchemaTableName viewName)
+    public Optional<ConnectorOutputMetadata> finishRefreshMaterializedView(ConnectorSession session, ConnectorTableHandle tableHandle, ConnectorInsertTableHandle insertHandle, Collection<Slice> fragments, Collection<ComputedStatistics> computedStatistics, List<ConnectorTableHandle> sourceTableHandles, boolean hasForeignSourceTables, boolean hasSourceTableFunctions)
     {
-        return delegate.refreshMaterializedView(session, viewName);
-    }
-
-    @Override
-    public ConnectorInsertTableHandle beginRefreshMaterializedView(ConnectorSession session, ConnectorTableHandle tableHandle, List<ConnectorTableHandle> sourceTableHandles, RetryMode retryMode, RefreshType refreshType)
-    {
-        return delegate.beginRefreshMaterializedView(session, getDelegate(tableHandle), sourceTableHandles, retryMode, refreshType);
-    }
-
-    @Override
-    public Optional<ConnectorOutputMetadata> finishRefreshMaterializedView(ConnectorSession session, ConnectorTableHandle tableHandle, ConnectorInsertTableHandle insertHandle, Collection<Slice> fragments, Collection<ComputedStatistics> computedStatistics, List<ConnectorTableHandle> sourceTableHandles, List<String> sourceTableFunctions)
-    {
-        return delegate.finishRefreshMaterializedView(session, getDelegate(tableHandle), insertHandle, fragments, computedStatistics, sourceTableHandles, sourceTableFunctions);
+        return delegate.finishRefreshMaterializedView(session, getDelegate(tableHandle), insertHandle, fragments, computedStatistics, sourceTableHandles, hasForeignSourceTables, hasSourceTableFunctions);
     }
 
     @Override

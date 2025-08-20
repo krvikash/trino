@@ -52,7 +52,6 @@ public class IcebergCacheMetadata
 
         // Ensure cache id generation is revisited whenever handle classes change.
         IcebergTableHandle handle = new IcebergTableHandle(
-                icebergTableHandle.getCatalog(),
                 icebergTableHandle.getSchemaName(),
                 icebergTableHandle.getTableName(),
                 icebergTableHandle.getTableType(),
@@ -76,7 +75,6 @@ public class IcebergCacheMetadata
                 icebergTableHandle.getForAnalyze());
 
         IcebergCacheTableId tableId = new IcebergCacheTableId(
-                handle.getCatalog(),
                 handle.getSchemaName(),
                 handle.getTableName(),
                 handle.getTableLocation(),

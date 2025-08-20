@@ -36,7 +36,6 @@ import io.trino.plugin.iceberg.catalog.snowflake.SnowflakeIcebergTableOperations
 import io.trino.plugin.iceberg.catalog.snowflake.TestingSnowflakeServer;
 import io.trino.plugin.iceberg.catalog.snowflake.TrinoSnowflakeCatalog;
 import io.trino.spi.catalog.CatalogName;
-import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorViewDefinition;
 import io.trino.spi.connector.SchemaTableName;
@@ -225,7 +224,6 @@ public class TestTrinoSnowflakeCatalog
                 LocationAccessControl.ALLOW_ALL,
                 AiModelAccessControl.ALLOW_ALL,
                 PLANNER_CONTEXT.getTypeManager(),
-                CatalogHandle.fromId("iceberg:NORMAL:v12345"),
                 jsonCodec(CommitTaskData.class),
                 catalog,
                 (connectorIdentity, fileIOProperties) -> {
