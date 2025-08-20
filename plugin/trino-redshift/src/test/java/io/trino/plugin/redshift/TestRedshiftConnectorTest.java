@@ -709,20 +709,26 @@ public class TestRedshiftConnectorTest
         assertThat(query("SELECT nationkey FROM nation WHERE name LIKE '%A%'"))
                 .isFullyPushedDown();
 
+        List<String> asciiData = List.of("1, 'A'", "2, 'a'", "3, 'B'", "4, NULL");
+        List<String> unicodeData = List.of("1, 'A'", "2, 'a'", "3, 'B'", "4, 'ą'", "5, 'Ą'", "6, NULL");
+
+        testLikePredicatePushdown("varchar", unicodeData);
+        testLikePredicatePushdown("varchar(1)", asciiData);
+        testLikePredicatePushdown("varchar(65535)", unicodeData);
+        testLikePredicatePushdown("varchar(65536)", unicodeData);
+    }
+
+    private void testLikePredicatePushdown(String type, List<String> data)
+    {
+        String tableName = "test_like_predicate_pushdown_" + type.replaceAll("[^a-zA-Z0-9]", "_");
         try (TestTable table = new TestTable(
                 getQueryRunner()::execute,
-                "test_like_predicate_pushdown",
-                // TODO Move to a bounded varchar of length 1. https://starburstdata.atlassian.net/browse/SEP-11316
-                "(id integer, a_varchar varchar)",
-                List.of(
-                        "1, 'A'",
-                        "2, 'a'",
-                        "3, 'B'",
-                        "4, 'ą'",
-                        "5, 'Ą'"))) {
-            assertThat(query("SELECT id FROM " + table.getName() + " WHERE a_varchar LIKE '%A%'"))
+                tableName,
+                "(id integer, data %s)".formatted(type),
+                data)) {
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE data LIKE '%A%'"))
                     .isFullyPushedDown();
-            assertThat(query("SELECT id FROM " + table.getName() + " WHERE a_varchar LIKE '%ą%'"))
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE data LIKE '%ą%'"))
                     .isFullyPushedDown();
         }
     }
@@ -733,19 +739,24 @@ public class TestRedshiftConnectorTest
         assertThat(query("SELECT nationkey FROM nation WHERE name LIKE '%A%' ESCAPE '\\'"))
                 .isFullyPushedDown();
 
+        List<String> unicodeData = List.of("1, 'A%b'", "2, 'Asth'", "3, 'ą%b'", "4, 'ąsth'", "5, NULL");
+
+        testLikeWithEscapePredicatePushdown("varchar", unicodeData);
+        testLikeWithEscapePredicatePushdown("varchar(65535)", unicodeData);
+        testLikeWithEscapePredicatePushdown("varchar(65536)", unicodeData);
+    }
+
+    private void testLikeWithEscapePredicatePushdown(String type, List<String> data)
+    {
+        String tableName = "test_like_with_escape_predicate_pushdown_" + type.replaceAll("[^a-zA-Z0-9]", "_");
         try (TestTable table = new TestTable(
                 getQueryRunner()::execute,
-                "test_like_with_escape_predicate_pushdown",
-                // TODO Move to a bounded varchar of length 4. https://starburstdata.atlassian.net/browse/SEP-11316
-                "(id integer, a_varchar varchar)",
-                List.of(
-                        "1, 'A%b'",
-                        "2, 'Asth'",
-                        "3, 'ą%b'",
-                        "4, 'ąsth'"))) {
-            assertThat(query("SELECT id FROM " + table.getName() + " WHERE a_varchar LIKE '%A\\%%' ESCAPE '\\'"))
+                tableName,
+                "(id integer, data %s)".formatted(type),
+                data)) {
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE data LIKE '%A\\%%' ESCAPE '\\'"))
                     .isFullyPushedDown();
-            assertThat(query("SELECT id FROM " + table.getName() + " WHERE a_varchar LIKE '%ą\\%%' ESCAPE '\\'"))
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE data LIKE '%ą\\%%' ESCAPE '\\'"))
                     .isFullyPushedDown();
         }
     }
