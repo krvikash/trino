@@ -54,6 +54,9 @@ public class TestBigQueryMetadataCaching
             assertThat(getQueryRunner().execute("SHOW SCHEMAS IN bigquery LIKE '" + schema + "'").getOnlyValue()).isEqualTo(schema);
 
             assertQueryFails("SELECT * FROM " + schemaTableName, ".*Schema '.+' does not exist.*");
+
+            getQueryRunner().execute("CALL system.flush_metadata_cache()");
+            assertThat(getQueryRunner().execute("SHOW SCHEMAS IN bigquery LIKE '" + schema + "'")).isEmpty();
         }
         finally {
             bigQuerySqlExecutor.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");

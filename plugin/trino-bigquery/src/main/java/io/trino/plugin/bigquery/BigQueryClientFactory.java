@@ -15,17 +15,16 @@ package io.trino.plugin.bigquery;
 
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
-import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.Cache;
 import com.google.inject.Inject;
 import io.airlift.units.Duration;
-import io.trino.cache.NonEvictableCache;
+import io.trino.cache.EvictableCacheBuilder;
 import io.trino.spi.connector.ConnectorSession;
 
 import java.util.Optional;
 import java.util.Set;
 
 import static io.trino.cache.CacheUtils.uncheckedCacheGet;
-import static io.trino.cache.SafeCaches.buildNonEvictableCache;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -39,7 +38,7 @@ public class BigQueryClientFactory
     private final ViewMaterializationCache materializationCache;
     private final BigQueryLabelFactory labelFactory;
 
-    private final NonEvictableCache<IdentityCacheMapping.IdentityCacheKey, BigQueryClient> clientCache;
+    private final Cache<IdentityCacheMapping.IdentityCacheKey, BigQueryClient> clientCache;
     private final Duration metadataCacheTtl;
     private final int metadataPageSize;
     private final Set<BigQueryOptionsConfigurer> optionsConfigurers;
@@ -65,16 +64,21 @@ public class BigQueryClientFactory
         this.metadataPageSize = bigQueryConfig.getMetadataPageSize();
         this.optionsConfigurers = requireNonNull(optionsConfigurers, "optionsConfigurers is null");
 
-        CacheBuilder<Object, Object> cacheBuilder = CacheBuilder.newBuilder()
+        EvictableCacheBuilder<Object, Object> cacheBuilder = EvictableCacheBuilder.newBuilder()
                 .expireAfterWrite(bigQueryConfig.getServiceCacheTtl().toMillis(), MILLISECONDS);
 
-        clientCache = buildNonEvictableCache(cacheBuilder);
+        clientCache = cacheBuilder.build();
     }
 
     public BigQueryClient create(ConnectorSession session)
     {
         IdentityCacheMapping.IdentityCacheKey cacheKey = identityCacheMapping.getRemoteUserCacheKey(session);
         return uncheckedCacheGet(clientCache, cacheKey, () -> createBigQueryClient(session));
+    }
+
+    public void flushCache()
+    {
+        clientCache.invalidateAll();
     }
 
     protected BigQueryClient createBigQueryClient(ConnectorSession session)

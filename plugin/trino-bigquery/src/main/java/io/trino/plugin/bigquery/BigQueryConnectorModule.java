@@ -29,6 +29,7 @@ import io.trino.plugin.base.logging.FormatInterpolator;
 import io.trino.plugin.base.logging.SessionInterpolatedValues;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
 import io.trino.plugin.bigquery.procedure.ExecuteProcedure;
+import io.trino.plugin.bigquery.procedure.FlushMetadataCacheProcedure;
 import io.trino.plugin.bigquery.ptf.Query;
 import io.trino.spi.Node;
 import io.trino.spi.catalog.CatalogName;
@@ -89,6 +90,7 @@ public class BigQueryConnectorModule
                     new ArrowSerializationModule()));
             newSetBinder(binder, ConnectorTableFunction.class).addBinding().toProvider(Query.class).in(Scopes.SINGLETON);
             newSetBinder(binder, Procedure.class).addBinding().toProvider(ExecuteProcedure.class).in(Scopes.SINGLETON);
+            newSetBinder(binder, Procedure.class).addBinding().toProvider(FlushMetadataCacheProcedure.class).in(Scopes.SINGLETON);
             newSetBinder(binder, SessionPropertiesProvider.class).addBinding().to(BigQuerySessionProperties.class).in(Scopes.SINGLETON);
 
             Multibinder<BigQueryOptionsConfigurer> optionsConfigurers = newSetBinder(binder, BigQueryOptionsConfigurer.class);

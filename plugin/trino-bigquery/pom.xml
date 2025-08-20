@@ -558,6 +558,7 @@
                                 <exclude>**/TestBigQueryInstanceCleaner.java</exclude>
                                 <exclude>**/TestBigQueryCaseInsensitiveMapping.java</exclude>
                                 <exclude>**/TestBigQueryCaseInsensitiveMappingWithCache.java</exclude>
+                                <exclude>**/TestBigQueryCaseInsensitiveMappingCacheFlush.java</exclude>
                                 <exclude>**/TestBigQuery*FailureRecoveryTest.java</exclude>
                                 <exclude>**/TestBigQueryWithProxyTest.java</exclude>
                                 <exclude>**/TestBigQueryParentProjectId.java</exclude>
@@ -606,6 +607,7 @@
                             <includes>
                                 <include>**/TestBigQueryCaseInsensitiveMapping.java</include>
                                 <include>**/TestBigQueryCaseInsensitiveMappingWithCache.java</include>
+                                <include>**/TestBigQueryCaseInsensitiveMappingCacheFlush.java</include>
                                 <!-- Also included here to make sure the case-insesitive project also gets cleaned up -->
                                 <include>**/TestBigQueryInstanceCleaner.java</include>
                             </includes>
