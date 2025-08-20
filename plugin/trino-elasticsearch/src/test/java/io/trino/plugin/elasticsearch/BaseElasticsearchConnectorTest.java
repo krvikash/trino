@@ -1340,6 +1340,161 @@ public abstract class BaseElasticsearchConnectorTest
     }
 
     @Test
+    public void testCustomDateFormat()
+            throws IOException
+    {
+        String indexName = "custom_date_format";
+        @Language("JSON")
+        String mapping = """
+                {
+                  "properties": {
+                    "ts1":{"type": "date", "format": "epoch_millis"},
+                    "ts2":{"type": "date", "format": "epoch_second"},
+                    "ts3":{"type": "date", "format": "strict_date_optional_time"},
+                    "ts4":{"type": "date", "format": "yyyy-MM-dd'T'HH:mm:ss.SSSZZ"},
+                    "ts5":{"type": "date", "format": "yyyy-MM-dd HH:mm:ss"},
+                    "ts6":{"type": "date_nanos", "format": "strict_date_optional_time_nanos"},
+                    "ts7":{"type": "date_nanos", "format": "yyyy-MM-dd HH:mm:ss.SSSSSSSSS"},
+                    "ts8":{"type": "date", "format": "yyyy-MM-dd HH:mm:ss||epoch_second"},
+                    "ts9":{"type": "date", "format": "yyyy-MM-dd HH:mm:ss.SSS"},
+                    "ts10":{"type": "date", "format": "basic_date"},
+                    "ts11":{"type": "date", "format": "basic_date_time"},
+                    "ts12":{"type": "date", "format": "basic_date_time_no_millis"},
+                    "ts13":{"type": "date", "format": "date_hour_minute_second_millis"},
+                    "ts14":{"type": "date", "format": "weekyear_week_day"},
+                    "ts15":{"type": "date", "format": "year_month_day"},
+                    "ts16":{"type": "date", "format": "yyyy-MM-dd||yyyy-MM-dd HH:mm:ss"},
+                    "ts17":{"type": "date", "format": "uuuu-MM-dd'T'HH:mm:ss.SSS"},
+                    "ts18":{"type": "date_nanos", "format": "basic_date_time_no_millis||epoch_second"},
+                    "ts19":{"type": "date", "format": "date_optional_time"},
+                    "ts20":{"type": "date", "format": "strict_date_hour_minute_second"},
+                    "ts21":{"type": "date", "format": "week_date"},
+                    "ts22":{"type": "date", "format": "t_time"},
+                    "ts23":{"type": "date_nanos", "format": "yyyy-MM-dd HH:mm:ss.SSSSSS"},
+                    "ts24":{"type": "date", "format": "yyyy-MM-dd HH:mm:ss.SSSSSS"}
+                  }
+                }
+                """;
+        createIndex(indexName, mapping);
+
+        index(indexName, ImmutableMap.<String, Object>builder()
+                .put("ts1", 1667820637001L)  // epoch_millis
+                .put("ts2", 1667820637L)     // epoch_second
+                .put("ts3", "2021-12-15T10:00:00.000Z")  // strict_date_optional_time
+                .put("ts4", "2021-12-15T10:00:00.000+0100")  // custom with timezone
+                .put("ts5", "2021-12-15 10:00:00")  // custom datetime
+                .put("ts6", "2021-12-15T10:00:00.123456789Z")  // date_nanos
+                .put("ts7", "2021-12-15 10:00:00.123456789")  // date_nanos custom
+                .put("ts8", "2021-12-15 10:00:00")  // multiple formats
+                .put("ts9", "2021-12-15 10:00:00.123")  // milliseconds (3 S)
+                .put("ts10", "20211215")  // basic_date (yyyyMMdd)
+                .put("ts11", "20211215T100000.000Z")  // basic_date_time
+                .put("ts12", "20211215T100000Z")  // basic_date_time_no_millis
+                .put("ts13", "2021-12-15T10:00:00.123")  // date_hour_minute_second_millis
+                .put("ts14", "2021-W50-4")  // weekyear_week_day YYYY-'W'ww-e
+                .put("ts15", "2021-12-15")  // year_month_day
+                .put("ts16", "2021-12-15")  // multiple formats - date only
+                .put("ts17", "2021-12-15T10:00:00.123")  // uuuu format (year of era)
+                .put("ts18", 1667820637L)  // epoch_second for date_nanos
+                .put("ts19", "2021-12-15T10:00:00.123Z")  // date_optional_time
+                .put("ts20", "2021-12-15T10:00:00")  // strict_date_hour_minute_second
+                .put("ts21", "2021-W50-3")  // week_date
+                .put("ts22", "T10:00:00.123Z")  // t_time
+                .put("ts23", "2021-12-15 10:00:00.123456")  // date_nanos with microseconds
+                .put("ts24", "2021-12-15 10:00:00.123456")  // date with microseconds
+                .buildOrThrow());
+
+        assertThat(query("SELECT ts1 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2022-11-07 11:30:37.001'");
+
+        assertThat(query("SELECT ts2 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2022-11-07 11:30:37.000'");
+
+        assertThat(query("SELECT ts3 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2021-12-15 10:00:00.000'");
+
+        assertThat(query("SELECT ts4 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2021-12-15 09:00:00.000'");
+
+        assertThat(query("SELECT ts5 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2021-12-15 10:00:00.000'");
+
+        assertThat(query("SELECT ts6 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2021-12-15 10:00:00.123456789'");
+
+        assertThat(query("SELECT ts7 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2021-12-15 10:00:00.123456789'");
+
+        assertThat(query("SELECT ts8 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2021-12-15 10:00:00.000'");
+
+        assertThat(query("SELECT ts9 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2021-12-15 10:00:00.123'");
+
+        assertThat(query("SELECT ts10 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2021-12-15 00:00:00.000'");
+
+        assertThat(query("SELECT ts11 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2021-12-15 10:00:00.000'");
+
+        assertThat(query("SELECT ts12 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2021-12-15 10:00:00.000'");
+
+        assertThat(query("SELECT ts13 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2021-12-15 10:00:00.123'");
+
+        assertThat(query("SELECT ts14 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2021-12-16 00:00:00.000'");
+
+        assertThat(query("SELECT ts15 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2021-12-15 00:00:00.000'");
+
+        assertThat(query("SELECT ts16 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2021-12-15 00:00:00.000'");
+
+        assertThat(query("SELECT ts17 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2021-12-15 10:00:00.123'");
+
+        assertThat(query("SELECT ts18 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2022-11-07 11:30:37.000000000'");
+
+        assertThat(query("SELECT ts19 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2021-12-15 10:00:00.123'");
+
+        assertThat(query("SELECT ts20 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2021-12-15 10:00:00.000'");
+
+        assertThat(query("SELECT ts21 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2021-12-15 00:00:00.000'");
+
+        assertThat(query("SELECT ts22 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '1970-01-01 10:00:00.123'");
+
+        assertThat(query("SELECT ts23 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2021-12-15 10:00:00.123456000'");
+
+        // ES only supports precision 3, MAX_SHORT_PRECISION truncates
+        assertThat(query("SELECT ts24 FROM " + indexName))
+                .matches("VALUES TIMESTAMP '2021-12-15 10:00:00.123'");
+
+        // Test multiple date formats on same field
+        index(indexName, ImmutableMap.<String, Object>builder()
+                .put("ts8", "2022-11-07 11:30:37")
+                .put("ts16", "2022-11-07 11:30:37")
+                .put("ts18", "20211107T113037Z")
+                .buildOrThrow());
+
+        assertThat(query("SELECT ts8 FROM " + indexName))
+                .matches("VALUES (TIMESTAMP '2021-12-15 10:00:00.000'), (TIMESTAMP '2022-11-07 11:30:37.000')");
+
+        assertThat(query("SELECT ts16 FROM " + indexName))
+                .matches("VALUES (TIMESTAMP '2021-12-15 00:00:00.000'), (TIMESTAMP '2022-11-07 00:00:00.000')");
+
+        assertThat(query("SELECT ts18 FROM " + indexName))
+                .matches("VALUES (TIMESTAMP '2022-11-07 11:30:37.000000000'), (TIMESTAMP '2021-11-07 11:30:37.000000000')");
+    }
+
+    @Test
     public void testTimestamps()
             throws IOException
     {

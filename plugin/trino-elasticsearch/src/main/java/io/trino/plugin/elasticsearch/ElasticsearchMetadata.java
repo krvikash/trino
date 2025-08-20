@@ -119,7 +119,7 @@ import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
-import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
+import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -328,10 +328,9 @@ public class ElasticsearchMetadata
             return new TypeAndDecoder(DOUBLE, new DoubleDecoder.Descriptor(path));
         }
         else if (type instanceof DateTimeType dateTimeType) {
-            if (dateTimeType.formats().isEmpty()) {
-                return new TypeAndDecoder(TIMESTAMP_MILLIS, new TimestampDecoder.Descriptor(path));
-            }
-            // otherwise, skip -- we don't support custom formats, yet
+            int precision = dateTimeType.precision();
+            List<String> formats = dateTimeType.formats();
+            return new TypeAndDecoder(createTimestampType(precision), new TimestampDecoder.Descriptor(path, formats, precision));
         }
         else if (type instanceof ObjectType objectType) {
             ImmutableList.Builder<RowType.Field> rowFieldsBuilder = ImmutableList.builder();

@@ -62,7 +62,7 @@ public record IndexMetadata(ObjectType schema)
         }
     }
 
-    public record DateTimeType(List<String> formats)
+    public record DateTimeType(List<String> formats, int precision)
             implements Type
     {
         public DateTimeType
