@@ -94,7 +94,7 @@ TO_VERSION=$(git show "${TO}":pom.xml | xq -x /project/version | cut -d '-' -f 1
 if git show "${TO}":pom.xml | xq -x /project/version | grep -q SNAPSHOT; then
     TO_VERSION=$[TO_VERSION - 1]
 fi
-TO_SHORT=$(git rev-parse --short "$TO_VERSION")
+TO_SHORT=$(git rev-parse --short "$TO")
 TARGET_BRANCH="update/cork/trino-${TO_VERSION}-${TO_SHORT}"
 
 # verify they got set correctly and without any whitespace
