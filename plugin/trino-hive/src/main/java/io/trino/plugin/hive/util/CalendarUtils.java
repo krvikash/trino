@@ -15,11 +15,15 @@ package io.trino.plugin.hive.util;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.TimeZone;
 
+import static java.lang.Math.toIntExact;
 import static java.time.ZoneOffset.UTC;
+import static java.time.format.ResolverStyle.LENIENT;
 import static java.util.concurrent.TimeUnit.DAYS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -31,19 +35,14 @@ public final class CalendarUtils
     private static final long LAST_SWITCH_JULIAN_DAY_MILLIS;
     private static final long LAST_SWITCH_JULIAN_DAY;
 
-    static final ThreadLocal<SimpleDateFormat> HYBRID_CALENDAR_DATE_FORMAT = ThreadLocal.withInitial(() -> {
+    private static final ThreadLocal<SimpleDateFormat> HYBRID_CALENDAR_DATE_FORMAT = ThreadLocal.withInitial(() -> {
         SimpleDateFormat format = new SimpleDateFormat(DATE_FORMAT);
         format.setCalendar(new GregorianCalendar(TZ_UTC));
         return format;
     });
 
-    static final ThreadLocal<SimpleDateFormat> PROLEPTIC_CALENDAR_DATE_FORMAT = ThreadLocal.withInitial(() -> {
-        SimpleDateFormat format = new SimpleDateFormat(DATE_FORMAT);
-        GregorianCalendar prolepticGregorianCalendar = new GregorianCalendar(TZ_UTC);
-        prolepticGregorianCalendar.setGregorianChange(new Date(Long.MIN_VALUE));
-        format.setCalendar(prolepticGregorianCalendar);
-        return format;
-    });
+    private static final DateTimeFormatter PROLEPTIC_CALENDAR_DATE_FORMAT = DateTimeFormatter.ofPattern(DATE_FORMAT)
+            .withResolverStyle(LENIENT);
 
     static {
         try {
@@ -64,11 +63,6 @@ public final class CalendarUtils
         }
         long hybridMillis = DAYS.toMillis(hybridDays);
         String hybridDateInString = HYBRID_CALENDAR_DATE_FORMAT.get().format(new Date(hybridMillis));
-        try {
-            return (int) MILLISECONDS.toDays(PROLEPTIC_CALENDAR_DATE_FORMAT.get().parse(hybridDateInString).getTime());
-        }
-        catch (ParseException e) {
-            throw new RuntimeException(e);
-        }
+        return toIntExact(LocalDate.from(PROLEPTIC_CALENDAR_DATE_FORMAT.parse(hybridDateInString)).toEpochDay());
     }
 }

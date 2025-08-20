@@ -129,6 +129,11 @@ public class TestDateCoercer
         assertReadingWithCoercionHybridToProlepticLegacyDate("1970-01-01", "1970-01-01");
         assertReadingWithCoercionHybridToProlepticLegacyDate("2024-03-30", "2024-03-30");
 
+        assertReadingWithCoercionHybridToProlepticLegacyDate("1000-02-29", "1000-03-01"); // legacy leap year
+        assertReadingWithCoercionHybridToProlepticLegacyDate("1600-02-29", "1600-02-29"); // Gregorian leap year
+        assertReadingWithCoercionHybridToProlepticLegacyDate("1700-02-29", "1700-03-01"); // non-leap year in Gregorian calendar
+        assertReadingWithCoercionHybridToProlepticLegacyDate("2000-02-29", "2000-02-29"); // Gregorian leap year
+
         assertReadingWithoutCoercionHybridToProlepticLegacyDate("0001-01-01", "0000-12-30");
         assertReadingWithoutCoercionHybridToProlepticLegacyDate("0100-01-01", "0099-12-30");
         assertReadingWithoutCoercionHybridToProlepticLegacyDate("0200-01-01", "0199-12-31");
@@ -155,6 +160,11 @@ public class TestDateCoercer
         assertReadingWithoutCoercionHybridToProlepticLegacyDate("1969-12-31", "1969-12-31");
         assertReadingWithoutCoercionHybridToProlepticLegacyDate("1970-01-01", "1970-01-01");
         assertReadingWithoutCoercionHybridToProlepticLegacyDate("2024-03-30", "2024-03-30");
+
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("1000-02-29", "1000-03-06"); // legacy leap year
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("1600-02-29", "1600-02-29"); // Gregorian leap year
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("1700-02-29", "1700-03-01"); // non-leap year in Gregorian calendar
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate("2000-02-29", "2000-02-29"); // Gregorian leap year
     }
 
     private void assertReadingWithCoercionHybridToProlepticLegacyDate(String writtenDate, String actualReadDate)
