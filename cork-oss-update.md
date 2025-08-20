@@ -123,6 +123,16 @@ Action items:
 - [ ] Run benchmarks and verify results
 - [ ] No pinned items left on \`#tmp-cork-trino-update-${TO_VERSION}-${TO_SHORT}\` channel if it exists
       (check it only before final merge, as new pinned items can be added)
+
+```
+FROM=${FROM} 
+FROM_VERSION=${FROM_VERSION} 
+TO=${TO} 
+TO_VERSION=${TO_VERSION} 
+TO_SHORT=${TO_SHORT} 
+TARGET_BRANCH=${TARGET_BRANCH}
+```     
+   
 EOF
 )&labels=redshift,salesforce,synapse,snowflake"
 ```
