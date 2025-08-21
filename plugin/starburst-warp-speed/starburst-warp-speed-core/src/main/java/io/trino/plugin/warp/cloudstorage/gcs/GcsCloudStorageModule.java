@@ -21,8 +21,6 @@ import io.airlift.configuration.ConfigurationFactory;
 import io.trino.filesystem.gcs.GcsFileSystemConfig;
 import io.trino.filesystem.gcs.GcsFileSystemFactory;
 import io.trino.filesystem.gcs.GcsStorageFactory;
-import io.trino.spi.connector.CatalogHandle;
-import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.security.ConnectorIdentity;
 
 import java.lang.annotation.Annotation;
@@ -33,15 +31,12 @@ import static java.util.Objects.requireNonNull;
 public class GcsCloudStorageModule
         implements Module
 {
-    private final ConnectorContext context;
     private final ConfigurationFactory configFactory;
     private final Class<? extends Annotation> annotation;
 
-    public GcsCloudStorageModule(ConnectorContext context,
-                                 ConfigurationFactory configFactory,
+    public GcsCloudStorageModule(ConfigurationFactory configFactory,
                                  Class<? extends Annotation> annotation)
     {
-        this.context = requireNonNull(context, "context is null");
         this.configFactory = requireNonNull(configFactory, "configFactory is null");
         this.annotation = requireNonNull(annotation, "annotation is null");
     }
@@ -52,9 +47,6 @@ public class GcsCloudStorageModule
         binder.bind(ConfigurationFactory.class).toInstance(configFactory);
 
         configBinder(binder).bindConfig(GcsFileSystemConfig.class);
-
-        binder.bind(CatalogHandle.class).toInstance(context.getCatalogHandle());
-
         binder.bind(GcsStorageFactory.class);
         binder.bind(GcsFileSystemFactory.class);
 

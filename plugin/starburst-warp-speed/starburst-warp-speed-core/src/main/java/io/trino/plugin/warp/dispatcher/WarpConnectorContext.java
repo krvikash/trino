@@ -20,7 +20,6 @@ import io.trino.spi.NodeManager;
 import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.PageSorter;
 import io.trino.spi.VersionEmbedder;
-import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.MetadataProvider;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
@@ -39,12 +38,6 @@ public class WarpConnectorContext
     {
         this.connectorContext = requireNonNull(connectorContext);
         this.sharedInstances = requireNonNull(sharedInstances);
-    }
-
-    @Override
-    public CatalogHandle getCatalogHandle()
-    {
-        return connectorContext.getCatalogHandle();
     }
 
     @Override

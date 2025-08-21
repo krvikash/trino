@@ -96,7 +96,7 @@ public class CloudStorageModule
                             cloudStorageMap.addBinding("abfss").to(azureCloudStorageKey);
                         }
                         case GS -> {
-                            binder1.install(new GcsCloudStorageModule(context, configFactory, annotation));
+                            binder1.install(new GcsCloudStorageModule(configFactory, annotation));
                             Key<GcsCloudStorage> gcsCloudStorageKey = Key.get(GcsCloudStorage.class, annotation);
                             cloudStorageMap.addBinding("gs").to(gcsCloudStorageKey);
                         }

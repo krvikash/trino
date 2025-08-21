@@ -19,7 +19,6 @@ import io.trino.filesystem.gcs.GcsFileSystemFactory;
 import io.trino.filesystem.gcs.GcsStorageFactory;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.cloudstorage.CloudStorageAbstractTest;
-import io.trino.spi.connector.ConnectorContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 
@@ -44,7 +43,7 @@ public class GcsCloudStorageTest
 
         GcsFileSystemFactory fileSystemFactory = new GcsFileSystemFactory(config, storageFactory);
 
-        GcsCloudStorageModule module = new GcsCloudStorageModule(new TestingConnectorContext(), new ConfigurationFactory(Map.of()), ForWarp.class);
+        GcsCloudStorageModule module = new GcsCloudStorageModule(new ConfigurationFactory(Map.of()), ForWarp.class);
 
         cloudStorage = module.provideGcsCloudStorage(fileSystemFactory, storageFactory);
     }
@@ -65,10 +64,5 @@ public class GcsCloudStorageTest
     protected String getNotExistBucket()
     {
         return "gs://" + BUCKET_NAME + "-not-exist/";
-    }
-
-    static class TestingConnectorContext
-            implements ConnectorContext
-    {
     }
 }

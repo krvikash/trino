@@ -24,7 +24,6 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.manager.FileSystemModule;
-import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ConnectorContext;
 
 import java.lang.annotation.Annotation;
@@ -66,7 +65,6 @@ public class HdfsCloudStorageModule
         Injector injector = Guice.createInjector(
                 binder1 -> {
                     binder1.bind(ConfigurationFactory.class).toInstance(configFactory);
-                    binder1.bind(CatalogHandle.class).toInstance(context.getCatalogHandle());
                     OpenTelemetry openTelemetry = context.getOpenTelemetry();
                     binder1.bind(OpenTelemetry.class).toInstance(openTelemetry);
                     binder1.bind(Tracer.class).toInstance(openTelemetry.getTracer("warp.cloud-vendor"));

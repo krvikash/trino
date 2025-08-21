@@ -166,7 +166,7 @@ public class WarpMainModule
     @Singleton
     public CatalogNameProvider provideCatalogName()
     {
-        return new CatalogNameProvider(context.getCatalogHandle().getCatalogName() + "_" + context.getCatalogHandle().getVersion());
+        return new CatalogNameProvider("warp");
     }
 
     @Provides
