@@ -32,9 +32,18 @@ public record SpecialForm(
         io.trino.sql.relational.SpecialForm.Form form,
         Type type,
         List<RowExpression> arguments,
-        List<ResolvedFunction> functionDependencies)
+        List<ResolvedFunction> functionDependencies,
+        boolean canSplit)
         implements RowExpression
 {
+    public SpecialForm(io.trino.sql.relational.SpecialForm.Form form,
+            Type type,
+            List<RowExpression> arguments,
+            List<ResolvedFunction> functionDependencies)
+    {
+        this(form, type, arguments, functionDependencies, true);
+    }
+
     public SpecialForm
     {
         requireNonNull(form, "form is null");

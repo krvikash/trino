@@ -54,7 +54,7 @@ public class OrCodeGenerator
         LabelNode returnTrue = new LabelNode("returnTrue");
         for (int i = 0; i < terms.size(); i++) {
             RowExpression term = terms.get(i);
-            block.append(generator.generate(term));
+            block.append(generator.generateWithExtraction(term));
 
             IfStatement ifWasNull = new IfStatement("if term " + i + " wasNull...")
                     .condition(wasNull);

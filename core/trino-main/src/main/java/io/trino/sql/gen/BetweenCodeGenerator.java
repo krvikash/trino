@@ -66,7 +66,8 @@ public class BetweenCodeGenerator
                 AND,
                 BOOLEAN,
                 ImmutableList.of(call(lessThanOrEqual, min, valueReference), call(lessThanOrEqual, valueReference, max)),
-                ImmutableList.of());
+                ImmutableList.of(),
+                false);
 
         LabelNode done = new LabelNode("done");
 

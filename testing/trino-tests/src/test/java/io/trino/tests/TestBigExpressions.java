@@ -1,0 +1,60 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.tests;
+
+import io.trino.testing.AbstractTestQueryFramework;
+import io.trino.testing.QueryRunner;
+import io.trino.tests.tpch.TpchQueryRunner;
+import org.junit.jupiter.api.Test;
+
+import java.util.concurrent.ThreadLocalRandom;
+
+public class TestBigExpressions
+        extends AbstractTestQueryFramework
+{
+    @Override
+    protected QueryRunner createQueryRunner()
+            throws Exception
+    {
+        return TpchQueryRunner.builder().setWorkerCount(1).build();
+    }
+
+    @Test
+    public void testComplexSwitchFilterTranslatedToOr()
+    {
+        StringBuilder mappingCaseBuilder = new StringBuilder("CASE ");
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        for (int i = 0; i < 60; i++) {
+            mappingCaseBuilder.append(" WHEN COL1 = 'V' AND COL2 = %s THEN %s".formatted(
+                    random.nextInt(300),
+                    random.nextInt(8) + 1));
+        }
+        String mappingCase = mappingCaseBuilder.append(" ELSE -1 END").toString();
+        String query = """
+                       select *
+                       from (select 'V' as COL1, nationkey * 20 as COL2 from nation limit 10) t
+                       WHERE CASE
+                           WHEN %s = 1 THEN 'MATCH'
+                           WHEN %s = 2 THEN 'MATCH'
+                           WHEN %s = 3 THEN 'MATCH'
+                           WHEN %s = 4 THEN 'MATCH'
+                           WHEN %s = 5 THEN 'MATCH'
+                           WHEN %s = 6 THEN 'MATCH'
+                           WHEN %s = 7 THEN 'MATCH'
+                           WHEN %s = 8 THEN 'MATCH'
+                           ELSE 'NO MATCH' END = 'MATCH'
+                       """.formatted(mappingCase, mappingCase, mappingCase, mappingCase, mappingCase, mappingCase, mappingCase, mappingCase);
+        assertQuery(query);
+    }
+}

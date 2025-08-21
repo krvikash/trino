@@ -31,6 +31,7 @@ public class AndCodeGenerator
         implements BytecodeGenerator
 {
     private final List<RowExpression> terms;
+    private final boolean canSplit;
 
     public AndCodeGenerator(SpecialForm specialForm)
     {
@@ -39,6 +40,7 @@ public class AndCodeGenerator
         checkArgument(specialForm.arguments().size() >= 2);
 
         terms = specialForm.arguments();
+        canSplit = specialForm.canSplit();
     }
 
     @Override
@@ -55,7 +57,12 @@ public class AndCodeGenerator
         LabelNode returnFalse = new LabelNode("returnFalse");
         for (int i = 0; i < terms.size(); i++) {
             RowExpression term = terms.get(i);
-            block.append(generator.generate(term));
+            if (canSplit) {
+                block.append(generator.generateWithExtraction(term));
+            }
+            else {
+                block.append(generator.generate(term));
+            }
 
             IfStatement ifWasNull = new IfStatement("if term " + i + " wasNull...")
                     .condition(wasNull);
