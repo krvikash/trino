@@ -23,6 +23,7 @@ import com.databricks.sdk.core.http.Request;
 import com.databricks.sdk.service.catalog.ColumnInfo;
 import com.databricks.sdk.service.catalog.ColumnTypeName;
 import com.databricks.sdk.service.catalog.CreateSchema;
+import com.databricks.sdk.service.catalog.CreateTableRequest;
 import com.databricks.sdk.service.catalog.DataSourceFormat;
 import com.databricks.sdk.service.catalog.SchemaInfo;
 import com.databricks.sdk.service.catalog.SchemasAPI;
@@ -296,19 +297,16 @@ public class UnityHiveMetastore
     @Override
     public void createTable(Table table, PrincipalPrivileges principalPrivileges)
     {
-        // TODO refactor this with official databricks sdk support of createTable
-        //  https://starburstdata.atlassian.net/browse/CONNECT-592
-        String path = "/api/2.1/unity-catalog/tables";
         TableType tableType = TableType.valueOf(table.getTableType());
         checkArgument(EXTERNAL_TABLE.equals(tableType), "Invalid table type: %s, create table is supported only for external tables", tableType);
-        CreateTable.Builder createTable = CreateTable.builder()
+
+        CreateTableRequest createTable = new CreateTableRequest()
                 .setCatalogName(catalogName)
                 .setSchemaName(table.getDatabaseName())
                 .setName(table.getTableName())
                 .setTableType(EXTERNAL)
                 .setStorageLocation(table.getStorage().getLocation())
                 .setProperties(table.getParameters());
-        table.getOwner().ifPresent(createTable::setOwner);
 
         if (DELTA_TABLE_PROVIDER_VALUE.equals(table.getParameters().get(DELTA_TABLE_PROVIDER_PROPERTY))) {
             createTable.setDataSourceFormat(DELTA);
@@ -339,10 +337,7 @@ public class UnityHiveMetastore
                         .collect(toImmutableList()));
 
         try {
-            Request createTableRequest = new Request("POST", path, apiClient.serialize(createTable.build()));
-            createTableRequest.withHeader("Accept", "application/json");
-            createTableRequest.withHeader("Content-Type", "application/json");
-            apiClient.execute(createTableRequest, com.databricks.sdk.service.catalog.TableInfo.class);
+            tablesApi.create(createTable);
         }
         catch (NotFound ex) {
             if (ex.getErrorCode().equals("SCHEMA_DOES_NOT_EXIST")) {
@@ -350,7 +345,7 @@ public class UnityHiveMetastore
             }
             throw new TrinoException(HIVE_METASTORE_ERROR, ex);
         }
-        catch (DatabricksException | IOException ex) {
+        catch (DatabricksException ex) {
             throw new TrinoException(HIVE_METASTORE_ERROR, ex);
         }
     }
