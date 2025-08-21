@@ -48,6 +48,7 @@ import io.trino.node.TestingInternalNodeManager;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.catalog.CatalogProperties;
 import io.trino.spi.connector.CatalogHandle;
+import io.trino.spi.connector.CatalogVersion;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorFactory;
 import io.trino.spi.connector.ConnectorName;
@@ -203,7 +204,7 @@ public class TestSqlTaskManagerRaceWithCatalogPrune
         {
             for (int i = 0; i < NUM_TASKS; i++) {
                 CatalogName catalogName = new CatalogName("catalog_" + i);
-                CatalogHandle catalogHandle = createRootCatalogHandle(catalogName, new CatalogHandle.CatalogVersion(UUID.randomUUID().toString()));
+                CatalogHandle catalogHandle = createRootCatalogHandle(catalogName, new CatalogVersion(UUID.randomUUID().toString()));
                 TaskId taskId = newTaskId();
                 workerTaskManager.updateTask(
                         TestingSession.testSession(),
