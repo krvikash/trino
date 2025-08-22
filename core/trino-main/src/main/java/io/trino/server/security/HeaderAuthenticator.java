@@ -13,18 +13,22 @@
  */
 package io.trino.server.security;
 
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import io.trino.spi.security.AccessDeniedException;
 import io.trino.spi.security.Identity;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.core.MultivaluedMap;
 
 import java.security.Principal;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static com.google.common.base.Verify.verify;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static io.trino.server.ServletSecurityUtils.extractRequestHeaders;
 import static io.trino.server.security.UserMapping.createUserMapping;
 import static java.util.Objects.requireNonNull;
 
@@ -44,17 +48,38 @@ public class HeaderAuthenticator
         this.authenticatorManager.setRequired();
     }
 
+    private static Map<String, List<String>> lowercaseHeaders(MultivaluedMap<String, String> headers)
+    {
+        return headers.entrySet().stream()
+                .collect(toImmutableMap(
+                        entry -> entry.getKey().toLowerCase(Locale.ENGLISH),
+                        Map.Entry::getValue,
+                        (first, second) -> ImmutableList.<String>builder().addAll(first).addAll(second).build()));
+    }
+
     @Override
     public Identity authenticate(ContainerRequestContext request)
             throws AuthenticationException
     {
-        AuthenticationException exception = null;
-        Map<String, List<String>> lowerCasedHeaders = request.getHeaders().entrySet().stream()
-                .collect(Collectors.toMap(entry -> entry.getKey().toLowerCase(Locale.ENGLISH), Map.Entry::getValue));
+        Map<String, List<String>> lowerCasedHeaders = lowercaseHeaders(request.getHeaders());
+        return authenticate(lowerCasedHeaders);
+    }
 
+    @Override
+    public Identity authenticate(HttpServletRequest request)
+            throws AuthenticationException
+    {
+        Map<String, List<String>> lowerCasedHeaders = lowercaseHeaders(extractRequestHeaders(request));
+        return authenticate(lowerCasedHeaders);
+    }
+
+    private Identity authenticate(Map<String, List<String>> headers)
+            throws AuthenticationException
+    {
+        AuthenticationException exception = null;
         for (io.trino.spi.security.HeaderAuthenticator authenticator : this.authenticatorManager.getAuthenticators()) {
             try {
-                Principal principal = authenticator.createAuthenticatedPrincipal(name -> lowerCasedHeaders.get(name.toLowerCase(Locale.ENGLISH)));
+                Principal principal = authenticator.createAuthenticatedPrincipal(name -> headers.get(name.toLowerCase(Locale.ENGLISH)));
                 String authenticatedUser = this.userMapping.mapUser(principal.toString());
 
                 return Identity.forUser(authenticatedUser)

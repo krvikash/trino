@@ -13,10 +13,13 @@
  */
 package io.trino.server;
 
+import com.google.common.collect.ImmutableList;
 import io.trino.spi.security.BasicPrincipal;
 import io.trino.spi.security.Identity;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.core.MultivaluedHashMap;
+import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.ResponseBuilder;
 import jakarta.ws.rs.core.Response.Status;
@@ -67,6 +70,16 @@ public final class ServletSecurityUtils
         }
 
         return URI.create(baseUri.toString());
+    }
+
+    public static MultivaluedMap<String, String> extractRequestHeaders(HttpServletRequest request)
+    {
+        MultivaluedMap<String, String> headers = new MultivaluedHashMap<>();
+        request.getHeaderNames().asIterator().forEachRemaining(header -> {
+            ImmutableList<String> values = ImmutableList.copyOf(request.getHeaders(header).asIterator());
+            headers.addAll(header, values);
+        });
+        return headers;
     }
 
     private static ResponseBuilder authenticateResponse(String errorMessage, Collection<String> authenticateHeaders)
