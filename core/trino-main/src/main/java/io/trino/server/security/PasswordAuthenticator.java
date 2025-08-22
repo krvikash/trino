@@ -13,7 +13,6 @@
  */
 package io.trino.server.security;
 
-import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import io.trino.client.ProtocolDetectionException;
 import io.trino.server.ProtocolConfig;
@@ -21,7 +20,6 @@ import io.trino.spi.security.AccessDeniedException;
 import io.trino.spi.security.Identity;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.container.ContainerRequestContext;
-import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 
 import java.security.Principal;
@@ -30,6 +28,7 @@ import java.util.Optional;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.net.HttpHeaders.AUTHORIZATION;
 import static io.trino.client.ProtocolHeaders.detectProtocol;
+import static io.trino.server.ServletSecurityUtils.extractRequestHeaders;
 import static io.trino.server.security.BasicAuthCredentials.extractBasicAuthCredentials;
 import static io.trino.server.security.UserMapping.createUserMapping;
 import static java.util.Objects.requireNonNull;
@@ -66,11 +65,7 @@ public class PasswordAuthenticator
     {
         BasicAuthCredentials basicAuthCredentials = extractBasicAuthCredentials(request.getHeader(AUTHORIZATION))
                 .orElseThrow(() -> needAuthentication(null));
-        MultivaluedMap<String, String> headers = new MultivaluedHashMap<>();
-        request.getHeaderNames().asIterator().forEachRemaining(header -> {
-            ImmutableList<String> values = ImmutableList.copyOf(request.getHeaders(header).asIterator());
-            headers.addAll(header, values);
-        });
+        MultivaluedMap<String, String> headers = extractRequestHeaders(request);
         return authenticate(basicAuthCredentials, headers);
     }
 

@@ -19,13 +19,17 @@ import io.trino.client.ProtocolHeaders;
 import io.trino.server.ProtocolConfig;
 import io.trino.spi.security.BasicPrincipal;
 import io.trino.spi.security.Identity;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.core.MultivaluedMap;
 
 import java.util.Optional;
 
 import static com.google.common.base.Strings.emptyToNull;
+import static com.google.common.net.HttpHeaders.AUTHORIZATION;
 import static io.trino.client.ProtocolHeaders.TRINO_HEADERS;
 import static io.trino.client.ProtocolHeaders.detectProtocol;
+import static io.trino.server.ServletSecurityUtils.extractRequestHeaders;
 import static io.trino.server.security.BasicAuthCredentials.extractBasicAuthCredentials;
 import static io.trino.server.security.UserMapping.createUserMapping;
 
@@ -47,7 +51,21 @@ public class InsecureAuthenticator
             throws AuthenticationException
     {
         Optional<BasicAuthCredentials> basicAuthCredentials = extractBasicAuthCredentials(request);
+        return authenticate(basicAuthCredentials, request.getHeaders());
+    }
 
+    @Override
+    public Identity authenticate(HttpServletRequest request)
+            throws AuthenticationException
+    {
+        Optional<BasicAuthCredentials> basicAuthCredentials = extractBasicAuthCredentials(request.getHeader(AUTHORIZATION));
+        MultivaluedMap<String, String> headers = extractRequestHeaders(request);
+        return authenticate(basicAuthCredentials, headers);
+    }
+
+    private Identity authenticate(Optional<BasicAuthCredentials> basicAuthCredentials, MultivaluedMap<String, String> headers)
+            throws AuthenticationException
+    {
         String user;
         if (basicAuthCredentials.isPresent()) {
             if (basicAuthCredentials.get().getPassword().isPresent()) {
@@ -57,10 +75,10 @@ public class InsecureAuthenticator
         }
         else {
             try {
-                ProtocolHeaders protocolHeaders = detectProtocol(alternateHeaderName, request.getHeaders().keySet());
-                user = emptyToNull(request.getHeaders().getFirst(protocolHeaders.requestOriginalUser()));
+                ProtocolHeaders protocolHeaders = detectProtocol(alternateHeaderName, headers.keySet());
+                user = emptyToNull(headers.getFirst(protocolHeaders.requestOriginalUser()));
                 if (user == null) {
-                    user = emptyToNull(request.getHeaders().getFirst(protocolHeaders.requestUser()));
+                    user = emptyToNull(headers.getFirst(protocolHeaders.requestUser()));
                 }
             }
             catch (ProtocolDetectionException e) {
