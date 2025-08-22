@@ -13,18 +13,22 @@
  */
 package io.trino.server.security;
 
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import io.trino.client.ProtocolDetectionException;
 import io.trino.server.ProtocolConfig;
 import io.trino.spi.security.AccessDeniedException;
 import io.trino.spi.security.Identity;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 
 import java.security.Principal;
 import java.util.Optional;
 
 import static com.google.common.base.Verify.verify;
+import static com.google.common.net.HttpHeaders.AUTHORIZATION;
 import static io.trino.client.ProtocolHeaders.detectProtocol;
 import static io.trino.server.security.BasicAuthCredentials.extractBasicAuthCredentials;
 import static io.trino.server.security.UserMapping.createUserMapping;
@@ -53,6 +57,26 @@ public class PasswordAuthenticator
     {
         BasicAuthCredentials basicAuthCredentials = extractBasicAuthCredentials(request)
                 .orElseThrow(() -> needAuthentication(null));
+        return authenticate(basicAuthCredentials, request.getHeaders());
+    }
+
+    @Override
+    public Identity authenticate(HttpServletRequest request)
+            throws AuthenticationException
+    {
+        BasicAuthCredentials basicAuthCredentials = extractBasicAuthCredentials(request.getHeader(AUTHORIZATION))
+                .orElseThrow(() -> needAuthentication(null));
+        MultivaluedMap<String, String> headers = new MultivaluedHashMap<>();
+        request.getHeaderNames().asIterator().forEachRemaining(header -> {
+            ImmutableList<String> values = ImmutableList.copyOf(request.getHeaders(header).asIterator());
+            headers.addAll(header, values);
+        });
+        return authenticate(basicAuthCredentials, headers);
+    }
+
+    private Identity authenticate(BasicAuthCredentials basicAuthCredentials, MultivaluedMap<String, String> headers)
+            throws AuthenticationException
+    {
         String user = basicAuthCredentials.getUser();
         String password = basicAuthCredentials.getPassword()
                 .orElseThrow(() -> new AuthenticationException("Malformed credentials: password is empty"));
@@ -64,7 +88,7 @@ public class PasswordAuthenticator
                 String authenticatedUser = userMapping.mapUser(principal.toString());
 
                 // rewrite the original "unmapped" user header to the mapped user (see method Javadoc for more details)
-                rewriteUserHeaderToMappedUser(basicAuthCredentials, request.getHeaders(), authenticatedUser);
+                rewriteUserHeaderToMappedUser(basicAuthCredentials, headers, authenticatedUser);
                 return Identity.forUser(authenticatedUser)
                         .withPrincipal(principal)
                         .build();
