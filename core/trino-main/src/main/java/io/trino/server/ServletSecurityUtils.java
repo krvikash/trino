@@ -22,6 +22,7 @@ import jakarta.ws.rs.core.Response.ResponseBuilder;
 import jakarta.ws.rs.core.Response.Status;
 import jakarta.ws.rs.core.SecurityContext;
 
+import java.net.URI;
 import java.security.Principal;
 import java.util.Collection;
 import java.util.Optional;
@@ -33,6 +34,8 @@ import static jakarta.ws.rs.core.Response.Status.UNAUTHORIZED;
 public final class ServletSecurityUtils
 {
     private static final String AUTHENTICATED_IDENTITY = "trino.authenticated-identity";
+    private static final int DEFAULT_HTTP_PORT = 80;
+    private static final int DEFAULT_HTTPS_PORT = 443;
 
     private ServletSecurityUtils() {}
 
@@ -44,6 +47,26 @@ public final class ServletSecurityUtils
     public static void sendWwwAuthenticate(ContainerRequestContext request, String errorMessage, Collection<String> authenticateHeaders)
     {
         request.abortWith(authenticateResponse(errorMessage, authenticateHeaders).build());
+    }
+
+    public static URI getBaseUri(HttpServletRequest request)
+    {
+        String scheme = request.getScheme();
+        String serverName = request.getServerName();
+        StringBuilder baseUri = new StringBuilder()
+                .append(scheme)
+                .append("://")
+                .append(serverName);
+
+        // Only include port in URI if it's non-standard
+        int serverPort = request.getServerPort();
+        boolean includePort = (scheme.equals("http") && serverPort != DEFAULT_HTTP_PORT) ||
+                (scheme.equals("https") && serverPort != DEFAULT_HTTPS_PORT);
+        if (includePort) {
+            baseUri.append(':').append(serverPort);
+        }
+
+        return URI.create(baseUri.toString());
     }
 
     private static ResponseBuilder authenticateResponse(String errorMessage, Collection<String> authenticateHeaders)

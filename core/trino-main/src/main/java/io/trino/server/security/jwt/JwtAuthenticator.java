@@ -24,11 +24,12 @@ import io.trino.server.security.UserMapping;
 import io.trino.server.security.UserMappingException;
 import io.trino.spi.security.BasicPrincipal;
 import io.trino.spi.security.Identity;
-import jakarta.ws.rs.container.ContainerRequestContext;
 
+import java.net.URI;
 import java.security.Key;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static io.jsonwebtoken.Claims.AUDIENCE;
 import static io.trino.server.security.UserMapping.createUserMapping;
@@ -99,7 +100,7 @@ public class JwtAuthenticator
     }
 
     @Override
-    protected AuthenticationException needAuthentication(ContainerRequestContext request, Optional<String> currentToken, String message)
+    protected AuthenticationException needAuthentication(Supplier<URI> baseUriSupplier, Optional<String> currentToken, String message)
     {
         return new AuthenticationException(message, "Bearer realm=\"Trino\", token_type=\"JWT\"");
     }

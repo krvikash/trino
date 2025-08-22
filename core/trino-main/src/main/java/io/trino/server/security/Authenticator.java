@@ -14,10 +14,17 @@
 package io.trino.server.security;
 
 import io.trino.spi.security.Identity;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.container.ContainerRequestContext;
 
 public interface Authenticator
 {
     Identity authenticate(ContainerRequestContext request)
             throws AuthenticationException;
+
+    default Identity authenticate(HttpServletRequest request)
+            throws AuthenticationException
+    {
+        throw new UnsupportedOperationException("This authenticator does not support HttpServletRequest authentication");
+    }
 }

@@ -23,7 +23,6 @@ import io.trino.server.security.UserMappingException;
 import io.trino.server.security.oauth2.TokenPairSerializer.TokenPair;
 import io.trino.spi.security.BasicPrincipal;
 import io.trino.spi.security.Identity;
-import jakarta.ws.rs.container.ContainerRequestContext;
 
 import java.net.URI;
 import java.sql.Date;
@@ -32,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import static io.trino.server.security.UserMapping.createUserMapping;
 import static io.trino.server.security.oauth2.OAuth2TokenExchangeResource.getInitiateUri;
@@ -101,21 +101,22 @@ public class OAuth2Authenticator
     }
 
     @Override
-    protected AuthenticationException needAuthentication(ContainerRequestContext request, Optional<String> currentToken, String message)
+    protected AuthenticationException needAuthentication(Supplier<URI> baseUriSupplier, Optional<String> currentToken, String message)
     {
         return currentToken
                 .flatMap(this::deserializeToken)
                 .flatMap(tokenRefresher::refreshToken)
-                .map(refreshId -> request.getUriInfo().getBaseUri().resolve(getTokenUri(refreshId)))
+                .map(refreshId -> baseUriSupplier.get().resolve(getTokenUri(refreshId)))
                 .map(tokenUri -> new AuthenticationException(message, format("Bearer x_token_server=\"%s\"", tokenUri)))
-                .orElseGet(() -> needAuthentication(request, message));
+                .orElseGet(() -> needAuthentication(baseUriSupplier, message));
     }
 
-    private AuthenticationException needAuthentication(ContainerRequestContext request, String message)
+    private AuthenticationException needAuthentication(Supplier<URI> baseUriSupplier, String message)
     {
         UUID authId = UUID.randomUUID();
-        URI initiateUri = request.getUriInfo().getBaseUri().resolve(getInitiateUri(authId));
-        URI tokenUri = request.getUriInfo().getBaseUri().resolve(getTokenUri(authId));
+        URI baseUri = baseUriSupplier.get();
+        URI initiateUri = baseUri.resolve(getInitiateUri(authId));
+        URI tokenUri = baseUri.resolve(getTokenUri(authId));
         return new AuthenticationException(message, format("Bearer x_redirect_server=\"%s\", x_token_server=\"%s\"", initiateUri, tokenUri));
     }
 }
