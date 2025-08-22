@@ -74,6 +74,8 @@ public class TestKafkaJsonReadsSmokeTest
     private static final String STRUCTURAL_JSON_TOPIC_NAME = "read_structural_datatype_json";
     private static final String STRUCTURAL_JSON_SCHEMA_PATH = "/docker/trino-product-tests/conf/trino/etc/catalog/kafka/structural_datatypes_json.json.schema";
 
+    private static final String REFERENCE_STRUCTURAL_JSON_SCHEMA_PATH = "/docker/trino-product-tests/conf/trino/etc/catalog/kafka/reference_structural_datatypes_json.json.schema";
+
     @Test(groups = {KAFKA, PROFILE_SPECIFIC_TESTS})
     public void testSelectPrimitiveDataType()
             throws Exception
@@ -174,6 +176,40 @@ public class TestKafkaJsonReadsSmokeTest
                             KAFKA_SCHEMA + "." + topicName));
                     assertThat(queryResult).containsOnly(row("str-1", "str-2", 1, 2, 3, "nested-string"));
                 });
+    }
+
+    @Test(groups = {KAFKA_CONFLUENT_LICENSE, PROFILE_SPECIFIC_TESTS})
+    public void testJsonWithSchemaReferences()
+            throws Exception
+    {
+        String tableName = "reference_structural_datatypes_json";
+        String topicName = tableName + KAFKA_SCHEMA_REGISTRY_CATALOG.topicNameSuffix();
+
+        createJsonTable(REFERENCE_STRUCTURAL_JSON_SCHEMA_PATH, tableName, topicName, new ReferencedRecord("foo", new StructuralDataTypeRecord(ImmutableList.of("a", "b"), new NestedDataTypeRecord(ImmutableList.of(1), "nested"))), KAFKA_SCHEMA_REGISTRY_CATALOG.messageSerializer());
+
+        assertEventually(
+                new Duration(30, SECONDS),
+                () -> {
+                    QueryResult queryResult = onTrino().executeQuery(format("select val, refer.a_array[1], refer.a_array[2], refer.a_object.arr_int[1], refer.a_object.ns from %s.%s.%s", KAFKA_SCHEMA_REGISTRY_CATALOG.catalogName(), KAFKA_SCHEMA, topicName));
+                    assertThat(queryResult).containsOnly(row(
+                            "foo",
+                            "a",
+                            "b",
+                            1L,
+                            "nested"));
+                });
+    }
+
+    private record ReferencedRecord(
+            @JsonProperty("val") String val,
+            @JsonProperty("refer") StructuralDataTypeRecord refer)
+            implements Record
+    {
+        @Override
+        public Set<String> keys()
+        {
+            return ImmutableSet.of("val", "refer");
+        }
     }
 
     private record KafkaCatalog(String catalogName, String topicNameSuffix, boolean columnMappingSupported, MessageSerializer messageSerializer)

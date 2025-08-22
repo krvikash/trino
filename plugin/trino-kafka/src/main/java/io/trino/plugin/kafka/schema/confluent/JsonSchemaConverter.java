@@ -191,7 +191,7 @@ public class JsonSchemaConverter
 
         private Optional<Type> convertReferenceSchema(ReferenceSchema schema)
         {
-            throw new UnsupportedOperationException("Schema %s not supported".formatted(schema.getClass().getSimpleName()));
+            return convert(schema.getReferredSchema());
         }
 
         @SuppressWarnings("unused")

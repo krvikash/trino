@@ -239,6 +239,23 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
     }
 
     @Test
+    void testReferenceType()
+    {
+        String referTopic = "topic-reference-" + randomNameSuffix();
+        assertNotExists(referTopic);
+        List<ProducerRecord<String, ReferenceEvent>> referenceMessages = ImmutableList.of(
+                new ProducerRecord<>(referTopic, "key-1", new ReferenceEvent("reference-string", new ObjectEvent("test-string",
+                        new NestedObjectEvent(ImmutableList.of(new NestedObject(ImmutableList.of(1, 2, 3), "nested-array-string")), "nested-string")))));
+        testingKafka.sendMessages(referenceMessages.stream(), properties());
+        waitUntilTableExists(referTopic);
+        assertCount(referTopic, 1);
+        assertThat(query("SELECT str, refer.str, refer.nestedObj.nestedString FROM " + toDoubleQuoted(referTopic)))
+                .matches("VALUES (VARCHAR 'reference-string', VARCHAR 'test-string', VARCHAR 'nested-string')");
+        assertThat(query("SELECT refer.nestedObj.arrObject[1].arrInt[1], refer.nestedObj.arrObject[1].arrInt[2], refer.nestedObj.arrObject[1].arrInt[3], refer.nestedObj.arrObject[1].nestedArrayString FROM " + toDoubleQuoted(referTopic)))
+                .matches("VALUES (BIGINT '1', BIGINT '2', BIGINT '3', VARCHAR 'nested-array-string')");
+    }
+
+    @Test
     void testTopicWithKeySubject()
     {
         String topic = "topic-Key-Subject-" + randomNameSuffix();
@@ -714,5 +731,63 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
     {}
 
     private record NestedObject(List<Integer> arrInt, String nestedArrayString)
+    {}
+
+    // use annotation to define the schema with reference column, the prue json serializer not
+    // support passing reference info
+    @Schema(value = """
+            {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "title": "reference_event",
+              "type": "object",
+              "properties": {
+                "str": {
+                  "type": "string"
+                },
+                "refer": {
+                    "$ref": "#/refs/object_event"
+                }
+              },
+              "refs": {
+                "object_event": {
+                    "$schema": "http://json-schema.org/draft-07/schema#",
+                    "title": "object_event",
+                    "type": "object",
+                    "properties": {
+                        "str": {
+                            "type": "string"
+                        },
+                        "nestedObj": {
+                            "type": "object",
+                            "properties": {
+                                "arrObject" : {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "arrInt": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "integer",
+                                                    "minimum": -2147483648,
+                                                    "maximum": 2147483647
+                                                }
+                                            },
+                                            "nestedArrayString": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                },
+                                "nestedString": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+              }
+            }""", refs = {})
+    private record ReferenceEvent(String str, ObjectEvent refer)
     {}
 }
