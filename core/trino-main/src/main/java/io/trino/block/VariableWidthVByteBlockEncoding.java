@@ -28,6 +28,8 @@ import java.util.Arrays;
 
 import static io.trino.block.VByteUtils.vByteDecodeInts;
 import static io.trino.block.VByteUtils.vByteEncodeInts;
+import static io.trino.spi.block.BlockShim.getRawArrayBase;
+import static io.trino.spi.block.BlockShim.getRawValueIsNull;
 import static io.trino.spi.block.EncoderUtil.decodeNullBits;
 import static io.trino.spi.block.EncoderUtil.encodeNullsAsBits;
 import static java.lang.String.format;
@@ -74,7 +76,7 @@ public class VariableWidthVByteBlockEncoding
 
         sliceOutput.appendInt(nonNullsCount);
         vByteEncodeInts(vByteEncoder, sliceOutput, lengths, 0, nonNullsCount);
-        encodeNullsAsBits(sliceOutput, variableWidthBlock);
+        encodeNullsAsBits(sliceOutput, getRawValueIsNull(variableWidthBlock), getRawArrayBase(variableWidthBlock), positionCount);
 
         sliceOutput
                 .appendInt(totalLength)

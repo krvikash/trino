@@ -26,6 +26,7 @@ import java.util.Optional;
 
 import static io.trino.block.VByteUtils.vByteDecodeInts;
 import static io.trino.block.VByteUtils.vByteEncodeInts;
+import static io.trino.spi.block.BlockShim.getRawValueIsNull;
 import static io.trino.spi.block.EncoderUtil.decodeNullBits;
 import static io.trino.spi.block.EncoderUtil.encodeNullsAsBits;
 import static io.trino.spi.block.EncoderUtil.retrieveNullBits;
@@ -58,7 +59,7 @@ public class IntArrayVByteBlockEncoding
         int positionCount = intArrayBlock.getPositionCount();
         sliceOutput.appendInt(positionCount);
 
-        encodeNullsAsBits(sliceOutput, intArrayBlock);
+        encodeNullsAsBits(sliceOutput, getRawValueIsNull(intArrayBlock), intArrayBlock.getRawValuesOffset(), positionCount);
 
         if (!intArrayBlock.mayHaveNull()) {
             vByteEncodeInts(vByteEncoder, sliceOutput, intArrayBlock.getRawValues(), intArrayBlock.getRawValuesOffset(), intArrayBlock.getPositionCount());
