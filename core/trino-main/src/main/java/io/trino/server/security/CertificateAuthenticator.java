@@ -13,14 +13,17 @@
  */
 package io.trino.server.security;
 
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import io.trino.spi.security.Identity;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.container.ContainerRequestContext;
 
 import java.security.Principal;
 import java.security.cert.X509Certificate;
 import java.util.List;
+import java.util.function.Supplier;
 
 import static io.trino.server.security.UserMapping.createUserMapping;
 import static java.util.Objects.requireNonNull;
@@ -45,7 +48,20 @@ public class CertificateAuthenticator
     public Identity authenticate(ContainerRequestContext request)
             throws AuthenticationException
     {
-        Object attribute = request.getProperty(X509_ATTRIBUTE);
+        return authenticate(Suppliers.memoize(() -> request.getProperty(X509_ATTRIBUTE)));
+    }
+
+    @Override
+    public Identity authenticate(HttpServletRequest request)
+            throws AuthenticationException
+    {
+        return authenticate(Suppliers.memoize(() -> request.getAttribute(X509_ATTRIBUTE)));
+    }
+
+    private Identity authenticate(Supplier<Object> certificateSupplier)
+            throws AuthenticationException
+    {
+        Object attribute = certificateSupplier.get();
         if (attribute == null) {
             throw new AuthenticationException(null);
         }
