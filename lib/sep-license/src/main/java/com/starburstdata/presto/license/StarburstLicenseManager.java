@@ -16,12 +16,14 @@ import com.google.common.io.ByteSource;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 
 import static com.google.common.base.Verify.verify;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static java.util.Objects.requireNonNull;
 
 class StarburstLicenseManager
@@ -59,7 +61,7 @@ class StarburstLicenseManager
     @Override
     public boolean hasLicense()
     {
-        return checkFeature(Optional.empty(), message -> {});
+        return checkFeature(Optional.empty(), _ -> {});
     }
 
     @Override
@@ -68,13 +70,13 @@ class StarburstLicenseManager
         boolean hasLicense = checkFeature(Optional.empty(), message -> {
             throw new StarburstLicenseException(message);
         });
-        verify(hasLicense, "No license for feature but check did not throw");
+        verify(hasLicense, "Not licensed for feature but check did not throw");
     }
 
     @Override
     public boolean hasFeature(StarburstFeature feature)
     {
-        return checkFeature(Optional.of(feature), message -> {});
+        return checkFeature(Optional.of(feature), _ -> {});
     }
 
     @Override
@@ -85,13 +87,11 @@ class StarburstLicenseManager
         boolean hasLicense = checkFeature(Optional.of(feature), (message) -> {
             throw new StarburstLicenseException(message);
         });
-        verify(hasLicense, "No license for feature but check did not throw");
+        verify(hasLicense, "Not licensed for feature but check did not throw");
     }
 
     private boolean checkFeature(Optional<StarburstFeature> feature, ErrorReporter errorReporter)
     {
-        requireNonNull(feature, "feature is null");
-
         Optional<License> license = getLicense();
         if (license.isEmpty()) {
             errorReporter.report(feature.map(StarburstFeature::getDisplayName)
@@ -110,11 +110,16 @@ class StarburstLicenseManager
             return true;
         }
 
-        if (feature.isPresent() && license.get().getFeatures().contains(feature.get().getFeatureName())) {
+        // avoid looking up features by name, since there are a lot of licenses that have references to non-existent features
+        Set<String> eligibleFeaturesNames = Arrays.stream(StarburstFeature.values())
+                .filter(f -> f.effectiveFeatures().contains(feature.get()))
+                .map(StarburstFeature::getFeatureName)
+                .collect(toImmutableSet());
+        if (license.get().getFeatures().stream().anyMatch(eligibleFeaturesNames::contains)) {
             return true;
         }
 
-        errorReporter.report("License does not allow to use the feature: " + feature.get().getDisplayName());
+        errorReporter.report("Not licensed for feature " + feature.get().getDisplayName());
         return false;
     }
 

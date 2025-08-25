@@ -10,7 +10,9 @@
 package com.starburstdata.presto.license;
 
 import com.google.common.base.CaseFormat;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.stream.Stream;
 
@@ -18,19 +20,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestStarburstFeature
 {
-    @Test
-    public void testFeatureName()
+    @ParameterizedTest
+    @EnumSource(StarburstFeature.class)
+    public void testFeatureName(StarburstFeature feature)
     {
-        for (StarburstFeature feature : StarburstFeature.values()) {
-            assertThat(feature.getFeatureName()).as(feature.name() + ".featureName")
-                    .isEqualTo(CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.LOWER_HYPHEN, feature.name()));
-        }
+        assertThat(feature.getFeatureName()).as(feature.name() + ".featureName")
+                .isEqualTo(CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.LOWER_HYPHEN, feature.name()));
     }
 
-    @Test
-    public void testFeatureListSorted()
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void testFeatureListSorted(boolean compositeFeature)
     {
         assertThat(Stream.of(StarburstFeature.values()))
+                // we can't enforce global ordering because composite features must appear after non-composite (they can
+                // only reference features already defined); we check ordering separately for composite and non-composite
+                .filteredOn(feature -> compositeFeature ^ (feature.effectiveFeatures().size() == 1))
                 .map(StarburstFeature::name)
                 .isSorted();
     }

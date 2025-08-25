@@ -13,11 +13,15 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedSet;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 import static java.time.ZoneOffset.UTC;
@@ -78,7 +82,7 @@ public class TestStarburstLicenseManager
         LicenseManager licenseManager = new StarburstLicenseManager(PAST, ImmutableSet.of(TestStarburstLicenseManager::getWildcardLicense));
         assertThatExceptionOfType(StarburstLicenseException.class)
                 .isThrownBy(() -> licenseManager.checkFeature(feature))
-                .withMessage("License does not allow to use the feature: " + feature.getDisplayName());
+                .withMessage("Not licensed for feature " + feature.getDisplayName());
     }
 
     @ParameterizedTest
@@ -87,6 +91,22 @@ public class TestStarburstLicenseManager
     {
         LicenseManager licenseManager = new StarburstLicenseManager(PAST, ImmutableSet.of(() -> getExplicitLicense(feature)));
         licenseManager.checkFeature(feature);
+    }
+
+    public static List<Arguments> compositeFeatureProvider()
+    {
+        return List.of(
+                Arguments.of(StarburstFeature.DELL, StarburstFeature.DELL.effectiveFeatures()));
+    }
+
+    @ParameterizedTest
+    @MethodSource("compositeFeatureProvider")
+    public void testCompositeFeature(StarburstFeature composite, Collection<StarburstFeature> features)
+    {
+        LicenseManager licenseManager = new StarburstLicenseManager(PAST, ImmutableSet.of(() -> getExplicitLicense(composite)));
+        for (StarburstFeature feature : features) {
+            licenseManager.checkFeature(feature);
+        }
     }
 
     @Test
