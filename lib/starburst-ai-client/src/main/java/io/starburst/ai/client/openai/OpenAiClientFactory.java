@@ -12,6 +12,7 @@ package io.starburst.ai.client.openai;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.openai.azure.AzureOpenAIServiceVersion;
+import com.openai.azure.credential.AzureApiKeyCredential;
 import com.openai.client.OpenAIClient;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
 import io.airlift.configuration.secrets.SecretsResolver;
@@ -104,7 +105,10 @@ public class OpenAiClientFactory
         });
         if (connectionInfo.apiKey().isPresent()) {
             OpenAiConnectionInfo resolvedConnectionInfo = resolveOpenAiSecrets(connectionInfo, secretsResolver);
-            builder.apiKey(resolvedConnectionInfo.apiKey().orElseThrow());
+            // Which header is set based on the input - https://github.com/openai/openai-java/blob/6f9c7834bb0b099530286e15c6e3ba5df0f779e4/openai-java-core/src/main/kotlin/com/openai/core/ClientOptions.kt#L484-L494
+            azureOpenAiConnectionInfo.ifPresentOrElse(
+                    _ -> builder.credential(AzureApiKeyCredential.create(resolvedConnectionInfo.apiKey().orElseThrow())),
+                    () -> builder.apiKey(resolvedConnectionInfo.apiKey().orElseThrow()));
         }
         connectionInfo.endpoint().ifPresent(builder::baseUrl);
         return builder.build();
