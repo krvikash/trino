@@ -18,6 +18,7 @@ import com.sun.security.auth.module.Krb5LoginModule;
 import io.airlift.log.Logger;
 import io.trino.spi.security.Identity;
 import jakarta.annotation.PreDestroy;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import org.ietf.jgss.GSSContext;
 import org.ietf.jgss.GSSCredential;
@@ -129,7 +130,20 @@ public class KerberosAuthenticator
             throws AuthenticationException
     {
         String header = request.getHeaders().getFirst(AUTHORIZATION);
+        return authenticateIdentity(header);
+    }
 
+    @Override
+    public Identity authenticate(HttpServletRequest request)
+            throws AuthenticationException
+    {
+        String header = request.getHeader(AUTHORIZATION);
+        return authenticateIdentity(header);
+    }
+
+    private Identity authenticateIdentity(String header)
+            throws AuthenticationException
+    {
         String requestSpnegoToken = null;
 
         Principal principal = null;
