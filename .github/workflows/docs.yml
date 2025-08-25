@@ -48,7 +48,7 @@ jobs:
     runs-on: [self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest]
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up AWS code-artifacts login
         uses: ./.github/actions/starburst-setup
         with:
@@ -80,7 +80,7 @@ jobs:
           - ":trino-tests"
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0 # checkout all commits, as the build result depends on `git describe` equivalent
       - uses: ./.github/actions/setup
