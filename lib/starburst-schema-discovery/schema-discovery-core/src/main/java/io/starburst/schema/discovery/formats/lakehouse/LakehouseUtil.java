@@ -9,13 +9,13 @@
  */
 package io.starburst.schema.discovery.formats.lakehouse;
 
+import io.starburst.schema.discovery.iceberg.fileio.ForwardingFileIo;
 import io.starburst.schema.discovery.io.DiscoveryTrinoFileSystem;
 import io.starburst.schema.discovery.io.LocationUtils;
 import io.starburst.schema.discovery.models.TableFormat;
 import io.starburst.schema.discovery.models.TablePath;
 import io.starburst.schema.discovery.processor.Processor.ProcessorPath;
 import io.trino.filesystem.Location;
-import io.trino.plugin.iceberg.fileio.ForwardingFileIo;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableMetadataParser;
 
@@ -27,13 +27,13 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.starburst.schema.discovery.iceberg.IcebergUtil.METADATA_FOLDER_NAME;
+import static io.starburst.schema.discovery.iceberg.IcebergUtil.getLatestMetadataLocation;
+import static io.starburst.schema.discovery.iceberg.IcebergUtil.locationEquivalent;
 import static io.starburst.schema.discovery.infer.InferPartitions.isPartitionName;
 import static io.starburst.schema.discovery.io.LocationUtils.directoryOrFileName;
 import static io.starburst.schema.discovery.io.LocationUtils.parentOf;
 import static io.starburst.schema.discovery.models.TablePath.asTablePath;
-import static io.trino.plugin.iceberg.IcebergUtil.METADATA_FOLDER_NAME;
-import static io.trino.plugin.iceberg.IcebergUtil.getLatestMetadataLocation;
-import static io.trino.plugin.iceberg.procedure.RegisterTableProcedure.locationEquivalent;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toMap;
 

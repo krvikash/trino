@@ -80,11 +80,6 @@
 
         <dependency>
             <groupId>io.trino</groupId>
-            <artifactId>trino-iceberg</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>io.trino</groupId>
             <artifactId>trino-metastore</artifactId>
         </dependency>
 
@@ -96,6 +91,11 @@
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-parquet</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-plugin-toolkit</artifactId>
         </dependency>
 
         <dependency>
