@@ -18,7 +18,6 @@ import io.trino.annotation.NotThreadSafe;
 import io.trino.array.ReferenceCountMap;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.operator.DriverYieldSignal;
-import io.trino.operator.Work;
 import io.trino.operator.WorkProcessor;
 import io.trino.operator.WorkProcessor.ProcessState;
 import io.trino.spi.Page;
@@ -171,7 +170,6 @@ public class PageProcessor
         // remember if we need to re-use the same batch size if we yield last time
         private boolean lastComputeYielded;
         private int lastComputeBatchSize;
-        private Work<Block> pageProjectWork;
 
         private ProjectSelectedPositions(
                 ConnectorSession session,
@@ -334,20 +332,12 @@ public class PageProcessor
                     blocks[i] = previouslyComputedResults[i].getRegion(0, batchSize);
                 }
                 else {
-                    if (pageProjectWork == null) {
-                        pageProjectWork = projection.project(session, projection.getInputChannels().getInputChannels(page), positionsBatch);
-                    }
-
                     expressionProfiler.start();
-                    boolean finished = pageProjectWork.process();
+                    Block result = projection.project(session, projection.getInputChannels().getInputChannels(page), positionsBatch);
                     long projectionTimeNanos = expressionProfiler.stop(positionsBatch.size());
                     metrics.recordProjectionTime(projectionTimeNanos);
 
-                    if (!finished) {
-                        return ProcessBatchResult.processBatchYield();
-                    }
-                    previouslyComputedResults[i] = pageProjectWork.getResult();
-                    pageProjectWork = null;
+                    previouslyComputedResults[i] = result;
                     blocks[i] = previouslyComputedResults[i];
                 }
 

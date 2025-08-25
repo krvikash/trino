@@ -13,7 +13,6 @@
  */
 package io.trino.operator.project;
 
-import io.trino.operator.Work;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SourcePage;
@@ -24,5 +23,5 @@ public interface PageProjection
 
     InputChannels getInputChannels();
 
-    Work<Block> project(ConnectorSession session, SourcePage page, SelectedPositions selectedPositions);
+    Block project(ConnectorSession session, SourcePage page, SelectedPositions selectedPositions);
 }
