@@ -100,21 +100,12 @@ function jdk_download_link() {
 
 check_environment
 
-if [ -n "$TRINO_VERSION" ]; then
-    echo "🎣 Downloading server and client artifacts for release version ${TRINO_VERSION}"
-    for artifactId in "io.trino:${SERVER_ARTIFACT}:${TRINO_VERSION}:tar.gz" io.trino:trino-cli:"${TRINO_VERSION}":jar:executable; do
-        "${SOURCE_DIR}/mvnw" -C dependency:get -Dtransitive=false -Dartifact="$artifactId"
-    done
-    local_repo=$("${SOURCE_DIR}/mvnw" -B help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
-    trino_server="$local_repo/io/trino/${SERVER_ARTIFACT}/${TRINO_VERSION}/${SERVER_ARTIFACT}-${TRINO_VERSION}.tar.gz"
-    trino_client="$local_repo/io/trino/trino-cli/${TRINO_VERSION}/trino-cli-${TRINO_VERSION}-executable.jar"
-    chmod +x "$trino_client"
-else
+if [[ "$TRINO_VERSION" == "" ]]; then
     TRINO_VERSION=$("${SOURCE_DIR}/mvnw" -f "${SOURCE_DIR}/pom.xml" --quiet help:evaluate -Dexpression=project.version -DforceStdout)
     echo "🎯 Using currently built artifacts from the core/${SERVER_ARTIFACT} and client/trino-cli modules and version ${TRINO_VERSION}"
-    trino_server="${SOURCE_DIR}/core/${SERVER_ARTIFACT}/target/${SERVER_ARTIFACT}-${TRINO_VERSION}.tar.gz"
-    trino_client="${SOURCE_DIR}/client/trino-cli/target/trino-cli-${TRINO_VERSION}-executable.jar"
 fi
+trino_server="${SOURCE_DIR}/core/${SERVER_ARTIFACT}/target/${SERVER_ARTIFACT}-${TRINO_VERSION}.tar.gz"
+trino_client="${SOURCE_DIR}/client/trino-cli/target/trino-cli-${TRINO_VERSION}-executable.jar"
 
 echo "🧱 Preparing the image build context directory"
 WORK_DIR="$(mktemp -d)"

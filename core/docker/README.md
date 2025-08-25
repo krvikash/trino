@@ -76,9 +76,9 @@ The Docker build process will print the ID of the image, which will also
 be tagged with `trino:xxx-SNAPSHOT`, where `xxx-SNAPSHOT` is the version
 number of the Trino Maven build.
 
-To build an image for a specific released version of Trino,
-specify the `-r` option, and the build script will download
-all the required artifacts:
+To build an image for a specific prebuilt version of Trino,
+specify the `-r` option. Previously you have to build the artifacts using 
+maven specifying appropriate `-Drevision=` argument
 
 ```bash
 ./build.sh -r 381
