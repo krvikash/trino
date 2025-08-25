@@ -21,7 +21,6 @@ import io.starburst.ai.client.EmbeddingModelClient;
 import io.starburst.ai.client.LanguageModelClient;
 import io.starburst.ai.client.ModelClientFactory;
 import io.starburst.ai.client.PromptDao;
-import io.starburst.ai.client.ReloadingModelClientProvider;
 import io.starburst.ai.model.EmbeddingModelConnectionSpec;
 import io.starburst.ai.model.LanguageModelConnectionSpec;
 import io.trino.spi.TrinoException;
@@ -41,7 +40,7 @@ import static java.util.Objects.requireNonNull;
 public class OpenAiClientFactory
         implements ModelClientFactory<OpenAiConnectionInfo>
 {
-    private static final Logger LOG = Logger.get(ReloadingModelClientProvider.class);
+    private static final Logger LOG = Logger.get(OpenAiClientFactory.class);
     // It is assumed that the Azure OpenAI endpoint is of the format: {baseUrl}/openai/deployments/{deploymentName}/chat/completions?api-version={version}
     private static final String AZURE_OPENAI_ENDPOINT_IDENTIFIER = "/openai/deployments/";
     private static final String AZURE_OPENAI_API_VERSION_QUERY_PARAM = "api-version";
@@ -77,9 +76,7 @@ public class OpenAiClientFactory
                 promptDao,
                 tracer,
                 isGeminiEndpoint,
-                createOpenAiClient(updatedConnectionInfo,
-                        azureOpenAiConnectionInfo.map(AzureOpenAiConnectionInfo::apiVersion),
-                        azureOpenAiConnectionInfo.map(AzureOpenAiConnectionInfo::isCustomAzureOpenAiDeployment).orElse(false)));
+                createOpenAiClient(updatedConnectionInfo, azureOpenAiConnectionInfo));
     }
 
     @Override
@@ -91,23 +88,18 @@ public class OpenAiClientFactory
                 .map(azureConnectionInfo -> new OpenAiConnectionInfo(Optional.of(azureConnectionInfo.endpoint()), connectionInfo.apiKey()))
                 .orElse(connectionInfo);
         String modelName = azureOpenAiConnectionInfo.map(AzureOpenAiConnectionInfo::deployment).orElse(spec.modelName());
-        return new OpenAiEmbeddingModelClient(modelName,
-                spec.dimensions(),
-                createOpenAiClient(updatedConnectionInfo,
-                        azureOpenAiConnectionInfo.map(AzureOpenAiConnectionInfo::apiVersion),
-                        azureOpenAiConnectionInfo.map(AzureOpenAiConnectionInfo::isCustomAzureOpenAiDeployment).orElse(false)));
+        return new OpenAiEmbeddingModelClient(modelName, spec.dimensions(), createOpenAiClient(updatedConnectionInfo, azureOpenAiConnectionInfo));
     }
 
-    private OpenAIClient createOpenAiClient(OpenAiConnectionInfo connectionInfo, Optional<String> azureOpenAiApiVersion, boolean isCustomAzureOpenAiDeployment)
+    private OpenAIClient createOpenAiClient(OpenAiConnectionInfo connectionInfo, Optional<AzureOpenAiConnectionInfo> azureOpenAiConnectionInfo)
     {
         OpenAIOkHttpClient.Builder builder = OpenAIOkHttpClient.builder();
-        azureOpenAiApiVersion.ifPresent(apiVersion -> builder.azureServiceVersion(AzureOpenAIServiceVersion.fromString(apiVersion)));
-        azureOpenAiApiVersion.ifPresent(apiVersion -> {
-            if (isCustomAzureOpenAiDeployment) {
-                builder.putQueryParam(AZURE_OPENAI_API_VERSION_QUERY_PARAM, apiVersion);
+        azureOpenAiConnectionInfo.ifPresent(info -> {
+            if (info.isCustomAzureOpenAiDeployment()) {
+                builder.putQueryParam(AZURE_OPENAI_API_VERSION_QUERY_PARAM, info.apiVersion());
             }
             else {
-                builder.azureServiceVersion(AzureOpenAIServiceVersion.fromString(apiVersion));
+                builder.azureServiceVersion(AzureOpenAIServiceVersion.fromString(info.apiVersion()));
             }
         });
         if (connectionInfo.apiKey().isPresent()) {
@@ -128,21 +120,21 @@ public class OpenAiClientFactory
                     String defaultVersion = AzureOpenAIServiceVersion.latestPreviewVersion().value();
                     try {
                         URI uri = new URI(endpoint);
-                        AzureOpenAiEndpointBreakdown azureOpenAiEndpointBreakdown;
+                        AzureOpenAiEndpointComponents azureOpenAiEndpointComponents;
                         boolean isCustomAzureOpenAiDeployment = false;
                         // Copied from https://github.com/openai/openai-java/blob/71cf8abd87f4e7ea4ab658d813499f3e30aee632/openai-java-core/src/main/kotlin/com/openai/core/Utils.kt#L98-L100
                         if (endpoint.contains(".openai.azure.com")
                                 || endpoint.contains(".azure-api.net")
                                 || endpoint.contains(".cognitiveservices.azure.com")) {
-                            azureOpenAiEndpointBreakdown = getOpenAiAzureEndpoint(endpoint);
+                            azureOpenAiEndpointComponents = getOpenAiAzureEndpoint(endpoint);
                         }
                         else {
-                            azureOpenAiEndpointBreakdown = getCustomOpenAiAzureEndpoint(endpoint);
+                            azureOpenAiEndpointComponents = getCustomOpenAiAzureEndpoint(endpoint);
                             isCustomAzureOpenAiDeployment = true;
                         }
 
-                        String deploymentName = azureOpenAiEndpointBreakdown.deployment;
-                        String baseUrl = azureOpenAiEndpointBreakdown.baseUrl;
+                        String deploymentName = azureOpenAiEndpointComponents.deployment;
+                        String baseUrl = azureOpenAiEndpointComponents.baseUrl;
                         // Get api version
                         String query = uri.getQuery();
                         if (query == null || query.isEmpty()) {
@@ -164,7 +156,7 @@ public class OpenAiClientFactory
                 });
     }
 
-    private static AzureOpenAiEndpointBreakdown getOpenAiAzureEndpoint(String endpoint)
+    private static AzureOpenAiEndpointComponents getOpenAiAzureEndpoint(String endpoint)
     {
         int remainingPathStartIndex = endpoint.indexOf(AZURE_OPENAI_ENDPOINT_IDENTIFIER);
         String baseUrl = endpoint.substring(0, remainingPathStartIndex);
@@ -177,10 +169,10 @@ public class OpenAiClientFactory
             throw new TrinoException(INVALID_MODEL_CONFIGURATION, "Invalid Azure OpenAI endpoint - missing deployment");
         }
         deploymentName = remainingPath.substring(deploymentStartIndex, endIndex);
-        return new AzureOpenAiEndpointBreakdown(baseUrl, deploymentName);
+        return new AzureOpenAiEndpointComponents(baseUrl, deploymentName);
     }
 
-    private static AzureOpenAiEndpointBreakdown getCustomOpenAiAzureEndpoint(String endpoint)
+    private static AzureOpenAiEndpointComponents getCustomOpenAiAzureEndpoint(String endpoint)
     {
         int remainingPathStartIndex = endpoint.indexOf("/chat/completions");
         if (remainingPathStartIndex == -1) {
@@ -188,12 +180,12 @@ public class OpenAiClientFactory
         }
         String baseUrl = endpoint.substring(0, remainingPathStartIndex);
         // deployment is already part of baseUrl
-        return new AzureOpenAiEndpointBreakdown(baseUrl, "");
+        return new AzureOpenAiEndpointComponents(baseUrl, "");
     }
 
-    private record AzureOpenAiEndpointBreakdown(String baseUrl, String deployment)
+    private record AzureOpenAiEndpointComponents(String baseUrl, String deployment)
     {
-        public AzureOpenAiEndpointBreakdown
+        public AzureOpenAiEndpointComponents
         {
             requireNonNull(baseUrl, "baseUrl is null");
             requireNonNull(deployment, "deployment is null");
