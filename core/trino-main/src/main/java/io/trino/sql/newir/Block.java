@@ -15,6 +15,7 @@ package io.trino.sql.newir;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.spi.TrinoException;
+import io.trino.sql.dialect.trino.TrinoDialect;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation.AttributeKey;
 
@@ -24,8 +25,10 @@ import java.util.Optional;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.ir.IrDialect.IR;
 import static io.trino.sql.dialect.ir.IrDialect.TERMINAL;
+import static io.trino.sql.dialect.trino.TrinoAttributeRegistry.TESTING_TRINO_ATTRIBUTE_REGISTRY;
 import static io.trino.sql.newir.FormatOptions.INDENT;
 import static io.trino.sql.newir.FormatOptions.isValidPrefixedIdentifier;
+import static io.trino.sql.newir.NoopTypeManager.NOOP_TYPE_MANAGER;
 import static io.trino.sql.newir.Value.validateValueName;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -166,5 +169,11 @@ public record Block(Optional<String> name, List<Parameter> parameters, List<Oper
         {
             return new Block(name, parameters, operations.build());
         }
+    }
+
+    @Override
+    public String toString()
+    {
+        return print(0, new FormatOptions(new DialectRegistry(new TrinoDialect(NOOP_TYPE_MANAGER, TESTING_TRINO_ATTRIBUTE_REGISTRY))).printOptions());
     }
 }
