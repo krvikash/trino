@@ -88,7 +88,7 @@ public class PageProcessor
                     return projection;
                 })
                 .collect(toImmutableList());
-        this.projectBatchSize = initialBatchSize.orElse(1);
+        this.projectBatchSize = initialBatchSize.orElse(64);
         this.expressionProfiler = requireNonNull(expressionProfiler, "expressionProfiler is null");
     }
 
