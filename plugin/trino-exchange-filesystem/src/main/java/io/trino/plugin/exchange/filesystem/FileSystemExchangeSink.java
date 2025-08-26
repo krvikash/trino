@@ -424,9 +424,9 @@ public class FileSystemExchangeSink
         @GuardedBy("this")
         private CompletableFuture<Void> blockedFuture = new CompletableFuture<>();
         @GuardedBy("this")
-        private boolean closed;
+        private volatile boolean closed; // volatile for sake of getRetainedSize
         @GuardedBy("this")
-        private int numBuffersCreated;
+        private volatile int numBuffersCreated; // volatile for sake of getRetainedSize
 
         public BufferPool(FileSystemExchangeStats stats, int maxNumBuffers, int writeBufferSize)
         {
@@ -489,7 +489,8 @@ public class FileSystemExchangeSink
             completableFuture.complete(null);
         }
 
-        public synchronized long getRetainedSize()
+        @SuppressWarnings("GuardedBy")
+        public long getRetainedSize()
         {
             if (closed) {
                 return INSTANCE_SIZE;
