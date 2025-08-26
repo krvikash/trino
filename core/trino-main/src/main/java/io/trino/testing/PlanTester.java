@@ -196,6 +196,7 @@ import io.trino.sql.planner.CompilerConfig;
 import io.trino.sql.planner.LocalExecutionPlanner;
 import io.trino.sql.planner.LocalExecutionPlanner.LocalExecutionPlan;
 import io.trino.sql.planner.LogicalPlanner;
+import io.trino.sql.planner.LogicalPlanner.PlanOptions;
 import io.trino.sql.planner.NodePartitioningManager;
 import io.trino.sql.planner.OptimizerConfig;
 import io.trino.sql.planner.Plan;
@@ -977,6 +978,19 @@ public class PlanTester
 
     public Plan createPlan(Session session, @Language("SQL") String sql, List<PlanOptimizer> optimizers, List<PlanOptimizer> alternativeOptimizers, LogicalPlanner.Stage stage, WarningCollector warningCollector, PlanOptimizersStatsCollector planOptimizersStatsCollector)
     {
+        return createPlanOptions(session, sql, optimizers, alternativeOptimizers, stage, warningCollector, planOptimizersStatsCollector, false).oldIrPlan();
+    }
+
+    public PlanOptions createPlanOptions(
+            Session session,
+            @Language("SQL") String sql,
+            List<PlanOptimizer> optimizers,
+            List<PlanOptimizer> alternativeOptimizers,
+            LogicalPlanner.Stage stage,
+            WarningCollector warningCollector,
+            PlanOptimizersStatsCollector planOptimizersStatsCollector,
+            boolean reuseCommonSubqueriesAllowed)
+    {
         // session must be in a transaction registered with the transaction manager in this query runner
         transactionManager.getTransactionInfo(session.getRequiredTransactionId());
 
@@ -1010,7 +1024,7 @@ public class PlanTester
 
         Analysis analysis = analyzer.analyze(preparedQuery.getStatement());
         // make PlanTester always compute plan statistics for test purposes
-        return logicalPlanner.planToOldIr(analysis, stage);
+        return logicalPlanner.plan(analysis, stage, reuseCommonSubqueriesAllowed);
     }
 
     public SubPlan createAdaptivePlan(Session session, SubPlan subPlan, List<AdaptivePlanOptimizer> optimizers, WarningCollector warningCollector, PlanOptimizersStatsCollector planOptimizersStatsCollector, RuntimeInfoProvider runtimeInfoProvider)

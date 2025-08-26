@@ -211,7 +211,7 @@ public abstract class BaseCostBasedPlanTest
         }
     }
 
-    private String generateQueryPlan(String query)
+    protected String generateQueryPlan(String query)
     {
         try {
             return getPlanTester().inTransaction(transactionSession -> {

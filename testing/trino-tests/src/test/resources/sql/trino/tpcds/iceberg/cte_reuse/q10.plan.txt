@@ -1,0 +1,1896 @@
+IR version = 1
+%0 = query() : () -> "boolean" ({
+    ^query
+        %1 = table_scan() : () -> "multiset(row(bigint,bigint))" ()
+            {table_handle = "[test: table_handle attribute]", column_handles = "[test: column_handles attribute]", constraint = "[test: constraint attribute]", update_target = "false", use_connector_node_partitioning = "false"}
+        %2 = filter(%1) : ("multiset(row(bigint,bigint))") -> "multiset(row(bigint,bigint))" ({
+            ^predicate (%3 : "row(bigint,bigint)")
+                %1614 = field_reference(%3) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %1615 = constant() : () -> "varchar" ()
+                    {constant_result = "[test: constant_result attribute]"}
+                %1616 = constant() : () -> "varchar" ()
+                    {constant_result = "[test: constant_result attribute]"}
+                %1617 = constant() : () -> "boolean" ()
+                    {constant_result = "{""type"":""boolean"",""value"":false}"}
+                %1618 = constant() : () -> "integer" ()
+                    {constant_result = "{""type"":""integer"",""value"":0}"}
+                %1619 = call(%1614, %1615, %1616, %1617, %1618) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
+                    {resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                %1621 = field_reference(%3) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "1"}
+                %1622 = constant() : () -> "varchar" ()
+                    {constant_result = "[test: constant_result attribute]"}
+                %1623 = constant() : () -> "varchar" ()
+                    {constant_result = "[test: constant_result attribute]"}
+                %1624 = constant() : () -> "boolean" ()
+                    {constant_result = "{""type"":""boolean"",""value"":false}"}
+                %1625 = constant() : () -> "integer" ()
+                    {constant_result = "{""type"":""integer"",""value"":20000}"}
+                %1626 = call(%1621, %1622, %1623, %1624, %1625) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
+                    {resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                %1630 = logical(%1619, %1626) : ("boolean", "boolean") -> "boolean" ()
+                    {logical_operator = "AND"}
+                %1631 = return(%1630) : ("boolean") -> "boolean" ()
+                    {ir.terminal = "true"}
+            })
+        %1070 = table_scan() : () -> "multiset(row(bigint,integer,integer))" ()
+            {table_handle = "[test: table_handle attribute]", column_handles = "[test: column_handles attribute]", constraint = "[test: constraint attribute]", update_target = "false", use_connector_node_partitioning = "false"}
+        %1370 = filter(%1070) : ("multiset(row(bigint,integer,integer))") -> "multiset(row(bigint,integer,integer))" ({
+            ^predicate (%1080 : "row(bigint,integer,integer)")
+                %1269 = field_reference(%1080) : ("row(bigint,integer,integer)") -> "integer" ()
+                    {field_index = "2"}
+                %1270 = constant() : () -> "integer" ()
+                    {constant_result = "{""type"":""integer"",""value"":1}"}
+                %1271 = constant() : () -> "integer" ()
+                    {constant_result = "{""type"":""integer"",""value"":4}"}
+                %1272 = between(%1269, %1270, %1271) : ("integer", "integer", "integer") -> "boolean" ()
+                %1274 = field_reference(%1080) : ("row(bigint,integer,integer)") -> "integer" ()
+                    {field_index = "1"}
+                %1275 = constant() : () -> "integer" ()
+                    {constant_result = "{""type"":""integer"",""value"":2002}"}
+                %1276 = comparison(%1274, %1275) : ("integer", "integer") -> "boolean" ()
+                    {comparison_operator = "EQUAL"}
+                %1278 = logical(%1272, %1276) : ("boolean", "boolean") -> "boolean" ()
+                    {logical_operator = "AND"}
+                %1279 = return(%1278) : ("boolean") -> "boolean" ()
+                    {ir.terminal = "true"}
+            })
+        %1390 = project(%1370) : ("multiset(row(bigint,integer,integer))") -> "multiset(row(bigint))" ({
+            ^assignments (%1386 : "row(bigint,integer,integer)")
+                %1387 = field_reference(%1386) : ("row(bigint,integer,integer)") -> "bigint" ()
+                    {field_index = "0"}
+                %1388 = row(%1387) : ("bigint") -> "row(bigint)" ()
+                %1389 = return(%1388) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            })
+        %1434 = exchange(%1390) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^inputSelector (%1430 : "row(bigint)")
+                %1431 = field_reference(%1430) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %1432 = row(%1431) : ("bigint") -> "row(bigint)" ()
+                %1433 = return(%1432) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%40 : "row(bigint)")
+                %41 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %42 = return(%41) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%43 : "row(bigint)")
+                %44 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %45 = return(%44) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%46 : "row(bigint)")
+                %47 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %48 = return(%47) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "REPLICATE", exchange_scope = "REMOTE", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %49 = exchange(%1434) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^inputSelector (%50 : "row(bigint)")
+                %51 = field_reference(%50) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %52 = row(%51) : ("bigint") -> "row(bigint)" ()
+                %53 = return(%52) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%54 : "row(bigint)")
+                %55 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %56 = return(%55) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%57 : "row(bigint)")
+                %58 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %59 = return(%58) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%60 : "row(bigint)")
+                %61 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %62 = return(%61) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %63 = join(%2, %49) : ("multiset(row(bigint,bigint))", "multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^leftCriteriaSelector (%64 : "row(bigint,bigint)")
+                %65 = field_reference(%64) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "1"}
+                %66 = row(%65) : ("bigint") -> "row(bigint)" ()
+                %67 = return(%66) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^rightCriteriaSelector (%68 : "row(bigint)")
+                %69 = field_reference(%68) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %70 = row(%69) : ("bigint") -> "row(bigint)" ()
+                %71 = return(%70) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^filter (%72 : "row(bigint,bigint)", %73 : "row(bigint)")
+                %74 = constant() : () -> "boolean" ()
+                    {constant_result = "{""type"":""boolean"",""value"":true}"}
+                %75 = return(%74) : ("boolean") -> "boolean" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^leftOutputSelector (%76 : "row(bigint,bigint)")
+                %77 = field_reference(%76) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %78 = row(%77) : ("bigint") -> "row(bigint)" ()
+                %79 = return(%78) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^rightOutputSelector (%80 : "row(bigint)")
+                %81 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %82 = return(%81) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^dynamicFilterTargetSelector (%83 : "row(bigint)")
+                %84 = field_reference(%83) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %1757 = row(%84) : ("bigint") -> "row(bigint)" ()
+                %1758 = return(%1757) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            })
+            {join_type = "INNER", may_skip_output_duplicates = "true", distribution_type = "REPLICATED", dynamic_filter_ids = "[""df_2528""]", statistics_and_cost_summary = "{""outputRowCount"":1.0680103214091963E8,""outputSizeInBytes"":9.569362957079527E8,""cpuCost"":5.25685507905679E10,""memoryCost"":9875.228210153075,""networkCost"":9875.228210153075}"}
+        %87 = aggregation(%63) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^aggregates (%88 : "multiset(row(bigint))")
+                %89 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %90 = return(%89) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^groupingKeysSelector (%91 : "row(bigint)")
+                %92 = field_reference(%91) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %93 = row(%92) : ("bigint") -> "row(bigint)" ()
+                %94 = return(%93) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%95 : "row(bigint)")
+                %96 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %97 = return(%96) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {grouping_sets_count = "1", global_grouping_sets = "[]", pre_grouped_indexes = "[]", aggregation_step = "PARTIAL", input_reducing = "true"}
+        %98 = exchange(%87) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^inputSelector (%99 : "row(bigint)")
+                %100 = field_reference(%99) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %101 = row(%100) : ("bigint") -> "row(bigint)" ()
+                %102 = return(%101) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%103 : "row(bigint)")
+                %104 = field_reference(%103) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %105 = row(%104) : ("bigint") -> "row(bigint)" ()
+                %106 = return(%105) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%107 : "row(bigint)")
+                %108 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %109 = return(%108) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%110 : "row(bigint)")
+                %111 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %112 = return(%111) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "REPARTITION", exchange_scope = "REMOTE", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %113 = exchange(%98) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^inputSelector (%114 : "row(bigint)")
+                %115 = field_reference(%114) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %116 = row(%115) : ("bigint") -> "row(bigint)" ()
+                %117 = return(%116) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%118 : "row(bigint)")
+                %119 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %120 = return(%119) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%121 : "row(bigint)")
+                %122 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %123 = return(%122) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%124 : "row(bigint)")
+                %125 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %126 = return(%125) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %127 = aggregation(%113) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^aggregates (%128 : "multiset(row(bigint))")
+                %129 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %130 = return(%129) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^groupingKeysSelector (%131 : "row(bigint)")
+                %132 = field_reference(%131) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %133 = row(%132) : ("bigint") -> "row(bigint)" ()
+                %134 = return(%133) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%135 : "row(bigint)")
+                %136 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %137 = return(%136) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {grouping_sets_count = "1", global_grouping_sets = "[]", pre_grouped_indexes = "[]", aggregation_step = "FINAL", input_reducing = "false"}
+        %138 = project(%127) : ("multiset(row(bigint))") -> "multiset(row(boolean,bigint))" ({
+            ^assignments (%139 : "row(bigint)")
+                %140 = constant() : () -> "boolean" ()
+                    {constant_result = "{""type"":""boolean"",""value"":true}"}
+                %141 = field_reference(%139) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %142 = row(%140, %141) : ("boolean", "bigint") -> "row(boolean,bigint)" ()
+                %143 = return(%142) : ("row(boolean,bigint)") -> "row(boolean,bigint)" ()
+                    {ir.terminal = "true"}
+            })
+        %144 = table_scan() : () -> "multiset(row(bigint,bigint))" ()
+            {table_handle = "[test: table_handle attribute]", column_handles = "[test: column_handles attribute]", constraint = "[test: constraint attribute]", update_target = "false", use_connector_node_partitioning = "false"}
+        %145 = filter(%144) : ("multiset(row(bigint,bigint))") -> "multiset(row(bigint,bigint))" ({
+            ^predicate (%146 : "row(bigint,bigint)")
+                %1669 = field_reference(%146) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %1670 = constant() : () -> "varchar" ()
+                    {constant_result = "[test: constant_result attribute]"}
+                %1671 = constant() : () -> "varchar" ()
+                    {constant_result = "[test: constant_result attribute]"}
+                %1672 = constant() : () -> "boolean" ()
+                    {constant_result = "{""type"":""boolean"",""value"":false}"}
+                %1673 = constant() : () -> "integer" ()
+                    {constant_result = "{""type"":""integer"",""value"":0}"}
+                %1674 = call(%1669, %1670, %1671, %1672, %1673) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
+                    {resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                %1676 = field_reference(%146) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "1"}
+                %1677 = constant() : () -> "varchar" ()
+                    {constant_result = "[test: constant_result attribute]"}
+                %1678 = constant() : () -> "varchar" ()
+                    {constant_result = "[test: constant_result attribute]"}
+                %1679 = constant() : () -> "boolean" ()
+                    {constant_result = "{""type"":""boolean"",""value"":false}"}
+                %1680 = constant() : () -> "integer" ()
+                    {constant_result = "{""type"":""integer"",""value"":20000}"}
+                %1681 = call(%1676, %1677, %1678, %1679, %1680) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
+                    {resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                %1685 = logical(%1674, %1681) : ("boolean", "boolean") -> "boolean" ()
+                    {logical_operator = "AND"}
+                %1686 = return(%1685) : ("boolean") -> "boolean" ()
+                    {ir.terminal = "true"}
+            })
+        %192 = exchange(%1434) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^inputSelector (%193 : "row(bigint)")
+                %194 = field_reference(%193) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %195 = row(%194) : ("bigint") -> "row(bigint)" ()
+                %196 = return(%195) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%197 : "row(bigint)")
+                %198 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %199 = return(%198) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%200 : "row(bigint)")
+                %201 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %202 = return(%201) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%203 : "row(bigint)")
+                %204 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %205 = return(%204) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %206 = join(%145, %192) : ("multiset(row(bigint,bigint))", "multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^leftCriteriaSelector (%207 : "row(bigint,bigint)")
+                %208 = field_reference(%207) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "1"}
+                %209 = row(%208) : ("bigint") -> "row(bigint)" ()
+                %210 = return(%209) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^rightCriteriaSelector (%211 : "row(bigint)")
+                %212 = field_reference(%211) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %213 = row(%212) : ("bigint") -> "row(bigint)" ()
+                %214 = return(%213) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^filter (%215 : "row(bigint,bigint)", %216 : "row(bigint)")
+                %217 = constant() : () -> "boolean" ()
+                    {constant_result = "{""type"":""boolean"",""value"":true}"}
+                %218 = return(%217) : ("boolean") -> "boolean" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^leftOutputSelector (%219 : "row(bigint,bigint)")
+                %220 = field_reference(%219) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %221 = row(%220) : ("bigint") -> "row(bigint)" ()
+                %222 = return(%221) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^rightOutputSelector (%223 : "row(bigint)")
+                %224 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %225 = return(%224) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^dynamicFilterTargetSelector (%226 : "row(bigint)")
+                %227 = field_reference(%226) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %1759 = row(%227) : ("bigint") -> "row(bigint)" ()
+                %1760 = return(%1759) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            })
+            {join_type = "INNER", may_skip_output_duplicates = "true", distribution_type = "REPLICATED", dynamic_filter_ids = "[""df_2535""]", statistics_and_cost_summary = "{""outputRowCount"":5.4038126128605045E7,""outputSizeInBytes"":4.8623516883909374E8,""cpuCost"":2.6403289743699043E10,""memoryCost"":9875.228210153075,""networkCost"":9875.228210153075}"}
+        %230 = aggregation(%206) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^aggregates (%231 : "multiset(row(bigint))")
+                %232 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %233 = return(%232) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^groupingKeysSelector (%234 : "row(bigint)")
+                %235 = field_reference(%234) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %236 = row(%235) : ("bigint") -> "row(bigint)" ()
+                %237 = return(%236) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%238 : "row(bigint)")
+                %239 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %240 = return(%239) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {grouping_sets_count = "1", global_grouping_sets = "[]", pre_grouped_indexes = "[]", aggregation_step = "PARTIAL", input_reducing = "true"}
+        %241 = exchange(%230) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^inputSelector (%242 : "row(bigint)")
+                %243 = field_reference(%242) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %244 = row(%243) : ("bigint") -> "row(bigint)" ()
+                %245 = return(%244) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%246 : "row(bigint)")
+                %247 = field_reference(%246) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %248 = row(%247) : ("bigint") -> "row(bigint)" ()
+                %249 = return(%248) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%250 : "row(bigint)")
+                %251 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %252 = return(%251) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%253 : "row(bigint)")
+                %254 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %255 = return(%254) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "REPARTITION", exchange_scope = "REMOTE", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %256 = exchange(%241) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^inputSelector (%257 : "row(bigint)")
+                %258 = field_reference(%257) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %259 = row(%258) : ("bigint") -> "row(bigint)" ()
+                %260 = return(%259) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%261 : "row(bigint)")
+                %262 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %263 = return(%262) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%264 : "row(bigint)")
+                %265 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %266 = return(%265) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%267 : "row(bigint)")
+                %268 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %269 = return(%268) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %270 = aggregation(%256) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^aggregates (%271 : "multiset(row(bigint))")
+                %272 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %273 = return(%272) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^groupingKeysSelector (%274 : "row(bigint)")
+                %275 = field_reference(%274) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %276 = row(%275) : ("bigint") -> "row(bigint)" ()
+                %277 = return(%276) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%278 : "row(bigint)")
+                %279 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %280 = return(%279) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {grouping_sets_count = "1", global_grouping_sets = "[]", pre_grouped_indexes = "[]", aggregation_step = "FINAL", input_reducing = "false"}
+        %281 = project(%270) : ("multiset(row(bigint))") -> "multiset(row(boolean,bigint))" ({
+            ^assignments (%282 : "row(bigint)")
+                %283 = constant() : () -> "boolean" ()
+                    {constant_result = "{""type"":""boolean"",""value"":true}"}
+                %284 = field_reference(%282) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %285 = row(%283, %284) : ("boolean", "bigint") -> "row(boolean,bigint)" ()
+                %286 = return(%285) : ("row(boolean,bigint)") -> "row(boolean,bigint)" ()
+                    {ir.terminal = "true"}
+            })
+        %287 = table_scan() : () -> "multiset(row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer))" ()
+            {table_handle = "[test: table_handle attribute]", column_handles = "[test: column_handles attribute]", constraint = "[test: constraint attribute]", update_target = "false", use_connector_node_partitioning = "false"}
+        %288 = filter(%287) : ("multiset(row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer))") -> "multiset(row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer))" ({
+            ^predicate (%289 : "row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer)")
+                %1689 = field_reference(%289) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "bigint" ()
+                    {field_index = "0"}
+                %1690 = constant() : () -> "varchar" ()
+                    {constant_result = "[test: constant_result attribute]"}
+                %1691 = constant() : () -> "varchar" ()
+                    {constant_result = "[test: constant_result attribute]"}
+                %1692 = constant() : () -> "boolean" ()
+                    {constant_result = "{""type"":""boolean"",""value"":false}"}
+                %1693 = constant() : () -> "integer" ()
+                    {constant_result = "{""type"":""integer"",""value"":0}"}
+                %1694 = call(%1689, %1690, %1691, %1692, %1693) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
+                    {resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                %1699 = return(%1694) : ("boolean") -> "boolean" ()
+                    {ir.terminal = "true"}
+            })
+        %297 = table_scan() : () -> "multiset(row(bigint,bigint))" ()
+            {table_handle = "[test: table_handle attribute]", column_handles = "[test: column_handles attribute]", constraint = "[test: constraint attribute]", update_target = "false", use_connector_node_partitioning = "false"}
+        %298 = filter(%297) : ("multiset(row(bigint,bigint))") -> "multiset(row(bigint,bigint))" ({
+            ^predicate (%299 : "row(bigint,bigint)")
+                %1722 = field_reference(%299) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %1723 = constant() : () -> "varchar" ()
+                    {constant_result = "[test: constant_result attribute]"}
+                %1724 = constant() : () -> "varchar" ()
+                    {constant_result = "[test: constant_result attribute]"}
+                %1725 = constant() : () -> "boolean" ()
+                    {constant_result = "{""type"":""boolean"",""value"":false}"}
+                %1726 = constant() : () -> "integer" ()
+                    {constant_result = "{""type"":""integer"",""value"":0}"}
+                %1727 = call(%1722, %1723, %1724, %1725, %1726) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
+                    {resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                %1729 = field_reference(%299) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "1"}
+                %1730 = constant() : () -> "varchar" ()
+                    {constant_result = "[test: constant_result attribute]"}
+                %1731 = constant() : () -> "varchar" ()
+                    {constant_result = "[test: constant_result attribute]"}
+                %1732 = constant() : () -> "boolean" ()
+                    {constant_result = "{""type"":""boolean"",""value"":false}"}
+                %1733 = constant() : () -> "integer" ()
+                    {constant_result = "{""type"":""integer"",""value"":20000}"}
+                %1734 = call(%1729, %1730, %1731, %1732, %1733) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
+                    {resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                %1738 = logical(%1727, %1734) : ("boolean", "boolean") -> "boolean" ()
+                    {logical_operator = "AND"}
+                %1739 = return(%1738) : ("boolean") -> "boolean" ()
+                    {ir.terminal = "true"}
+            })
+        %345 = exchange(%1434) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^inputSelector (%346 : "row(bigint)")
+                %347 = field_reference(%346) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %348 = row(%347) : ("bigint") -> "row(bigint)" ()
+                %349 = return(%348) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%350 : "row(bigint)")
+                %351 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %352 = return(%351) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%353 : "row(bigint)")
+                %354 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %355 = return(%354) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%356 : "row(bigint)")
+                %357 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %358 = return(%357) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %359 = join(%298, %345) : ("multiset(row(bigint,bigint))", "multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^leftCriteriaSelector (%360 : "row(bigint,bigint)")
+                %361 = field_reference(%360) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "1"}
+                %362 = row(%361) : ("bigint") -> "row(bigint)" ()
+                %363 = return(%362) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^rightCriteriaSelector (%364 : "row(bigint)")
+                %365 = field_reference(%364) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %366 = row(%365) : ("bigint") -> "row(bigint)" ()
+                %367 = return(%366) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^filter (%368 : "row(bigint,bigint)", %369 : "row(bigint)")
+                %370 = constant() : () -> "boolean" ()
+                    {constant_result = "{""type"":""boolean"",""value"":true}"}
+                %371 = return(%370) : ("boolean") -> "boolean" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^leftOutputSelector (%372 : "row(bigint,bigint)")
+                %373 = field_reference(%372) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %374 = row(%373) : ("bigint") -> "row(bigint)" ()
+                %375 = return(%374) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^rightOutputSelector (%376 : "row(bigint)")
+                %377 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %378 = return(%377) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^dynamicFilterTargetSelector (%379 : "row(bigint)")
+                %380 = field_reference(%379) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %1761 = row(%380) : ("bigint") -> "row(bigint)" ()
+                %1762 = return(%1761) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            })
+            {join_type = "INNER", may_skip_output_duplicates = "true", distribution_type = "REPLICATED", dynamic_filter_ids = "[""df_2544""]", statistics_and_cost_summary = "{""outputRowCount"":2.0647616639127505E8,""outputSizeInBytes"":1.7839590640150037E9,""cpuCost"":1.0131925813087495E11,""memoryCost"":9875.228210153075,""networkCost"":9875.228210153075}"}
+        %383 = aggregation(%359) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^aggregates (%384 : "multiset(row(bigint))")
+                %385 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %386 = return(%385) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^groupingKeysSelector (%387 : "row(bigint)")
+                %388 = field_reference(%387) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %389 = row(%388) : ("bigint") -> "row(bigint)" ()
+                %390 = return(%389) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%391 : "row(bigint)")
+                %392 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %393 = return(%392) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {grouping_sets_count = "1", global_grouping_sets = "[]", pre_grouped_indexes = "[]", aggregation_step = "PARTIAL", input_reducing = "true"}
+        %394 = exchange(%383) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^inputSelector (%395 : "row(bigint)")
+                %396 = field_reference(%395) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %397 = row(%396) : ("bigint") -> "row(bigint)" ()
+                %398 = return(%397) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%399 : "row(bigint)")
+                %400 = field_reference(%399) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %401 = row(%400) : ("bigint") -> "row(bigint)" ()
+                %402 = return(%401) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%403 : "row(bigint)")
+                %404 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %405 = return(%404) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%406 : "row(bigint)")
+                %407 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %408 = return(%407) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "REPARTITION", exchange_scope = "REMOTE", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %409 = exchange(%394) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^inputSelector (%410 : "row(bigint)")
+                %411 = field_reference(%410) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %412 = row(%411) : ("bigint") -> "row(bigint)" ()
+                %413 = return(%412) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%414 : "row(bigint)")
+                %415 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %416 = return(%415) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%417 : "row(bigint)")
+                %418 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %419 = return(%418) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%420 : "row(bigint)")
+                %421 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %422 = return(%421) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %423 = aggregation(%409) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^aggregates (%424 : "multiset(row(bigint))")
+                %425 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %426 = return(%425) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^groupingKeysSelector (%427 : "row(bigint)")
+                %428 = field_reference(%427) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %429 = row(%428) : ("bigint") -> "row(bigint)" ()
+                %430 = return(%429) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%431 : "row(bigint)")
+                %432 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %433 = return(%432) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {grouping_sets_count = "1", global_grouping_sets = "[]", pre_grouped_indexes = "[]", aggregation_step = "FINAL", input_reducing = "false"}
+        %434 = table_scan() : () -> "multiset(row(bigint,bigint,bigint))" ()
+            {table_handle = "[test: table_handle attribute]", column_handles = "[test: column_handles attribute]", constraint = "[test: constraint attribute]", update_target = "false", use_connector_node_partitioning = "false"}
+        %435 = filter(%434) : ("multiset(row(bigint,bigint,bigint))") -> "multiset(row(bigint,bigint,bigint))" ({
+            ^predicate (%436 : "row(bigint,bigint,bigint)")
+                %1742 = field_reference(%436) : ("row(bigint,bigint,bigint)") -> "bigint" ()
+                    {field_index = "2"}
+                %1743 = constant() : () -> "varchar" ()
+                    {constant_result = "[test: constant_result attribute]"}
+                %1744 = constant() : () -> "varchar" ()
+                    {constant_result = "[test: constant_result attribute]"}
+                %1745 = constant() : () -> "boolean" ()
+                    {constant_result = "{""type"":""boolean"",""value"":false}"}
+                %1746 = constant() : () -> "integer" ()
+                    {constant_result = "{""type"":""integer"",""value"":0}"}
+                %1747 = call(%1742, %1743, %1744, %1745, %1746) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
+                    {resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                %1752 = return(%1747) : ("boolean") -> "boolean" ()
+                    {ir.terminal = "true"}
+            })
+        %444 = table_scan() : () -> "multiset(row(bigint,varchar))" ()
+            {table_handle = "[test: table_handle attribute]", column_handles = "[test: column_handles attribute]", constraint = "[test: constraint attribute]", update_target = "false", use_connector_node_partitioning = "false"}
+        %445 = filter(%444) : ("multiset(row(bigint,varchar))") -> "multiset(row(bigint,varchar))" ({
+            ^predicate (%446 : "row(bigint,varchar)")
+                %447 = field_reference(%446) : ("row(bigint,varchar)") -> "varchar" ()
+                    {field_index = "1"}
+                %448 = constant() : () -> "varchar" ()
+                    {constant_result = "[test: constant_result attribute]"}
+                %449 = constant() : () -> "varchar" ()
+                    {constant_result = "[test: constant_result attribute]"}
+                %450 = constant() : () -> "varchar" ()
+                    {constant_result = "[test: constant_result attribute]"}
+                %451 = constant() : () -> "varchar" ()
+                    {constant_result = "[test: constant_result attribute]"}
+                %452 = constant() : () -> "varchar" ()
+                    {constant_result = "[test: constant_result attribute]"}
+                %453 = in(%447, %448, %449, %450, %451, %452) : ("varchar", "varchar", "varchar", "varchar", "varchar", "varchar") -> "boolean" ()
+                %454 = return(%453) : ("boolean") -> "boolean" ()
+                    {ir.terminal = "true"}
+            })
+        %455 = project(%445) : ("multiset(row(bigint,varchar))") -> "multiset(row(bigint))" ({
+            ^assignments (%456 : "row(bigint,varchar)")
+                %457 = field_reference(%456) : ("row(bigint,varchar)") -> "bigint" ()
+                    {field_index = "0"}
+                %458 = row(%457) : ("bigint") -> "row(bigint)" ()
+                %459 = return(%458) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            })
+        %460 = exchange(%455) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^inputSelector (%461 : "row(bigint)")
+                %462 = field_reference(%461) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %463 = row(%462) : ("bigint") -> "row(bigint)" ()
+                %464 = return(%463) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%465 : "row(bigint)")
+                %466 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %467 = return(%466) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%468 : "row(bigint)")
+                %469 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %470 = return(%469) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%471 : "row(bigint)")
+                %472 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %473 = return(%472) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "REPLICATE", exchange_scope = "REMOTE", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %474 = exchange(%460) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
+            ^inputSelector (%475 : "row(bigint)")
+                %476 = field_reference(%475) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %477 = row(%476) : ("bigint") -> "row(bigint)" ()
+                %478 = return(%477) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%479 : "row(bigint)")
+                %480 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %481 = return(%480) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%482 : "row(bigint)")
+                %483 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %484 = return(%483) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%485 : "row(bigint)")
+                %486 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %487 = return(%486) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %488 = join(%435, %474) : ("multiset(row(bigint,bigint,bigint))", "multiset(row(bigint))") -> "multiset(row(bigint,bigint))" ({
+            ^leftCriteriaSelector (%489 : "row(bigint,bigint,bigint)")
+                %490 = field_reference(%489) : ("row(bigint,bigint,bigint)") -> "bigint" ()
+                    {field_index = "2"}
+                %491 = row(%490) : ("bigint") -> "row(bigint)" ()
+                %492 = return(%491) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^rightCriteriaSelector (%493 : "row(bigint)")
+                %494 = field_reference(%493) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %495 = row(%494) : ("bigint") -> "row(bigint)" ()
+                %496 = return(%495) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^filter (%497 : "row(bigint,bigint,bigint)", %498 : "row(bigint)")
+                %499 = constant() : () -> "boolean" ()
+                    {constant_result = "{""type"":""boolean"",""value"":true}"}
+                %500 = return(%499) : ("boolean") -> "boolean" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^leftOutputSelector (%501 : "row(bigint,bigint,bigint)")
+                %502 = field_reference(%501) : ("row(bigint,bigint,bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %503 = field_reference(%501) : ("row(bigint,bigint,bigint)") -> "bigint" ()
+                    {field_index = "1"}
+                %504 = row(%502, %503) : ("bigint", "bigint") -> "row(bigint,bigint)" ()
+                %505 = return(%504) : ("row(bigint,bigint)") -> "row(bigint,bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^rightOutputSelector (%506 : "row(bigint)")
+                %507 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %508 = return(%507) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^dynamicFilterTargetSelector (%509 : "row(bigint)")
+                %510 = field_reference(%509) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %1763 = row(%510) : ("bigint") -> "row(bigint)" ()
+                %1764 = return(%1763) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            })
+            {join_type = "INNER", may_skip_output_duplicates = "false", distribution_type = "REPLICATED", dynamic_filter_ids = "[""df_2550""]", statistics_and_cost_summary = "{""outputRowCount"":36113.333983067445,""outputSizeInBytes"":644985.408904274,""cpuCost"":8.587249557615587E8,""memoryCost"":1135027.9306608883,""networkCost"":1135027.9306608883}"}
+        %513 = exchange(%488) : ("multiset(row(bigint,bigint))") -> "multiset(row(bigint,bigint))" ({
+            ^inputSelector (%514 : "row(bigint,bigint)")
+                %515 = field_reference(%514) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %516 = field_reference(%514) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "1"}
+                %517 = row(%515, %516) : ("bigint", "bigint") -> "row(bigint,bigint)" ()
+                %518 = return(%517) : ("row(bigint,bigint)") -> "row(bigint,bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%519 : "row(bigint,bigint)")
+                %520 = field_reference(%519) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %521 = row(%520) : ("bigint") -> "row(bigint)" ()
+                %522 = return(%521) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%523 : "row(bigint,bigint)")
+                %524 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %525 = return(%524) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%526 : "row(bigint,bigint)")
+                %527 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %528 = return(%527) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "REPARTITION", exchange_scope = "REMOTE", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %529 = exchange(%513) : ("multiset(row(bigint,bigint))") -> "multiset(row(bigint,bigint))" ({
+            ^inputSelector (%530 : "row(bigint,bigint)")
+                %531 = field_reference(%530) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %532 = field_reference(%530) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "1"}
+                %533 = row(%531, %532) : ("bigint", "bigint") -> "row(bigint,bigint)" ()
+                %534 = return(%533) : ("row(bigint,bigint)") -> "row(bigint,bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%535 : "row(bigint,bigint)")
+                %536 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %537 = return(%536) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%538 : "row(bigint,bigint)")
+                %539 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %540 = return(%539) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%541 : "row(bigint,bigint)")
+                %542 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %543 = return(%542) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %544 = join(%423, %529) : ("multiset(row(bigint))", "multiset(row(bigint,bigint))") -> "multiset(row(bigint,bigint))" ({
+            ^leftCriteriaSelector (%545 : "row(bigint)")
+                %546 = field_reference(%545) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %547 = row(%546) : ("bigint") -> "row(bigint)" ()
+                %548 = return(%547) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^rightCriteriaSelector (%549 : "row(bigint,bigint)")
+                %550 = field_reference(%549) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %551 = row(%550) : ("bigint") -> "row(bigint)" ()
+                %552 = return(%551) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^filter (%553 : "row(bigint)", %554 : "row(bigint,bigint)")
+                %555 = constant() : () -> "boolean" ()
+                    {constant_result = "{""type"":""boolean"",""value"":true}"}
+                %556 = return(%555) : ("boolean") -> "boolean" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^leftOutputSelector (%557 : "row(bigint)")
+                %558 = field_reference(%557) : ("row(bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %559 = row(%558) : ("bigint") -> "row(bigint)" ()
+                %560 = return(%559) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^rightOutputSelector (%561 : "row(bigint,bigint)")
+                %562 = field_reference(%561) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "1"}
+                %563 = row(%562) : ("bigint") -> "row(bigint)" ()
+                %564 = return(%563) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^dynamicFilterTargetSelector (%565 : "row(bigint,bigint)")
+                %566 = field_reference(%565) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %1765 = row(%566) : ("bigint") -> "row(bigint)" ()
+                %1766 = return(%1765) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            })
+            {join_type = "INNER", may_skip_output_duplicates = "false", distribution_type = "PARTITIONED", dynamic_filter_ids = "[""df_2543""]", statistics_and_cost_summary = "{""outputRowCount"":36113.333983067445,""outputSizeInBytes"":644985.408904274,""cpuCost"":1.573041116990713E11,""memoryCost"":4499455.743091431,""networkCost"":5.15547096297581E10}"}
+        %569 = exchange(%544) : ("multiset(row(bigint,bigint))") -> "multiset(row(bigint,bigint))" ({
+            ^inputSelector (%570 : "row(bigint,bigint)")
+                %571 = field_reference(%570) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %572 = field_reference(%570) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "1"}
+                %573 = row(%571, %572) : ("bigint", "bigint") -> "row(bigint,bigint)" ()
+                %574 = return(%573) : ("row(bigint,bigint)") -> "row(bigint,bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%575 : "row(bigint,bigint)")
+                %576 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %577 = return(%576) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%578 : "row(bigint,bigint)")
+                %579 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %580 = return(%579) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%581 : "row(bigint,bigint)")
+                %582 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %583 = return(%582) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "REPLICATE", exchange_scope = "REMOTE", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %584 = exchange(%569) : ("multiset(row(bigint,bigint))") -> "multiset(row(bigint,bigint))" ({
+            ^inputSelector (%585 : "row(bigint,bigint)")
+                %586 = field_reference(%585) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %587 = field_reference(%585) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "1"}
+                %588 = row(%586, %587) : ("bigint", "bigint") -> "row(bigint,bigint)" ()
+                %589 = return(%588) : ("row(bigint,bigint)") -> "row(bigint,bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%590 : "row(bigint,bigint)")
+                %591 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %592 = return(%591) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%593 : "row(bigint,bigint)")
+                %594 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %595 = return(%594) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%596 : "row(bigint,bigint)")
+                %597 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %598 = return(%597) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %599 = join(%288, %584) : ("multiset(row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer))", "multiset(row(bigint,bigint))") -> "multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))" ({
+            ^leftCriteriaSelector (%600 : "row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer)")
+                %601 = field_reference(%600) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "bigint" ()
+                    {field_index = "0"}
+                %602 = row(%601) : ("bigint") -> "row(bigint)" ()
+                %603 = return(%602) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^rightCriteriaSelector (%604 : "row(bigint,bigint)")
+                %605 = field_reference(%604) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "1"}
+                %606 = row(%605) : ("bigint") -> "row(bigint)" ()
+                %607 = return(%606) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^filter (%608 : "row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer)", %609 : "row(bigint,bigint)")
+                %610 = constant() : () -> "boolean" ()
+                    {constant_result = "{""type"":""boolean"",""value"":true}"}
+                %611 = return(%610) : ("boolean") -> "boolean" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^leftOutputSelector (%612 : "row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer)")
+                %613 = field_reference(%612) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "varchar" ()
+                    {field_index = "1"}
+                %614 = field_reference(%612) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "varchar" ()
+                    {field_index = "2"}
+                %615 = field_reference(%612) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "varchar" ()
+                    {field_index = "3"}
+                %616 = field_reference(%612) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "integer" ()
+                    {field_index = "4"}
+                %617 = field_reference(%612) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "varchar" ()
+                    {field_index = "5"}
+                %618 = field_reference(%612) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "integer" ()
+                    {field_index = "6"}
+                %619 = field_reference(%612) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "integer" ()
+                    {field_index = "7"}
+                %620 = field_reference(%612) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "integer" ()
+                    {field_index = "8"}
+                %621 = row(%613, %614, %615, %616, %617, %618, %619, %620) : ("varchar", "varchar", "varchar", "integer", "varchar", "integer", "integer", "integer") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)" ()
+                %622 = return(%621) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^rightOutputSelector (%623 : "row(bigint,bigint)")
+                %624 = field_reference(%623) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "0"}
+                %625 = row(%624) : ("bigint") -> "row(bigint)" ()
+                %626 = return(%625) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^dynamicFilterTargetSelector (%627 : "row(bigint,bigint)")
+                %628 = field_reference(%627) : ("row(bigint,bigint)") -> "bigint" ()
+                    {field_index = "1"}
+                %1767 = row(%628) : ("bigint") -> "row(bigint)" ()
+                %1768 = return(%1767) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            })
+            {join_type = "INNER", may_skip_output_duplicates = "false", distribution_type = "REPLICATED", dynamic_filter_ids = "[""df_2541""]", statistics_and_cost_summary = "{""outputRowCount"":35481.50863419994,""outputSizeInBytes"":1743358.6197511866,""cpuCost"":1.5750492910023352E11,""memoryCost"":8523076.680138465,""networkCost"":5.1559869513029335E10}"}
+        %631 = exchange(%599) : ("multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))") -> "multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))" ({
+            ^inputSelector (%632 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %633 = field_reference(%632) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "0"}
+                %634 = field_reference(%632) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "1"}
+                %635 = field_reference(%632) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "2"}
+                %636 = field_reference(%632) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "3"}
+                %637 = field_reference(%632) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "4"}
+                %638 = field_reference(%632) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "5"}
+                %639 = field_reference(%632) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "6"}
+                %640 = field_reference(%632) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "7"}
+                %641 = field_reference(%632) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "bigint" ()
+                    {field_index = "8"}
+                %642 = row(%633, %634, %635, %636, %637, %638, %639, %640, %641) : ("varchar", "varchar", "varchar", "integer", "varchar", "integer", "integer", "integer", "bigint") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)" ()
+                %643 = return(%642) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%644 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %645 = field_reference(%644) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "bigint" ()
+                    {field_index = "8"}
+                %646 = row(%645) : ("bigint") -> "row(bigint)" ()
+                %647 = return(%646) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%648 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %649 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %650 = return(%649) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%651 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %652 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %653 = return(%652) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "REPARTITION", exchange_scope = "REMOTE", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %654 = exchange(%631) : ("multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))") -> "multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))" ({
+            ^inputSelector (%655 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %656 = field_reference(%655) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "0"}
+                %657 = field_reference(%655) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "1"}
+                %658 = field_reference(%655) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "2"}
+                %659 = field_reference(%655) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "3"}
+                %660 = field_reference(%655) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "4"}
+                %661 = field_reference(%655) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "5"}
+                %662 = field_reference(%655) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "6"}
+                %663 = field_reference(%655) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "7"}
+                %664 = field_reference(%655) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "bigint" ()
+                    {field_index = "8"}
+                %665 = row(%656, %657, %658, %659, %660, %661, %662, %663, %664) : ("varchar", "varchar", "varchar", "integer", "varchar", "integer", "integer", "integer", "bigint") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)" ()
+                %666 = return(%665) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%667 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %668 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %669 = return(%668) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%670 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %671 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %672 = return(%671) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%673 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %674 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %675 = return(%674) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %676 = join(%281, %654) : ("multiset(row(boolean,bigint))", "multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))") -> "multiset(row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))" ({
+            ^leftCriteriaSelector (%677 : "row(boolean,bigint)")
+                %678 = field_reference(%677) : ("row(boolean,bigint)") -> "bigint" ()
+                    {field_index = "1"}
+                %679 = row(%678) : ("bigint") -> "row(bigint)" ()
+                %680 = return(%679) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^rightCriteriaSelector (%681 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %682 = field_reference(%681) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "bigint" ()
+                    {field_index = "8"}
+                %683 = row(%682) : ("bigint") -> "row(bigint)" ()
+                %684 = return(%683) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^filter (%685 : "row(boolean,bigint)", %686 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %687 = constant() : () -> "boolean" ()
+                    {constant_result = "{""type"":""boolean"",""value"":true}"}
+                %688 = return(%687) : ("boolean") -> "boolean" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^leftOutputSelector (%689 : "row(boolean,bigint)")
+                %690 = field_reference(%689) : ("row(boolean,bigint)") -> "boolean" ()
+                    {field_index = "0"}
+                %691 = row(%690) : ("boolean") -> "row(boolean)" ()
+                %692 = return(%691) : ("row(boolean)") -> "row(boolean)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^rightOutputSelector (%693 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %694 = field_reference(%693) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "0"}
+                %695 = field_reference(%693) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "1"}
+                %696 = field_reference(%693) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "2"}
+                %697 = field_reference(%693) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "3"}
+                %698 = field_reference(%693) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "4"}
+                %699 = field_reference(%693) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "5"}
+                %700 = field_reference(%693) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "6"}
+                %701 = field_reference(%693) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "7"}
+                %702 = field_reference(%693) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "bigint" ()
+                    {field_index = "8"}
+                %703 = row(%694, %695, %696, %697, %698, %699, %700, %701, %702) : ("varchar", "varchar", "varchar", "integer", "varchar", "integer", "integer", "integer", "bigint") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)" ()
+                %704 = return(%703) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^dynamicFilterTargetSelector (%705 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %706 = field_reference(%705) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "bigint" ()
+                    {field_index = "8"}
+                %1769 = row(%706) : ("bigint") -> "row(bigint)" ()
+                %1770 = return(%1769) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            })
+            {join_type = "RIGHT", may_skip_output_duplicates = "false", distribution_type = "PARTITIONED", dynamic_filter_ids = "[""df_2534""]"}
+        %709 = project(%676) : ("multiset(row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))") -> "multiset(row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean))" ({
+            ^assignments (%710 : "row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %711 = field_reference(%710) : ("row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "bigint" ()
+                    {field_index = "9"}
+                %712 = field_reference(%710) : ("row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "1"}
+                %713 = field_reference(%710) : ("row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "2"}
+                %714 = field_reference(%710) : ("row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "3"}
+                %715 = field_reference(%710) : ("row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "4"}
+                %716 = field_reference(%710) : ("row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "5"}
+                %717 = field_reference(%710) : ("row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "6"}
+                %718 = field_reference(%710) : ("row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "7"}
+                %719 = field_reference(%710) : ("row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "8"}
+                %720 = field_reference(%710) : ("row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "boolean" ()
+                    {field_index = "0"}
+                %721 = constant() : () -> "boolean" ()
+                    {constant_result = "{""type"":""boolean"",""value"":false}"}
+                %722 = coalesce(%720, %721) : ("boolean", "boolean") -> "boolean" ()
+                %723 = row(%711, %712, %713, %714, %715, %716, %717, %718, %719, %722) : ("bigint", "varchar", "varchar", "varchar", "integer", "varchar", "integer", "integer", "integer", "boolean") -> "row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)" ()
+                %724 = return(%723) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)" ()
+                    {ir.terminal = "true"}
+            })
+        %725 = exchange(%709) : ("multiset(row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean))") -> "multiset(row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean))" ({
+            ^inputSelector (%726 : "row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)")
+                %727 = field_reference(%726) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "bigint" ()
+                    {field_index = "0"}
+                %728 = field_reference(%726) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "varchar" ()
+                    {field_index = "1"}
+                %729 = field_reference(%726) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "varchar" ()
+                    {field_index = "2"}
+                %730 = field_reference(%726) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "varchar" ()
+                    {field_index = "3"}
+                %731 = field_reference(%726) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "integer" ()
+                    {field_index = "4"}
+                %732 = field_reference(%726) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "varchar" ()
+                    {field_index = "5"}
+                %733 = field_reference(%726) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "integer" ()
+                    {field_index = "6"}
+                %734 = field_reference(%726) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "integer" ()
+                    {field_index = "7"}
+                %735 = field_reference(%726) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "integer" ()
+                    {field_index = "8"}
+                %736 = field_reference(%726) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "boolean" ()
+                    {field_index = "9"}
+                %737 = row(%727, %728, %729, %730, %731, %732, %733, %734, %735, %736) : ("bigint", "varchar", "varchar", "varchar", "integer", "varchar", "integer", "integer", "integer", "boolean") -> "row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)" ()
+                %738 = return(%737) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%739 : "row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)")
+                %740 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %741 = return(%740) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%742 : "row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)")
+                %743 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %744 = return(%743) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%745 : "row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)")
+                %746 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %747 = return(%746) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %748 = join(%138, %725) : ("multiset(row(boolean,bigint))", "multiset(row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean))") -> "multiset(row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean))" ({
+            ^leftCriteriaSelector (%749 : "row(boolean,bigint)")
+                %750 = field_reference(%749) : ("row(boolean,bigint)") -> "bigint" ()
+                    {field_index = "1"}
+                %751 = row(%750) : ("bigint") -> "row(bigint)" ()
+                %752 = return(%751) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^rightCriteriaSelector (%753 : "row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)")
+                %754 = field_reference(%753) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "bigint" ()
+                    {field_index = "0"}
+                %755 = row(%754) : ("bigint") -> "row(bigint)" ()
+                %756 = return(%755) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^filter (%757 : "row(boolean,bigint)", %758 : "row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)")
+                %759 = constant() : () -> "boolean" ()
+                    {constant_result = "{""type"":""boolean"",""value"":true}"}
+                %760 = return(%759) : ("boolean") -> "boolean" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^leftOutputSelector (%761 : "row(boolean,bigint)")
+                %762 = field_reference(%761) : ("row(boolean,bigint)") -> "boolean" ()
+                    {field_index = "0"}
+                %763 = row(%762) : ("boolean") -> "row(boolean)" ()
+                %764 = return(%763) : ("row(boolean)") -> "row(boolean)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^rightOutputSelector (%765 : "row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)")
+                %766 = field_reference(%765) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "varchar" ()
+                    {field_index = "1"}
+                %767 = field_reference(%765) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "varchar" ()
+                    {field_index = "2"}
+                %768 = field_reference(%765) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "varchar" ()
+                    {field_index = "3"}
+                %769 = field_reference(%765) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "integer" ()
+                    {field_index = "4"}
+                %770 = field_reference(%765) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "varchar" ()
+                    {field_index = "5"}
+                %771 = field_reference(%765) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "integer" ()
+                    {field_index = "6"}
+                %772 = field_reference(%765) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "integer" ()
+                    {field_index = "7"}
+                %773 = field_reference(%765) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "integer" ()
+                    {field_index = "8"}
+                %774 = field_reference(%765) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "boolean" ()
+                    {field_index = "9"}
+                %775 = row(%766, %767, %768, %769, %770, %771, %772, %773, %774) : ("varchar", "varchar", "varchar", "integer", "varchar", "integer", "integer", "integer", "boolean") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)" ()
+                %776 = return(%775) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^dynamicFilterTargetSelector (%777 : "row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)")
+                %778 = field_reference(%777) : ("row(bigint,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "bigint" ()
+                    {field_index = "0"}
+                %1771 = row(%778) : ("bigint") -> "row(bigint)" ()
+                %1772 = return(%1771) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            })
+            {join_type = "RIGHT", may_skip_output_duplicates = "false", distribution_type = "PARTITIONED", dynamic_filter_ids = "[""df_2527""]"}
+        %781 = filter(%748) : ("multiset(row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean))") -> "multiset(row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean))" ({
+            ^predicate (%782 : "row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)")
+                %783 = field_reference(%782) : ("row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "boolean" ()
+                    {field_index = "9"}
+                %784 = field_reference(%782) : ("row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "boolean" ()
+                    {field_index = "0"}
+                %785 = constant() : () -> "boolean" ()
+                    {constant_result = "{""type"":""boolean"",""value"":false}"}
+                %786 = coalesce(%784, %785) : ("boolean", "boolean") -> "boolean" ()
+                %787 = logical(%783, %786) : ("boolean", "boolean") -> "boolean" ()
+                    {logical_operator = "OR"}
+                %788 = return(%787) : ("boolean") -> "boolean" ()
+                    {ir.terminal = "true"}
+            })
+        %789 = project(%781) : ("multiset(row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean))") -> "multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer))" ({
+            ^assignments (%790 : "row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)")
+                %791 = field_reference(%790) : ("row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "varchar" ()
+                    {field_index = "1"}
+                %792 = field_reference(%790) : ("row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "varchar" ()
+                    {field_index = "2"}
+                %793 = field_reference(%790) : ("row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "varchar" ()
+                    {field_index = "3"}
+                %794 = field_reference(%790) : ("row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "integer" ()
+                    {field_index = "4"}
+                %795 = field_reference(%790) : ("row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "varchar" ()
+                    {field_index = "5"}
+                %796 = field_reference(%790) : ("row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "integer" ()
+                    {field_index = "6"}
+                %797 = field_reference(%790) : ("row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "integer" ()
+                    {field_index = "7"}
+                %798 = field_reference(%790) : ("row(boolean,varchar,varchar,varchar,integer,varchar,integer,integer,integer,boolean)") -> "integer" ()
+                    {field_index = "8"}
+                %799 = row(%791, %792, %793, %794, %795, %796, %797, %798) : ("varchar", "varchar", "varchar", "integer", "varchar", "integer", "integer", "integer") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)" ()
+                %800 = return(%799) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)" ()
+                    {ir.terminal = "true"}
+            })
+        %801 = aggregation(%789) : ("multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer))") -> "multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))" ({
+            ^aggregates (%802 : "multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer))")
+                %803 = aggregate_call(%802) : ("multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer))") -> "bigint" ({
+                    ^arguments (%804 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)")
+                        %805 = constant() : () -> "empty row" ()
+                            {constant_result = "{""type"":""empty row""}"}
+                        %806 = return(%805) : ("empty row") -> "empty row" ()
+                            {ir.terminal = "true"}
+                    }, {
+                    ^filterSelector (%807 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)")
+                        %808 = constant() : () -> "empty row" ()
+                            {constant_result = "{""type"":""empty row""}"}
+                        %809 = return(%808) : ("empty row") -> "empty row" ()
+                            {ir.terminal = "true"}
+                    }, {
+                    ^maskSelector (%810 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)")
+                        %811 = constant() : () -> "empty row" ()
+                            {constant_result = "{""type"":""empty row""}"}
+                        %812 = return(%811) : ("empty row") -> "empty row" ()
+                            {ir.terminal = "true"}
+                    }, {
+                    ^orderingSelector (%813 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)")
+                        %814 = constant() : () -> "empty row" ()
+                            {constant_result = "{""type"":""empty row""}"}
+                        %815 = return(%814) : ("empty row") -> "empty row" ()
+                            {ir.terminal = "true"}
+                    })
+                    {resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""count""},""returnType"":""bigint"",""argumentTypes"":[]},""catalogHandle"":""system:normal:system"",""functionId"":""count():bigint"",""functionKind"":""AGGREGATE"",""deterministic"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[]},""typeDependencies"":{},""functionDependencies"":[]}", distinct = "false", aggregation_step = "PARTIAL"}
+                %816 = row(%803) : ("bigint") -> "row(bigint)" ()
+                %817 = return(%816) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^groupingKeysSelector (%818 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)")
+                %819 = field_reference(%818) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "varchar" ()
+                    {field_index = "0"}
+                %820 = field_reference(%818) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "varchar" ()
+                    {field_index = "1"}
+                %821 = field_reference(%818) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "varchar" ()
+                    {field_index = "2"}
+                %822 = field_reference(%818) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "integer" ()
+                    {field_index = "3"}
+                %823 = field_reference(%818) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "varchar" ()
+                    {field_index = "4"}
+                %824 = field_reference(%818) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "integer" ()
+                    {field_index = "5"}
+                %825 = field_reference(%818) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "integer" ()
+                    {field_index = "6"}
+                %826 = field_reference(%818) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "integer" ()
+                    {field_index = "7"}
+                %827 = row(%819, %820, %821, %822, %823, %824, %825, %826) : ("varchar", "varchar", "varchar", "integer", "varchar", "integer", "integer", "integer") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)" ()
+                %828 = return(%827) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%829 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)")
+                %830 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %831 = return(%830) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {grouping_sets_count = "1", global_grouping_sets = "[]", pre_grouped_indexes = "[]", aggregation_step = "PARTIAL", input_reducing = "true"}
+        %832 = exchange(%801) : ("multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))") -> "multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))" ({
+            ^inputSelector (%833 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %834 = field_reference(%833) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "0"}
+                %835 = field_reference(%833) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "1"}
+                %836 = field_reference(%833) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "2"}
+                %837 = field_reference(%833) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "3"}
+                %838 = field_reference(%833) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "4"}
+                %839 = field_reference(%833) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "5"}
+                %840 = field_reference(%833) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "6"}
+                %841 = field_reference(%833) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "7"}
+                %842 = field_reference(%833) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "bigint" ()
+                    {field_index = "8"}
+                %843 = row(%834, %835, %836, %837, %838, %839, %840, %841, %842) : ("varchar", "varchar", "varchar", "integer", "varchar", "integer", "integer", "integer", "bigint") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)" ()
+                %844 = return(%843) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%845 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %846 = field_reference(%845) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "0"}
+                %847 = field_reference(%845) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "1"}
+                %848 = field_reference(%845) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "2"}
+                %849 = field_reference(%845) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "3"}
+                %850 = field_reference(%845) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "4"}
+                %851 = field_reference(%845) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "5"}
+                %852 = field_reference(%845) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "6"}
+                %853 = field_reference(%845) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "7"}
+                %854 = row(%846, %847, %848, %849, %850, %851, %852, %853) : ("varchar", "varchar", "varchar", "integer", "varchar", "integer", "integer", "integer") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)" ()
+                %855 = return(%854) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%856 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %857 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %858 = return(%857) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%859 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %860 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %861 = return(%860) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "REPARTITION", exchange_scope = "REMOTE", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %862 = exchange(%832) : ("multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))") -> "multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))" ({
+            ^inputSelector (%863 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %864 = field_reference(%863) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "0"}
+                %865 = field_reference(%863) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "1"}
+                %866 = field_reference(%863) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "2"}
+                %867 = field_reference(%863) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "3"}
+                %868 = field_reference(%863) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "4"}
+                %869 = field_reference(%863) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "5"}
+                %870 = field_reference(%863) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "6"}
+                %871 = field_reference(%863) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "7"}
+                %872 = field_reference(%863) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "bigint" ()
+                    {field_index = "8"}
+                %873 = row(%864, %865, %866, %867, %868, %869, %870, %871, %872) : ("varchar", "varchar", "varchar", "integer", "varchar", "integer", "integer", "integer", "bigint") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)" ()
+                %874 = return(%873) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%875 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %876 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %877 = return(%876) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%878 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %879 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %880 = return(%879) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%881 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %882 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %883 = return(%882) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %884 = aggregation(%862) : ("multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))") -> "multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))" ({
+            ^aggregates (%885 : "multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))")
+                %886 = aggregate_call(%885) : ("multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))") -> "bigint" ({
+                    ^arguments (%887 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                        %888 = field_reference(%887) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "bigint" ()
+                            {field_index = "8"}
+                        %889 = row(%888) : ("bigint") -> "row(bigint)" ()
+                        %890 = return(%889) : ("row(bigint)") -> "row(bigint)" ()
+                            {ir.terminal = "true"}
+                    }, {
+                    ^filterSelector (%891 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                        %892 = constant() : () -> "empty row" ()
+                            {constant_result = "{""type"":""empty row""}"}
+                        %893 = return(%892) : ("empty row") -> "empty row" ()
+                            {ir.terminal = "true"}
+                    }, {
+                    ^maskSelector (%894 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                        %895 = constant() : () -> "empty row" ()
+                            {constant_result = "{""type"":""empty row""}"}
+                        %896 = return(%895) : ("empty row") -> "empty row" ()
+                            {ir.terminal = "true"}
+                    }, {
+                    ^orderingSelector (%897 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                        %898 = constant() : () -> "empty row" ()
+                            {constant_result = "{""type"":""empty row""}"}
+                        %899 = return(%898) : ("empty row") -> "empty row" ()
+                            {ir.terminal = "true"}
+                    })
+                    {resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""count""},""returnType"":""bigint"",""argumentTypes"":[]},""catalogHandle"":""system:normal:system"",""functionId"":""count():bigint"",""functionKind"":""AGGREGATE"",""deterministic"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[]},""typeDependencies"":{},""functionDependencies"":[]}", distinct = "false", aggregation_step = "FINAL"}
+                %900 = row(%886) : ("bigint") -> "row(bigint)" ()
+                %901 = return(%900) : ("row(bigint)") -> "row(bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^groupingKeysSelector (%902 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %903 = field_reference(%902) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "0"}
+                %904 = field_reference(%902) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "1"}
+                %905 = field_reference(%902) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "2"}
+                %906 = field_reference(%902) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "3"}
+                %907 = field_reference(%902) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "4"}
+                %908 = field_reference(%902) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "5"}
+                %909 = field_reference(%902) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "6"}
+                %910 = field_reference(%902) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "7"}
+                %911 = row(%903, %904, %905, %906, %907, %908, %909, %910) : ("varchar", "varchar", "varchar", "integer", "varchar", "integer", "integer", "integer") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)" ()
+                %912 = return(%911) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%913 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %914 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %915 = return(%914) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {grouping_sets_count = "1", global_grouping_sets = "[]", pre_grouped_indexes = "[]", aggregation_step = "FINAL", input_reducing = "false"}
+        %916 = top_n(%884) : ("multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))") -> "multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))" ({
+            ^orderingSelector (%917 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %918 = field_reference(%917) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "0"}
+                %919 = field_reference(%917) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "1"}
+                %920 = field_reference(%917) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "2"}
+                %921 = field_reference(%917) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "3"}
+                %922 = field_reference(%917) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "4"}
+                %923 = field_reference(%917) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "5"}
+                %924 = field_reference(%917) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "6"}
+                %925 = field_reference(%917) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "7"}
+                %926 = row(%918, %919, %920, %921, %922, %923, %924, %925) : ("varchar", "varchar", "varchar", "integer", "varchar", "integer", "integer", "integer") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)" ()
+                %927 = return(%926) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)" ()
+                    {ir.terminal = "true"}
+            })
+            {sort_orders = "[""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST""]", limit = "100", top_n_step = "PARTIAL"}
+        %928 = exchange(%916) : ("multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))") -> "multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))" ({
+            ^inputSelector (%929 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %930 = field_reference(%929) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "0"}
+                %931 = field_reference(%929) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "1"}
+                %932 = field_reference(%929) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "2"}
+                %933 = field_reference(%929) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "3"}
+                %934 = field_reference(%929) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "4"}
+                %935 = field_reference(%929) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "5"}
+                %936 = field_reference(%929) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "6"}
+                %937 = field_reference(%929) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "7"}
+                %938 = field_reference(%929) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "bigint" ()
+                    {field_index = "8"}
+                %939 = row(%930, %931, %932, %933, %934, %935, %936, %937, %938) : ("varchar", "varchar", "varchar", "integer", "varchar", "integer", "integer", "integer", "bigint") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)" ()
+                %940 = return(%939) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%941 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %942 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %943 = return(%942) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%944 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %945 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %946 = return(%945) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%947 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %948 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %949 = return(%948) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "REPARTITION", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %950 = top_n(%928) : ("multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))") -> "multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))" ({
+            ^orderingSelector (%951 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %952 = field_reference(%951) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "0"}
+                %953 = field_reference(%951) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "1"}
+                %954 = field_reference(%951) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "2"}
+                %955 = field_reference(%951) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "3"}
+                %956 = field_reference(%951) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "4"}
+                %957 = field_reference(%951) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "5"}
+                %958 = field_reference(%951) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "6"}
+                %959 = field_reference(%951) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "7"}
+                %960 = row(%952, %953, %954, %955, %956, %957, %958, %959) : ("varchar", "varchar", "varchar", "integer", "varchar", "integer", "integer", "integer") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)" ()
+                %961 = return(%960) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)" ()
+                    {ir.terminal = "true"}
+            })
+            {sort_orders = "[""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST""]", limit = "100", top_n_step = "PARTIAL"}
+        %962 = exchange(%950) : ("multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))") -> "multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))" ({
+            ^inputSelector (%963 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %964 = field_reference(%963) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "0"}
+                %965 = field_reference(%963) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "1"}
+                %966 = field_reference(%963) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "2"}
+                %967 = field_reference(%963) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "3"}
+                %968 = field_reference(%963) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "4"}
+                %969 = field_reference(%963) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "5"}
+                %970 = field_reference(%963) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "6"}
+                %971 = field_reference(%963) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "7"}
+                %972 = field_reference(%963) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "bigint" ()
+                    {field_index = "8"}
+                %973 = row(%964, %965, %966, %967, %968, %969, %970, %971, %972) : ("varchar", "varchar", "varchar", "integer", "varchar", "integer", "integer", "integer", "bigint") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)" ()
+                %974 = return(%973) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%975 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %976 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %977 = return(%976) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%978 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %979 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %980 = return(%979) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%981 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %982 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %983 = return(%982) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %984 = top_n(%962) : ("multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))") -> "multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))" ({
+            ^orderingSelector (%985 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %986 = field_reference(%985) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "0"}
+                %987 = field_reference(%985) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "1"}
+                %988 = field_reference(%985) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "2"}
+                %989 = field_reference(%985) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "3"}
+                %990 = field_reference(%985) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "4"}
+                %991 = field_reference(%985) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "5"}
+                %992 = field_reference(%985) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "6"}
+                %993 = field_reference(%985) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "7"}
+                %994 = row(%986, %987, %988, %989, %990, %991, %992, %993) : ("varchar", "varchar", "varchar", "integer", "varchar", "integer", "integer", "integer") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)" ()
+                %995 = return(%994) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)" ()
+                    {ir.terminal = "true"}
+            })
+            {sort_orders = "[""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST""]", limit = "100", top_n_step = "PARTIAL"}
+        %996 = exchange(%984) : ("multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))") -> "multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))" ({
+            ^inputSelector (%997 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %998 = field_reference(%997) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "0"}
+                %999 = field_reference(%997) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "1"}
+                %1000 = field_reference(%997) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "2"}
+                %1001 = field_reference(%997) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "3"}
+                %1002 = field_reference(%997) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "4"}
+                %1003 = field_reference(%997) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "5"}
+                %1004 = field_reference(%997) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "6"}
+                %1005 = field_reference(%997) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "7"}
+                %1006 = field_reference(%997) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "bigint" ()
+                    {field_index = "8"}
+                %1007 = row(%998, %999, %1000, %1001, %1002, %1003, %1004, %1005, %1006) : ("varchar", "varchar", "varchar", "integer", "varchar", "integer", "integer", "integer", "bigint") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)" ()
+                %1008 = return(%1007) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%1009 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %1010 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %1011 = return(%1010) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%1012 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %1013 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %1014 = return(%1013) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%1015 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %1016 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %1017 = return(%1016) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "GATHER", exchange_scope = "REMOTE", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %1018 = exchange(%996) : ("multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))") -> "multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))" ({
+            ^inputSelector (%1019 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %1020 = field_reference(%1019) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "0"}
+                %1021 = field_reference(%1019) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "1"}
+                %1022 = field_reference(%1019) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "2"}
+                %1023 = field_reference(%1019) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "3"}
+                %1024 = field_reference(%1019) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "4"}
+                %1025 = field_reference(%1019) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "5"}
+                %1026 = field_reference(%1019) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "6"}
+                %1027 = field_reference(%1019) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "7"}
+                %1028 = field_reference(%1019) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "bigint" ()
+                    {field_index = "8"}
+                %1029 = row(%1020, %1021, %1022, %1023, %1024, %1025, %1026, %1027, %1028) : ("varchar", "varchar", "varchar", "integer", "varchar", "integer", "integer", "integer", "bigint") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)" ()
+                %1030 = return(%1029) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^boundArguments (%1031 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %1032 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %1033 = return(%1032) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^hashSelector (%1034 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %1035 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %1036 = return(%1035) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            }, {
+            ^orderingSelector (%1037 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %1038 = constant() : () -> "empty row" ()
+                    {constant_result = "{""type"":""empty row""}"}
+                %1039 = return(%1038) : ("empty row") -> "empty row" ()
+                    {ir.terminal = "true"}
+            })
+            {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+        %1040 = top_n(%1018) : ("multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))") -> "multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))" ({
+            ^orderingSelector (%1041 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %1042 = field_reference(%1041) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "0"}
+                %1043 = field_reference(%1041) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "1"}
+                %1044 = field_reference(%1041) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "2"}
+                %1045 = field_reference(%1041) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "3"}
+                %1046 = field_reference(%1041) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "4"}
+                %1047 = field_reference(%1041) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "5"}
+                %1048 = field_reference(%1041) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "6"}
+                %1049 = field_reference(%1041) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "7"}
+                %1050 = row(%1042, %1043, %1044, %1045, %1046, %1047, %1048, %1049) : ("varchar", "varchar", "varchar", "integer", "varchar", "integer", "integer", "integer") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)" ()
+                %1051 = return(%1050) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)") -> "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer)" ()
+                    {ir.terminal = "true"}
+            })
+            {sort_orders = "[""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST""]", limit = "100", top_n_step = "FINAL"}
+        %1052 = output(%1040) : ("multiset(row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint))") -> "boolean" ({
+            ^outputFieldSelector (%1053 : "row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)")
+                %1054 = field_reference(%1053) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "0"}
+                %1055 = field_reference(%1053) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "1"}
+                %1056 = field_reference(%1053) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "2"}
+                %1057 = field_reference(%1053) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "bigint" ()
+                    {field_index = "8"}
+                %1058 = field_reference(%1053) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "3"}
+                %1059 = field_reference(%1053) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "bigint" ()
+                    {field_index = "8"}
+                %1060 = field_reference(%1053) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "varchar" ()
+                    {field_index = "4"}
+                %1061 = field_reference(%1053) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "bigint" ()
+                    {field_index = "8"}
+                %1062 = field_reference(%1053) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "5"}
+                %1063 = field_reference(%1053) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "bigint" ()
+                    {field_index = "8"}
+                %1064 = field_reference(%1053) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "6"}
+                %1065 = field_reference(%1053) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "bigint" ()
+                    {field_index = "8"}
+                %1066 = field_reference(%1053) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "integer" ()
+                    {field_index = "7"}
+                %1067 = field_reference(%1053) : ("row(varchar,varchar,varchar,integer,varchar,integer,integer,integer,bigint)") -> "bigint" ()
+                    {field_index = "8"}
+                %1068 = row(%1054, %1055, %1056, %1057, %1058, %1059, %1060, %1061, %1062, %1063, %1064, %1065, %1066, %1067) : ("varchar", "varchar", "varchar", "bigint", "integer", "bigint", "varchar", "bigint", "integer", "bigint", "integer", "bigint", "integer", "bigint") -> "row(varchar,varchar,varchar,bigint,integer,bigint,varchar,bigint,integer,bigint,integer,bigint,integer,bigint)" ()
+                %1069 = return(%1068) : ("row(varchar,varchar,varchar,bigint,integer,bigint,varchar,bigint,integer,bigint,integer,bigint,integer,bigint)") -> "row(varchar,varchar,varchar,bigint,integer,bigint,varchar,bigint,integer,bigint,integer,bigint,integer,bigint)" ()
+                    {ir.terminal = "true"}
+            })
+            {output_names = "[""cd_gender"",""cd_marital_status"",""cd_education_status"",""cnt1"",""cd_purchase_estimate"",""cnt2"",""cd_credit_rating"",""cnt3"",""cd_dep_count"",""cnt4"",""cd_dep_employed_count"",""cnt5"",""cd_dep_college_count"",""cnt6""]", ir.terminal = "true"}
+    })
+    {ir.terminal = "true"}

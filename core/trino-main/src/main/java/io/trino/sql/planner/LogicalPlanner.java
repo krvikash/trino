@@ -261,12 +261,7 @@ public class LogicalPlanner
         return plan(analysis, OPTIMIZED_AND_VALIDATED, true);
     }
 
-    public Plan planToOldIr(Analysis analysis, Stage stage)
-    {
-        return plan(analysis, stage, false).oldIrPlan();
-    }
-
-    private PlanOptions plan(Analysis analysis, Stage stage, boolean reuseCommonSubqueriesAllowed)
+    public PlanOptions plan(Analysis analysis, Stage stage, boolean reuseCommonSubqueriesAllowed)
     {
         return plan(analysis, stage, analysis.getStatement() instanceof ExplainAnalyze || isCollectPlanStatisticsForAllQueries(session), reuseCommonSubqueriesAllowed);
     }
