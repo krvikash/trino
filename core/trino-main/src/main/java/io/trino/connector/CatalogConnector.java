@@ -72,7 +72,8 @@ public class CatalogConnector
                 connectorName,
                 catalogConnector,
                 informationSchemaConnector,
-                systemConnector);
+                systemConnector,
+                true);
     }
 
     public CatalogHandle getCatalogHandle()
