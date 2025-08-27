@@ -14,6 +14,7 @@
 package io.trino.metadata;
 
 import io.trino.Session;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.EntityKindAndName;
@@ -196,6 +197,18 @@ public abstract class ForwardingSystemSecurityMetadata
     public Optional<Identity> getFunctionRunAsIdentity(Session session, CatalogSchemaFunctionName functionName)
     {
         return delegate().getFunctionRunAsIdentity(session, functionName);
+    }
+
+    @Override
+    public void catalogCreated(Session session, CatalogName catalog)
+    {
+        delegate().catalogCreated(session, catalog);
+    }
+
+    @Override
+    public void catalogDropped(Session session, CatalogName catalog)
+    {
+        delegate().catalogDropped(session, catalog);
     }
 
     @Override
