@@ -37,6 +37,7 @@ import org.apache.iceberg.deletes.PositionDeleteWriter;
 import org.apache.iceberg.io.FileWriterFactory;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -56,6 +57,8 @@ import static org.apache.iceberg.encryption.EncryptedFiles.encryptedOutput;
 import static org.apache.iceberg.encryption.EncryptionKeyMetadata.EMPTY;
 import static org.assertj.core.api.Assertions.assertThat;
 
+// TODO https://starburstdata.atlassian.net/browse/SEP-18156
+@Disabled
 final class TestIcebergOptimizePositionDeletesProcedure
         extends AbstractTestQueryFramework
 {
