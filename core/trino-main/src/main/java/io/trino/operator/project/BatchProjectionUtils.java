@@ -16,10 +16,17 @@ package io.trino.operator.project;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SourcePage;
+import io.trino.sql.gen.PageFunctionCompiler;
+import io.trino.sql.relational.RowExpression;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Supplier;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.operator.project.BatchFunctionsRewriter.containsBatchFunction;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
 
 public class BatchProjectionUtils
 {
@@ -50,5 +57,21 @@ public class BatchProjectionUtils
                             .collect(toImmutableList()));
                 })
                 .collect(toImmutableList());
+    }
+
+    public static Optional<Supplier<PageFilter>> compilePageFilterWithBatchFunction(
+            RowExpression filter,
+            Optional<String> classNameSuffix,
+            PageFunctionCompiler pageFunctionCompiler)
+    {
+        if (!containsBatchFunction(filter)) {
+            return Optional.empty();
+        }
+
+        checkArgument(filter.type().equals(BOOLEAN), "Filter expression %s must be of type BOOLEAN", filter);
+        // compileProjection supports batch functions, while compileFilter does not
+        // So we compile the filter as a projection and wrap it in a PageFilter
+        Supplier<PageProjection> projection = pageFunctionCompiler.compileProjection(filter, classNameSuffix);
+        return Optional.of(() -> new ProjectionPageFilter(projection.get()));
     }
 }

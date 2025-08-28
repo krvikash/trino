@@ -14,6 +14,7 @@
 package io.trino.operator.project;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import io.airlift.slice.Slices;
 import io.trino.FullConnectorSession;
 import io.trino.metadata.FunctionBundle;
@@ -23,6 +24,7 @@ import io.trino.metadata.SqlBatchFunction;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.ByteArrayBlock;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.LongArrayBlock;
 import io.trino.spi.block.ValueBlock;
@@ -52,12 +54,15 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.operator.project.BatchProjectionUtils.compilePageFilterWithBatchFunction;
 import static io.trino.spi.block.BlockTestUtils.assertBlockEquals;
 import static io.trino.spi.function.FunctionKind.BATCH;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
@@ -88,13 +93,16 @@ final class TestBatchProjection
             ConnectorIdentity.ofUser("test"));
     private static final TestingFunctionResolution FUNCTION_RESOLUTION;
     private static final ResolvedFunction SCALAR_ADD_BIGINT;
+    private static final ResolvedFunction SCALAR_LESS_THAN_BIGINT;
     private static final ResolvedFunction SCALAR_CAST_DOUBLE;
     private static final ResolvedFunction SCALAR_CAST_STRING;
     private static final ResolvedFunction BATCH_ADD_BIGINT;
+    private static final ResolvedFunction BATCH_LESS_THAN_BIGINT;
 
     static {
         try {
-            MethodHandle handle = lookup().findStatic(TestBatchProjection.class, "myAdd", methodType(Block.class, ConnectorSession.class, ValueBlock.class, int[].class, ValueBlock.class, int[].class));
+            MethodHandle addHandle = lookup().findStatic(TestBatchProjection.class, "myAdd", methodType(Block.class, ConnectorSession.class, ValueBlock.class, int[].class, ValueBlock.class, int[].class));
+            MethodHandle lessThanHandle = lookup().findStatic(TestBatchProjection.class, "batchLessThan", methodType(Block.class, ConnectorSession.class, ValueBlock.class, int[].class, ValueBlock.class, int[].class));
             FunctionBundle bundle = InternalFunctionBundle.builder()
                     .function(new SqlBatchFunction(
                             batchFunction("batch_add")
@@ -102,13 +110,22 @@ final class TestBatchProjection
                                     .signature(signature(BIGINT.getTypeSignature(), BIGINT.getTypeSignature(), BIGINT.getTypeSignature()))
                                     .nullable()
                                     .build(),
-                            handle))
+                            addHandle))
+                    .function(new SqlBatchFunction(
+                            batchFunction("batch_less_than")
+                                    .description("Compare two BIGINT values for less-than")
+                                    .signature(signature(BOOLEAN.getTypeSignature(), BIGINT.getTypeSignature(), BIGINT.getTypeSignature()))
+                                    .nullable()
+                                    .build(),
+                            lessThanHandle))
                     .build();
             FUNCTION_RESOLUTION = new TestingFunctionResolution(bundle);
             SCALAR_ADD_BIGINT = FUNCTION_RESOLUTION.resolveOperator(OperatorType.ADD, ImmutableList.of(BIGINT, BIGINT));
             SCALAR_CAST_DOUBLE = FUNCTION_RESOLUTION.getCoercion(DOUBLE, BIGINT);
             SCALAR_CAST_STRING = FUNCTION_RESOLUTION.getCoercion(VARCHAR, BIGINT);
             BATCH_ADD_BIGINT = FUNCTION_RESOLUTION.resolveFunction("batch_add", fromTypes(BIGINT, BIGINT));
+            BATCH_LESS_THAN_BIGINT = FUNCTION_RESOLUTION.resolveFunction("batch_less_than", fromTypes(BIGINT, BIGINT));
+            SCALAR_LESS_THAN_BIGINT = FUNCTION_RESOLUTION.resolveOperator(OperatorType.LESS_THAN, ImmutableList.of(BIGINT, BIGINT));
         }
         catch (ReflectiveOperationException e) {
             throw new AssertionError(e);
@@ -223,6 +240,26 @@ final class TestBatchProjection
                         call(BATCH_ADD_BIGINT, field(LONG_CHANNEL_A, BIGINT), field(LONG_CHANNEL_D, BIGINT))),
                 call(BATCH_ADD_BIGINT, field(LONG_CHANNEL_B, BIGINT), field(LONG_CHANNEL_C, BIGINT)));
         verifyProjection(inputPages, batchAdd);
+    }
+
+    @ParameterizedTest
+    @MethodSource("inputProviders")
+    public void testFilterWithBatchFunctions(NullsProvider nullsProvider)
+    {
+        List<Page> inputPages = createInputPages(nullsProvider, false);
+        // batch_less_than(constant, col)
+        RowExpression filter = call(
+                BATCH_LESS_THAN_BIGINT,
+                constant(CONSTANT, BIGINT),
+                field(LONG_CHANNEL_A, BIGINT));
+        verifyFilter(inputPages, filter);
+
+        // batch_add(colA, colB) < batch_add(colC, colD)
+        filter = call(
+                BATCH_LESS_THAN_BIGINT,
+                call(BATCH_ADD_BIGINT, field(LONG_CHANNEL_A, BIGINT), field(LONG_CHANNEL_B, BIGINT)),
+                call(BATCH_ADD_BIGINT, field(LONG_CHANNEL_C, BIGINT), field(LONG_CHANNEL_D, BIGINT)));
+        verifyFilter(inputPages, filter);
     }
 
     enum NullsProvider
@@ -514,6 +551,24 @@ final class TestBatchProjection
         return new LongArrayBlock(length, Optional.of(isNull), result);
     }
 
+    static Block batchLessThan(ConnectorSession session, ValueBlock first, int[] firstPositions, ValueBlock second, int[] secondPositions)
+    {
+        int length = firstPositions.length;
+        byte[] result = new byte[length];
+        boolean[] isNull = new boolean[length];
+        for (int i = 0; i < length; i++) {
+            int firstPosition = firstPositions[i];
+            int secondPosition = secondPositions[i];
+            if (first.isNull(firstPosition) || second.isNull(secondPosition)) {
+                isNull[i] = true;
+            }
+            else {
+                result[i] = (byte) (BIGINT.getLong(first, firstPosition) < BIGINT.getLong(second, secondPosition) ? 1 : 0);
+            }
+        }
+        return new ByteArrayBlock(length, Optional.of(isNull), result);
+    }
+
     private static RowExpression rewriteBatchToScalarFunction(RowExpression projection)
     {
         Rewriter rewriter = new Rewriter();
@@ -533,8 +588,16 @@ final class TestBatchProjection
         public RowExpression visitCall(CallExpression call, Void context)
         {
             ResolvedFunction function = call.resolvedFunction();
-            if (call.resolvedFunction().functionKind() == BATCH && function.equals(BATCH_ADD_BIGINT)) {
-                function = SCALAR_ADD_BIGINT;
+            if (call.resolvedFunction().functionKind() == BATCH) {
+                if (function.equals(BATCH_ADD_BIGINT)) {
+                    function = SCALAR_ADD_BIGINT;
+                }
+                else if (function.equals(BATCH_LESS_THAN_BIGINT)) {
+                    function = SCALAR_LESS_THAN_BIGINT;
+                }
+                else {
+                    throw new UnsupportedOperationException("Unsupported batch function: " + function);
+                }
             }
             return new CallExpression(
                     function,
@@ -576,6 +639,33 @@ final class TestBatchProjection
         }
     }
 
+    private static void verifyFilter(List<Page> inputPages, RowExpression filter)
+    {
+        PageFilter pageFilter = compilePageFilterWithBatchFunction(filter, Optional.empty(), FUNCTION_RESOLUTION.getPageFunctionCompiler())
+                .orElseThrow(() -> new IllegalArgumentException("Expected filter to contain batch function"))
+                .get();
+        List<SelectedPositions> expectedPositions = processFilter(inputPages, pageFilter);
+        RowExpression scalarFilter = rewriteBatchToScalarFunction(filter);
+        pageFilter = FUNCTION_RESOLUTION.getPageFunctionCompiler().compileFilter(scalarFilter, Optional.empty()).get();
+        List<SelectedPositions> actualPositions = processFilter(inputPages, pageFilter);
+        assertThat(expectedPositions).hasSize(actualPositions.size());
+
+        for (int pageCount = 0; pageCount < actualPositions.size(); pageCount++) {
+            assertThat(toSet(actualPositions.get(pageCount))).isEqualTo(toSet(expectedPositions.get(pageCount)));
+        }
+    }
+
+    private static List<SelectedPositions> processFilter(List<Page> inputPages, PageFilter filter)
+    {
+        ImmutableList.Builder<SelectedPositions> positionsBuilder = ImmutableList.builder();
+        for (Page inputPage : inputPages) {
+            positionsBuilder.add(filter.filter(
+                    FULL_CONNECTOR_SESSION,
+                    filter.getInputChannels().getInputChannels(SourcePage.create(inputPage))));
+        }
+        return positionsBuilder.build();
+    }
+
     private static FunctionMetadata.Builder batchFunction(String name)
     {
         return FunctionMetadata.batchBuilder(name).functionId(new FunctionId(name));
@@ -587,5 +677,21 @@ final class TestBatchProjection
                 .returnType(returnType)
                 .argumentTypes(List.of(argumentTypes))
                 .build();
+    }
+
+    private static Set<Integer> toSet(SelectedPositions positions)
+    {
+        ImmutableSet.Builder<Integer> builder = ImmutableSet.builder();
+        if (positions.isList()) {
+            for (int index = positions.getOffset(); index < positions.getOffset() + positions.size(); index++) {
+                builder.add(positions.getPositions()[index]);
+            }
+        }
+        else {
+            for (int position = positions.getOffset(); position < positions.getOffset() + positions.size(); position++) {
+                builder.add(position);
+            }
+        }
+        return builder.build();
     }
 }

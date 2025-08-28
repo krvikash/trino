@@ -32,6 +32,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.operator.project.BatchProjectionUtils.compilePageFilterWithBatchFunction;
 import static io.trino.sql.gen.columnar.FilterEvaluator.createColumnarFilterEvaluator;
 import static java.util.Objects.requireNonNull;
 
@@ -58,7 +59,10 @@ public class ExpressionCompiler
         Optional<Supplier<PageFilter>> filterFunctionSupplier = Optional.empty();
         Optional<Supplier<FilterEvaluator>> columnarFilterEvaluatorSupplier = createColumnarFilterEvaluator(columnarFilterEvaluationEnabled, filter, columnarFilterCompiler);
         if (columnarFilterEvaluatorSupplier.isEmpty()) {
-            filterFunctionSupplier = filter.map(expression -> pageFunctionCompiler.compileFilter(expression, classNameSuffix));
+            filterFunctionSupplier = filter.map(expression -> {
+                Optional<Supplier<PageFilter>> pageFilter = compilePageFilterWithBatchFunction(expression, classNameSuffix, pageFunctionCompiler);
+                return pageFilter.orElseGet(() -> pageFunctionCompiler.compileFilter(expression, classNameSuffix));
+            });
         }
 
         List<Supplier<PageProjection>> pageProjectionSuppliers = projections.stream()

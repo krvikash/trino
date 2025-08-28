@@ -64,6 +64,56 @@ public final class BatchFunctionsRewriter
         return expression.accept(visitor, null);
     }
 
+    public static boolean containsBatchFunction(RowExpression expression)
+    {
+        RowExpressionVisitor<Boolean, Void> visitor = new RowExpressionVisitor<>()
+        {
+            @Override
+            public Boolean visitCall(CallExpression call, Void context)
+            {
+                if (call.resolvedFunction().functionKind() == BATCH) {
+                    return true;
+                }
+                return call.arguments().stream()
+                        .map(arguments -> arguments.accept(this, context))
+                        .anyMatch(result -> result != null && result);
+            }
+
+            @Override
+            public Boolean visitSpecialForm(SpecialForm specialForm, Void context)
+            {
+                return specialForm.arguments().stream()
+                        .map(expression -> expression.accept(this, context))
+                        .anyMatch(result -> result != null && result);
+            }
+
+            @Override
+            public Boolean visitInputReference(InputReferenceExpression reference, Void context)
+            {
+                return false;
+            }
+
+            @Override
+            public Boolean visitConstant(ConstantExpression literal, Void context)
+            {
+                return false;
+            }
+
+            @Override
+            public Boolean visitLambda(LambdaDefinitionExpression lambda, Void context)
+            {
+                return lambda.body().accept(this, context);
+            }
+
+            @Override
+            public Boolean visitVariableReference(VariableReferenceExpression reference, Void context)
+            {
+                return false;
+            }
+        };
+        return expression.accept(visitor, null);
+    }
+
     private static class BatchFunctionToVariableReferenceRewriter
             implements RowExpressionVisitor<RowExpression, Void>
     {
