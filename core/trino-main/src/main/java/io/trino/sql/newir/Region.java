@@ -15,6 +15,7 @@ package io.trino.sql.newir;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.spi.TrinoException;
+import io.trino.sql.newir.FormatOptions.PrintOptions;
 
 import java.util.List;
 
@@ -57,17 +58,17 @@ public record Region(List<Block> blocks)
         return getOnlyElement(blocks());
     }
 
-    public String print(int version, int indentLevel, FormatOptions formatOptions)
+    public String print(int indentLevel, PrintOptions printOptions)
     {
         String indent = INDENT.repeat(indentLevel);
 
         return blocks().stream()
-                .map(block -> block.print(version, indentLevel, formatOptions))
+                .map(block -> block.print(indentLevel, printOptions))
                 .collect(joining("\n", "{\n", "\n" + indent + "}"));
     }
 
-    public String prettyPrint(int indentLevel, FormatOptions formatOptions)
+    public String prettyPrint(int indentLevel, PrintOptions printOptions)
     {
-        return print(1, indentLevel, formatOptions);
+        return print(indentLevel, printOptions);
     }
 }

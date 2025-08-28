@@ -17,12 +17,12 @@ import com.google.common.collect.ImmutableMap;
 import com.google.errorprone.annotations.Immutable;
 import io.trino.spi.TrinoException;
 import io.trino.sql.newir.Block.Parameter;
+import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation.Result;
 
 import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
-import static io.trino.sql.newir.FormatOptions.validateVersion;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -91,9 +91,8 @@ public final class Program
         return valueMap;
     }
 
-    public String print(int version, FormatOptions formatOptions)
+    public String print(PrintOptions printOptions)
     {
-        validateVersion(version);
-        return "IR version = " + version + "\n" + root.print(version, 0, formatOptions) + "\n";
+        return "IR version = " + printOptions.version() + "\n" + root.print(0, printOptions) + "\n";
     }
 }

@@ -16,7 +16,7 @@ package io.trino.sql.dialect.trino.operation;
 import com.google.common.collect.ImmutableList;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.type.Type;
-import io.trino.sql.newir.FormatOptions;
+import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
@@ -72,7 +72,7 @@ public final class Constant
     }
 
     @Override
-    public String prettyPrint(int indentLevel, FormatOptions formatOptions)
+    public String prettyPrint(int indentLevel, PrintOptions printOptions)
     {
         return "pretty constant";
     }

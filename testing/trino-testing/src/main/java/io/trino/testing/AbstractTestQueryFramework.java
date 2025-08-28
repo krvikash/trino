@@ -601,7 +601,7 @@ public abstract class AbstractTestQueryFramework
     protected void assertAssembly(@Language("SQL") String sql, String expectedAssembly)
     {
         Plan plan = queryRunner.executeWithPlan(getSession(), sql).queryPlan().orElseThrow();
-        String actualAssembly = ProgramBuilder.buildProgram(plan.getRoot()).print(1, getQueryRunner().getCoordinator().getInstance(Key.get(FormatOptions.class)));
+        String actualAssembly = ProgramBuilder.buildProgram(plan.getRoot()).print(getQueryRunner().getCoordinator().getInstance(Key.get(FormatOptions.class)).printOptions());
         assertThat(actualAssembly).isEqualTo(expectedAssembly);
     }
 

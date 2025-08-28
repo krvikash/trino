@@ -29,6 +29,7 @@ public class FormatOptions
     public static final String INDENT = "    ";
     private static final Pattern IDENTIFIER = Pattern.compile("([a-z]|[A-Z]|_)([a-z]|[A-Z]|[0-9]|_)*");
     private static final Pattern PREFIXED_IDENTIFIER = Pattern.compile("([a-z]|[A-Z]|[0-9]|_)+");
+    private static final int CURRENT_VERSION = 1;
 
     private final DialectRegistry dialectRegistry;
 
@@ -55,74 +56,140 @@ public class FormatOptions
         return PREFIXED_IDENTIFIER.matcher(identifier).matches();
     }
 
-    public static String formatName(int version, Operation operation)
+    public PrintOptions printOptions(int version)
     {
-        if (version == 1 && operation.dialect().equals(TRINO)) {
-            return operation.name();
-        }
-        return operation.dialect() + "." + operation.name();
+        return new PrintOptions(version, dialectRegistry);
     }
 
-    public String formatAttribute(int version, AttributeKey key, Object attribute)
+    public PrintOptions printOptions()
     {
-        String dialectPrefix;
-        if (version == 1 && key.dialect().equals(TRINO)) {
-            dialectPrefix = "";
-        }
-        else {
-            dialectPrefix = key.dialect() + ".";
-        }
-
-        return dialectPrefix + key.name() + " = " + quote(dialectRegistry.dialect(key.dialect()).formatAttribute(key.name(), attribute));
+        return new PrintOptions(dialectRegistry);
     }
 
-    public Object parseAttribute(int version, Optional<String> dialect, String name, String attribute)
+    public static class PrintOptions
     {
-        String dialectName;
-        if (version == 1) {
-            dialectName = dialect.orElse(TRINO);
-        }
-        else {
-            dialectName = dialect.orElseThrow(() -> new TrinoException(IR_ERROR, "missing dialect name for an attribute in IR version " + version));
+        private final int version;
+        private final DialectRegistry dialectRegistry;
+
+        private PrintOptions(DialectRegistry dialectRegistry)
+        {
+            this(CURRENT_VERSION, dialectRegistry);
         }
 
-        return dialectRegistry.dialect(dialectName).parseAttribute(name, unquote(attribute));
+        private PrintOptions(int version, DialectRegistry dialectRegistry)
+        {
+            validateVersion(version);
+            this.version = version;
+            this.dialectRegistry = requireNonNull(dialectRegistry, "dialectRegistry is null");
+        }
+
+        public int version()
+        {
+            return version;
+        }
+
+        public String formatName(Operation operation)
+        {
+            if (version == 1 && operation.dialect().equals(TRINO)) {
+                return operation.name();
+            }
+            return operation.dialect() + "." + operation.name();
+        }
+
+        public String formatAttribute(AttributeKey key, Object attribute)
+        {
+            String dialectPrefix;
+            if (version == 1 && key.dialect().equals(TRINO)) {
+                dialectPrefix = "";
+            }
+            else {
+                dialectPrefix = key.dialect() + ".";
+            }
+
+            return dialectPrefix + key.name() + " = " + quote(dialectRegistry.dialect(key.dialect()).formatAttribute(key.name(), attribute));
+        }
+
+        public String formatType(Type type)
+        {
+            String dialectPrefix;
+            if (version == 1 && type.dialect().equals(TRINO)) {
+                dialectPrefix = "";
+            }
+            else {
+                dialectPrefix = type.dialect() + ".";
+            }
+
+            return dialectPrefix + quote(dialectRegistry.dialect(type.dialect()).formatType(type));
+        }
+
+        private static String quote(String string)
+        {
+            return "\"" + string.replace("\"", "\"\"") + "\"";
+        }
     }
 
-    public String formatType(int version, Type type)
+    public ParseOptions parseOptions(int version)
     {
-        String dialectPrefix;
-        if (version == 1 && type.dialect().equals(TRINO)) {
-            dialectPrefix = "";
-        }
-        else {
-            dialectPrefix = type.dialect() + ".";
-        }
-
-        return dialectPrefix + quote(dialectRegistry.dialect(type.dialect()).formatType(type));
+        return new ParseOptions(version, dialectRegistry);
     }
 
-    public Type parseType(int version, Optional<String> dialect, String type)
+    public ParseOptions parseOptions()
     {
-        String dialectName;
-        if (version == 1) {
-            dialectName = dialect.orElse(TRINO);
-        }
-        else {
-            dialectName = dialect.orElseThrow(() -> new TrinoException(IR_ERROR, "missing dialect name for a type in IR version " + version));
-        }
-
-        return dialectRegistry.dialect(dialectName).parseType(unquote(type));
+        return new ParseOptions(dialectRegistry);
     }
 
-    private static String quote(String string)
+    public static class ParseOptions
     {
-        return "\"" + string.replace("\"", "\"\"") + "\"";
-    }
+        private final int version;
+        private final DialectRegistry dialectRegistry;
 
-    private static String unquote(String string)
-    {
-        return string.substring(1, string.length() - 1)
-                .replace("\"\"", "\"");
+        private ParseOptions(DialectRegistry dialectRegistry)
+        {
+            this(CURRENT_VERSION, dialectRegistry);
+        }
+
+        private ParseOptions(int version, DialectRegistry dialectRegistry)
+        {
+            validateVersion(version);
+            this.version = version;
+            this.dialectRegistry = requireNonNull(dialectRegistry, "dialectRegistry is null");
+        }
+
+        public int version()
+        {
+            return version;
+        }
+
+        public Object parseAttribute(Optional<String> dialect, String name, String attribute)
+        {
+            String dialectName;
+            if (version == 1) {
+                dialectName = dialect.orElse(TRINO);
+            }
+            else {
+                dialectName = dialect.orElseThrow(() -> new TrinoException(IR_ERROR, "missing dialect name for an attribute in IR version " + version));
+            }
+
+            return dialectRegistry.dialect(dialectName).parseAttribute(name, unquote(attribute));
+        }
+
+        public Type parseType(Optional<String> dialect, String type)
+        {
+            String dialectName;
+            if (version == 1) {
+                dialectName = dialect.orElse(TRINO);
+            }
+            else {
+                dialectName = dialect.orElseThrow(() -> new TrinoException(IR_ERROR, "missing dialect name for a type in IR version " + version));
+            }
+
+            return dialectRegistry.dialect(dialectName).parseType(unquote(type));
+        }
+
+        private static String unquote(String string)
+        {
+            return string.substring(1, string.length() - 1)
+                    .replace("\"\"", "\"");
+        }
     }
 }

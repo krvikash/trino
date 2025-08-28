@@ -48,7 +48,7 @@ import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.RowType.anonymousRow;
 import static io.trino.sql.dialect.trino.Attributes.ComparisonOperator.GREATER_THAN;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
-import static io.trino.sql.dialect.trino.TestingFormatOptions.TESTING_FORMAT_OPTIONS;
+import static io.trino.sql.dialect.trino.TestingFormatOptions.TESTING_PRINT_OPTIONS;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -211,7 +211,7 @@ final class TestValueMap
         assertThat(actualProgram.getRoot()).isEqualTo(expectedProgram.getRoot());
         assertThat(actualProgram.getValueMap()).isEqualTo(expectedProgram.getValueMap());
 
-        assertThat(actualProgram.print(1, TESTING_FORMAT_OPTIONS))
+        assertThat(actualProgram.print(TESTING_PRINT_OPTIONS))
                 .isEqualTo(
                         """
                         IR version = 1

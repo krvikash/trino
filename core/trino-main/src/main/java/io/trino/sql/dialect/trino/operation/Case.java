@@ -18,7 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.TrinoDialect;
-import io.trino.sql.newir.FormatOptions;
+import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
@@ -122,7 +122,7 @@ public final class Case
     }
 
     @Override
-    public String prettyPrint(int indentLevel, FormatOptions formatOptions)
+    public String prettyPrint(int indentLevel, PrintOptions printOptions)
     {
         return "case :)";
     }

@@ -16,7 +16,7 @@ package io.trino.sql.dialect.trino.operation;
 import com.google.common.collect.ImmutableList;
 import io.trino.spi.TrinoException;
 import io.trino.sql.dialect.trino.Attributes.LogicalOperator;
-import io.trino.sql.newir.FormatOptions;
+import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
@@ -92,7 +92,7 @@ public final class Logical
     }
 
     @Override
-    public String prettyPrint(int indentLevel, FormatOptions formatOptions)
+    public String prettyPrint(int indentLevel, PrintOptions printOptions)
     {
         return "logical :)";
     }

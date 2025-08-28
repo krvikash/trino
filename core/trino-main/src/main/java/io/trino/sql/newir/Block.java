@@ -15,6 +15,7 @@ package io.trino.sql.newir;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.spi.TrinoException;
+import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation.AttributeKey;
 
 import java.util.List;
@@ -85,7 +86,7 @@ public record Block(Optional<String> name, List<Parameter> parameters, List<Oper
         });
     }
 
-    public String print(int version, int indentLevel, FormatOptions formatOptions)
+    public String print(int indentLevel, PrintOptions printOptions)
     {
         StringBuilder builder = new StringBuilder();
         String indent = INDENT.repeat(indentLevel);
@@ -95,20 +96,20 @@ public record Block(Optional<String> name, List<Parameter> parameters, List<Oper
 
         if (!parameters().isEmpty()) {
             builder.append(parameters().stream()
-                    .map(parameter -> parameter.name() + " : " + formatOptions.formatType(version, parameter.type()))
+                    .map(parameter -> parameter.name() + " : " + printOptions.formatType(parameter.type()))
                     .collect(joining(", ", " (", ")")));
         }
 
         builder.append(operations().stream()
-                .map(operation -> operation.print(version, indentLevel + 1, formatOptions))
+                .map(operation -> operation.print(indentLevel + 1, printOptions))
                 .collect(joining("\n", "\n", "")));
 
         return builder.toString();
     }
 
-    public String prettyPrint(int indentLevel, FormatOptions formatOptions)
+    public String prettyPrint(int indentLevel, PrintOptions printOptions)
     {
-        return print(1, indentLevel, formatOptions);
+        return print(indentLevel, printOptions);
     }
 
     public int getIndex(Parameter parameter)

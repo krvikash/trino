@@ -15,6 +15,7 @@ package io.trino.sql.newir;
 
 import io.trino.spi.TrinoException;
 import io.trino.sql.newir.Block.Parameter;
+import io.trino.sql.newir.FormatOptions.PrintOptions;
 
 import java.util.List;
 import java.util.Map;
@@ -23,7 +24,6 @@ import java.util.Objects;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.newir.Dialect.validateDialectName;
 import static io.trino.sql.newir.FormatOptions.INDENT;
-import static io.trino.sql.newir.FormatOptions.formatName;
 import static io.trino.sql.newir.FormatOptions.isValidIdentifier;
 import static io.trino.sql.newir.Value.validateValueName;
 import static java.lang.String.format;
@@ -117,7 +117,7 @@ public abstract non-sealed class Operation
      */
     public abstract Map<AttributeKey, Object> attributes();
 
-    public final String print(int version, int indentLevel, FormatOptions formatOptions)
+    public final String print(int indentLevel, PrintOptions printOptions)
     {
         StringBuilder builder = new StringBuilder();
         String indent = INDENT.repeat(indentLevel);
@@ -125,19 +125,19 @@ public abstract non-sealed class Operation
         builder.append(indent)
                 .append(result().name())
                 .append(" = ")
-                .append(formatName(version, this))
+                .append(printOptions.formatName(this))
                 .append(arguments().stream()
                         .map(Value::name)
                         .collect(joining(", ", "(", ")")))
                 .append(" : ")
                 .append(arguments().stream()
                         .map(Value::type)
-                        .map(type -> formatOptions.formatType(version, type))
+                        .map(printOptions::formatType)
                         .collect(joining(", ", "(", ")")))
                 .append(" -> ")
-                .append(formatOptions.formatType(version, result().type()))
+                .append(printOptions.formatType(result().type()))
                 .append(regions().stream()
-                        .map(region -> region.print(version, indentLevel + 1, formatOptions))
+                        .map(region -> region.print(indentLevel + 1, printOptions))
                         .collect(joining(", ", " (", ")")));
 
         // do not render empty attributes list
@@ -146,16 +146,16 @@ public abstract non-sealed class Operation
                     .append(indent)
                     .append(INDENT)
                     .append(attributes().entrySet().stream()
-                            .map(entry -> formatOptions.formatAttribute(version, entry.getKey(), entry.getValue()))
+                            .map(entry -> printOptions.formatAttribute(entry.getKey(), entry.getValue()))
                             .collect(joining(", ", "{", "}")));
         }
 
         return builder.toString();
     }
 
-    public String prettyPrint(int indentLevel, FormatOptions formatOptions)
+    public String prettyPrint(int indentLevel, PrintOptions printOptions)
     {
-        return print(1, indentLevel, formatOptions);
+        return print(indentLevel, printOptions);
     }
 
     @Override

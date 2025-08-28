@@ -53,6 +53,7 @@ import io.trino.sql.dialect.trino.operation.TrinoOperation;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions;
+import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.newir.Program;
@@ -146,6 +147,7 @@ public class CteReuse
     {
         boolean debugEnabled = isDebugCteReuseEnabled(session);
         Logger log = Logger.get(CteReuse.class);
+        PrintOptions printOptions = formatOptions.printOptions();
 
         // rewrite to new IR
         Program program;
@@ -162,7 +164,7 @@ public class CteReuse
         // proceed only if this is a SELECT statement. This is true if all tables have updateTarget == false
         if (hasUpdateTarget(program)) {
             if (debugEnabled) {
-                log.info("Cannot apply CTE reuse for query %s: it is an update query.\nQuery program: %s", session.getQueryId(), program.print(1, formatOptions));
+                log.info("Cannot apply CTE reuse for query %s: it is an update query.\nQuery program: %s", session.getQueryId(), program.print(printOptions));
             }
             return Optional.empty();
         }
@@ -179,7 +181,7 @@ public class CteReuse
 
         if (unifiedGroups.isEmpty()) {
             if (debugEnabled) {
-                log.info("CTE reuse is ineffective for query %s: no tables to unify found.\nQuery program: %s", session.getQueryId(), program.print(1, formatOptions));
+                log.info("CTE reuse is ineffective for query %s: no tables to unify found.\nQuery program: %s", session.getQueryId(), program.print(printOptions));
             }
             return Optional.empty();
         }
@@ -229,7 +231,7 @@ public class CteReuse
         Program newProgram = new Program(((Query) program.getRoot()).withRegions(ImmutableList.of(singleBlockRegion(newMainBlock))), ImmutableMap.of());
 
         if (debugEnabled) {
-            log.info("CTE reuse applied for query %s.\nQuery program before: %s\n\nQuery program after: %s", session.getQueryId(), program.print(1, formatOptions), newProgram.print(1, formatOptions));
+            log.info("CTE reuse applied for query %s.\nQuery program before: %s\n\nQuery program after: %s", session.getQueryId(), program.print(printOptions), newProgram.print(printOptions));
         }
 
         return Optional.of(newProgram);

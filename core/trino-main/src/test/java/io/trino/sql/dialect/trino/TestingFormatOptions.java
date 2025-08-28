@@ -16,12 +16,14 @@ package io.trino.sql.dialect.trino;
 import io.trino.spi.type.TestingTypeManager;
 import io.trino.sql.newir.DialectRegistry;
 import io.trino.sql.newir.FormatOptions;
+import io.trino.sql.newir.FormatOptions.PrintOptions;
 
 import static io.trino.sql.dialect.trino.TrinoAttributeRegistry.TESTING_TRINO_ATTRIBUTE_REGISTRY;
 
 public class TestingFormatOptions
 {
     public static final FormatOptions TESTING_FORMAT_OPTIONS = new FormatOptions(new DialectRegistry(new TrinoDialect(new TestingTypeManager(), TESTING_TRINO_ATTRIBUTE_REGISTRY)));
+    public static final PrintOptions TESTING_PRINT_OPTIONS = TESTING_FORMAT_OPTIONS.printOptions();
 
     private TestingFormatOptions() {}
 }

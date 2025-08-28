@@ -31,7 +31,7 @@ import static io.trino.SystemSessionProperties.JOIN_REORDERING_STRATEGY;
 import static io.trino.SystemSessionProperties.REUSE_COMMON_SUBQUERIES;
 import static io.trino.execution.querystats.PlanOptimizersStatsCollector.createPlanOptimizersStatsCollector;
 import static io.trino.execution.warnings.WarningCollector.NOOP;
-import static io.trino.sql.dialect.trino.TestingFormatOptions.TESTING_FORMAT_OPTIONS;
+import static io.trino.sql.dialect.trino.TestingFormatOptions.TESTING_PRINT_OPTIONS;
 import static io.trino.sql.planner.LogicalPlanner.Stage.OPTIMIZED_AND_VALIDATED;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static java.lang.String.format;
@@ -140,7 +140,7 @@ public class TestCteReuseTpchPlan
                 if (planOptions.newIrProgram().isEmpty()) {
                     return "This query cannot be represented in the new IR or CTE reuse is ineffective.";
                 }
-                return planOptions.newIrProgram().get().print(1, TESTING_FORMAT_OPTIONS);
+                return planOptions.newIrProgram().get().print(TESTING_PRINT_OPTIONS);
             });
         }
         catch (RuntimeException e) {

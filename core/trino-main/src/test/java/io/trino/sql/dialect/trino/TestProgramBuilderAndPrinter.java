@@ -59,7 +59,7 @@ import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
-import static io.trino.sql.dialect.trino.TestingFormatOptions.TESTING_FORMAT_OPTIONS;
+import static io.trino.sql.dialect.trino.TestingFormatOptions.TESTING_PRINT_OPTIONS;
 import static io.trino.sql.ir.Logical.Operator.AND;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -82,7 +82,7 @@ final class TestProgramBuilderAndPrinter
                                         new io.trino.sql.ir.Constant(BOOLEAN, true)),
                                 ImmutableList.of("col_a"),
                                 ImmutableList.of(new Symbol(BIGINT, "a"))))
-                .print(1, TESTING_FORMAT_OPTIONS))
+                .print(TESTING_PRINT_OPTIONS))
                 .isEqualTo(
                         """
                         IR version = 1
@@ -170,7 +170,7 @@ final class TestProgramBuilderAndPrinter
                                         new Identifier("bla")), // origin subquery, whatever
                                 ImmutableList.of("col_1", "col_2", "col_3", "col_4", "col_5", "col_6"),
                                 ImmutableList.of(new Symbol(BIGINT, "a"), new Symbol(BOOLEAN, "b"), new Symbol(BIGINT, "c"), new Symbol(BOOLEAN, "d"), new Symbol(BIGINT, "e"), new Symbol(BOOLEAN, "f"))))
-                .print(1, TESTING_FORMAT_OPTIONS))
+                .print(TESTING_PRINT_OPTIONS))
                 .isEqualTo(
                         """
                         IR version = 1
@@ -365,7 +365,7 @@ final class TestProgramBuilderAndPrinter
                                         Optional.empty()),
                                 ImmutableList.of("key_c", "count", "sum"),
                                 ImmutableList.of(new Symbol(BIGINT, "c"), new Symbol(BIGINT, "count"), new Symbol(BIGINT, "sum"))))
-                .print(1, TESTING_FORMAT_OPTIONS))
+                .print(TESTING_PRINT_OPTIONS))
                 .isEqualTo(
                         """
                         IR version = 1
@@ -512,7 +512,7 @@ final class TestProgramBuilderAndPrinter
                                         Optional.of(Boolean.TRUE)),
                                 ImmutableList.of("col_a", "col_b"),
                                 ImmutableList.of(new Symbol(BIGINT, "a"), new Symbol(BOOLEAN, "b"))))
-                .print(1, TESTING_FORMAT_OPTIONS))
+                .print(TESTING_PRINT_OPTIONS))
                 .isEqualTo(
                         """
                         IR version = 1
@@ -574,7 +574,7 @@ final class TestProgramBuilderAndPrinter
                                 ),
                                 ImmutableList.of("col_a", "col_b"),
                                 ImmutableList.of(new Symbol(BIGINT, "f"), new Symbol(BOOLEAN, "g"))))
-                .print(1, TESTING_FORMAT_OPTIONS))
+                .print(TESTING_PRINT_OPTIONS))
                 .isEqualTo(
                         """
                         IR version = 1
