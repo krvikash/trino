@@ -16,19 +16,27 @@ package io.trino.server.testing.ai;
 import io.starburst.ai.model.ModelConnectionSpecs;
 import io.starburst.ai.model.ModelConnectionSpecsLoader;
 import io.trino.server.security.ResourceSecurity;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Context;
 
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+
+import static io.trino.server.ai.RemoteModelConnectionSpecsLoader.BASE_PATH;
 import static io.trino.server.security.ResourceSecurity.AccessType.INTERNAL_ONLY;
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 import static java.util.Objects.requireNonNull;
 
-@Path("/api/v1/ai/internal/model-connection-specs")
+@Path(BASE_PATH)
 @ResourceSecurity(INTERNAL_ONLY)
 public class TestingModelConnectionSpecsResource
 {
     private final ModelConnectionSpecsLoader modelConnectionSpecsLoader;
+    private final Set<Integer> callers = Collections.synchronizedSet(new HashSet<>());
 
     public TestingModelConnectionSpecsResource(ModelConnectionSpecsLoader modelConnectionSpecsLoader)
     {
@@ -37,8 +45,23 @@ public class TestingModelConnectionSpecsResource
 
     @GET
     @Produces(APPLICATION_JSON)
-    public ModelConnectionSpecs listAllModels()
+    public ModelConnectionSpecs listAllModels(@Context HttpServletRequest request)
     {
-        return modelConnectionSpecsLoader.load();
+        try {
+            return modelConnectionSpecsLoader.load();
+        }
+        finally {
+            // host is not relevant, since all nodes run on the same host
+            callers.add(request.getRemotePort());
+        }
+    }
+
+    // used by tests to ensure the workers had a chance to load the models
+    @GET
+    @Path("/caller-count")
+    @Produces(APPLICATION_JSON)
+    public int getCallerCount()
+    {
+        return callers.size();
     }
 }

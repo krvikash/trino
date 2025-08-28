@@ -187,6 +187,8 @@ public class ReloadingModelClientProvider
     {
         try {
             new Loader().load();
+            LOG.debug("Loaded model clients: %s language models, %s embedding models",
+                    state.get().aiClientCache().size(), state.get().embeddingClientCache().size());
         }
         catch (Throwable e) {
             LOG.warn(e, "Error refreshing model clients");
@@ -281,7 +283,7 @@ public class ReloadingModelClientProvider
             if (currentSpecs().getEmbeddingModelConnectionSpecById(newModelConnectionSpec.id()).map(spec -> !spec.equals(newModelConnectionSpec)).orElse(false) ||
                     isExpired(id)) {
                 try {
-                    embeddingModelClientBuilder.put(id, createEmbeddingModelClient((EmbeddingModelConnectionSpec) newModelConnectionSpec));
+                    embeddingModelClientBuilder.put(id, createEmbeddingModelClient(newModelConnectionSpec));
                     clientCreatedMillisBuilder.put(id, nowMillis);
                 }
                 catch (Throwable t) {

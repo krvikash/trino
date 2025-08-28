@@ -36,7 +36,7 @@ import static java.util.Objects.requireNonNull;
 public class RemoteModelConnectionSpecsLoader
         implements ModelConnectionSpecsLoader
 {
-    private static final String BASE_PATH = "/api/v1/ai/internal/model-connection-specs";
+    public static final String BASE_PATH = "/api/v1/ai/internal/model-connection-specs";
     private static final JsonCodec<ModelConnectionSpecs> CONNECTION_SPECS_CODEC = jsonCodec(ModelConnectionSpecs.class);
 
     private final HttpClient httpClient;
