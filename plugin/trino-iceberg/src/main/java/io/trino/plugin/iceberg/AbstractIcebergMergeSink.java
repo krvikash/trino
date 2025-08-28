@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.iceberg;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.json.JsonCodec;
 import io.airlift.slice.Slice;
@@ -59,6 +60,13 @@ public abstract class AbstractIcebergMergeSink
     protected final ConnectorPageSink insertPageSink;
     protected final Optional<ConnectorPageSink> updateInsertPageSink;
     protected final int columnCount;
+    protected final IcebergPageSourceProviderFactory pageSourceProviderFactory;
+    protected final List<IcebergColumnHandle> columns;
+    protected final Map<String, String> fileIoProperties;
+    protected final Map<String, Long> fileCounts;
+    protected final Map<String, Long> dataSequenceNumbers;
+    protected final Map<String, Long> firstRowIds;
+    protected final Optional<String> nameMapping;
     protected final int formatVersion;
     protected final Map<Slice, FileDeletion> fileDeletions = new HashMap<>();
 
@@ -76,6 +84,13 @@ public abstract class AbstractIcebergMergeSink
             ConnectorPageSink insertPageSink,
             Optional<ConnectorPageSink> updateInsertPageSink,
             int columnCount,
+            IcebergPageSourceProviderFactory pageSourceProviderFactory,
+            List<IcebergColumnHandle> columns,
+            Map<String, String> fileIoProperties,
+            Map<String, Long> fileCounts,
+            Map<String, Long> dataSequenceNumbers,
+            Map<String, Long> firstRowIds,
+            Optional<String> nameMapping,
             int formatVersion)
     {
         this.locationProvider = requireNonNull(locationProvider, "locationProvider is null");
@@ -91,6 +106,13 @@ public abstract class AbstractIcebergMergeSink
         this.insertPageSink = requireNonNull(insertPageSink, "insertPageSink is null");
         this.updateInsertPageSink = requireNonNull(updateInsertPageSink, "updateInsertPageSink is null");
         this.columnCount = columnCount;
+        this.columns = ImmutableList.copyOf(columns);
+        this.pageSourceProviderFactory = requireNonNull(pageSourceProviderFactory, "pageSourceProviderFactory is null");
+        this.fileIoProperties = ImmutableMap.copyOf(fileIoProperties);
+        this.fileCounts = ImmutableMap.copyOf(fileCounts);
+        this.dataSequenceNumbers = ImmutableMap.copyOf(dataSequenceNumbers);
+        this.firstRowIds = ImmutableMap.copyOf(firstRowIds);
+        this.nameMapping = requireNonNull(nameMapping, "nameMapping is null");
         this.formatVersion = formatVersion;
     }
 
@@ -131,6 +153,15 @@ public abstract class AbstractIcebergMergeSink
                 deletion.rowsToDelete().addLong(rowPosition);
             }
         });
+    }
+
+    protected static List<IcebergColumnHandle> withRowLineageColumns(List<IcebergColumnHandle> columns)
+    {
+        return ImmutableList.<IcebergColumnHandle>builder()
+                .addAll(columns)
+                .add(IcebergColumnHandle.rowIdColumnHandle())
+                .add(IcebergColumnHandle.lastUpdatedSequenceNumberColumnColumnHandle())
+                .build();
     }
 
     protected static class FileDeletion

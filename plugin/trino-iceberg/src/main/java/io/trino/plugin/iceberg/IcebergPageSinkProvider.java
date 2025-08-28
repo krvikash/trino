@@ -245,7 +245,15 @@ public class IcebergPageSinkProvider
                     partitionsSpecs,
                     pageSink,
                     updateInsertPageSink,
-                    schema.columns().size());
+                    schema.columns().size(),
+                    pageSourceProviderFactory,
+                    tableHandle.inputColumns(),
+                    tableHandle.fileIoProperties(),
+                    tableHandle.previousDeleteFiles().stream()
+                            .collect(toImmutableMap(PositionDeleteFiles::dataFileLocation, PositionDeleteFiles::dataFileRecordCount)),
+                    dataSequenceNumbers.buildOrThrow(),
+                    firstRowIds.buildOrThrow(),
+                    merge.getTableHandle().getNameMappingJson());
             case COPY_ON_WRITE -> new CopyOnWriteIcebergMergeSink(
                     locationProvider,
                     fileWriterFactory,

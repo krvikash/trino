@@ -23,6 +23,7 @@ import io.trino.plugin.iceberg.IcebergFileWriter;
 import io.trino.plugin.iceberg.IcebergFileWriterFactory;
 import io.trino.plugin.iceberg.MetricsWrapper;
 import io.trino.plugin.iceberg.PartitionData;
+import io.trino.plugin.iceberg.delete.DeleteManager.DeletePageSourceProvider;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.block.Block;
@@ -69,6 +70,7 @@ public class PositionDeleteWriter
             Optional<PartitionData> partition,
             LocationProvider locationProvider,
             IcebergFileWriterFactory fileWriterFactory,
+            DeletePageSourceProvider deletePageSourceProvider,
             TrinoFileSystem fileSystem,
             JsonCodec<CommitTaskData> jsonCodec,
             ConnectorSession session,
@@ -92,6 +94,7 @@ public class PositionDeleteWriter
                 .map(partitionData -> locationProvider.newDataLocation(partitionSpec, partitionData, fileName))
                 .orElseGet(() -> locationProvider.newDataLocation(fileName));
         this.writer = fileWriterFactory.createPositionDeleteWriter(
+                deletePageSourceProvider,
                 fileSystem,
                 Location.of(outputPath),
                 session,

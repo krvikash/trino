@@ -14,46 +14,43 @@
 package io.trino.plugin.iceberg.delete;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.io.ByteStreams;
 import io.airlift.log.Logger;
+import io.trino.plugin.iceberg.IcebergColumnHandle;
+import io.trino.plugin.iceberg.delete.DeleteManager.DeletePageSourceProvider;
+import io.trino.spi.block.Block;
+import io.trino.spi.connector.ConnectorPageSource;
+import io.trino.spi.connector.SourcePage;
+import io.trino.spi.predicate.NullableValue;
+import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.type.TypeManager;
 import org.apache.iceberg.DeleteFile;
-import org.apache.iceberg.FileFormat;
-import org.apache.iceberg.MetadataColumns;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.StructLike;
-import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.data.DeleteLoader;
+import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.InternalRecordWrapper;
 import org.apache.iceberg.data.Record;
-import org.apache.iceberg.data.avro.PlannedDataReader;
-import org.apache.iceberg.data.orc.GenericOrcReader;
-import org.apache.iceberg.data.parquet.GenericParquetReaders;
 import org.apache.iceberg.deletes.Deletes;
 import org.apache.iceberg.deletes.PositionDeleteIndex;
 import org.apache.iceberg.deletes.PositionDeleteIndexUtil;
-import org.apache.iceberg.expressions.Expression;
-import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.DeleteSchemaUtil;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.RangeReadable;
 import org.apache.iceberg.io.SeekableInputStream;
-import org.apache.iceberg.orc.ORC;
-import org.apache.iceberg.orc.OrcRowReader;
-import org.apache.iceberg.parquet.Parquet;
-import org.apache.iceberg.parquet.ParquetValueReader;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.util.CharSequenceMap;
 import org.apache.iceberg.util.ContentFileUtil;
 import org.apache.iceberg.util.StructLikeSet;
 import org.apache.iceberg.util.Tasks;
 import org.apache.iceberg.util.ThreadPools;
-import org.apache.orc.TypeDescription;
-import org.apache.parquet.schema.MessageType;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -61,6 +58,15 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.airlift.slice.Slices.utf8Slice;
+import static io.trino.plugin.iceberg.IcebergUtil.getColumnHandle;
+import static io.trino.plugin.iceberg.IcebergUtil.getProjectedColumns;
+import static io.trino.plugin.iceberg.delete.DeleteFile.fromIceberg;
+import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.VarcharType.VARCHAR;
+import static java.util.Objects.requireNonNull;
+import static org.apache.iceberg.MetadataColumns.DELETE_FILE_PATH;
+import static org.apache.iceberg.MetadataColumns.DELETE_FILE_POS;
 
 /**
  * Copy of {@link org.apache.iceberg.data.BaseDeleteLoader} with Trino native file readers
@@ -71,16 +77,20 @@ public class BaseDeleteLoader
     private static final Logger LOG = Logger.get(BaseDeleteLoader.class);
     private static final Schema POS_DELETE_SCHEMA = DeleteSchemaUtil.pathPosSchema();
 
+    private final TypeManager typeManager;
+    private final DeletePageSourceProvider deletePageSourceProvider;
     private final Function<DeleteFile, InputFile> loadInputFile;
     private final ExecutorService workerPool;
 
-    public BaseDeleteLoader(Function<DeleteFile, InputFile> loadInputFile)
+    public BaseDeleteLoader(TypeManager typeManager, DeletePageSourceProvider deletePageSourceProvider, Function<DeleteFile, InputFile> loadInputFile)
     {
-        this(loadInputFile, ThreadPools.getDeleteWorkerPool());
+        this(typeManager, deletePageSourceProvider, loadInputFile, ThreadPools.getDeleteWorkerPool());
     }
 
-    public BaseDeleteLoader(Function<DeleteFile, InputFile> loadInputFile, ExecutorService workerPool)
+    public BaseDeleteLoader(TypeManager typeManager, DeletePageSourceProvider deletePageSourceProvider, Function<DeleteFile, InputFile> loadInputFile, ExecutorService workerPool)
     {
+        this.typeManager = requireNonNull(typeManager, "typeManager is null");
+        this.deletePageSourceProvider = requireNonNull(deletePageSourceProvider, "deletePageSourceProvider is null");
         this.loadInputFile = loadInputFile;
         this.workerPool = workerPool;
     }
@@ -136,14 +146,14 @@ public class BaseDeleteLoader
 
     private Iterable<StructLike> readEqDeletes(DeleteFile deleteFile, Schema projection)
     {
-        CloseableIterable<org.apache.iceberg.data.Record> deletes = openDeletes(deleteFile, projection);
-        CloseableIterable<org.apache.iceberg.data.Record> copiedDeletes = CloseableIterable.transform(deletes, org.apache.iceberg.data.Record::copy);
+        CloseableIterable<Record> deletes = openDeletes(deleteFile, projection);
+        CloseableIterable<Record> copiedDeletes = CloseableIterable.transform(deletes, Record::copy);
         CloseableIterable<StructLike> copiedDeletesAsStructs = toStructs(copiedDeletes, projection);
         return materialize(copiedDeletesAsStructs);
     }
 
     private CloseableIterable<StructLike> toStructs(
-            CloseableIterable<org.apache.iceberg.data.Record> records, Schema schema)
+            CloseableIterable<Record> records, Schema schema)
     {
         InternalRecordWrapper wrapper = new InternalRecordWrapper(schema.asStruct());
         return CloseableIterable.transform(records, wrapper::copyFor);
@@ -228,68 +238,55 @@ public class BaseDeleteLoader
 
     private CharSequenceMap<PositionDeleteIndex> readPosDeletes(DeleteFile deleteFile)
     {
-        CloseableIterable<org.apache.iceberg.data.Record> deletes = openDeletes(deleteFile, POS_DELETE_SCHEMA);
+        CloseableIterable<Record> deletes = openDeletes(deleteFile, POS_DELETE_SCHEMA);
         return Deletes.toPositionIndexes(deletes, deleteFile);
     }
 
     private PositionDeleteIndex readPosDeletes(DeleteFile deleteFile, CharSequence filePath)
     {
-        Expression filter = Expressions.equal(MetadataColumns.DELETE_FILE_PATH.name(), filePath);
-        CloseableIterable<org.apache.iceberg.data.Record> deletes = openDeletes(deleteFile, POS_DELETE_SCHEMA, filter);
+        IcebergColumnHandle deleteFilePath = getColumnHandle(DELETE_FILE_PATH, typeManager);
+        TupleDomain<IcebergColumnHandle> filter = TupleDomain.fromFixedValues(ImmutableMap.of(deleteFilePath, NullableValue.of(VARCHAR, utf8Slice(filePath.toString()))));
+        CloseableIterable<Record> deletes = openDeletes(deleteFile, POS_DELETE_SCHEMA, filter);
         return Deletes.toPositionIndex(filePath, deletes, deleteFile);
     }
 
-    private CloseableIterable<org.apache.iceberg.data.Record> openDeletes(DeleteFile deleteFile, Schema projection)
+    private CloseableIterable<Record> openDeletes(DeleteFile deleteFile, Schema projection)
     {
-        return openDeletes(deleteFile, projection, null /* no filter */);
+        return openDeletes(deleteFile, projection, TupleDomain.all());
     }
 
-    private CloseableIterable<Record> openDeletes(DeleteFile deleteFile, Schema projection, Expression filter)
+    private CloseableIterable<Record> openDeletes(DeleteFile deleteFile, Schema projection, TupleDomain<IcebergColumnHandle> filter)
     {
-        FileFormat format = deleteFile.format();
         LOG.debug("Opening delete file %s", deleteFile.location());
-        InputFile inputFile = loadInputFile.apply(deleteFile);
 
-        switch (format) {
-            case AVRO:
-                return Avro.read(inputFile)
-                        .project(projection)
-                        .reuseContainers()
-                        .createResolvingReader(PlannedDataReader::create)
-                        .build();
-
-            case PARQUET:
-                return Parquet.read(inputFile)
-                        .project(projection)
-                        .filter(filter)
-                        .reuseContainers()
-                        .createReaderFunc(newParquetReaderFunc(projection))
-                        .build();
-
-            case ORC:
-                // reusing containers is automatic for ORC, no need to call 'reuseContainers'
-                return ORC.read(inputFile)
-                        .project(projection)
-                        .filter(filter)
-                        .createReaderFunc(newOrcReaderFunc(projection))
-                        .build();
-
-            default:
-                throw new UnsupportedOperationException(
-                        String.format(
-                                "Cannot read deletes, %s is not a supported file format: %s",
-                                format.name(), inputFile.location()));
+        try (ConnectorPageSource pageSource = deletePageSourceProvider.openDeletes(fromIceberg(deleteFile), getProjectedColumns(projection, typeManager), filter)) {
+            return CloseableIterable.of(loadPositionDeletes(pageSource, projection));
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("Failed to open delete file: " + deleteFile.location(), e);
         }
     }
 
-    private Function<MessageType, ParquetValueReader<?>> newParquetReaderFunc(Schema projection)
+    private static List<Record> loadPositionDeletes(ConnectorPageSource pageSource, Schema schema)
     {
-        return fileSchema -> GenericParquetReaders.buildReader(projection, fileSchema);
-    }
+        ImmutableList.Builder<org.apache.iceberg.data.Record> deletedRows = ImmutableList.builder();
+        while (!pageSource.isFinished()) {
+            SourcePage page = pageSource.getNextSourcePage();
+            if (page == null) {
+                continue;
+            }
 
-    private Function<TypeDescription, OrcRowReader<?>> newOrcReaderFunc(Schema projection)
-    {
-        return fileSchema -> GenericOrcReader.buildReader(projection, fileSchema);
+            Block pathBlock = page.getBlock(0);
+            Block posBlock = page.getBlock(1);
+
+            for (int position = 0; position < page.getPositionCount(); position++) {
+                GenericRecord record = GenericRecord.create(schema);
+                record.setField(DELETE_FILE_PATH.name(), VARCHAR.getSlice(pathBlock, position).toStringUtf8());
+                record.setField(DELETE_FILE_POS.name(), BIGINT.getLong(posBlock, position));
+                deletedRows.add(record);
+            }
+        }
+        return deletedRows.build();
     }
 
     private <I, O> Iterable<O> execute(Iterable<I> objects, Function<I, O> func)

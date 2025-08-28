@@ -19,16 +19,17 @@ import io.trino.filesystem.TrinoFileSystem;
 import io.trino.plugin.hive.NodeVersion;
 import io.trino.plugin.iceberg.IcebergFileWriter;
 import io.trino.plugin.iceberg.PartitionData;
+import io.trino.plugin.iceberg.delete.DeleteManager.DeletePageSourceProvider;
 import io.trino.plugin.iceberg.fileio.ForwardingInputFile;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.LongArrayBlock;
+import io.trino.spi.type.TypeManager;
 import org.apache.iceberg.ContentFileParsers;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.Metrics;
 import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.data.BaseDeleteLoader;
 import org.apache.iceberg.data.DeleteLoader;
 import org.apache.iceberg.deletes.PositionDeleteIndex;
 import org.apache.iceberg.io.DeleteWriteResult;
@@ -82,12 +83,12 @@ public class DeletionVectorWriter
         rollbackAction = () -> fileSystem.deleteFile(outputPath);
     }
 
-    public static Function<CharSequence, PositionDeleteIndex> create(TrinoFileSystem fileSystem, Map<String, DeleteFileSet> deleteFiles)
+    public static Function<CharSequence, PositionDeleteIndex> create(TypeManager typeManager, DeletePageSourceProvider pageSourceProvider, TrinoFileSystem fileSystem, Map<String, DeleteFileSet> deleteFiles)
     {
         if (deleteFiles == null) {
             return _ -> null;
         }
-        return new PreviousDeleteLoader(fileSystem, deleteFiles);
+        return new PreviousDeleteLoader(typeManager, pageSourceProvider, fileSystem, deleteFiles);
     }
 
     private static class PreviousDeleteLoader
@@ -96,11 +97,11 @@ public class DeletionVectorWriter
         private final Map<String, DeleteFileSet> deleteFiles;
         private final DeleteLoader deleteLoader;
 
-        private PreviousDeleteLoader(TrinoFileSystem fileSystem, Map<String, DeleteFileSet> deleteFiles)
+        private PreviousDeleteLoader(TypeManager typeManager, DeletePageSourceProvider pageSourceProvider, TrinoFileSystem fileSystem, Map<String, DeleteFileSet> deleteFiles)
         {
             requireNonNull(fileSystem, "fileSystem is null");
             this.deleteFiles = ImmutableMap.copyOf(deleteFiles);
-            this.deleteLoader = new BaseDeleteLoader(deleteFile -> new ForwardingInputFile(fileSystem.newInputFile(Location.of(deleteFile.location()))));
+            this.deleteLoader = new BaseDeleteLoader(typeManager, pageSourceProvider, deleteFile -> new ForwardingInputFile(fileSystem.newInputFile(Location.of(deleteFile.location()))));
         }
 
         @Override

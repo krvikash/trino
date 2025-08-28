@@ -14,7 +14,6 @@
 package io.trino.plugin.iceberg;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.airlift.json.JsonCodec;
 import io.airlift.slice.Slice;
 import io.trino.filesystem.Location;
@@ -53,21 +52,12 @@ import java.util.concurrent.CompletableFuture;
 
 import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.trino.plugin.iceberg.IcebergUtil.supportsRowLineage;
-import static java.util.Objects.requireNonNull;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
 public class CopyOnWriteIcebergMergeSink
         extends AbstractIcebergMergeSink
 {
-    private final IcebergPageSourceProviderFactory pageSourceProviderFactory;
-    private final List<IcebergColumnHandle> columns;
-    private final Map<String, String> fileIoProperties;
-    private final Map<String, Long> fileCounts;
-    private final Map<String, Long> dataSequenceNumbers;
-    private final Map<String, Long> firstRowIds;
-    private final Optional<String> nameMapping;
-
     public CopyOnWriteIcebergMergeSink(
             LocationProvider locationProvider,
             IcebergFileWriterFactory fileWriterFactory,
@@ -105,14 +95,14 @@ public class CopyOnWriteIcebergMergeSink
                 insertPageSink,
                 updateInsertPageSink,
                 columnCount,
+                pageSourceProviderFactory,
+                columns,
+                fileIoProperties,
+                fileCounts,
+                dataSequenceNumbers,
+                firstRowIds,
+                nameMapping,
                 formatVersion);
-        this.pageSourceProviderFactory = requireNonNull(pageSourceProviderFactory, "pageSourceProviderFactory is null");
-        this.columns = ImmutableList.copyOf(columns);
-        this.fileIoProperties = ImmutableMap.copyOf(fileIoProperties);
-        this.fileCounts = ImmutableMap.copyOf(fileCounts);
-        this.dataSequenceNumbers = ImmutableMap.copyOf(dataSequenceNumbers);
-        this.firstRowIds = ImmutableMap.copyOf(firstRowIds);
-        this.nameMapping = requireNonNull(nameMapping, "nameMapping is null");
     }
 
     @Override
@@ -253,14 +243,5 @@ public class CopyOnWriteIcebergMergeSink
                 supportsRowLineage(formatVersion) ? firstRowIds.get(path.toString()) : null,
                 nameMapping.map(NameMappingParser::fromJson),
                 formatVersion);
-    }
-
-    private static List<IcebergColumnHandle> withRowLineageColumns(List<IcebergColumnHandle> columns)
-    {
-        return ImmutableList.<IcebergColumnHandle>builder()
-                .addAll(columns)
-                .add(IcebergColumnHandle.rowIdColumnHandle())
-                .add(IcebergColumnHandle.lastUpdatedSequenceNumberColumnColumnHandle())
-                .build();
     }
 }

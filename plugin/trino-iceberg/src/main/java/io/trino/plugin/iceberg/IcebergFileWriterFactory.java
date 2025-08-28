@@ -33,6 +33,7 @@ import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.HiveCompressionCodec;
 import io.trino.plugin.hive.NodeVersion;
 import io.trino.plugin.hive.orc.OrcWriterConfig;
+import io.trino.plugin.iceberg.delete.DeleteManager.DeletePageSourceProvider;
 import io.trino.plugin.iceberg.delete.DeletionVectorWriter;
 import io.trino.plugin.iceberg.fileio.ForwardingOutputFile;
 import io.trino.spi.TrinoException;
@@ -145,6 +146,7 @@ public class IcebergFileWriterFactory
     }
 
     public IcebergFileWriter createPositionDeleteWriter(
+            DeletePageSourceProvider deletePageSourceProvider,
             TrinoFileSystem fileSystem,
             Location outputPath,
             ConnectorSession session,
@@ -156,7 +158,7 @@ public class IcebergFileWriterFactory
             Map<String, DeleteFileSet> previousDeleteFiles)
     {
         return switch (fileFormat) {
-            case PUFFIN -> createDeletionVectorWriter(nodeVersion, fileSystem, outputPath, dataFilePath, partitionSpec, partition, previousDeleteFiles);
+            case PUFFIN -> createDeletionVectorWriter(typeManager, nodeVersion, deletePageSourceProvider, fileSystem, outputPath, dataFilePath, partitionSpec, partition, previousDeleteFiles);
             case PARQUET -> createParquetWriter(FULL_METRICS_CONFIG, fileSystem, outputPath, POSITION_DELETE_SCHEMA, session, storageProperties);
             case ORC -> createOrcWriter(FULL_METRICS_CONFIG, fileSystem, outputPath, POSITION_DELETE_SCHEMA, session, storageProperties, DataSize.ofBytes(Integer.MAX_VALUE));
             case AVRO -> createAvroWriter(fileSystem, outputPath, POSITION_DELETE_SCHEMA, session);
@@ -165,7 +167,9 @@ public class IcebergFileWriterFactory
     }
 
     private static DeletionVectorWriter createDeletionVectorWriter(
+            TypeManager typeManager,
             NodeVersion nodeVersion,
+            DeletePageSourceProvider pageSourceProvider,
             TrinoFileSystem fileSystem,
             Location outputPath,
             String dataFilePath,
@@ -173,7 +177,7 @@ public class IcebergFileWriterFactory
             Optional<PartitionData> partition,
             Map<String, DeleteFileSet> previousDeleteFiles)
     {
-        Function<CharSequence, PositionDeleteIndex> previousDeleteLoader = DeletionVectorWriter.create(fileSystem, previousDeleteFiles);
+        Function<CharSequence, PositionDeleteIndex> previousDeleteLoader = DeletionVectorWriter.create(typeManager, pageSourceProvider, fileSystem, previousDeleteFiles);
         int positionChannel = POSITION_DELETE_SCHEMA.columns().indexOf(DELETE_FILE_POS);
         checkState(positionChannel != -1, "positionChannel not found");
         return new DeletionVectorWriter(nodeVersion, fileSystem, outputPath, dataFilePath, partitionSpec, partition, previousDeleteLoader::apply, positionChannel);

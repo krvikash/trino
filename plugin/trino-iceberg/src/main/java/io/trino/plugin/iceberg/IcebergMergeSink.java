@@ -53,7 +53,14 @@ public class IcebergMergeSink
             Map<Integer, PartitionSpec> partitionsSpecs,
             ConnectorPageSink insertPageSink,
             Optional<ConnectorPageSink> updateInsertPageSink,
-            int columnCount)
+            int columnCount,
+            IcebergPageSourceProviderFactory pageSourceProviderFactory,
+            List<IcebergColumnHandle> columns,
+            Map<String, String> fileIoProperties,
+            Map<String, Long> fileCounts,
+            Map<String, Long> dataSequenceNumbers,
+            Map<String, Long> firstRowIds,
+            Optional<String> nameMapping)
     {
         super(
                 locationProvider,
@@ -69,6 +76,13 @@ public class IcebergMergeSink
                 insertPageSink,
                 updateInsertPageSink,
                 columnCount,
+                pageSourceProviderFactory,
+                columns,
+                fileIoProperties,
+                fileCounts,
+                dataSequenceNumbers,
+                firstRowIds,
+                nameMapping,
                 formatVersion);
     }
 
@@ -101,12 +115,14 @@ public class IcebergMergeSink
             partitionData = Optional.of(PartitionData.fromJson(partitionDataJson, columnTypes));
         }
 
+        IcebergPageSourceProvider icebergPageSourceProvider = (IcebergPageSourceProvider) pageSourceProviderFactory.createPageSourceProvider();
         return new PositionDeleteWriter(
                 dataFilePath,
                 partitionSpec,
                 partitionData,
                 locationProvider,
                 fileWriterFactory,
+                icebergPageSourceProvider.deletePageSourceProvider(session, fileSystem, formatVersion),
                 fileSystem,
                 jsonCodec,
                 session,

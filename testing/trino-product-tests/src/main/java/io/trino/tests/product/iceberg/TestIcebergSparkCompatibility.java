@@ -3058,6 +3058,33 @@ public class TestIcebergSparkCompatibility
         assertThat(onSpark().executeQuery("SELECT _row_id, _last_updated_sequence_number, nationkey FROM " + sparkTableName + " WHERE nationkey = 110")).containsOnly(expected);
     }
 
+    @Test(groups = {ICEBERG, PROFILE_SPECIFIC_TESTS}, dataProvider = "storageFormats")
+    public void testUpgradeTableToV3FromTrinoWithPositionDeletes(StorageFormat format)
+    {
+        String baseTableName = "test_position_deletes_upgrade_" + randomNameSuffix();
+        String trinoTableName = trinoTableName(baseTableName);
+        String sparkTableName = sparkTableName(baseTableName);
+
+        onTrino().executeQuery("CREATE TABLE " + trinoTableName + " WITH (format_version = 2, format = '" + format + "') AS SELECT * FROM tpch.tiny.region");
+        onTrino().executeQuery("DELETE FROM " + trinoTableName + " WHERE regionkey = 0");
+
+        onTrino().executeQuery("ALTER TABLE " + trinoTableName + " SET PROPERTIES format_version = 3");
+
+        onTrino().executeQuery("DELETE FROM " + trinoTableName + " WHERE regionkey = 1");
+        assertThat(onTrino().executeQuery("SELECT regionkey FROM " + trinoTableName))
+                .containsOnly(List.of(row(2), row(3), row(4)));
+        assertThat(onSpark().executeQuery("SELECT regionkey FROM " + sparkTableName))
+                .containsOnly(List.of(row(2), row(3), row(4)));
+
+        onTrino().executeQuery("DELETE FROM " + trinoTableName + " WHERE regionkey = 2");
+        assertThat(onTrino().executeQuery("SELECT regionkey FROM " + trinoTableName))
+                .containsOnly(List.of(row(3), row(4)));
+        assertThat(onSpark().executeQuery("SELECT regionkey FROM " + sparkTableName))
+                .containsOnly(List.of(row(3), row(4)));
+
+        onTrino().executeQuery("DROP TABLE " + trinoTableName);
+    }
+
     @Test(groups = {ICEBERG, PROFILE_SPECIFIC_TESTS})
     public void testTrinoAnalyzeWithNonLowercaseColumnName()
     {
