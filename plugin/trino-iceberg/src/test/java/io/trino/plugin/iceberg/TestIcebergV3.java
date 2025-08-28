@@ -286,6 +286,23 @@ public class TestIcebergV3
     }
 
     @Test
+    void testEqualityDeleteAndDeletionVector()
+            throws Exception
+    {
+        try (TestTable table = newTrinoTable("test_equality_deletes", "AS SELECT * FROM tpch.tiny.region")) {
+            BaseTable icebergTable = loadTable(table.getName());
+            writeEqualityDeleteForTable(icebergTable, fileSystemFactory, Optional.empty(), Optional.empty(), ImmutableMap.of("regionkey", 1L), Optional.empty());
+
+            assertThat(query("SELECT regionkey FROM " + table.getName()))
+                    .matches("VALUES BIGINT '0', 2, 3, 4");
+
+            assertUpdate("DELETE FROM " + table.getName() + " WHERE regionkey = 3", 1);
+            assertThat(query("SELECT regionkey FROM " + table.getName()))
+                    .matches("VALUES BIGINT '0', 2, 4");
+        }
+    }
+
+    @Test
     void testTimestampNano()
     {
         testTimestampNano("PARQUET");
