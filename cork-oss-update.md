@@ -179,10 +179,7 @@ git rebase --interactive --empty=drop "${FROM}" --onto master
 As the maven-release-plugin commits were skipped during previous step, we need to change the version ourselves
 
 ```shell
-./mvnw versions:set -DnewVersion="${TO_VERSION}-cork-1-SNAPSHOT" &&
-./mvnw -pl :trino-test-jdbc-compatibility-old-driver versions:set-property -Dproperty="dep.presto-jdbc-under-test" -DnewVersion="${TO_VERSION}-cork-1-SNAPSHOT" &&
-find -name pom.xml.versionsBackup -delete &&
-
+sed -i "s/<revision>.*<\/revision>/<revision>"${TO_VERSION}-cork-1-SNAPSHOT"<\/revision>/" pom.xml
 # only create commit if actually updated any pom files
 if ! git diff --quiet; then
   git commit -a -m "Bump Cork version after code sync with Trino ${TO_VERSION}-${TO_SHORT}"
