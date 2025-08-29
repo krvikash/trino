@@ -29,6 +29,7 @@ import io.trino.spi.connector.ConnectorSession;
 import java.io.IOException;
 import java.util.Optional;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.plugin.deltalake.transactionlog.TransactionLogUtil.getTransactionLogStagedCommitDirectoryPath;
 import static java.util.Objects.requireNonNull;
 
@@ -64,6 +65,13 @@ class RestUnityTransactionLogReader
     {
         TrinoFileSystem fileSystem = fileSystemFactory.create(session);
 
+        // always load staged commits first, since there is a rare case that a staged commit is created and
+        // just publishing when we are reading the transaction log from file system, in this case we may not
+        // see the published commit from file system as it is still publishing, then we load staged commits
+        // also not see the commit - as it just finished published after we load from file system.
+        StagedCommitsInfo stagedCommitsInfo = tableOperationsProvider.createTableOperations(session)
+                .loadStagedCommitsInfo(tableId, tableLocation, startVersion, endVersion);
+
         ImmutableList.Builder<Transaction> transactions = ImmutableList.builder();
         TransactionLogTail published = fileSystemTransactionLogReader.loadNewTail(session, startVersion, endVersion, transactionLogMaxCachedFileSize);
         transactions.addAll(published.getTransactions());
@@ -72,12 +80,17 @@ class RestUnityTransactionLogReader
             return new TransactionLogTail(transactions.build(), version);
         }
 
-        StagedCommitsInfo stagedCommitsInfo = tableOperationsProvider.createTableOperations(session)
-                .loadStagedCommitsInfo(tableId, tableLocation, Optional.of(version + 1), endVersion);
         if (stagedCommitsInfo.getCommits() == null || stagedCommitsInfo.getCommits().isEmpty()) {
+            // If there are no staged commits, the published latest version must be equal or greater than the current version.
+            checkArgument(version >= stagedCommitsInfo.getLatestTableVersion(),
+                    "Latest published version: %s is less than expected known version: %s", version, stagedCommitsInfo.getLatestTableVersion());
             // No new commits available, return the current transactions
             return new TransactionLogTail(transactions.build(), version);
         }
+
+        long firstStagedCommitVersion = stagedCommitsInfo.getCommits().getFirst().version();
+        checkArgument(version >= firstStagedCommitVersion - 1,
+                "There is a gap between the published version: %s and the first staged commit: %s", version, firstStagedCommitVersion);
 
         if (stagedCommitsInfo.getLatestTableVersion() == version) {
             // If the latest table version is equal to the current version, it means no new commits are available.
