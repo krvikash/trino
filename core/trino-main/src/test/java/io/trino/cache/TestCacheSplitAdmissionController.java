@@ -67,21 +67,21 @@ public class TestCacheSplitAdmissionController
         // Batch 1:
         SplitBatch batchA1 = cacheSplitSourceA.getNextBatch(10).get();
         assertCacheSplitIds(batchA1, ImmutableMap.of(
-                "127.0.0.1", createCacheSplitIds(IntStream.of(0, 8)),
+                "127.0.0.1:8080", createCacheSplitIds(IntStream.of(0, 8)),
                 "node0", createCacheSplitIds(IntStream.of(2, 3, 5)),
                 "node1", createCacheSplitIds(IntStream.of(1, 4, 6, 7, 9))));
         assertThat(batchA1.isLastBatch()).isFalse();
 
         SplitBatch batchB1 = cacheSplitSourceB.getNextBatch(10).get();
         assertCacheSplitIds(batchB1, ImmutableMap.of(
-                "127.0.0.1", createCacheSplitIds(IntStream.of(10)),
+                "127.0.0.1:8080", createCacheSplitIds(IntStream.of(10)),
                 "node0", createCacheSplitIds(IntStream.of(11, 12, 16, 17, 18, 19)),
                 "node1", createCacheSplitIds(IntStream.of(13, 14, 15))));
         assertThat(batchB1.isLastBatch()).isFalse();
 
         SplitBatch batchC1 = cacheSplitSourceC.getNextBatch(10).get();
         assertCacheSplitIds(batchC1, ImmutableMap.of(
-                "127.0.0.1", createCacheSplitIds(IntStream.of(21, 23, 24, 27, 29)),
+                "127.0.0.1:8080", createCacheSplitIds(IntStream.of(21, 23, 24, 27, 29)),
                 "node0", createCacheSplitIds(IntStream.of(22, 25, 26)),
                 "node1", createCacheSplitIds(IntStream.of(20, 28))));
         assertThat(batchC1.isLastBatch()).isFalse();
@@ -94,7 +94,7 @@ public class TestCacheSplitAdmissionController
         SplitBatch batchA2 = cacheSplitSourceA.getNextBatch(20).get();
         // Since we have crossed the gap limit for some splits, we will get those splits from queue
         assertCacheSplitIds(batchA2, ImmutableMap.of(
-                "127.0.0.1", createCacheSplitIds(IntStream.of(10, 21, 33, 35, 37)),
+                "127.0.0.1:8080", createCacheSplitIds(IntStream.of(10, 21, 33, 35, 37)),
                 "node0", createCacheSplitIds(IntStream.of(11, 12, 16, 17, 18, 31, 32, 39, 40, 41)),
                 "node1", createCacheSplitIds(IntStream.of(13, 30, 34, 36, 38))));
         assertThat(batchA2.isLastBatch()).isFalse();
@@ -102,7 +102,7 @@ public class TestCacheSplitAdmissionController
         SplitBatch batchB2 = cacheSplitSourceB.getNextBatch(19).get();
         // Since we have crossed the gap limit for some splits, we will get those splits from queue
         assertCacheSplitIds(batchB2, ImmutableMap.of(
-                "127.0.0.1", createCacheSplitIds(IntStream.of(0, 8, 21, 42, 43, 48)),
+                "127.0.0.1:8080", createCacheSplitIds(IntStream.of(0, 8, 21, 42, 43, 48)),
                 "node0", createCacheSplitIds(IntStream.of(2, 3, 5, 49)),
                 "node1", createCacheSplitIds(IntStream.of(1, 4, 6, 7, 9, 44, 45, 46, 47))));
         assertThat(batchB2.isLastBatch()).isFalse();
@@ -110,7 +110,7 @@ public class TestCacheSplitAdmissionController
         SplitBatch batchC2 = cacheSplitSourceC.getNextBatch(20).get();
         // Since we have crossed the gap limit for some splits, we will get those splits from queue
         assertCacheSplitIds(batchC2, ImmutableMap.of(
-                "127.0.0.1", createCacheSplitIds(IntStream.of(0, 8, 10, 33)),
+                "127.0.0.1:8080", createCacheSplitIds(IntStream.of(0, 8, 10, 33)),
                 "node0", createCacheSplitIds(IntStream.of(2, 3, 5, 11, 12, 16, 17, 18, 19)),
                 "node1", createCacheSplitIds(IntStream.of(1, 4, 6, 7, 9, 13, 14))));
         assertThat(batchC2.isLastBatch()).isFalse();
@@ -121,21 +121,21 @@ public class TestCacheSplitAdmissionController
         // Since we have scheduled all the splits, we will get the remaining splits from the queue
         SplitBatch batchA3 = cacheSplitSourceA.getNextBatch(30).get();
         assertCacheSplitIds(batchA3, ImmutableMap.of(
-                "127.0.0.1", createCacheSplitIds(IntStream.of(23, 24, 27, 29, 42, 43, 48)),
+                "127.0.0.1:8080", createCacheSplitIds(IntStream.of(23, 24, 27, 29, 42, 43, 48)),
                 "node0", createCacheSplitIds(IntStream.of(19, 22, 25, 26, 49)),
                 "node1", createCacheSplitIds(IntStream.of(14, 15, 20, 28, 44, 45, 46, 47))));
         assertThat(batchA3.isLastBatch()).isTrue();
 
         SplitBatch batchB3 = cacheSplitSourceB.getNextBatch(30).get();
         assertCacheSplitIds(batchB3, ImmutableMap.of(
-                "127.0.0.1", createCacheSplitIds(IntStream.of(23, 24, 27, 29, 33, 35, 37)),
+                "127.0.0.1:8080", createCacheSplitIds(IntStream.of(23, 24, 27, 29, 33, 35, 37)),
                 "node0", createCacheSplitIds(IntStream.of(22, 25, 26, 31, 32, 39, 40, 41)),
                 "node1", createCacheSplitIds(IntStream.of(20, 28, 30, 34, 36, 38))));
         assertThat(batchB3.isLastBatch()).isTrue();
 
         SplitBatch batchC3 = cacheSplitSourceC.getNextBatch(30).get();
         assertCacheSplitIds(batchC3, ImmutableMap.of(
-                "127.0.0.1", createCacheSplitIds(IntStream.of(35, 37, 42, 43, 48)),
+                "127.0.0.1:8080", createCacheSplitIds(IntStream.of(35, 37, 42, 43, 48)),
                 "node0", createCacheSplitIds(IntStream.of(31, 32, 39, 40, 41, 49)),
                 "node1", createCacheSplitIds(IntStream.of(15, 30, 34, 36, 38, 44, 45, 46, 47))));
         assertThat(batchC3.isLastBatch()).isTrue();
@@ -182,7 +182,7 @@ public class TestCacheSplitAdmissionController
         // we don't end up scheduling all the splits from a single node to avoid skewness.
         SplitBatch batchB2 = cacheSplitSourceB.getNextBatch(5).get();
         // splits are diverse and belong to all available nodes
-        assertHostAddress(batchB2, ImmutableSet.of("node0", "node1", "node2", "127.0.0.1"));
+        assertHostAddress(batchB2, ImmutableSet.of("node0", "node1", "node2", "127.0.0.1:8080"));
         assertThat(batchB1.isLastBatch()).isFalse();
 
         cacheSplitSourceA.close();
