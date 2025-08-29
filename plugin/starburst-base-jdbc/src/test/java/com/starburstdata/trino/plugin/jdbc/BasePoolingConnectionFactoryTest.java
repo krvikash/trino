@@ -10,9 +10,9 @@
 package com.starburstdata.trino.plugin.jdbc;
 
 import io.airlift.units.Duration;
+import io.trino.plugin.base.cache.identity.IdentityCacheMapping;
 import io.trino.plugin.jdbc.BaseJdbcConfig;
 import io.trino.plugin.jdbc.ConnectionFactory;
-import io.trino.plugin.jdbc.IdentityCacheMapping;
 import io.trino.plugin.jdbc.credential.CredentialPropertiesProvider;
 import io.trino.plugin.jdbc.credential.CredentialProvider;
 import io.trino.plugin.jdbc.credential.DefaultCredentialPropertiesProvider;

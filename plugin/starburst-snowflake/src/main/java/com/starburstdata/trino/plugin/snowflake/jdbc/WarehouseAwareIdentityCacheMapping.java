@@ -10,7 +10,7 @@
 package com.starburstdata.trino.plugin.snowflake.jdbc;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.trino.plugin.jdbc.IdentityCacheMapping;
+import io.trino.plugin.base.cache.identity.IdentityCacheMapping;
 import io.trino.spi.connector.ConnectorSession;
 
 import java.util.Objects;

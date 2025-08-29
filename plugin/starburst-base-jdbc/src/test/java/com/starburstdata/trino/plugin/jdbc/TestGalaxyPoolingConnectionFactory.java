@@ -9,8 +9,8 @@
  */
 package com.starburstdata.trino.plugin.jdbc;
 
+import io.trino.plugin.base.cache.identity.IdentityCacheMapping;
 import io.trino.plugin.jdbc.ExtraCredentialsBasedIdentityCacheMapping;
-import io.trino.plugin.jdbc.IdentityCacheMapping;
 import io.trino.plugin.jdbc.credential.ExtraCredentialConfig;
 
 public class TestGalaxyPoolingConnectionFactory
