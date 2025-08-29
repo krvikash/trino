@@ -13,7 +13,7 @@ import com.starburstdata.trino.plugin.snowflake.SnowflakeConfig;
 import com.starburstdata.trino.plugin.snowflake.jdbc.WarehouseAwareIdentityCacheMapping.Key;
 import io.trino.plugin.base.cache.identity.IdentityCacheMapping;
 import io.trino.plugin.base.cache.identity.IdentityCacheMapping.IdentityCacheKey;
-import io.trino.plugin.jdbc.SingletonIdentityCacheMapping;
+import io.trino.plugin.base.cache.identity.SingletonIdentityCacheMapping;
 import io.trino.testing.TestingConnectorSession;
 import org.junit.jupiter.api.Test;
 
