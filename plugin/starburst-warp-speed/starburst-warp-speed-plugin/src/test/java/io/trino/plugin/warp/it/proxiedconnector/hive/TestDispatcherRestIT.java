@@ -123,6 +123,7 @@ public class TestDispatcherRestIT
     }
 
     @Test
+    @Disabled("not relevant any more - to be removed - https://starburst-engineering.slack.com/archives/C09BTF3D31N/p1756475690269999?thread_ts=1756468479.382689&cid=C09BTF3D31N")
     public void testWarmupApi()
             throws IOException
     {
