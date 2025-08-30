@@ -150,7 +150,6 @@ public class QueryUtils
 
     private void queryAndValidate(String catalogName, TestFormat.QueryData query, boolean assertOnCounters, SoftAssertions softAssert)
     {
-        String defaultWarmingSession = catalogName + ".enable_default_warming";
         try {
             @Language("SQL") String queryToExecute = query.query();
             List<Object> expectedResult = query.expected_result();
@@ -160,7 +159,7 @@ public class QueryUtils
 
             logger.debug("Going to execute query {%s}, data: {%s}", queryToExecute, query);
             if (query.session_properties() == null || query.session_properties().isEmpty()) {
-                onTrino().executeQuery(format("set session %s = false", defaultWarmingSession));
+                logger.info("no seesion properties");
             }
             else {
                 Map<String, Object> sessionPropertiesWithCatalog = query.session_properties().entrySet().stream().collect(Collectors.toMap(e -> catalogName + "." + e.getKey(), Map.Entry::getValue));
@@ -180,7 +179,7 @@ public class QueryUtils
         }
         finally {
             if (query.session_properties() == null || query.session_properties().isEmpty()) {
-                onTrino().executeQuery(format("reset session %s", defaultWarmingSession));
+                logger.info("no session properties");
             }
             else {
                 Map<String, Object> sessionPropertiesWithCatalog = query.session_properties().entrySet().stream().collect(Collectors.toMap(e -> catalogName + "." + e.getKey(), Map.Entry::getValue));

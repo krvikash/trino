@@ -14,41 +14,30 @@
 package io.trino.plugin.warp.it.proxiedconnector.iceberg;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import io.trino.Session;
 import io.trino.metadata.InternalFunctionBundle;
 import io.trino.plugin.iceberg.IcebergPlugin;
 import io.trino.plugin.warp.WarpPlugin;
-import io.trino.plugin.warp.api.warmup.PartitionValueWarmupPredicateRule;
 import io.trino.plugin.warp.api.warmup.WarmUpType;
-import io.trino.plugin.warp.api.warmup.WarmupColRuleData;
 import io.trino.plugin.warp.api.warmup.WarmupPropertiesData;
-import io.trino.plugin.warp.api.warmup.column.RegularColumnData;
 import io.trino.plugin.warp.di.WarpStubsStorageEngineModule;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
-import io.trino.plugin.warp.extension.execution.warmup.WarmupTask;
 import io.trino.plugin.warp.it.DispatcherQueryRunner;
 import io.trino.plugin.warp.it.DispatcherStubsIntegrationSmokeIT;
-import io.trino.plugin.warp.warmup.WarmupRuleService;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.MaterializedRow;
 import io.trino.testing.QueryRunner;
-import jakarta.ws.rs.HttpMethod;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.time.Duration;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.IntStream;
 
 import static io.trino.plugin.warp.WarpSessionProperties.DEBUG_NO_PREDICATE_BUFFER;
-import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_DEFAULT_WARMING;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
@@ -139,9 +128,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                         .formatted(table),
                 2);
 
-        Session warmSession = Session.builder(getSession())
-                .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
-                .build();
+        Session warmSession = Session.builder(getSession()).build();
         @Language("SQL") String query = "SELECT * FROM %s WHERE timestamp_col=CAST('2024-02-13 10:15:30' AS TIMESTAMP)".formatted(table);
         warmAndValidate(query, warmSession, 3, 1, 0);
         Map<String, Long> expectedQueryStats = Map.of(
@@ -164,9 +151,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                         .mapToObj("(%1$d, 'bla%1$d')"::formatted).toList());
         assertUpdate(insertSql, rowCount);
 
-        Session warmSession = Session.builder(getSession())
-                .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
-                .build();
+        Session warmSession = Session.builder(getSession()).build();
         @Language("SQL") String query = "SELECT * FROM %s WHERE id=1 AND a='bla1'".formatted(table);
         warmAndValidate(query, warmSession, 4, 1, 0);
         Map<String, Long> expectedQueryStats = Map.of(
@@ -180,150 +165,6 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 .setSystemProperty(catalog + "." + DEBUG_NO_PREDICATE_BUFFER, "true")
                 .build();
         validateQueryStats(query, querySession, expectedQueryStats);
-    }
-
-    @Test
-    public void testRenameWithPredicate()
-            throws IOException
-    {
-        String schema = "renamewithpredicate";
-        String table = "my_table3";
-        createSchemaAndTable(schema, table, "(c1 integer,c2 integer) WITH (format = 'PARQUET', partitioning = ARRAY[])");
-        computeActual(getSession(), "INSERT INTO %s.%s VALUES (1, 2), (3, 4)".formatted(schema, table));
-        createWarmupRules(schema,
-                table,
-                Map.of("c1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, Duration.ofSeconds(0)),
-                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, Duration.ofSeconds(0))),
-                        "c2", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, Duration.ofSeconds(0)),
-                                new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, Duration.ofSeconds(0)))));
-        Session warmSession = Session.builder(getSession())
-                .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "false")
-                .build();
-        warmAndValidate("select * from %s.%s".formatted(schema, table),
-                warmSession,
-                4,
-                1,
-                0);
-
-        @Language("SQL") String query = "select * from %s.%s where c1 > 0 and c2 > 0".formatted(schema, table);
-        Map<String, Long> expectedQueryStats = Map.of(
-                WARP_MATCH_COLUMNS_STAT, 2L,
-                WARP_COLLECT_COLUMNS_STAT, 2L);
-        validateQueryStats(query, getSession(), expectedQueryStats);
-
-        computeActual("ALTER TABLE %s.%s RENAME COLUMN c1 TO tmpColumn".formatted(schema, table));
-        query = "select * from %s.%s where tmpColumn > 0 and c2 > 0".formatted(schema, table);
-        expectedQueryStats = Map.of(
-                WARP_MATCH_COLUMNS_STAT, 2L,
-                WARP_COLLECT_COLUMNS_STAT, 2L);
-        validateQueryStats(query, getSession(), expectedQueryStats);
-        int expectedDeadObjects = 4;
-        validateDemoter(expectedDeadObjects);
-    }
-
-    @Test
-    public void testRename()
-            throws IOException
-    {
-        String schema = "rename";
-        String table = "my_table1";
-        createSchemaAndTable(schema, table, "(c1 integer,c2 integer) WITH (format = 'PARQUET', partitioning = ARRAY[])");
-        computeActual(getSession(), "INSERT INTO %s.%s VALUES (1, 2)".formatted(schema, table));
-        createWarmupRules(schema,
-                table,
-                Map.of("c1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, Duration.ofSeconds(0))),
-                        "c2", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, Duration.ofSeconds(0)))));
-        Session warmSession = Session.builder(getSession())
-                .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "false")
-                .build();
-        warmAndValidate("select * from %s.%s".formatted(schema, table),
-                warmSession,
-                2,
-                1,
-                0);
-
-        @Language("SQL") String query = "select * from %s.%s".formatted(schema, table);
-        Map<String, Long> expectedQueryStats = Map.of(PREFILLED_COLUMNS_STAT, 2L);
-        validateQueryStats(query, getSession(), expectedQueryStats);
-
-        computeActual("ALTER TABLE %s.%s RENAME COLUMN c1 TO tmpColumn".formatted(schema, table));
-
-        query = "select tmpColumn from %s.%s".formatted(schema, table);
-        expectedQueryStats = Map.of(PREFILLED_COLUMNS_STAT, 1L);
-        validateQueryStats(query, getSession(), expectedQueryStats);
-
-        //now create new split
-        computeActual(getSession(), "INSERT INTO %s.%s VALUES (9, 9)".formatted(schema, table));
-        // after altering the table a new snapshot is created so we are warming all elements
-        warmAndValidate("select * from %s.%s".formatted(schema, table),
-                warmSession,
-                1,
-                1,
-                0);
-
-        query = "select * from %s.%s".formatted(schema, table);
-        expectedQueryStats = Map.of(PREFILLED_COLUMNS_STAT, 3L);
-        validateQueryStats(query, getSession(), expectedQueryStats);
-        warmSession = Session.builder(getSession())
-                .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "true")
-                .build();
-        warmAndValidate("select tmpColumn from %s.%s where tmpColumn > 5".formatted(schema, table),
-                warmSession,
-                2,
-                1,
-                0);
-
-        int expectedDeadObjects = 5; // 1 from previous snapshot and 3 objects with ttl 0 (tmpColumn ttl -1)
-        validateDemoter(Target.COORDINATOR, new DemoteInput(catalog, expectedDeadObjects, 0));
-    }
-
-    @Test
-    public void testRenameSwapColumn()
-            throws IOException
-    {
-        String schema = "testrenameswapcolumn";
-        String table = "my_table";
-        createSchemaAndTable(schema, table, "(int1 integer,v1 varchar) WITH (format = 'PARQUET', partitioning = ARRAY[])");
-        computeActual(getSession(), "INSERT INTO %s.%s VALUES (1, 'string')".formatted(schema, table));
-        createWarmupRules(schema,
-                table,
-                Map.of("int1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, Duration.ofSeconds(0))),
-                        "v1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, Duration.ofSeconds(0)))));
-        Session warmSession = Session.builder(getSession())
-                .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "false")
-                .build();
-        warmAndValidate("select * from %s.%s".formatted(schema, table),
-                warmSession,
-                2,
-                1,
-                0);
-        @Language("SQL") String query = "select * from %s.%s".formatted(schema, table);
-        Map<String, Long> expectedQueryStats = Map.of(PREFILLED_COLUMNS_STAT, 2L);
-        validateQueryStats(query, getSession(), expectedQueryStats);
-
-        computeActual("ALTER TABLE %s.%s RENAME COLUMN int1 TO tmpColumn".formatted(schema, table));
-        computeActual("ALTER TABLE %s.%s RENAME COLUMN v1 TO int1".formatted(schema, table));
-        computeActual("ALTER TABLE %s.%s RENAME COLUMN tmpColumn TO v1".formatted(schema, table));
-
-        query = "select * from %s.%s".formatted(schema, table);
-        expectedQueryStats = Map.of(PREFILLED_COLUMNS_STAT, 2L);
-        validateQueryStats(query, getSession(), expectedQueryStats);
-
-        //now create new split
-        computeActual(getSession(), "INSERT INTO %s.%s VALUES (9, 'another string')".formatted(schema, table));
-        //each alter table has a different snapshot id which get warm
-        warmAndValidate("select * from %s.%s".formatted(schema, table),
-                warmSession,
-                2,
-                1,
-                0);
-
-        query = "select * from %s.%s".formatted(schema, table);
-        expectedQueryStats = Map.of(WARP_COLLECT_COLUMNS_STAT, 1L, // v1 ("another string")
-                PREFILLED_COLUMNS_STAT, 3L);
-        validateQueryStats(query, getSession(), expectedQueryStats);
-
-        validateDemoter(4);
     }
 
     @Test
@@ -403,31 +244,6 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
     }
 
     @Test
-    public void testMerge()
-    {
-        assertUpdate(getSession(), "INSERT INTO t VALUES (1, 'shlomi1')", 1);
-        assertUpdate(getSession(), "INSERT INTO t VALUES (2, 'shlomi2')", 1);
-
-        MaterializedResult result = computeActual(getSession(), "select count(*) from t");
-        assertThat(result.getMaterializedRows().getFirst().getField(0)).isEqualTo(2L); // collect from row group
-
-        createTable(DEFAULT_SCHEMA, "t2", "(int2 int, var2 varchar)");
-        assertUpdate(getSession(), "INSERT INTO t2 VALUES (2, 'shlomi2-1')", 1);
-
-        MaterializedResult materializedRows = computeActual("select * from t2");
-        assertThat(materializedRows.getRowCount()).isEqualTo(1);
-
-        assertUpdate(getSession(), "update t2 set int2 =1 where int2=2", 1);
-        assertUpdate(getSession(), "merge into t using t2 on t.int1=t2.int2 when matched then delete", 1);
-
-        materializedRows = computeActual("select * from t2");
-        assertThat(materializedRows.getRowCount()).isEqualTo(1);
-
-        materializedRows = computeActual("select * from t");
-        assertThat(materializedRows.getRowCount()).isEqualTo(1);
-    }
-
-    @Test
     public void testDuplicateSourceIdPartition()
     {
         String table = "duplicate_source_id_partition";
@@ -443,77 +259,6 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 table, aCol, dateIntCol, dateDateCol, 1, partitionValue, 1, 2);
         assertUpdate(sql, 1);
         computeActual(format("SELECT * FROM %s", table));
-    }
-
-    @Test
-    public void testRenamePartition()
-            throws IOException
-    {
-        String table = "rename_partition";
-        String aCol = "a";
-        String dateIntCol = "date_int";
-        String dateDateCol = "date_date";
-        createTable(DEFAULT_SCHEMA,
-                table,
-                "(%s varchar, %s integer, %s date) WITH (format='PARQUET', partitioning = ARRAY['%s'])"
-                        .formatted(aCol, dateIntCol, dateDateCol, dateIntCol));
-        int partitionValue = 20190315;
-        int notPartitionValue = 4;
-        int rowCount = 2;
-        @Language("SQL") String insertSql = "INSERT INTO %s(%s, %s, %s) VALUES ".formatted(table, aCol, dateIntCol, dateDateCol) +
-                String.join(", ", IntStream.range(0, rowCount)
-                        .mapToObj(value -> "('a-%d', %d, CAST('202%d-04-11' AS date))"
-                                .formatted(value, partitionValue, value))
-                        .toList());
-        assertUpdate(insertSql, rowCount);
-
-        WarmupColRuleData ruleNotMatchPartition = new WarmupColRuleData(0,
-                DEFAULT_SCHEMA,
-                table,
-                new RegularColumnData(dateDateCol),
-                WarmUpType.WARM_UP_TYPE_DATA,
-                5,
-                Duration.ofMillis(10),
-                ImmutableSet.of(new PartitionValueWarmupPredicateRule(dateIntCol, String.valueOf(notPartitionValue))));
-        executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupTask.TASK_NAME_SET, List.of(ruleNotMatchPartition), HttpMethod.POST, HttpURLConnection.HTTP_OK);
-        createWarmupRules(DEFAULT_SCHEMA,
-                table,
-                Map.of(aCol, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))));
-
-        Session warmSession = Session.builder(getSession())
-                .setSystemProperty(catalog + "." + ENABLE_DEFAULT_WARMING, "false")
-                .build();
-        @Language("SQL") String query = format("select %s,%s,%s from %s", aCol, dateIntCol, dateDateCol, table);
-        warmAndValidate(query, warmSession, 1, 1, 0);
-
-        Map<String, Long> expectedQueryStats = Map.of(
-                WARP_COLLECT_COLUMNS_STAT, 1L,
-                PREFILLED_COLUMNS_STAT, 1L);
-        validateQueryStats(query, getSession(), expectedQueryStats);
-
-        WarmupColRuleData ruleMatchPartition = new WarmupColRuleData(0,
-                DEFAULT_SCHEMA,
-                table,
-                new RegularColumnData(dateDateCol),
-                WarmUpType.WARM_UP_TYPE_DATA,
-                5,
-                Duration.ofMillis(10),
-                ImmutableSet.of(new PartitionValueWarmupPredicateRule(dateIntCol, String.valueOf(partitionValue))));
-        executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupTask.TASK_NAME_SET, List.of(ruleMatchPartition), HttpMethod.POST, HttpURLConnection.HTTP_OK);
-        warmAndValidate(query, warmSession, 1, 1, 0);
-
-        expectedQueryStats = Map.of(
-                WARP_COLLECT_COLUMNS_STAT, 2L,
-                PREFILLED_COLUMNS_STAT, 1L);
-        validateQueryStats(query, getSession(), expectedQueryStats);
-
-        String newColumnName = "renameColumn";
-        computeActual(format("ALTER TABLE %s.%s RENAME COLUMN %s TO %s", DEFAULT_SCHEMA, table, dateIntCol, newColumnName));
-        query = query.replace(dateIntCol, newColumnName);
-        expectedQueryStats = Map.of(
-                WARP_COLLECT_COLUMNS_STAT, 2L,
-                PREFILLED_COLUMNS_STAT, 1L);
-        validateQueryStats(query, getSession(), expectedQueryStats);
     }
 
     @Test

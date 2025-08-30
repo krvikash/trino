@@ -123,7 +123,6 @@ public class DispatcherAlternativePageSourceProviderTest
         connectorTransactionHandle = mock(ConnectorTransactionHandle.class);
 
         globalConfig = new GlobalConfig();
-        globalConfig.setEnableDefaultWarming(false);
 
         MetricsConfig metricsConfig = new MetricsConfig();
         metricsConfig.setEnabled(false);

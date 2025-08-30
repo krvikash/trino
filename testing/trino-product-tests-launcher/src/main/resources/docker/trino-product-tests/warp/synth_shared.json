@@ -26,7 +26,6 @@
       }
     ],
     "session_properties": {
-      "enable_default_warming": false,
       "enable_import_export": true
     },
     "warmup_rules": [

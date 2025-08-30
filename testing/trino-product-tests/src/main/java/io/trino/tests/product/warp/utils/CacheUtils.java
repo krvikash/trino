@@ -59,7 +59,6 @@ public class CacheUtils
             }
             logger.info("starting run test %s", testFormat.name());
             if (isWarp) {
-                onTrino().executeQuery("set session warp.enable_default_warming = false");
                 onTrino().executeQuery(format("set session warp.import_export_s3_path = 's3://systemtest-export-import/test_export_import/pt/%s'", formattedDateTime));
                 onTrino().executeQuery("set session warp.enable_import_export = true");
                 onTrino().executeQuery(format("USE warp.%s", schemaName));

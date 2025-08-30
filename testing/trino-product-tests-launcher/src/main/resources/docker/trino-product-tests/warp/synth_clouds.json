@@ -22,7 +22,6 @@
       }
     ],
     "session_properties": {
-      "enable_default_warming": true,
       "enable_import_export": true
     },
     "warm_query": "select * from nation_test",

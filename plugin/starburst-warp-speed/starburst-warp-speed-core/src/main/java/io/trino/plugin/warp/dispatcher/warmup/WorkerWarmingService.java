@@ -252,7 +252,7 @@ public class WorkerWarmingService
         RowGroupData rowGroupData = rowGroupDataService.get(rowGroupKey);
         WarmDataState warmDataState = getWarmDataState(rowGroupData, requiredWarmupMap);
 
-        if (warmDataState.newRequiredWarmUpTypeMap().isEmpty() && canAddDefaultRules(session, queryContext)) {
+        if (warmDataState.newRequiredWarmUpTypeMap().isEmpty() && canAddDefaultRules()) {
             Map<WarpColumn, Set<WarmupProperties>> colNameToDefaultRules = getDefaultPropertiesRules(columns, queryContext, session);
 
             addDefaultRulesToRequiredColumns(requiredWarmupMap, colNameToDefaultRules);
@@ -456,21 +456,9 @@ public class WorkerWarmingService
         return shouldWarm;
     }
 
-    private boolean canAddDefaultRules(ConnectorSession session, QueryContext queryContext)
+    private boolean canAddDefaultRules()
     {
-        return isDefaultWarmingEnabled(session, queryContext.getRemainingCollectColumns().size()) &&
-                warmupDemoterService.canAllowWarmup(warmupDemoterConfig.getDefaultRulePriority());
-    }
-
-    private boolean isDefaultWarmingEnabled(ConnectorSession session, int collectColumnsCount)
-    {
-        Boolean sessionEnabled = WarpSessionProperties.isDefaultWarmingEnabled(session);
-        boolean defaultWarmingEnabled = sessionEnabled != null ? sessionEnabled : globalConfig.isEnableDefaultWarming();
-        if (defaultWarmingEnabled) {
-            int maxElementsToCollect = globalConfig.getMaxCollectColumnsSkipDefaultWarming();
-            return collectColumnsCount <= maxElementsToCollect;
-        }
-        return false;
+        return warmupDemoterService.canAllowWarmup(warmupDemoterConfig.getDefaultRulePriority());
     }
 
     private Map<WarpColumn, Set<WarmupProperties>> getDefaultPropertiesRules(List<ColumnHandle> columns,

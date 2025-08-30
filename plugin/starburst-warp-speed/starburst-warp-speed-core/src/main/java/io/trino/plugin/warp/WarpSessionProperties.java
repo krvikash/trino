@@ -41,7 +41,6 @@ import static io.trino.spi.session.PropertyMetadata.stringProperty;
 public final class WarpSessionProperties
 {
     public static final String EMPTY_QUERY = "empty_query";
-    public static final String ENABLE_DEFAULT_WARMING = "enable_default_warming";
     public static final String ENABLE_OR_PUSHDOWN = "support_or";
     public static final String ENABLE_DEFAULT_WARMING_INDEX = "enable_default_warming_index";
     public static final String UNSUPPORTED_FUNCTIONS = "unsupported_functions";
@@ -76,11 +75,6 @@ public final class WarpSessionProperties
                         EMPTY_QUERY,
                         "Execute the entire query without reading data, hence empty results",
                         false,
-                        true),
-                booleanProperty(
-                        ENABLE_DEFAULT_WARMING,
-                        "Warm query fields,with no WarmupRules",
-                        globalConfig.isEnableDefaultWarming(),
                         true),
                 booleanProperty(
                         ENABLE_DEFAULT_WARMING_INDEX,
@@ -212,11 +206,6 @@ public final class WarpSessionProperties
         }
         Boolean ret = getProperty(session, EMPTY_QUERY, Boolean.class);
         return ret != null ? ret : false;
-    }
-
-    public static Boolean isDefaultWarmingEnabled(ConnectorSession session)
-    {
-        return session == null ? null : getProperty(session, ENABLE_DEFAULT_WARMING, Boolean.class);
     }
 
     public static boolean isBypassEnabled(ConnectorSession session)

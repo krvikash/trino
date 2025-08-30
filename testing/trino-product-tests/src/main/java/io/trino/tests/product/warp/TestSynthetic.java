@@ -51,7 +51,6 @@ import java.util.stream.Stream;
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.TestGroups.WARP_SPEED_DELTA_LAKE;
 import static io.trino.tests.product.TestGroups.WARP_SPEED_HIVE;
-import static io.trino.tests.product.TestGroups.WARP_SPEED_HIVE_2;
 import static io.trino.tests.product.TestGroups.WARP_SPEED_ICEBERG;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
 import static io.trino.tests.product.warp.utils.DemoterUtils.objectMapper;
@@ -135,34 +134,6 @@ public class TestSynthetic
     }
 
     @DataProvider
-    public Iterator<TestFormat> lucene(ITestContext context)
-            throws Exception
-    {
-        return executeDataProvider("file:///docker/trino-product-tests/warp/lucene.json", TableType.warp);
-    }
-
-    @Test(groups = {WARP_SPEED_HIVE_2, PROFILE_SPECIFIC_TESTS}, dataProvider = "lucene")
-    public void lucene(TestFormat testFormat)
-            throws IOException
-    {
-        execute(testFormat, TableType.warp);
-    }
-
-    @DataProvider
-    public Iterator<TestFormat> synthDict(ITestContext context)
-            throws Exception
-    {
-        return executeDataProvider("file:///docker/trino-product-tests/warp/synth_dict.json", TableType.warp);
-    }
-
-    @Test(groups = {WARP_SPEED_HIVE_2, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthDict")
-    public void synthDict(TestFormat testFormat)
-            throws IOException
-    {
-        execute(testFormat, TableType.warp);
-    }
-
-    @DataProvider
     public Iterator<TestFormat> synthPartitWarp(ITestContext context)
             throws Exception
     {
@@ -183,7 +154,7 @@ public class TestSynthetic
         return executeDataProvider("file:///docker/trino-product-tests/warp/synth_partit.json", TableType.warp_iceberg);
     }
 
-    @Test(groups = {WARP_SPEED_HIVE_2, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthPartitWarp")
+    @Test(groups = {WARP_SPEED_HIVE, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthPartitWarp")
     public void synthPartitWarp(TestFormat testFormat)
             throws IOException
     {
@@ -205,41 +176,13 @@ public class TestSynthetic
     }
 
     @DataProvider
-    public Iterator<TestFormat> synthTypes(ITestContext context)
-            throws Exception
-    {
-        return executeDataProvider("file:///docker/trino-product-tests/warp/synth_types.json", TableType.warp);
-    }
-
-    @Test(groups = {WARP_SPEED_HIVE, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthTypes")
-    public void synthTypes(TestFormat testFormat)
-            throws IOException
-    {
-        execute(testFormat, TableType.warp);
-    }
-
-    @DataProvider
-    public Iterator<TestFormat> synthMixed(ITestContext context)
-            throws Exception
-    {
-        return executeDataProvider("file:///docker/trino-product-tests/warp/synthetic_mix_query.json", TableType.warp);
-    }
-
-    @Test(groups = {WARP_SPEED_HIVE_2, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthMixed")
-    public void synthMixed(TestFormat testFormat)
-            throws IOException
-    {
-        execute(testFormat, TableType.warp);
-    }
-
-    @DataProvider
     public Iterator<TestFormat> synthMatrix(ITestContext context)
             throws Exception
     {
         return executeDataProvider("file:///docker/trino-product-tests/warp/synthetic_matrix.json", TableType.warp);
     }
 
-    @Test(groups = {WARP_SPEED_HIVE_2, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthMatrix")
+    @Test(groups = {WARP_SPEED_HIVE, PROFILE_SPECIFIC_TESTS}, dataProvider = "synthMatrix")
     public void synthMatrix(TestFormat testFormat)
             throws IOException
     {
@@ -303,10 +246,6 @@ public class TestSynthetic
             Map<String, Object> warpSessionProperties = testFormat.session_properties() != null ?
                     testFormat.session_properties().entrySet().stream().collect(Collectors.toMap(e -> CATALOG_NAME + "." + e.getKey(), Map.Entry::getValue)) :
                     Map.of();
-            boolean defaultWarming = (boolean) warpSessionProperties.getOrDefault("%s.enable_default_warming".formatted(CATALOG_NAME), false);
-            if (!defaultWarming) {
-                ruleUtils.createWarmupRules(RestUtils.CATALOG_1_PORT, schemaName, testFormat);
-            }
             warmUtils.setSessions(warpSessionProperties);
 
             boolean fastWarming = (boolean) warpSessionProperties.getOrDefault("%s.enable_import_export".formatted(CATALOG_NAME), false);

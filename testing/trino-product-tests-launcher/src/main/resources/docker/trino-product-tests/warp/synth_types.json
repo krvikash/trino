@@ -4913,9 +4913,6 @@
       },
       {
         "case_name": "array_test case default warmup - lucene warmup when contains() is in predicate",
-        "session_properties": {
-          "enable_default_warming": true
-        },
         "warm_query": "select count(char5) from synthetic.array_test where contains(arr_varchar,'Jacqueline Keith')",
         "queries_data": [
           {
@@ -5109,9 +5106,6 @@
         ]
       }
     ],
-    "session_properties": {
-      "enable_default_warming": true
-    },
     "warm_query": "select * from map_test",
     "skip_comment": "Not supported smallint type",
     "overriding": {
@@ -5389,9 +5383,6 @@
         ]
       }
     ],
-    "session_properties": {
-      "enable_default_warming": true
-    },
     "skip_comment": "Not supported tinyint type",
     "overriding": {
       "warp_iceberg": {
@@ -5763,9 +5754,6 @@
         ]
       }
     ],
-    "session_properties": {
-      "enable_default_warming": true
-    },
     "warm_query": "select count(*) from row_test where position.longitudedeg > 2 and position.latitudedeg > 2",
     "overriding": {
       "warp_iceberg": {
@@ -7222,9 +7210,6 @@
         ]
       }
     ],
-    "session_properties": {
-      "enable_default_warming": true
-    },
     "skip_comment": "Not supported row type",
     "overriding": {
       "warp_iceberg": {
@@ -7997,9 +7982,6 @@
       },
       {
         "case_name": "json_partitioned_table_default_warmup_1",
-        "session_properties": {
-          "enable_default_warming": true
-        },
         "warm_query": "select count(*) from json_partitioned_table where json_extract_scalar(json_2, '$.ex[1].delectus') = 'true' and json_extract_scalar(json_2, '$.ex[0].temporibus') = 'IDHMPPulozRXGGTSfGfj' and json_extract_scalar(json_1, '$.voluptatibus[1]') = '-5112.52' and json_extract_scalar(json_1, '$.voluptatibus[2]') = 'false'",
         "queries_data": [
           {
@@ -8060,9 +8042,6 @@
       },
       {
         "case_name": "json_partitioned_table_default_warmup_2",
-        "session_properties": {
-          "enable_default_warming": true
-        },
         "warm_query": "select count(*) from json_partitioned_table where json_extract_scalar(json_1, '$.ex[1].a')='true' and json_extract_scalar(json_2, '$.ex[0].b')='IDHMPPulozRXGGTSfGfj'",
         "queries_data": [
           {
@@ -8095,9 +8074,6 @@
       },
       {
         "case_name": "json_partitioned_table_default_warmup_3",
-        "session_properties": {
-          "enable_default_warming": true
-        },
         "warm_query": "select count(*) from json_partitioned_table where json_extract_scalar(json_1, '$.exercitationem[0].provident')='4245' and json_extract_scalar(json_1, '$.exercitationem[2].quaerat')='27' and json_extract_scalar(json_2, '$.maiores[0]')='-446917585.90342'",
         "queries_data": [
           {
@@ -8308,9 +8284,6 @@
       },
       {
         "case_name": "json_unpartitioned_table_default_warmup_1",
-        "session_properties": {
-          "enable_default_warming": true
-        },
         "warm_query": "select count(*) from json_unpartitioned_table where (json_1 = 'a' or json_2 = 'b') and json_extract_scalar(json_1, '$.molestiae[1].occaecati')='3794' or json_extract_scalar(json_1, '$.tempore')='true' or json_extract_scalar(json_2, '$.neque')='true'",
         "queries_data": [
           {
@@ -8344,9 +8317,6 @@
       },
       {
         "case_name": "json_unpartitioned_table_default_warmup_2",
-        "session_properties": {
-          "enable_default_warming": true
-        },
         "warm_query": "select count(*) from json_unpartitioned_table where json_extract_scalar(json_1, '$.molestiae[1].occaecati')='3794' and json_extract_scalar(json_1, '$.tempore')='true' and json_extract_scalar(json_2, '$.neque')='true'",
         "queries_data": [
           {
@@ -9582,9 +9552,6 @@
       {
         "case_name": "inverse",
         "warm_query": "select count(id) from vec_nested_id where id.orig_h!='168.202.3.102'",
-        "session_properties": {
-          "enable_default_warming": true
-        },
         "queries_data": [
           {
             "query": "select count(id) from vec_nested_id where id.orig_h!='168.202.3.102'",
@@ -10634,9 +10601,6 @@
     "cases": [
       {
         "case_name": "iceberg_uuid_joins_case_1",
-        "session_properties": {
-          "enable_default_warming": true
-        },
         "warm_query": "SELECT COUNT(u1.c_uuid), COUNT(u2.c_uuid) FROM iceberg_uuid_joins u1 JOIN iceberg_uuid_joins2 u2 ON u1.c_uuid = u2.c_uuid WHERE (u1.c_uuid = UUID 'b93e6454-73e1-488e-8253-7a9cdef0f963') OR (u2.c_uuid = UUID '2a1e92b2-abc4-4dce-bc89-3cd4b1fbeba2') OR (u2.c_uuid IS NULL) OR (u1.c_uuid IS NOT NULL)",
         "queries_data": [
           {
@@ -10747,9 +10711,6 @@
       },
       {
         "case_name": "iceberg_uuid_joins_case_2",
-        "session_properties": {
-          "enable_default_warming": true
-        },
         "warm_query": "SELECT COUNT(u1.c_uuid) FROM iceberg_uuid_joins u1 WHERE u1.c_uuid IS NULL OR u1.c_uuid IS NOT NULL",
         "queries_data": [
           {

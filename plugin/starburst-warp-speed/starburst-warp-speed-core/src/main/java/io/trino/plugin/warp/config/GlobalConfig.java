@@ -28,7 +28,6 @@ import java.util.stream.Collectors;
 public class GlobalConfig
 {
     public static final String CONFIG_IS_SINGLE = "warp-speed.config.is-single";
-    public static final String ENABLE_DEFAULT_WARMING = "warp-speed.enable-default-warming";
     public static final String LOCAL_STORE_PATH = "warp-speed.local-store.path";
     public static final String FAILURE_GENERATOR_ENABLED = "warp-speed.config.failure-generator-enabled";
     public static final int MAX_NUMBER_OF_MAPPED_MATCH_COLLECT_ELEMENTS = 1 << Byte.SIZE; //256
@@ -180,17 +179,6 @@ public class GlobalConfig
     public void setEnableOrPushdown(boolean enableOrPushdown)
     {
         this.enableOrPushdown = enableOrPushdown;
-    }
-
-    public boolean isEnableDefaultWarming()
-    {
-        return enableDefaultWarming;
-    }
-
-    @Config(ENABLE_DEFAULT_WARMING)
-    public void setEnableDefaultWarming(boolean enableDefaultWarming)
-    {
-        this.enableDefaultWarming = enableDefaultWarming;
     }
 
     public boolean isCreateIndexInDefaultWarming()

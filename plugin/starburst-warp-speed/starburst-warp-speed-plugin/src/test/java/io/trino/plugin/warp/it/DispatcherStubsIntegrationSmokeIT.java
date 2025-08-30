@@ -22,8 +22,6 @@ import io.trino.execution.QueryInfo;
 import io.trino.operator.OperatorStats;
 import io.trino.plugin.base.metrics.LongCount;
 import io.trino.plugin.warp.WarpSessionProperties;
-import io.trino.plugin.warp.api.warmup.WarmUpType;
-import io.trino.plugin.warp.api.warmup.WarmupPropertiesData;
 import io.trino.plugin.warp.di.WarpStubsStorageEngineModule;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory;
 import io.trino.plugin.warp.extension.execution.debugtools.RowGroupTask;
@@ -49,7 +47,6 @@ import jakarta.ws.rs.HttpMethod;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 
 import java.io.IOException;
@@ -63,7 +60,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
-import java.util.Set;
 import java.util.StringJoiner;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -423,9 +419,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
 
     protected void warmAndValidate(String query, boolean defaultWarmup, String warmValidationStat, int rowCount)
     {
-        Session session = Session.builder(getSession())
-                .setSystemProperty(catalog + "." + WarpSessionProperties.ENABLE_DEFAULT_WARMING, Boolean.toString(defaultWarmup))
-                .build();
+        Session session = Session.builder(getSession()).build();
         warmAndValidate(query, session, warmValidationStat, rowCount);
     }
 
@@ -525,7 +519,6 @@ public abstract class DispatcherStubsIntegrationSmokeIT
     {
         Session session = Session.builder(getSession())
                 .setSystemProperty(catalog + "." + WarpSessionProperties.ENABLE_DEFAULT_WARMING_INDEX, "false")
-                .setSystemProperty(catalog + "." + WarpSessionProperties.ENABLE_DEFAULT_WARMING, Boolean.toString(defaultWarmup))
                 .setSystemProperty(catalog + "." + WarpSessionProperties.EMPTY_QUERY, "true")
                 .build();
         warmAndValidate(query,
@@ -755,52 +748,11 @@ public abstract class DispatcherStubsIntegrationSmokeIT
     {
         Session.SessionBuilder sessionBuilder = Session.builder(getSession());
         if (defaultWarm) {
-            sessionBuilder.setSystemProperty(catalog + "." + WarpSessionProperties.ENABLE_DEFAULT_WARMING, "true");
             if (enableDefaultWarmIndex) {
                 sessionBuilder.setSystemProperty(catalog + "." + WarpSessionProperties.ENABLE_DEFAULT_WARMING_INDEX, "true");
             }
         }
         return sessionBuilder.build();
-    }
-
-    @Test
-    public void testGoAllProxyOnlyWhenHavePushDowns()
-            throws IOException
-    {
-        if (!isWarpExtensionModule) {
-            return;
-        }
-
-        String schema = "all_proxy_test";
-        String table = "all_proxy_test_table";
-        createSchemaAndTable(schema, table, "(int_1 integer, int_2 integer)");
-        computeActual("INSERT INTO %s.%s (int_1, int_2) values (1, 10), (2, 20), (3, 30)".formatted(schema, table));
-        createWarmupRules(
-                schema,
-                table,
-                Map.ofEntries(
-                        entry("int_1", Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL)))));
-        Session session = buildSession(false, false);
-        warmAndValidate("select * from %s.%s".formatted(schema, table),
-                session,
-                1,
-                1,
-                0);
-
-        @Language("SQL") String pushDownQuery = "select * from %s.%s where int_1 < 2".formatted(schema, table);
-        Map<String, Long> expectedPushDownQueryStats = Map.of(
-                "warp_match_columns", 0L,
-                "warp_collect_columns", 0L,
-                "external_match_columns", 1L,
-                "external_collect_columns", 2L);
-        validateQueryStats(pushDownQuery, session, expectedPushDownQueryStats);
-        @Language("SQL") String noPushDownQuery = "select * from %s.%s where ceiling(int_1) < 2".formatted(schema, table);
-        Map<String, Long> expectedNoPushDownQueryStats = Map.of(
-                "warp_match_columns", 0L,
-                "warp_collect_columns", 1L,
-                "external_match_columns", 0L,
-                "external_collect_columns", 1L);
-        validateQueryStats(noPushDownQuery, session, expectedNoPushDownQueryStats);
     }
 
     public record DemoteInput(String catalog, long deadObjects, long deletedByLowPriority) {}

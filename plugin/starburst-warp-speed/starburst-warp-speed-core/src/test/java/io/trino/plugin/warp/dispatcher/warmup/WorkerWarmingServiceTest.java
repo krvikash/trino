@@ -78,7 +78,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_DEFAULT_WARMING;
 import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_DEFAULT_WARMING_INDEX;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.createWarmupRules;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.generateRowGroupData;
@@ -185,7 +184,6 @@ public class WorkerWarmingServiceTest
         WarmData warmData = act(columns,
                 rowGroupData,
                 warmupDemoterService,
-                DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING,
                 warmupRules);
 
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.EMPTY_ROW_GROUP);
@@ -215,7 +213,6 @@ public class WorkerWarmingServiceTest
         WarmData warmData = act(columns,
                 rowGroupData,
                 warmupDemoterService,
-                DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING,
                 warmupRules);
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.WARM);
         assertThat(getActualColTypesToWarm(COLUMN1, warmData.requiredWarmUpTypeMap()))
@@ -257,7 +254,6 @@ public class WorkerWarmingServiceTest
         WarmData warmData = act(allColumns,
                 rowGroupData,
                 warmupDemoterService,
-                DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING,
                 warmupRuleList);
 
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.WARM);
@@ -301,7 +297,6 @@ public class WorkerWarmingServiceTest
         WarmData warmData = act(columns,
                 rowGroupData,
                 warmupDemoterService,
-                DefaultWarmingTestState.WITH_DEFAULT_WARMING,
                 warmupRules);
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.WARM);
         assertThat(getActualColTypesToWarm(COLUMN1, warmData.requiredWarmUpTypeMap()))
@@ -340,7 +335,6 @@ public class WorkerWarmingServiceTest
         WarmData warmData = act(columns,
                 rowGroupData,
                 warmupDemoterService,
-                DefaultWarmingTestState.WITH_DEFAULT_WARMING,
                 warmupRules);
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.WARM);
         assertThat(getActualColTypesToWarm(COLUMN1, warmData.requiredWarmUpTypeMap()))
@@ -352,7 +346,6 @@ public class WorkerWarmingServiceTest
         warmData = act(columns,
                 rowGroupData,
                 warmupDemoterService,
-                DefaultWarmingTestState.WITH_DEFAULT_WARMING,
                 warmupRules);
         assertThat(getActualColTypesToWarm(COLUMN2, warmData.requiredWarmUpTypeMap()))
                 .isEqualTo(Set.of(WARM_UP_TYPE_DATA, WARM_UP_TYPE_BASIC));
@@ -380,7 +373,6 @@ public class WorkerWarmingServiceTest
         WarmData warmData = act(columns,
                 rowGroupData,
                 warmupDemoterService,
-                DefaultWarmingTestState.WITH_DEFAULT_WARMING,
                 List.of(),
                 queryContext,
                 10);
@@ -417,7 +409,6 @@ public class WorkerWarmingServiceTest
         WarmData warmData = act(columns,
                 ROW_GROUP_NOT_EXIST,
                 warmupDemoterService,
-                DefaultWarmingTestState.WITH_DEFAULT_WARMING,
                 warmupRules);
         if (expectedWarmupTypes.isEmpty()) {
             assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.NOTHING_TO_WARM);
@@ -457,7 +448,6 @@ public class WorkerWarmingServiceTest
         WarmData warmData = act(columns,
                 rowGroupData,
                 warmupDemoterService,
-                DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING,
                 warmupRules);
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.NOTHING_TO_WARM);
         assertThat(warmingServiceStats.getall_elements_warmed_or_skipped()).isEqualTo(1);
@@ -492,7 +482,6 @@ public class WorkerWarmingServiceTest
         WarmData warmData = act(columns,
                 rowGroupData,
                 warmupDemoterService,
-                DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING,
                 warmupRules);
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.WARM);
         assertThat(getActualColTypesToWarm(COLUMN2, warmData.requiredWarmUpTypeMap()))
@@ -522,36 +511,12 @@ public class WorkerWarmingServiceTest
         WarmData warmData = act(columns,
                 ROW_GROUP_NOT_EXIST,
                 warmupDemoterService,
-                DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING,
                 warmupRules);
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.WARM);
         Set<WarmUpType> actualColTypesToWarm = getActualColTypesToWarm(COLUMN1, warmData.requiredWarmUpTypeMap());
         Set<WarmUpType> expectedWarmUpTypes = Sets.newHashSet(columnNameToWarmUpType.get(COLUMN1));
         assertThat(actualColTypesToWarm).isEqualTo(expectedWarmUpTypes);
         assertThat(warmData.columnHandleList()).isEqualTo(columns);
-    }
-
-    /**
-     * Required: C1 > BASIC
-     * row group not exist, query on C2
-     * return C1, (Data, Basic, LUCENE)
-     */
-    @Test
-    public void testRequiredColumnNotExistInRules()
-    {
-        WarmupDemoterService warmupDemoterService = mockWarmupDemoterService();
-        List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer,
-                List.of(Pair.of(COLUMN2.getName(), VarcharType.VARCHAR)));
-        SetMultimap<WarpColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
-        columnNameToWarmUpType.putAll(COLUMN1, List.of(WARM_UP_TYPE_BASIC));
-
-        List<WarmupRule> warmupRules = createWarmupRules(columnNameToWarmUpType, defaultSchemaTableName);
-        WarmData warmData = act(columns,
-                ROW_GROUP_NOT_EXIST,
-                warmupDemoterService,
-                DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING,
-                warmupRules);
-        assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.NOTHING_TO_WARM);
     }
 
     @Test
@@ -561,7 +526,6 @@ public class WorkerWarmingServiceTest
         WarmData warmData = act(Collections.emptyList(),
                 ROW_GROUP_NOT_EXIST,
                 warmupDemoterService,
-                DefaultWarmingTestState.WITH_DEFAULT_WARMING,
                 Collections.emptyList());
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.NOTHING_TO_WARM);
         assertThat(warmingServiceStats.getempty_column_list()).isEqualTo(1);
@@ -588,7 +552,6 @@ public class WorkerWarmingServiceTest
         WarmData warmData = act(columns,
                 ROW_GROUP_NOT_EXIST,
                 warmupDemoterService,
-                DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING,
                 warmupRules);
         assertThat(warmData.highestPriority()).isEqualTo(validPriority);
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.WARM);
@@ -617,7 +580,6 @@ public class WorkerWarmingServiceTest
         WarmData warmData = act(columns,
                 ROW_GROUP_NOT_EXIST,
                 warmupDemoterService,
-                DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING,
                 warmupRules);
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.NOTHING_TO_WARM);
     }
@@ -653,7 +615,6 @@ public class WorkerWarmingServiceTest
         WarmData warmData = act(columns,
                 rowGroupData,
                 warmupDemoterService,
-                DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING,
                 warmupRules);
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.NOTHING_TO_WARM);
     }
@@ -682,7 +643,6 @@ public class WorkerWarmingServiceTest
         WarmData warmData = act(columns,
                 rowGroupData,
                 warmupDemoterService,
-                DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING,
                 warmupRules);
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.WARM);
         assertThat(warmData.requiredWarmUpTypeMap().size()).isEqualTo(1);
@@ -714,42 +674,11 @@ public class WorkerWarmingServiceTest
         WarmData warmData = act(columns,
                 rowGroupData,
                 warmupDemoterService,
-                DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING,
                 warmupRules);
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.WARM);
         assertThat(warmData.requiredWarmUpTypeMap().size()).isEqualTo(1);
         assertThat(warmData.requiredWarmUpTypeMap().get(COLUMN1)).isEqualTo(Set.of(warmupProperties));
         assertThat(warmData.columnHandleList()).isEqualTo(columns);
-    }
-
-    /**
-     * C1 temporarily failed to warm BASIC 2 times recently, expect not to retry
-     */
-    @Test
-    public void testSkipRetryColumnThatFailedTemporarilyTwiceRecently()
-    {
-        WarmupDemoterService warmupDemoterService = mockWarmupDemoterService();
-
-        List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer,
-                List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR)));
-        Map<WarmUpType, WarmUpElementState> warmUpTypeToState = Map.of(WARM_UP_TYPE_BASIC,
-                new WarmUpElementState(WarmUpElementState.State.FAILED_TEMPORARILY, 2, System.currentTimeMillis()));
-
-        RowGroupData rowGroupData = generateRowGroupData(columns,
-                warmUpTypeToState,
-                rowGroupKey,
-                false);
-        WarmupProperties warmupProperties = new WarmupProperties(WARM_UP_TYPE_BASIC, 2, 0, TransformFunction.NONE);
-
-        List<WarmupRule> warmupRules = List.of(createRule(COLUMN1, warmupProperties));
-
-        WarmData warmData = act(columns,
-                rowGroupData,
-                warmupDemoterService,
-                DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING,
-                warmupRules);
-        assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.NOTHING_TO_WARM);
-        assertThat(warmingServiceStats.getwarm_skip_temporary_failed_warmup_element()).isEqualTo(1);
     }
 
     /**
@@ -781,40 +710,9 @@ public class WorkerWarmingServiceTest
         WarmData warmData = act(columns,
                 rowGroupData,
                 warmupDemoterService,
-                DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING,
                 warmupRules);
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.WARM);
         assertThat(warmData.requiredWarmUpTypeMap().size()).isEqualTo(2);
-    }
-
-    /**
-     * C1 permanently failed to warm BASIC, expect not to retry
-     */
-    @Test
-    public void testSkipRetryPermanentlyFailedColumn()
-    {
-        WarmupDemoterService warmupDemoterService = mockWarmupDemoterService();
-
-        List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer,
-                List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR)));
-        Map<WarmUpType, WarmUpElementState> warmUpTypeToState = Map.of(WARM_UP_TYPE_BASIC,
-                WarmUpElementState.FAILED_PERMANENTLY);
-
-        RowGroupData rowGroupData = generateRowGroupData(columns,
-                warmUpTypeToState,
-                rowGroupKey,
-                false);
-        WarmupProperties warmupProperties = new WarmupProperties(WARM_UP_TYPE_BASIC, 2, 0, TransformFunction.NONE);
-
-        List<WarmupRule> warmupRules = List.of(createRule(COLUMN1, warmupProperties));
-
-        WarmData warmData = act(columns,
-                rowGroupData,
-                warmupDemoterService,
-                DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING,
-                warmupRules);
-        assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.NOTHING_TO_WARM);
-        assertThat(warmingServiceStats.getwarm_skip_permanent_failed_warmup_element()).isEqualTo(1);
     }
 
     @Test
@@ -836,7 +734,6 @@ public class WorkerWarmingServiceTest
         WarmData warmData = act(columns,
                 ROW_GROUP_NOT_EXIST,
                 warmupDemoterService,
-                DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING,
                 warmupRules);
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.WARM);
         assertThat(warmData.requiredWarmUpTypeMap().size()).isEqualTo(1);
@@ -862,7 +759,6 @@ public class WorkerWarmingServiceTest
         WarmData warmData = act(columns,
                 ROW_GROUP_NOT_EXIST,
                 warmupDemoterService,
-                DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING,
                 warmupRules,
                 maxBundleColumns);
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.WARM);
@@ -887,7 +783,6 @@ public class WorkerWarmingServiceTest
         WarmData warmData = act(columns,
                 ROW_GROUP_NOT_EXIST,
                 warmupDemoterService,
-                DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING,
                 warmupRules,
                 maxBundleColumns);
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.WARM);
@@ -932,27 +827,24 @@ public class WorkerWarmingServiceTest
     private WarmData act(List<ColumnHandle> columns,
             RowGroupData rowGroupData,
             WarmupDemoterService warmupDemoterService,
-            DefaultWarmingTestState defaultWarmingTestState,
             List<WarmupRule> warmupRules)
     {
-        return act(columns, rowGroupData, warmupDemoterService, defaultWarmingTestState, warmupRules, 10);
+        return act(columns, rowGroupData, warmupDemoterService, warmupRules, 10);
     }
 
     private WarmData act(List<ColumnHandle> columns,
             RowGroupData rowGroupData,
             WarmupDemoterService warmupDemoterService,
-            DefaultWarmingTestState defaultWarmingTestState,
             List<WarmupRule> warmupRules,
             int batchSize)
     {
         QueryContext queryContext = new QueryContext(new PredicateContextData(ImmutableMap.of(), WarpPrimitiveConstant.TRUE), ImmutableList.copyOf(columns), true, "query-id");
-        return act(columns, rowGroupData, warmupDemoterService, defaultWarmingTestState, warmupRules, queryContext, batchSize);
+        return act(columns, rowGroupData, warmupDemoterService, warmupRules, queryContext, batchSize);
     }
 
     private WarmData act(List<ColumnHandle> columns,
             RowGroupData rowGroupData,
             WarmupDemoterService warmupDemoterService,
-            DefaultWarmingTestState defaultWarmingTestState,
             Collection<WarmupRule> warmupRules,
             QueryContext queryContext,
             int batchSize)
@@ -962,10 +854,6 @@ public class WorkerWarmingServiceTest
         RowGroupDataService rowGroupDataService = mock(RowGroupDataService.class);
         ConnectorSession connectorSession = mock(ConnectorSession.class);
         when(connectorSession.getProperty(eq(ENABLE_DEFAULT_WARMING_INDEX), any())).thenReturn(globalConfig.isCreateIndexInDefaultWarming());
-        if (defaultWarmingTestState == DefaultWarmingTestState.WITHOUT_DEFAULT_WARMING) {
-            globalConfig.setEnableDefaultWarming(false);
-            when(connectorSession.getProperty(eq(ENABLE_DEFAULT_WARMING), any())).thenReturn(false);
-        }
         StorageWarmerService storageWarmerService = mock(StorageWarmerService.class);
         when(storageWarmerService.tryAllocateNativeResourceForWarmup()).thenReturn(true);
         WorkerWarmingService workerWarmingService = new WorkerWarmingService(metricsManager,
@@ -1023,11 +911,5 @@ public class WorkerWarmingServiceTest
         WarmupDemoterService warmupDemoterService = mock(WarmupDemoterService.class);
         when(warmupDemoterService.canAllowWarmup(anyDouble())).thenReturn(true);
         return warmupDemoterService;
-    }
-
-    private enum DefaultWarmingTestState
-    {
-        WITH_DEFAULT_WARMING,
-        WITHOUT_DEFAULT_WARMING
     }
 }

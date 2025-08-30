@@ -38,7 +38,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
-import static io.trino.tests.product.TestGroups.WARP_SPEED_HIVE_2;
+import static io.trino.tests.product.TestGroups.WARP_SPEED_HIVE;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
 import static io.trino.tests.product.warp.utils.DemoterUtils.objectMapper;
 import static io.trino.tests.product.warp.utils.RuleUtils.TASK_NAME_SET;
@@ -154,7 +154,7 @@ public class TestStatistics
         }
     }
 
-    @Test(groups = {WARP_SPEED_HIVE_2, PROFILE_SPECIFIC_TESTS})
+    @Test(groups = {WARP_SPEED_HIVE, PROFILE_SPECIFIC_TESTS})
     public void testCustomMetrics()
     {
         QueryResult queryResult = onTrino().executeQuery(format("EXPLAIN ANALYZE VERBOSE SELECT * FROM %s.%s.%s", CATALOG_NAME, SCHEMA_NAME, TABLE_NAME));
@@ -163,7 +163,7 @@ public class TestStatistics
         assertThat(queryResult.rows().toString().contains("warp-collect:string_col:WARM_UP_TYPE_DATA'")).isTrue();
     }
 
-    @Test(groups = {WARP_SPEED_HIVE_2, PROFILE_SPECIFIC_TESTS})
+    @Test(groups = {WARP_SPEED_HIVE, PROFILE_SPECIFIC_TESTS})
     public void testShowStats()
     {
         onTrino().executeQuery(format("ANALYZE %s.%s.%s", CATALOG_NAME, SCHEMA_NAME, TABLE_NAME));

@@ -39,7 +39,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.config.GlobalConfig.CONFIG_IS_SINGLE;
-import static io.trino.plugin.warp.config.GlobalConfig.ENABLE_DEFAULT_WARMING;
 import static io.trino.plugin.warp.config.GlobalConfig.FAILURE_GENERATOR_ENABLED;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.CLUSTER_UUID;
 
@@ -79,7 +78,6 @@ public class DispatcherQueryRunner
 //                .put("testMode", "true")
                 .put(CONFIG_IS_SINGLE, String.valueOf(numOfNodes == 1))
                 .put("warp-speed.config.bundle-size-mb", "128")
-                .put(ENABLE_DEFAULT_WARMING, "false")
                 .put(CloudVendorConfig.STORE_PATH, "file:/" + localStorePath.toAbsolutePath())
                 .put(CLUSTER_UUID, "some-uuid")
 //                .put("warp-speed.metrics.enabled", (numOfNodes > 0) ? "false" : "true") // in case more than one node the jmx register fail on duplicate tables

@@ -23,7 +23,6 @@ import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
 import org.intellij.lang.annotations.Language;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -117,13 +116,5 @@ public class TestHiveDefaultCacheManager
         //warm int_1 (DATA, BASIC), v1 (DATA, BASIC, LUCENE) with default warming
         String query = "select int1, v1 from table1 where int1 > 0 and v1 like '%shlomi%' and v1 > 's' and upper(v1) = 'SHLOMI'";
         warmAndValidate(query, true, 5, 2);
-    }
-
-    @Override
-    @Test
-    @Disabled
-    public void testGoAllProxyOnlyWhenHavePushDowns()
-    {
-        //not relevant
     }
 }

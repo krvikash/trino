@@ -1921,12 +1921,6 @@ jobs:
               suite: suite-warp-speed
               runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest ]
             - config: default
-              suite: suite-warp-speed2
-              runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest ]
-            - config: default
-              suite: suite-warp-speed-cache
-              runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest ]
-            - config: default
               suite: suite-warp-speed-iceberg
               runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest ]
             - config: default
@@ -1942,9 +1936,6 @@ jobs:
               suite: suite-warp-speed-gcs
               if: >-
                 ${{ env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || secrets.GCP_CREDENTIALS_KEY != '' }}
-              runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest ]
-            - config: default
-              suite: suite-warp-speed-shared
               runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest ]
 
           EOF

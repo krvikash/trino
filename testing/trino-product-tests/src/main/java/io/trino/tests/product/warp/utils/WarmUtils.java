@@ -14,17 +14,13 @@
 
 package io.trino.tests.product.warp.utils;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
-import io.trino.plugin.warp.extension.execution.debugtools.RowGroupCountResult;
-import io.trino.plugin.warp.extension.execution.debugtools.RowGroupTask;
 import io.trino.tempto.query.QueryExecutor;
 import io.trino.tempto.query.QueryResult;
 import org.assertj.core.api.SoftAssertions;
 import org.intellij.lang.annotations.Language;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,7 +29,6 @@ import java.util.stream.Collectors;
 
 import static io.trino.tests.product.utils.QueryAssertions.assertEventually;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
-import static io.trino.tests.product.warp.utils.DemoterUtils.objectMapper;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Dictionary.DICTIONARY_MAX_EXCEPTION_COUNT;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Dictionary.DICTIONARY_REJECTED_ELEMENTS_COUNT;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Dictionary.DICTIONARY_SUCCESS_ELEMENTS_COUNT;
@@ -127,15 +122,11 @@ public class WarmUtils
         QueryResult exportRowBefore = JMXCachingManager.getExportStats();
         QueryResult importRowBefore = JMXCachingManager.getImportStats();
 
-        boolean defaultWarming = sessionPropertiesWithCatalog != null &&
-                Boolean.parseBoolean(
-                        sessionPropertiesWithCatalog.getOrDefault("%s.enable_default_warming".formatted(catalogName), "false").toString());
-        logger.info("STARTING WARMUP=%s, fastWarming=%s, defaultWarming=%b", warmQuery, fastWarming, defaultWarming);
+        logger.info("STARTING WARMUP=%s, fastWarming=%s", warmQuery, fastWarming);
         QueryExecutor queryExecutor = onTrino();
         if (useEmptyQuery) {
             queryExecutor.executeQuery("SET SESSION %s.empty_query=True".formatted(catalogName));
         }
-        queryExecutor.executeQuery(format("set session %s.enable_default_warming = %b", catalogName, defaultWarming));
         queryExecutor.executeQuery(warmQuery);
         if (useEmptyQuery) {
             queryExecutor.executeQuery("SET SESSION %s.empty_query=false".formatted(catalogName));
@@ -172,19 +163,6 @@ public class WarmUtils
                             .as("warm_started must be equal to warm_accomplished but wasn't. tableName=%s", tableName)
                             .isEqualTo(getDiffFromInitial(warmingStatsAfter, warmingStatsBefore, WARM_ACCOMPLISHED));
                     if (expectedFailures > 0) {
-//                        logger.info("$$$$$$$$$$$$$$$$$$$$$$$ warmingStatsBefore=%s", getValue(warmingStatsBefore, WARM_FAILED));
-//                        logger.info("$$$$$$$$$$$$$$$$$$$$$$$ warmingStatsAfter=%s", getValue(warmingStatsAfter, WARM_FAILED));
-
-                        try {
-                            RestUtils restUtils = new RestUtils();
-                            String string = restUtils.executeGetCommand(port, RowGroupTask.ROW_GROUP_PATH, RowGroupTask.ROW_GROUP_COUNT_TASK_NAME);
-                            RowGroupCountResult rowGroupCountResultBefore = objectMapper.readerFor(new TypeReference<RowGroupCountResult>() {}).readValue(string);
-                            logger.info("11111111 rowGroupCountResultBefore=%s", rowGroupCountResultBefore);
-                        }
-                        catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-
                         assertThat(getDiffFromInitial(warmingStatsAfter, warmingStatsBefore, WARM_FAILED))
                                 .as("warm_failed must be greaterThanOrEqual to expectedFailures=%s. tableName=%s", expectedFailures, tableName)
                                 .isGreaterThanOrEqualTo(expectedFailures);

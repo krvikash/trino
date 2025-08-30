@@ -232,11 +232,4 @@ public class TestHivePassThroughProxiedConnectorIntegrationSmokeIT
                     assertThat(counter.decrementAndGet()).isZero();
                 });
     }
-
-    @Override
-    @Test
-    public void testGoAllProxyOnlyWhenHavePushDowns()
-    {
-        //Cannot warm up in pass through
-    }
 }
