@@ -296,6 +296,7 @@ public class TestIcebergV3
             assertThat(query("SELECT regionkey FROM " + table.getName()))
                     .matches("VALUES BIGINT '0', 2, 3, 4");
 
+            assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES format_version = 3");
             assertUpdate("DELETE FROM " + table.getName() + " WHERE regionkey = 3", 1);
             assertThat(query("SELECT regionkey FROM " + table.getName()))
                     .matches("VALUES BIGINT '0', 2, 4");
