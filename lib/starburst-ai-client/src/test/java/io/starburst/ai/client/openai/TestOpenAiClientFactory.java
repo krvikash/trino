@@ -53,6 +53,16 @@ public class TestOpenAiClientFactory
                         "",
                         "2024-12-01-preview",
                         true)));
+        assertThat(tryExtractAzureOpenAiConnectionInfo(
+                Optional.of("https://test.domain.com/gpt/libsupport/openai/deployments/text-embedding-ada-002/embeddings?api-version=2024-10-15")))
+                .isEqualTo(Optional.of(new OpenAiClientFactory.AzureOpenAiConnectionInfo(
+                        "https://test.domain.com/gpt/libsupport/openai/deployments/text-embedding-ada-002",
+                        "",
+                        "2024-10-15",
+                        true)));
+        assertThatThrownBy(() -> tryExtractAzureOpenAiConnectionInfo(
+                Optional.of("https://test.domain.com/gpt/libsupport/openai/deployments/text-embedding-ada-002/incorrectPath?api-version=2024-10-15")))
+                .hasMessageContaining("Invalid Azure OpenAI endpoint - missing /chat/completions OR /embeddings in the endpoint");
         assertThatThrownBy(() -> tryExtractAzureOpenAiConnectionInfo(
                 Optional.of("https://test-domain.openai.azure.com/openai/deployments/")))
                 .hasMessageContaining("Invalid Azure OpenAI endpoint - missing deployment");

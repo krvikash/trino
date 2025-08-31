@@ -42,7 +42,9 @@ public class OpenAiClientFactory
         implements ModelClientFactory<OpenAiConnectionInfo>
 {
     private static final Logger LOG = Logger.get(OpenAiClientFactory.class);
-    // It is assumed that the Azure OpenAI endpoint is of the format: {baseUrl}/openai/deployments/{deploymentName}/chat/completions?api-version={version}
+    // It is assumed that the Azure OpenAI endpoint is of the following formats:
+    // {baseUrl}/openai/deployments/{deploymentName}/chat/completions?api-version={version}
+    // {baseUrl}/openai/deployments/{deploymentName}/embeddings?api-version={version}
     private static final String AZURE_OPENAI_ENDPOINT_IDENTIFIER = "/openai/deployments/";
     private static final String AZURE_OPENAI_API_VERSION_QUERY_PARAM = "api-version";
 
@@ -178,11 +180,12 @@ public class OpenAiClientFactory
 
     private static AzureOpenAiEndpointComponents getCustomOpenAiAzureEndpoint(String endpoint)
     {
-        int remainingPathStartIndex = endpoint.indexOf("/chat/completions");
-        if (remainingPathStartIndex == -1) {
-            throw new TrinoException(INVALID_MODEL_CONFIGURATION, "Invalid Azure OpenAI endpoint - missing /chat/completions in the endpoint");
+        int remainingLlmPathStartIndex = endpoint.indexOf("/chat/completions");
+        int remainingEmbeddingPathStartIndex = endpoint.indexOf("/embeddings");
+        if (remainingLlmPathStartIndex == -1 && remainingEmbeddingPathStartIndex == -1) {
+            throw new TrinoException(INVALID_MODEL_CONFIGURATION, "Invalid Azure OpenAI endpoint - missing /chat/completions OR /embeddings in the endpoint");
         }
-        String baseUrl = endpoint.substring(0, remainingPathStartIndex);
+        String baseUrl = endpoint.substring(0, remainingLlmPathStartIndex != -1 ? remainingLlmPathStartIndex : remainingEmbeddingPathStartIndex);
         // deployment is already part of baseUrl
         return new AzureOpenAiEndpointComponents(baseUrl, "");
     }
