@@ -13,12 +13,11 @@
  */
 package io.trino.connector;
 
+import io.trino.connector.CatalogHandle.CatalogHandleType;
 import io.trino.memory.LocalMemoryManager;
 import io.trino.memory.MemoryPool;
 import io.trino.metadata.Catalog;
 import io.trino.spi.catalog.CatalogProperties;
-import io.trino.spi.connector.CatalogHandle;
-import io.trino.spi.connector.CatalogHandle.CatalogHandleType;
 import io.trino.spi.connector.ConnectorName;
 
 import java.util.Optional;
