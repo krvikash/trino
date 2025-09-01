@@ -168,6 +168,13 @@
         </dependency>
 
         <dependency>
+            <groupId>org.apache.ozone</groupId>
+            <artifactId>ozone-filesystem-hadoop3-client</artifactId>
+            <version>1.4.0-e.2</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
             <groupId>com.adobe.testing</groupId>
             <artifactId>s3mock-testcontainers</artifactId>
             <scope>test</scope>

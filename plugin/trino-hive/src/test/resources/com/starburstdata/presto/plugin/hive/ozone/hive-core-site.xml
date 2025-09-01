@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+
+<configuration>
+    <property>
+        <name>fs.ofs.impl</name>
+        <value>org.apache.hadoop.fs.ozone.RootedOzoneFileSystem</value>
+    </property>
+
+    <property>
+        <name>fs.defaultFS</name>
+        <value>ofs://ozone-manager</value>
+    </property>
+
+    <property>
+        <name>fs.s3.impl</name>
+        <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+    </property>
+
+    <property>
+        <name>fs.s3a.endpoint</name>
+        <value>http://s3-gateway:9878</value>
+    </property>
+
+    <property>
+        <name>fs.s3a.access.key</name>
+        <value>dummy-access-key</value>
+    </property>
+
+    <property>
+        <name>fs.s3a.secret.key</name>
+        <value>dummy-secret-key</value>
+    </property>
+
+    <property>
+        <name>fs.s3a.path.style.access</name>
+        <value>true</value>
+    </property>
+
+    <!-- Hive impersonation -->
+    <property>
+        <name>hadoop.proxyuser.hive.hosts</name>
+        <value>*</value>
+    </property>
+
+    <property>
+        <name>hadoop.proxyuser.hive.groups</name>
+        <value>*</value>
+    </property>
+</configuration>

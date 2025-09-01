@@ -627,6 +627,27 @@
                         <ignoredNonTestScopedDependency>software.amazon.awssdk:retries</ignoredNonTestScopedDependency>
                     </ignoredNonTestScopedDependencies>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>copy</id>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <phase>process-test-resources</phase>
+                        <configuration>
+                            <skip>false</skip>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>org.apache.ozone</groupId>
+                                    <artifactId>ozone-filesystem-hadoop3</artifactId>
+                                    <version>1.4.0</version>
+                                    <type>jar</type>
+                                    <outputDirectory>${project.build.testResources[0].directory}</outputDirectory>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.basepom.maven</groupId>
