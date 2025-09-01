@@ -167,10 +167,7 @@ public class RelationalProgramBuilder
         Block aggregateBlock = aggregateBlockBuilder.build();
 
         // grouping keys
-        Block.Parameter groupingKeysSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(relationRowType(trinoType(input.operation().result().type()))));
-        Block groupingKeysSelector = fieldSelectorBlock("^groupingKeysSelector", groupingKeysSelectorParameter, input.mapping(), node.getGroupingKeys());
+        Block groupingKeysSelector = fieldSelectorBlock("^groupingKeysSelector", relationRowType(trinoType(input.operation().result().type())), input.mapping(), node.getGroupingKeys());
 
         OptionalInt groupIdIndex = node.getGroupIdSymbol()
                 .map(symbol -> node.getGroupingKeys().indexOf(symbol))
@@ -234,22 +231,13 @@ public class RelationalProgramBuilder
         Block arguments = argumentsBuilder.build();
 
         // filter
-        Block.Parameter filterParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(inputRowType));
-        Block filterSelector = fieldSelectorBlock("^filterSelector", filterParameter, inputMapping, aggregation.getFilter().stream().collect(toImmutableList()));
+        Block filterSelector = fieldSelectorBlock("^filterSelector", inputRowType, inputMapping, aggregation.getFilter().stream().collect(toImmutableList()));
 
         // mask
-        Block.Parameter maskParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(inputRowType));
-        Block maskSelector = fieldSelectorBlock("^maskSelector", maskParameter, inputMapping, aggregation.getMask().stream().collect(toImmutableList()));
+        Block maskSelector = fieldSelectorBlock("^maskSelector", inputRowType, inputMapping, aggregation.getMask().stream().collect(toImmutableList()));
 
         // order by
-        Block.Parameter orderingSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(inputRowType));
-        Block orderingSelector = fieldSelectorBlock("^orderingSelector", orderingSelectorParameter, inputMapping, aggregation.getOrderingScheme().map(OrderingScheme::orderBy).orElse(ImmutableList.of()));
+        Block orderingSelector = fieldSelectorBlock("^orderingSelector", inputRowType, inputMapping, aggregation.getOrderingScheme().map(OrderingScheme::orderBy).orElse(ImmutableList.of()));
 
         AggregateCall aggregateCall = new AggregateCall(
                 resultName,
@@ -277,10 +265,7 @@ public class RelationalProgramBuilder
         Type inputRowType = relationRowType(trinoType(input.operation().result().type()));
 
         // model correlation as field selection (lambda)
-        Block.Parameter correlationParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(inputRowType));
-        Block correlation = fieldSelectorBlock("^correlationSelector", correlationParameter, input.mapping(), node.getCorrelation());
+        Block correlation = fieldSelectorBlock("^correlationSelector", inputRowType, input.mapping(), node.getCorrelation());
 
         // model subquery as a lambda
         Block.Parameter subqueryParameter = new Block.Parameter(
@@ -334,10 +319,7 @@ public class RelationalProgramBuilder
 
         // model dynamic filters as an attribute containing dynamic filter IDs and selector block for corresponding source symbols
         List<Symbol> dynamicFilterTargets = ImmutableList.copyOf(node.getDynamicFilters().values());
-        Block.Parameter dynamicFilterTargetSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(relationRowType(trinoType(input.operation().result().type()))));
-        Block dynamicFilterTargetSelector = fieldSelectorBlock("^dynamicFilterTargetSelector", dynamicFilterTargetSelectorParameter, input.mapping(), dynamicFilterTargets);
+        Block dynamicFilterTargetSelector = fieldSelectorBlock("^dynamicFilterTargetSelector", relationRowType(trinoType(input.operation().result().type())), input.mapping(), dynamicFilterTargets);
 
         List<String> dynamicFilterIds = node.getDynamicFilters().keySet().stream()
                 .map(DynamicFilterId::toString)
@@ -360,10 +342,7 @@ public class RelationalProgramBuilder
         // input field selectors
         ImmutableList.Builder<Block> inputSelectorsBuilder = ImmutableList.builder();
         for (int i = 0; i < node.getSources().size(); i++) {
-            Block.Parameter inputSelectorParameter = new Block.Parameter(
-                    nameAllocator.newName(),
-                    irType(relationRowType(trinoType(inputs.get(i).operation().result().type()))));
-            Block inputSelector = fieldSelectorBlock("^inputSelector", inputSelectorParameter, inputs.get(i).mapping(), node.getInputs().get(i));
+            Block inputSelector = fieldSelectorBlock("^inputSelector", relationRowType(trinoType(inputs.get(i).operation().result().type())), inputs.get(i).mapping(), node.getInputs().get(i));
             inputSelectorsBuilder.add(inputSelector);
         }
         List<Block> inputSelectors = inputSelectorsBuilder.build();
@@ -405,10 +384,7 @@ public class RelationalProgramBuilder
         Block boundArguments = boundArgumentsBuilder.build();
 
         // order by
-        Block.Parameter orderingSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(exchangeRowType));
-        Block orderingSelector = fieldSelectorBlock("^orderingSelector", orderingSelectorParameter, outputMapping, node.getOrderingScheme().map(OrderingScheme::orderBy).orElse(ImmutableList.of())); // ordering scheme is defined in terms of exchange's output symbols
+        Block orderingSelector = fieldSelectorBlock("^orderingSelector", exchangeRowType, outputMapping, node.getOrderingScheme().map(OrderingScheme::orderBy).orElse(ImmutableList.of())); // ordering scheme is defined in terms of exchange's output symbols
 
         NullableValue[] nullableValues = new NullableValue[node.getPartitioningScheme().getPartitioning().getArguments().size()];
         for (int i = 0; i < node.getPartitioningScheme().getPartitioning().getArguments().size(); i++) {
@@ -454,10 +430,7 @@ public class RelationalProgramBuilder
         String resultName = nameAllocator.newName();
 
         // model input fields selection as a lambda (Block)
-        Block.Parameter fieldSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(relationRowType(trinoType(input.operation().result().type()))));
-        Block fieldSelectorBlock = fieldSelectorBlock("^inputFieldSelector", fieldSelectorParameter, input.mapping(), node.getActualOutputs());
+        Block fieldSelectorBlock = fieldSelectorBlock("^inputFieldSelector", relationRowType(trinoType(input.operation().result().type())), input.mapping(), node.getActualOutputs());
 
         ExplainAnalyze explainAnalyze = new ExplainAnalyze(resultName, input.operation().result(), fieldSelectorBlock, node.isVerbose(), input.operation().attributes());
         Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(explainAnalyze.result().type())), node.getOutputSymbols());
@@ -508,10 +481,7 @@ public class RelationalProgramBuilder
         }
         Map<Symbol, Integer> groupingOutputSymbolsToIndex = groupingOutputSymbolsToIndexBuilder.buildOrThrow();
 
-        Block.Parameter groupingColumnsSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(relationRowType(trinoType(input.operation().result().type()))));
-        Block groupingColumnsSelector = fieldSelectorBlock("^groupingColumnsSelector", groupingColumnsSelectorParameter, input.mapping(), groupingInputSymbolsBuilder.build());
+        Block groupingColumnsSelector = fieldSelectorBlock("^groupingColumnsSelector", relationRowType(trinoType(input.operation().result().type())), input.mapping(), groupingInputSymbolsBuilder.build());
 
         List<List<Integer>> groupingSets = node.getGroupingSets().stream()
                 .map(symbolList -> symbolList.stream()
@@ -519,10 +489,7 @@ public class RelationalProgramBuilder
                         .collect(toImmutableList()))
                 .collect(toImmutableList());
 
-        Block.Parameter aggregationArgumentsSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(relationRowType(trinoType(input.operation().result().type()))));
-        Block aggregationArgumentsSelector = fieldSelectorBlock("^aggregationArgumentsSelector", aggregationArgumentsSelectorParameter, input.mapping(), node.getAggregationArguments());
+        Block aggregationArgumentsSelector = fieldSelectorBlock("^aggregationArgumentsSelector", relationRowType(trinoType(input.operation().result().type())), input.mapping(), node.getAggregationArguments());
 
         GroupId groupId = new GroupId(resultName, input.operation().result(), groupingColumnsSelector, aggregationArgumentsSelector, groupingSets, input.operation().attributes());
         Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(groupId.result().type())), node.getOutputSymbols());
@@ -544,18 +511,12 @@ public class RelationalProgramBuilder
         List<Symbol> leftCriteriaSymbols = node.getCriteria().stream()
                 .map(JoinNode.EquiJoinClause::getLeft)
                 .collect(toImmutableList());
-        Block.Parameter leftCriteriaSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(leftRowType));
-        Block leftCriteriaSelector = fieldSelectorBlock("^leftCriteriaSelector", leftCriteriaSelectorParameter, left.mapping(), leftCriteriaSymbols);
+        Block leftCriteriaSelector = fieldSelectorBlock("^leftCriteriaSelector", leftRowType, left.mapping(), leftCriteriaSymbols);
 
         List<Symbol> rightCriteriaSymbols = node.getCriteria().stream()
                 .map(JoinNode.EquiJoinClause::getRight)
                 .collect(toImmutableList());
-        Block.Parameter rightCriteriaSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(rightRowType));
-        Block rightCriteriaSelector = fieldSelectorBlock("^rightCriteriaSelector", rightCriteriaSelectorParameter, right.mapping(), rightCriteriaSymbols);
+        Block rightCriteriaSelector = fieldSelectorBlock("^rightCriteriaSelector", rightRowType, right.mapping(), rightCriteriaSymbols);
 
         // join filter
         Block.Parameter leftFilterParameter = new Block.Parameter(
@@ -574,25 +535,16 @@ public class RelationalProgramBuilder
         Block filter = filterBuilder.build();
 
         // left output symbols
-        Block.Parameter leftOutputSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(leftRowType));
-        Block leftOutputSelector = fieldSelectorBlock("^leftOutputSelector", leftOutputSelectorParameter, left.mapping(), node.getLeftOutputSymbols());
+        Block leftOutputSelector = fieldSelectorBlock("^leftOutputSelector", leftRowType, left.mapping(), node.getLeftOutputSymbols());
 
         // right output symbols
-        Block.Parameter rightOutputSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(rightRowType));
-        Block rightOutputSelector = fieldSelectorBlock("^rightOutputSelector", rightOutputSelectorParameter, right.mapping(), node.getRightOutputSymbols());
+        Block rightOutputSelector = fieldSelectorBlock("^rightOutputSelector", rightRowType, right.mapping(), node.getRightOutputSymbols());
 
         // model dynamic filters as an attribute containing dynamic filter IDs and selector block for corresponding build side symbols
         List<Symbol> dynamicFilterTargets = node.getDynamicFilters().entrySet().stream()
                 .map(Map.Entry::getValue)
                 .collect(toImmutableList());
-        Block.Parameter dynamicFilterTargetSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(rightRowType));
-        Block dynamicFilterTargetSelector = fieldSelectorBlock("^dynamicFilterTargetSelector", dynamicFilterTargetSelectorParameter, right.mapping(), dynamicFilterTargets);
+        Block dynamicFilterTargetSelector = fieldSelectorBlock("^dynamicFilterTargetSelector", rightRowType, right.mapping(), dynamicFilterTargets);
 
         List<String> dynamicFilterIds = node.getDynamicFilters().entrySet().stream()
                 .map(Map.Entry::getKey)
@@ -629,10 +581,7 @@ public class RelationalProgramBuilder
         String resultName = nameAllocator.newName();
 
         // order by
-        Block.Parameter orderingSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(relationRowType(trinoType(input.operation().result().type()))));
-        Block orderingSelector = fieldSelectorBlock("^orderingSelector", orderingSelectorParameter, input.mapping(), node.getTiesResolvingScheme().map(OrderingScheme::orderBy).orElse(ImmutableList.of()));
+        Block orderingSelector = fieldSelectorBlock("^orderingSelector", relationRowType(trinoType(input.operation().result().type())), input.mapping(), node.getTiesResolvingScheme().map(OrderingScheme::orderBy).orElse(ImmutableList.of()));
 
         List<Integer> preSortedIndexes = node.getPreSortedInputs().stream()
                 .map(symbol -> node.getTiesResolvingScheme().map(OrderingScheme::orderBy).orElse(ImmutableList.of()).indexOf(symbol))
@@ -661,10 +610,7 @@ public class RelationalProgramBuilder
         String resultName = nameAllocator.newName();
 
         // model output fields selection as a lambda (Block)
-        Block.Parameter fieldSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(relationRowType(trinoType(input.operation().result().type()))));
-        Block fieldSelectorBlock = fieldSelectorBlock("^outputFieldSelector", fieldSelectorParameter, input.mapping(), node.getOutputSymbols());
+        Block fieldSelectorBlock = fieldSelectorBlock("^outputFieldSelector", relationRowType(trinoType(input.operation().result().type())), input.mapping(), node.getOutputSymbols());
 
         Output output = new Output(resultName, input.operation().result(), fieldSelectorBlock, node.getColumnNames());
         context.block().addOperation(output);
@@ -711,10 +657,7 @@ public class RelationalProgramBuilder
         String resultName = nameAllocator.newName();
 
         // order by
-        Block.Parameter orderingSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(relationRowType(trinoType(input.operation().result().type()))));
-        Block orderingSelector = fieldSelectorBlock("^orderingSelector", orderingSelectorParameter, input.mapping(), node.getOrderingScheme().orderBy());
+        Block orderingSelector = fieldSelectorBlock("^orderingSelector", relationRowType(trinoType(input.operation().result().type())), input.mapping(), node.getOrderingScheme().orderBy());
 
         Sort sort = new Sort(
                 resultName,
@@ -779,10 +722,7 @@ public class RelationalProgramBuilder
         String resultName = nameAllocator.newName();
 
         // order by
-        Block.Parameter orderingSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(relationRowType(trinoType(input.operation().result().type()))));
-        Block orderingSelector = fieldSelectorBlock("^orderingSelector", orderingSelectorParameter, input.mapping(), node.getOrderingScheme().orderBy());
+        Block orderingSelector = fieldSelectorBlock("^orderingSelector", relationRowType(trinoType(input.operation().result().type())), input.mapping(), node.getOrderingScheme().orderBy());
 
         TopN topN = new TopN(
                 resultName,
@@ -872,16 +812,10 @@ public class RelationalProgramBuilder
         Block windowFunctionsBlock = windowFunctionsBlockBuilder.build();
 
         // partitioning
-        Block.Parameter partitioningSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(relationRowType(trinoType(input.operation().result().type()))));
-        Block partitioningSelector = fieldSelectorBlock("^partitioningSelector", partitioningSelectorParameter, input.mapping(), node.getPartitionBy());
+        Block partitioningSelector = fieldSelectorBlock("^partitioningSelector", relationRowType(trinoType(input.operation().result().type())), input.mapping(), node.getPartitionBy());
 
         // order by
-        Block.Parameter orderingSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(relationRowType(trinoType(input.operation().result().type()))));
-        Block orderingSelector = fieldSelectorBlock("^orderingSelector", orderingSelectorParameter, input.mapping(), node.getOrderingScheme().map(OrderingScheme::orderBy).orElse(ImmutableList.of()));
+        Block orderingSelector = fieldSelectorBlock("^orderingSelector", relationRowType(trinoType(input.operation().result().type())), input.mapping(), node.getOrderingScheme().map(OrderingScheme::orderBy).orElse(ImmutableList.of()));
 
         List<Integer> prePartitionedIndexes = node.getPrePartitionedInputs().stream()
                 .map(symbol -> node.getPartitionBy().indexOf(symbol))
@@ -938,34 +872,19 @@ public class RelationalProgramBuilder
         Block arguments = argumentsBuilder.build();
 
         // order by
-        Block.Parameter orderingSelectorParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(inputRowType));
-        Block orderingSelector = fieldSelectorBlock("^orderingSelector", orderingSelectorParameter, inputMapping, windowFunction.getOrderingScheme().map(OrderingScheme::orderBy).orElse(ImmutableList.of()));
+        Block orderingSelector = fieldSelectorBlock("^orderingSelector", inputRowType, inputMapping, windowFunction.getOrderingScheme().map(OrderingScheme::orderBy).orElse(ImmutableList.of()));
 
         // frame start field
-        Block.Parameter frameStartFieldParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(inputRowType));
-        Block frameStartFieldSelector = fieldSelectorBlock("^frameStartFieldSelector", frameStartFieldParameter, inputMapping, windowFunction.getFrame().getStartValue().stream().collect(toImmutableList()));
+        Block frameStartFieldSelector = fieldSelectorBlock("^frameStartFieldSelector", inputRowType, inputMapping, windowFunction.getFrame().getStartValue().stream().collect(toImmutableList()));
 
         // sort key coerced for frame start comparison
-        Block.Parameter sortKeyCoercedForFrameStartComparisonParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(inputRowType));
-        Block sortKeyCoercedForFrameStartComparisonSelector = fieldSelectorBlock("^sortKeyCoercedForFrameStartComparisonSelector", sortKeyCoercedForFrameStartComparisonParameter, inputMapping, windowFunction.getFrame().getSortKeyCoercedForFrameStartComparison().stream().collect(toImmutableList()));
+        Block sortKeyCoercedForFrameStartComparisonSelector = fieldSelectorBlock("^sortKeyCoercedForFrameStartComparisonSelector", inputRowType, inputMapping, windowFunction.getFrame().getSortKeyCoercedForFrameStartComparison().stream().collect(toImmutableList()));
 
         // frame end field
-        Block.Parameter frameEndFieldParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(inputRowType));
-        Block frameEndFieldSelector = fieldSelectorBlock("^frameEndFieldSelector", frameEndFieldParameter, inputMapping, windowFunction.getFrame().getEndValue().stream().collect(toImmutableList()));
+        Block frameEndFieldSelector = fieldSelectorBlock("^frameEndFieldSelector", inputRowType, inputMapping, windowFunction.getFrame().getEndValue().stream().collect(toImmutableList()));
 
         // sort key coerced for frame end comparison
-        Block.Parameter sortKeyCoercedForFrameEndComparisonParameter = new Block.Parameter(
-                nameAllocator.newName(),
-                irType(inputRowType));
-        Block sortKeyCoercedForFrameEndComparisonSelector = fieldSelectorBlock("^sortKeyCoercedForFrameEndComparisonSelector", sortKeyCoercedForFrameEndComparisonParameter, inputMapping, windowFunction.getFrame().getSortKeyCoercedForFrameEndComparison().stream().collect(toImmutableList()));
+        Block sortKeyCoercedForFrameEndComparisonSelector = fieldSelectorBlock("^sortKeyCoercedForFrameEndComparisonSelector", inputRowType, inputMapping, windowFunction.getFrame().getSortKeyCoercedForFrameEndComparison().stream().collect(toImmutableList()));
 
         WindowFunctionCall windowFunctionCall = new WindowFunctionCall(
                 resultName,
@@ -1036,6 +955,15 @@ public class RelationalProgramBuilder
             mapping.putIfAbsent(symbol, i);
         }
         return mapping;
+    }
+
+    private Block fieldSelectorBlock(String blockName, Type inputRowType, Map<Symbol, Integer> inputSymbolMapping, List<Symbol> selectedSymbolsList)
+    {
+        Block.Parameter inputRowParameter = new Block.Parameter(
+                nameAllocator.newName(),
+                irType(inputRowType));
+
+        return fieldSelectorBlock(blockName, inputRowParameter, inputSymbolMapping, selectedSymbolsList);
     }
 
     private Block fieldSelectorBlock(String blockName, Block.Parameter inputRow, Map<Symbol, Integer> inputSymbolMapping, List<Symbol> selectedSymbolsList)
