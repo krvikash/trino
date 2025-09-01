@@ -18,6 +18,7 @@ import io.trino.testing.QueryRunner;
 import io.trino.tests.tpch.TpchQueryRunner;
 import org.junit.jupiter.api.Test;
 
+import java.util.StringJoiner;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class TestBigExpressions
@@ -56,5 +57,15 @@ public class TestBigExpressions
                            ELSE 'NO MATCH' END = 'MATCH'
                        """.formatted(mappingCase, mappingCase, mappingCase, mappingCase, mappingCase, mappingCase, mappingCase, mappingCase);
         assertQuery(query);
+    }
+
+    @Test
+    public void testComplexCoalesceExpression()
+    {
+        StringJoiner joiner = new StringJoiner(", ");
+        for (int i = 0; i < 1000; i++) {
+            joiner.add("COALESCE(POWER(nationkey * 2, %d) + POWER(nationkey * 2, 1), POWER(nationkey * 2, 0), POWER(nationkey * 2, 1))".formatted(i));
+        };
+        assertQuery("SELECT COALESCE(%s, %s) FROM nation".formatted(joiner, joiner));
     }
 }
