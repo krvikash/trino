@@ -15,6 +15,7 @@ package io.trino.plugin.warp.dispatcher;
 
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 
+import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 
 public class FilteringStats
@@ -63,5 +64,16 @@ public class FilteringStats
         this.totalRows += totalRows;
         this.rowsAfterFiltering += rowsAfterFiltering;
         processedSplits++;
+    }
+
+    @Override
+    public String toString()
+    {
+        return toStringHelper(this)
+                .add("totalRows", totalRows)
+                .add("rowsAfterFiltering", rowsAfterFiltering)
+                .add("startedSplits", startedSplits)
+                .add("processedSplits", processedSplits)
+                .toString();
     }
 }
