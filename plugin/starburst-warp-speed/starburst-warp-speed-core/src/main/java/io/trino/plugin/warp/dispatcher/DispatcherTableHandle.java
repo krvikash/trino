@@ -28,8 +28,6 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
 
-import static com.google.common.base.MoreObjects.ToStringHelper;
-import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
 
 public class DispatcherTableHandle
@@ -192,16 +190,16 @@ public class DispatcherTableHandle
     @Override
     public String toString()
     {
-        ToStringHelper toStringHelper = toStringHelper(this)
-                .add("schemaTableName", schemaTableName)
-                .add("fullPredicate", fullPredicate)
-                .add("simplifiedColumns", simplifiedColumns)
-                .add("proxyConnectorTableHandle", proxyConnectorTableHandle)
-                .add("subsumedPredicates", subsumedPredicates)
-                .add("columnsNotFitForDictionary", columnsNotFitForDictionary)
-                .add("filteringStats", filteringStats);
-        limit.ifPresent(value -> toStringHelper.add("limit", value));
-        warpExpression.ifPresent(value -> toStringHelper.add("warpExpression", value));
-        return toStringHelper.toString();
+        StringBuilder builder = new StringBuilder();
+        builder.append("proxyConnectorTableHandle=").append(proxyConnectorTableHandle);
+        builder.append(", fullPredicate=").append(fullPredicate);
+        builder.append(", simplifiedColumns=").append(simplifiedColumns);
+        builder.append(", subsumedPredicates=").append(subsumedPredicates);
+        if (!columnsNotFitForDictionary.isEmpty()) {
+            builder.append(", columnsNotFitForDictionary=").append(columnsNotFitForDictionary);
+        }
+        limit.ifPresent(value -> builder.append(", limit=").append(value));
+        warpExpression.ifPresent(value -> builder.append(", warpExpression=").append(value));
+        return builder.toString();
     }
 }
