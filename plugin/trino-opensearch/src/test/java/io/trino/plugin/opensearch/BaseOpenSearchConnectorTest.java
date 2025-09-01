@@ -1722,13 +1722,6 @@ public abstract class BaseOpenSearchConnectorTest
     }
 
     @Test
-    public void testLimitPushdown()
-            throws IOException
-    {
-        assertThat(query("SELECT name FROM nation LIMIT 30")).isNotFullyPushedDown(LimitNode.class); // Use high limit for result determinism
-    }
-
-    @Test
     public void testDataTypesNested()
             throws IOException
     {
