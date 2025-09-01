@@ -16,6 +16,7 @@ package io.trino.tests.product.iceberg;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Streams;
+import com.google.common.io.Resources;
 import com.google.inject.Inject;
 import io.airlift.concurrent.MoreFutures;
 import io.trino.plugin.hive.metastore.thrift.ThriftMetastoreClient;
@@ -34,11 +35,13 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.math.BigDecimal;
+import java.net.JarURLConnection;
 import java.net.URI;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,6 +50,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
+import java.util.jar.JarEntry;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -3083,6 +3087,43 @@ public class TestIcebergSparkCompatibility
                 .containsOnly(List.of(row(3), row(4)));
 
         onTrino().executeQuery("DROP TABLE " + trinoTableName);
+    }
+
+    @Test(groups = {ICEBERG, PROFILE_SPECIFIC_TESTS})
+    public void testEqualityDeleteAndDeletionVector()
+            throws Exception
+    {
+        String baseTableName = "test_equality_deletes" + randomNameSuffix();
+        String trinoTableName = trinoTableName(baseTableName);
+        String sparkTableName = sparkTableName(baseTableName);
+        String tableLocation = "/user/hive/warehouse/default/test_equality_deletes";
+        String resourceName = "iceberg/test_equality_deletes";
+
+        // Copy a local Iceberg table because Spark doesn't support writing equality deletes
+        JarURLConnection connection = (JarURLConnection) Resources.getResource(resourceName).openConnection();
+        Enumeration<JarEntry> entries = connection.getJarFile().entries();
+        while (entries.hasMoreElements()) {
+            JarEntry entry = entries.nextElement();
+            String name = entry.getName();
+            if (name.startsWith(resourceName) && !entry.isDirectory()) {
+                String relativePath = name.substring(resourceName.length());
+                String fileLocation = tableLocation + relativePath;
+                hdfsClient.saveFile(fileLocation, Resources.getResource(name).openStream());
+            }
+        }
+
+        onTrino().executeQuery("CALL iceberg.system.register_table('default', '" + baseTableName + "', 'hdfs://hadoop-master:9000" + tableLocation + "')");
+        assertThat(onTrino().executeQuery("SELECT regionkey FROM " + trinoTableName))
+                .containsOnly(row(0), row(2), row(3), row(4));
+        assertThat(onSpark().executeQuery("SELECT regionkey FROM " + sparkTableName))
+                .containsOnly(row(0), row(2), row(3), row(4));
+
+        onTrino().executeQuery("ALTER TABLE " + trinoTableName + " SET PROPERTIES format_version = 3");
+        onTrino().executeQuery("DELETE FROM " + trinoTableName + " WHERE regionkey = 3");
+        assertThat(onTrino().executeQuery("SELECT regionkey FROM " + trinoTableName))
+                .containsOnly(row(0), row(2), row(4));
+        assertThat(onSpark().executeQuery("SELECT regionkey FROM " + sparkTableName))
+                .containsOnly(row(0), row(2), row(4));
     }
 
     @Test(groups = {ICEBERG, PROFILE_SPECIFIC_TESTS})
