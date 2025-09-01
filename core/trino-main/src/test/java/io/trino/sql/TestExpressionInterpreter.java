@@ -17,9 +17,20 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.slice.Slices;
+import io.trino.metadata.FunctionBundle;
+import io.trino.metadata.InternalFunctionBundle;
 import io.trino.metadata.ResolvedFunction;
+import io.trino.metadata.SqlBatchFunction;
 import io.trino.metadata.TestingFunctionResolution;
+import io.trino.spi.block.Block;
+import io.trino.spi.block.LongArrayBlock;
+import io.trino.spi.block.ValueBlock;
+import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.function.FunctionId;
+import io.trino.spi.function.FunctionMetadata;
 import io.trino.spi.function.OperatorType;
+import io.trino.spi.function.Signature;
+import io.trino.spi.type.TypeSignature;
 import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Case;
@@ -45,7 +56,9 @@ import io.trino.transaction.TestingTransactionManager;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static io.trino.SessionTestUtils.TEST_SESSION;
@@ -68,6 +81,8 @@ import static io.trino.sql.ir.Logical.Operator.OR;
 import static io.trino.sql.planner.TestingPlannerContext.plannerContextBuilder;
 import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
 import static io.trino.type.UnknownType.UNKNOWN;
+import static java.lang.invoke.MethodHandles.lookup;
+import static java.lang.invoke.MethodType.methodType;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestExpressionInterpreter
@@ -79,12 +94,33 @@ public class TestExpressionInterpreter
     private static final Map<Symbol, Expression> INPUTS = ImmutableMap.of(
             new Symbol(INTEGER, "bound_value"), new Constant(INTEGER, 1234L));
 
+    private static final FunctionBundle FUNCTION_BUNDLE;
+
+    static {
+        try {
+            FUNCTION_BUNDLE = InternalFunctionBundle.builder()
+                    .function(new SqlBatchFunction(
+                            batchFunction("batch_add")
+                                    .description("Add two BIGINT values")
+                                    .signature(signature(BIGINT.getTypeSignature(), BIGINT.getTypeSignature(), BIGINT.getTypeSignature()))
+                                    .nullable()
+                                    .build(),
+                            lookup().findStatic(TestExpressionInterpreter.class, "batchAdd", methodType(Block.class, ConnectorSession.class, ValueBlock.class, int[].class, ValueBlock.class, int[].class))))
+                    .build();
+        }
+        catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
+    }
+
     private static final TestingTransactionManager TRANSACTION_MANAGER = new TestingTransactionManager();
     private static final PlannerContext PLANNER_CONTEXT = plannerContextBuilder()
             .withTransactionManager(TRANSACTION_MANAGER)
+            .addFunctions(FUNCTION_BUNDLE)
             .build();
 
-    private static final TestingFunctionResolution FUNCTIONS = new TestingFunctionResolution();
+    private static final TestingFunctionResolution FUNCTIONS = new TestingFunctionResolution(FUNCTION_BUNDLE);
+    private static final ResolvedFunction BATCH_ADD_BIGINT = FUNCTIONS.resolveFunction("batch_add", fromTypes(BIGINT, BIGINT));
     private static final ResolvedFunction ABS = FUNCTIONS.resolveFunction("abs", fromTypes(BIGINT));
     private static final ResolvedFunction RANDOM = FUNCTIONS.resolveFunction("random", fromTypes());
     private static final ResolvedFunction ADD_INTEGER = FUNCTIONS.resolveOperator(OperatorType.ADD, ImmutableList.of(INTEGER, INTEGER));
@@ -300,6 +336,14 @@ public class TestExpressionInterpreter
         assertOptimizedEquals(
                 new Call(ABS, ImmutableList.of(new Reference(BIGINT, "unbound_value"))),
                 new Call(ABS, ImmutableList.of(new Reference(BIGINT, "unbound_value"))));
+
+        // Batch function
+        assertOptimizedEquals(
+                new Call(BATCH_ADD_BIGINT, ImmutableList.of(new Constant(BIGINT, 5L), new Constant(BIGINT, 3L))),
+                new Constant(BIGINT, 8L));
+        assertOptimizedEquals(
+                new Call(BATCH_ADD_BIGINT, ImmutableList.of(new Constant(BIGINT, 5L), new Constant(BIGINT, null))),
+                new Constant(BIGINT, null));
     }
 
     @Test
@@ -927,5 +971,36 @@ public class TestExpressionInterpreter
     private static Object evaluate(Expression expression)
     {
         return new IrExpressionEvaluator(PLANNER_CONTEXT).evaluate(expression, TEST_SESSION, ImmutableMap.of());
+    }
+
+    static Block batchAdd(ConnectorSession session, ValueBlock first, int[] firstPositions, ValueBlock second, int[] secondPositions)
+    {
+        int length = firstPositions.length;
+        long[] result = new long[length];
+        boolean[] isNull = new boolean[length];
+        for (int i = 0; i < length; i++) {
+            int firstPosition = firstPositions[i];
+            int secondPosition = secondPositions[i];
+            if (first.isNull(firstPosition) || second.isNull(secondPosition)) {
+                isNull[i] = true;
+            }
+            else {
+                result[i] = BIGINT.getLong(first, firstPosition) + BIGINT.getLong(second, secondPosition);
+            }
+        }
+        return new LongArrayBlock(length, Optional.of(isNull), result);
+    }
+
+    private static FunctionMetadata.Builder batchFunction(String name)
+    {
+        return FunctionMetadata.batchBuilder(name).functionId(new FunctionId(name));
+    }
+
+    private static Signature signature(TypeSignature returnType, TypeSignature... argumentTypes)
+    {
+        return Signature.builder()
+                .returnType(returnType)
+                .argumentTypes(List.of(argumentTypes))
+                .build();
     }
 }

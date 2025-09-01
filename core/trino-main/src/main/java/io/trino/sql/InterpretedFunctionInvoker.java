@@ -16,8 +16,11 @@ package io.trino.sql;
 import com.google.common.collect.ImmutableList;
 import io.trino.metadata.FunctionManager;
 import io.trino.metadata.ResolvedFunction;
+import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.function.BatchFunctionImplementation;
 import io.trino.spi.function.BoundSignature;
+import io.trino.spi.function.FunctionKind;
 import io.trino.spi.function.FunctionNullability;
 import io.trino.spi.function.InvocationConvention;
 import io.trino.spi.function.InvocationConvention.InvocationArgumentConvention;
@@ -36,6 +39,8 @@ import static io.trino.spi.function.InvocationConvention.InvocationArgumentConve
 import static io.trino.spi.function.InvocationConvention.InvocationArgumentConvention.NEVER_NULL;
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.FAIL_ON_NULL;
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.NULLABLE_RETURN;
+import static io.trino.spi.predicate.Utils.blockToNativeValue;
+import static io.trino.spi.predicate.Utils.nativeValueToBlock;
 import static java.lang.invoke.MethodHandleProxies.asInterfaceInstance;
 import static java.util.Objects.requireNonNull;
 
@@ -60,6 +65,9 @@ public class InterpretedFunctionInvoker
      */
     public Object invoke(ResolvedFunction function, ConnectorSession session, List<Object> arguments)
     {
+        if (function.functionKind() == FunctionKind.BATCH) {
+            return invokeBatchFunction(function, session, arguments);
+        }
         ScalarFunctionImplementation implementation = functionManager.getScalarFunctionImplementation(function, getInvocationConvention(function.signature(), function.functionNullability()));
         MethodHandle method = implementation.getMethodHandle();
 
@@ -99,6 +107,41 @@ public class InterpretedFunctionInvoker
 
         try {
             return method.invokeWithArguments(actualArguments);
+        }
+        catch (Throwable throwable) {
+            throw propagate(throwable);
+        }
+    }
+
+    private Object invokeBatchFunction(ResolvedFunction function, ConnectorSession session, List<Object> arguments)
+    {
+        BatchFunctionImplementation implementation = functionManager.getBatchFunctionImplementation(function);
+        MethodHandle method = implementation.methodHandle();
+
+        List<Object> actualArguments = new ArrayList<>();
+
+        // add session
+        if (method.type().parameterCount() > 0 && method.type().parameterType(0) == ConnectorSession.class) {
+            actualArguments.add(session);
+        }
+
+        for (int i = 0; i < arguments.size(); i++) {
+            Object argument = arguments.get(i);
+
+            // if argument is null and function does not handle nulls, result is null
+            if (argument == null && !function.functionNullability().isArgumentNullable(i)) {
+                return null;
+            }
+
+            Type type = function.signature().getArgumentTypes().get(i);
+            Block block = nativeValueToBlock(type, argument);
+            actualArguments.add(block.getUnderlyingValueBlock());
+            actualArguments.add(new int[] {0});
+        }
+
+        try {
+            Block resultBlock = (Block) method.invokeWithArguments(actualArguments);
+            return blockToNativeValue(function.signature().getReturnType(), resultBlock);
         }
         catch (Throwable throwable) {
             throw propagate(throwable);
