@@ -16,7 +16,6 @@ package io.trino.sql.dialect.trino.operation;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
-import io.trino.spi.type.RowType;
 import io.trino.sql.dialect.trino.Attributes.SortOrderList;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
@@ -30,6 +29,7 @@ import java.util.Map;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.Attributes.PARTIAL;
 import static io.trino.sql.dialect.trino.Attributes.SORT_ORDERS;
+import static io.trino.sql.dialect.trino.OperationValidationUtils.validateNonEmptyRowSelector;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
@@ -63,11 +63,7 @@ public class Sort
 
         this.result = new Result(resultName, input.type());
 
-        if (orderingSelector.parameters().size() != 1 ||
-                !trinoType(orderingSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(input.type()))) ||
-                !(trinoType(orderingSelector.getReturnedType()) instanceof RowType)) { // non-empty ordering required
-            throw new TrinoException(IR_ERROR, "invalid ordering selector for Sort operation");
-        }
+        validateNonEmptyRowSelector(orderingSelector, relationRowType(trinoType(input.type())), "invalid ordering selector for Sort operation");
         if (trinoType(orderingSelector.getReturnedType()).getTypeParameters().size() != sortOrders.sortOrders().size()) {
             throw new TrinoException(IR_ERROR, "ordering fields and sort orders for Sort do not match in size");
         }

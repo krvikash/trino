@@ -52,6 +52,7 @@ import static io.trino.sql.dialect.trino.Attributes.PARTITIONING_HANDLE;
 import static io.trino.sql.dialect.trino.Attributes.PARTITION_COUNT;
 import static io.trino.sql.dialect.trino.Attributes.REPLICATE_NULLS_AND_ANY;
 import static io.trino.sql.dialect.trino.Attributes.SORT_ORDERS;
+import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
@@ -120,11 +121,7 @@ public class Exchange
         for (int i = 0; i < inputFieldSelectors.size(); i++) {
             Block inputSelector = inputFieldSelectors.get(i);
             Value input = inputs.get(i);
-            if (inputSelector.parameters().size() != 1 ||
-                    !trinoType(inputSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(input.type()))) ||
-                    !(trinoType(inputSelector.getReturnedType()) instanceof RowType || trinoType(inputSelector.getReturnedType()).equals(EMPTY_ROW))) {
-                throw new TrinoException(IR_ERROR, "invalid input field selector for Exchange operation");
-            }
+            validateRowSelector(inputSelector, relationRowType(trinoType(input.type())), "invalid input field selector for Exchange operation");
         }
         List<Type> inputFieldTypes = trinoType(inputFieldSelectors.getFirst().getReturnedType()).getTypeParameters();
         for (Block selector : inputFieldSelectors) {
@@ -140,11 +137,7 @@ public class Exchange
         Type exchangeRowType = inputFieldTypes.isEmpty() ? EMPTY_ROW : RowType.anonymous(inputFieldTypes);
         this.result = new Result(resultName, irType(new MultisetType(exchangeRowType)));
 
-        if (partitioningBoundArguments.parameters().size() != 1 ||
-                !trinoType(partitioningBoundArguments.parameters().getFirst().type()).equals(exchangeRowType) ||
-                !(trinoType(partitioningBoundArguments.getReturnedType()) instanceof RowType || trinoType(partitioningBoundArguments.getReturnedType()).equals(EMPTY_ROW))) {
-            throw new TrinoException(IR_ERROR, "invalid partitioning bound arguments for Exchange operation");
-        }
+        validateRowSelector(partitioningBoundArguments, exchangeRowType, "invalid partitioning bound arguments for Exchange operation");
         if (trinoType(partitioningBoundArguments.getReturnedType()).getTypeParameters().size() != partitioningBoundValues.nullableValues().length) {
             throw new TrinoException(IR_ERROR, "partitioning bound arguments and bound values for Exchange do not match in size");
         }
@@ -163,11 +156,7 @@ public class Exchange
             throw new TrinoException(IR_ERROR, "only REPARTITION can replicate remotely");
         }
 
-        if (orderingSelector.parameters().size() != 1 ||
-                !trinoType(orderingSelector.parameters().getFirst().type()).equals(exchangeRowType) ||
-                !(trinoType(orderingSelector.getReturnedType()) instanceof RowType || trinoType(orderingSelector.getReturnedType()).equals(EMPTY_ROW))) {
-            throw new TrinoException(IR_ERROR, "invalid ordering selector for Exchange operation");
-        }
+        validateRowSelector(orderingSelector, exchangeRowType, "invalid ordering selector for Exchange operation");
         if (trinoType(orderingSelector.getReturnedType()).getTypeParameters().size() != sortOrders.map(orders -> orders.sortOrders().size()).orElse(0)) {
             throw new TrinoException(IR_ERROR, "ordering fields and sort orders for Exchange do not match in size");
         }

@@ -17,7 +17,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.spi.TrinoException;
-import io.trino.spi.type.RowType;
 import io.trino.sql.dialect.trino.Attributes.SortOrderList;
 import io.trino.sql.dialect.trino.Attributes.WindowFrameBoundType;
 import io.trino.sql.dialect.trino.Attributes.WindowFrameType;
@@ -33,7 +32,6 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
-import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.sql.dialect.trino.Attributes.DISTINCT;
 import static io.trino.sql.dialect.trino.Attributes.FRAME_END_TYPE;
 import static io.trino.sql.dialect.trino.Attributes.FRAME_START_TYPE;
@@ -42,6 +40,8 @@ import static io.trino.sql.dialect.trino.Attributes.IGNORE_NULLS;
 import static io.trino.sql.dialect.trino.Attributes.RESOLVED_FUNCTION;
 import static io.trino.sql.dialect.trino.Attributes.SORT_ORDERS;
 import static io.trino.sql.dialect.trino.Attributes.WindowFrameType.RANGE;
+import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
+import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelectorReturningAtMostOneField;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
@@ -103,56 +103,28 @@ public class WindowFunctionCall
         }
         this.window = window;
 
-        if (arguments.parameters().size() != 1 ||
-                !trinoType(arguments.parameters().getFirst().type()).equals(relationRowType(trinoType(window.type()))) ||
-                !(trinoType(arguments.getReturnedType()) instanceof RowType || trinoType(arguments.getReturnedType()).equals(EMPTY_ROW))) {
-            throw new TrinoException(IR_ERROR, "invalid arguments for WindowFunctionCall operation");
-        }
+        validateRowSelector(arguments, relationRowType(trinoType(window.type())), "invalid arguments for WindowFunctionCall operation");
         this.arguments = singleBlockRegion(arguments);
 
         this.result = new Result(resultName, irType(function.signature().getReturnType()));
 
-        if (orderingSelector.parameters().size() != 1 ||
-                !trinoType(orderingSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(window.type()))) ||
-                !(trinoType(orderingSelector.getReturnedType()) instanceof RowType || trinoType(orderingSelector.getReturnedType()).equals(EMPTY_ROW))) {
-            throw new TrinoException(IR_ERROR, "invalid ordering selector for WindowFunctionCall operation");
-        }
+        validateRowSelector(orderingSelector, relationRowType(trinoType(window.type())), "invalid ordering selector for WindowFunctionCall operation");
         this.orderingSelector = singleBlockRegion(orderingSelector);
 
         if (trinoType(orderingSelector.getReturnedType()).getTypeParameters().size() != sortOrders.map(orders -> orders.sortOrders().size()).orElse(0)) {
             throw new TrinoException(IR_ERROR, "ordering fields and sort orders for WindowFunctionCall do not match in size");
         }
 
-        if (frameStartFieldSelector.parameters().size() != 1 ||
-                !trinoType(frameStartFieldSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(window.type()))) ||
-                !(trinoType(frameStartFieldSelector.getReturnedType()) instanceof RowType || trinoType(frameStartFieldSelector.getReturnedType()).equals(EMPTY_ROW)) ||
-                trinoType(frameStartFieldSelector.getReturnedType()).getTypeParameters().size() > 1) {
-            throw new TrinoException(IR_ERROR, "invalid frame start field selector for WindowFunctionCall operation");
-        }
+        validateRowSelectorReturningAtMostOneField(frameStartFieldSelector, relationRowType(trinoType(window.type())), "invalid frame start field selector for WindowFunctionCall operation");
         this.frameStartFieldSelector = singleBlockRegion(frameStartFieldSelector);
 
-        if (sortKeyCoercedForFrameStartComparisonSelector.parameters().size() != 1 ||
-                !trinoType(sortKeyCoercedForFrameStartComparisonSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(window.type()))) ||
-                !(trinoType(sortKeyCoercedForFrameStartComparisonSelector.getReturnedType()) instanceof RowType || trinoType(sortKeyCoercedForFrameStartComparisonSelector.getReturnedType()).equals(EMPTY_ROW)) ||
-                trinoType(sortKeyCoercedForFrameStartComparisonSelector.getReturnedType()).getTypeParameters().size() > 1) {
-            throw new TrinoException(IR_ERROR, "invalid sort key selector for WindowFunctionCall operation");
-        }
+        validateRowSelectorReturningAtMostOneField(sortKeyCoercedForFrameStartComparisonSelector, relationRowType(trinoType(window.type())), "invalid sort key selector for WindowFunctionCall operation");
         this.sortKeyCoercedForFrameStartComparisonSelector = singleBlockRegion(sortKeyCoercedForFrameStartComparisonSelector);
 
-        if (frameEndFieldSelector.parameters().size() != 1 ||
-                !trinoType(frameEndFieldSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(window.type()))) ||
-                !(trinoType(frameEndFieldSelector.getReturnedType()) instanceof RowType || trinoType(frameEndFieldSelector.getReturnedType()).equals(EMPTY_ROW)) ||
-                trinoType(frameEndFieldSelector.getReturnedType()).getTypeParameters().size() > 1) {
-            throw new TrinoException(IR_ERROR, "invalid frame end field selector for WindowFunctionCall operation");
-        }
+        validateRowSelectorReturningAtMostOneField(frameEndFieldSelector, relationRowType(trinoType(window.type())), "invalid frame end field selector for WindowFunctionCall operation");
         this.frameEndFieldSelector = singleBlockRegion(frameEndFieldSelector);
 
-        if (sortKeyCoercedForFrameEndComparisonSelector.parameters().size() != 1 ||
-                !trinoType(sortKeyCoercedForFrameEndComparisonSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(window.type()))) ||
-                !(trinoType(sortKeyCoercedForFrameEndComparisonSelector.getReturnedType()) instanceof RowType || trinoType(sortKeyCoercedForFrameEndComparisonSelector.getReturnedType()).equals(EMPTY_ROW)) ||
-                trinoType(sortKeyCoercedForFrameEndComparisonSelector.getReturnedType()).getTypeParameters().size() > 1) {
-            throw new TrinoException(IR_ERROR, "invalid sort key selector for WindowFunctionCall operation");
-        }
+        validateRowSelectorReturningAtMostOneField(sortKeyCoercedForFrameEndComparisonSelector, relationRowType(trinoType(window.type())), "invalid sort key selector for WindowFunctionCall operation");
         this.sortKeyCoercedForFrameEndComparisonSelector = singleBlockRegion(sortKeyCoercedForFrameEndComparisonSelector);
 
         if (frameType == RANGE) {

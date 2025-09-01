@@ -39,6 +39,7 @@ import static io.trino.sql.dialect.trino.Attributes.GROUPING_SETS_COUNT;
 import static io.trino.sql.dialect.trino.Attributes.GROUP_ID_INDEX;
 import static io.trino.sql.dialect.trino.Attributes.INPUT_REDUCING;
 import static io.trino.sql.dialect.trino.Attributes.PRE_GROUPED_INDEXES;
+import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
@@ -87,19 +88,11 @@ public class Aggregation
         }
         this.input = input;
 
-        if (aggregateCalls.parameters().size() != 1 ||
-                !trinoType(aggregateCalls.parameters().getFirst().type()).equals(trinoType(input.type())) ||
-                !(trinoType(aggregateCalls.getReturnedType()) instanceof RowType || trinoType(aggregateCalls.getReturnedType()).equals(EMPTY_ROW))) {
-            throw new TrinoException(IR_ERROR, "invalid aggregateCalls for Aggregation operation");
-        }
+        validateRowSelector(aggregateCalls, trinoType(input.type()), "invalid aggregateCalls for Aggregation operation");
         // TODO check that this is a Row of AggregateCall operations. Pass the current Program to resolve backlinks.
         this.aggregateCalls = singleBlockRegion(aggregateCalls);
 
-        if (groupingKeysSelector.parameters().size() != 1 ||
-                !trinoType(groupingKeysSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(input.type()))) ||
-                !(trinoType(groupingKeysSelector.getReturnedType()) instanceof RowType || trinoType(groupingKeysSelector.getReturnedType()).equals(EMPTY_ROW))) {
-            throw new TrinoException(IR_ERROR, "invalid grouping keys selector for Aggregation operation");
-        }
+        validateRowSelector(groupingKeysSelector, relationRowType(trinoType(input.type())), "invalid grouping keys selector for Aggregation operation");
         this.groupingKeysSelector = singleBlockRegion(groupingKeysSelector);
 
         List<Type> outputTypes = ImmutableList.<Type>builder()

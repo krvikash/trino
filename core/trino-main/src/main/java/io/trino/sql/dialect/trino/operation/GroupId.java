@@ -32,8 +32,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.BigintType.BIGINT;
-import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.sql.dialect.trino.Attributes.GROUPING_SETS;
+import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
@@ -77,18 +77,10 @@ public class GroupId
         }
         this.input = input;
 
-        if (groupingColumnsSelector.parameters().size() != 1 ||
-                !trinoType(groupingColumnsSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(input.type()))) ||
-                !(trinoType(groupingColumnsSelector.getReturnedType()) instanceof RowType || trinoType(groupingColumnsSelector.getReturnedType()).equals(EMPTY_ROW))) {
-            throw new TrinoException(IR_ERROR, "invalid grouping columns selector for GroupId operation");
-        }
+        validateRowSelector(groupingColumnsSelector, relationRowType(trinoType(input.type())), "invalid grouping columns selector for GroupId operation");
         this.groupingColumnsSelector = singleBlockRegion(groupingColumnsSelector);
 
-        if (aggregationArgumentsSelector.parameters().size() != 1 ||
-                !trinoType(aggregationArgumentsSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(input.type()))) ||
-                !(trinoType(aggregationArgumentsSelector.getReturnedType()) instanceof RowType || trinoType(aggregationArgumentsSelector.getReturnedType()).equals(EMPTY_ROW))) {
-            throw new TrinoException(IR_ERROR, "invalid aggregation arguments selector for GroupId operation");
-        }
+        validateRowSelector(aggregationArgumentsSelector, relationRowType(trinoType(input.type())), "invalid aggregation arguments selector for GroupId operation");
         this.aggregationArgumentsSelector = singleBlockRegion(aggregationArgumentsSelector);
 
         List<Type> groupingColumnTypes = trinoType(groupingColumnsSelector.getReturnedType()).getTypeParameters();

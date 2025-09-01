@@ -17,7 +17,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.spi.TrinoException;
-import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.Attributes.AggregationStep;
 import io.trino.sql.dialect.trino.Attributes.SortOrderList;
@@ -34,7 +33,6 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
-import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.sql.dialect.trino.Attributes.AGGREGATION_STEP;
 import static io.trino.sql.dialect.trino.Attributes.AggregationStep.FINAL;
 import static io.trino.sql.dialect.trino.Attributes.AggregationStep.PARTIAL;
@@ -42,6 +40,8 @@ import static io.trino.sql.dialect.trino.Attributes.AggregationStep.SINGLE;
 import static io.trino.sql.dialect.trino.Attributes.DISTINCT;
 import static io.trino.sql.dialect.trino.Attributes.RESOLVED_FUNCTION;
 import static io.trino.sql.dialect.trino.Attributes.SORT_ORDERS;
+import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
+import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelectorReturningAtMostOneField;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
@@ -100,11 +100,7 @@ public class AggregateCall
         }
         this.group = group;
 
-        if (arguments.parameters().size() != 1 ||
-                !trinoType(arguments.parameters().getFirst().type()).equals(relationRowType(trinoType(group.type()))) ||
-                !(trinoType(arguments.getReturnedType()) instanceof RowType || trinoType(arguments.getReturnedType()).equals(EMPTY_ROW))) {
-            throw new TrinoException(IR_ERROR, "invalid arguments for AggregateCall operation");
-        }
+        validateRowSelector(arguments, relationRowType(trinoType(group.type())), "invalid arguments for AggregateCall operation");
 
         // verify argument count considering step
         List<Type> argumentTypes = trinoType(arguments.getReturnedType()).getTypeParameters();
@@ -153,27 +149,13 @@ public class AggregateCall
         }
         this.result = new Result(resultName, irType(outputType));
 
-        if (filterSelector.parameters().size() != 1 ||
-                !trinoType(filterSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(group.type()))) ||
-                !(trinoType(filterSelector.getReturnedType()) instanceof RowType || trinoType(filterSelector.getReturnedType()).equals(EMPTY_ROW)) ||
-                trinoType(filterSelector.getReturnedType()).getTypeParameters().size() > 1) {
-            throw new TrinoException(IR_ERROR, "invalid filter selector for AggregateCall operation");
-        }
+        validateRowSelectorReturningAtMostOneField(filterSelector, relationRowType(trinoType(group.type())), "invalid filter selector for AggregateCall operation");
         this.filterSelector = singleBlockRegion(filterSelector);
 
-        if (maskSelector.parameters().size() != 1 ||
-                !trinoType(maskSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(group.type()))) ||
-                !(trinoType(maskSelector.getReturnedType()) instanceof RowType || trinoType(maskSelector.getReturnedType()).equals(EMPTY_ROW)) ||
-                trinoType(maskSelector.getReturnedType()).getTypeParameters().size() > 1) {
-            throw new TrinoException(IR_ERROR, "invalid mask selector for AggregateCall operation");
-        }
+        validateRowSelectorReturningAtMostOneField(maskSelector, relationRowType(trinoType(group.type())), "invalid mask selector for AggregateCall operation");
         this.maskSelector = singleBlockRegion(maskSelector);
 
-        if (orderingSelector.parameters().size() != 1 ||
-                !trinoType(orderingSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(group.type()))) ||
-                !(trinoType(orderingSelector.getReturnedType()) instanceof RowType || trinoType(orderingSelector.getReturnedType()).equals(EMPTY_ROW))) {
-            throw new TrinoException(IR_ERROR, "invalid ordering selector for AggregateCall operation");
-        }
+        validateRowSelector(orderingSelector, relationRowType(trinoType(group.type())), "invalid ordering selector for AggregateCall operation");
         if (!(trinoType(orderingSelector.getReturnedType()).getTypeParameters().isEmpty() || step == SINGLE)) {
             throw new TrinoException(IR_ERROR, "ORDER BY is not supported for distributed aggregation");
         }

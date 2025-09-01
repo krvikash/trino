@@ -17,7 +17,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
-import io.trino.spi.type.RowType;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -28,10 +27,10 @@ import java.util.List;
 import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
-import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.spi.type.RowType.anonymousRow;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.dialect.trino.Attributes.VERBOSE;
+import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
@@ -65,11 +64,7 @@ public class ExplainAnalyze
 
         this.result = new Result(resultName, irType(new MultisetType(anonymousRow(VARCHAR))));
 
-        if (fieldSelector.parameters().size() != 1 ||
-                !trinoType(fieldSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(input.type()))) ||
-                !(trinoType(fieldSelector.getReturnedType()) instanceof RowType || trinoType(fieldSelector.getReturnedType()).equals(EMPTY_ROW))) {
-            throw new TrinoException(IR_ERROR, "invalid field selection for ExplainAnalyze operation");
-        }
+        validateRowSelector(fieldSelector, relationRowType(trinoType(input.type())), "invalid field selection for ExplainAnalyze operation");
         this.fieldSelector = singleBlockRegion(fieldSelector);
 
         this.attributes = VERBOSE.asMap(verbose);

@@ -30,12 +30,12 @@ import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
+import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
-import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION_ROW;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.isPruningAssignments;
 import static java.util.Objects.requireNonNull;
@@ -63,11 +63,7 @@ public final class Project
         }
         this.input = input;
 
-        if (assignments.parameters().size() != 1 ||
-                !trinoType(assignments.parameters().getFirst().type()).equals(relationRowType(trinoType(input.type()))) ||
-                !IS_RELATION_ROW.test(trinoType(assignments.getReturnedType()))) {
-            throw new TrinoException(IR_ERROR, "invalid assignments for Project operation");
-        }
+        validateRowSelector(assignments, relationRowType(trinoType(input.type())), "invalid assignments for Project operation");
         this.assignments = singleBlockRegion(assignments);
 
         Type resultType;

@@ -33,7 +33,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
-import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.sql.dialect.trino.Attributes.DISTRIBUTION_TYPE;
 import static io.trino.sql.dialect.trino.Attributes.DYNAMIC_FILTER_IDS;
@@ -41,6 +40,8 @@ import static io.trino.sql.dialect.trino.Attributes.JOIN_TYPE;
 import static io.trino.sql.dialect.trino.Attributes.MAY_SKIP_OUTPUT_DUPLICATES;
 import static io.trino.sql.dialect.trino.Attributes.SPILLABLE;
 import static io.trino.sql.dialect.trino.Attributes.STATISTICS_AND_COST_SUMMARY;
+import static io.trino.sql.dialect.trino.OperationValidationUtils.validatePredicate;
+import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
@@ -109,44 +110,23 @@ public final class Join
         this.left = left;
         this.right = right;
 
-        if (leftCriteriaSelector.parameters().size() != 1 ||
-                !trinoType(leftCriteriaSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(left.type()))) ||
-                !(trinoType(leftCriteriaSelector.getReturnedType()) instanceof RowType || trinoType(leftCriteriaSelector.getReturnedType()).equals(EMPTY_ROW))) {
-            throw new TrinoException(IR_ERROR, "invalid left criteria selector for Join operation");
-        }
+        validateRowSelector(leftCriteriaSelector, relationRowType(trinoType(left.type())), "invalid left criteria selector for Join operation");
         this.leftCriteriaSelector = singleBlockRegion(leftCriteriaSelector);
 
-        if (rightCriteriaSelector.parameters().size() != 1 ||
-                !trinoType(rightCriteriaSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(right.type()))) ||
-                !(trinoType(rightCriteriaSelector.getReturnedType()) instanceof RowType || trinoType(rightCriteriaSelector.getReturnedType()).equals(EMPTY_ROW))) {
-            throw new TrinoException(IR_ERROR, "invalid right criteria selector for Join operation");
-        }
+        validateRowSelector(rightCriteriaSelector, relationRowType(trinoType(right.type())), "invalid right criteria selector for Join operation");
         this.rightCriteriaSelector = singleBlockRegion(rightCriteriaSelector);
 
         if (!trinoType(leftCriteriaSelector.getReturnedType()).getTypeParameters().equals(trinoType(rightCriteriaSelector.getReturnedType()).getTypeParameters())) {
             throw new TrinoException(IR_ERROR, "left and right criteria selectors for Join operation do not match");
         }
 
-        if (filter.parameters().size() != 2 ||
-                !trinoType(filter.parameters().get(0).type()).equals(relationRowType(trinoType(left.type()))) ||
-                !trinoType(filter.parameters().get(1).type()).equals(relationRowType(trinoType(right.type()))) ||
-                !trinoType(filter.getReturnedType()).equals(BOOLEAN)) {
-            throw new TrinoException(IR_ERROR, "invalid filter for Join operation");
-        }
+        validatePredicate(filter, relationRowType(trinoType(left.type())), relationRowType(trinoType(right.type())), "invalid filter for Join operation");
         this.filter = singleBlockRegion(filter);
 
-        if (leftOutputSelector.parameters().size() != 1 ||
-                !trinoType(leftOutputSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(left.type()))) ||
-                !(trinoType(leftOutputSelector.getReturnedType()) instanceof RowType || trinoType(leftOutputSelector.getReturnedType()).equals(EMPTY_ROW))) {
-            throw new TrinoException(IR_ERROR, "invalid left output selector for Join operation");
-        }
+        validateRowSelector(leftOutputSelector, relationRowType(trinoType(left.type())), "invalid left output selector for Join operation");
         this.leftOutputSelector = singleBlockRegion(leftOutputSelector);
 
-        if (rightOutputSelector.parameters().size() != 1 ||
-                !trinoType(rightOutputSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(right.type()))) ||
-                !(trinoType(rightOutputSelector.getReturnedType()) instanceof RowType || trinoType(rightOutputSelector.getReturnedType()).equals(EMPTY_ROW))) {
-            throw new TrinoException(IR_ERROR, "invalid right output selector for Join operation");
-        }
+        validateRowSelector(rightOutputSelector, relationRowType(trinoType(right.type())), "invalid right output selector for Join operation");
         this.rightOutputSelector = singleBlockRegion(rightOutputSelector);
 
         List<Type> outputTypes = ImmutableList.<Type>builder()
@@ -161,11 +141,7 @@ public final class Join
             this.result = new Result(resultName, irType(new MultisetType(RowType.anonymous(outputTypes))));
         }
 
-        if (dynamicFilterTargetSelector.parameters().size() != 1 ||
-                !trinoType(dynamicFilterTargetSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(right.type()))) ||
-                !(trinoType(dynamicFilterTargetSelector.getReturnedType()) instanceof RowType || trinoType(dynamicFilterTargetSelector.getReturnedType()).equals(EMPTY_ROW))) {
-            throw new TrinoException(IR_ERROR, "invalid dynamic filter target selector for Join operation");
-        }
+        validateRowSelector(dynamicFilterTargetSelector, relationRowType(trinoType(right.type())), "invalid dynamic filter target selector for Join operation");
         this.dynamicFilterTargetSelector = singleBlockRegion(dynamicFilterTargetSelector);
 
         if (trinoType(dynamicFilterTargetSelector.getReturnedType()).getTypeParameters().size() != dynamicFilterIds.size()) {

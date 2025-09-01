@@ -16,7 +16,6 @@ package io.trino.sql.dialect.trino.operation;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
-import io.trino.spi.type.RowType;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -29,6 +28,7 @@ import java.util.Map;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.sql.dialect.trino.Attributes.DYNAMIC_FILTER_IDS;
+import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
@@ -63,11 +63,7 @@ public class DynamicFilterSource
 
         this.result = new Result(resultName, input.type());
 
-        if (dynamicFilterTargetSelector.parameters().size() != 1 ||
-                !trinoType(dynamicFilterTargetSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(input.type()))) ||
-                !(trinoType(dynamicFilterTargetSelector.getReturnedType()) instanceof RowType || trinoType(dynamicFilterTargetSelector.getReturnedType()).equals(EMPTY_ROW))) {
-            throw new TrinoException(IR_ERROR, "invalid dynamic filter target selector for DynamicFilterSource operation");
-        }
+        validateRowSelector(dynamicFilterTargetSelector, relationRowType(trinoType(input.type())), "invalid dynamic filter target selector for DynamicFilterSource operation");
         this.dynamicFilterTargetSelector = singleBlockRegion(dynamicFilterTargetSelector);
 
         if (trinoType(dynamicFilterTargetSelector.getReturnedType()).getTypeParameters().size() != dynamicFilterIds.size()) {

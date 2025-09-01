@@ -39,6 +39,7 @@ import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.sql.dialect.trino.Attributes.PRE_PARTITIONED_INDEXES;
 import static io.trino.sql.dialect.trino.Attributes.PRE_SORTED_PREFIX;
 import static io.trino.sql.dialect.trino.Attributes.SORT_ORDERS;
+import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
@@ -85,18 +86,10 @@ public class Window
         }
         this.input = input;
 
-        if (windowFunctionCalls.parameters().size() != 1 ||
-                !trinoType(windowFunctionCalls.parameters().getFirst().type()).equals(trinoType(input.type())) ||
-                !(trinoType(windowFunctionCalls.getReturnedType()) instanceof RowType || trinoType(windowFunctionCalls.getReturnedType()).equals(EMPTY_ROW))) {
-            throw new TrinoException(IR_ERROR, "invalid windowFunctionCalls for Window operation");
-        }
+        validateRowSelector(windowFunctionCalls, trinoType(input.type()), "invalid windowFunctionCalls for Window operation");
         this.windowFunctionCalls = singleBlockRegion(windowFunctionCalls);
 
-        if (partitioningSelector.parameters().size() != 1 ||
-                !trinoType(partitioningSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(input.type()))) ||
-                !(trinoType(partitioningSelector.getReturnedType()) instanceof RowType || trinoType(partitioningSelector.getReturnedType()).equals(EMPTY_ROW))) {
-            throw new TrinoException(IR_ERROR, "invalid partitioning selector for Window operation");
-        }
+        validateRowSelector(partitioningSelector, relationRowType(trinoType(input.type())), "invalid partitioningSelector for Window operation");
         this.partitioningSelector = singleBlockRegion(partitioningSelector);
 
         int partitioningCount = trinoType(partitioningSelector.getReturnedType()).getTypeParameters().size();
@@ -107,11 +100,7 @@ public class Window
                     }
                 });
 
-        if (orderingSelector.parameters().size() != 1 ||
-                !trinoType(orderingSelector.parameters().getFirst().type()).equals(relationRowType(trinoType(input.type()))) ||
-                !(trinoType(orderingSelector.getReturnedType()) instanceof RowType || trinoType(orderingSelector.getReturnedType()).equals(EMPTY_ROW))) {
-            throw new TrinoException(IR_ERROR, "invalid ordering selector for Window operation");
-        }
+        validateRowSelector(orderingSelector, relationRowType(trinoType(input.type())), "invalid orderingSelector for Window operation");
         this.orderingSelector = singleBlockRegion(orderingSelector);
 
         if (trinoType(orderingSelector.getReturnedType()).getTypeParameters().size() != sortOrders.map(orders -> orders.sortOrders().size()).orElse(0)) {

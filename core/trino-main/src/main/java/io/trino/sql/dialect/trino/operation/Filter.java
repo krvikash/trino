@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
-import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.sql.dialect.trino.OperationValidationUtils.validatePredicate;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
@@ -61,11 +61,7 @@ public final class Filter
         this.input = input;
 
         // TODO validate block labels
-        if (predicate.parameters().size() != 1 ||
-                !trinoType(predicate.parameters().getFirst().type()).equals(relationRowType(trinoType(input.type()))) ||
-                !trinoType(predicate.getReturnedType()).equals(BOOLEAN)) {
-            throw new TrinoException(IR_ERROR, "invalid predicate for Filter operation");
-        }
+        validatePredicate(predicate, relationRowType(trinoType(input.type())), "invalid predicate for Filter operation");
         this.predicate = singleBlockRegion(predicate);
 
         // TODO derive attributes from source attributes

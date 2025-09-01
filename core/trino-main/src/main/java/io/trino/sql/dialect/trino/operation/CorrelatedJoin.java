@@ -30,9 +30,11 @@ import java.util.List;
 import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
-import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.sql.dialect.trino.Attributes.JOIN_TYPE;
+import static io.trino.sql.dialect.trino.OperationValidationUtils.validatePredicate;
+import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRelationSelector;
+import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
@@ -93,26 +95,13 @@ public final class CorrelatedJoin
 
         this.input = input;
 
-        if (correlation.parameters().size() != 1 ||
-                !trinoType(correlation.parameters().getFirst().type()).equals(relationRowType(trinoType(input.type()))) ||
-                !(trinoType(correlation.getReturnedType()) instanceof RowType || trinoType(correlation.getReturnedType()).equals(EMPTY_ROW))) {
-            throw new TrinoException(IR_ERROR, "invalid correlation for CorrelatedJoin operation");
-        }
+        validateRowSelector(correlation, relationRowType(trinoType(input.type())), "invalid correlation for CorrelatedJoin operation");
         this.correlation = singleBlockRegion(correlation);
 
-        if (subquery.parameters().size() != 1 ||
-                !trinoType(subquery.parameters().getFirst().type()).equals(relationRowType(trinoType(input.type()))) ||
-                !IS_RELATION.test(trinoType(subquery.getReturnedType()))) {
-            throw new TrinoException(IR_ERROR, "invalid subquery for CorrelatedJoin operation");
-        }
+        validateRelationSelector(subquery, relationRowType(trinoType(input.type())), "invalid subquery for CorrelatedJoin operation");
         this.subquery = singleBlockRegion(subquery);
 
-        if (filter.parameters().size() != 2 ||
-                !trinoType(filter.parameters().get(0).type()).equals(relationRowType(trinoType(input.type()))) ||
-                !trinoType(filter.parameters().get(1).type()).equals(relationRowType(trinoType(subquery.getReturnedType()))) ||
-                !trinoType(filter.getReturnedType()).equals(BOOLEAN)) {
-            throw new TrinoException(IR_ERROR, "invalid filter for CorrelatedJoin operation");
-        }
+        validatePredicate(filter, relationRowType(trinoType(input.type())), relationRowType(trinoType(subquery.getReturnedType())), "invalid filter for CorrelatedJoin operation");
         this.filter = singleBlockRegion(filter);
 
         // TODO also derive attributes from source and subquery attributes
