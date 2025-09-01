@@ -67,6 +67,7 @@ Choose one of the options:
 
 ```shell
 
+UPDATE_DATE=$(date +%Y%m%d)
 FROM=$(cat trino-base.txt)
 FROM_VERSION=$(git show "${FROM}":pom.xml | xq -x /project/version | cut -d '-' -f 1)
 TO_VERSION=$[FROM_VERSION + 1]
@@ -125,6 +126,7 @@ Action items:
       (check it only before final merge, as new pinned items can be added)
 
 ```
+UPDATE_DATE=${UPDATE_DATE}
 FROM=${FROM} 
 FROM_VERSION=${FROM_VERSION} 
 TO=${TO} 
@@ -179,11 +181,8 @@ git rebase --interactive --empty=drop "${FROM}" --onto master
 As the maven-release-plugin commits were skipped during previous step, we need to change the version ourselves
 
 ```shell
-sed -i "s/<revision>.*<\/revision>/<revision>"${TO_VERSION}-cork-1-SNAPSHOT"<\/revision>/" pom.xml
-# only create commit if actually updated any pom files
-if ! git diff --quiet; then
-  git commit -a -m "Bump Cork version after code sync with Trino ${TO_VERSION}-${TO_SHORT}"
-fi
+sed -i "s/<revision>.*<\/revision>/<revision>"${TO_VERSION}-cork-${UPDATE_DATE}-SNAPSHOT"<\/revision>/" pom.xml
+git commit -a -m "Bump Cork version after code sync with Trino ${TO_VERSION}-${TO_SHORT}"
 echo "${TO}" > trino-base.txt &&
 git commit -a -m "Update trino-base.txt after sync with Trino ${TO_VERSION} (${TO})"
 
