@@ -149,7 +149,6 @@ public class TestHiveDynamicPartitionPruningTestWithPlanAlternatives
         long physicalInputReadTimeNanos = left.getPhysicalInputReadTime().roundTo(NANOSECONDS) + operator.getPhysicalInputReadTime().roundTo(NANOSECONDS);
         long internalNetworkInputDataSize = left.getInternalNetworkInputDataSize().toBytes() + operator.getInternalNetworkInputDataSize().toBytes();
         long internalNetworkInputPositions = left.getInternalNetworkInputPositions() + operator.getInternalNetworkInputPositions();
-        long rawInputDataSize = left.getRawInputDataSize().toBytes() + operator.getRawInputDataSize().toBytes();
         long inputDataSize = left.getInputDataSize().toBytes() + operator.getInputDataSize().toBytes();
         long inputPositions = left.getInputPositions() + operator.getInputPositions();
         double sumSquaredInputPositions = left.getSumSquaredInputPositions() + operator.getSumSquaredInputPositions();
@@ -213,7 +212,6 @@ public class TestHiveDynamicPartitionPruningTestWithPlanAlternatives
                 new Duration(physicalInputReadTimeNanos, NANOSECONDS).convertToMostSuccinctTimeUnit(),
                 DataSize.ofBytes(internalNetworkInputDataSize),
                 internalNetworkInputPositions,
-                DataSize.ofBytes(rawInputDataSize),
                 DataSize.ofBytes(inputDataSize),
                 inputPositions,
                 sumSquaredInputPositions,

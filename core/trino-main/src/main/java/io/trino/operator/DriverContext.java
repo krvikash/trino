@@ -348,8 +348,6 @@ public class DriverContext
         DataSize internalNetworkInputDataSize;
         long internalNetworkInputPositions;
 
-        DataSize rawInputDataSize;
-        long rawInputPositions;
         Duration rawInputReadTime;
 
         DataSize processedInputDataSize;
@@ -366,8 +364,6 @@ public class DriverContext
             internalNetworkInputDataSize = inputOperator.getInternalNetworkInputDataSize();
             internalNetworkInputPositions = inputOperator.getInternalNetworkInputPositions();
 
-            rawInputDataSize = inputOperator.getRawInputDataSize();
-            rawInputPositions = inputOperator.getInputPositions();
             rawInputReadTime = inputOperator.getAddInputWall();
 
             processedInputDataSize = inputOperator.getInputDataSize();
@@ -389,8 +385,6 @@ public class DriverContext
             internalNetworkInputDataSize = DataSize.ofBytes(0);
             internalNetworkInputPositions = 0;
 
-            rawInputDataSize = DataSize.ofBytes(0);
-            rawInputPositions = 0;
             rawInputReadTime = new Duration(0, MILLISECONDS);
 
             processedInputDataSize = DataSize.ofBytes(0);
@@ -434,8 +428,6 @@ public class DriverContext
                 physicalInputReadTime,
                 internalNetworkInputDataSize.succinct(),
                 internalNetworkInputPositions,
-                rawInputDataSize.succinct(),
-                rawInputPositions,
                 rawInputReadTime,
                 processedInputDataSize.succinct(),
                 processedInputPositions,
