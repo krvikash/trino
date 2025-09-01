@@ -5,8 +5,8 @@ Placeholder for additional information for the reviewers.
 # Fork Admission
 
 This PR:
-- [ ] includes cherry picks from upstream (Trino OS)
-- [ ] introduces or modifies a proprietary feature: «link if exists to one of [Fork Log Items](https://github.com/starburstdata/trino-fork-log/issues)»
+- [ ] Includes cherry picks from upstream (Trino OS)
+- [ ] Introduces or modifies a proprietary feature: «link if exists to one of [Fork Log Items](https://github.com/starburstdata/trino-fork-log/issues)»
 
 <!-- Mark the appropriate option with an (x). Propose a release note if you can. You may consider using AI to generate them for you. 
 More info at https://trino.io/development/process#release-note -->
