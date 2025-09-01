@@ -14,11 +14,13 @@
 package io.trino.plugin.iceberg.procedure;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Resources;
 import io.trino.filesystem.Location;
 import io.trino.plugin.hive.TestingHivePlugin;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
@@ -733,5 +735,17 @@ final class TestIcebergAddFilesProcedure
                 "Required procedure argument 'location' is missing");
 
         assertUpdate("DROP TABLE iceberg.tpch." + tableName);
+    }
+
+    @Test
+    void testAddFilesFromParquetTimeMillis()
+    {
+        try (TestTable table = newTrinoTable("test_parquet", "(_time TIME)")) {
+            String path = Resources.getResource("iceberg/parquet_time_millis/time_millis.parquet").toString();
+            assertUpdate("ALTER TABLE " + table.getName() + " EXECUTE add_files('" + path + "', 'PARQUET')");
+
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES TIME '00:00:00.000000', TIME '12:34:56.123', TIME '23:59:59.999'");
+        }
     }
 }
