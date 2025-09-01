@@ -95,7 +95,7 @@ public class StarburstResultStreamProvider
             httpRequest.addHeader(entry.getKey(), entry.getValue());
         }
 
-        // RestRequest.execute method in snowflake 3.25.1 has a bug with shift of input parameters,
+        // RestRequest.execute method in snowflake since 3.25.1 has a bug with shift of input parameters,
         // where noRetry is used as unpack response, so we need to use executeWithRetries directly
         // with noRetry set to true and unpackResponse set to false
         HttpResponse response =
@@ -114,7 +114,11 @@ public class StarburstResultStreamProvider
                                 true, // retry on HTTP403 for AWS S3
                                 true, // no retry on http request
                                 false, // prevent unpacking response here
-                                new ExecTimeTelemetryData())
+                                new ExecTimeTelemetryData(),
+                                null,
+                                null,
+                                null,
+                                false)
                         .getHttpResponse();
         if (response == null || response.getStatusLine().getStatusCode() != 200) {
             throw new TrinoException(
