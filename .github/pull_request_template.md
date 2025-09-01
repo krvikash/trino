@@ -1,6 +1,6 @@
 # Description
 
-Please holder for additional information for the reviewers. 
+Placeholder for additional information for the reviewers. 
 
 # Fork Admission
 
