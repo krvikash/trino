@@ -32,6 +32,16 @@ public class TestBigExpressions
     }
 
     @Test
+    public void testComplexSwitch()
+    {
+        // query close to the 1MB query size limit
+        // test projection
+        assertQuery("SELECT %s FROM nation".formatted(generateCase("comment", 5, 5)));
+        // test filter
+        assertQuery("SELECT * FROM nation WHERE %s = random(7)".formatted(generateCase("comment", 5, 5)));
+    }
+
+    @Test
     public void testComplexSwitchFilterTranslatedToOr()
     {
         StringBuilder mappingCaseBuilder = new StringBuilder("CASE ");
@@ -67,5 +77,18 @@ public class TestBigExpressions
             joiner.add("COALESCE(POWER(nationkey * 2, %d) + POWER(nationkey * 2, 1), POWER(nationkey * 2, 0), POWER(nationkey * 2, 1))".formatted(i));
         };
         assertQuery("SELECT COALESCE(%s, %s) FROM nation".formatted(joiner, joiner));
+    }
+
+    private static String generateCase(String column, int whenCases, int depth)
+    {
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        StringBuilder sb = new StringBuilder("CASE ");
+        for (int i = 0; i < whenCases; i++) {
+            sb.append(" WHEN %s IN ('%s') THEN (%s)".formatted(
+                    column,
+                    random.nextInt(1000),
+                    depth == 0 ? random.nextInt() : generateCase(column, whenCases, depth - 1)));
+        }
+        return sb.append(" ELSE -1 END").toString();
     }
 }

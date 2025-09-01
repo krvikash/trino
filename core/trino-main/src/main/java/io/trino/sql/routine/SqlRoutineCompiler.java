@@ -469,6 +469,7 @@ public final class SqlRoutineCompiler
 
             RowExpressionCompiler rowExpressionCompiler = new RowExpressionCompiler(
                     classDefinition,
+                    scope.getThis(),
                     cachedInstanceBinder.getCallSiteBinder(),
                     cachedInstanceBinder,
                     FieldReferenceCompiler.INSTANCE,

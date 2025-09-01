@@ -23,6 +23,7 @@ import io.airlift.bytecode.MethodDefinition;
 import io.airlift.bytecode.Parameter;
 import io.airlift.bytecode.Scope;
 import io.airlift.bytecode.Variable;
+import io.airlift.bytecode.expression.BytecodeExpression;
 import io.trino.metadata.FunctionManager;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.LambdaBytecodeGenerator.CompiledLambda;
@@ -41,7 +42,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkState;
-import static io.airlift.bytecode.Access.PRIVATE;
+import static io.airlift.bytecode.Access.PUBLIC;
 import static io.airlift.bytecode.Access.a;
 import static io.airlift.bytecode.ParameterizedType.type;
 import static io.airlift.bytecode.expression.BytecodeExpressions.constantTrue;
@@ -55,6 +56,8 @@ import static io.trino.sql.gen.LambdaBytecodeGenerator.generateLambda;
 public class RowExpressionCompiler
 {
     private final ClassDefinition classDefinition;
+    // lambda expressions are added into the main class, so we need to reference the main class object to invoke the method
+    private final BytecodeExpression mainReference;
     private final CallSiteBinder callSiteBinder;
     private final CachedInstanceBinder cachedInstanceBinder;
     private final RowExpressionVisitor<BytecodeNode, Scope> fieldReferenceCompiler;
@@ -67,6 +70,7 @@ public class RowExpressionCompiler
 
     public RowExpressionCompiler(
             ClassDefinition classDefinition,
+            BytecodeExpression mainReference,
             CallSiteBinder callSiteBinder,
             CachedInstanceBinder cachedInstanceBinder,
             RowExpressionVisitor<BytecodeNode, Scope> fieldReferenceCompiler,
@@ -77,6 +81,7 @@ public class RowExpressionCompiler
             Optional<ParentMethodContext> parentMethodContext)
     {
         this.classDefinition = classDefinition;
+        this.mainReference = mainReference;
         this.callSiteBinder = callSiteBinder;
         this.cachedInstanceBinder = cachedInstanceBinder;
         this.fieldReferenceCompiler = fieldReferenceCompiler;
@@ -155,6 +160,11 @@ public class RowExpressionCompiler
         return rowExpression.accept(new Visitor(), new Context(scope, lambdaInterface));
     }
 
+    public BytecodeExpression mainReference()
+    {
+        return mainReference;
+    }
+
     private int getCurrentComplexity(Scope scope)
     {
         return scopeComplexity.getOrDefault(scope, 0);
@@ -162,13 +172,13 @@ public class RowExpressionCompiler
 
     private BytecodeNode extractToMethod(RowExpression expression, Scope parentScope, ParentMethodContext parentMethodContext)
     {
-        ClassScope classScope = parentMethodContext.classScope();
+        ClassScope evaluateClassScope = parentMethodContext.rowExpressionContext().getCurrentChunkClass();
         Type type = expression.type();
 
         // Generate a method evaluating the expression
-        MethodDefinition methodDefinition = classDefinition.declareMethod(
-                a(PRIVATE),
-                "evaluateExpression_" + classScope.getNextId(),
+        MethodDefinition methodDefinition = evaluateClassScope.classDefinition().declareMethod(
+                a(PUBLIC),
+                "evaluateExpression_" + evaluateClassScope.getNextId(),
                 type(type.getJavaType()),
                 contextArguments);
 
@@ -178,42 +188,65 @@ public class RowExpressionCompiler
         // Declare context variables and fields
         Map<String, FieldDefinition> variableToFieldMap = new HashMap<>();
         for (Variable contextVariable : parentMethodContext.contextVariables()) {
-            FieldDefinition field = classScope.getOrCreateContextField(contextVariable.getType());
+            FieldDefinition field = evaluateClassScope.getOrCreateContextField(contextVariable.getType());
             methodScope.declareVariable(field.getType(), contextVariable.getName());
             variableToFieldMap.put(contextVariable.getName(), field);
         }
-
-        restoreContextVariables(methodBody, methodScope, variableToFieldMap);
-        methodBody.append(compile(expression, methodScope));
-        dumpContextVariables(methodBody, methodScope, variableToFieldMap);
+        restoreContextVariables(methodBody, methodScope, methodScope.getThis(), variableToFieldMap);
+        BytecodeExpression evaluateMethodTarget = parentScope.getThis();
+        RowExpressionCompiler compiler = this;
+        if (!evaluateClassScope.classDefinition().equals(classDefinition)) {
+            // the call will be to a method in a different chunk class
+            BytecodeExpression mainReference = methodScope.getThis().getField(
+                    evaluateClassScope.classDefinition().getType(),
+                    "__main",
+                    parentMethodContext.rowExpressionContext().mainClass().classDefinition().getType());
+            // create RowExpressionCompiler with the chunk class
+            compiler = new RowExpressionCompiler(
+                    evaluateClassScope.classDefinition(),
+                    mainReference,
+                    callSiteBinder,
+                    evaluateClassScope.cachedInstanceBinder(),
+                    fieldReferenceCompiler,
+                    functionManager,
+                    maxMethodComplexity,
+                    compiledLambdaMap,
+                    contextArguments,
+                    Optional.of(parentMethodContext));
+            // update evaluateMethodTarget to point to a chunk object that will contain the newly generated method
+            String chunkField = parentMethodContext.rowExpressionContext().getChunkField(classDefinition, evaluateClassScope.classDefinition());
+            evaluateMethodTarget = parentScope.getThis().getField(classDefinition.getType(), chunkField, evaluateClassScope.classDefinition().getType());
+        }
+        methodBody.append(compiler.compile(expression, methodScope));
+        dumpContextVariables(methodBody, methodScope, methodScope.getThis(), variableToFieldMap);
         methodBody.ret(type.getJavaType());
 
         // Invoke the method
         BytecodeBlock invocation = new BytecodeBlock();
-        dumpContextVariables(invocation, parentScope, variableToFieldMap);
-        invocation.append(parentScope.getThis().invoke(methodDefinition, contextArguments));
-        restoreContextVariables(invocation, parentScope, variableToFieldMap);
+        dumpContextVariables(invocation, parentScope, evaluateMethodTarget, variableToFieldMap);
+        invocation.append(evaluateMethodTarget.invoke(methodDefinition, contextArguments));
+        restoreContextVariables(invocation, parentScope, evaluateMethodTarget, variableToFieldMap);
 
-        classScope.releaseAllContextFields();
+        evaluateClassScope.releaseAllContextFields();
 
         return invocation;
     }
 
-    private static void dumpContextVariables(BytecodeBlock block, Scope scope, Map<String, FieldDefinition> variableToFieldMap)
+    private static void dumpContextVariables(BytecodeBlock block, Scope scope, BytecodeExpression chunkReference, Map<String, FieldDefinition> variableToFieldMap)
     {
         for (Map.Entry<String, FieldDefinition> variableToField : variableToFieldMap.entrySet()) {
             Variable variable = scope.getVariable(variableToField.getKey());
             FieldDefinition field = variableToField.getValue();
-            block.append(scope.getThis().setField(field, variable));
+            block.append(chunkReference.setField(field, variable));
         }
     }
 
-    private static void restoreContextVariables(BytecodeBlock block, Scope scope, Map<String, FieldDefinition> variableToFieldMap)
+    private static void restoreContextVariables(BytecodeBlock block, Scope scope, BytecodeExpression chunkReference, Map<String, FieldDefinition> variableToFieldMap)
     {
         for (Map.Entry<String, FieldDefinition> variableToField : variableToFieldMap.entrySet()) {
             Variable variable = scope.getVariable(variableToField.getKey());
             FieldDefinition field = variableToField.getValue();
-            block.append(variable.set(scope.getThis().getField(field)));
+            block.append(variable.set(chunkReference.getField(field)));
         }
     }
 

@@ -134,37 +134,46 @@ public final class LambdaBytecodeGenerator
             parameterMapBuilder.put(argumentName, new ParameterAndType(arg, type));
         }
 
-        RowExpressionCompiler innerExpressionCompiler = new RowExpressionCompiler(
-                classDefinition,
+        return defineLambdaMethod(
+                compiledLambdaMap,
                 callSiteBinder,
                 cachedInstanceBinder,
-                variableReferenceCompiler(parameterMapBuilder.buildOrThrow()),
                 functionManager,
                 maxMethodComplexity,
-                compiledLambdaMap,
-                parameters.build(),
-                Optional.empty());
-
-        return defineLambdaMethod(
-                innerExpressionCompiler,
                 classDefinition,
                 methodName,
                 parameters.build(),
+                parameterMapBuilder.buildOrThrow(),
                 lambdaExpression);
     }
 
     private static CompiledLambda defineLambdaMethod(
-            RowExpressionCompiler innerExpressionCompiler,
+            Map<LambdaDefinitionExpression, CompiledLambda> compiledLambdaMap,
+            CallSiteBinder callSiteBinder,
+            CachedInstanceBinder cachedInstanceBinder,
+            FunctionManager functionManager,
+            int maxMethodComplexity,
             ClassDefinition classDefinition,
             String methodName,
             List<Parameter> inputParameters,
+            Map<String, ParameterAndType> parameterMap,
             LambdaDefinitionExpression lambda)
     {
         checkCondition(inputParameters.size() <= 254, NOT_SUPPORTED, "Too many arguments for lambda expression");
         Class<?> returnType = Primitives.wrap(lambda.body().type().getJavaType());
         MethodDefinition method = classDefinition.declareMethod(a(PUBLIC), methodName, type(returnType), inputParameters);
-
         Scope scope = method.getScope();
+        RowExpressionCompiler innerExpressionCompiler = new RowExpressionCompiler(
+                classDefinition,
+                scope.getThis(),
+                callSiteBinder,
+                cachedInstanceBinder,
+                variableReferenceCompiler(parameterMap),
+                functionManager,
+                maxMethodComplexity,
+                compiledLambdaMap,
+                inputParameters,
+                Optional.empty());
         Variable wasNull = scope.declareVariable(boolean.class, "wasNull");
         BytecodeNode compiledBody = innerExpressionCompiler.compile(lambda.body(), scope);
         method.getBody()
@@ -217,7 +226,7 @@ public final class LambdaBytecodeGenerator
         }
 
         List<BytecodeExpression> captureVariables = ImmutableList.<BytecodeExpression>builder()
-                .add(scope.getThis(), scope.getVariable("session"))
+                .add(context.getRowExpressionCompiler().mainReference(), scope.getVariable("session"))
                 .addAll(captureVariableBuilder.build())
                 .build();
 
@@ -276,6 +285,7 @@ public final class LambdaBytecodeGenerator
 
         RowExpressionCompiler rowExpressionCompiler = new RowExpressionCompiler(
                 lambdaProviderClassDefinition,
+                scope.getThis(),
                 callSiteBinder,
                 cachedInstanceBinder,
                 variableReferenceCompiler(ImmutableMap.of()),

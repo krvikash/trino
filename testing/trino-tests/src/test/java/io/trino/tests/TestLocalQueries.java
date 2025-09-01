@@ -22,6 +22,8 @@ import io.trino.testing.QueryRunner;
 import io.trino.testing.StandaloneQueryRunner;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+
 import static io.trino.SystemSessionProperties.PUSH_PARTIAL_AGGREGATION_THROUGH_JOIN;
 import static io.trino.plugin.tpch.TpchMetadata.TINY_SCHEMA_NAME;
 import static io.trino.spi.type.DoubleType.DOUBLE;
@@ -36,10 +38,10 @@ public class TestLocalQueries
     @Override
     protected QueryRunner createQueryRunner()
     {
-        return createTestQueryRunner();
+        return createTestQueryRunner(ImmutableMap.of());
     }
 
-    public static QueryRunner createTestQueryRunner()
+    public static QueryRunner createTestQueryRunner(Map<String, String> properties)
     {
         Session defaultSession = testSessionBuilder()
                 .setCatalog("local")
@@ -47,7 +49,7 @@ public class TestLocalQueries
                 .setSystemProperty(PUSH_PARTIAL_AGGREGATION_THROUGH_JOIN, "true")
                 .build();
 
-        QueryRunner queryRunner = new StandaloneQueryRunner(defaultSession);
+        QueryRunner queryRunner = new StandaloneQueryRunner(defaultSession, builder -> builder.overrideProperties(properties));
         queryRunner.installPlugin(new TpchPlugin());
         queryRunner.createCatalog(defaultSession.getCatalog().get(), "tpch", ImmutableMap.of("tpch.splits-per-node", "1"));
         queryRunner.installPlugin(new MemoryPlugin());

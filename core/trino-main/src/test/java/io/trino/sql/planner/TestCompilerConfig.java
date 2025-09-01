@@ -30,6 +30,7 @@ public class TestCompilerConfig
         assertRecordedDefaults(recordDefaults(CompilerConfig.class)
                 .setExpressionCacheSize(10_000)
                 .setRowExpressionMaxMethodComplexity(1000)
+                .setRowExpressionMaxMethodsPerClass(10)
                 .setSpecializeAggregationLoops(true));
     }
 
@@ -39,12 +40,14 @@ public class TestCompilerConfig
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("compiler.expression-cache-size", "52")
                 .put("compiler.row-expression-max-method-complexity", "100000")
+                .put("compiler.row-expression-max-methods-per-class", "200000")
                 .put("compiler.specialized-aggregation-loops", "false")
                 .buildOrThrow();
 
         CompilerConfig expected = new CompilerConfig()
                 .setExpressionCacheSize(52)
                 .setRowExpressionMaxMethodComplexity(100000)
+                .setRowExpressionMaxMethodsPerClass(200000)
                 .setSpecializeAggregationLoops(false);
 
         assertFullMapping(properties, expected);

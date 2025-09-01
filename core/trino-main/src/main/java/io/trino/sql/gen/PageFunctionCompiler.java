@@ -24,6 +24,7 @@ import com.google.inject.Inject;
 import io.airlift.bytecode.BytecodeBlock;
 import io.airlift.bytecode.BytecodeNode;
 import io.airlift.bytecode.ClassDefinition;
+import io.airlift.bytecode.DynamicClassLoader;
 import io.airlift.bytecode.FieldDefinition;
 import io.airlift.bytecode.MethodDefinition;
 import io.airlift.bytecode.Parameter;
@@ -104,9 +105,9 @@ import static io.trino.spi.function.FunctionKind.BATCH;
 import static io.trino.sql.gen.BytecodeUtils.generateWrite;
 import static io.trino.sql.gen.BytecodeUtils.invoke;
 import static io.trino.sql.gen.LambdaExpressionExtractor.extractLambdaExpressions;
+import static io.trino.sql.planner.CompilerConfig.DEFAULT_ROW_EXPRESSION_MAX_METHODS_PER_CLASS;
 import static io.trino.sql.planner.CompilerConfig.DEFAULT_ROW_EXPRESSION_MAX_METHOD_COMPLEXITY;
 import static io.trino.sql.relational.DeterminismEvaluator.isDeterministic;
-import static io.trino.util.CompilerUtils.defineClass;
 import static io.trino.util.CompilerUtils.makeClassName;
 import static io.trino.util.Reflection.constructorMethodHandle;
 import static java.util.Objects.requireNonNull;
@@ -115,6 +116,7 @@ public class PageFunctionCompiler
 {
     private final FunctionManager functionManager;
     private final int maxMethodComplexity;
+    private final int rowExpressionMaxMethodsPerClass;
 
     private final NonEvictableLoadingCache<RowExpression, Supplier<PageProjection>> projectionCache;
     private final NonEvictableLoadingCache<RowExpression, Supplier<PageFilter>> filterCache;
@@ -125,18 +127,19 @@ public class PageFunctionCompiler
     @Inject
     public PageFunctionCompiler(FunctionManager functionManager, CompilerConfig config)
     {
-        this(functionManager, config.getExpressionCacheSize(), config.getRowExpressionMaxMethodComplexity());
+        this(functionManager, config.getExpressionCacheSize(), config.getRowExpressionMaxMethodComplexity(), config.getRowExpressionMaxMethodsPerClass());
     }
 
     public PageFunctionCompiler(FunctionManager functionManager, int expressionCacheSize)
     {
-        this(functionManager, expressionCacheSize, DEFAULT_ROW_EXPRESSION_MAX_METHOD_COMPLEXITY);
+        this(functionManager, expressionCacheSize, DEFAULT_ROW_EXPRESSION_MAX_METHOD_COMPLEXITY, DEFAULT_ROW_EXPRESSION_MAX_METHODS_PER_CLASS);
     }
 
-    public PageFunctionCompiler(FunctionManager functionManager, int expressionCacheSize, int maxMethodComplexity)
+    public PageFunctionCompiler(FunctionManager functionManager, int expressionCacheSize, int maxMethodComplexity, int rowExpressionMaxMethodsPerClass)
     {
         this.functionManager = requireNonNull(functionManager, "functionManager is null");
         this.maxMethodComplexity = maxMethodComplexity;
+        this.rowExpressionMaxMethodsPerClass = rowExpressionMaxMethodsPerClass;
 
         if (expressionCacheSize > 0) {
             projectionCache = buildNonEvictableCache(
@@ -240,11 +243,14 @@ public class PageFunctionCompiler
 
         CallSiteBinder callSiteBinder = new CallSiteBinder();
 
-        ClassDefinition pageProjectionWorkDefinition = definePageProjectWorkClass(rewrittenExpression, callSiteBinder, classNameSuffix);
+        // generate Work
+        RowExpressionGenerationContext context = definePageProjectWorkClass(rewrittenExpression, callSiteBinder, classNameSuffix);
 
         Class<?> pageProjectionWorkClass;
         try {
-            pageProjectionWorkClass = defineClass(pageProjectionWorkDefinition, PageProjectionWork.class, callSiteBinder.getBindings(), getClass().getClassLoader());
+            List<ClassDefinition> fullyGeneratedClasses = context.generateChunkClasses();
+            // bindings need to be collected once all generation is done
+            pageProjectionWorkClass = context.defineClasses(PageProjectionWork.class, new DynamicClassLoader(getClass().getClassLoader(), callSiteBinder.getBindings()), fullyGeneratedClasses);
         }
         catch (Exception e) {
             if (Throwables.getRootCause(e) instanceof MethodTooLargeException) {
@@ -267,27 +273,31 @@ public class PageFunctionCompiler
         return makeClassName("PageProjectionWork", classNameSuffix);
     }
 
-    private ClassDefinition definePageProjectWorkClass(RowExpression projection, CallSiteBinder callSiteBinder, Optional<String> classNameSuffix)
+    private RowExpressionGenerationContext definePageProjectWorkClass(RowExpression projection, CallSiteBinder callSiteBinder, Optional<String> classNameSuffix)
     {
         ClassDefinition classDefinition = new ClassDefinition(
                 a(PUBLIC, FINAL),
                 generateProjectionWorkClassName(classNameSuffix),
                 type(Object.class),
                 type(PageProjectionWork.class));
-        ClassScope classScope = new ClassScope(classDefinition);
+        List<Integer> inputChannels = getInputChannels(projection);
+        // projection needs blocks, so these need to be passed to the expression evaluation chunks
+        List<Variable> requiredChunkFields = inputChannels.stream()
+                .map(channel -> new Variable("block_" + channel, ParameterizedType.type(Block.class)))
+                .collect(toImmutableList());
+        CachedInstanceBinder cachedInstanceBinder = new CachedInstanceBinder(classDefinition, callSiteBinder);
+        RowExpressionGenerationContext context = new RowExpressionGenerationContext(rowExpressionMaxMethodsPerClass, classDefinition, cachedInstanceBinder, requiredChunkFields);
 
         FieldDefinition blockBuilderField = classDefinition.declareField(a(PRIVATE), "blockBuilder", BlockBuilder.class);
         FieldDefinition sessionField = classDefinition.declareField(a(PRIVATE), "session", ConnectorSession.class);
         FieldDefinition selectedPositionsField = classDefinition.declareField(a(PRIVATE), "selectedPositions", SelectedPositions.class);
-
-        CachedInstanceBinder cachedInstanceBinder = new CachedInstanceBinder(classDefinition, callSiteBinder);
 
         // process
         generateProcessMethod(classDefinition, blockBuilderField, sessionField, selectedPositionsField);
 
         // evaluate
         Map<LambdaDefinitionExpression, CompiledLambda> compiledLambdaMap = generateMethodsForLambda(classDefinition, callSiteBinder, cachedInstanceBinder, projection);
-        generateEvaluateMethod(classDefinition, classScope, callSiteBinder, cachedInstanceBinder, compiledLambdaMap, projection, blockBuilderField);
+        generateEvaluateMethod(classDefinition, context, callSiteBinder, cachedInstanceBinder, compiledLambdaMap, projection, blockBuilderField);
 
         // constructor
         Parameter blockBuilder = arg("blockBuilder", BlockBuilder.class);
@@ -307,15 +317,16 @@ public class PageFunctionCompiler
                 .append(thisVariable.setField(sessionField, session))
                 .append(thisVariable.setField(selectedPositionsField, selectedPositions));
 
-        for (int channel : getInputChannels(projection)) {
-            FieldDefinition blockField = classDefinition.declareField(a(PRIVATE, FINAL), "block_" + channel, Block.class);
+        for (int channel : inputChannels) {
+            FieldDefinition blockField = classDefinition.declareField(a(PUBLIC, FINAL), "block_" + channel, Block.class);
             body.append(thisVariable.setField(blockField, page.invoke("getBlock", Block.class, constantInt(channel))));
         }
 
         cachedInstanceBinder.generateInitializations(thisVariable, body);
+        context.initializeChunkFields(classDefinition, constructorDefinition, thisVariable);
         body.ret();
 
-        return classDefinition;
+        return context;
     }
 
     private static MethodDefinition generateProcessMethod(
@@ -364,7 +375,7 @@ public class PageFunctionCompiler
 
     private MethodDefinition generateEvaluateMethod(
             ClassDefinition classDefinition,
-            ClassScope classScope,
+            RowExpressionGenerationContext context,
             CallSiteBinder callSiteBinder,
             CachedInstanceBinder cachedInstanceBinder,
             Map<LambdaDefinitionExpression, CompiledLambda> compiledLambdaMap,
@@ -392,6 +403,7 @@ public class PageFunctionCompiler
         Variable wasNullVariable = scope.declareVariable("wasNull", body, constantFalse());
         RowExpressionCompiler compiler = new RowExpressionCompiler(
                 classDefinition,
+                scope.getThis(),
                 callSiteBinder,
                 cachedInstanceBinder,
                 fieldReferenceCompilerProjection(callSiteBinder),
@@ -399,7 +411,7 @@ public class PageFunctionCompiler
                 maxMethodComplexity,
                 compiledLambdaMap,
                 ImmutableList.of(session, position),
-                Optional.of(new ParentMethodContext(classScope, ImmutableList.of(wasNullVariable))));
+                Optional.of(new ParentMethodContext(context, ImmutableList.of(wasNullVariable))));
 
         body.append(thisVariable.getField(blockBuilder))
                 .append(compiler.compile(projection, scope))
@@ -429,11 +441,13 @@ public class PageFunctionCompiler
         PageFieldsToInputParametersRewriter.Result result = rewritePageFieldsToInputParameters(filter);
 
         CallSiteBinder callSiteBinder = new CallSiteBinder();
-        ClassDefinition classDefinition = defineFilterClass(result.getRewrittenExpression(), result.getInputChannels(), callSiteBinder, classNameSuffix);
+        RowExpressionGenerationContext context = defineFilterClass(result.getRewrittenExpression(), result.getInputChannels(), callSiteBinder, classNameSuffix);
 
         Class<? extends PageFilter> functionClass;
         try {
-            functionClass = defineClass(classDefinition, PageFilter.class, callSiteBinder.getBindings(), getClass().getClassLoader());
+            List<ClassDefinition> fullyGeneratedClasses = context.generateChunkClasses();
+            // bindings need to be collected once all generation is done
+            functionClass = context.defineClasses(PageFilter.class, new DynamicClassLoader(getClass().getClassLoader(), callSiteBinder.getBindings()), fullyGeneratedClasses);
         }
         catch (Exception e) {
             if (Throwables.getRootCause(e) instanceof MethodTooLargeException) {
@@ -458,19 +472,18 @@ public class PageFunctionCompiler
         return makeClassName(PageFilter.class.getSimpleName(), classNameSuffix);
     }
 
-    private ClassDefinition defineFilterClass(RowExpression filter, InputChannels inputChannels, CallSiteBinder callSiteBinder, Optional<String> classNameSuffix)
+    private RowExpressionGenerationContext defineFilterClass(RowExpression filter, InputChannels inputChannels, CallSiteBinder callSiteBinder, Optional<String> classNameSuffix)
     {
         ClassDefinition classDefinition = new ClassDefinition(
                 a(PUBLIC, FINAL),
                 generateFilterClassName(classNameSuffix),
                 type(Object.class),
                 type(PageFilter.class));
-        ClassScope classScope = new ClassScope(classDefinition);
-
         CachedInstanceBinder cachedInstanceBinder = new CachedInstanceBinder(classDefinition, callSiteBinder);
+        RowExpressionGenerationContext context = new RowExpressionGenerationContext(rowExpressionMaxMethodsPerClass, classDefinition, cachedInstanceBinder, ImmutableList.of());
 
         Map<LambdaDefinitionExpression, CompiledLambda> compiledLambdaMap = generateMethodsForLambda(classDefinition, callSiteBinder, cachedInstanceBinder, filter);
-        generateFilterMethod(classDefinition, classScope, callSiteBinder, cachedInstanceBinder, compiledLambdaMap, filter);
+        generateFilterMethod(classDefinition, context, callSiteBinder, cachedInstanceBinder, compiledLambdaMap, filter);
 
         FieldDefinition selectedPositions = classDefinition.declareField(a(PRIVATE), "selectedPositions", boolean[].class);
         generatePageFilterMethod(classDefinition, selectedPositions);
@@ -502,9 +515,10 @@ public class PageFunctionCompiler
         generateConstructor(classDefinition, cachedInstanceBinder, method -> {
             Variable thisVariable = method.getScope().getThis();
             method.getBody().append(thisVariable.setField(selectedPositions, newArray(type(boolean[].class), 0)));
+            context.initializeChunkFields(classDefinition, method, thisVariable);
         });
 
-        return classDefinition;
+        return context;
     }
 
     private static MethodDefinition generatePageFilterMethod(ClassDefinition classDefinition, FieldDefinition selectedPositionsField)
@@ -552,7 +566,7 @@ public class PageFunctionCompiler
 
     private MethodDefinition generateFilterMethod(
             ClassDefinition classDefinition,
-            ClassScope classScope,
+            RowExpressionGenerationContext context,
             CallSiteBinder callSiteBinder,
             CachedInstanceBinder cachedInstanceBinder,
             Map<LambdaDefinitionExpression, CompiledLambda> compiledLambdaMap,
@@ -582,6 +596,7 @@ public class PageFunctionCompiler
         Variable wasNullVariable = scope.declareVariable("wasNull", body, constantFalse());
         RowExpressionCompiler compiler = new RowExpressionCompiler(
                 classDefinition,
+                scope.getThis(),
                 callSiteBinder,
                 cachedInstanceBinder,
                 fieldReferenceCompiler(callSiteBinder),
@@ -591,7 +606,7 @@ public class PageFunctionCompiler
                 ImmutableList.of(session, page, position),
                 Optional.of(
                         new ParentMethodContext(
-                                classScope,
+                                context,
                                 ImmutableList.<Variable>builder()
                                         .addAll(blockVariables)
                                         .add(wasNullVariable)

@@ -21,6 +21,8 @@ import io.trino.testing.CustomFunctionBundle;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static org.junit.jupiter.api.Assumptions.abort;
 
@@ -29,8 +31,14 @@ public class TestLocalEngineOnlyQueries
 {
     @Override
     protected QueryRunner createQueryRunner()
+            throws Exception
     {
-        QueryRunner queryRunner = TestLocalQueries.createTestQueryRunner();
+        return createQueryRunner(ImmutableMap.of());
+    }
+
+    protected static QueryRunner createQueryRunner(Map<String, String> properties)
+    {
+        QueryRunner queryRunner = TestLocalQueries.createTestQueryRunner(properties);
         try {
             queryRunner.addFunctions(CustomFunctionBundle.CUSTOM_FUNCTIONS);
             // for testing session properties

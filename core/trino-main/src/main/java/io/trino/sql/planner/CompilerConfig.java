@@ -21,12 +21,14 @@ import jakarta.validation.constraints.Min;
 @DefunctConfig("compiler.interpreter-enabled")
 public class CompilerConfig
 {
+    public static final int DEFAULT_ROW_EXPRESSION_MAX_METHODS_PER_CLASS = 10;
     // This is an arbitrary value determined through experimentation. It must be
     // low enough to ensure that the generated code does not exceed the method size limit,
     // but high enough to minimize the overhead of method invocations.
     public static final int DEFAULT_ROW_EXPRESSION_MAX_METHOD_COMPLEXITY = 1000;
     private int expressionCacheSize = 10_000;
     private int rowExpressionMaxMethodComplexity = DEFAULT_ROW_EXPRESSION_MAX_METHOD_COMPLEXITY;
+    private int rowExpressionMaxMethodsPerClass = DEFAULT_ROW_EXPRESSION_MAX_METHODS_PER_CLASS;
     private boolean specializeAggregationLoops = true;
 
     @Min(0)
@@ -53,6 +55,19 @@ public class CompilerConfig
     public CompilerConfig setRowExpressionMaxMethodComplexity(int rowExpressionMaxMethodComplexity)
     {
         this.rowExpressionMaxMethodComplexity = rowExpressionMaxMethodComplexity;
+        return this;
+    }
+
+    public int getRowExpressionMaxMethodsPerClass()
+    {
+        return rowExpressionMaxMethodsPerClass;
+    }
+
+    @Config("compiler.row-expression-max-methods-per-class")
+    @ConfigDescription("Max method count in the generated class before the class is split into chunks")
+    public CompilerConfig setRowExpressionMaxMethodsPerClass(int rowExpressionMaxMethodsPerClass)
+    {
+        this.rowExpressionMaxMethodsPerClass = rowExpressionMaxMethodsPerClass;
         return this;
     }
 

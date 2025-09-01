@@ -199,6 +199,7 @@ public class JoinFilterFunctionCompiler
 
         RowExpressionCompiler compiler = new RowExpressionCompiler(
                 classDefinition,
+                scope.getThis(),
                 callSiteBinder,
                 cachedInstanceBinder,
                 fieldReferenceCompiler(callSiteBinder, leftPosition, leftPage, rightPosition, rightPage, leftBlocksSize),

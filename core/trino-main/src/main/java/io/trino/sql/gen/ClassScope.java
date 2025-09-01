@@ -24,29 +24,31 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static io.airlift.bytecode.Access.PRIVATE;
+import static io.airlift.bytecode.Access.PUBLIC;
 import static io.airlift.bytecode.Access.a;
 import static java.util.Objects.requireNonNull;
 
 public class ClassScope
 {
     private final ClassDefinition classDefinition;
+    private final CachedInstanceBinder cachedInstanceBinder;
     private final List<FieldDefinition> contextFields = new ArrayList<>();
     private final Map<ParameterizedType, Deque<FieldDefinition>> releasedContextFields = new HashMap<>();
 
     private int nextId;
     private int nextContextFieldId;
 
-    public ClassScope(ClassDefinition classDefinition)
+    public ClassScope(ClassDefinition classDefinition, CachedInstanceBinder cachedInstanceBinder)
     {
         this.classDefinition = requireNonNull(classDefinition, "classDefinition is null");
+        this.cachedInstanceBinder = requireNonNull(cachedInstanceBinder, "cachedInstanceBinder is null");
     }
 
     public FieldDefinition getOrCreateContextField(ParameterizedType type)
     {
         Deque<FieldDefinition> typeFields = releasedContextFields.get(type);
         if (typeFields == null || typeFields.isEmpty()) {
-            FieldDefinition field = classDefinition.declareField(a(PRIVATE), "__context_" + nextContextFieldId, type);
+            FieldDefinition field = classDefinition.declareField(a(PUBLIC), "__context_" + nextContextFieldId, type);
             nextContextFieldId++;
             contextFields.add(field);
             return field;
@@ -64,5 +66,15 @@ public class ClassScope
     public int getNextId()
     {
         return nextId++;
+    }
+
+    public ClassDefinition classDefinition()
+    {
+        return classDefinition;
+    }
+
+    public CachedInstanceBinder cachedInstanceBinder()
+    {
+        return cachedInstanceBinder;
     }
 }
