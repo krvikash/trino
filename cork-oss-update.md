@@ -89,12 +89,9 @@ fi
 ```shell
 
 FROM=$(cat trino-base.txt)
-FROM_VERSION=$(git show "${FROM}":pom.xml | xq -x /project/version | cut -d '-' -f 1)
+FROM_VERSION=$(git show "${FROM}":pom.xml | xq -x /project/version | awk -F '-' '{ if (/SNAPSHOT/) print $1-1; else print $1; }')
 TO=$(git rev-parse --verify remotes/oss/master)
-TO_VERSION=$(git show "${TO}":pom.xml | xq -x /project/version | cut -d '-' -f 1)
-if git show "${TO}":pom.xml | xq -x /project/version | grep -q SNAPSHOT; then
-    TO_VERSION=$[TO_VERSION - 1]
-fi
+TO_VERSION=$(git show "${TO}":pom.xml | xq -x /project/version | awk -F '-' '{ if (/SNAPSHOT/) print $1-1; else print $1; }')
 TO_SHORT=$(git rev-parse --short "$TO")
 TARGET_BRANCH="update/cork/trino-${TO_VERSION}-${TO_SHORT}"
 
