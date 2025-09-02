@@ -25,40 +25,50 @@ import io.trino.plugin.iceberg.fileio.ForwardingOutputFile;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.TestingConnectorSession;
 import io.trino.testing.sql.TestTable;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.DeleteFile;
+import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.data.GenericRecord;
+import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.TrinoGenericFileWriterFactory;
+import org.apache.iceberg.data.parquet.GenericParquetWriter;
+import org.apache.iceberg.deletes.EqualityDeleteWriter;
 import org.apache.iceberg.deletes.PositionDelete;
 import org.apache.iceberg.deletes.PositionDeleteWriter;
+import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.FileWriterFactory;
+import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import java.io.Closeable;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.MoreCollectors.onlyElement;
+import static io.trino.plugin.iceberg.IcebergTestUtils.FILE_IO_FACTORY;
 import static io.trino.plugin.iceberg.IcebergTestUtils.SESSION;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getHiveMetastore;
 import static io.trino.plugin.iceberg.IcebergUtil.getFileFormat;
 import static io.trino.plugin.iceberg.util.EqualityDeleteUtils.writeEqualityDeleteForTable;
+import static org.apache.iceberg.GenericDataFiles.setDataSequenceNumber;
 import static org.apache.iceberg.encryption.EncryptedFiles.encryptedOutput;
 import static org.apache.iceberg.encryption.EncryptionKeyMetadata.EMPTY;
 import static org.assertj.core.api.Assertions.assertThat;
 
-// TODO https://starburstdata.atlassian.net/browse/SEP-18156
-@Disabled
 final class TestIcebergOptimizePositionDeletesProcedure
         extends AbstractTestQueryFramework
 {
@@ -86,7 +96,11 @@ final class TestIcebergOptimizePositionDeletesProcedure
             Set<String> deleteFiles = positionDeleteFiles(table.getName());
             assertThat(deleteFiles).hasSize(2);
 
-            assertUpdate("ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes");
+            assertUpdate(
+                    "ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes",
+                    "VALUES " +
+                            "('removed_position_delete_files_count', 2), " +
+                            "('added_delete_files_count', 1)");
             assertThat(positionDeleteFiles(table.getName()))
                     .hasSize(1)
                     .doesNotContainAnyElementsOf(deleteFiles);
@@ -112,7 +126,45 @@ final class TestIcebergOptimizePositionDeletesProcedure
             Set<String> deleteFiles = positionDeleteFiles(table.getName());
             assertThat(deleteFiles).hasSize(4);
 
-            assertUpdate("ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes");
+            assertUpdate(
+                    "ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes",
+                    "VALUES " +
+                            "('removed_position_delete_files_count', 4), " +
+                            "('added_delete_files_count', 2)");
+            assertThat(positionDeleteFiles(table.getName()))
+                    .hasSize(2)
+                    .doesNotContainAnyElementsOf(deleteFiles);
+
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES (3, VARCHAR 'a'), (6, 'b')");
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
+    void testOptimizePositionDeletesWithPartitionEvolution(IcebergFileFormat format)
+    {
+        try (TestTable table = newTrinoTable("test_partition", "(id int, part varchar) WITH (partitioning = ARRAY['part'], format = '" + format + "')")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 'a'), (2, 'a'), (3, 'a')", 3);
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (4, 'b'), (5, 'b'), (6, 'b')", 3);
+
+            assertUpdate("DELETE FROM " + table.getName() + " WHERE id = 1", 1);
+            assertUpdate("DELETE FROM " + table.getName() + " WHERE id = 2", 1);
+            assertUpdate("DELETE FROM " + table.getName() + " WHERE id = 4", 1);
+            assertUpdate("DELETE FROM " + table.getName() + " WHERE id = 5", 1);
+
+            Set<String> deleteFiles = positionDeleteFiles(table.getName());
+            assertThat(deleteFiles).hasSize(4);
+
+            assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES partitioning = ARRAY[]");
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES (3, VARCHAR 'a'), (6, 'b')");
+
+            assertUpdate(
+                    "ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes",
+                    "VALUES " +
+                            "('removed_position_delete_files_count', 4), " +
+                            "('added_delete_files_count', 2)");
             assertThat(positionDeleteFiles(table.getName()))
                     .hasSize(2)
                     .doesNotContainAnyElementsOf(deleteFiles);
@@ -132,7 +184,11 @@ final class TestIcebergOptimizePositionDeletesProcedure
             Set<String> deleteFiles = positionDeleteFiles(table.getName());
             assertThat(deleteFiles).hasSize(1);
 
-            assertUpdate("ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes");
+            assertUpdate(
+                    "ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes",
+                    "VALUES " +
+                            "('removed_position_delete_files_count', 1), " +
+                            "('added_delete_files_count', 1)");
             assertThat(positionDeleteFiles(table.getName()))
                     .hasSize(1)
                     .isEqualTo(deleteFiles);
@@ -150,7 +206,11 @@ final class TestIcebergOptimizePositionDeletesProcedure
             Set<String> deleteFiles = positionDeleteFiles(table.getName());
             assertThat(deleteFiles).isEmpty();
 
-            assertUpdate("ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes");
+            assertUpdate(
+                    "ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes",
+                    "VALUES " +
+                            "('removed_position_delete_files_count', 0), " +
+                            "('added_delete_files_count', 0)");
             assertThat(positionDeleteFiles(table.getName())).isEmpty();
 
             assertQueryReturnsEmptyResult("SELECT * FROM " + table.getName());
@@ -159,75 +219,40 @@ final class TestIcebergOptimizePositionDeletesProcedure
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
-    void testDanglingDeletes(IcebergFileFormat format)
+    void testUnsupportedDanglingEqualityDeletes(IcebergFileFormat format)
             throws Exception
     {
-        try (TestTable table = newTrinoTable("test_dangling_deletes", "(x int, part varchar) WITH (partitioning = ARRAY['part'], format = '" + format + "')")) {
+        try (TestTable table = newTrinoTable("test_dangling_eq_deletes", "(x int, part varchar) WITH (partitioning = ARRAY['part'], format = '" + format + "')")) {
             BaseTable icebergTable = loadTable(table.getName());
             String tableLocation = icebergTable.location();
 
-            DataFile dataFileA = dataFile(icebergTable, "data-a", "part=a");
-            DataFile dataFileC = dataFile(icebergTable, "data-c", "part=c");
+            DataFile dataFile = dataFile(icebergTable, "data", "part=a");
+            dataFile = setDataSequenceNumber(dataFile, 2L);
+            icebergTable.newAppend().appendFile(dataFile).commit();
 
-            icebergTable.newAppend()
-                    .appendFile(dataFileA)
-                    .appendFile(dataFileC)
-                    .commit();
+            DeleteFile danglingDeleteFile = writeEqualityDelete(icebergTable, tableLocation + "/part=a/eq-deletes", "a", Map.of("part", "a"));
+            danglingDeleteFile = setDataSequenceNumber(danglingDeleteFile, 1L);
 
-            DeleteFile deleteFileA = deleteFile(icebergTable, "data-a", tableLocation + "/part=a/data-a-pos-deletes", "a");
-            DeleteFile danglingDeleteFileB = deleteFile(icebergTable, "data-b", tableLocation + "/part=b/data-b-pos-deletes", "b");
-
-            icebergTable.newRowDelta()
-                    .addRows(dataFileA)
-                    .addRows(dataFileC)
-                    .addDeletes(deleteFileA)
-                    .addDeletes(danglingDeleteFileB)
-                    .commit();
-
-            Set<String> deleteFiles = positionDeleteFiles(table.getName());
-            assertThat(deleteFiles).hasSize(2);
-
-            assertUpdate("ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes");
-
-            assertThat(positionDeleteFiles(table.getName()))
-                    .hasSize(1)
-                    .allMatch(deleteFile -> deleteFile.contains("part=a"));
-        }
-    }
-
-    @ParameterizedTest
-    @EnumSource(IcebergFileFormat.class)
-    void testAllDanglingDeletes(IcebergFileFormat format)
-            throws Exception
-    {
-        try (TestTable table = newTrinoTable("test_dangling_deletes", "(x int, part varchar) WITH (partitioning = ARRAY['part'], format = '" + format + "')")) {
-            BaseTable icebergTable = loadTable(table.getName());
-            String tableLocation = icebergTable.location();
-
-            DataFile dataFileA = dataFile(icebergTable, "data-a", "part=a");
-            DataFile dataFileC = dataFile(icebergTable, "data-c", "part=c");
-
-            icebergTable.newAppend()
-                    .appendFile(dataFileA)
-                    .appendFile(dataFileC)
-                    .commit();
-
-            DeleteFile danglingDeleteFileB = deleteFile(icebergTable, "data-b", tableLocation + "/part=b/data-b-pos-deletes", "b");
-            DeleteFile danglingDeleteFileD = deleteFile(icebergTable, "data-d", tableLocation + "/part=d/data-d-pos-deletes", "d");
+            // "Dangling" equality delete files mean equality delete files with a data sequence number less than or equal to that of any data file in the same partition
+            assertThat(danglingDeleteFile.dataSequenceNumber()).isLessThanOrEqualTo(dataFile.dataSequenceNumber());
+            assertThat(danglingDeleteFile.partition()).isEqualTo(dataFile.partition());
 
             icebergTable.newRowDelta()
-                    .addRows(dataFileA)
-                    .addRows(dataFileC)
-                    .addDeletes(danglingDeleteFileB)
-                    .addDeletes(danglingDeleteFileD)
+                    .addRows(dataFile)
+                    .addDeletes(danglingDeleteFile)
                     .commit();
 
-            Set<String> deleteFiles = positionDeleteFiles(table.getName());
-            assertThat(deleteFiles).hasSize(2);
+            Set<String> deleteFiles = equalityDeleteFiles(table.getName());
+            assertThat(deleteFiles).hasSize(1);
 
-            assertUpdate("ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes");
+            assertUpdate(
+                    "ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes",
+                    "VALUES " +
+                            "('removed_position_delete_files_count', 0), " +
+                            "('added_delete_files_count', 0)");
 
-            assertThat(positionDeleteFiles(table.getName())).isEmpty();
+            // optimize_position_deletes doesn't remove dangling equality deletes
+            assertThat(equalityDeleteFiles(table.getName())).hasSize(1);
         }
     }
 
@@ -242,7 +267,11 @@ final class TestIcebergOptimizePositionDeletesProcedure
             Set<String> deleteFiles = equalityDeleteFiles(table.getName());
             assertThat(deleteFiles).hasSize(1);
 
-            assertUpdate("ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes");
+            assertUpdate(
+                    "ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes",
+                    "VALUES " +
+                            "('removed_position_delete_files_count', 0), " +
+                            "('added_delete_files_count', 0)");
             assertThat(equalityDeleteFiles(table.getName()))
                     .hasSize(1)
                     .isEqualTo(deleteFiles);
@@ -253,16 +282,113 @@ final class TestIcebergOptimizePositionDeletesProcedure
         }
     }
 
-    @Test
-    void testUnsupportedDeletionVector()
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
+    void testUpgradeToV3(IcebergFileFormat format)
     {
-        try (TestTable table = newTrinoTable("test_optimize_delete_files", "WITH (format_version=3) AS SELECT * FROM tpch.tiny.region")) {
+        try (TestTable table = newTrinoTable("test_upgrade_to_v3", "WITH (format_version = 2, format = '" + format + "') AS SELECT * FROM tpch.tiny.region")) {
             assertUpdate("DELETE FROM " + table.getName() + " WHERE regionkey = 0", 1);
-            assertQueryFails("ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes", "Unsupported file format: PUFFIN");
+            assertUpdate("DELETE FROM " + table.getName() + " WHERE regionkey = 1", 1);
+
+            Set<String> legacyDeletes = positionDeleteFiles(table.getName());
+            assertThat(legacyDeletes).hasSize(2);
+
+            assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES format_version = 3");
+            assertUpdate(
+                    "ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes",
+                    "VALUES " +
+                            "('removed_position_delete_files_count', 2), " +
+                            "('added_delete_files_count', 1)");
+
+            assertThat(legacyPositionDeleteFiles(table.getName())).isEmpty();
+            assertThat(deletionVectorFiles(table.getName())).isNotEmpty();
+
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .skippingTypesCheck()
+                    .matches("SELECT * FROM tpch.tiny.region WHERE regionkey NOT IN (0, 1)");
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
+    void testOptimizeWithOnlyDVs(IcebergFileFormat format)
+    {
+        try (TestTable table = newTrinoTable("test_optimize_only_dvs", "WITH (format_version = 3, format = '" + format + "') AS SELECT * FROM tpch.tiny.region")) {
+            assertUpdate("DELETE FROM " + table.getName() + " WHERE regionkey = 0", 1);
+
+            Set<String> dvFiles = deletionVectorFiles(table.getName());
+            assertThat(dvFiles).isNotEmpty();
+            assertThat(legacyPositionDeleteFiles(table.getName())).isEmpty();
+
+            assertUpdate(
+                    "ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes",
+                    "VALUES " +
+                            "('removed_position_delete_files_count', 0), " +
+                            "('added_delete_files_count', 0)");
+
+            assertThat(deletionVectorFiles(table.getName())).isEqualTo(dvFiles);
 
             assertThat(query("SELECT * FROM " + table.getName()))
                     .skippingTypesCheck()
                     .matches("SELECT * FROM tpch.tiny.region WHERE regionkey != 0");
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
+    void testOptimizeConvertPositionDeletesToDVsForPartitionedTable(IcebergFileFormat format)
+            throws Exception
+    {
+        try (TestTable table = newTrinoTable("test_v3_convert", "(x int, part varchar) WITH (partitioning = ARRAY['part'], format_version = 2, format = '" + format + "')")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 'a'), (2, 'a'), (3, 'a')", 3);
+            assertUpdate("DELETE FROM " + table.getName() + " WHERE x = 1", 1);
+            assertUpdate("DELETE FROM " + table.getName() + " WHERE x = 2", 1);
+
+            assertThat(legacyPositionDeleteFiles(table.getName())).hasSize(2);
+
+            assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES format_version = 3");
+
+            assertUpdate(
+                    "ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes",
+                    "VALUES " +
+                            "('removed_position_delete_files_count', 2), " +
+                            "('added_delete_files_count', 1)");
+
+            assertThat(legacyPositionDeleteFiles(table.getName())).isEmpty();
+            assertThat(deletionVectorFiles(table.getName())).isNotEmpty();
+
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES (3, VARCHAR 'a')");
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
+    void testOptimizePartitionEvolution(IcebergFileFormat format)
+    {
+        try (TestTable table = newTrinoTable("test_v3_partition_evolution", "(id int, part varchar) WITH (partitioning = ARRAY['part'], format_version = 2, format = '" + format + "')")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 'a'), (2, 'a'), (3, 'a')", 3);
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (4, 'b'), (5, 'b'), (6, 'b')", 3);
+
+            assertUpdate("DELETE FROM " + table.getName() + " WHERE id = 1", 1);
+            assertUpdate("DELETE FROM " + table.getName() + " WHERE id = 4", 1);
+
+            assertThat(legacyPositionDeleteFiles(table.getName())).hasSize(2);
+
+            assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES format_version = 3");
+            assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES partitioning = ARRAY[]");
+
+            assertUpdate(
+                    "ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes",
+                    "VALUES " +
+                            "('removed_position_delete_files_count', 2), " +
+                            "('added_delete_files_count', 2)");
+
+            assertThat(legacyPositionDeleteFiles(table.getName())).isEmpty();
+            assertThat(deletionVectorFiles(table.getName())).isNotEmpty();
+
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES (2, VARCHAR 'a'), (3, 'a'), (5, VARCHAR 'b'), (6, 'b')");
         }
     }
 
@@ -286,7 +412,7 @@ final class TestIcebergOptimizePositionDeletesProcedure
                 .build();
     }
 
-    private DeleteFile deleteFile(Table table, String dataFilePath, String deleteFilePath, String partitionValue)
+    private DeleteFile writePositionDelete(Table table, String dataFilePath, String deleteFilePath, String partitionValue)
             throws IOException
     {
         PartitionData partitionData = PartitionData.fromJson("{\"partitionValues\":[\"%s\"]}".formatted(partitionValue), new Type[] {Types.StringType.get()});
@@ -303,19 +429,58 @@ final class TestIcebergOptimizePositionDeletesProcedure
         }
     }
 
+    private DeleteFile writeEqualityDelete(Table table, String deleteFilePath, String partitionValue, Map<String, Object> deletes)
+            throws IOException
+    {
+        PartitionData partitionData = PartitionData.fromJson("{\"partitionValues\":[\"%s\"]}".formatted(partitionValue), new Type[] {Types.StringType.get()});
+
+        Schema deleteSchema = table.schema().select(deletes.keySet());
+        try (FileIO fileIo = FILE_IO_FACTORY.create(fileSystemFactory.create(TestingConnectorSession.SESSION))) {
+            Parquet.DeleteWriteBuilder writerBuilder = Parquet.writeDeletes(fileIo.newOutputFile(deleteFilePath))
+                    .forTable(table)
+                    .withPartition(partitionData)
+                    .rowSchema(deleteSchema)
+                    .createWriterFunc(GenericParquetWriter::create)
+                    .equalityFieldIds(deletes.keySet().stream()
+                            .map(name -> deleteSchema.findField(name).fieldId())
+                            .collect(toImmutableList()))
+                    .overwrite();
+            try (EqualityDeleteWriter<Record> writer = writerBuilder.buildEqualityWriter()) {
+                Record dataDelete = GenericRecord.create(deleteSchema);
+                try (Closeable ignored = writer) {
+                    writer.write(dataDelete.copy(deletes));
+                }
+
+                DeleteFile deleteFile = writer.toDeleteFile();
+                table.newRowDelta().addDeletes(deleteFile).commit();
+                return deleteFile;
+            }
+        }
+    }
+
     private Set<String> positionDeleteFiles(String tableName)
     {
-        return loadFiles(tableName, 1);
+        return loadFiles(tableName, "content = 1");
+    }
+
+    private Set<String> legacyPositionDeleteFiles(String tableName)
+    {
+        return loadFiles(tableName, "content = 1 AND file_format != 'PUFFIN'");
+    }
+
+    private Set<String> deletionVectorFiles(String tableName)
+    {
+        return loadFiles(tableName, "content = 1 AND file_format = 'PUFFIN'");
     }
 
     private Set<String> equalityDeleteFiles(String tableName)
     {
-        return loadFiles(tableName, 2);
+        return loadFiles(tableName, "content = 2");
     }
 
-    private Set<String> loadFiles(String tableName, int content)
+    private Set<String> loadFiles(String tableName, String filter)
     {
-        return computeActual("SELECT file_path FROM \"" + tableName + "$files\" WHERE content = " + content).getOnlyColumnAsSet().stream()
+        return computeActual("SELECT file_path FROM \"" + tableName + "$files\" WHERE " + filter).getOnlyColumnAsSet().stream()
                 .map(path -> (String) path)
                 .collect(toImmutableSet());
     }

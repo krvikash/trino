@@ -67,6 +67,7 @@ import static io.trino.hdfs.HdfsTestUtils.HDFS_FILE_SYSTEM_FACTORY;
 import static io.trino.metadata.InternalBlockEncodingSerde.TESTING_BLOCK_ENCODING_SERDE;
 import static io.trino.plugin.iceberg.ColumnIdentity.primitiveColumnIdentity;
 import static io.trino.plugin.iceberg.IcebergTestUtils.FILE_IO_FACTORY;
+import static io.trino.plugin.iceberg.IcebergTestUtils.OPTIMIZE_POSITION_DELETES;
 import static io.trino.plugin.iceberg.IcebergTestUtils.TABLE_STATISTICS_READER;
 import static io.trino.plugin.iceberg.delete.DeletionVectorWriter.UNSUPPORTED_DELETION_VECTOR_WRITER;
 import static io.trino.spi.predicate.Domain.singleValue;
@@ -133,6 +134,7 @@ public class TestIcebergCacheIds
                 new TableStatisticsWriter(new NodeVersion("test-version")),
                 PARTITION_STATISTICS_WRITER,
                 UNSUPPORTED_DELETION_VECTOR_WRITER,
+                OPTIMIZE_POSITION_DELETES,
                 Optional.of(metastoreFactory),
                 newDirectExecutorService(),
                 newDirectExecutorService(),

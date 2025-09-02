@@ -3323,6 +3323,30 @@ public class TestIcebergSparkCompatibility
         onTrino().executeQuery("DROP TABLE " + trinoTableName);
     }
 
+    @Test(groups = {ICEBERG, PROFILE_SPECIFIC_TESTS}, dataProvider = "storageFormats")
+    public void testOptimizePositionDeletes(StorageFormat format)
+    {
+        String baseTableName = "test_optimize_position_deletes_" + randomNameSuffix();
+        String trinoTableName = trinoTableName(baseTableName);
+        String sparkTableName = sparkTableName(baseTableName);
+
+        onTrino().executeQuery("CREATE TABLE " + trinoTableName + " WITH (format_version = 2, format = '" + format + "') AS SELECT * FROM tpch.tiny.region");
+        onTrino().executeQuery("DELETE FROM " + trinoTableName + " WHERE regionkey = 0");
+        onTrino().executeQuery("DELETE FROM " + trinoTableName + " WHERE regionkey = 1");
+
+        List<Row> expected = List.of(row(2), row(3), row(4));
+        assertThat(onTrino().executeQuery("SELECT regionkey FROM " + trinoTableName)).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT regionkey FROM " + sparkTableName)).containsOnly(expected);
+
+        onTrino().executeQuery("ALTER TABLE " + trinoTableName + " SET PROPERTIES format_version = 3");
+        onTrino().executeQuery("ALTER TABLE " + trinoTableName + " EXECUTE optimize_position_deletes");
+
+        assertThat(onTrino().executeQuery("SELECT regionkey FROM " + trinoTableName)).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT regionkey FROM " + sparkTableName)).containsOnly(expected);
+
+        onTrino().executeQuery("DROP TABLE " + trinoTableName);
+    }
+
     @Test(groups = {ICEBERG, PROFILE_SPECIFIC_TESTS})
     public void testEqualityDeleteAndDeletionVector()
             throws Exception

@@ -237,7 +237,7 @@ public class DefaultDeletionVectorWriter
 
     /// Writes one Puffin file containing one DV blob per data file, and returns the
     /// corresponding DeleteFile entries.
-    private static List<DeleteFile> writeDeletionVectorsPuffin(
+    static List<DeleteFile> writeDeletionVectorsPuffin(
             ConnectorSession session,
             Table icebergTable,
             LocationProvider locationProvider,
@@ -320,7 +320,7 @@ public class DefaultDeletionVectorWriter
                 formatVersion);
     }
 
-    private static boolean isDeletionVector(DeleteFile deleteFile)
+    static boolean isDeletionVector(DeleteFile deleteFile)
     {
         if (!ContentFileUtil.isDV(deleteFile)) {
             return false;

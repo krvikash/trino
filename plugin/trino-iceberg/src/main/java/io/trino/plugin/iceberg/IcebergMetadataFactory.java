@@ -24,6 +24,7 @@ import io.trino.metastore.RawHiveMetastoreFactory;
 import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.iceberg.catalog.TrinoCatalogFactory;
 import io.trino.plugin.iceberg.delete.DeletionVectorWriter;
+import io.trino.plugin.iceberg.delete.OptimizePositionDeletes;
 import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.TypeManager;
@@ -49,6 +50,7 @@ public class IcebergMetadataFactory
     private final TableStatisticsReader tableStatisticsReader;
     private final TableStatisticsWriter tableStatisticsWriter;
     private final PartitionStatisticsWriter partitionStatisticsWriter;
+    private final OptimizePositionDeletes optimizePositionDeletes;
     private final Optional<HiveMetastoreFactory> metastoreFactory;
     private final int maxFormatVersion;
     private final boolean addFilesProcedureEnabled;
@@ -74,6 +76,7 @@ public class IcebergMetadataFactory
             TableStatisticsWriter tableStatisticsWriter,
             PartitionStatisticsWriter partitionStatisticsWriter,
             DeletionVectorWriter deletionVectorWriter,
+            OptimizePositionDeletes optimizePositionDeletes,
             @RawHiveMetastoreFactory Optional<HiveMetastoreFactory> metastoreFactory,
             @ForIcebergSplitManager ExecutorService icebergScanExecutor,
             @ForIcebergMetadata ExecutorService metadataExecutorService,
@@ -91,6 +94,7 @@ public class IcebergMetadataFactory
         this.tableStatisticsWriter = requireNonNull(tableStatisticsWriter, "tableStatisticsWriter is null");
         this.partitionStatisticsWriter = requireNonNull(partitionStatisticsWriter, "partitionStatisticsWriter is null");
         this.deletionVectorWriter = requireNonNull(deletionVectorWriter, "deletionVectorWriter is null");
+        this.optimizePositionDeletes = requireNonNull(optimizePositionDeletes, "optimizePositionDeletes is null");
         this.metastoreFactory = requireNonNull(metastoreFactory, "metastoreFactory is null");
         this.icebergScanExecutor = requireNonNull(icebergScanExecutor, "icebergScanExecutor is null");
         this.maxFormatVersion = config.getMaxFormatVersion();
@@ -128,6 +132,7 @@ public class IcebergMetadataFactory
                 tableStatisticsWriter,
                 partitionStatisticsWriter,
                 deletionVectorWriter,
+                optimizePositionDeletes,
                 metastoreFactory,
                 maxFormatVersion,
                 addFilesProcedureEnabled,

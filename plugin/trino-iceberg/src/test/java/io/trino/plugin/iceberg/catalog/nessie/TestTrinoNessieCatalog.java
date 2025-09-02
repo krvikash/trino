@@ -55,6 +55,7 @@ import static io.airlift.units.Duration.ZERO;
 import static io.trino.hdfs.HdfsTestUtils.HDFS_ENVIRONMENT;
 import static io.trino.hdfs.HdfsTestUtils.HDFS_FILE_SYSTEM_STATS;
 import static io.trino.plugin.iceberg.IcebergTestUtils.FILE_IO_FACTORY;
+import static io.trino.plugin.iceberg.IcebergTestUtils.OPTIMIZE_POSITION_DELETES;
 import static io.trino.plugin.iceberg.IcebergTestUtils.TABLE_STATISTICS_READER;
 import static io.trino.plugin.iceberg.delete.DeletionVectorWriter.UNSUPPORTED_DELETION_VECTOR_WRITER;
 import static io.trino.sql.planner.TestingPlannerContext.PLANNER_CONTEXT;
@@ -217,6 +218,7 @@ public class TestTrinoNessieCatalog
                     new TableStatisticsWriter(new NodeVersion("test-version")),
                     PARTITION_STATISTICS_WRITER,
                     UNSUPPORTED_DELETION_VECTOR_WRITER,
+                    OPTIMIZE_POSITION_DELETES,
                     Optional.empty(),
                     3,
                     false,

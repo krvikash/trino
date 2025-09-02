@@ -115,6 +115,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.concat;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.MoreCollectors.onlyElement;
@@ -5845,6 +5846,33 @@ public abstract class BaseIcebergConnectorTest
         assertThat(getActiveFiles(tableName))
                 .hasSize(25)
                 .containsExactlyInAnyOrderElementsOf(filesAfterPartioningChange);
+    }
+
+    @Test
+    public void testOptimizePositionDeletes()
+    {
+        try (TestTable table = newTrinoTable("test_optimize_position_deletes", "WITH (format_version = 2) AS SELECT * FROM tpch.tiny.region")) {
+            assertUpdate("DELETE FROM " + table.getName() + " WHERE regionkey = 0", 1);
+            assertUpdate("DELETE FROM " + table.getName() + " WHERE regionkey = 1", 1);
+
+            Set<String> deleteFiles = positionDeleteFiles(table.getName());
+            assertThat(deleteFiles).hasSize(2);
+
+            assertUpdate("ALTER TABLE " + table.getName() + " EXECUTE optimize_position_deletes");
+            assertThat(positionDeleteFiles(table.getName()))
+                    .hasSize(1)
+                    .doesNotContainAnyElementsOf(deleteFiles);
+
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("SELECT * FROM " + table.getName() + " WHERE regionkey NOT IN (0, 1)");
+        }
+    }
+
+    private Set<String> positionDeleteFiles(String tableName)
+    {
+        return computeActual("SELECT file_path FROM \"" + tableName + "$files\" WHERE content = " + 1).getOnlyColumnAsSet().stream()
+                .map(path -> (String) path)
+                .collect(toImmutableSet());
     }
 
     private List<String> getActiveFiles(String tableName)

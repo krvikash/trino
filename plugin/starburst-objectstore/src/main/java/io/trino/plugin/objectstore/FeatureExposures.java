@@ -268,8 +268,7 @@ public final class FeatureExposures
                 .put(ICEBERG, "OPTIMIZE", EXPOSED)
                 .put(DELTA, "OPTIMIZE", EXPOSED)
                 .put(ICEBERG, "OPTIMIZE_MANIFESTS", EXPOSED)
-                // TODO enable after https://starburstdata.atlassian.net/browse/SEP-18156
-                // .put(ICEBERG, "OPTIMIZE_POSITION_DELETES", EXPOSED)
+                .put(ICEBERG, "OPTIMIZE_POSITION_DELETES", EXPOSED)
                 .put(ICEBERG, "REMOVE_ORPHAN_FILES", EXPOSED)
                 .put(ICEBERG, "ROLLBACK_TO_SNAPSHOT", EXPOSED)
                 .buildOrThrow();

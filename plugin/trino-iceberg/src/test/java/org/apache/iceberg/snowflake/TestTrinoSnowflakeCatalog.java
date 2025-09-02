@@ -66,6 +66,7 @@ import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorS
 import static io.airlift.json.JsonCodec.jsonCodec;
 import static io.airlift.units.Duration.ZERO;
 import static io.trino.plugin.iceberg.IcebergTestUtils.FILE_IO_FACTORY;
+import static io.trino.plugin.iceberg.IcebergTestUtils.OPTIMIZE_POSITION_DELETES;
 import static io.trino.plugin.iceberg.IcebergTestUtils.TABLE_STATISTICS_READER;
 import static io.trino.plugin.iceberg.catalog.snowflake.TestIcebergSnowflakeCatalogConnectorSmokeTest.S3_ACCESS_KEY;
 import static io.trino.plugin.iceberg.catalog.snowflake.TestIcebergSnowflakeCatalogConnectorSmokeTest.S3_REGION;
@@ -244,6 +245,7 @@ public class TestTrinoSnowflakeCatalog
                 new TableStatisticsWriter(new NodeVersion("test-version")),
                 PARTITION_STATISTICS_WRITER,
                 UNSUPPORTED_DELETION_VECTOR_WRITER,
+                OPTIMIZE_POSITION_DELETES,
                 Optional.empty(),
                 3,
                 false,
