@@ -375,27 +375,32 @@ public class CteReuse
     private static Map<Operation, Operation> buildUsesMap(Program program)
     {
         Map<Operation, Operation> usesMap = new IdentityHashMap<>();
-        buildUsesMap(program.getRoot(), program.getValueMap(), usesMap);
+        Block mainBlock = ((Query) program.getRoot()).query();
+        buildUsesMap(mainBlock, AccessibleValueMap.initialize(), usesMap);
         return usesMap;
     }
 
-    private static void buildUsesMap(Operation operation, Map<Value, SourceNode> valueMap, Map<Operation, Operation> usesMap)
+    private static void buildUsesMap(Block block, AccessibleValueMap outerScope, Map<Operation, Operation> usesMap)
     {
-        operation.arguments().stream()
-                .forEach(argument -> {
-                    SourceNode source = valueMap.get(argument);
-                    if (source instanceof Operation sourceOperation) {
-                        if (usesMap.put(sourceOperation, operation) != null) {
-                            throw new TrinoException(IR_ERROR, format("Operation result %s is used by multiple operations", sourceOperation.result().name()));
-                        }
+        AccessibleValueMap currentScope = outerScope.forNestedBlock(block);
+
+        for (Operation operation : block.operations()) {
+            // record uses of operation results in this operation's arguments
+            for (Value argument : operation.arguments()) {
+                SourceNode source = currentScope.getSource(argument);
+                if (source instanceof Operation sourceOperation) {
+                    if (usesMap.put(sourceOperation, operation) != null) {
+                        throw new TrinoException(IR_ERROR, format("Operation result %s is used by multiple operations", sourceOperation.result().name()));
                     }
-                });
-        for (Region region : operation.regions()) {
-            for (Block block : region.blocks()) {
-                for (Operation nested : block.operations()) {
-                    buildUsesMap(nested, valueMap, usesMap);
                 }
             }
+            // visit nested blocks
+            for (Region region : operation.regions()) {
+                Block nestedBlock = region.getOnlyBlock();
+                buildUsesMap(nestedBlock, currentScope, usesMap);
+            }
+            // add operation result to scope
+            currentScope = currentScope.withOperationResult(operation);
         }
     }
 
@@ -1687,6 +1692,71 @@ public class CteReuse
             multiGroupMerges = ImmutableList.copyOf(multiGroupMerges);
             hangingBranches = ImmutableList.copyOf(hangingBranches);
             remainingSingleGroupBranches = ImmutableList.copyOf(remainingSingleGroupBranches);
+        }
+    }
+
+    /**
+     * Simplified view of scope in the query plan.
+     * It consists of operation results and block parameters which are visible and can be correctly used as arguments.
+     *
+     * @param operationResults - accessible operation results mapped to the operations that return them.
+     * In Trino plan, we can only access the results of preceding operations in the same block.
+     * Although certain operation results from outer blocks are visible, they cannot be referenced in arguments,
+     * and are not present in this map.
+     * @param blockParameters - accessible block parameters mapped to blocks that declare them.
+     * It contains parameters of the current block and parameters of all outer blocks.
+     */
+    private record AccessibleValueMap(Map<Operation.Result, Operation> operationResults, Map<Block.Parameter, Block> blockParameters)
+    {
+        private AccessibleValueMap
+        {
+            requireNonNull(operationResults, "operationResults is null");
+            requireNonNull(blockParameters, "blockParameters is null");
+            operationResults = ImmutableMap.copyOf(operationResults);
+            blockParameters = ImmutableMap.copyOf(blockParameters);
+        }
+
+        public static AccessibleValueMap initialize()
+        {
+            return new AccessibleValueMap(ImmutableMap.of(), ImmutableMap.of());
+        }
+
+        public AccessibleValueMap withOperationResult(Operation operation)
+        {
+            Map<Operation.Result, Operation> newOperationResults = new HashMap<>(operationResults);
+            if (newOperationResults.put(operation.result(), operation) != null) {
+                throw new TrinoException(IR_ERROR, format("Operation result %s already in scope", operation.result().name()));
+            }
+            return new AccessibleValueMap(newOperationResults, blockParameters);
+        }
+
+        public AccessibleValueMap forNestedBlock(Block block)
+        {
+            Map<Block.Parameter, Block> newBlockParameters = new HashMap<>(blockParameters);
+            for (Block.Parameter parameter : block.parameters()) {
+                if (newBlockParameters.put(parameter, block) != null) {
+                    throw new TrinoException(IR_ERROR, format("Block parameter %s already in scope", parameter.name()));
+                }
+            }
+            // clear outer operation results. They mustn't be referenced in nested blocks.
+            return new AccessibleValueMap(ImmutableMap.of(), newBlockParameters);
+        }
+
+        public SourceNode getSource(Value value)
+        {
+            if (value instanceof Operation.Result result) {
+                Operation operation = operationResults.get(result);
+                if (operation != null) {
+                    return operation;
+                }
+            }
+            if (value instanceof Block.Parameter parameter) {
+                Block block = blockParameters.get(parameter);
+                if (block != null) {
+                    return block;
+                }
+            }
+            throw new TrinoException(IR_ERROR, format("Value %s not in scope", value.name()));
         }
     }
 }
