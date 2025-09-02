@@ -52,6 +52,7 @@ import io.trino.spi.connector.ConnectorFactory;
 import io.trino.spi.connector.ConnectorName;
 import io.trino.spiller.LocalSpillManager;
 import io.trino.spiller.NodeSpillConfig;
+import io.trino.sql.planner.CompilerConfig;
 import io.trino.sql.planner.PlanFragment;
 import io.trino.testing.TestingConnectorContext;
 import io.trino.testing.TestingSession;
@@ -258,7 +259,7 @@ public class TestSqlTaskManagerRaceWithCatalogPrune
                 new EmbedVersion("testversion"),
                 workerConnectorServiceProvider,
                 createTestingPlanner(),
-                new WorkerLanguageFunctionProvider(new LanguageFunctionEngineManager()),
+                new WorkerLanguageFunctionProvider(new CompilerConfig(), new LanguageFunctionEngineManager()),
                 new BaseTestSqlTaskManager.MockLocationFactory(),
                 NOOP_TASK_EXECUTOR,
                 createTestSplitMonitor(),

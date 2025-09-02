@@ -409,11 +409,13 @@ public class PlanTester
                 () -> getPlannerContext().getFunctionManager());
         globalFunctionCatalog.addFunctions(SystemFunctionBundle.create(new FeaturesConfig(), typeOperators, blockTypeOperators, CURRENT_NODE.getNodeVersion()));
         TestingGroupProviderManager groupProvider = new TestingGroupProviderManager();
+        CompilerConfig compilerConfig = new CompilerConfig();
         LanguageFunctionManager languageFunctionManager = new LanguageFunctionManager(
                 sqlParser,
                 typeManager,
                 groupProvider,
                 blockEncodingSerde,
+                compilerConfig,
                 new LanguageFunctionEngineManager());
         TableFunctionRegistry tableFunctionRegistry = new TableFunctionRegistry(createTableFunctionProvider(catalogManager));
         Metadata metadata = metadataDecorator.apply(new MetadataManager(
@@ -482,7 +484,7 @@ public class PlanTester
         this.pageFunctionCompiler = new PageFunctionCompiler(functionManager, 0);
         this.filterCompiler = new ColumnarFilterCompiler(functionManager, 0);
         this.expressionCompiler = new ExpressionCompiler(pageFunctionCompiler, filterCompiler);
-        this.joinFilterFunctionCompiler = new JoinFilterFunctionCompiler(functionManager);
+        this.joinFilterFunctionCompiler = new JoinFilterFunctionCompiler(functionManager, compilerConfig);
 
         this.statementAnalyzerFactory = new StatementAnalyzerFactory(
                 plannerContext,

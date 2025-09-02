@@ -54,16 +54,12 @@ import static io.trino.sql.gen.LambdaBytecodeGenerator.generateLambda;
 
 public class RowExpressionCompiler
 {
-    // This is an arbitrary value determined through experimentation. It must be
-    // low enough to ensure that the generated code does not exceed the method size limit,
-    // but high enough to minimize the overhead of method invocations.
-    private static final int MAX_COMPLEXITY = 1000;
-
     private final ClassDefinition classDefinition;
     private final CallSiteBinder callSiteBinder;
     private final CachedInstanceBinder cachedInstanceBinder;
     private final RowExpressionVisitor<BytecodeNode, Scope> fieldReferenceCompiler;
     private final FunctionManager functionManager;
+    private final int maxMethodComplexity;
     private final Map<LambdaDefinitionExpression, CompiledLambda> compiledLambdaMap;
     private final List<Parameter> contextArguments;  // arguments that need to be propagates to generated methods
     private final Optional<ParentMethodContext> parentMethodContext;
@@ -75,6 +71,7 @@ public class RowExpressionCompiler
             CachedInstanceBinder cachedInstanceBinder,
             RowExpressionVisitor<BytecodeNode, Scope> fieldReferenceCompiler,
             FunctionManager functionManager,
+            int maxMethodComplexity,
             Map<LambdaDefinitionExpression, CompiledLambda> compiledLambdaMap,
             List<Parameter> contextArguments,
             Optional<ParentMethodContext> parentMethodContext)
@@ -84,6 +81,7 @@ public class RowExpressionCompiler
         this.cachedInstanceBinder = cachedInstanceBinder;
         this.fieldReferenceCompiler = fieldReferenceCompiler;
         this.functionManager = functionManager;
+        this.maxMethodComplexity = maxMethodComplexity;
         this.compiledLambdaMap = compiledLambdaMap;
         this.contextArguments = ImmutableList.copyOf(contextArguments);
         this.parentMethodContext = parentMethodContext;
@@ -145,7 +143,7 @@ public class RowExpressionCompiler
      */
     public BytecodeNode compileWithExtraction(RowExpression rowExpression, Scope scope)
     {
-        if (parentMethodContext.isPresent() && getCurrentComplexity(scope) > MAX_COMPLEXITY) {
+        if (parentMethodContext.isPresent() && getCurrentComplexity(scope) > maxMethodComplexity) {
             return extractToMethod(rowExpression, scope, parentMethodContext.get());
         }
         return compile(rowExpression, scope);

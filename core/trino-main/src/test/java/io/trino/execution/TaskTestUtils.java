@@ -179,7 +179,7 @@ public final class TaskTestUtils
                 new MockDirectExchangeClientSupplier(),
                 new ExpressionCompiler(pageFunctionCompiler, columnarFilterCompiler),
                 pageFunctionCompiler,
-                new JoinFilterFunctionCompiler(PLANNER_CONTEXT.getFunctionManager()),
+                new JoinFilterFunctionCompiler(PLANNER_CONTEXT.getFunctionManager(), new CompilerConfig()),
                 new IndexJoinLookupStats(),
                 cacheStats,
                 new TaskManagerConfig(),

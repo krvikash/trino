@@ -134,6 +134,7 @@ public final class TestingPlannerContext
                     typeManager,
                     _ -> ImmutableSet.of(),
                     blockEncodingSerde,
+                    new CompilerConfig(),
                     new LanguageFunctionEngineManager());
 
             Metadata metadata = this.metadata;

@@ -39,6 +39,7 @@ import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.sql.gen.LambdaBytecodeGenerator.CompiledLambda;
+import io.trino.sql.planner.CompilerConfig;
 import io.trino.sql.relational.LambdaDefinitionExpression;
 import io.trino.sql.relational.RowExpression;
 import io.trino.sql.relational.RowExpressionVisitor;
@@ -72,12 +73,14 @@ import static java.util.Objects.requireNonNull;
 public class JoinFilterFunctionCompiler
 {
     private final FunctionManager functionManager;
+    private final CompilerConfig compilerConfig;
     private final NonEvictableLoadingCache<JoinFilterCacheKey, JoinFilterFunctionFactory> joinFilterFunctionFactories;
 
     @Inject
-    public JoinFilterFunctionCompiler(FunctionManager functionManager)
+    public JoinFilterFunctionCompiler(FunctionManager functionManager, CompilerConfig compilerConfig)
     {
         this.functionManager = requireNonNull(functionManager, "functionManager is null");
+        this.compilerConfig = requireNonNull(compilerConfig, "compilerConfig is null");
         this.joinFilterFunctionFactories = buildNonEvictableCache(
                 CacheBuilder.newBuilder()
                         .recordStats()
@@ -113,7 +116,7 @@ public class JoinFilterFunctionCompiler
 
         CallSiteBinder callSiteBinder = new CallSiteBinder();
 
-        new JoinFilterFunctionCompiler(functionManager).generateMethods(classDefinition, callSiteBinder, filterExpression, leftBlocksSize);
+        new JoinFilterFunctionCompiler(functionManager, compilerConfig).generateMethods(classDefinition, callSiteBinder, filterExpression, leftBlocksSize);
 
         //
         // toString method
@@ -200,6 +203,7 @@ public class JoinFilterFunctionCompiler
                 cachedInstanceBinder,
                 fieldReferenceCompiler(callSiteBinder, leftPosition, leftPage, rightPosition, rightPage, leftBlocksSize),
                 functionManager,
+                compilerConfig.getRowExpressionMaxMethodComplexity(),
                 compiledLambdaMap,
                 ImmutableList.of(leftPage, leftPosition, rightPage, rightPosition),
                 Optional.empty());
@@ -233,6 +237,7 @@ public class JoinFilterFunctionCompiler
                     compiledLambdaMap.buildOrThrow(),
                     callSiteBinder,
                     cachedInstanceBinder,
+                    compilerConfig.getRowExpressionMaxMethodComplexity(),
                     functionManager);
             compiledLambdaMap.put(lambdaExpression, compiledLambda);
             counter++;

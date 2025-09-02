@@ -20,6 +20,7 @@ import io.trino.spi.function.FunctionId;
 import io.trino.spi.function.InvocationConvention;
 import io.trino.spi.function.LanguageFunctionEngine;
 import io.trino.spi.function.ScalarFunctionImplementation;
+import io.trino.sql.planner.CompilerConfig;
 import io.trino.sql.routine.SqlRoutineCompiler;
 import io.trino.sql.routine.ir.IrRoutine;
 
@@ -33,11 +34,13 @@ public class WorkerLanguageFunctionProvider
         implements LanguageFunctionProvider
 {
     private final LanguageFunctionEngineManager languageFunctionEngineManager;
+    private final int maxMethodComplexity;
     private final Map<TaskId, Map<FunctionId, LanguageFunctionData>> queryFunctions = new ConcurrentHashMap<>();
 
     @Inject
-    public WorkerLanguageFunctionProvider(LanguageFunctionEngineManager languageFunctionEngineManager)
+    public WorkerLanguageFunctionProvider(CompilerConfig compilerConfig, LanguageFunctionEngineManager languageFunctionEngineManager)
     {
+        this.maxMethodComplexity = compilerConfig.getRowExpressionMaxMethodComplexity();
         this.languageFunctionEngineManager = requireNonNull(languageFunctionEngineManager, "languageFunctionEngineManager is null");
     }
 
@@ -79,7 +82,7 @@ public class WorkerLanguageFunctionProvider
         // Recompile every time this function is called as the function dependencies may have changed.
         // The caller caches, so this should not be a problem.
         IrRoutine routine = data.irRoutine().orElseThrow();
-        SpecializedSqlScalarFunction function = new SqlRoutineCompiler(functionManager).compile(routine);
+        SpecializedSqlScalarFunction function = new SqlRoutineCompiler(maxMethodComplexity, functionManager).compile(routine);
         return function.getScalarFunctionImplementation(invocationConvention);
     }
 }

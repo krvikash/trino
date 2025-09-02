@@ -20,6 +20,7 @@ import io.trino.metadata.ResolvedFunction;
 import io.trino.spi.block.TestingBlockEncodingSerde;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.type.Type;
+import io.trino.sql.planner.CompilerConfig;
 import io.trino.sql.relational.InputReferenceExpression;
 import io.trino.sql.relational.RowExpression;
 import io.trino.sql.routine.ir.IrBlock;
@@ -66,7 +67,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class TestSqlRoutineCompiler
 {
     private static final Session TEST_SESSION = testSessionBuilder().build();
-    private final SqlRoutineCompiler compiler = new SqlRoutineCompiler(PLANNER_CONTEXT.getFunctionManager());
+    private final SqlRoutineCompiler compiler = new SqlRoutineCompiler(new CompilerConfig().getRowExpressionMaxMethodComplexity(), PLANNER_CONTEXT.getFunctionManager());
 
     @Test
     public void testSimpleExpression()

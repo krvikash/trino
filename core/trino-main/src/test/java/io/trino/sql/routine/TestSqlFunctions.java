@@ -34,6 +34,7 @@ import io.trino.spi.type.TypeSignature;
 import io.trino.spi.type.VarcharType;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.parser.SqlParser;
+import io.trino.sql.planner.CompilerConfig;
 import io.trino.sql.routine.ir.IrRoutine;
 import io.trino.sql.tree.FunctionSpecification;
 import io.trino.transaction.TransactionManager;
@@ -630,7 +631,7 @@ class TestSqlFunctions
         // verify routine hash does not fail
         SqlRoutineHash.hash(routine, Hashing.sha256().newHasher(), new TestingBlockEncodingSerde());
 
-        SqlRoutineCompiler compiler = new SqlRoutineCompiler(createTestingFunctionManager());
+        SqlRoutineCompiler compiler = new SqlRoutineCompiler(new CompilerConfig().getRowExpressionMaxMethodComplexity(), createTestingFunctionManager());
         SpecializedSqlScalarFunction sqlScalarFunction = compiler.compile(routine);
 
         InvocationConvention invocationConvention = new InvocationConvention(

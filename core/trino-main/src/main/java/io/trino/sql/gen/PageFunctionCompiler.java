@@ -104,6 +104,7 @@ import static io.trino.spi.function.FunctionKind.BATCH;
 import static io.trino.sql.gen.BytecodeUtils.generateWrite;
 import static io.trino.sql.gen.BytecodeUtils.invoke;
 import static io.trino.sql.gen.LambdaExpressionExtractor.extractLambdaExpressions;
+import static io.trino.sql.planner.CompilerConfig.DEFAULT_ROW_EXPRESSION_MAX_METHOD_COMPLEXITY;
 import static io.trino.sql.relational.DeterminismEvaluator.isDeterministic;
 import static io.trino.util.CompilerUtils.defineClass;
 import static io.trino.util.CompilerUtils.makeClassName;
@@ -113,6 +114,7 @@ import static java.util.Objects.requireNonNull;
 public class PageFunctionCompiler
 {
     private final FunctionManager functionManager;
+    private final int maxMethodComplexity;
 
     private final NonEvictableLoadingCache<RowExpression, Supplier<PageProjection>> projectionCache;
     private final NonEvictableLoadingCache<RowExpression, Supplier<PageFilter>> filterCache;
@@ -123,12 +125,18 @@ public class PageFunctionCompiler
     @Inject
     public PageFunctionCompiler(FunctionManager functionManager, CompilerConfig config)
     {
-        this(functionManager, config.getExpressionCacheSize());
+        this(functionManager, config.getExpressionCacheSize(), config.getRowExpressionMaxMethodComplexity());
     }
 
     public PageFunctionCompiler(FunctionManager functionManager, int expressionCacheSize)
     {
+        this(functionManager, expressionCacheSize, DEFAULT_ROW_EXPRESSION_MAX_METHOD_COMPLEXITY);
+    }
+
+    public PageFunctionCompiler(FunctionManager functionManager, int expressionCacheSize, int maxMethodComplexity)
+    {
         this.functionManager = requireNonNull(functionManager, "functionManager is null");
+        this.maxMethodComplexity = maxMethodComplexity;
 
         if (expressionCacheSize > 0) {
             projectionCache = buildNonEvictableCache(
@@ -388,6 +396,7 @@ public class PageFunctionCompiler
                 cachedInstanceBinder,
                 fieldReferenceCompilerProjection(callSiteBinder),
                 functionManager,
+                maxMethodComplexity,
                 compiledLambdaMap,
                 ImmutableList.of(session, position),
                 Optional.of(new ParentMethodContext(classScope, ImmutableList.of(wasNullVariable))));
@@ -577,6 +586,7 @@ public class PageFunctionCompiler
                 cachedInstanceBinder,
                 fieldReferenceCompiler(callSiteBinder),
                 functionManager,
+                maxMethodComplexity,
                 compiledLambdaMap,
                 ImmutableList.of(session, page, position),
                 Optional.of(
@@ -613,6 +623,7 @@ public class PageFunctionCompiler
                     compiledLambdaMap.buildOrThrow(),
                     callSiteBinder,
                     cachedInstanceBinder,
+                    maxMethodComplexity,
                     functionManager);
             compiledLambdaMap.put(lambdaExpression, compiledLambda);
             counter++;

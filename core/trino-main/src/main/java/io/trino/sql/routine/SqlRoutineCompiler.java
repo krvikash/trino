@@ -111,10 +111,12 @@ import static java.util.function.Function.identity;
 
 public final class SqlRoutineCompiler
 {
+    private final int maxMethodComplexity;
     private final FunctionManager functionManager;
 
-    public SqlRoutineCompiler(FunctionManager functionManager)
+    public SqlRoutineCompiler(int maxMethodComplexity, FunctionManager functionManager)
     {
+        this.maxMethodComplexity = maxMethodComplexity;
         this.functionManager = requireNonNull(functionManager, "functionManager is null");
     }
 
@@ -194,6 +196,7 @@ public final class SqlRoutineCompiler
                     compiledLambdaMap.buildOrThrow(),
                     cachedInstanceBinder.getCallSiteBinder(),
                     cachedInstanceBinder,
+                    maxMethodComplexity,
                     functionManager);
             compiledLambdaMap.put(lambdaExpression, compiledLambda);
             counter++;
@@ -470,6 +473,7 @@ public final class SqlRoutineCompiler
                     cachedInstanceBinder,
                     FieldReferenceCompiler.INSTANCE,
                     functionManager,
+                    maxMethodComplexity,
                     compiledLambdaMap,
                     ImmutableList.of(),
                     Optional.empty());

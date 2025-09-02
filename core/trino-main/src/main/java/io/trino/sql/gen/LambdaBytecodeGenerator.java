@@ -84,6 +84,7 @@ public final class LambdaBytecodeGenerator
             CallSiteBinder callSiteBinder,
             CachedInstanceBinder cachedInstanceBinder,
             RowExpression expression,
+            int maxMethodComplexity,
             FunctionManager functionManager)
     {
         Set<LambdaDefinitionExpression> lambdaExpressions = ImmutableSet.copyOf(extractLambdaExpressions(expression));
@@ -98,6 +99,7 @@ public final class LambdaBytecodeGenerator
                     compiledLambdaMap.buildOrThrow(),
                     callSiteBinder,
                     cachedInstanceBinder,
+                    maxMethodComplexity,
                     functionManager);
             compiledLambdaMap.put(lambdaExpression, compiledLambda);
             counter++;
@@ -116,6 +118,7 @@ public final class LambdaBytecodeGenerator
             Map<LambdaDefinitionExpression, CompiledLambda> compiledLambdaMap,
             CallSiteBinder callSiteBinder,
             CachedInstanceBinder cachedInstanceBinder,
+            int maxMethodComplexity,
             FunctionManager functionManager)
     {
         ImmutableList.Builder<Parameter> parameters = ImmutableList.builder();
@@ -137,6 +140,7 @@ public final class LambdaBytecodeGenerator
                 cachedInstanceBinder,
                 variableReferenceCompiler(parameterMapBuilder.buildOrThrow()),
                 functionManager,
+                maxMethodComplexity,
                 compiledLambdaMap,
                 parameters.build(),
                 Optional.empty());
@@ -238,7 +242,7 @@ public final class LambdaBytecodeGenerator
         return block;
     }
 
-    public static Class<? extends Supplier<Object>> compileLambdaProvider(LambdaDefinitionExpression lambdaExpression, FunctionManager functionManager, Class<?> lambdaInterface)
+    public static Class<? extends Supplier<Object>> compileLambdaProvider(LambdaDefinitionExpression lambdaExpression, FunctionManager functionManager, int maxMethodComplexity, Class<?> lambdaInterface)
     {
         ClassDefinition lambdaProviderClassDefinition = new ClassDefinition(
                 a(PUBLIC, Access.FINAL),
@@ -256,6 +260,7 @@ public final class LambdaBytecodeGenerator
                 callSiteBinder,
                 cachedInstanceBinder,
                 lambdaExpression,
+                maxMethodComplexity,
                 functionManager);
 
         MethodDefinition method = lambdaProviderClassDefinition.declareMethod(
@@ -275,6 +280,7 @@ public final class LambdaBytecodeGenerator
                 cachedInstanceBinder,
                 variableReferenceCompiler(ImmutableMap.of()),
                 functionManager,
+                maxMethodComplexity,
                 compiledLambdaMap,
                 ImmutableList.of(),
                 Optional.empty());

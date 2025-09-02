@@ -488,6 +488,7 @@ public class LocalExecutionPlanner
     private final ExchangeManagerRegistry exchangeManagerRegistry;
     private final PositionsAppenderFactory positionsAppenderFactory;
     private final NodeVersion version;
+    private final int maxMethodComplexity;
     private final boolean specializeAggregationLoops;
 
     private final NonEvictableCache<FunctionKey, AccumulatorFactory> accumulatorFactoryCache = buildNonEvictableCache(CacheBuilder.newBuilder()
@@ -585,6 +586,7 @@ public class LocalExecutionPlanner
         this.tupleDomainCodec = requireNonNull(tupleDomainCodec, "tupleDomainCodec is null");
         this.positionsAppenderFactory = new PositionsAppenderFactory(blockTypeOperators);
         this.version = requireNonNull(version, "version is null");
+        this.maxMethodComplexity = compilerConfig.getRowExpressionMaxMethodComplexity();
         this.specializeAggregationLoops = compilerConfig.isSpecializeAggregationLoops();
     }
 
@@ -4185,7 +4187,7 @@ public class LocalExecutionPlanner
                     verify(lambdaExpression.arguments().size() == functionType.getArgumentTypes().size());
 
                     LambdaDefinitionExpression lambda = (LambdaDefinitionExpression) toRowExpression(lambdaExpression, ImmutableMap.of());
-                    Class<? extends Supplier<Object>> lambdaProviderClass = compileLambdaProvider(lambda, plannerContext.getFunctionManager(), lambdaInterfaces.get(i));
+                    Class<? extends Supplier<Object>> lambdaProviderClass = compileLambdaProvider(lambda, plannerContext.getFunctionManager(), maxMethodComplexity, lambdaInterfaces.get(i));
                     try {
                         lambdaProviders.add(lambdaProviderClass.getConstructor(ConnectorSession.class).newInstance(session.toConnectorSession()));
                     }

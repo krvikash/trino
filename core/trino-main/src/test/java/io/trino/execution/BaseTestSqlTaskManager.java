@@ -51,6 +51,7 @@ import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.exchange.ExchangeId;
 import io.trino.spiller.LocalSpillManager;
 import io.trino.spiller.NodeSpillConfig;
+import io.trino.sql.planner.CompilerConfig;
 import io.trino.util.EmbedVersion;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -326,7 +327,7 @@ public abstract class BaseTestSqlTaskManager
                 new EmbedVersion("testversion"),
                 new NoConnectorServicesProvider(),
                 createTestingPlanner(),
-                new WorkerLanguageFunctionProvider(new LanguageFunctionEngineManager()),
+                new WorkerLanguageFunctionProvider(new CompilerConfig(), new LanguageFunctionEngineManager()),
                 new MockLocationFactory(),
                 taskExecutor,
                 createTestSplitMonitor(),

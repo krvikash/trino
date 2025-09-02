@@ -22,6 +22,7 @@ import io.trino.spi.security.Identity;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeOperators;
 import io.trino.sql.parser.SqlParser;
+import io.trino.sql.planner.CompilerConfig;
 import io.trino.transaction.TransactionManager;
 import io.trino.type.BlockTypeOperators;
 
@@ -99,7 +100,7 @@ public final class TestMetadataManager
             if (languageFunctionManager == null) {
                 BlockEncodingSerde blockEncodingSerde = new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig()), typeManager);
                 LanguageFunctionEngineManager engineManager = new LanguageFunctionEngineManager();
-                languageFunctionManager = new LanguageFunctionManager(new SqlParser(), typeManager, _ -> ImmutableSet.of(), blockEncodingSerde, engineManager);
+                languageFunctionManager = new LanguageFunctionManager(new SqlParser(), typeManager, _ -> ImmutableSet.of(), blockEncodingSerde, new CompilerConfig(), engineManager);
             }
 
             TableFunctionRegistry tableFunctionRegistry = new TableFunctionRegistry(_ -> new CatalogTableFunctions(ImmutableList.of()));

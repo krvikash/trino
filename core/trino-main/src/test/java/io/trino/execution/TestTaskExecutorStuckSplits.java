@@ -42,6 +42,7 @@ import io.trino.spi.catalog.CatalogProperties;
 import io.trino.spi.connector.CatalogHandle;
 import io.trino.spiller.LocalSpillManager;
 import io.trino.spiller.NodeSpillConfig;
+import io.trino.sql.planner.CompilerConfig;
 import io.trino.util.EmbedVersion;
 import org.junit.jupiter.api.Test;
 
@@ -129,7 +130,7 @@ public class TestTaskExecutorStuckSplits
                 new EmbedVersion("testversion"),
                 new NoConnectorServicesProvider(),
                 createTestingPlanner(),
-                new WorkerLanguageFunctionProvider(new LanguageFunctionEngineManager()),
+                new WorkerLanguageFunctionProvider(new CompilerConfig(), new LanguageFunctionEngineManager()),
                 new BaseTestSqlTaskManager.MockLocationFactory(),
                 taskExecutor,
                 createTestSplitMonitor(),
