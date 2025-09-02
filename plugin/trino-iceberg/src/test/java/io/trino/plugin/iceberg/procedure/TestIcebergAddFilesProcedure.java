@@ -746,6 +746,9 @@ final class TestIcebergAddFilesProcedure
 
             assertThat(query("SELECT * FROM " + table.getName()))
                     .matches("VALUES TIME '00:00:00.000000', TIME '12:34:56.123', TIME '23:59:59.999'");
+
+            assertThat(query("SELECT lower_bounds[1], upper_bounds[1] FROM \"" + table.getName() + "$files\""))
+                    .matches("VALUES (VARCHAR '00:00', VARCHAR '23:59:59.999')");
         }
     }
 }

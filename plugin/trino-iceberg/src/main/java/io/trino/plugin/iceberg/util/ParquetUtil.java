@@ -58,6 +58,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_MILLISECOND;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
@@ -342,9 +343,9 @@ public final class ParquetUtil
             case BOOLEAN -> (Literal<T>) Literal.of((Boolean) value);
             case INTEGER, DATE -> (Literal<T>) Literal.of((Integer) value);
             case TIME -> {
-                if (value instanceof Integer integer) {
+                if (value instanceof Integer millis) {
                     // This can happen when the value is stored as INT32 (MILLIS)
-                    yield (Literal<T>) Literal.of(Long.valueOf(integer));
+                    yield (Literal<T>) Literal.of(Long.valueOf(millis) * MICROSECONDS_PER_MILLISECOND);
                 }
                 yield (Literal<T>) Literal.of((Long) value);
             }
