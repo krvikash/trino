@@ -16,7 +16,6 @@ package io.trino.testing;
 import io.airlift.tracing.Tracing;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
-import io.starburst.ai.model.ModelConnectionSpecsLoader;
 import io.trino.client.NodeVersion;
 import io.trino.operator.FlatHashStrategyCompiler;
 import io.trino.operator.GroupByHashPageIndexerFactory;
@@ -30,13 +29,14 @@ import io.trino.spi.VersionEmbedder;
 import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.MetadataProvider;
+import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeOperators;
 import io.trino.util.EmbedVersion;
 
-import static io.starburst.ai.model.ModelConnectionSpecsLoader.EMPTY_LOADER;
 import static io.trino.spi.connector.MetadataProvider.NOOP_METADATA_PROVIDER;
+import static io.trino.spi.connector.ai.ModelConnectionSpecsLoader.EMPTY_LOADER;
 import static io.trino.testing.TestingHandles.TEST_CATALOG_HANDLE;
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
 

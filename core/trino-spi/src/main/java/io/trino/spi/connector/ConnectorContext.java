@@ -15,12 +15,12 @@ package io.trino.spi.connector;
 
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
-import io.starburst.ai.model.ModelConnectionSpecsLoader;
 import io.trino.spi.Node;
 import io.trino.spi.NodeManager;
 import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.PageSorter;
 import io.trino.spi.VersionEmbedder;
+import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.type.TypeManager;
 

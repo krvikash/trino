@@ -14,8 +14,8 @@
 package io.trino.server.testing.ai;
 
 import io.starburst.ai.model.ModelConnectionSpecs;
-import io.starburst.ai.model.ModelConnectionSpecsLoader;
 import io.trino.server.security.ResourceSecurity;
+import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;

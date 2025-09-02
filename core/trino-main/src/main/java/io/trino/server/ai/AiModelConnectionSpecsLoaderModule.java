@@ -15,7 +15,7 @@ package io.trino.server.ai;
 
 import com.google.inject.Binder;
 import com.google.inject.Module;
-import io.starburst.ai.model.ModelConnectionSpecsLoader;
+import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 

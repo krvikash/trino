@@ -12,7 +12,7 @@ package io.starburst.ai.client;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
-import io.starburst.ai.model.ModelConnectionSpecsLoader;
+import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 

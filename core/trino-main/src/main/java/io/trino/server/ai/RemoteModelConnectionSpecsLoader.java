@@ -19,10 +19,10 @@ import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
 import io.airlift.json.JsonCodec;
 import io.starburst.ai.model.ModelConnectionSpecs;
-import io.starburst.ai.model.ModelConnectionSpecsLoader;
 import io.trino.node.InternalNode;
 import io.trino.node.InternalNodeManager;
 import io.trino.server.InternalHttpClient;
+import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 
 import java.net.URI;
 
