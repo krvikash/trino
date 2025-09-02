@@ -76,6 +76,8 @@ public class IcebergConfig
     private boolean tableStatisticsEnabled = true;
     private boolean extendedStatisticsEnabled = true;
     private boolean collectExtendedStatisticsOnWrite = true;
+    private boolean partitionStatisticsEnabled = true;
+    private boolean partitionStatisticsCollectOnWrite;
     private boolean projectionPushdownEnabled = true;
     private boolean registerTableProcedureEnabled;
     private boolean addFilesProcedureEnabled;
@@ -261,6 +263,32 @@ public class IcebergConfig
     public IcebergConfig setCollectExtendedStatisticsOnWrite(boolean collectExtendedStatisticsOnWrite)
     {
         this.collectExtendedStatisticsOnWrite = collectExtendedStatisticsOnWrite;
+        return this;
+    }
+
+    public boolean isPartitionStatisticsEnabled()
+    {
+        return partitionStatisticsEnabled;
+    }
+
+    @Config("iceberg.partition-statistics.enabled")
+    @ConfigDescription("Enable partition-level statistics")
+    public IcebergConfig setPartitionStatisticsEnabled(boolean partitionStatisticsEnabled)
+    {
+        this.partitionStatisticsEnabled = partitionStatisticsEnabled;
+        return this;
+    }
+
+    public boolean isPartitionStatisticsCollectOnWrite()
+    {
+        return partitionStatisticsCollectOnWrite;
+    }
+
+    @Config("iceberg.partition-statistics.collect-on-write")
+    @ConfigDescription("Enable automatic partition-level statistics collection on write")
+    public IcebergConfig setPartitionStatisticsCollectOnWrite(boolean partitionStatisticsCollectOnWrite)
+    {
+        this.partitionStatisticsCollectOnWrite = partitionStatisticsCollectOnWrite;
         return this;
     }
 

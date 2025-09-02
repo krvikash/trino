@@ -66,6 +66,8 @@ public class TestIcebergPartitionEvolution
                         row("something", "completely", "else"),
                         row(null, null, "nothing"));
 
+        onTrino().executeQuery("SET SESSION iceberg.partition_statistics_enabled = false");
+        onTrino().executeQuery("SET SESSION iceberg.partition_statistics_collect_on_write = false");
         assertThat(onTrino().executeQuery("SHOW STATS FOR test_dropped_partition_field"))
                 .containsOnly(
                         row("a", 599.0, 3.0, 1. / 6, null, null, null),

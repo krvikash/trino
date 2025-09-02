@@ -76,6 +76,7 @@ public final class FileOperationUtils
         SNAPSHOT,
         MANIFEST,
         STATS,
+        PARTITION_STATS,
         PUFFIN,
         DATA,
         DELETE,
@@ -95,6 +96,9 @@ public final class FileOperationUtils
             }
             if (path.endsWith(".stats")) {
                 return STATS;
+            }
+            if (path.contains("/partition-stats-")) {
+                return PARTITION_STATS;
             }
             if (path.endsWith(".puffin")) {
                 return PUFFIN;

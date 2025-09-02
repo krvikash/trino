@@ -83,6 +83,7 @@ import static java.time.ZoneOffset.UTC;
 import static java.util.Map.entry;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
+import static org.apache.iceberg.TestIcebergPartitionStatistics.PARTITION_STATISTICS_WRITER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
@@ -133,6 +134,7 @@ public class TestIcebergCacheIds
                 new DefaultIcebergFileSystemFactory(HDFS_FILE_SYSTEM_FACTORY),
                 TABLE_STATISTICS_READER,
                 new TableStatisticsWriter(new NodeVersion("test-version")),
+                PARTITION_STATISTICS_WRITER,
                 Optional.of(metastoreFactory),
                 newDirectExecutorService(),
                 newDirectExecutorService(),

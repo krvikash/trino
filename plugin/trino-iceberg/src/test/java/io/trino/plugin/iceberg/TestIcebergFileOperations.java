@@ -53,6 +53,7 @@ import static io.trino.plugin.iceberg.util.FileOperationUtils.FileType.DATA;
 import static io.trino.plugin.iceberg.util.FileOperationUtils.FileType.DELETE;
 import static io.trino.plugin.iceberg.util.FileOperationUtils.FileType.MANIFEST;
 import static io.trino.plugin.iceberg.util.FileOperationUtils.FileType.METADATA_JSON;
+import static io.trino.plugin.iceberg.util.FileOperationUtils.FileType.PARTITION_STATS;
 import static io.trino.plugin.iceberg.util.FileOperationUtils.FileType.PUFFIN;
 import static io.trino.plugin.iceberg.util.FileOperationUtils.FileType.SNAPSHOT;
 import static io.trino.plugin.iceberg.util.FileOperationUtils.FileType.STATS;
@@ -102,6 +103,8 @@ public class TestIcebergFileOperations
                 .put("iceberg.split-manager-threads", "0")
                 // FS accesses with metadata cache are tested separately in io.trino.plugin.iceberg.TestIcebergMemoryCacheFileOperations
                 .put("iceberg.metadata-cache.enabled", "false")
+                // Disable partition statistics to make diff from Trino smaller
+                .put("iceberg.partition-statistics.enabled", "false")
                 .buildOrThrow());
 
         metastore = getHiveMetastore(queryRunner);
@@ -1075,6 +1078,86 @@ public class TestIcebergFileOperations
     public void testShowTables()
     {
         assertFileSystemAccesses("SHOW TABLES", ImmutableMultiset.of());
+    }
+
+    @Test
+    void testPartitionStatistics()
+    {
+        Session partitionStatisticsEnabled = Session.builder(getSession())
+                .setCatalogSessionProperty("iceberg", "partition_statistics_enabled", "true")
+                .setCatalogSessionProperty("iceberg", "partition_statistics_collect_on_write", "true")
+                .build();
+
+        assertFileSystemAccesses(partitionStatisticsEnabled, "CREATE TABLE test_partition_statistics (id VARCHAR, part INT) WITH (partitioning = ARRAY['part'])", ImmutableMultiset.<FileOperation>builder()
+                .add(new FileOperation(METADATA_JSON, "OutputFile.create"))
+                .add(new FileOperation(SNAPSHOT, "OutputFile.create"))
+                .build());
+
+        assertFileSystemAccesses(partitionStatisticsEnabled, "INSERT INTO test_partition_statistics VALUES ('alice', 1)", ImmutableMultiset.<FileOperation>builder()
+                .add(new FileOperation(METADATA_JSON, "OutputFile.create"))
+                .addCopies(new FileOperation(METADATA_JSON, "InputFile.newStream"), 2)
+                .addCopies(new FileOperation(SNAPSHOT, "InputFile.length"), 3)
+                .addCopies(new FileOperation(SNAPSHOT, "InputFile.newStream"), 3)
+                .add(new FileOperation(SNAPSHOT, "OutputFile.create"))
+                .add(new FileOperation(MANIFEST, "OutputFile.create"))
+                .addCopies(new FileOperation(MANIFEST, "InputFile.newStream"), 2)
+                .add(new FileOperation(STATS, "OutputFile.create"))
+                .add(new FileOperation(PARTITION_STATS, "OutputFile.create"))
+                .add(new FileOperation(PARTITION_STATS, "InputFile.length"))
+                .build());
+
+        assertFileSystemAccesses(partitionStatisticsEnabled, "INSERT INTO test_partition_statistics VALUES ('bob', 2)", ImmutableMultiset.<FileOperation>builder()
+                .add(new FileOperation(METADATA_JSON, "OutputFile.create"))
+                .addCopies(new FileOperation(METADATA_JSON, "InputFile.newStream"), 2)
+                .addCopies(new FileOperation(SNAPSHOT, "InputFile.length"), 3)
+                .addCopies(new FileOperation(SNAPSHOT, "InputFile.newStream"), 3)
+                .add(new FileOperation(SNAPSHOT, "OutputFile.create"))
+                .add(new FileOperation(MANIFEST, "OutputFile.create"))
+                .addCopies(new FileOperation(MANIFEST, "InputFile.newStream"), 2)
+                .add(new FileOperation(STATS, "InputFile.newStream"))
+                .add(new FileOperation(STATS, "OutputFile.create"))
+                .addCopies(new FileOperation(PARTITION_STATS, "InputFile.length"), 2)
+                .add(new FileOperation(PARTITION_STATS, "InputFile.newInput"))
+                .add(new FileOperation(PARTITION_STATS, "OutputFile.create"))
+                .build());
+
+        // There is no PARTITION_STATS call because the current snapshot already has partition statistics
+        assertFileSystemAccesses(partitionStatisticsEnabled, "ANALYZE test_partition_statistics", ImmutableMultiset.<FileOperation>builder()
+                .add(new FileOperation(METADATA_JSON, "InputFile.newStream"))
+                .add(new FileOperation(METADATA_JSON, "OutputFile.create"))
+                .add(new FileOperation(SNAPSHOT, "InputFile.length"))
+                .add(new FileOperation(SNAPSHOT, "InputFile.newStream"))
+                .addCopies(new FileOperation(MANIFEST, "InputFile.newStream"), 2)
+                .add(new FileOperation(STATS, "OutputFile.create"))
+                .build());
+
+        assertFileSystemAccesses(partitionStatisticsEnabled, "SHOW STATS FOR test_partition_statistics", ImmutableMultiset.<FileOperation>builder()
+                .add(new FileOperation(METADATA_JSON, "InputFile.newStream"))
+                .add(new FileOperation(PARTITION_STATS, "InputFile.newInput"))
+                .build());
+    }
+
+    @Test
+    void testAnalyzePartitionStatistics()
+    {
+        Session partitionStatisticsEnabled = Session.builder(getSession())
+                .setCatalogSessionProperty("iceberg", "partition_statistics_enabled", "true")
+                .setCatalogSessionProperty("iceberg", "partition_statistics_collect_on_write", "true")
+                .build();
+
+        assertUpdate("CREATE TABLE test_analyze_partition_statistics (id VARCHAR, part INT) WITH (partitioning = ARRAY['part'])");
+        assertUpdate("INSERT INTO test_analyze_partition_statistics VALUES ('alice', 1), ('bob', 2)", 2);
+
+        assertFileSystemAccesses(partitionStatisticsEnabled, "ANALYZE test_analyze_partition_statistics", ImmutableMultiset.<FileOperation>builder()
+                .add(new FileOperation(METADATA_JSON, "InputFile.newStream"))
+                .add(new FileOperation(METADATA_JSON, "OutputFile.create"))
+                .add(new FileOperation(SNAPSHOT, "InputFile.length"))
+                .add(new FileOperation(SNAPSHOT, "InputFile.newStream"))
+                .addCopies(new FileOperation(MANIFEST, "InputFile.newStream"), 3)
+                .add(new FileOperation(STATS, "OutputFile.create"))
+                .add(new FileOperation(PARTITION_STATS, "InputFile.length"))
+                .add(new FileOperation(PARTITION_STATS, "OutputFile.create"))
+                .build());
     }
 
     private void assertFileSystemAccesses(@Language("SQL") String query, Multiset<FileOperation> expectedAccesses)

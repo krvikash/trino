@@ -88,6 +88,7 @@ import static io.trino.plugin.iceberg.util.FileOperationUtils.FileType.fromFileP
 import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
+import static org.apache.iceberg.TestIcebergPartitionStatistics.PARTITION_STATISTICS_READER;
 import static org.joda.time.DateTimeZone.UTC;
 
 public final class IcebergTestUtils
@@ -104,7 +105,8 @@ public final class IcebergTestUtils
     public static final TableStatisticsReader TABLE_STATISTICS_READER = new TableStatisticsReader(
             TESTING_TYPE_MANAGER,
             newDirectExecutorService(),
-            new DefaultIcebergFileSystemFactory(new HdfsFileSystemFactory(HDFS_ENVIRONMENT, HDFS_FILE_SYSTEM_STATS)));
+            new DefaultIcebergFileSystemFactory(new HdfsFileSystemFactory(HDFS_ENVIRONMENT, HDFS_FILE_SYSTEM_STATS)),
+            PARTITION_STATISTICS_READER);
 
     public static final ForwardingFileIoFactory FILE_IO_FACTORY = new ForwardingFileIoFactory(newDirectExecutorService());
 

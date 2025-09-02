@@ -94,6 +94,8 @@ public final class IcebergSessionProperties
     public static final String DYNAMIC_FILTERING_WAIT_TIMEOUT = "dynamic_filtering_wait_timeout";
     private static final String STATISTICS_ENABLED = "statistics_enabled";
     public static final String EXTENDED_STATISTICS_ENABLED = "extended_statistics_enabled";
+    private static final String PARTITION_STATISTICS_ENABLED = "partition_statistics_enabled";
+    private static final String PARTITION_STATISTICS_COLLECT_ON_WRITE = "partition_statistics_collect_on_write";
     private static final String PROJECTION_PUSHDOWN_ENABLED = "projection_pushdown_enabled";
     private static final String TARGET_MAX_FILE_SIZE = "target_max_file_size";
     private static final String IDLE_WRITER_MIN_FILE_SIZE = "idle_writer_min_file_size";
@@ -307,6 +309,16 @@ public final class IcebergSessionProperties
                         EXTENDED_STATISTICS_ENABLED,
                         EXTENDED_STATISTICS_DESCRIPTION,
                         icebergConfig.isExtendedStatisticsEnabled(),
+                        false))
+                .add(booleanProperty(
+                        PARTITION_STATISTICS_ENABLED,
+                        "Enable partition-level statistics reader",
+                        icebergConfig.isPartitionStatisticsEnabled(),
+                        false))
+                .add(booleanProperty(
+                        PARTITION_STATISTICS_COLLECT_ON_WRITE,
+                        "Enable automatic partition-level statistics collection on write",
+                        icebergConfig.isPartitionStatisticsCollectOnWrite(),
                         false))
                 .add(booleanProperty(
                         PROJECTION_PUSHDOWN_ENABLED,
@@ -578,6 +590,16 @@ public final class IcebergSessionProperties
     public static boolean isExtendedStatisticsEnabled(ConnectorSession session)
     {
         return session.getProperty(EXTENDED_STATISTICS_ENABLED, Boolean.class);
+    }
+
+    public static boolean isPartitionStatisticsEnabled(ConnectorSession session)
+    {
+        return session.getProperty(PARTITION_STATISTICS_ENABLED, Boolean.class);
+    }
+
+    public static boolean isPartitionStatisticsCollectOnWrite(ConnectorSession session)
+    {
+        return session.getProperty(PARTITION_STATISTICS_COLLECT_ON_WRITE, Boolean.class);
     }
 
     public static boolean isCollectExtendedStatisticsOnWrite(ConnectorSession session)

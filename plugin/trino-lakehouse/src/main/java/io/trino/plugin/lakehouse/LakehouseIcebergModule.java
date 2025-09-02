@@ -38,6 +38,7 @@ import io.trino.plugin.iceberg.IcebergSplitManager;
 import io.trino.plugin.iceberg.IcebergTableProperties;
 import io.trino.plugin.iceberg.IcebergTransactionManager;
 import io.trino.plugin.iceberg.NoopWorkScheduler;
+import io.trino.plugin.iceberg.PartitionStatisticsReader;
 import io.trino.plugin.iceberg.TableStatisticsReader;
 import io.trino.plugin.iceberg.TableStatisticsWriter;
 import io.trino.plugin.iceberg.WorkScheduler;
@@ -45,6 +46,7 @@ import io.trino.plugin.iceberg.catalog.file.IcebergFileMetastoreCatalogModule;
 import io.trino.plugin.iceberg.catalog.glue.IcebergGlueCatalogModule;
 import io.trino.plugin.iceberg.catalog.hms.IcebergHiveMetastoreCatalogModule;
 import io.trino.plugin.iceberg.fileio.ForwardingFileIoFactory;
+import org.apache.iceberg.PartitionStatisticsWriter;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
@@ -71,6 +73,8 @@ public class LakehouseIcebergModule
         binder.bind(IcebergFileWriterFactory.class).in(Scopes.SINGLETON);
         binder.bind(TableStatisticsReader.class).in(Scopes.SINGLETON);
         binder.bind(TableStatisticsWriter.class).in(Scopes.SINGLETON);
+        binder.bind(PartitionStatisticsReader.class).in(Scopes.SINGLETON);
+        binder.bind(PartitionStatisticsWriter.class).in(Scopes.SINGLETON);
         binder.bind(IcebergFileSystemFactory.class).to(DefaultIcebergFileSystemFactory.class).in(Scopes.SINGLETON);
 
         newOptionalBinder(binder, Key.get(HiveMetastoreFactory.class, RawHiveMetastoreFactory.class));

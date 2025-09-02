@@ -50,6 +50,8 @@ public class TestIcebergStatistics
     {
         return IcebergQueryRunner.builder()
                 .setInitialTables(NATION)
+                // Disable partition statistics to make diff from Trino smaller
+                .addIcebergProperty("iceberg.partition-statistics.enabled", "false")
                 .build();
     }
 

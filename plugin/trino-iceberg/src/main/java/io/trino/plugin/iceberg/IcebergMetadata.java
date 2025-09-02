@@ -184,6 +184,8 @@ import org.apache.iceberg.Metrics;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionSpecParser;
+import org.apache.iceberg.PartitionStatisticsFile;
+import org.apache.iceberg.PartitionStatisticsWriter;
 import org.apache.iceberg.PositionDeletesScanTask;
 import org.apache.iceberg.ReplaceSortOrder;
 import org.apache.iceberg.RewriteFiles;
@@ -547,6 +549,7 @@ public class IcebergMetadata
     private final IcebergFileSystemFactory fileSystemFactory;
     private final TableStatisticsReader tableStatisticsReader;
     private final TableStatisticsWriter tableStatisticsWriter;
+    private final PartitionStatisticsWriter partitionStatisticsWriter;
     private final Optional<HiveMetastoreFactory> metastoreFactory;
     private final int maxFormatVersion;
     private final boolean addFilesProcedureEnabled;
@@ -571,6 +574,7 @@ public class IcebergMetadata
             IcebergFileSystemFactory fileSystemFactory,
             TableStatisticsReader tableStatisticsReader,
             TableStatisticsWriter tableStatisticsWriter,
+            PartitionStatisticsWriter partitionStatisticsWriter,
             Optional<HiveMetastoreFactory> metastoreFactory,
             int maxFormatVersion,
             boolean addFilesProcedureEnabled,
@@ -589,6 +593,7 @@ public class IcebergMetadata
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.tableStatisticsReader = requireNonNull(tableStatisticsReader, "tableStatisticsReader is null");
         this.tableStatisticsWriter = requireNonNull(tableStatisticsWriter, "tableStatisticsWriter is null");
+        this.partitionStatisticsWriter = requireNonNull(partitionStatisticsWriter, "partitionStatisticsWriter is null");
         this.metastoreFactory = requireNonNull(metastoreFactory, "metastoreFactory is null");
         this.maxFormatVersion = maxFormatVersion;
         this.addFilesProcedureEnabled = addFilesProcedureEnabled;
@@ -1696,6 +1701,11 @@ public class IcebergMetadata
             transaction.updateStatistics()
                     .setStatistics(statisticsFile)
                     .commit();
+            partitionStatisticsWriter.writePartitionStats(session, icebergTable, newSnapshotId).ifPresent(partitionStatisticsFile -> {
+                transaction.updatePartitionStatistics()
+                        .setPartitionStatistics(partitionStatisticsFile)
+                        .commit();
+            });
         }
         commitTransaction(transaction, "insert");
         transaction = null;
@@ -2226,6 +2236,11 @@ public class IcebergMetadata
         transaction.updateStatistics()
                 .setStatistics(newStatsFile)
                 .commit();
+        partitionStatisticsWriter.writePartitionStats(session, icebergTable, newSnapshotId).ifPresent(partitionStatisticsFile -> {
+            transaction.updatePartitionStatistics()
+                    .setPartitionStatistics(partitionStatisticsFile)
+                    .commit();
+        });
 
         commitTransaction(transaction, "optimize");
         transaction = null;
@@ -2298,6 +2313,13 @@ public class IcebergMetadata
         transaction.updateStatistics()
                     .setStatistics(newStatsFile)
                     .commit();
+
+        partitionStatisticsWriter.writePartitionStats(session, icebergTable, newSnapshotId).ifPresent(partitionStatisticsFile -> {
+            transaction.updatePartitionStatistics()
+                    .setPartitionStatistics(partitionStatisticsFile)
+                    .commit();
+        });
+
         commitTransaction(transaction, "update statistics after generate_embeddings");
         transaction = null;
     }
@@ -2529,6 +2551,9 @@ public class IcebergMetadata
         for (StatisticsFile statisticsFile : icebergTable.statisticsFiles()) {
             updateStatistics.removeStatistics(statisticsFile.snapshotId());
         }
+        for (PartitionStatisticsFile partitionStatisticsFile : icebergTable.partitionStatisticsFiles()) {
+            updateStatistics.removeStatistics(partitionStatisticsFile.snapshotId());
+        }
         updateStatistics.commit();
         commitTransaction(transaction, "drop extended stats");
         transaction = null;
@@ -2674,6 +2699,7 @@ public class IcebergMetadata
                 .map(IcebergUtil::fileName)
                 .forEach(validFileNames::add);
 
+        // statisticsFilesLocations includes both table-level and partition-level statistics files
         statisticsFilesLocations(table).stream()
                 .map(IcebergUtil::fileName)
                 .forEach(validFileNames::add);
@@ -3636,6 +3662,12 @@ public class IcebergMetadata
                 .setStatistics(statisticsFile)
                 .commit();
 
+        partitionStatisticsWriter.writePartitionStats(session, table, snapshotId).ifPresent(partitionStatisticsFile -> {
+            transaction.updatePartitionStatistics()
+                    .setPartitionStatistics(partitionStatisticsFile)
+                    .commit();
+        });
+
         commitTransaction(transaction, "statistics collection");
         transaction = null;
     }
@@ -4044,9 +4076,16 @@ public class IcebergMetadata
     {
         IcebergTableHandle table = checkValidTableHandle(tableHandle);
         Table icebergTable = catalog.loadTable(session, table.getSchemaTableName());
-        DeleteFiles deleteFiles = icebergTable.newDelete()
-                .deleteFromRowFilter(alwaysTrue());
-        commitUpdate(deleteFiles, session, "truncate");
+        beginTransaction(icebergTable);
+        transaction.newDelete()
+                .deleteFromRowFilter(alwaysTrue())
+                .commit();
+        if (icebergTable.currentSnapshot() != null) {
+            transaction.updatePartitionStatistics()
+                    .removePartitionStatistics(icebergTable.currentSnapshot().snapshotId())
+                    .commit();
+        }
+        commitTransaction(transaction, "truncate");
     }
 
     public void rollback()

@@ -58,6 +58,7 @@ public class TestIcebergMemoryCacheFileOperations
         Map<String, String> icebergProperties = ImmutableMap.<String, String>builder()
                 .put("iceberg.metadata-cache.enabled", "true")
                 .put("hive.metastore.catalog.dir", metastoreDirectory.toUri().toString())
+                .put("iceberg.partition-statistics.collect-on-write", "true")
                 .buildOrThrow();
 
         DistributedQueryRunner queryRunner = IcebergQueryRunner.builder()
@@ -86,7 +87,6 @@ public class TestIcebergMemoryCacheFileOperations
                         .add(new CacheOperation("FileSystemCache.cacheStream", METADATA_JSON))
                         .add(new CacheOperation("FileSystemCache.cacheLength", SNAPSHOT))
                         .add(new CacheOperation("FileSystemCache.cacheStream", SNAPSHOT))
-                        .addCopies(new CacheOperation("Input.readTail", MANIFEST), 2)
                         .addCopies(new CacheOperation("FileSystemCache.cacheStream", MANIFEST), 2)
                         .build());
 
@@ -112,7 +112,6 @@ public class TestIcebergMemoryCacheFileOperations
                         .add(new CacheOperation("FileSystemCache.cacheStream", METADATA_JSON))
                         .add(new CacheOperation("FileSystemCache.cacheLength", SNAPSHOT))
                         .add(new CacheOperation("FileSystemCache.cacheStream", SNAPSHOT))
-                        .addCopies(new CacheOperation("Input.readTail", MANIFEST), 3)
                         .addCopies(new CacheOperation("FileSystemCache.cacheStream", MANIFEST), 5)
                         .build());
 

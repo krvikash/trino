@@ -118,6 +118,7 @@ import static org.apache.iceberg.TableProperties.METADATA_DELETE_AFTER_COMMIT_EN
 import static org.apache.iceberg.TableProperties.METADATA_PREVIOUS_VERSIONS_MAX;
 import static org.apache.iceberg.TableProperties.SPLIT_SIZE;
 import static org.apache.iceberg.TableUtil.formatVersion;
+import static org.apache.iceberg.TestIcebergPartitionStatistics.PARTITION_STATISTICS_READER;
 import static org.apache.iceberg.mapping.NameMappingParser.toJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -136,6 +137,8 @@ public class TestIcebergV2
     {
         QueryRunner queryRunner = IcebergQueryRunner.builder()
                 .setInitialTables(NATION)
+                // Disable partition statistics to make diff from Trino smaller
+                .addIcebergProperty("iceberg.partition-statistics.enabled", "false")
                 .build();
 
         metastore = getHiveMetastore(queryRunner);
@@ -944,6 +947,7 @@ public class TestIcebergV2
             TypeManager typeManager = new TestingTypeManager();
             Table table = loadTable(testTable.getName());
             TableStatistics withNoFilter = TableStatisticsReader.makeTableStatistics(
+                    SESSION,
                     typeManager,
                     table,
                     snapshotId,
@@ -952,10 +956,12 @@ public class TestIcebergV2
                     ImmutableSet.of(),
                     true,
                     newDirectExecutorService(),
-                    fileSystemFactory.create(SESSION));
+                    fileSystemFactory.create(SESSION),
+                    PARTITION_STATISTICS_READER);
             assertThat(withNoFilter.getRowCount().getValue()).isEqualTo(4.0);
 
             TableStatistics withPartitionFilter = TableStatisticsReader.makeTableStatistics(
+                    SESSION,
                     typeManager,
                     table,
                     snapshotId,
@@ -966,11 +972,13 @@ public class TestIcebergV2
                     ImmutableSet.of(),
                     true,
                     newDirectExecutorService(),
-                    fileSystemFactory.create(SESSION));
+                    fileSystemFactory.create(SESSION),
+                    PARTITION_STATISTICS_READER);
             assertThat(withPartitionFilter.getRowCount().getValue()).isEqualTo(3.0);
 
             IcebergColumnHandle column = IcebergColumnHandle.optional(ColumnIdentity.primitiveColumnIdentity(1, "a")).columnType(INTEGER).build();
             TableStatistics withUnenforcedFilter = TableStatisticsReader.makeTableStatistics(
+                    SESSION,
                     typeManager,
                     table,
                     snapshotId,
@@ -981,7 +989,8 @@ public class TestIcebergV2
                     ImmutableSet.of(column),
                     true,
                     newDirectExecutorService(),
-                    fileSystemFactory.create(SESSION));
+                    fileSystemFactory.create(SESSION),
+                    PARTITION_STATISTICS_READER);
             assertThat(withUnenforcedFilter.getRowCount().getValue()).isEqualTo(2.0);
         }
     }
@@ -997,6 +1006,7 @@ public class TestIcebergV2
             TypeManager typeManager = new TestingTypeManager();
             Table table = loadTable(testTable.getName());
             TableStatistics withNoProjectedColumns = TableStatisticsReader.makeTableStatistics(
+                    SESSION,
                     typeManager,
                     table,
                     snapshotId,
@@ -1005,12 +1015,14 @@ public class TestIcebergV2
                     ImmutableSet.of(),
                     true,
                     newDirectExecutorService(),
-                    fileSystemFactory.create(SESSION));
+                    fileSystemFactory.create(SESSION),
+                    PARTITION_STATISTICS_READER);
             assertThat(withNoProjectedColumns.getRowCount().getValue()).isEqualTo(4.0);
             assertThat(withNoProjectedColumns.getColumnStatistics()).isEmpty();
 
             IcebergColumnHandle column = IcebergColumnHandle.optional(ColumnIdentity.primitiveColumnIdentity(1, "a")).columnType(INTEGER).build();
             TableStatistics withProjectedColumns = TableStatisticsReader.makeTableStatistics(
+                    SESSION,
                     typeManager,
                     table,
                     snapshotId,
@@ -1019,7 +1031,8 @@ public class TestIcebergV2
                     ImmutableSet.of(column),
                     true,
                     newDirectExecutorService(),
-                    fileSystemFactory.create(SESSION));
+                    fileSystemFactory.create(SESSION),
+                    PARTITION_STATISTICS_READER);
             assertThat(withProjectedColumns.getRowCount().getValue()).isEqualTo(4.0);
             assertThat(withProjectedColumns.getColumnStatistics()).containsOnlyKeys(column);
             assertThat(withProjectedColumns.getColumnStatistics().get(column))
@@ -1030,6 +1043,7 @@ public class TestIcebergV2
                             .build());
 
             TableStatistics withPartitionFilterAndProjectedColumn = TableStatisticsReader.makeTableStatistics(
+                    SESSION,
                     typeManager,
                     table,
                     snapshotId,
@@ -1040,7 +1054,8 @@ public class TestIcebergV2
                     ImmutableSet.of(column),
                     true,
                     newDirectExecutorService(),
-                    fileSystemFactory.create(SESSION));
+                    fileSystemFactory.create(SESSION),
+                    PARTITION_STATISTICS_READER);
             assertThat(withPartitionFilterAndProjectedColumn.getRowCount().getValue()).isEqualTo(3.0);
             assertThat(withPartitionFilterAndProjectedColumn.getColumnStatistics()).containsOnlyKeys(column);
             assertThat(withPartitionFilterAndProjectedColumn.getColumnStatistics().get(column))

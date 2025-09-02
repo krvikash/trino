@@ -671,7 +671,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testTruncateTable()
     {
         assertThatThrownBy(super::testTruncateTable)
-                .hasMessageContaining("Failed to close manifest writer");
+                .hasMessageContaining("Snowflake managed Iceberg tables do not support modifications");
     }
 
     @Test

@@ -313,6 +313,7 @@ public class TestHiveRedirectionToIceberg
 
         createIcebergTable(icebergTableName, true);
 
+        onTrino().executeQuery("SET SESSION iceberg.partition_statistics_enabled = false");
         assertThat(onTrino().executeQuery("SHOW STATS FOR " + hiveTableName))
                 .containsOnly(
                         row("nationkey", null, 25d, 0d, null, "0", "24"),

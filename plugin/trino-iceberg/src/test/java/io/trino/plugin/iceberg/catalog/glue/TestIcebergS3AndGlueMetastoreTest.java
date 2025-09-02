@@ -47,6 +47,8 @@ public class TestIcebergS3AndGlueMetastoreTest
         metastore = createTestingGlueHiveMetastore(URI.create(schemaPath()), this::closeAfterClass);
         return IcebergQueryRunner.builder()
                 .setIcebergProperties(ImmutableMap.<String, String>builder()
+                        // Disable partition statistics to make diff from Trino smaller
+                        .put("iceberg.partition-statistics.enabled", "false")
                         .put("iceberg.catalog.type", "glue")
                         .put("hive.metastore.glue.default-warehouse-dir", schemaPath())
                         .put("fs.native-s3.enabled", "true")

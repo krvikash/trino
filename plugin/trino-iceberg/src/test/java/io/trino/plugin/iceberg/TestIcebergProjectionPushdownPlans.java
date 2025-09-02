@@ -86,6 +86,8 @@ public class TestIcebergProjectionPushdownPlans
         Session session = testSessionBuilder()
                 .setCatalog(CATALOG)
                 .setSchema(SCHEMA)
+                // testDereferencePushdown relies on partition_statistics to be disabled
+                .setCatalogSessionProperty(CATALOG, "partition_statistics_enabled", "false")
                 .build();
 
         try {

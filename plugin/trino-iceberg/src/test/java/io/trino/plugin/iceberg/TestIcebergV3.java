@@ -1416,6 +1416,9 @@ public class TestIcebergV3
     @Test
     public void testHourTransformTimestampNano()
     {
+        // Disable partition statistics to check min/max column statistics
+        Session partitionStatisticsDisabled = partitionStatisticsDisabled();
+
         assertUpdate("CREATE TABLE test_hour_transform_timestamp (d TIMESTAMP(9), b BIGINT) WITH (partitioning = ARRAY['hour(d)'])");
 
         @Language("SQL") String values = "VALUES " +
@@ -1432,7 +1435,7 @@ public class TestIcebergV3
                 "(TIMESTAMP '2015-05-15 14:45:00.000000000', 10)," +
                 "(TIMESTAMP '2020-02-21 15:11:11.876543210', 11)," +
                 "(TIMESTAMP '2020-02-21 16:12:12.654321000', 12)";
-        assertUpdate("INSERT INTO test_hour_transform_timestamp " + values, 13);
+        assertUpdate(partitionStatisticsDisabled, "INSERT INTO test_hour_transform_timestamp " + values, 13);
         assertQuery("SELECT * FROM test_hour_transform_timestamp", values);
 
         @Language("SQL") String expected = "VALUES " +
@@ -1482,6 +1485,9 @@ public class TestIcebergV3
     @Test
     public void testHourTransformTimestampNanoWithTimeZone()
     {
+        // Disable partition statistics to check min/max column statistics
+        Session partitionStatisticsDisabled = partitionStatisticsDisabled();
+
         assertUpdate("CREATE TABLE test_hour_transform_timestamptz (d timestamp(9) with time zone, b integer) WITH (partitioning = ARRAY['hour(d)'])");
 
         String values = "VALUES " +
@@ -1498,7 +1504,7 @@ public class TestIcebergV3
                 "(TIMESTAMP '2015-05-15 14:45:00.000000000 UTC', 10)," +
                 "(TIMESTAMP '2020-02-21 15:11:11.876543210 UTC', 11)," +
                 "(TIMESTAMP '2020-02-21 16:12:12.654321000 UTC', 12)";
-        assertUpdate("INSERT INTO test_hour_transform_timestamptz " + values, 13);
+        assertUpdate(partitionStatisticsDisabled, "INSERT INTO test_hour_transform_timestamptz " + values, 13);
         assertThat(query("SELECT * FROM test_hour_transform_timestamptz")).matches(values);
 
         String expected = "VALUES " +
@@ -1545,6 +1551,9 @@ public class TestIcebergV3
     @Test
     public void testDayTransformTimestampNano()
     {
+        // Disable partition statistics to check min/max column statistics
+        Session partitionStatisticsDisabled = partitionStatisticsDisabled();
+
         assertUpdate("CREATE TABLE test_day_transform_timestamp (d TIMESTAMP(9), b BIGINT) WITH (partitioning = ARRAY['day(d)'])");
 
         @Language("SQL") String values = "VALUES " +
@@ -1561,7 +1570,7 @@ public class TestIcebergV3
                 "(TIMESTAMP '2015-05-15 14:21:02.345678900', 5)," +
                 "(TIMESTAMP '2020-02-21 15:11:11.876543210', 6)," +
                 "(TIMESTAMP '2020-02-21 16:12:12.654321000', 7)";
-        assertUpdate("INSERT INTO test_day_transform_timestamp " + values, 13);
+        assertUpdate(partitionStatisticsDisabled, "INSERT INTO test_day_transform_timestamp " + values, 13);
         assertQuery("SELECT * FROM test_day_transform_timestamp", values);
 
         @Language("SQL") String expected = "VALUES " +
@@ -1626,6 +1635,9 @@ public class TestIcebergV3
     @Test
     public void testDayTransformTimestampNanoWithTimeZone()
     {
+        // Disable partition statistics to check min/max column statistics
+        Session partitionStatisticsDisabled = partitionStatisticsDisabled();
+
         assertUpdate("CREATE TABLE test_day_transform_timestamptz (d timestamp(9) with time zone, b integer) WITH (partitioning = ARRAY['day(d)'])");
 
         String values = "VALUES " +
@@ -1642,7 +1654,7 @@ public class TestIcebergV3
                 "(TIMESTAMP '2015-05-15 14:21:02.345678900 UTC', 5)," +
                 "(TIMESTAMP '2020-02-21 15:11:11.876543210 UTC', 6)," +
                 "(TIMESTAMP '2020-02-21 16:12:12.654321000 UTC', 7)";
-        assertUpdate("INSERT INTO test_day_transform_timestamptz " + values, 13);
+        assertUpdate(partitionStatisticsDisabled, "INSERT INTO test_day_transform_timestamptz " + values, 13);
         assertThat(query("SELECT * FROM test_day_transform_timestamptz"))
                 .matches(values);
 
@@ -1716,6 +1728,9 @@ public class TestIcebergV3
     @Test
     public void testMonthTransformTimestampNano()
     {
+        // Disable partition statistics to check min/max column statistics
+        Session partitionStatisticsDisabled = partitionStatisticsDisabled();
+
         assertUpdate("CREATE TABLE test_month_transform_timestamp (d TIMESTAMP(9), b BIGINT) WITH (partitioning = ARRAY['month(d)'])");
 
         @Language("SQL") String values = "VALUES " +
@@ -1732,7 +1747,7 @@ public class TestIcebergV3
                 "(TIMESTAMP '2015-05-15 14:21:02.345678900', 5)," +
                 "(TIMESTAMP '2020-02-21 15:11:11.876543210', 6)," +
                 "(TIMESTAMP '2020-02-21 16:12:12.654321000', 7)";
-        assertUpdate("INSERT INTO test_month_transform_timestamp " + values, 13);
+        assertUpdate(partitionStatisticsDisabled, "INSERT INTO test_month_transform_timestamp " + values, 13);
         assertQuery("SELECT * FROM test_month_transform_timestamp", values);
 
         @Language("SQL") String expected = "VALUES " +
@@ -1794,6 +1809,9 @@ public class TestIcebergV3
     @Test
     public void testMonthTransformTimestampNanoWithTimeZone()
     {
+        // Disable partition statistics to check min/max column statistics
+        Session partitionStatisticsDisabled = partitionStatisticsDisabled();
+
         assertUpdate("CREATE TABLE test_month_transform_timestamptz (d timestamp(9) with time zone, b integer) WITH (partitioning = ARRAY['month(d)'])");
 
         String values = "VALUES " +
@@ -1810,7 +1828,7 @@ public class TestIcebergV3
                 "(TIMESTAMP '2015-05-15 14:21:02.345678900 UTC', 5)," +
                 "(TIMESTAMP '2020-02-21 15:11:11.876543210 UTC', 6)," +
                 "(TIMESTAMP '2020-02-21 16:12:12.654321000 UTC', 7)";
-        assertUpdate("INSERT INTO test_month_transform_timestamptz " + values, 13);
+        assertUpdate(partitionStatisticsDisabled, "INSERT INTO test_month_transform_timestamptz " + values, 13);
         assertThat(query("SELECT * FROM test_month_transform_timestamptz"))
                 .matches(values);
 
@@ -1881,6 +1899,9 @@ public class TestIcebergV3
     @Test
     public void testYearTransformTimestampNano()
     {
+        // Disable partition statistics to check min/max column statistics
+        Session partitionStatisticsDisabled = partitionStatisticsDisabled();
+
         assertUpdate("CREATE TABLE test_year_transform_timestamp (d TIMESTAMP(9), b BIGINT) WITH (partitioning = ARRAY['year(d)'])");
 
         @Language("SQL") String values = "VALUES " +
@@ -1897,7 +1918,7 @@ public class TestIcebergV3
                 "(TIMESTAMP '2015-09-15 14:21:02.345678900', 10)," +
                 "(TIMESTAMP '2020-02-21 15:11:11.876543210', 11)," +
                 "(TIMESTAMP '2020-08-21 16:12:12.654321000', 12)";
-        assertUpdate("INSERT INTO test_year_transform_timestamp " + values, 13);
+        assertUpdate(partitionStatisticsDisabled, "INSERT INTO test_year_transform_timestamp " + values, 13);
         assertQuery("SELECT * FROM test_year_transform_timestamp", values);
 
         @Language("SQL") String expected = "VALUES " +
@@ -1956,6 +1977,9 @@ public class TestIcebergV3
     @Test
     public void testYearTransformTimestampNanoWithTimeZone()
     {
+        // Disable partition statistics to check min/max column statistics
+        Session partitionStatisticsDisabled = partitionStatisticsDisabled();
+
         assertUpdate("CREATE TABLE test_year_transform_timestamptz (d timestamp(9) with time zone, b integer) WITH (partitioning = ARRAY['year(d)'])");
 
         String values = "VALUES " +
@@ -1972,7 +1996,7 @@ public class TestIcebergV3
                 "(TIMESTAMP '2015-09-15 14:21:02.345678900 UTC', 10)," +
                 "(TIMESTAMP '2020-02-21 15:11:11.876543210 UTC', 11)," +
                 "(TIMESTAMP '2020-08-21 16:12:12.654321000 UTC', 12)";
-        assertUpdate("INSERT INTO test_year_transform_timestamptz " + values, 13);
+        assertUpdate(partitionStatisticsDisabled, "INSERT INTO test_year_transform_timestamptz " + values, 13);
         assertThat(query("SELECT * FROM test_year_transform_timestamptz"))
                 .matches(values);
 
@@ -2062,9 +2086,12 @@ public class TestIcebergV3
     @Test
     void testTimestampNanoWithTimeZonePartition()
     {
+        // Disable partition statistics to check min/max column statistics
+        Session partitionStatisticsDisabled = partitionStatisticsDisabled();
+
         try (TestTable table = newTrinoTable("test_nano", "(id int, x timestamp(9) with time zone) WITH (partitioning = ARRAY['x'], format_version = 3)")) {
-            assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, timestamp '2022-07-26 12:13:14.123456789 America/Los_Angeles')", 1);
-            assertUpdate("INSERT INTO " + table.getName() + " VALUES (2, timestamp '2022-07-26 12:13:14.012345 America/Los_Angeles')", 1);
+            assertUpdate(partitionStatisticsDisabled, "INSERT INTO " + table.getName() + " VALUES (1, timestamp '2022-07-26 12:13:14.123456789 America/Los_Angeles')", 1);
+            assertUpdate(partitionStatisticsDisabled, "INSERT INTO " + table.getName() + " VALUES (2, timestamp '2022-07-26 12:13:14.012345 America/Los_Angeles')", 1);
 
             assertThat(query("SELECT x FROM " + table.getName()))
                     .matches("VALUES timestamp '2022-07-26 19:13:14.123456789 UTC', timestamp '2022-07-26 19:13:14.012345 UTC'");
@@ -2180,6 +2207,13 @@ public class TestIcebergV3
     {
         return Session.builder(session)
                 .setSystemProperty("task_min_writer_count", "1")
+                .build();
+    }
+
+    private Session partitionStatisticsDisabled()
+    {
+        return Session.builder(getSession())
+                .setCatalogSessionProperty("iceberg", "partition_statistics_enabled", "false")
                 .build();
     }
 

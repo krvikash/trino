@@ -77,6 +77,7 @@ import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.sql.planner.TestingPlannerContext.PLANNER_CONTEXT;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.util.Locale.ENGLISH;
+import static org.apache.iceberg.TestIcebergPartitionStatistics.PARTITION_STATISTICS_WRITER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.joda.time.DateTimeZone.UTC;
 
@@ -152,6 +153,7 @@ public abstract class BaseTrinoCatalogTest
                     },
                     TABLE_STATISTICS_READER,
                     new TableStatisticsWriter(new NodeVersion("test-version")),
+                    PARTITION_STATISTICS_WRITER,
                     Optional.empty(),
                     3,
                     false,
@@ -194,6 +196,7 @@ public abstract class BaseTrinoCatalogTest
                     },
                     TABLE_STATISTICS_READER,
                     new TableStatisticsWriter(new NodeVersion("test-version")),
+                    PARTITION_STATISTICS_WRITER,
                     Optional.empty(),
                     3,
                     false,

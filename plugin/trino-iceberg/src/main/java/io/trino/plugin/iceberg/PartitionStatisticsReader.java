@@ -1,0 +1,135 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.plugin.iceberg;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.inject.Inject;
+import io.trino.spi.connector.ConnectorPageSource;
+import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.SourcePage;
+import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeManager;
+import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.PartitionStats;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.StructLike;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.data.GenericRecord;
+import org.apache.iceberg.io.InputFile;
+import org.apache.iceberg.types.Types;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.List;
+import java.util.Optional;
+
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.plugin.iceberg.IcebergFileFormat.fromIceberg;
+import static io.trino.plugin.iceberg.IcebergUtil.getColumnHandle;
+import static io.trino.plugin.iceberg.TypeConverter.toTrinoType;
+import static io.trino.spi.type.TypeUtils.readNativeValue;
+import static java.util.Objects.requireNonNull;
+import static org.apache.iceberg.PartitionSpec.unpartitioned;
+import static org.apache.iceberg.PartitionStatisticsWriter.convertTrinoValueToIceberg;
+import static org.apache.iceberg.TableUtil.formatVersion;
+
+/**
+ * Reader for <a href="https://iceberg.apache.org/spec/#partition-statistics">partition statistics</a>
+ */
+public final class PartitionStatisticsReader
+{
+    private final TypeManager typeManager;
+    private final IcebergPageSourceProviderFactory pageSourceProviderFactory;
+
+    @Inject
+    public PartitionStatisticsReader(
+            TypeManager typeManager,
+            IcebergPageSourceProviderFactory pageSourceProviderFactory)
+    {
+        this.typeManager = requireNonNull(typeManager, "typeManager is null");
+        this.pageSourceProviderFactory = requireNonNull(pageSourceProviderFactory, "pageSourceProviderFactory is null");
+    }
+
+    public List<PartitionStats> readPartitionStats(ConnectorSession session, Table table, Schema schema, InputFile inputFile)
+    {
+        FileFormat fileFormat = FileFormat.fromFileName(inputFile.location());
+        IcebergPageSourceProvider pageSourceProvider = (IcebergPageSourceProvider) pageSourceProviderFactory.createPageSourceProvider();
+        // IcebergUtil.getProjectedColumns method adds partition columns. It leads to failure when reading the page
+        List<IcebergColumnHandle> projectedColumns = schema.columns().stream()
+                .map(column -> getColumnHandle(column, typeManager))
+                .collect(toImmutableList());
+
+        try (ConnectorPageSource pageSource = pageSourceProvider.createPageSource(
+                session,
+                projectedColumns,
+                schema,
+                unpartitioned(),
+                new PartitionData(new Object[] {}),
+                ImmutableList.of(),
+                DynamicFilter.EMPTY,
+                // TODO Rewrite the actual predicate to match "partition" struct in partition stats files
+                TupleDomain.all(),
+                TupleDomain.all(),
+                inputFile.location(),
+                0,
+                inputFile.getLength(),
+                inputFile.getLength(),
+                0,
+                null,
+                fromIceberg(fileFormat),
+                ImmutableMap.of(),
+                null,
+                null,
+                Optional.empty(),
+                formatVersion(table))) {
+            ImmutableList.Builder<PartitionStats> rows = ImmutableList.builder();
+            while (!pageSource.isFinished()) {
+                SourcePage page = pageSource.getNextSourcePage();
+                if (page == null) {
+                    continue;
+                }
+
+                for (int position = 0; position < page.getPositionCount(); position++) {
+                    GenericRecord record = GenericRecord.create(schema);
+                    for (int column = 0; column < schema.columns().size(); column++) {
+                        Types.NestedField field = schema.columns().get(column);
+                        org.apache.iceberg.types.Type icebergType = field.type();
+                        Type trinoType = toTrinoType(icebergType, typeManager);
+                        Object trinoValue = readNativeValue(trinoType, page.getBlock(column), position);
+                        record.set(column, convertTrinoValueToIceberg(icebergType, trinoType, trinoValue, position));
+                    }
+                    rows.add(toPartitionStats(record));
+                }
+            }
+            return rows.build();
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static PartitionStats toPartitionStats(StructLike record)
+    {
+        StructLike partition = record.get(0, StructLike.class);
+        Integer specId = record.get(1, Integer.class);
+        PartitionStats stats = new PartitionStats(partition, specId);
+        for (int i = 2; i < record.size(); i++) {
+            stats.set(i, record.get(i, Object.class));
+        }
+        return stats;
+    }
+}

@@ -62,6 +62,7 @@ import io.trino.spi.connector.TableProcedureMetadata;
 import io.trino.spi.function.FunctionProvider;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.procedure.Procedure;
+import org.apache.iceberg.PartitionStatisticsWriter;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
@@ -108,6 +109,8 @@ public class IcebergModule
         binder.bind(ForwardingFileIoFactory.class).in(Scopes.SINGLETON);
         binder.bind(TableStatisticsReader.class).in(Scopes.SINGLETON);
         binder.bind(TableStatisticsWriter.class).in(Scopes.SINGLETON);
+        binder.bind(PartitionStatisticsReader.class).in(Scopes.SINGLETON);
+        binder.bind(PartitionStatisticsWriter.class).in(Scopes.SINGLETON);
         binder.bind(IcebergMetadataFactory.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, Key.get(HiveMetastoreFactory.class, RawHiveMetastoreFactory.class));
 

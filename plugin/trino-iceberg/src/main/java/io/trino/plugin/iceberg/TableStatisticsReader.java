@@ -34,12 +34,18 @@ import io.trino.spi.type.TypeManager;
 import jakarta.annotation.Nullable;
 import org.apache.iceberg.BlobMetadata;
 import org.apache.iceberg.FileScanTask;
+import org.apache.iceberg.PartitionStatisticsFile;
+import org.apache.iceberg.PartitionStats;
+import org.apache.iceberg.PartitionStatsHandler;
+import org.apache.iceberg.Partitioning;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.StatisticsFile;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableScan;
+import org.apache.iceberg.expressions.Evaluator;
 import org.apache.iceberg.io.CloseableIterable;
+import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.puffin.StandardBlobTypes;
 import org.apache.iceberg.types.Types;
 
@@ -65,6 +71,7 @@ import static io.trino.plugin.iceberg.ExpressionConverter.toIcebergExpression;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_INVALID_METADATA;
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.isMetadataColumnId;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isExtendedStatisticsEnabled;
+import static io.trino.plugin.iceberg.IcebergSessionProperties.isPartitionStatisticsEnabled;
 import static io.trino.plugin.iceberg.IcebergUtil.getFileModifiedTimeDomain;
 import static io.trino.plugin.iceberg.IcebergUtil.getModificationTime;
 import static io.trino.plugin.iceberg.IcebergUtil.getPartitionDomain;
@@ -78,6 +85,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toUnmodifiableMap;
+import static org.apache.iceberg.TableUtil.formatVersion;
 import static org.apache.iceberg.util.SnapshotUtil.schemaFor;
 
 public final class TableStatisticsReader
@@ -89,16 +97,19 @@ public final class TableStatisticsReader
     private final TypeManager typeManager;
     private final ExecutorService icebergPlanningExecutor;
     private final IcebergFileSystemFactory fileSystemFactory;
+    private final PartitionStatisticsReader partitionStatisticsReader;
 
     @Inject
     public TableStatisticsReader(
             TypeManager typeManager,
             @ForIcebergPlanning ExecutorService icebergPlanningExecutor,
-            IcebergFileSystemFactory fileSystemFactory)
+            IcebergFileSystemFactory fileSystemFactory,
+            PartitionStatisticsReader partitionStatisticsReader)
     {
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.icebergPlanningExecutor = requireNonNull(icebergPlanningExecutor, "icebergPlanningExecutor is null");
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
+        this.partitionStatisticsReader = requireNonNull(partitionStatisticsReader, "partitionStatisticsReader is null");
     }
 
     public TableStatistics getTableStatistics(
@@ -108,6 +119,7 @@ public final class TableStatisticsReader
             Table icebergTable)
     {
         return makeTableStatistics(
+                session,
                 typeManager,
                 icebergTable,
                 tableHandle.getSnapshotId(),
@@ -116,11 +128,13 @@ public final class TableStatisticsReader
                 projectedColumns,
                 isExtendedStatisticsEnabled(session),
                 icebergPlanningExecutor,
-                fileSystemFactory.create(session.getIdentity(), icebergTable.io().properties()));
+                fileSystemFactory.create(session.getIdentity(), icebergTable.io().properties()),
+                partitionStatisticsReader);
     }
 
     @VisibleForTesting
     public static TableStatistics makeTableStatistics(
+            ConnectorSession session,
             TypeManager typeManager,
             Table icebergTable,
             Optional<Long> snapshot,
@@ -129,7 +143,8 @@ public final class TableStatisticsReader
             Set<IcebergColumnHandle> projectedColumns,
             boolean extendedStatisticsEnabled,
             ExecutorService icebergPlanningExecutor,
-            TrinoFileSystem fileSystem)
+            TrinoFileSystem fileSystem,
+            PartitionStatisticsReader partitionStatisticsReader)
     {
         if (snapshot.isEmpty()) {
             // No snapshot, so no data.
@@ -147,6 +162,51 @@ public final class TableStatisticsReader
             return TableStatistics.builder()
                     .setRowCount(Estimate.of(0))
                     .build();
+        }
+
+        if (isPartitionStatisticsEnabled(session) && icebergTable.spec().isPartitioned()) {
+            Optional<PartitionStatisticsFile> partitionStatisticsFile = getLatestPartitionStatisticsFile(icebergTable, snapshotId);
+            if (partitionStatisticsFile.isPresent()) {
+                PartitionStatisticsFile statsFile = partitionStatisticsFile.get();
+                double recordCount = 0;
+                ImmutableMap.Builder<ColumnHandle, ColumnStatistics> columnHandleBuilder = ImmutableMap.builder();
+                Types.StructType partitionType = Partitioning.partitionType(icebergTable);
+                Schema schema = PartitionStatsHandler.schema(partitionType, formatVersion(icebergTable));
+                InputFile inputFile = icebergTable.io().newInputFile(statsFile.path(), statsFile.fileSizeInBytes());
+                for (PartitionStats stat : partitionStatisticsReader.readPartitionStats(session, icebergTable, schema, inputFile)) {
+                    if (!enforcedConstraint.isAll()) {
+                        Evaluator evaluator = new Evaluator(partitionType, toIcebergExpression(enforcedConstraint));
+                        if (!evaluator.eval(stat.partition())) {
+                            continue;
+                        }
+                    }
+
+                    if (stat.totalRecords() != null) {
+                        recordCount += stat.totalRecords();
+                    }
+                    else {
+                        recordCount += stat.dataRecordCount();
+                        recordCount -= stat.equalityDeleteRecordCount();
+                        recordCount -= stat.positionDeleteRecordCount();
+                    }
+                }
+
+                Set<Integer> columnIds = projectedColumns.stream()
+                        .map(IcebergColumnHandle::getId)
+                        .collect(toImmutableSet());
+                Map<Integer, Long> ndvs = readNdvs(icebergTable, snapshotId, columnIds, true);
+                for (IcebergColumnHandle columnHandle : projectedColumns) {
+                    int fieldId = columnHandle.getId();
+                    ColumnStatistics.Builder columnBuilder = new ColumnStatistics.Builder();
+                    columnBuilder.setDistinctValuesCount(
+                            Optional.ofNullable(ndvs.get(fieldId))
+                                    .map(Estimate::of)
+                                    .orElseGet(Estimate::unknown));
+                    columnHandleBuilder.put(columnHandle, columnBuilder.build());
+                }
+                return new TableStatistics(Estimate.of(recordCount), columnHandleBuilder.buildOrThrow());
+            }
+            // Fallback to file-level statistics if no partition statistics file is available
         }
 
         List<Types.NestedField> columns = icebergTable.schema().columns();
@@ -311,6 +371,28 @@ public final class TableStatisticsReader
                                     ICEBERG_INVALID_METADATA,
                                     "Table '%s' has duplicate statistics files '%s' and '%s' for snapshot ID %s"
                                             .formatted(icebergTable, file1.path(), file2.path(), file1.snapshotId()));
+                        }));
+
+        return stream(walkSnapshots(icebergTable, snapshotId))
+                .map(statsFileBySnapshot::get)
+                .filter(Objects::nonNull)
+                .findFirst();
+    }
+
+    public static Optional<PartitionStatisticsFile> getLatestPartitionStatisticsFile(Table icebergTable, long snapshotId)
+    {
+        if (icebergTable.partitionStatisticsFiles().isEmpty()) {
+            return Optional.empty();
+        }
+
+        Map<Long, PartitionStatisticsFile> statsFileBySnapshot = icebergTable.partitionStatisticsFiles().stream()
+                .collect(toMap(
+                        PartitionStatisticsFile::snapshotId,
+                        identity(),
+                        (file1, file2) -> {
+                            throw new TrinoException(
+                                    ICEBERG_INVALID_METADATA,
+                                    "Table '%s' has duplicate statistics files '%s' and '%s' for snapshot ID %s".formatted(icebergTable, file1.path(), file2.path(), file1.snapshotId()));
                         }));
 
         return stream(walkSnapshots(icebergTable, snapshotId))

@@ -25,6 +25,7 @@ import io.trino.plugin.iceberg.catalog.TrinoCatalogFactory;
 import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.TypeManager;
+import org.apache.iceberg.PartitionStatisticsWriter;
 import org.joda.time.DateTimeZone;
 
 import java.util.Optional;
@@ -45,6 +46,7 @@ public class IcebergMetadataFactory
     private final IcebergFileSystemFactory fileSystemFactory;
     private final TableStatisticsReader tableStatisticsReader;
     private final TableStatisticsWriter tableStatisticsWriter;
+    private final PartitionStatisticsWriter partitionStatisticsWriter;
     private final Optional<HiveMetastoreFactory> metastoreFactory;
     private final int maxFormatVersion;
     private final boolean addFilesProcedureEnabled;
@@ -65,6 +67,7 @@ public class IcebergMetadataFactory
             IcebergFileSystemFactory fileSystemFactory,
             TableStatisticsReader tableStatisticsReader,
             TableStatisticsWriter tableStatisticsWriter,
+            PartitionStatisticsWriter partitionStatisticsWriter,
             @RawHiveMetastoreFactory Optional<HiveMetastoreFactory> metastoreFactory,
             @ForIcebergSplitManager ExecutorService icebergScanExecutor,
             @ForIcebergMetadata ExecutorService metadataExecutorService,
@@ -80,6 +83,7 @@ public class IcebergMetadataFactory
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.tableStatisticsReader = requireNonNull(tableStatisticsReader, "tableStatisticsReader is null");
         this.tableStatisticsWriter = requireNonNull(tableStatisticsWriter, "tableStatisticsWriter is null");
+        this.partitionStatisticsWriter = requireNonNull(partitionStatisticsWriter, "partitionStatisticsWriter is null");
         this.metastoreFactory = requireNonNull(metastoreFactory, "metastoreFactory is null");
         this.icebergScanExecutor = requireNonNull(icebergScanExecutor, "icebergScanExecutor is null");
         this.maxFormatVersion = config.getMaxFormatVersion();
@@ -113,6 +117,7 @@ public class IcebergMetadataFactory
                 fileSystemFactory,
                 tableStatisticsReader,
                 tableStatisticsWriter,
+                partitionStatisticsWriter,
                 metastoreFactory,
                 maxFormatVersion,
                 addFilesProcedureEnabled,

@@ -60,6 +60,7 @@ import static io.trino.sql.planner.TestingPlannerContext.PLANNER_CONTEXT;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.nio.file.Files.createTempDirectory;
 import static java.util.Locale.ENGLISH;
+import static org.apache.iceberg.TestIcebergPartitionStatistics.PARTITION_STATISTICS_WRITER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
@@ -212,6 +213,7 @@ public class TestTrinoNessieCatalog
                     },
                     TABLE_STATISTICS_READER,
                     new TableStatisticsWriter(new NodeVersion("test-version")),
+                    PARTITION_STATISTICS_WRITER,
                     Optional.empty(),
                     3,
                     false,

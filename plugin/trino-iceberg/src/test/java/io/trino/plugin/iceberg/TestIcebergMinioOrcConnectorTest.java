@@ -79,6 +79,8 @@ public class TestIcebergMinioOrcConnectorTest
                                 .put("iceberg.allowed-extra-properties", "extra.property.one,extra.property.two,extra.property.three")
                                 // Allows testing the sorting writer flushing to the file system with smaller tables
                                 .put("iceberg.writer-sort-buffer-size", "1MB")
+                                // Disable partition statistics to make diff from Trino smaller
+                                .put("iceberg.partition-statistics.enabled", "false")
                                 .buildOrThrow())
                 .setSchemaInitializer(
                         SchemaInitializer.builder()
