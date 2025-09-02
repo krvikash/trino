@@ -297,6 +297,7 @@ import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.json.JsonCodec.jsonCodec;
 import static io.airlift.tracing.Tracing.noopTracer;
 import static io.opentelemetry.api.OpenTelemetry.noop;
+import static io.trino.connector.BuiltInCatalogsProvider.NO_BUILTIN_CATALOGS;
 import static io.trino.connector.CatalogServiceProviderModule.createAccessControlProvider;
 import static io.trino.connector.CatalogServiceProviderModule.createAlternativeChooser;
 import static io.trino.connector.CatalogServiceProviderModule.createAnalyzePropertyManager;
@@ -452,7 +453,7 @@ public class PlanTester
         this.catalogFailureHandler = new TestingCatalogFailureHandler();
         SecretsResolver secretsResolver = new SecretsResolver(ImmutableMap.of());
         this.cacheManagerRegistry = new CacheManagerRegistry(noop(), noopTracer(), secretsResolver, new CacheManagerConfig());
-        this.catalogManager = new CoordinatorDynamicCatalogManager(new InMemoryCatalogStore(), catalogFactory, ImmutableSet.of(catalogFailureHandler), cacheManagerRegistry, directExecutor());
+        this.catalogManager = new CoordinatorDynamicCatalogManager(new InMemoryCatalogStore(), catalogFactory, NO_BUILTIN_CATALOGS, ImmutableSet.of(catalogFailureHandler), cacheManagerRegistry, directExecutor());
         this.transactionManager = InMemoryTransactionManager.create(
                 new TransactionManagerConfig().setIdleTimeout(new Duration(1, TimeUnit.DAYS)),
                 yieldExecutor,

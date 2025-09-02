@@ -77,6 +77,7 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.tracing.Tracing.noopTracer;
 import static io.opentelemetry.api.OpenTelemetry.noop;
 import static io.trino.SessionTestUtils.TEST_SESSION;
+import static io.trino.connector.BuiltInCatalogsProvider.NO_BUILTIN_CATALOGS;
 import static io.trino.operator.scalar.ApplyFunction.APPLY_FUNCTION;
 import static io.trino.plugin.tpch.TpchMetadata.TINY_SCHEMA_NAME;
 import static io.trino.testing.TestingEventListenerManager.emptyEventListenerManager;
@@ -127,7 +128,7 @@ public class TestDataframeMetadataProvider
                 plannerContext.getMetadata(),
                 SQL_PARSER,
                 accessControl,
-                new CoordinatorDynamicCatalogManager(new InMemoryCatalogStore(), new LazyCatalogFactory(), ImmutableSet.of(), new CacheManagerRegistry(noop(), noopTracer(), new SecretsResolver(ImmutableMap.of()), new CacheManagerConfig()), directExecutor()),
+                new CoordinatorDynamicCatalogManager(new InMemoryCatalogStore(), new LazyCatalogFactory(), NO_BUILTIN_CATALOGS, ImmutableSet.of(), new CacheManagerRegistry(noop(), noopTracer(), new SecretsResolver(ImmutableMap.of()), new CacheManagerConfig()), directExecutor()),
                 new SessionPropertyManager(),
                 new SchemaPropertyManager(CatalogServiceProvider.fail()),
                 new ColumnPropertyManager(CatalogServiceProvider.fail()),
