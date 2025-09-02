@@ -184,6 +184,8 @@ public class S3FileSystemConfig
     private boolean supportsExclusiveCreate = true;
     private boolean crossRegionAccessEnabled;
     private String applicationId = "Trino";
+    private Duration apiCallAttemptTimeout;
+    private Duration apiCallTimeout;
 
     public String getAwsAccessKey()
     {
@@ -684,6 +686,32 @@ public class S3FileSystemConfig
         return this;
     }
 
+    public Optional<Duration> getApiCallAttemptTimeout()
+    {
+        return Optional.ofNullable(apiCallAttemptTimeout);
+    }
+
+    @Config("s3.api-call-attempt-timeout")
+    @ConfigDescription("Timeout for a single attempt of an S3 service call")
+    public S3FileSystemConfig setApiCallAttemptTimeout(Duration apiCallAttemptTimeout)
+    {
+        this.apiCallAttemptTimeout = apiCallAttemptTimeout;
+        return this;
+    }
+
+    public Optional<Duration> getApiCallTimeout()
+    {
+        return Optional.ofNullable(apiCallTimeout);
+    }
+
+    @Config("s3.api-call-timeout")
+    @ConfigDescription("Timeout for the entire S3 service call, including retries")
+    public S3FileSystemConfig setApiCallTimeout(Duration apiCallTimeout)
+    {
+        this.apiCallTimeout = apiCallTimeout;
+        return this;
+    }
+
     @AssertTrue(message = "'s3.custom-credential-provider-class.arguments' must to be set only if 's3.custom-credential-provider-class' is configured")
     public boolean isCustomCredentialProviderArgumentsValid()
     {
@@ -691,5 +719,14 @@ public class S3FileSystemConfig
             return customCredentialProviderClass != null;
         }
         return true;
+    }
+
+    @AssertTrue(message = "'s3.api-call-timeout' must to be greater than 's3.api-call-attempt-timeout' if both are configured")
+    public boolean isApiTimeoutsValid()
+    {
+        if (apiCallTimeout == null || apiCallAttemptTimeout == null) {
+            return true;
+        }
+        return apiCallTimeout.toMillis() > apiCallAttemptTimeout.toMillis();
     }
 }

@@ -42,6 +42,7 @@ import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -294,6 +295,8 @@ final class S3FileSystemLoader
                 .appId(config.getApplicationId())
                 .addMetricPublisher(metricPublisher);
         config.getSignerType().ifPresent(signer -> builder.putAdvancedOption(SIGNER, signer.create()));
+        config.getApiCallTimeout().map(io.airlift.units.Duration::toMillis).map(Duration::ofMillis).ifPresent(builder::apiCallTimeout);
+        config.getApiCallAttemptTimeout().map(io.airlift.units.Duration::toMillis).map(Duration::ofMillis).ifPresent(builder::apiCallAttemptTimeout);
         return builder.build();
     }
 

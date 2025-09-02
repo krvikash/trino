@@ -29,6 +29,7 @@ import static io.airlift.configuration.testing.ConfigAssertions.assertFullMappin
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 import static io.airlift.testing.ValidationAssertions.assertFailsValidation;
+import static io.airlift.testing.ValidationAssertions.assertValidates;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.filesystem.s3.S3FileSystemConfig.RetryMode.LEGACY;
 import static io.trino.filesystem.s3.S3FileSystemConfig.RetryMode.STANDARD;
@@ -81,7 +82,9 @@ public class TestS3FileSystemConfig
                 .setCrossRegionAccessEnabled(false)
                 .setApplicationId("Trino")
                 .setCustomCredentialProviderClass(null)
-                .setCustomCredentialProviderArguments(""));
+                .setCustomCredentialProviderArguments("")
+                .setApiCallAttemptTimeout(null)
+                .setApiCallTimeout(null));
     }
 
     @Test
@@ -126,6 +129,8 @@ public class TestS3FileSystemConfig
                 .put("s3.cross-region-access", "true")
                 .put("s3.custom-credential-provider-class", "SampleClass")
                 .put("s3.custom-credential-provider-class.arguments", "argument1=value1,argument2=value2")
+                .put("s3.api-call-attempt-timeout", "1m")
+                .put("s3.api-call-timeout", "2m")
                 .buildOrThrow();
 
         S3FileSystemConfig expected = new S3FileSystemConfig()
@@ -166,7 +171,9 @@ public class TestS3FileSystemConfig
                 .setCrossRegionAccessEnabled(true)
                 .setApplicationId("application id")
                 .setCustomCredentialProviderClass("SampleClass")
-                .setCustomCredentialProviderArguments("argument1=value1,argument2=value2");
+                .setCustomCredentialProviderArguments("argument1=value1,argument2=value2")
+                .setApiCallAttemptTimeout(new Duration(1, MINUTES))
+                .setApiCallTimeout(new Duration(2, MINUTES));
 
         assertFullMapping(properties, expected);
     }
@@ -222,5 +229,23 @@ public class TestS3FileSystemConfig
         assertThatThrownBy(() -> config.setCustomCredentialProviderArguments("argument1=value1,,,argument1=argument1"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Duplicate key [argument1] found.");
+    }
+
+    @Test
+    public void testApiTimeoutValidation()
+    {
+        assertValidates(new S3FileSystemConfig());
+        assertValidates(new S3FileSystemConfig().setApiCallTimeout(Duration.valueOf("1m")));
+        assertValidates(new S3FileSystemConfig().setApiCallAttemptTimeout(Duration.valueOf("1m")));
+        assertValidates(new S3FileSystemConfig()
+                .setApiCallAttemptTimeout(Duration.valueOf("1m"))
+                .setApiCallTimeout(Duration.valueOf("5m")));
+
+        assertFailsValidation(new S3FileSystemConfig()
+                        .setApiCallAttemptTimeout(Duration.valueOf("5m"))
+                        .setApiCallTimeout(Duration.valueOf("1m")),
+                "apiTimeoutsValid",
+                "'s3.api-call-timeout' must to be greater than 's3.api-call-attempt-timeout' if both are configured",
+                AssertTrue.class);
     }
 }

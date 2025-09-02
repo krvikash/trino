@@ -113,6 +113,12 @@ support:
 * - `s3.application-id`
   - Specify the application identifier appended to the `User-Agent` header 
     for all requests sent to S3. Defaults to `Trino`.
+* - `s3.api-call-attempt-timeout`
+  - Timeout for a single attempt of an S3 service call. By default, there is 
+    no timeout.
+* - `s3.api-call-timeout`
+  - Timeout for the entire S3 service call, including retries. By default, there 
+    is no timeout.
 :::
 
 ## Authentication
