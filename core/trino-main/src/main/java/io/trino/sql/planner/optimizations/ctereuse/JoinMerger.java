@@ -320,7 +320,7 @@ public class JoinMerger
             BranchesToCheckpointsMapping branchToCheckpoint,
             List<Integer> hangingGroupsToMerge,
             Map<Integer, MultiGroupMerger.HangingGroup> hangingGroups,
-            Map<Operation, Operation> usesMap,
+            Map<Operation, Operation> operationToDownstream,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations)
     {
@@ -591,7 +591,7 @@ public class JoinMerger
 
             traversalStates.add(new CteReuse.TraversalState(
                     new CteReuse.TraversalContext(unifiedMapping, fieldsToPrune, predicateToApply, enforcedPredicate, OptionalLong.empty()),
-                    getNextOperation(originalJoin, usesMap)));
+                    getNextOperation(originalJoin, operationToDownstream)));
         }
 
         // concatenate checkpoints lists from left and right sources

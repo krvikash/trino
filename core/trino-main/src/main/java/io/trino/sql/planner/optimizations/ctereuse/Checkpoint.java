@@ -40,7 +40,7 @@ public sealed interface Checkpoint
 
     CteReuse.UnifiedStates extractSubgroup(
             List<Integer> subgroupIndexes,
-            Map<Operation, Operation> usesMap,
+            Map<Operation, Operation> operationToDownstream,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations,
             Session session,
@@ -66,7 +66,7 @@ public sealed interface Checkpoint
         @Override
         public CteReuse.UnifiedStates extractSubgroup(
                 List<Integer> subgroupIndexes,
-                Map<Operation, Operation> usesMap,
+                Map<Operation, Operation> operationToDownstream,
                 ProgramBuilder.ValueNameAllocator nameAllocator,
                 Map<Value, Operation> newOperations,
                 Session session,
@@ -81,7 +81,7 @@ public sealed interface Checkpoint
             List<CteReuse.UnifiedGroup> unifiedGroups = CteReuse.unifyTableSubgroups(subgroupScans, session, metadata);
             checkState(unifiedGroups.size() == 1 && getOnlyElement(unifiedGroups).tableScans().size() == subgroupScans.size(), "failed to unify a subgroup");
 
-            return CteReuse.initializeTraversalForGroup(getOnlyElement(unifiedGroups), metadata, usesMap, nameAllocator, newOperations);
+            return CteReuse.initializeTraversalForGroup(getOnlyElement(unifiedGroups), metadata, operationToDownstream, nameAllocator, newOperations);
         }
 
         @Override
@@ -117,7 +117,7 @@ public sealed interface Checkpoint
         @Override
         public CteReuse.UnifiedStates extractSubgroup(
                 List<Integer> subgroupIndexes,
-                Map<Operation, Operation> usesMap,
+                Map<Operation, Operation> operationToDownstream,
                 ProgramBuilder.ValueNameAllocator nameAllocator,
                 Map<Value, Operation> newOperations,
                 Session session,

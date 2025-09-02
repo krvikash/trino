@@ -165,7 +165,7 @@ public class ExchangeMerger
             List<TraversalState> branches,
             List<Checkpoint> checkpoints,
             BranchesToCheckpointsMapping branchToCheckpoint,
-            Map<Operation, Operation> usesMap,
+            Map<Operation, Operation> operationToDownstream,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations)
     {
@@ -204,7 +204,7 @@ public class ExchangeMerger
                 new UnifiedStates(
                         mergedExchange,
                         branches.stream()
-                                .map(traversalState -> new TraversalState(traversalState.traversalContext(), getNextOperation(traversalState.nextOperation().operation(), usesMap)))
+                                .map(traversalState -> new TraversalState(traversalState.traversalContext(), getNextOperation(traversalState.nextOperation().operation(), operationToDownstream)))
                                 .collect(toImmutableList())),
                 checkpoints,
                 branchToCheckpoint);
@@ -430,7 +430,7 @@ public class ExchangeMerger
             BranchesToCheckpointsMapping branchToCheckpoint,
             List<Integer> hangingGroupsToMerge,
             Map<Integer, MultiGroupMerger.HangingGroup> hangingGroups,
-            Map<Operation, Operation> usesMap,
+            Map<Operation, Operation> operationToDownstream,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations)
     {
@@ -585,7 +585,7 @@ public class ExchangeMerger
 
             TraversalState traversalState = new TraversalState(
                     traversalContext,
-                    getNextOperation(getBranch(sources[0], currentGroup, hangingGroups).nextOperation().operation(), usesMap));
+                    getNextOperation(getBranch(sources[0], currentGroup, hangingGroups).nextOperation().operation(), operationToDownstream));
             traversalStates.add(traversalState);
 
             // combine branch-to-checkpoint mapping for the component exchange: concatenate mappings from all sources in order of sources

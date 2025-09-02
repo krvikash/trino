@@ -196,7 +196,7 @@ public class AggregationMerger
             List<TraversalState> branches,
             List<Checkpoint> checkpoints,
             BranchesToCheckpointsMapping branchToCheckpoint,
-            Map<Operation, Operation> usesMap,
+            Map<Operation, Operation> operationToDownstream,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations)
     {
@@ -303,7 +303,7 @@ public class AggregationMerger
                     traversalContext.enforcedLimit());
             newTraversalStates.add(new TraversalState(
                     rebasedContext,
-                    getNextOperation(originalAggregation, usesMap)));
+                    getNextOperation(originalAggregation, operationToDownstream)));
         }
 
         return new UnifiedStatesAndCheckpointMapping(

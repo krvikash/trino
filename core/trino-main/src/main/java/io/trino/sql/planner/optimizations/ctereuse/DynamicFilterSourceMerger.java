@@ -65,7 +65,7 @@ public class DynamicFilterSourceMerger
             List<TraversalState> branches,
             List<Checkpoint> checkpoints,
             BranchesToCheckpointsMapping branchToCheckpoint,
-            Map<Operation, Operation> usesMap,
+            Map<Operation, Operation> operationToDownstream,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations)
     {
@@ -101,7 +101,7 @@ public class DynamicFilterSourceMerger
                         // The unified DynamicFilterSource has the same output type as the recent unified operation,
                         // and the next operation's input type is the same as the component DynamicFilterSource input type.
                         branch.traversalContext(),
-                        getNextOperation(branch.nextOperation().operation(), usesMap)))
+                        getNextOperation(branch.nextOperation().operation(), operationToDownstream)))
                 .collect(toImmutableList());
 
         return new CteReuse.UnifiedStatesAndCheckpointMapping(

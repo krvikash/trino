@@ -48,7 +48,7 @@ public class SingleGroupMerger
             List<CteReuse.TraversalState> branches,
             List<Checkpoint> checkpoints,
             BranchesToCheckpointsMapping branchToCheckpoint,
-            Map<Operation, Operation> usesMap,
+            Map<Operation, Operation> operationToDownstream,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations)
     {
@@ -57,7 +57,7 @@ public class SingleGroupMerger
                 .findFirst()
                 .orElseThrow();
 
-        return processor.mergeNextSingleGroupOperation(unifiedOperation, branches, checkpoints, branchToCheckpoint, usesMap, nameAllocator, newOperations);
+        return processor.mergeNextSingleGroupOperation(unifiedOperation, branches, checkpoints, branchToCheckpoint, operationToDownstream, nameAllocator, newOperations);
     }
 
     /**
@@ -115,7 +115,7 @@ public class SingleGroupMerger
                 List<CteReuse.TraversalState> branches,
                 List<Checkpoint> checkpoints,
                 BranchesToCheckpointsMapping branchToCheckpoint,
-                Map<Operation, Operation> usesMap,
+                Map<Operation, Operation> operationToDownstream,
                 ProgramBuilder.ValueNameAllocator nameAllocator,
                 Map<Value, Operation> newOperations);
     }

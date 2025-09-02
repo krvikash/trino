@@ -82,7 +82,7 @@ public class MultiGroupMerger
      * - multiGroupMerges -> (b0, b1) can be merged with group C
      * - hangingBranches -> (b2, b3)
      */
-    public MultiGroupMergeDecomposition identifyMultiGroupSubgroupsToMerge(CteReuse.UnifiedStates newGroup, Map<Operation, Operation> usesMap, ProgramBuilder.ValueNameAllocator nameAllocator, Map<Value, Operation> newOperations, Session session, Metadata metadata)
+    public MultiGroupMergeDecomposition identifyMultiGroupSubgroupsToMerge(CteReuse.UnifiedStates newGroup, Map<Operation, Operation> operationToDownstream, ProgramBuilder.ValueNameAllocator nameAllocator, Map<Value, Operation> newOperations, Session session, Metadata metadata)
     {
         // find merging candidates across the new group and the hanging groups
         List<MultiGroupMergeCandidate> candidates = MULTI_GROUP_PROCESSORS.stream()
@@ -104,7 +104,7 @@ public class MultiGroupMerger
             Collection<List<Integer>> decomposition = hangingGroupDecomposition.getValue();
             if (!isSingleFullSubgroup(groupId, decomposition)) {
                 HangingGroup groupToSplit = hangingGroups.remove(groupId);
-                splitGroupRecursively(groupToSplit, decomposition, usesMap, nameAllocator, newOperations, session, metadata);
+                splitGroupRecursively(groupToSplit, decomposition, operationToDownstream, nameAllocator, newOperations, session, metadata);
                 splitGroups = true;
             }
         }
@@ -146,7 +146,7 @@ public class MultiGroupMerger
             List<Checkpoint> checkpoints,
             BranchesToCheckpointsMapping branchToCheckpoint,
             List<Integer> hangingGroupsToMerge,
-            Map<Operation, Operation> usesMap,
+            Map<Operation, Operation> operationToDownstream,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations)
     {
@@ -155,7 +155,7 @@ public class MultiGroupMerger
                 .findFirst()
                 .orElseThrow();
 
-        CteReuse.UnifiedStatesAndCheckpointMapping mergeResult = processor.mergeNextMultiGroupOperation(unifiedOperation, branches, checkpoints, branchToCheckpoint, hangingGroupsToMerge, hangingGroups, usesMap, nameAllocator, newOperations);
+        CteReuse.UnifiedStatesAndCheckpointMapping mergeResult = processor.mergeNextMultiGroupOperation(unifiedOperation, branches, checkpoints, branchToCheckpoint, hangingGroupsToMerge, hangingGroups, operationToDownstream, nameAllocator, newOperations);
 
         for (int groupId : hangingGroupsToMerge) {
             hangingGroups.remove(groupId);
@@ -214,7 +214,7 @@ public class MultiGroupMerger
     private void splitGroupRecursively(
             HangingGroup groupToSplit,
             Collection<List<Integer>> decomposition,
-            Map<Operation, Operation> usesMap,
+            Map<Operation, Operation> operationToDownstream,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations,
             Session session,
@@ -246,14 +246,14 @@ public class MultiGroupMerger
                 for (int branch : subgroupIndexes) {
                     checkpointReferences.addAll(groupToSplit.branchToCheckpoint().getMappingForBranch(branch).getReferencesForCheckpoint(i));
                 }
-                CteReuse.UnifiedStates backtrackSubgroup = checkpoint.extractSubgroup(checkpointReferences.build(), usesMap, nameAllocator, newOperations, session, metadata);
+                CteReuse.UnifiedStates backtrackSubgroup = checkpoint.extractSubgroup(checkpointReferences.build(), operationToDownstream, nameAllocator, newOperations, session, metadata);
                 Checkpoint backtrackCheckpoint = checkpoint.extractSubgroupCheckpoint(checkpointReferences.build());
                 mergeGroupRecursively(
                         backtrackSubgroup,
                         ImmutableList.of(backtrackCheckpoint),
                         identityBranchToCheckpoint(backtrackCheckpoint.branchesCount()),
                         checkpoint instanceof IntermediateCheckpoint,
-                        usesMap,
+                        operationToDownstream,
                         nameAllocator,
                         newOperations,
                         this,
@@ -413,7 +413,7 @@ public class MultiGroupMerger
                 BranchesToCheckpointsMapping branchToCheckpoint,
                 List<Integer> hangingGroupsToMerge,
                 Map<Integer, HangingGroup> hangingGroups,
-                Map<Operation, Operation> usesMap,
+                Map<Operation, Operation> operationToDownstream,
                 ProgramBuilder.ValueNameAllocator nameAllocator,
                 Map<Value, Operation> newOperations);
     }
