@@ -72,11 +72,11 @@ FROM=$(cat trino-base.txt)
 FROM_VERSION=$(git show "${FROM}":pom.xml | xq -x /project/version | cut -d '-' -f 1)
 TO_VERSION=$[FROM_VERSION + 1]
 TO=$(git rev-parse --verify $TO_VERSION 2>/dev/null)
-TO_SHORT=$(git rev-parse --short "$TO_VERSION")
+TO_SHORT=$(git rev-parse --short "$TO")
 TARGET_BRANCH="update/cork/trino-${TO_VERSION}-${TO_SHORT}"
 
 # verify they got set correctly and without any whitespace
-echo "FROM=[${FROM}] FROM_VERSION=[${FROM_VERSION}] TO=[${TO}] TO_VERSION=[${TO_VERSION}]" TO_SHORT=[${TO_SHORT}] TARGET_BRANCH=${TARGET_BRANCH}"
+echo "FROM=[${FROM}] FROM_VERSION=[${FROM_VERSION}] TO=[${TO}] TO_VERSION=[${TO_VERSION}] TO_SHORT=[${TO_SHORT}] TARGET_BRANCH=${TARGET_BRANCH}"
 
 # check for common problems
 if [[ -z "$TO" ]]; then
@@ -125,7 +125,7 @@ Action items:
 - [ ] No pinned items left on \`#tmp-cork-trino-update-${TO_VERSION}-${TO_SHORT}\` channel if it exists
       (check it only before final merge, as new pinned items can be added)
 
-```
+\`\`\`
 UPDATE_DATE=${UPDATE_DATE}
 FROM=${FROM} 
 FROM_VERSION=${FROM_VERSION} 
@@ -133,7 +133,7 @@ TO=${TO}
 TO_VERSION=${TO_VERSION} 
 TO_SHORT=${TO_SHORT} 
 TARGET_BRANCH=${TARGET_BRANCH}
-```     
+\`\`\`     
    
 EOF
 )&labels=redshift,salesforce,synapse,snowflake"
