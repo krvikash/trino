@@ -17,13 +17,16 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.inject.Inject;
+import com.sun.management.UnixOperatingSystemMXBean;
 import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.data.memory.MemoryConfig;
 
+import java.lang.management.ManagementFactory;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Verify.verify;
+import static java.lang.Math.clamp;
 import static java.lang.String.format;
 
 public final class LocalMemoryManager
@@ -32,6 +35,10 @@ public final class LocalMemoryManager
 
     private static final Supplier<Integer> AVAILABLE_PROCESSORS = Suppliers
             .memoizeWithExpiration(Runtime.getRuntime()::availableProcessors, 30, TimeUnit.SECONDS);
+
+    // Clamp value because according to the documentation: if the recent CPU usage is not available, the method returns a negative value.
+    private static final Supplier<Double> SYSTEM_CPU_LOAD = Suppliers
+            .memoizeWithExpiration(() -> clamp(((UnixOperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getCpuLoad(), 0.0, 1.0), 5, TimeUnit.SECONDS);
 
     @Inject
     public LocalMemoryManager(NodeMemoryConfig config, Optional<MemoryConfig> bufferServiceMemoryConfig)
@@ -81,7 +88,7 @@ public final class LocalMemoryManager
 
     public MemoryInfo getInfo()
     {
-        return new MemoryInfo(AVAILABLE_PROCESSORS.get(), memoryPool.getInfo());
+        return new MemoryInfo(AVAILABLE_PROCESSORS.get(), SYSTEM_CPU_LOAD.get(), memoryPool.getInfo());
     }
 
     public MemoryPool getMemoryPool()
