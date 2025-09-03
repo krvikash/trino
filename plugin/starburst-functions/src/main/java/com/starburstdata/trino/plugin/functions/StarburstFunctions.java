@@ -7,10 +7,11 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package com.starburstdata.trino.plugin.functions.ai;
+package com.starburstdata.trino.plugin.functions;
 
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
+import com.starburstdata.trino.plugin.functions.ai.CachingAiModelAccessControl;
 import com.starburstdata.trino.plugin.functions.ai.embedding.GenerateEmbeddingsFunctionHandle;
 import com.starburstdata.trino.plugin.functions.ai.embedding.GenerateEmbeddingsTableFunction;
 import io.airlift.slice.Slice;
@@ -51,7 +52,7 @@ import static java.lang.invoke.MethodType.methodType;
 import static java.util.Collections.nCopies;
 import static java.util.Objects.requireNonNull;
 
-public class AiFunctions
+public class StarburstFunctions
         implements FunctionProvider
 {
     private static final TypeSignature TEXT = VARCHAR.getTypeSignature();
@@ -124,16 +125,16 @@ public class AiFunctions
 
     static {
         try {
-            GENERATE_EMBEDDING = lookup().findVirtual(AiFunctions.class, "generateEmbedding", methodType(Block.class, ConnectorSession.class, Slice.class, Slice.class));
-            GENERATE_BINARY_EMBEDDING = lookup().findVirtual(AiFunctions.class, "generateBinaryEmbedding", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class));
-            ANALYZE_SENTIMENT = lookup().findVirtual(AiFunctions.class, "analyzeSentiment", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class));
-            CLASSIFY = lookup().findVirtual(AiFunctions.class, "classify", methodType(Slice.class, ConnectorSession.class, Slice.class, Block.class, Slice.class));
-            FIX_GRAMMAR = lookup().findVirtual(AiFunctions.class, "fixGrammar", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class));
-            PROMPT = lookup().findVirtual(AiFunctions.class, "prompt", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class));
-            PROMPT_SYSTEM = lookup().findVirtual(AiFunctions.class, "promptSystem", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class, Slice.class));
-            MASK = lookup().findVirtual(AiFunctions.class, "mask", methodType(Slice.class, ConnectorSession.class, Slice.class, Block.class, Slice.class));
-            TRANSLATE = lookup().findVirtual(AiFunctions.class, "translate", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class, Slice.class));
-            SUMMARIZE = lookup().findVirtual(AiFunctions.class, "summarize", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class));
+            GENERATE_EMBEDDING = lookup().findVirtual(StarburstFunctions.class, "generateEmbedding", methodType(Block.class, ConnectorSession.class, Slice.class, Slice.class));
+            GENERATE_BINARY_EMBEDDING = lookup().findVirtual(StarburstFunctions.class, "generateBinaryEmbedding", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class));
+            ANALYZE_SENTIMENT = lookup().findVirtual(StarburstFunctions.class, "analyzeSentiment", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class));
+            CLASSIFY = lookup().findVirtual(StarburstFunctions.class, "classify", methodType(Slice.class, ConnectorSession.class, Slice.class, Block.class, Slice.class));
+            FIX_GRAMMAR = lookup().findVirtual(StarburstFunctions.class, "fixGrammar", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class));
+            PROMPT = lookup().findVirtual(StarburstFunctions.class, "prompt", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class));
+            PROMPT_SYSTEM = lookup().findVirtual(StarburstFunctions.class, "promptSystem", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class, Slice.class));
+            MASK = lookup().findVirtual(StarburstFunctions.class, "mask", methodType(Slice.class, ConnectorSession.class, Slice.class, Block.class, Slice.class));
+            TRANSLATE = lookup().findVirtual(StarburstFunctions.class, "translate", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class, Slice.class));
+            SUMMARIZE = lookup().findVirtual(StarburstFunctions.class, "summarize", methodType(Slice.class, ConnectorSession.class, Slice.class, Slice.class));
         }
         catch (ReflectiveOperationException e) {
             throw new AssertionError(e);
@@ -144,7 +145,7 @@ public class AiFunctions
     private final AiModelAccessControl accessControl;
 
     @Inject
-    public AiFunctions(ModelClientProvider clientProvider, AiModelAccessControl accessControl)
+    public StarburstFunctions(ModelClientProvider clientProvider, AiModelAccessControl accessControl)
     {
         this.clientProvider = requireNonNull(clientProvider, "clientProvider is null");
         this.accessControl = new CachingAiModelAccessControl(requireNonNull(accessControl, "accessControl is null"));

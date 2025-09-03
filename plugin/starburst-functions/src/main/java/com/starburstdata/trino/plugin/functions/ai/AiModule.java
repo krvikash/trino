@@ -14,6 +14,7 @@ import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.starburstdata.trino.plugin.functions.FunctionsConnector;
 import com.starburstdata.trino.plugin.functions.FunctionsMetadata;
+import com.starburstdata.trino.plugin.functions.StarburstFunctions;
 import com.starburstdata.trino.plugin.functions.ai.embedding.GenerateEmbeddingsTableFunction;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.starburst.ai.client.AiClientModule;
@@ -45,11 +46,11 @@ public class AiModule
         install(new AiClientModule(externalModelConnectionSpecsLoader));
         binder.bind(FunctionsConnector.class).in(Scopes.SINGLETON);
         binder.bind(FunctionsMetadata.class).in(Scopes.SINGLETON);
-        binder.bind(AiFunctions.class).in(Scopes.SINGLETON);
+        binder.bind(StarburstFunctions.class).in(Scopes.SINGLETON);
 
         binder.bind(Connector.class).to(FunctionsConnector.class).in(Scopes.SINGLETON);
         binder.bind(ConnectorMetadata.class).to(FunctionsMetadata.class).in(Scopes.SINGLETON);
-        binder.bind(FunctionProvider.class).to(AiFunctions.class).in(Scopes.SINGLETON);
+        binder.bind(FunctionProvider.class).to(StarburstFunctions.class).in(Scopes.SINGLETON);
 
         var systemTableBinder = newSetBinder(binder, SystemTable.class);
         systemTableBinder.addBinding().to(LanguageModelSystemTable.class).in(Scopes.SINGLETON);
@@ -59,7 +60,7 @@ public class AiModule
     }
 
     @Provides
-    public static List<FunctionMetadata> getFunctionMetadata(AiFunctions functions)
+    public static List<FunctionMetadata> getFunctionMetadata(StarburstFunctions functions)
     {
         return functions.getFunctions();
     }
