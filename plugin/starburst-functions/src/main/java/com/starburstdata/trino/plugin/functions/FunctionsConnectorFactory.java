@@ -18,7 +18,9 @@ import io.airlift.bootstrap.Bootstrap;
 import io.airlift.json.JsonModule;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
+import io.trino.plugin.hive.NodeVersion;
 import io.trino.spi.NodeManager;
+import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
@@ -67,6 +69,8 @@ public class FunctionsConnectorFactory
                     binder.bind(Tracer.class).toInstance(context.getTracer());
                     binder.bind(CatalogName.class).toInstance(new CatalogName(catalogName));
                     binder.bind(NodeManager.class).toInstance(context.getNodeManager());
+                    binder.bind(NodeVersion.class).toInstance(new NodeVersion(context.getCurrentNode().getVersion()));
+                    binder.bind(PageIndexerFactory.class).toInstance(context.getPageIndexerFactory());
                     binder.bind(AiModelAccessControl.class).toInstance(context.getAiModelAccessControl());
                 },
                 module);

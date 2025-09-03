@@ -22,6 +22,7 @@ public class StorageConfig
 {
     private Optional<String> credentialsKey = Optional.empty();
     private Optional<File> credentialsFile = Optional.empty();
+    private boolean useRowSemantics;
 
     public Optional<String> getCredentialsKey()
     {
@@ -47,6 +48,19 @@ public class StorageConfig
     public StorageConfig setCredentialsFile(File credentialsFile)
     {
         this.credentialsFile = Optional.ofNullable(credentialsFile);
+        return this;
+    }
+
+    public boolean isUseRowSemantics()
+    {
+        return useRowSemantics;
+    }
+
+    @Config("io.unload.use-row-semantics")
+    @ConfigDescription("Forces unload function to use row semantics. PARTITION BY and ORDER BY clauses are not supported")
+    public StorageConfig setUseRowSemantics(boolean useRowSemantics)
+    {
+        this.useRowSemantics = useRowSemantics;
         return this;
     }
 

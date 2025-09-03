@@ -31,7 +31,8 @@ final class TestStorageConfig
     {
         assertRecordedDefaults(recordDefaults(StorageConfig.class)
                 .setCredentialsKey(null)
-                .setCredentialsFile(null));
+                .setCredentialsFile(null)
+                .setUseRowSemantics(false));
     }
 
     @Test

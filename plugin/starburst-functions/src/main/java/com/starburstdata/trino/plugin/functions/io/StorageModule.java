@@ -17,22 +17,36 @@ import com.google.inject.Module;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import com.starburstdata.trino.plugin.functions.io.functions.Load;
+import com.starburstdata.trino.plugin.functions.io.functions.Unload;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
 import io.trino.plugin.hive.HiveConfig;
+import io.trino.plugin.hive.HiveFileWriterFactory;
 import io.trino.plugin.hive.HivePageSourceFactory;
 import io.trino.plugin.hive.HiveSessionProperties;
+import io.trino.plugin.hive.HiveWriterStats;
 import io.trino.plugin.hive.LocationAccessControlModule;
+import io.trino.plugin.hive.PartitionUpdate;
+import io.trino.plugin.hive.RcFileFileWriterFactory;
+import io.trino.plugin.hive.avro.AvroFileWriterFactory;
 import io.trino.plugin.hive.avro.AvroPageSourceFactory;
+import io.trino.plugin.hive.line.CsvFileWriterFactory;
 import io.trino.plugin.hive.line.CsvPageSourceFactory;
+import io.trino.plugin.hive.line.JsonFileWriterFactory;
 import io.trino.plugin.hive.line.JsonPageSourceFactory;
+import io.trino.plugin.hive.line.OpenXJsonFileWriterFactory;
 import io.trino.plugin.hive.line.OpenXJsonPageSourceFactory;
+import io.trino.plugin.hive.line.RegexFileWriterFactory;
 import io.trino.plugin.hive.line.RegexPageSourceFactory;
 import io.trino.plugin.hive.line.SimpleSequenceFilePageSourceFactory;
+import io.trino.plugin.hive.line.SimpleSequenceFileWriterFactory;
 import io.trino.plugin.hive.line.SimpleTextFilePageSourceFactory;
+import io.trino.plugin.hive.line.SimpleTextFileWriterFactory;
+import io.trino.plugin.hive.orc.OrcFileWriterFactory;
 import io.trino.plugin.hive.orc.OrcPageSourceFactory;
 import io.trino.plugin.hive.orc.OrcReaderConfig;
 import io.trino.plugin.hive.orc.OrcWriterConfig;
+import io.trino.plugin.hive.parquet.ParquetFileWriterFactory;
 import io.trino.plugin.hive.parquet.ParquetPageSourceFactory;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.plugin.hive.parquet.ParquetWriterConfig;
@@ -45,6 +59,7 @@ import io.trino.spi.type.TypeSignature;
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.json.JsonBinder.jsonBinder;
+import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
 import static java.util.Objects.requireNonNull;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
@@ -81,6 +96,24 @@ public class StorageModule
         pageSourceFactoryBinder.addBinding().to(RcFilePageSourceFactory.class).in(Scopes.SINGLETON);
         pageSourceFactoryBinder.addBinding().to(AvroPageSourceFactory.class).in(Scopes.SINGLETON);
 
+        jsonCodecBinder(binder).bindJsonCodec(PartitionUpdate.class);
+        binder.bind(HiveWriterStats.class).in(Scopes.SINGLETON);
+        newExporter(binder).export(HiveWriterStats.class).withGeneratedName();
+
+        Multibinder<HiveFileWriterFactory> fileWriterFactoryBinder = newSetBinder(binder, HiveFileWriterFactory.class);
+        binder.bind(OrcFileWriterFactory.class).in(Scopes.SINGLETON);
+        newExporter(binder).export(OrcFileWriterFactory.class).withGeneratedName();
+        fileWriterFactoryBinder.addBinding().to(CsvFileWriterFactory.class).in(Scopes.SINGLETON);
+        fileWriterFactoryBinder.addBinding().to(JsonFileWriterFactory.class).in(Scopes.SINGLETON);
+        fileWriterFactoryBinder.addBinding().to(RegexFileWriterFactory.class).in(Scopes.SINGLETON);
+        fileWriterFactoryBinder.addBinding().to(OpenXJsonFileWriterFactory.class).in(Scopes.SINGLETON);
+        fileWriterFactoryBinder.addBinding().to(SimpleTextFileWriterFactory.class).in(Scopes.SINGLETON);
+        fileWriterFactoryBinder.addBinding().to(SimpleSequenceFileWriterFactory.class).in(Scopes.SINGLETON);
+        fileWriterFactoryBinder.addBinding().to(OrcFileWriterFactory.class).in(Scopes.SINGLETON);
+        fileWriterFactoryBinder.addBinding().to(ParquetFileWriterFactory.class).in(Scopes.SINGLETON);
+        fileWriterFactoryBinder.addBinding().to(RcFileFileWriterFactory.class).in(Scopes.SINGLETON);
+        fileWriterFactoryBinder.addBinding().to(AvroFileWriterFactory.class).in(Scopes.SINGLETON);
+
         configBinder(binder).bindConfig(HiveConfig.class);
         configBinder(binder).bindConfig(OrcReaderConfig.class);
         configBinder(binder).bindConfig(OrcWriterConfig.class);
@@ -92,6 +125,7 @@ public class StorageModule
         newExporter(binder).export(FileFormatDataSourceStats.class).withGeneratedName();
 
         newSetBinder(binder, ConnectorTableFunction.class).addBinding().toProvider(Load.class).in(Scopes.SINGLETON);
+        newSetBinder(binder, ConnectorTableFunction.class).addBinding().toProvider(Unload.class).in(Scopes.SINGLETON);
         configBinder(binder).bindConfig(StorageConfig.class);
 
         jsonBinder(binder).addDeserializerBinding(Type.class).to(TypeDeserializer.class);

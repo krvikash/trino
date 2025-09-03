@@ -290,6 +290,33 @@ final class TestStorageFunctions
         assertQueryFails("SELECT * FROM TABLE(load(location=>'hdfs://dummy'))", "Invalid location: hdfs://dummy");
     }
 
+    @ParameterizedTest
+    @EnumSource(mode = EnumSource.Mode.EXCLUDE, names = {"REGEX", "ESRI"})
+    void testUnload(HiveStorageFormat format)
+            throws Exception
+    {
+        String tableName = "test_unload_" + randomNameSuffix();
+        String location = "s3://%s/%s/%s".formatted("test-bucket", tableName, randomNameSuffix());
+
+        fileSystem.createDirectory(Location.of(location));
+
+        try {
+            assertQuerySucceeds("SELECT * FROM TABLE(unload(" +
+                    "input => TABLE(SELECT name, comment FROM tpch.tiny.region)," +
+                    "location => '" + location + "'," +
+                    "format => '" + format + "'))");
+
+            assertUpdate("CREATE TABLE " + tableName + "(name VARCHAR, comment VARCHAR) WITH (external_location = '" + location + "', format = '" + format + "')");
+            assertThat(query("SELECT * FROM " + tableName))
+                    .matches("SELECT CAST(name AS VARCHAR), CAST(comment AS VARCHAR) FROM tpch.tiny.region");
+
+            assertUpdate("DROP TABLE " + tableName);
+        }
+        finally {
+            fileSystem.deleteDirectory(Location.of(location));
+        }
+    }
+
     private String loadTableLocation(String tableName)
     {
         return metastore.getTable("tpch", tableName).orElseThrow()

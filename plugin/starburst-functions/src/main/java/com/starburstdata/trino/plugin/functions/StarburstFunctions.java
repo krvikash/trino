@@ -10,12 +10,20 @@
 package com.starburstdata.trino.plugin.functions;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import com.starburstdata.trino.plugin.functions.ai.CachingAiModelAccessControl;
 import com.starburstdata.trino.plugin.functions.ai.embedding.GenerateEmbeddingsFunctionHandle;
 import com.starburstdata.trino.plugin.functions.ai.embedding.GenerateEmbeddingsTableFunction;
+import io.airlift.json.JsonCodec;
 import io.airlift.slice.Slice;
 import io.starburst.ai.client.ModelClientProvider;
+import io.trino.plugin.base.classloader.ClassLoaderSafeTableFunctionProcessorProvider;
+import io.trino.plugin.hive.HiveFileWriterFactory;
+import io.trino.plugin.hive.HiveWriterStats;
+import io.trino.plugin.hive.PartitionUpdate;
+import io.trino.plugin.hive.functions.Unload.UnloadFunctionHandle;
+import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.LongArrayBlockBuilder;
@@ -38,9 +46,11 @@ import io.trino.spi.type.TypeSignature;
 import java.lang.invoke.MethodHandle;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.starburst.ai.client.AiClientErrorCode.AI_CLIENT_ERROR;
+import static io.trino.plugin.hive.functions.Unload.getUnloadFunctionProcessorProvider;
 import static io.trino.spi.function.InvocationConvention.InvocationArgumentConvention.NEVER_NULL;
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.FAIL_ON_NULL;
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.NULLABLE_RETURN;
@@ -143,12 +153,26 @@ public class StarburstFunctions
 
     private final ModelClientProvider clientProvider;
     private final AiModelAccessControl accessControl;
+    private final Set<HiveFileWriterFactory> fileWriterFactories;
+    private final HiveWriterStats hiveWriterStats;
+    private final PageIndexerFactory pageIndexerFactory;
+    private final JsonCodec<PartitionUpdate> partitionUpdateCodec;
 
     @Inject
-    public StarburstFunctions(ModelClientProvider clientProvider, AiModelAccessControl accessControl)
+    public StarburstFunctions(
+            ModelClientProvider clientProvider,
+            AiModelAccessControl accessControl,
+            Set<HiveFileWriterFactory> fileWriterFactories,
+            HiveWriterStats hiveWriterStats,
+            PageIndexerFactory pageIndexerFactory,
+            JsonCodec<PartitionUpdate> partitionUpdateCodec)
     {
         this.clientProvider = requireNonNull(clientProvider, "clientProvider is null");
         this.accessControl = new CachingAiModelAccessControl(requireNonNull(accessControl, "accessControl is null"));
+        this.fileWriterFactories = ImmutableSet.copyOf(fileWriterFactories);
+        this.hiveWriterStats = requireNonNull(hiveWriterStats, "hiveWriterStats is null");
+        this.pageIndexerFactory = requireNonNull(pageIndexerFactory, "pageIndexerFactory is null");
+        this.partitionUpdateCodec = requireNonNull(partitionUpdateCodec, "partitionUpdateCodec is null");
     }
 
     public List<FunctionMetadata> getFunctions()
@@ -217,6 +241,14 @@ public class StarburstFunctions
     {
         if (functionHandle instanceof GenerateEmbeddingsFunctionHandle) {
             return GenerateEmbeddingsTableFunction.getGenerateEmbeddingsFunctionProcessorProvider(clientProvider);
+        }
+        if (functionHandle instanceof UnloadFunctionHandle) {
+            return new ClassLoaderSafeTableFunctionProcessorProvider(getUnloadFunctionProcessorProvider(
+                    fileWriterFactories,
+                    hiveWriterStats,
+                    pageIndexerFactory,
+                    partitionUpdateCodec),
+                    getClass().getClassLoader());
         }
         throw new UnsupportedOperationException("Unsupported function: " + functionHandle);
     }
