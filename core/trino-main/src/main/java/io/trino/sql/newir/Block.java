@@ -54,12 +54,6 @@ public record Block(Optional<String> name, List<Parameter> parameters, List<Oper
             requireNonNull(type, "type is null");
             validateValueName(name);
         }
-
-        @Override
-        public Block source(Program program)
-        {
-            return program.getBlock(this);
-        }
     }
 
     public Block(Optional<String> name, List<Parameter> parameters, List<Operation> operations)

@@ -28,8 +28,6 @@ public sealed interface Value
 
     Type type();
 
-    SourceNode source(Program program);
-
     static void validateValueName(String name)
     {
         if (!name.startsWith("%") || !isValidPrefixedIdentifier(name.substring(1))) {

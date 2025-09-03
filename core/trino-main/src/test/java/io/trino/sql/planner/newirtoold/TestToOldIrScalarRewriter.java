@@ -676,7 +676,7 @@ class TestToOldIrScalarRewriter
                                 ImmutableList.of()),
                         new Return("%5", new Result("%4", irType(BIGINT)), ImmutableMap.of())));
 
-        ScalarProgramBuilder scalarProgramBuilder = new ScalarProgramBuilder(new ProgramBuilder.ValueNameAllocator(), ImmutableMap.builder());
+        ScalarProgramBuilder scalarProgramBuilder = new ScalarProgramBuilder(new ProgramBuilder.ValueNameAllocator());
         Block.Builder blockBuilder = new Block.Builder(Optional.empty(), ImmutableList.of(INPUT_ROW_PARAMETER, anotherParameter));
         coalesce.accept(scalarProgramBuilder, new Context(blockBuilder, ImmutableMap.<Symbol, RowField>builder().putAll(SYMBOL_MAPPING).putAll(anotherSymbolMapping).buildOrThrow()));
         scalarProgramBuilder.addReturnOperation(blockBuilder);
@@ -915,7 +915,7 @@ class TestToOldIrScalarRewriter
 
     private void assertRoundtrip(Expression expression, Block rewritten)
     {
-        ScalarProgramBuilder scalarProgramBuilder = new ScalarProgramBuilder(new ProgramBuilder.ValueNameAllocator(), ImmutableMap.builder());
+        ScalarProgramBuilder scalarProgramBuilder = new ScalarProgramBuilder(new ProgramBuilder.ValueNameAllocator());
         Block.Builder blockBuilder = new Block.Builder(Optional.empty(), ImmutableList.of(INPUT_ROW_PARAMETER));
         expression.accept(scalarProgramBuilder, new Context(blockBuilder, SYMBOL_MAPPING));
         scalarProgramBuilder.addReturnOperation(blockBuilder);

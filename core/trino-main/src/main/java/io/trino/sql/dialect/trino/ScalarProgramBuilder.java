@@ -44,8 +44,6 @@ import io.trino.sql.ir.WhenClause;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
-import io.trino.sql.newir.SourceNode;
-import io.trino.sql.newir.Value;
 import io.trino.sql.planner.Symbol;
 import org.assertj.core.util.VisibleForTesting;
 
@@ -72,12 +70,10 @@ public class ScalarProgramBuilder
         extends IrVisitor<Operation, Context>
 {
     private final ValueNameAllocator nameAllocator;
-    private final ImmutableMap.Builder<Value, SourceNode> valueMap;
 
-    public ScalarProgramBuilder(ValueNameAllocator nameAllocator, ImmutableMap.Builder<Value, SourceNode> valueMap)
+    public ScalarProgramBuilder(ValueNameAllocator nameAllocator)
     {
         this.nameAllocator = requireNonNull(nameAllocator, "nameAllocator is null");
-        this.valueMap = requireNonNull(valueMap, "valueMap is null");
     }
 
     @Override
@@ -106,7 +102,6 @@ public class ScalarProgramBuilder
                 elements.stream()
                         .map(Operation::attributes)
                         .collect(toImmutableList()));
-        valueMap.put(array.result(), array);
         context.block().addOperation(array);
         return array;
     }
@@ -125,7 +120,6 @@ public class ScalarProgramBuilder
                 min.result(),
                 max.result(),
                 ImmutableList.of(input.attributes(), min.attributes(), max.attributes()));
-        valueMap.put(between.result(), between);
         context.block().addOperation(between);
         return between;
     }
@@ -154,7 +148,6 @@ public class ScalarProgramBuilder
                         .collect(toImmutableList()),
                 lambda.result(),
                 sourceAttributes.build());
-        valueMap.put(bind.result(), bind);
         context.block().addOperation(bind);
         return bind;
     }
@@ -178,7 +171,6 @@ public class ScalarProgramBuilder
                 arguments.stream()
                         .map(Operation::attributes)
                         .collect(toImmutableList()));
-        valueMap.put(call.result(), call);
         context.block().addOperation(call);
         return call;
     }
@@ -216,7 +208,6 @@ public class ScalarProgramBuilder
                         .collect(toImmutableList()),
                 defaultValue.result(),
                 sourceAttributes.build());
-        valueMap.put(caseOperation.result(), caseOperation);
         context.block().addOperation(caseOperation);
         return caseOperation;
     }
@@ -227,7 +218,6 @@ public class ScalarProgramBuilder
         Operation argument = node.expression().accept(this, context);
         String resultName = nameAllocator.newName();
         Cast cast = new Cast(resultName, argument.result(), node.type(), argument.attributes());
-        valueMap.put(cast.result(), cast);
         context.block().addOperation(cast);
         return cast;
     }
@@ -250,7 +240,6 @@ public class ScalarProgramBuilder
                 operands.stream()
                         .map(Operation::attributes)
                         .collect(toImmutableList()));
-        valueMap.put(coalesce.result(), coalesce);
         context.block().addOperation(coalesce);
         return coalesce;
     }
@@ -268,7 +257,6 @@ public class ScalarProgramBuilder
                 right.result(),
                 Attributes.ComparisonOperator.of(node.operator()),
                 ImmutableList.of(left.attributes(), right.attributes()));
-        valueMap.put(comparison.result(), comparison);
         context.block().addOperation(comparison);
         return comparison;
     }
@@ -278,7 +266,6 @@ public class ScalarProgramBuilder
     {
         String resultName = nameAllocator.newName();
         Constant constant = new Constant(resultName, node.type(), node.value());
-        valueMap.put(constant.result(), constant);
         context.block().addOperation(constant);
         return constant;
     }
@@ -294,7 +281,6 @@ public class ScalarProgramBuilder
                 base.result(),
                 node.field(),
                 base.attributes());
-        valueMap.put(fieldReference.result(), fieldReference);
         context.block().addOperation(fieldReference);
         return fieldReference;
     }
@@ -321,7 +307,6 @@ public class ScalarProgramBuilder
                         .map(Operation::result)
                         .collect(toImmutableList()),
                 sourceAttributes.build());
-        valueMap.put(in.result(), in);
         context.block().addOperation(in);
         return in;
     }
@@ -336,7 +321,6 @@ public class ScalarProgramBuilder
                 resultName,
                 input.result(),
                 input.attributes());
-        valueMap.put(isNull.result(), isNull);
         context.block().addOperation(isNull);
         return isNull;
     }
@@ -380,10 +364,8 @@ public class ScalarProgramBuilder
         addReturnOperation(lambdaBuilder);
 
         Block lambdaBody = lambdaBuilder.build();
-        valueMap.put(lambdaParameter, lambdaBody);
 
         Lambda lambda = new Lambda(resultName, lambdaBody);
-        valueMap.put(lambda.result(), lambda);
         context.block().addOperation(lambda);
         return lambda;
     }
@@ -407,7 +389,6 @@ public class ScalarProgramBuilder
                 terms.stream()
                         .map(Operation::attributes)
                         .collect(toImmutableList()));
-        valueMap.put(logical.result(), logical);
         context.block().addOperation(logical);
         return logical;
     }
@@ -424,7 +405,6 @@ public class ScalarProgramBuilder
                 first.result(),
                 second.result(),
                 ImmutableList.of(first.attributes(), second.attributes()));
-        valueMap.put(nullIf.result(), nullIf);
         context.block().addOperation(nullIf);
         return nullIf;
     }
@@ -438,7 +418,6 @@ public class ScalarProgramBuilder
         }
         String resultName = nameAllocator.newName();
         FieldReference fieldReference = new FieldReference(resultName, rowField.row(), rowField.field(), ImmutableMap.of()); // TODO pass attributes through correlation / block argument
-        valueMap.put(fieldReference.result(), fieldReference);
         context.block().addOperation(fieldReference);
         return fieldReference;
     }
@@ -461,7 +440,6 @@ public class ScalarProgramBuilder
                 items.stream()
                         .map(Operation::attributes)
                         .collect(toImmutableList()));
-        valueMap.put(row.result(), row);
         context.block().addOperation(row);
         return row;
     }
@@ -502,7 +480,6 @@ public class ScalarProgramBuilder
                         .collect(toImmutableList()),
                 defaultValue.result(),
                 sourceAttributes.build());
-        valueMap.put(switchOperation.result(), switchOperation);
         context.block().addOperation(switchOperation);
         return switchOperation;
     }
@@ -516,7 +493,6 @@ public class ScalarProgramBuilder
         String returnValue = nameAllocator.newName();
         Operation recentOperation = builder.recentOperation();
         Return returnOperation = new Return(returnValue, recentOperation.result(), recentOperation.attributes());
-        valueMap.put(returnOperation.result(), returnOperation);
         builder.addOperation(returnOperation);
     }
 }

@@ -68,12 +68,6 @@ public abstract non-sealed class Operation
             requireNonNull(type, "type is null");
             validateValueName(name);
         }
-
-        @Override
-        public Operation source(Program program)
-        {
-            return program.getOperation(this);
-        }
     }
 
     public record AttributeKey(String dialect, String name)

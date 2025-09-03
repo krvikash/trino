@@ -509,7 +509,7 @@ class TestToOldIrRelationalRewriter
 
     private PlanNode roundtripPlanNode(PlanNode planNode)
     {
-        RelationalProgramBuilder relationalProgramBuilder = new RelationalProgramBuilder(new ProgramBuilder.ValueNameAllocator(), ImmutableMap.builder());
+        RelationalProgramBuilder relationalProgramBuilder = new RelationalProgramBuilder(new ProgramBuilder.ValueNameAllocator());
         Block.Builder block = new Block.Builder(Optional.empty(), ImmutableList.of());
         Operation rewrittenOperation = planNode.accept(relationalProgramBuilder, new Context(block)).operation();
 

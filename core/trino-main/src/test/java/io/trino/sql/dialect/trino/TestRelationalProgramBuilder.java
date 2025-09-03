@@ -1235,7 +1235,7 @@ final class TestRelationalProgramBuilder
                                 returnOperation)),
                 ImmutableList.of("col_b", "col_a"));
 
-        RelationalProgramBuilder relationalProgramBuilder = new RelationalProgramBuilder(new ValueNameAllocator(), ImmutableMap.builder());
+        RelationalProgramBuilder relationalProgramBuilder = new RelationalProgramBuilder(new ValueNameAllocator());
         Block.Builder blockBuilder = new Block.Builder(Optional.empty(), ImmutableList.of());
 
         outputNode.accept(relationalProgramBuilder, new Context(blockBuilder));
@@ -1493,7 +1493,7 @@ final class TestRelationalProgramBuilder
 
         Values valuesOperation = valuesWithoutFields("%0", 5);
 
-        RelationalProgramBuilder relationalProgramBuilder = new RelationalProgramBuilder(new ValueNameAllocator(), ImmutableMap.builder());
+        RelationalProgramBuilder relationalProgramBuilder = new RelationalProgramBuilder(new ValueNameAllocator());
         Block.Builder blockBuilder = new Block.Builder(Optional.empty(), ImmutableList.of());
 
         OperationAndMapping operationAndMapping = valuesNode.accept(relationalProgramBuilder, new Context(blockBuilder));
@@ -1828,7 +1828,7 @@ final class TestRelationalProgramBuilder
                 ImmutableMap.of(new Symbol(BOOLEAN, "Z"), 0));
 
         // select symbol X from second parameter and symbol Z from third parameter
-        Block selectSomeFields = new RelationalProgramBuilder(new ValueNameAllocator(), ImmutableMap.builder())
+        Block selectSomeFields = new RelationalProgramBuilder(new ValueNameAllocator())
                 .fieldSelectorBlock(
                         name,
                         inputRows,
@@ -1857,7 +1857,7 @@ final class TestRelationalProgramBuilder
                                 returnRow)));
 
         // do not select any fields -- return constant null of type EMPTY_ROW
-        Block selectNoFields = new RelationalProgramBuilder(new ValueNameAllocator(), ImmutableMap.builder())
+        Block selectNoFields = new RelationalProgramBuilder(new ValueNameAllocator())
                 .fieldSelectorBlock(
                         name,
                         inputRows,
@@ -1879,7 +1879,7 @@ final class TestRelationalProgramBuilder
                                 returnEmptyRow)));
 
         // failure when selecting a non-existent symbol
-        assertThatThrownBy(() -> new RelationalProgramBuilder(new ValueNameAllocator(), ImmutableMap.builder())
+        assertThatThrownBy(() -> new RelationalProgramBuilder(new ValueNameAllocator())
                 .fieldSelectorBlock(
                         name,
                         inputRows,
@@ -1891,7 +1891,7 @@ final class TestRelationalProgramBuilder
                 .hasMessage("fieldIndex is null");
 
         // failure when input rows do not match input mappings
-        assertThatThrownBy(() -> new RelationalProgramBuilder(new ValueNameAllocator(), ImmutableMap.builder())
+        assertThatThrownBy(() -> new RelationalProgramBuilder(new ValueNameAllocator())
                 .fieldSelectorBlock(
                         name,
                         ImmutableList.of(firstParameter, secondParameter), // two input rows
@@ -1903,7 +1903,7 @@ final class TestRelationalProgramBuilder
                 .hasMessage("inputs and input symbol mappings do not match");
 
         // failure when input rows do not match selected symbol lists
-        assertThatThrownBy(() -> new RelationalProgramBuilder(new ValueNameAllocator(), ImmutableMap.builder())
+        assertThatThrownBy(() -> new RelationalProgramBuilder(new ValueNameAllocator())
                 .fieldSelectorBlock(
                         name,
                         inputRows, // three input rows
@@ -1972,7 +1972,7 @@ final class TestRelationalProgramBuilder
 
     private void assertProgram(PlanNode plan, List<Operation> expected, io.trino.spi.type.Type expectedType, Map<Symbol, Integer> expectedMapping)
     {
-        RelationalProgramBuilder relationalProgramBuilder = new RelationalProgramBuilder(new ValueNameAllocator(), ImmutableMap.builder());
+        RelationalProgramBuilder relationalProgramBuilder = new RelationalProgramBuilder(new ValueNameAllocator());
         Block.Builder blockBuilder = new Block.Builder(Optional.empty(), ImmutableList.of());
 
         OperationAndMapping operationAndMapping = plan.accept(relationalProgramBuilder, new Context(blockBuilder));

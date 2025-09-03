@@ -230,7 +230,7 @@ public class CteReuse
         // clean up dynamic filters
         newMainBlock = cleanUpDynamicFilters(newMainBlock, nameAllocator);
 
-        Program newProgram = new Program(((Query) program.getRoot()).withRegions(ImmutableList.of(singleBlockRegion(newMainBlock))), ImmutableMap.of());
+        Program newProgram = new Program(((Query) program.getRoot()).withRegions(ImmutableList.of(singleBlockRegion(newMainBlock))));
 
         if (debugEnabled) {
             log.info("CTE reuse applied for query %s.\nQuery program before: %s\n\nQuery program after: %s", session.getQueryId(), program.print(printOptions), newProgram.print(printOptions));
@@ -592,7 +592,7 @@ public class CteReuse
         }
         // rewrite the Expression to block
         expression.accept(
-                new ScalarProgramBuilder(nameAllocator, ImmutableMap.builder()),
+                new ScalarProgramBuilder(nameAllocator),
                 new Context(blockBuilder, symbolMapping.buildOrThrow()));
         // add Return operation to finish the Block
         // TODO extract and reuse addReturnOperation() from RelationalProgramBuilder

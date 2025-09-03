@@ -698,7 +698,7 @@ final class TestScalarProgramBuilder
     public void testNoMappingForSymbol()
     {
         io.trino.sql.ir.Reference referenceExpression = new io.trino.sql.ir.Reference(BIGINT, "A");
-        ScalarProgramBuilder scalarProgramBuilder = new ScalarProgramBuilder(new ValueNameAllocator(), ImmutableMap.builder());
+        ScalarProgramBuilder scalarProgramBuilder = new ScalarProgramBuilder(new ValueNameAllocator());
         Block.Builder blockBuilder = new Block.Builder(Optional.empty(), ImmutableList.of(INPUT_ROW_PARAMETER));
 
         // SYMBOL_MAPPING has entries for symbols "a" and "b", but not for "A"
@@ -709,7 +709,7 @@ final class TestScalarProgramBuilder
     @Test
     public void testAddReturnOperation()
     {
-        ScalarProgramBuilder scalarProgramBuilder = new ScalarProgramBuilder(new ValueNameAllocator(), ImmutableMap.builder());
+        ScalarProgramBuilder scalarProgramBuilder = new ScalarProgramBuilder(new ValueNameAllocator());
         Block.Builder blockBuilder = new Block.Builder(Optional.empty(), ImmutableList.of(INPUT_ROW_PARAMETER));
 
         io.trino.sql.ir.Constant constantExpression = new io.trino.sql.ir.Constant(BOOLEAN, true);
@@ -725,7 +725,7 @@ final class TestScalarProgramBuilder
     @Test
     public void testAddReturnOperationEmptyBlock()
     {
-        ScalarProgramBuilder scalarProgramBuilder = new ScalarProgramBuilder(new ValueNameAllocator(), ImmutableMap.builder());
+        ScalarProgramBuilder scalarProgramBuilder = new ScalarProgramBuilder(new ValueNameAllocator());
         Block.Builder blockBuilder = new Block.Builder(Optional.empty(), ImmutableList.of(INPUT_ROW_PARAMETER));
 
         assertThatThrownBy(() -> scalarProgramBuilder.addReturnOperation(blockBuilder))
@@ -734,7 +734,7 @@ final class TestScalarProgramBuilder
 
     private void assertProgram(Expression expression, List<Operation> expected, Type expectedType)
     {
-        ScalarProgramBuilder scalarProgramBuilder = new ScalarProgramBuilder(new ValueNameAllocator(), ImmutableMap.builder());
+        ScalarProgramBuilder scalarProgramBuilder = new ScalarProgramBuilder(new ValueNameAllocator());
         Block.Builder blockBuilder = new Block.Builder(Optional.empty(), ImmutableList.of(INPUT_ROW_PARAMETER));
         expression.accept(scalarProgramBuilder, new Context(blockBuilder, SYMBOL_MAPPING));
         // add a terminal Return operation. It is required to build the Block
