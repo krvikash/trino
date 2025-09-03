@@ -12,7 +12,7 @@ package com.starburstdata.trino.plugin.snowflake.parallel;
 import com.google.inject.Injector;
 import io.airlift.bootstrap.Bootstrap;
 import io.trino.plugin.jdbc.JdbcModule;
-import io.trino.spi.NodeManager;
+import io.trino.spi.Node;
 import io.trino.spi.VersionEmbedder;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.Connector;
@@ -49,7 +49,7 @@ public class SnowflakeParallelConnectorFactory
 
         Bootstrap app = new Bootstrap(
                 binder -> binder.bind(TypeManager.class).toInstance(context.getTypeManager()),
-                binder -> binder.bind(NodeManager.class).toInstance(context.getNodeManager()),
+                binder -> binder.bind(Node.class).toInstance(context.getCurrentNode()),
                 binder -> binder.bind(VersionEmbedder.class).toInstance(context.getVersionEmbedder()),
                 binder -> binder.bind(CatalogName.class).toInstance(new CatalogName(catalogName)),
                 new JdbcModule(),
