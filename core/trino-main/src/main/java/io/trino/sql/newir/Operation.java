@@ -13,6 +13,7 @@
  */
 package io.trino.sql.newir;
 
+import com.google.common.collect.ImmutableSet;
 import io.trino.spi.TrinoException;
 import io.trino.sql.dialect.trino.TrinoDialect;
 import io.trino.sql.newir.Block.Parameter;
@@ -21,6 +22,7 @@ import io.trino.sql.newir.FormatOptions.PrintOptions;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.TrinoAttributeRegistry.TESTING_TRINO_ATTRIBUTE_REGISTRY;
@@ -119,6 +121,29 @@ public abstract non-sealed class Operation
      * Each entry represents a constant property of the operation.
      */
     public abstract Map<AttributeKey, Object> attributes();
+
+    /**
+     * Return the set of all value names declared and used in this operation and its nested blocks.
+     */
+    public Set<String> getAllValueNames()
+    {
+        ImmutableSet.Builder<String> names = ImmutableSet.builder();
+        names.add(result().name());
+        arguments().stream()
+                .map(Value::name)
+                .forEach(names::add);
+        regions().stream()
+                .map(Region::getOnlyBlock)
+                .forEach(block -> {
+                    block.parameters().stream()
+                            .map(Value::name)
+                            .forEach(names::add);
+                    block.operations()
+                            .forEach(nestedOperation -> names.addAll(nestedOperation.getAllValueNames()));
+                });
+
+        return names.build();
+    }
 
     public final String print(int indentLevel, PrintOptions printOptions)
     {

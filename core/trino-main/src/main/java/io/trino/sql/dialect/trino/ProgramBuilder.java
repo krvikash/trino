@@ -78,8 +78,7 @@ public class ProgramBuilder
 
     public static ValueNameAllocator initializeNameAllocator(Program program)
     {
-        return new ValueNameAllocator(program.getValueMap().keySet().stream()
-                .map(Value::name)
+        return new ValueNameAllocator(program.getAllValueNames().stream()
                 .map(name -> name.substring(1))
                 .map(unprefixed -> {
                     try {

@@ -21,6 +21,7 @@ import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation.Result;
 
 import java.util.Map;
+import java.util.Set;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static java.lang.String.format;
@@ -94,5 +95,10 @@ public final class Program
     public String print(PrintOptions printOptions)
     {
         return "IR version = " + printOptions.version() + "\n" + root.print(0, printOptions) + "\n";
+    }
+
+    public Set<String> getAllValueNames()
+    {
+        return root.getAllValueNames();
     }
 }
