@@ -67,7 +67,7 @@ import org.objectweb.asm.MethodTooLargeException;
 import org.weakref.jmx.Managed;
 import org.weakref.jmx.Nested;
 
-import java.lang.reflect.Constructor;
+import java.lang.invoke.MethodHandle;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -107,6 +107,7 @@ import static io.trino.sql.gen.LambdaExpressionExtractor.extractLambdaExpression
 import static io.trino.sql.relational.DeterminismEvaluator.isDeterministic;
 import static io.trino.util.CompilerUtils.defineClass;
 import static io.trino.util.CompilerUtils.makeClassName;
+import static io.trino.util.Reflection.constructorMethodHandle;
 import static java.util.Objects.requireNonNull;
 
 public class PageFunctionCompiler
@@ -233,10 +234,9 @@ public class PageFunctionCompiler
 
         ClassDefinition pageProjectionWorkDefinition = definePageProjectWorkClass(rewrittenExpression, callSiteBinder, classNameSuffix);
 
-        Constructor<? extends PageProjectionWork> pageProjectionWorkConstructor;
+        Class<?> pageProjectionWorkClass;
         try {
-            Class<? extends PageProjectionWork> pageProjectionWorkClass = defineClass(pageProjectionWorkDefinition, PageProjectionWork.class, callSiteBinder.getBindings(), getClass().getClassLoader());
-            pageProjectionWorkConstructor = pageProjectionWorkClass.getConstructor();
+            pageProjectionWorkClass = defineClass(pageProjectionWorkDefinition, PageProjectionWork.class, callSiteBinder.getBindings(), getClass().getClassLoader());
         }
         catch (Exception e) {
             if (Throwables.getRootCause(e) instanceof MethodTooLargeException) {
@@ -246,19 +246,12 @@ public class PageFunctionCompiler
             throw new TrinoException(COMPILER_ERROR, e);
         }
 
-        return () -> {
-            try {
-                PageProjectionWork pageProjectionWork = pageProjectionWorkConstructor.newInstance();
-                return new GeneratedPageProjection(
-                        rewrittenExpression,
-                        isExpressionDeterministic,
-                        result.getInputChannels(),
-                        pageProjectionWork);
-            }
-            catch (ReflectiveOperationException e) {
-                throw new TrinoException(COMPILER_ERROR, e);
-            }
-        };
+        MethodHandle pageProjectionConstructor = constructorMethodHandle(pageProjectionWorkClass, BlockBuilder.class, ConnectorSession.class, SourcePage.class, SelectedPositions.class);
+        return () -> new GeneratedPageProjection(
+                rewrittenExpression,
+                isExpressionDeterministic,
+                result.getInputChannels(),
+                pageProjectionConstructor);
     }
 
     private static ParameterizedType generateProjectionWorkClassName(Optional<String> classNameSuffix)
@@ -276,29 +269,40 @@ public class PageFunctionCompiler
         ClassScope classScope = new ClassScope(classDefinition);
 
         FieldDefinition blockBuilderField = classDefinition.declareField(a(PRIVATE), "blockBuilder", BlockBuilder.class);
+        FieldDefinition sessionField = classDefinition.declareField(a(PRIVATE), "session", ConnectorSession.class);
+        FieldDefinition selectedPositionsField = classDefinition.declareField(a(PRIVATE), "selectedPositions", SelectedPositions.class);
 
         CachedInstanceBinder cachedInstanceBinder = new CachedInstanceBinder(classDefinition, callSiteBinder);
 
-        List<Integer> inputChannels = getInputChannels(projection);
-        List<FieldDefinition> blockFields = inputChannels.stream()
-                .map(channel -> classDefinition.declareField(a(PRIVATE), "block_" + channel, Block.class))
-                .collect(toImmutableList());
         // process
-        generateProcessMethod(classDefinition, blockBuilderField, blockFields, inputChannels);
+        generateProcessMethod(classDefinition, blockBuilderField, sessionField, selectedPositionsField);
 
         // evaluate
         Map<LambdaDefinitionExpression, CompiledLambda> compiledLambdaMap = generateMethodsForLambda(classDefinition, callSiteBinder, cachedInstanceBinder, projection);
         generateEvaluateMethod(classDefinition, classScope, callSiteBinder, cachedInstanceBinder, compiledLambdaMap, projection, blockBuilderField);
 
         // constructor
-        MethodDefinition constructorDefinition = classDefinition.declareConstructor(a(PUBLIC));
+        Parameter blockBuilder = arg("blockBuilder", BlockBuilder.class);
+        Parameter session = arg("session", ConnectorSession.class);
+        Parameter page = arg("page", SourcePage.class);
+        Parameter selectedPositions = arg("selectedPositions", SelectedPositions.class);
+
+        MethodDefinition constructorDefinition = classDefinition.declareConstructor(a(PUBLIC), blockBuilder, session, page, selectedPositions);
 
         BytecodeBlock body = constructorDefinition.getBody();
         Variable thisVariable = constructorDefinition.getThis();
 
         body.comment("super();")
                 .append(thisVariable)
-                .invokeConstructor(Object.class);
+                .invokeConstructor(Object.class)
+                .append(thisVariable.setField(blockBuilderField, blockBuilder))
+                .append(thisVariable.setField(sessionField, session))
+                .append(thisVariable.setField(selectedPositionsField, selectedPositions));
+
+        for (int channel : getInputChannels(projection)) {
+            FieldDefinition blockField = classDefinition.declareField(a(PRIVATE, FINAL), "block_" + channel, Block.class);
+            body.append(thisVariable.setField(blockField, page.invoke("getBlock", Block.class, constantInt(channel))));
+        }
 
         cachedInstanceBinder.generateInitializations(thisVariable, body);
         body.ret();
@@ -306,66 +310,48 @@ public class PageFunctionCompiler
         return classDefinition;
     }
 
-    private static void generateProcessMethod(
+    private static MethodDefinition generateProcessMethod(
             ClassDefinition classDefinition,
-            FieldDefinition blockBuilderField,
-            List<FieldDefinition> blockFields,
-            List<Integer> inputChannels)
+            FieldDefinition blockBuilder,
+            FieldDefinition session,
+            FieldDefinition selectedPositions)
     {
-        Parameter session = arg("session", ConnectorSession.class);
-        Parameter page = arg("page", SourcePage.class);
-        Parameter selectedPositions = arg("selectedPositions", SelectedPositions.class);
-        Parameter blockBuilder = arg("blockBuilder", BlockBuilder.class);
-
-        MethodDefinition method = classDefinition.declareMethod(
-                a(PUBLIC),
-                "process",
-                type(Block.class),
-                ImmutableList.<Parameter>builder()
-                        .add(session)
-                        .add(page)
-                        .add(selectedPositions)
-                        .add(blockBuilder)
-                        .build());
+        MethodDefinition method = classDefinition.declareMethod(a(PUBLIC), "process", type(Block.class), ImmutableList.of());
 
         Scope scope = method.getScope();
         Variable thisVariable = method.getThis();
         BytecodeBlock body = method.getBody();
 
-        for (int i = 0; i < inputChannels.size(); i++) {
-            int channel = inputChannels.get(i);
-            body.append(thisVariable.setField(blockFields.get(i), page.invoke("getBlock", Block.class, constantInt(channel))));
-        }
-        body.append(thisVariable.setField(blockBuilderField, blockBuilder));
-
-        Variable from = scope.declareVariable("from", body, selectedPositions.invoke("getOffset", int.class));
-        Variable to = scope.declareVariable("to", body, add(selectedPositions.invoke("getOffset", int.class), selectedPositions.invoke("size", int.class)));
+        Variable from = scope.declareVariable("from", body, thisVariable.getField(selectedPositions).invoke("getOffset", int.class));
+        Variable to = scope.declareVariable("to", body, add(thisVariable.getField(selectedPositions).invoke("getOffset", int.class), thisVariable.getField(selectedPositions).invoke("size", int.class)));
         Variable positions = scope.declareVariable(int[].class, "positions");
         Variable index = scope.declareVariable(int.class, "index");
 
         IfStatement ifStatement = new IfStatement()
-                .condition(selectedPositions.invoke("isList", boolean.class));
+                .condition(thisVariable.getField(selectedPositions).invoke("isList", boolean.class));
         body.append(ifStatement);
 
         ifStatement.ifTrue(new BytecodeBlock()
-                .append(positions.set(selectedPositions.invoke("getPositions", int[].class)))
+                .append(positions.set(thisVariable.getField(selectedPositions).invoke("getPositions", int[].class)))
                 .append(new ForLoop("positions loop")
                         .initialize(index.set(from))
                         .condition(lessThan(index, to))
                         .update(index.increment())
                         .body(new BytecodeBlock()
-                                .append(thisVariable.invoke("evaluate", void.class, session, positions.getElement(index))))));
+                                .append(thisVariable.invoke("evaluate", void.class, thisVariable.getField(session), positions.getElement(index))))));
 
         ifStatement.ifFalse(new ForLoop("range based loop")
                 .initialize(index.set(from))
                 .condition(lessThan(index, to))
                 .update(index.increment())
                 .body(new BytecodeBlock()
-                        .append(thisVariable.invoke("evaluate", void.class, session, index))));
+                        .append(thisVariable.invoke("evaluate", void.class, thisVariable.getField(session), index))));
 
         body.comment("return this.blockBuilder.build();")
-                .append(thisVariable.getField(blockBuilderField).invoke("build", Block.class))
+                .append(thisVariable.getField(blockBuilder).invoke("build", Block.class))
                 .retObject();
+
+        return method;
     }
 
     private MethodDefinition generateEvaluateMethod(
