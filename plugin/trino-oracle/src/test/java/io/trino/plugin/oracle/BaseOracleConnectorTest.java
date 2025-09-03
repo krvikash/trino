@@ -369,6 +369,54 @@ public abstract class BaseOracleConnectorTest
 
         // Since RAW has a size limitation of 2000, we apply a filter clause to verify it doesn't break beyond 2000 limit
         predicatePushdownTest("RAW(5)", "hextoraw('68656C6C6F')", "<", "to_utf8('%s')".formatted("a".repeat(2001)));
+
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                getUser() + ".test_pdown_",
+                "(raw_a RAW(8), raw_b RAW(8), raw_c RAW(8), blob_a BLOB)",
+                ImmutableList.of("hextoraw('68656C6C6F'), hextoraw('68656C6C6F6F'), hextoraw('6865'), hextoraw('68656C6C6F6F6F')"))) {
+            assertThat(query(format("SELECT raw_a FROM %s WHERE raw_a = raw_b OR raw_a > raw_c", table.getName())))
+                    .isFullyPushedDown();
+            assertThat(query(format("SELECT raw_a FROM %s WHERE raw_a != raw_b OR raw_a != raw_c", table.getName())))
+                    .isFullyPushedDown();
+            assertThat(query(format("SELECT raw_a FROM %s WHERE raw_a < raw_b OR raw_a < raw_c", table.getName())))
+                    .isFullyPushedDown();
+            assertThat(query(format("SELECT raw_a FROM %s WHERE raw_a >= raw_b OR raw_a >= raw_c", table.getName())))
+                    .isFullyPushedDown();
+            assertThat(query(format("SELECT raw_a FROM %s WHERE raw_a >= raw_b AND raw_a <= raw_c", table.getName())))
+                    .isFullyPushedDown();
+            assertThat(query(format("SELECT raw_a FROM %s WHERE raw_a BETWEEN raw_b AND raw_c", table.getName())))
+                    .isFullyPushedDown();
+
+            assertThat(query(format("SELECT raw_a FROM %s WHERE raw_a IS NULL OR raw_b IS NOT NULL", table.getName())))
+                    .isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(format("SELECT raw_a FROM %s WHERE raw_a = raw_b OR blob_a = raw_c", table.getName())))
+                    .isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(format("SELECT raw_a FROM %s WHERE raw_a IS DISTINCT FROM raw_b OR raw_a > raw_c", table.getName())))
+                    .isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(format("SELECT raw_a FROM %s WHERE raw_a = blob_a OR raw_a != raw_c", table.getName())))
+                    .isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(format("SELECT raw_a FROM %s WHERE raw_a != blob_a OR raw_a = raw_c", table.getName())))
+                    .isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(format("SELECT raw_a FROM %s WHERE raw_a < blob_a OR raw_a < raw_c", table.getName())))
+                    .isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(format("SELECT raw_a FROM %s WHERE raw_a >= blob_a OR raw_a > raw_c", table.getName())))
+                    .isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(format("SELECT raw_a FROM %s WHERE raw_a IS DISTINCT FROM blob_a OR raw_a >= raw_c", table.getName())))
+                    .isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(format("SELECT raw_a FROM %s WHERE raw_a >= raw_b AND raw_a <= blob_a", table.getName())))
+                    .isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(format("SELECT raw_a FROM %s WHERE raw_a BETWEEN raw_b AND blob_a", table.getName())))
+                    .isNotFullyPushedDown(FilterNode.class);
+        }
+
+        try (TestTable table = newTrinoTable(
+                getUser() + ".test_pdown_",
+                "(raw_a VARBINARY, raw_b VARBINARY, raw_c VARBINARY)",
+                ImmutableList.of("to_utf8('text_a'), to_utf8('text_b'), to_utf8('text_c')"))) {
+            assertThat(query(format("SELECT raw_a FROM %s WHERE raw_a = raw_b OR raw_a > raw_c", table.getName())))
+                    .isNotFullyPushedDown(FilterNode.class);
+        }
     }
 
     @Test
@@ -530,6 +578,45 @@ public abstract class BaseOracleConnectorTest
             assertThat(query(session, joinWithUnboundedVarchar.formatted("INNER JOIN")))
                     .joinIsNotFullyPushedDown();
             assertThat(query(session, joinWithUnboundedVarchar.formatted("FULL JOIN")))
+                    .joinIsNotFullyPushedDown();
+        }
+    }
+
+    @Test
+    public void testJoinPushdownWithJoinOnRawColumn()
+    {
+        try (TestTable leftTable = new TestTable(onRemoteDatabase(), "left_table", "(id int, raw_col raw(50))", ImmutableList.of("1, hextoraw('496E646961')", "2, hextoraw('506F6C616E64')"));
+                TestTable rightTable = new TestTable(onRemoteDatabase(), "right_table_", "(raw_col raw(50), blob_col blob)", ImmutableList.of("hextoraw('496E646961'), hextoraw('496E646961')", "hextoraw('4672616E6365'), hextoraw('4672616E6365')"))) {
+            String leftTableName = leftTable.getName();
+            String rightTableName = rightTable.getName();
+            Session session = joinPushdownEnabled(getSession());
+
+            // Join based on raw column
+            String joinQueryOnRawColumn = "SELECT id FROM %s l %s %s r ON l.raw_col = r.raw_col".formatted(leftTableName, "%s", rightTableName);
+            assertThat(query(session, joinQueryOnRawColumn.formatted("LEFT JOIN")))
+                    .isFullyPushedDown();
+
+            assertThat(query(session, joinQueryOnRawColumn.formatted("RIGHT JOIN")))
+                    .isFullyPushedDown();
+
+            assertThat(query(session, joinQueryOnRawColumn.formatted("INNER JOIN")))
+                    .isFullyPushedDown();
+
+            assertThat(query(session, joinQueryOnRawColumn.formatted("FULL JOIN")))
+                    .isFullyPushedDown();
+
+            // Join based on blob column
+            String joinQueryOnBlobColumn = "SELECT id FROM %s l %s %s r ON l.raw_col = r.blob_col".formatted(leftTableName, "%s", rightTableName);
+            assertThat(query(session, joinQueryOnBlobColumn.formatted("LEFT JOIN")))
+                    .joinIsNotFullyPushedDown();
+
+            assertThat(query(session, joinQueryOnBlobColumn.formatted("RIGHT JOIN")))
+                    .joinIsNotFullyPushedDown();
+
+            assertThat(query(session, joinQueryOnBlobColumn.formatted("INNER JOIN")))
+                    .joinIsNotFullyPushedDown();
+
+            assertThat(query(session, joinQueryOnBlobColumn.formatted("FULL JOIN")))
                     .joinIsNotFullyPushedDown();
         }
     }

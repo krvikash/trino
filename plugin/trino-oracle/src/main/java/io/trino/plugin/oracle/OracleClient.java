@@ -255,6 +255,7 @@ public class OracleClient
                 .map("$not(value: boolean)").to("NOT value")
                 .add(new RewriteStringComparison())
                 .add(new RewriteStringComparisonConstant())
+                .add(new RewriteVarbinaryComparison())
                 .build();
 
         this.projectFunctionRewriter = new ProjectFunctionRewriter<>(
