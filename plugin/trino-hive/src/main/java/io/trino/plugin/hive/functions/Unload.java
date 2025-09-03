@@ -124,28 +124,20 @@ public class Unload
 
     private final LocationAccessControl locationAccessControl;
     private final TrinoFileSystemFactory fileSystemFactory;
-    private final TableArgumentSpecification tableArgumentSpecification;
+    private final boolean useRowSemantics;
 
     @Inject
     public Unload(LocationAccessControl locationAccessControl, TrinoFileSystemFactory fileSystemFactory, UnloadConfig config)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
-
-        TableArgumentSpecification.Builder builder = TableArgumentSpecification.builder()
-                .name(TABLE_ARGUMENT_NAME)
-                .pruneWhenEmpty();
-
-        if (config.isUseRowSemantics()) {
-            builder.rowSemantics();
-        }
-        tableArgumentSpecification = builder.build();
+        this.useRowSemantics = config.isUseRowSemantics();
     }
 
     @Override
     public ConnectorTableFunction get()
     {
-        return new ClassLoaderSafeConnectorTableFunction(new UnloadFunction(locationAccessControl, fileSystemFactory, tableArgumentSpecification), getClass().getClassLoader());
+        return new ClassLoaderSafeConnectorTableFunction(new UnloadFunction("system", locationAccessControl, fileSystemFactory, useRowSemantics), getClass().getClassLoader());
     }
 
     public static class UnloadFunction
@@ -161,13 +153,13 @@ public class Unload
         private final LocationAccessControl locationAccessControl;
         private final TrinoFileSystemFactory fileSystemFactory;
 
-        public UnloadFunction(LocationAccessControl locationAccessControl, TrinoFileSystemFactory fileSystemFactory, TableArgumentSpecification tableArgumentSpecification)
+        public UnloadFunction(String schema, LocationAccessControl locationAccessControl, TrinoFileSystemFactory fileSystemFactory, boolean useRowSemantics)
         {
             super(
-                    "system",
+                    schema,
                     "unload",
                     ImmutableList.of(
-                            tableArgumentSpecification,
+                            tableArgumentSpecification(useRowSemantics),
                             ScalarArgumentSpecification.builder()
                                     .name(LOCATION_ARGUMENT_NAME)
                                     .type(VARCHAR)
@@ -199,6 +191,18 @@ public class Unload
                     new ReturnTypeSpecification.DescribedTable(descriptor(ImmutableList.of("path", "count"), ImmutableList.of(VARCHAR, BIGINT))));
             this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
             this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
+        }
+
+        private static TableArgumentSpecification tableArgumentSpecification(boolean useRowSemantics)
+        {
+            TableArgumentSpecification.Builder builder = TableArgumentSpecification.builder()
+                    .name(TABLE_ARGUMENT_NAME)
+                    .pruneWhenEmpty();
+
+            if (useRowSemantics) {
+                builder.rowSemantics();
+            }
+            return builder.build();
         }
 
         @Override
