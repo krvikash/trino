@@ -164,8 +164,7 @@ public class TestIcebergFileOperations
                 withStatsOnWrite(getSession(), true),
                 "CREATE TABLE test_create_as_select_with_stats AS SELECT 1 col_name",
                 ImmutableMultiset.<FileOperation>builder()
-                        .add(new FileOperation(METADATA_JSON, "InputFile.newStream"))
-                        .addCopies(new FileOperation(METADATA_JSON, "OutputFile.create"), 2) // TODO (https://github.com/trinodb/trino/issues/15439): it would be good to publish data and stats in one commit
+                        .add(new FileOperation(METADATA_JSON, "OutputFile.create"))
                         .add(new FileOperation(SNAPSHOT, "InputFile.length"))
                         .add(new FileOperation(SNAPSHOT, "InputFile.newStream"))
                         .add(new FileOperation(SNAPSHOT, "OutputFile.create"))
@@ -180,8 +179,7 @@ public class TestIcebergFileOperations
         assertFileSystemAccesses(
                 "CREATE OR REPLACE TABLE test_create_or_replace_as_select AS SELECT 1 col_name",
                 ImmutableMultiset.<FileOperation>builder()
-                        .addCopies(new FileOperation(METADATA_JSON, "OutputFile.create"), 2)
-                        .add(new FileOperation(METADATA_JSON, "InputFile.newStream"))
+                        .add(new FileOperation(METADATA_JSON, "OutputFile.create"))
                         .add(new FileOperation(SNAPSHOT, "InputFile.length"))
                         .add(new FileOperation(SNAPSHOT, "InputFile.newStream"))
                         .add(new FileOperation(SNAPSHOT, "OutputFile.create"))
@@ -192,8 +190,8 @@ public class TestIcebergFileOperations
         assertFileSystemAccesses(
                 "CREATE OR REPLACE TABLE test_create_or_replace_as_select AS SELECT 1 col_name",
                 ImmutableMultiset.<FileOperation>builder()
-                        .addCopies(new FileOperation(METADATA_JSON, "OutputFile.create"), 2)
-                        .addCopies(new FileOperation(METADATA_JSON, "InputFile.newStream"), 2)
+                        .add(new FileOperation(METADATA_JSON, "OutputFile.create"))
+                        .add(new FileOperation(METADATA_JSON, "InputFile.newStream"))
                         .add(new FileOperation(SNAPSHOT, "InputFile.newStream"))
                         .add(new FileOperation(SNAPSHOT, "InputFile.length"))
                         .add(new FileOperation(SNAPSHOT, "OutputFile.create"))
@@ -210,8 +208,8 @@ public class TestIcebergFileOperations
         assertFileSystemAccesses(
                 "INSERT INTO test_insert VALUES('a', 1)",
                 ImmutableMultiset.<FileOperation>builder()
-                        .addCopies(new FileOperation(METADATA_JSON, "OutputFile.create"), 2)
-                        .addCopies(new FileOperation(METADATA_JSON, "InputFile.newStream"), 3)
+                        .add(new FileOperation(METADATA_JSON, "OutputFile.create"))
+                        .addCopies(new FileOperation(METADATA_JSON, "InputFile.newStream"), 2)
                         .addCopies(new FileOperation(SNAPSHOT, "InputFile.length"), 3)
                         .addCopies(new FileOperation(SNAPSHOT, "InputFile.newStream"), 3)
                         .add(new FileOperation(SNAPSHOT, "OutputFile.create"))
@@ -222,8 +220,8 @@ public class TestIcebergFileOperations
         assertFileSystemAccesses(
                 "INSERT INTO test_insert VALUES('b', 2)",
                 ImmutableMultiset.<FileOperation>builder()
-                        .addCopies(new FileOperation(METADATA_JSON, "OutputFile.create"), 2)
-                        .addCopies(new FileOperation(METADATA_JSON, "InputFile.newStream"), 3)
+                        .add(new FileOperation(METADATA_JSON, "OutputFile.create"))
+                        .addCopies(new FileOperation(METADATA_JSON, "InputFile.newStream"), 2)
                         .addCopies(new FileOperation(SNAPSHOT, "InputFile.newStream"), 3)
                         .addCopies(new FileOperation(SNAPSHOT, "InputFile.length"), 3)
                         .add(new FileOperation(STATS, "InputFile.newStream"))
@@ -1052,11 +1050,11 @@ public class TestIcebergFileOperations
                         .addCopies(new FileOperationUtils.FileOperation(SNAPSHOT, "InputFile.length"), 3)
                         .add(new FileOperation(STATS, "InputFile.newStream"))
                         .addCopies(new FileOperation(MANIFEST, "InputFile.newStream"),4)
-                        .addCopies(new FileOperationUtils.FileOperation(METADATA_JSON, "InputFile.newStream"), 3)
+                        .addCopies(new FileOperationUtils.FileOperation(METADATA_JSON, "InputFile.newStream"), 2)
                         .add(new FileOperationUtils.FileOperation(SNAPSHOT, "OutputFile.create"))
                         .add(new FileOperationUtils.FileOperation(PUFFIN, "InputFile.newInput"))
                         .addCopies(new FileOperationUtils.FileOperation(SNAPSHOT, "InputFile.newStream"),3)
-                        .addCopies(new FileOperationUtils.FileOperation(METADATA_JSON, "OutputFile.create"), 2)
+                        .addCopies(new FileOperationUtils.FileOperation(METADATA_JSON, "OutputFile.create"), 1)
                         .add(new FileOperation(STATS, "OutputFile.create"))
                         .addCopies(new FileOperation(MANIFEST, "OutputFile.create"), 3)
                         .build());
