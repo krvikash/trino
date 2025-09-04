@@ -40,6 +40,10 @@ final class TestBigQueryCaseInsensitiveMappingCacheFlush
                 .setConnectorProperties(ImmutableMap.<String, String>builder()
                         .put("bigquery.case-insensitive-name-matching", "true")
                         .put("bigquery.case-insensitive-name-matching.cache-ttl", "5m")
+                        // The below property enables caching of schemas and prevents other tests from interfering with case-insensitive cache.
+                        // When this cache is disabled, every schema listing fetches all schemas from the BigQuery server
+                        // and updates case-insensitive cache based on retrieved data if there are any new schemas created by other tests
+                        .put("bigquery.metadata.cache-ttl", "5m")
                         .buildOrThrow())
                 .build();
     }
@@ -78,42 +82,39 @@ final class TestBigQueryCaseInsensitiveMappingCacheFlush
     void testFlushMetadataProcedureWithAmbiguousSchemaName()
             throws Exception
     {
-        String schemaName = "test_flush_metadata_schema_" + randomNameSuffix();
-        String bigQuerySchema = schemaName + "_Test_Schema";
-        String bigQuerySchemaUpperCase = bigQuerySchema.toUpperCase(ENGLISH);
-        String trinoSchema = bigQuerySchema.toLowerCase(ENGLISH);
-        try (AutoCloseable _ = withSchema(bigQuerySchema);
-                TestTable fullyQualifiedName = new TestTable(bigQuerySqlExecutor, bigQuerySchema + ".test_table", "(c string)")) {
+        String schemaNameLowerCase = "test_flush_metadata_schema_" + randomNameSuffix();
+        String schemaNameUpperCase = schemaNameLowerCase.toUpperCase(ENGLISH);
+        try (AutoCloseable _ = withSchema(schemaNameLowerCase);
+                TestTable fullyQualifiedName = new TestTable(bigQuerySqlExecutor, schemaNameLowerCase + ".test_table", "(c string)")) {
             String tableName = fullyQualifiedName.getName().split("\\.")[1];
             // Fill caches
-            assertThat(computeActual("SHOW SCHEMAS").getOnlyColumn()).contains(trinoSchema);
+            assertThat(computeActual("SHOW SCHEMAS").getOnlyColumn()).contains(schemaNameLowerCase);
 
             // Create a new schema with an ambiguous name
-            bigQuerySqlExecutor.execute("CREATE SCHEMA " + bigQuerySchemaUpperCase);
+            bigQuerySqlExecutor.execute("CREATE SCHEMA " + schemaNameUpperCase);
 
             // Queries still work on ambiguous schema, as the cache is not yet flushed
-            assertThat(computeActual("SHOW SCHEMAS").getOnlyColumn()).contains(trinoSchema);
-            assertThat(computeActual("SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE '%" + schemaName + "%'").getOnlyValue()).isEqualTo(trinoSchema);
-            assertThat(computeActual("SHOW TABLES FROM " + trinoSchema).getOnlyValue()).isEqualTo(tableName);
+            assertThat(computeActual("SHOW SCHEMAS").getOnlyColumn()).contains(schemaNameLowerCase);
+            assertThat(computeActual("SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE '%" + schemaNameLowerCase + "%'").getOnlyValue()).isEqualTo(schemaNameLowerCase);
+            assertThat(computeActual("SHOW TABLES FROM " + schemaNameLowerCase).getOnlyValue()).isEqualTo(tableName);
             assertThat(computeActual("SELECT * FROM " + fullyQualifiedName.getName())).isEmpty();
 
             assertUpdate("CALL system.flush_metadata_cache()");
 
             // Queries fail on ambiguous schema name after cache is flushed
-            assertThat(computeActual("SHOW SCHEMAS").getOnlyColumn()).doesNotContain(trinoSchema); // Schema is not present as Trino filters out ambiguous schemas
-            assertThat(computeActual("SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE '%" + trinoSchema + "'")).isEmpty(); // Schema is not present as Trino filters out ambiguous schemas
-            assertQueryFails("SHOW TABLES FROM " + trinoSchema, "Found ambiguous names in BigQuery when looking up '%s'.*".formatted(trinoSchema));
-            assertQueryFails("SELECT * FROM " + fullyQualifiedName.getName(), "Found ambiguous names in BigQuery when looking up '%s'.*".formatted(trinoSchema));
+            assertThat(computeActual("SHOW SCHEMAS").getOnlyColumn()).doesNotContain(schemaNameLowerCase); // Schema is not present as Trino filters out ambiguous schemas
+            assertThat(computeActual("SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE '%" + schemaNameLowerCase + "'")).isEmpty(); // Schema is not present as Trino filters out ambiguous schemas
+            assertQueryFails("SHOW TABLES FROM " + schemaNameLowerCase, "Found ambiguous names in BigQuery when looking up '%s'.*".formatted(schemaNameLowerCase));
+            assertQueryFails("SELECT * FROM " + fullyQualifiedName.getName(), "Found ambiguous names in BigQuery when looking up '%s'.*".formatted(schemaNameLowerCase));
         }
         finally {
-            bigQuerySqlExecutor.execute("DROP SCHEMA IF EXISTS " + bigQuerySchemaUpperCase + " CASCADE");
+            bigQuerySqlExecutor.execute("DROP SCHEMA IF EXISTS " + schemaNameUpperCase + " CASCADE");
         }
     }
 
     private AutoCloseable withSchema(String schemaName)
     {
-        bigQuerySqlExecutor.dropDatasetIfExists(schemaName);
-        bigQuerySqlExecutor.createDataset(schemaName);
+        getQueryRunner().execute("CREATE SCHEMA " + schemaName);
         return () -> bigQuerySqlExecutor.dropDatasetIfExists(schemaName);
     }
 }
