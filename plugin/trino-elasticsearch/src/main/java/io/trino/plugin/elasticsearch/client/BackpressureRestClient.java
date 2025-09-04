@@ -14,6 +14,7 @@
 package io.trino.plugin.elasticsearch.client;
 
 import com.google.common.base.Stopwatch;
+import com.google.inject.Inject;
 import dev.failsafe.Failsafe;
 import dev.failsafe.FailsafeException;
 import dev.failsafe.RetryPolicy;
@@ -22,6 +23,7 @@ import dev.failsafe.event.ExecutionCompletedEvent;
 import dev.failsafe.function.CheckedSupplier;
 import io.airlift.log.Logger;
 import io.trino.plugin.elasticsearch.ElasticsearchConfig;
+import jakarta.annotation.PreDestroy;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
@@ -54,6 +56,7 @@ public class BackpressureRestClient
     private final ElasticsearchClientStats elasticsearchClientStats;
     private final ThreadLocal<Stopwatch> stopwatch = ThreadLocal.withInitial(Stopwatch::createUnstarted);
 
+    @Inject
     public BackpressureRestClient(RestClient delegate, ElasticsearchConfig config, ElasticsearchClientStats elasticsearchClientStats)
     {
         this.delegate = requireNonNull(delegate, "restClient is null");
@@ -112,6 +115,7 @@ public class BackpressureRestClient
         return request;
     }
 
+    @PreDestroy
     public void close()
             throws IOException
     {
