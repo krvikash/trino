@@ -1,0 +1,21 @@
+{
+  "tableName": "read_structural_datatype_json",
+  "schemaName": "product_tests",
+  "topicName": "read_structural_datatype_json",
+  "message": {
+    "dataFormat": "json",
+    "dataSchema": "/docker/trino-product-tests/conf/trino/etc/catalog/kafka/structural_datatypes_json.json.schema",
+    "fields": [
+      {
+        "name": "a_array",
+        "type": "ARRAY(VARCHAR)",
+        "mapping": "a_array"
+      },
+      {
+        "name": "a_object",
+        "type": "ROW(arr_int ARRAY(BIGINT), ns VARCHAR)",
+        "mapping": "a_object"
+      }
+    ]
+  }
+}

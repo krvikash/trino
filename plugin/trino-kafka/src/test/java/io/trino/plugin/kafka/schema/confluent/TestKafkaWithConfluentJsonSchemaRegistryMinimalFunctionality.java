@@ -169,6 +169,76 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
     }
 
     @Test
+    void testArrayTypes()
+    {
+        String topic = "topic-array-" + randomNameSuffix();
+        assertNotExists(topic);
+
+        List<ProducerRecord<String, ArrayEvent>> messages = ImmutableList.of(
+                new ProducerRecord<>(
+                        topic,
+                        "key-1",
+                        new ArrayEvent(
+                                true,
+                                ImmutableList.of(1, 2, 3),
+                                ImmutableList.of("a", "b", "c"),
+                                ImmutableList.of("2025-08-23T14:46:59.614080Z"),
+                                ImmutableList.of("2025-08-23"),
+                                ImmutableList.of("14:46:59.614Z"))));
+
+        testingKafka.sendMessages(messages.stream(), properties());
+
+        waitUntilTableExists(topic);
+        assertCount(topic, 1);
+
+        assertThat(query("SHOW COLUMNS FROM " + toDoubleQuoted(topic)))
+                .skippingTypesCheck()
+                .matches("VALUES ('%s-key', 'varchar', '', ''), ".formatted(topic.toLowerCase(ENGLISH)) +
+                         "('bool', 'boolean', '', ''), " +
+                         "('arrtimestamp', 'array(timestamp(3) with time zone)', '', ''), " +
+                         "('arrdate', 'array(date)', '', ''), " +
+                         "('arrstring', 'array(varchar)', '', ''), " +
+                         "('arrtime', 'array(time(3) with time zone)', '', ''), " +
+                         "('arrint', 'array(bigint)', '', '')");
+
+        assertThat(query("SELECT bool FROM " + toDoubleQuoted(topic)))
+                .matches("VALUES true");
+        assertThat(query("SELECT arrInt[1], arrInt[2], arrInt[3] FROM " + toDoubleQuoted(topic)))
+                .matches("VALUES (BIGINT '1', BIGINT '2', BIGINT '3')");
+        assertThat(query("SELECT arrString[1], arrString[2], arrString[3] FROM " + toDoubleQuoted(topic)))
+                .matches("VALUES (VARCHAR 'a', VARCHAR 'b', VARCHAR 'c')");
+        assertThat(query("SELECT arrTimestamp[1], arrDate[1], arrTime[1] FROM " + toDoubleQuoted(topic)))
+                .matches("VALUES (TIMESTAMP '2025-08-23 14:46:59.614 UTC', DATE '2025-08-23', TIME '14:46:59.614 +00:00')");
+    }
+
+    @Test
+    void testObjectType()
+    {
+        String topic = "topic-object-" + randomNameSuffix();
+        assertNotExists(topic);
+
+        List<ProducerRecord<String, ObjectEvent>> messages = ImmutableList.of(
+                new ProducerRecord<>(topic, "key-1", new ObjectEvent("test-string", new NestedObjectEvent(
+                        ImmutableList.of(new NestedObject(ImmutableList.of(1, 2, 3), "nested-array-string")), "nested-string"))));
+
+        testingKafka.sendMessages(messages.stream(), properties());
+
+        waitUntilTableExists(topic);
+        assertCount(topic, 1);
+
+        assertThat(query("SHOW COLUMNS FROM " + toDoubleQuoted(topic)))
+                .skippingTypesCheck()
+                .matches("VALUES ('%s-key', 'varchar', '', ''), ".formatted(topic.toLowerCase(ENGLISH)) +
+                         "('str', 'varchar', '', ''), " +
+                         "('nestedobj', 'row(nestedString varchar, arrObject array(row(nestedArrayString varchar, arrInt array(bigint))))', '', '')");
+
+        assertThat(query("SELECT nestedObj.arrObject[1].arrInt[1], nestedObj.arrObject[1].arrInt[2], nestedObj.arrObject[1].arrInt[3] FROM " + toDoubleQuoted(topic)))
+                .matches("VALUES (BIGINT '1', BIGINT '2', BIGINT '3')");
+        assertThat(query("SELECT str, nestedObj.nestedString, nestedObj.arrObject[1].nestedArrayString FROM " + toDoubleQuoted(topic)))
+                .matches("VALUES (VARCHAR 'test-string', VARCHAR 'nested-string', VARCHAR 'nested-array-string')");
+    }
+
+    @Test
     void testTopicWithKeySubject()
     {
         String topic = "topic-Key-Subject-" + randomNameSuffix();
@@ -545,5 +615,104 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
               }
             }""", refs = {})
     private record DateTimeEvent(String date, String time)
+    {}
+
+    // use annotation to define the schema with timestamp field, the prue json serializer not
+    // support passing format info
+    @Schema(value = """
+            {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "bool": {
+                  "type": "boolean"
+                },
+                "arrInt": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": -2147483648,
+                    "maximum": 2147483647
+                  }
+                },
+                "arrString": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "arrTimestamp": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "arrDate": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                },
+                "arrTime": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "time"
+                  }
+                }
+              }
+            }""", refs = {})
+    private record ArrayEvent(boolean bool, List<Integer> arrInt, List<String> arrString, List<String> arrTimestamp, List<String> arrDate, List<String> arrTime)
+    {}
+
+    // use annotation to define the schema with array column, the prue json serializer not
+    // support passing minimum, maximum info
+    @Schema(value = """
+            {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "title": "object_event",
+              "type": "object",
+              "properties": {
+                "str": {
+                  "type": "string"
+                },
+                "nestedObj": {
+                    "type": "object",
+                    "properties": {
+                        "arrObject" : {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "arrInt": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer",
+                                            "minimum": -2147483648,
+                                            "maximum": 2147483647
+                                        }
+                                    },
+                                    "nestedArrayString": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "nestedString": {
+                            "type": "string"
+                        }
+                    }
+                }
+              }
+            }""", refs = {})
+    private record ObjectEvent(String str, NestedObjectEvent nestedObj)
+    {}
+
+    private record NestedObjectEvent(List<NestedObject> arrObject, String nestedString)
+    {}
+
+    private record NestedObject(List<Integer> arrInt, String nestedArrayString)
     {}
 }

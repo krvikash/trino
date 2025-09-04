@@ -40,6 +40,7 @@ import org.everit.json.schema.internal.TimeFormatValidator;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.Optional;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.trino.plugin.kafka.schema.confluent.EmptyFieldStrategy.DUMMY_ROW_TYPE;
@@ -70,10 +71,16 @@ final class TestJsonSchemaConverter
                 .addPropertySchema("const_col", ConstSchema.builder().permittedValue("this_is_constant").build())
                 .addPropertySchema("enum_col", EnumSchema.builder().possibleValues(ImmutableSet.of("blue", "red", "yellow")).build())
                 .addPropertySchema("enum_col_num", EnumSchema.builder().possibleValues(ImmutableSet.of(1, 3, 3L)).build())
-                .addPropertySchema("arr_col", ArraySchema.builder().addItemSchema(NumberSchema.builder().requiresInteger(true).minimum(Integer.MIN_VALUE).maximum(Integer.MAX_VALUE).build()).build())
+                .addPropertySchema("arr_col", ArraySchema.builder().addItemSchema(
+                        ObjectSchema.builder().addPropertySchema("obj_int", NumberSchema.builder().requiresInteger(true).build()).build()).build())
                 .addPropertySchema("combine_col", CombinedSchema.oneOf(ImmutableSet.of(
                         NumberSchema.builder().requiresInteger(true).build(),
                         NullSchema.builder().build())).build())
+                .addPropertySchema("row_col", ObjectSchema.builder()
+                        .addPropertySchema("one_of_int", CombinedSchema.oneOf(ImmutableSet.of(
+                                NumberSchema.builder().requiresInteger(true).build(),
+                                NullSchema.builder().build())).build())
+                        .build())
                 .build();
 
         JsonSchemaConverter jsonSchemaConverter = new JsonSchemaConverter(EmptyFieldStrategy.IGNORE);
@@ -91,7 +98,11 @@ final class TestJsonSchemaConverter
                 .put("const_col", VARCHAR)
                 .put("enum_col", VARCHAR)
                 .put("enum_col_num", BIGINT)
+                .put("arr_col", new ArrayType(RowType.rowType(new RowType.Field(Optional.of("obj_int"), BIGINT))))
                 .put("combine_col", BIGINT)
+                .put("row_col", RowType.from(ImmutableList.<RowType.Field>builder()
+                        .add(new RowType.Field(Optional.of("one_of_int"), BIGINT))
+                        .build()))
                 .buildOrThrow());
     }
 
@@ -108,6 +119,7 @@ final class TestJsonSchemaConverter
         assertType(ConstSchema.builder().permittedValue("this_is_constant").build(), VARCHAR);
         assertType(EnumSchema.builder().possibleValues(ImmutableSet.of("blue", "red", "yellow")).build(), VARCHAR);
         assertType(EnumSchema.builder().possibleValues(ImmutableSet.of(1, 3, 3L)).build(), BIGINT);
+        assertType(ArraySchema.builder().addItemSchema(NumberSchema.builder().requiresInteger(true).build()).build(), new ArrayType(BIGINT));
     }
 
     private static void assertType(Schema schema, Type expectedType)
@@ -131,9 +143,14 @@ final class TestJsonSchemaConverter
                 .addPropertySchema("date_col", StringSchema.builder().requiresString(false).formatValidator(new DateFormatValidator()).nullable(true).build())
                 .addPropertySchema("time_col", StringSchema.builder().requiresString(false).formatValidator(new TimeFormatValidator()).nullable(true).build())
                 .addPropertySchema("enum_col", EnumSchema.builder().possibleValues(ImmutableSet.of("blue", "red", "yellow")).nullable(true).build())
+                .addPropertySchema("arr_col", ArraySchema.builder().addItemSchema(NumberSchema.builder().requiresInteger(true).build()).nullable(true).build())
                 .addPropertySchema("combine_col", CombinedSchema.oneOf(ImmutableSet.of(
                         NumberSchema.builder().requiresInteger(true).nullable(true).build(),
                         NullSchema.builder().build())).build())
+                .addPropertySchema("row_col", ObjectSchema.builder()
+                        .addPropertySchema("int_col", NumberSchema.builder().requiresInteger(true).nullable(true).build())
+                        .nullable(true)
+                        .build())
                 .build();
 
         JsonSchemaConverter jsonSchemaConverter = new JsonSchemaConverter(EmptyFieldStrategy.IGNORE);
@@ -148,7 +165,11 @@ final class TestJsonSchemaConverter
                 .put("date_col", DATE)
                 .put("time_col", TIME_TZ_MILLIS)
                 .put("enum_col", VARCHAR)
+                .put("arr_col", new ArrayType(BIGINT))
                 .put("combine_col", BIGINT)
+                .put("row_col", RowType.from(ImmutableList.<RowType.Field>builder()
+                        .add(new RowType.Field(Optional.of("int_col"), BIGINT))
+                        .build()))
                 .buildOrThrow());
     }
 
@@ -165,6 +186,7 @@ final class TestJsonSchemaConverter
         assertType(ConstSchema.builder().permittedValue("this_is_constant").nullable(true).build(), VARCHAR);
         assertType(EnumSchema.builder().possibleValues(ImmutableSet.of("blue", "red", "yellow")).nullable(true).build(), VARCHAR);
         assertType(EnumSchema.builder().possibleValues(ImmutableSet.of(1, 3, 3L)).nullable(true).build(), BIGINT);
+        assertType(ArraySchema.builder().addItemSchema(NumberSchema.builder().requiresInteger(true).build()).nullable(true).build(), new ArrayType(BIGINT));
     }
 
     @Test

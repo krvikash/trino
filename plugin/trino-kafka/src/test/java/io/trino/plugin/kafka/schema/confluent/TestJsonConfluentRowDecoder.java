@@ -183,7 +183,7 @@ final class TestJsonConfluentRowDecoder
 
     public static JsonRowDecoderFactory getJsonRowDecoderFactory()
     {
-        return new JsonRowDecoderFactory(new ConfluentSchemaRegistryJsonPayloadProvider(new ObjectMapper()));
+        return new ConfluentJsonRowDecoderFactory(new ConfluentSchemaRegistryJsonPayloadProvider(new ObjectMapper()));
     }
 
     private static void assertRowsAreEqual(Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodedRow, String expected)

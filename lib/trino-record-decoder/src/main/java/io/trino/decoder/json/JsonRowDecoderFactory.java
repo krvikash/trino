@@ -55,7 +55,7 @@ public class JsonRowDecoderFactory
                 .collect(toImmutableMap(identity(), this::chooseFieldDecoder));
     }
 
-    private JsonFieldDecoder chooseFieldDecoder(DecoderColumnHandle column)
+    protected JsonFieldDecoder chooseFieldDecoder(DecoderColumnHandle column)
     {
         try {
             requireNonNull(column);

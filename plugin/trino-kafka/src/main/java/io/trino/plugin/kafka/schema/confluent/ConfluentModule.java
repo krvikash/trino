@@ -43,7 +43,6 @@ import io.trino.decoder.dummy.DummyRowDecoder;
 import io.trino.decoder.dummy.DummyRowDecoderFactory;
 import io.trino.decoder.json.JsonPayloadProvider;
 import io.trino.decoder.json.JsonRowDecoder;
-import io.trino.decoder.json.JsonRowDecoderFactory;
 import io.trino.decoder.protobuf.DescriptorProvider;
 import io.trino.decoder.protobuf.DummyDescriptorProvider;
 import io.trino.decoder.protobuf.DynamicMessageProvider;
@@ -158,7 +157,7 @@ public class ConfluentModule
             binder.bind(AvroDeserializer.Factory.class).to(AvroBytesDeserializer.Factory.class).in(Scopes.SINGLETON);
             newMapBinder(binder, String.class, RowDecoderFactory.class).addBinding(AvroRowDecoderFactory.NAME).to(AvroRowDecoderFactory.class).in(Scopes.SINGLETON);
             newMapBinder(binder, String.class, RowDecoderFactory.class).addBinding(ProtobufRowDecoder.NAME).to(ProtobufRowDecoderFactory.class).in(Scopes.SINGLETON);
-            newMapBinder(binder, String.class, RowDecoderFactory.class).addBinding(JsonRowDecoder.NAME).to(JsonRowDecoderFactory.class).in(Scopes.SINGLETON);
+            newMapBinder(binder, String.class, RowDecoderFactory.class).addBinding(JsonRowDecoder.NAME).to(ConfluentJsonRowDecoderFactory.class).in(Scopes.SINGLETON);
             newMapBinder(binder, String.class, RowDecoderFactory.class).addBinding(DummyRowDecoder.NAME).to(DummyRowDecoderFactory.class).in(SINGLETON);
             binder.bind(DispatchingRowDecoderFactory.class).in(SINGLETON);
 

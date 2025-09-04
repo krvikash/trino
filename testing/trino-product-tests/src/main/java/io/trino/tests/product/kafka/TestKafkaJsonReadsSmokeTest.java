@@ -36,6 +36,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.List;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -69,6 +70,9 @@ public class TestKafkaJsonReadsSmokeTest
     // let the supplier think it is a table/topic
     private static final String ALL_BASIC_DATATYPE_SCHEMA_PATH = "/docker/trino-product-tests/conf/trino/etc/catalog/kafka/basic_datatypes_json.json.schema";
     private static final String ALL_NULL_JSON_TOPIC_NAME = "read_all_null_json";
+
+    private static final String STRUCTURAL_JSON_TOPIC_NAME = "read_structural_datatype_json";
+    private static final String STRUCTURAL_JSON_SCHEMA_PATH = "/docker/trino-product-tests/conf/trino/etc/catalog/kafka/structural_datatypes_json.json.schema";
 
     @Test(groups = {KAFKA, PROFILE_SPECIFIC_TESTS})
     public void testSelectPrimitiveDataType()
@@ -143,6 +147,32 @@ public class TestKafkaJsonReadsSmokeTest
                             null,
                             null,
                             null));
+                });
+    }
+
+    @Test(groups = {KAFKA_CONFLUENT_LICENSE, PROFILE_SPECIFIC_TESTS})
+    public void testSelectStructuralDataTypeWithSchemaRegistry()
+            throws Exception
+    {
+        selectStructuralDataType(KAFKA_SCHEMA_REGISTRY_CATALOG);
+    }
+
+    private void selectStructuralDataType(KafkaCatalog kafkaCatalog)
+            throws Exception
+    {
+        String topicName = STRUCTURAL_JSON_TOPIC_NAME + kafkaCatalog.topicNameSuffix();
+        StructuralDataTypeRecord record = new StructuralDataTypeRecord(
+                ImmutableList.of("str-1", "str-2"),
+                new NestedDataTypeRecord(ImmutableList.of(1, 2, 3), "nested-string"));
+        createJsonTable(STRUCTURAL_JSON_SCHEMA_PATH, STRUCTURAL_JSON_TOPIC_NAME, topicName, record, kafkaCatalog.messageSerializer());
+        assertEventually(
+                new Duration(30, SECONDS),
+                () -> {
+                    QueryResult queryResult = onTrino().executeQuery(format(
+                            "SELECT a[1], a[2], r.arr_int[1], r.arr_int[2], r.arr_int[3], r.ns FROM (SELECT a_array as a, a_object as r FROM %s.%s) t",
+                            kafkaCatalog.catalogName(),
+                            KAFKA_SCHEMA + "." + topicName));
+                    assertThat(queryResult).containsOnly(row("str-1", "str-2", 1, 2, 3, "nested-string"));
                 });
     }
 
@@ -231,6 +261,23 @@ public class TestKafkaJsonReadsSmokeTest
             }
         }
     }
+
+    private record StructuralDataTypeRecord(
+            @JsonProperty("a_array") List<String> array,
+            @JsonProperty("a_object") NestedDataTypeRecord row)
+            implements Record
+    {
+        @Override
+        public Set<String> keys()
+        {
+            return ImmutableSet.of("a_array", "a_object");
+        }
+    }
+
+    private record NestedDataTypeRecord(
+            @JsonProperty("arr_int") List<Integer> arrInt,
+            @JsonProperty("ns") String ns)
+    {}
 
     private record PrimitiveDataTypeRecord(
             @JsonProperty("a_varchar") String varchar,
