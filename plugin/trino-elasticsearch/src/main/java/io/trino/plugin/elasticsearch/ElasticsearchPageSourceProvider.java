@@ -15,6 +15,7 @@ package io.trino.plugin.elasticsearch;
 
 import com.google.inject.Inject;
 import io.trino.plugin.elasticsearch.client.ElasticsearchClient;
+import io.trino.plugin.elasticsearch.client.ElasticsearchClientFactory;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
@@ -36,13 +37,13 @@ import static java.util.Objects.requireNonNull;
 public class ElasticsearchPageSourceProvider
         implements ConnectorPageSourceProvider
 {
-    private final ElasticsearchClient client;
+    private final ElasticsearchClientFactory clientFactory;
     private final TypeManager typeManager;
 
     @Inject
-    public ElasticsearchPageSourceProvider(ElasticsearchClient client, TypeManager typeManager)
+    public ElasticsearchPageSourceProvider(ElasticsearchClientFactory clientFactory, TypeManager typeManager)
     {
-        this.client = requireNonNull(client, "client is null");
+        this.clientFactory = requireNonNull(clientFactory, "clientFactory is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
     }
 
@@ -56,6 +57,7 @@ public class ElasticsearchPageSourceProvider
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter)
     {
+        ElasticsearchClient client = clientFactory.createClient(session);
         requireNonNull(split, "split is null");
         requireNonNull(table, "table is null");
 

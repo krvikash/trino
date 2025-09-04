@@ -20,6 +20,7 @@ import com.google.inject.Provider;
 import io.airlift.slice.Slice;
 import io.trino.plugin.elasticsearch.ElasticsearchColumnHandle;
 import io.trino.plugin.elasticsearch.ElasticsearchMetadata;
+import io.trino.plugin.elasticsearch.ElasticsearchMetadataFactory;
 import io.trino.plugin.elasticsearch.ElasticsearchTableHandle;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ColumnSchema;
@@ -54,26 +55,26 @@ public class RawQuery
     public static final String SCHEMA_NAME = "system";
     public static final String NAME = "raw_query";
 
-    private final ElasticsearchMetadata metadata;
+    private final ElasticsearchMetadataFactory metadataFactory;
 
     @Inject
-    public RawQuery(ElasticsearchMetadata metadata)
+    public RawQuery(ElasticsearchMetadataFactory metadataFactory)
     {
-        this.metadata = requireNonNull(metadata, "metadata is null");
+        this.metadataFactory = requireNonNull(metadataFactory, "metadataFactory is null");
     }
 
     @Override
     public ConnectorTableFunction get()
     {
-        return new RawQueryFunction(metadata);
+        return new RawQueryFunction(metadataFactory);
     }
 
     public static class RawQueryFunction
             extends AbstractConnectorTableFunction
     {
-        private final ElasticsearchMetadata metadata;
+        private final ElasticsearchMetadataFactory metadataFactory;
 
-        public RawQueryFunction(ElasticsearchMetadata metadata)
+        public RawQueryFunction(ElasticsearchMetadataFactory metadataFactory)
         {
             super(SCHEMA_NAME,
                     NAME,
@@ -92,7 +93,7 @@ public class RawQuery
                                     .build()),
                     GENERIC_TABLE,
                     "");
-            this.metadata = requireNonNull(metadata, "metadata is null");
+            this.metadataFactory = requireNonNull(metadataFactory, "metadataFactory is null");
         }
 
         @Override
@@ -102,6 +103,7 @@ public class RawQuery
                 Map<String, Argument> arguments,
                 ConnectorAccessControl accessControl)
         {
+            ElasticsearchMetadata metadata = metadataFactory.create(session);
             String schema = ((Slice) ((ScalarArgument) arguments.get("SCHEMA")).getValue()).toStringUtf8();
             String index = ((Slice) ((ScalarArgument) arguments.get("INDEX")).getValue()).toStringUtf8();
             String query = ((Slice) ((ScalarArgument) arguments.get("QUERY")).getValue()).toStringUtf8();

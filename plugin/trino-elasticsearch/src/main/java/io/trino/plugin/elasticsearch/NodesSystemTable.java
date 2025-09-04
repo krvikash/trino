@@ -16,6 +16,7 @@ package io.trino.plugin.elasticsearch;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import io.trino.plugin.elasticsearch.client.ElasticsearchClient;
+import io.trino.plugin.elasticsearch.client.ElasticsearchClientFactory;
 import io.trino.plugin.elasticsearch.client.ElasticsearchNode;
 import io.trino.spi.Node;
 import io.trino.spi.Page;
@@ -48,13 +49,13 @@ public class NodesSystemTable
                     .add(new ColumnMetadata("elasticsearch_node_address", createUnboundedVarcharType()))
                     .build());
 
-    private final ElasticsearchClient client;
+    private final ElasticsearchClientFactory clientFactory;
     private final Node currentNode;
 
     @Inject
-    public NodesSystemTable(Node currentNode, ElasticsearchClient client)
+    public NodesSystemTable(Node currentNode, ElasticsearchClientFactory clientFactory)
     {
-        this.client = requireNonNull(client, "client is null");
+        this.clientFactory = requireNonNull(clientFactory, "clientFactory is null");
         this.currentNode = requireNonNull(currentNode, "currentNode is null");
     }
 
@@ -73,6 +74,7 @@ public class NodesSystemTable
     @Override
     public ConnectorPageSource pageSource(ConnectorTransactionHandle transaction, ConnectorSession session, TupleDomain<Integer> constraint)
     {
+        ElasticsearchClient client = clientFactory.createClient(session);
         Set<ElasticsearchNode> nodes = client.getNodes();
 
         BlockBuilder nodeId = VARCHAR.createBlockBuilder(null, nodes.size());

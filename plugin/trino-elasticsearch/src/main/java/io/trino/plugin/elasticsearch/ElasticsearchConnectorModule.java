@@ -14,14 +14,11 @@
 package io.trino.plugin.elasticsearch;
 
 import com.google.inject.Binder;
-import com.google.inject.Key;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import com.google.inject.multibindings.Multibinder;
-import com.google.inject.name.Names;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.airlift.stats.TimeStat;
 import io.trino.plugin.elasticsearch.client.AwsSecurityRestClientConfigurator;
 import io.trino.plugin.elasticsearch.client.BackpressureRestClient;
 import io.trino.plugin.elasticsearch.client.BasicSecurityRestClientConfigurator;
@@ -65,12 +62,10 @@ public class ElasticsearchConnectorModule
     protected void setup(Binder binder)
     {
         binder.bind(ElasticsearchConnector.class).in(Scopes.SINGLETON);
-        binder.bind(ElasticsearchMetadata.class).in(Scopes.SINGLETON);
+        binder.bind(ElasticsearchMetadataFactory.class).in(Scopes.SINGLETON);
         binder.bind(ElasticsearchSubstitutionMetadata.class).in(Scopes.SINGLETON);
         binder.bind(ElasticsearchSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(ElasticsearchPageSourceProvider.class).in(Scopes.SINGLETON);
-        binder.bind(Key.get(TimeStat.class, Names.named("backpressureStats"))).toInstance(new TimeStat());
-        binder.bind(ElasticsearchClient.class).in(Scopes.SINGLETON);
         binder.bind(NodesSystemTable.class).in(Scopes.SINGLETON);
 
         binder.bind(ElasticsearchClientStats.class).in(Scopes.SINGLETON);

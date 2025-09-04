@@ -14,6 +14,7 @@
 package io.trino.plugin.elasticsearch;
 
 import com.google.inject.Injector;
+import com.google.inject.Scopes;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.configuration.ConfigPropertyMetadata;
 import io.airlift.json.JsonModule;
@@ -22,6 +23,8 @@ import io.trino.plugin.base.TypeDeserializerModule;
 import io.trino.plugin.base.config.ConfigUtils;
 import io.trino.plugin.base.jmx.ConnectorObjectNameGeneratorModule;
 import io.trino.plugin.base.jmx.MBeanServerModule;
+import io.trino.plugin.elasticsearch.client.DefaultElasticsearchClientFactory;
+import io.trino.plugin.elasticsearch.client.ElasticsearchClientFactory;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
@@ -81,6 +84,9 @@ public class ElasticsearchConnectorFactory
                 new JsonModule(),
                 new TypeDeserializerModule(),
                 new ElasticsearchConnectorModule(),
+                binder -> {
+                    binder.bind(ElasticsearchClientFactory.class).to(DefaultElasticsearchClientFactory.class).in(Scopes.SINGLETON);
+                },
                 new ConnectorContextModule(catalogName, context));
 
         return app
