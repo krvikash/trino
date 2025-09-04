@@ -37,6 +37,7 @@ import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.ValueBlock;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.SourcePage;
+import io.trino.spi.metrics.Metrics;
 import io.trino.spi.type.Type;
 
 import java.io.IOException;
@@ -498,6 +499,12 @@ public class DispatcherPageSource
             this.stats.addexecution_time(System.nanoTime() - this.startTime);
             closeHandler.accept(rowGroupData, "close page source", shapingLogger);
         }
+    }
+
+    @Override
+    public Metrics getMetrics()
+    {
+        return proxiedConnectorPageSource == null ? Metrics.EMPTY : proxiedConnectorPageSource.getMetrics();
     }
 
     private void getNextWarpSourcePage()
