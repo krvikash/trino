@@ -20,6 +20,7 @@ import io.trino.plugin.hive.metastore.glue.GlueHiveMetastore;
 import io.trino.spi.security.Identity;
 import io.trino.spi.security.SelectedRole;
 import io.trino.testing.QueryRunner;
+import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
@@ -469,23 +470,18 @@ public abstract class BaseHiveS3AndGlueTest
     {
         String firstCatalog = "catalog_" + randomNameSuffix();
         String secondCatalog = "catalog2_" + randomNameSuffix();
-        String createCatalogSql =
-                """
-                CREATE CATALOG %1$s USING hive
-                WITH (
-                   "hive.metastore" = 'glue',
-                   "hive.metastore.glue.default-warehouse-dir" = '%2$s'
-                )""";
+        @Language("SQL") String createCatalogSql1 = getCreateCatalogSqlUsingHive(firstCatalog, schemaPath());
         try {
-            assertUpdate(createCatalogSql.formatted(firstCatalog, schemaPath()));
+            assertUpdate(createCatalogSql1);
             assertThat((String) computeActual("SHOW CREATE CATALOG " + firstCatalog).getOnlyValue())
-                    .isEqualTo(createCatalogSql.formatted(firstCatalog, schemaPath()));
+                    .isEqualTo(createCatalogSql1);
             assertQuerySucceeds("SHOW SCHEMAS FROM " + firstCatalog);
 
             String newSchemaPath = schemaPath() + "/catalog_new";
-            assertUpdate(createCatalogSql.formatted(secondCatalog, newSchemaPath));
+            @Language("SQL") String createCatalogSql2 = getCreateCatalogSqlUsingHive(secondCatalog, newSchemaPath);
+            assertUpdate(createCatalogSql2);
             assertThat((String) computeActual("SHOW CREATE CATALOG " + secondCatalog).getOnlyValue())
-                    .isEqualTo(createCatalogSql.formatted(secondCatalog, newSchemaPath));
+                    .isEqualTo(createCatalogSql2);
             assertQuerySucceeds("SHOW SCHEMAS FROM " + secondCatalog);
         }
         finally {
@@ -498,21 +494,16 @@ public abstract class BaseHiveS3AndGlueTest
     public void testRenameCatalog()
     {
         String oldCatalog = "catalog_rename_" + randomNameSuffix();
-        String createCatalogSql =
-                """
-                CREATE CATALOG %1$s USING hive
-                WITH (
-                   "hive.metastore" = 'glue',
-                   "hive.metastore.glue.default-warehouse-dir" = '%2$s'
-                )""";
-        assertUpdate(createCatalogSql.formatted(oldCatalog, schemaPath()));
+        @Language("SQL") String createCatalogSql = getCreateCatalogSqlUsingHive(oldCatalog, schemaPath());
+
+        assertUpdate(createCatalogSql);
 
         String catalog = "catalog_rename_" + randomNameSuffix();
         assertUpdate("ALTER CATALOG %s RENAME TO %s".formatted(oldCatalog, catalog));
         assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog))
                 .hasMessage("Catalog '%s' not found".formatted(oldCatalog));
         assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
-                .isEqualTo(createCatalogSql.formatted(catalog, schemaPath()));
+                .isEqualTo(getCreateCatalogSqlUsingHive(catalog, schemaPath()));
         assertQuerySucceeds("SHOW SCHEMAS FROM " + catalog);
 
         assertUpdate("DROP CATALOG " + catalog);
@@ -522,17 +513,12 @@ public abstract class BaseHiveS3AndGlueTest
     public void testCatalogSetProperties()
     {
         String catalog = "catalog_set_props_" + randomNameSuffix();
-        String createCatalogSql =
-                """
-                CREATE CATALOG %1$s USING hive
-                WITH (
-                   "hive.metastore" = 'glue',
-                   "hive.metastore.glue.default-warehouse-dir" = '%2$s'
-                )""";
+        @Language("SQL") String createCatalogSql = getCreateCatalogSqlUsingHive(catalog, schemaPath());
+
         try {
-            assertUpdate(createCatalogSql.formatted(catalog, schemaPath()));
+            assertUpdate(createCatalogSql);
             assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
-                    .isEqualTo(createCatalogSql.formatted(catalog, schemaPath()));
+                    .isEqualTo(createCatalogSql);
             assertUpdate(
                     """
                     ALTER CATALOG %s SET PROPERTIES
@@ -554,5 +540,15 @@ public abstract class BaseHiveS3AndGlueTest
             assertUpdate("DROP SCHEMA IF EXISTS %s.test_dynamic".formatted(catalog));
             assertUpdate("DROP CATALOG IF EXISTS " + catalog);
         }
+    }
+
+    protected String getCreateCatalogSqlUsingHive(String catalog, String schemaPath)
+    {
+        return """
+               CREATE CATALOG %1$s USING hive
+               WITH (
+                  "hive.metastore" = 'glue',
+                  "hive.metastore.glue.default-warehouse-dir" = '%2$s'
+               )""".formatted(catalog, schemaPath);
     }
 }
