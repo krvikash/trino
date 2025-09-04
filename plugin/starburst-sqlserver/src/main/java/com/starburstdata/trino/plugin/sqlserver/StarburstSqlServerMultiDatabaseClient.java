@@ -33,6 +33,7 @@ import io.trino.spi.security.ConnectorIdentity;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -76,9 +77,13 @@ public class StarburstSqlServerMultiDatabaseClient
         Collection<String> catalogNames = listCatalogs(connection);
         ImmutableSet.Builder<String> schemaNames = ImmutableSet.builder();
         for (String catalogName : catalogNames) {
-            try (ResultSet resultSet = connection.getMetaData().getSchemas(catalogName, null)) {
+            // Avoid using DatabaseMetaData.getSchemas method because
+            // https://github.com/microsoft/mssql-jdbc/commit/351c2bec2ed88249cf9d68804224b717015d1625 introduced a filtering
+            // of internal (predefined) schemas.
+            try (PreparedStatement statement = connection.prepareStatement("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA");
+                    ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
-                    String schemaName = resultSet.getString("TABLE_SCHEM");
+                    String schemaName = resultSet.getString("SCHEMA_NAME");
                     // skip internal schemas
                     if (filterSchema(schemaName)) {
                         schemaNames.add(format("%s%s%s", catalogName, DATABASE_SEPARATOR, schemaName));
