@@ -2030,6 +2030,39 @@ public class TestIcebergV3
     }
 
     @Test
+    void testGeometryType()
+    {
+        // TODO https://starburstdata.atlassian.net/browse/SEP-17506 Add support for geometry and geography types
+        try (TestTable table = newTrinoTable("test_geometry", "(x int)")) {
+            BaseTable icebergTable = loadTable(table.getName());
+            icebergTable.updateSchema().addColumn("geometry", Types.GeometryType.crs84()).commit();
+            assertQueryFails("SELECT * FROM " + table.getName(), "\\QCannot convert from Iceberg type 'geometry' (GEOMETRY) to Trino type");
+        }
+    }
+
+    @Test
+    void testGeographyType()
+    {
+        // TODO https://starburstdata.atlassian.net/browse/SEP-17506 Add support for geometry and geography types
+        try (TestTable table = newTrinoTable("test_geography", "(x int)")) {
+            BaseTable icebergTable = loadTable(table.getName());
+            icebergTable.updateSchema().addColumn("geography", Types.GeographyType.crs84()).commit();
+            assertQueryFails("SELECT * FROM " + table.getName(), "\\QCannot convert from Iceberg type 'geography' (GEOGRAPHY) to Trino type");
+        }
+    }
+
+    @Test
+    void testUnknownType()
+    {
+        // TODO https://starburstdata.atlassian.net/browse/SEP-18220 Add support for unknown type
+        try (TestTable table = newTrinoTable("test_unknown", "(x int)")) {
+            BaseTable icebergTable = loadTable(table.getName());
+            icebergTable.updateSchema().addColumn("unknown", Types.UnknownType.get()).commit();
+            assertQueryFails("SELECT * FROM " + table.getName(), "\\QCannot convert from Iceberg type 'unknown' (UNKNOWN) to Trino type");
+        }
+    }
+
+    @Test
     void testUnsupportedTableEncryption()
     {
         String tableName = "test_encryption" + randomNameSuffix();

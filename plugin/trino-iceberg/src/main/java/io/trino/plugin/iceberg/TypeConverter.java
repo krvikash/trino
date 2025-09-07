@@ -114,7 +114,7 @@ public final class TypeConverter
             case UNKNOWN:
                 break;
         }
-        throw new UnsupportedOperationException(format("Cannot convert from Iceberg type '%s' (%s) to Trino type", type, type.typeId()));
+        throw new TrinoException(NOT_SUPPORTED, format("Cannot convert from Iceberg type '%s' (%s) to Trino type", type, type.typeId()));
     }
 
     public static org.apache.iceberg.types.Type toIcebergTypeForNewColumn(Type type, AtomicInteger nextFieldId)
