@@ -400,10 +400,13 @@ public class HashAggregationOperator
             }
             else if (step.isOutputPartial() || !spillEnabled || !isSpillable()) {
                 // TODO: We ignore spillEnabled here if any aggregate has ORDER BY clause or DISTINCT because they are not yet implemented for spilling.
+                int expectedGroupCount = Math.max(expectedGroups, partialAggregationController
+                        .flatMap(PartialAggregationController::expectedGroupCount)
+                        .orElse(expectedGroups));
                 aggregationBuilder = new InMemoryHashAggregationBuilder(
                         aggregatorFactories,
                         step,
-                        expectedGroups,
+                        expectedGroupCount,
                         groupByTypes,
                         groupByChannels,
                         false, // spillable

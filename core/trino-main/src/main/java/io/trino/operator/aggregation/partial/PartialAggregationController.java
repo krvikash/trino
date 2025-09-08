@@ -16,8 +16,10 @@ package io.trino.operator.aggregation.partial;
 import io.airlift.units.DataSize;
 import io.trino.operator.HashAggregationOperator;
 
+import java.util.Optional;
 import java.util.OptionalLong;
 
+import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -55,6 +57,7 @@ public class PartialAggregationController
     private long totalBytesProcessed;
     private long totalRowProcessed;
     private long totalUniqueRowsProduced;
+    private int aggregationFlushCount;
 
     public PartialAggregationController(boolean useCardinalityBasedController, DataSize maxPartialMemory, double uniqueRowsRatioThreshold)
     {
@@ -69,6 +72,14 @@ public class PartialAggregationController
         return aggregationMode;
     }
 
+    public synchronized Optional<Integer> expectedGroupCount()
+    {
+        if (aggregationFlushCount > 0) {
+            return Optional.of(toIntExact(totalUniqueRowsProduced / aggregationFlushCount));
+        }
+        return Optional.empty();
+    }
+
     public synchronized void onFlush(long bytesProcessed, long rowsProcessed, OptionalLong uniqueRowsProduced)
     {
         if ((aggregationMode == AggregationMode.AGGREGATION) && uniqueRowsProduced.isEmpty()) {
@@ -78,7 +89,10 @@ public class PartialAggregationController
 
         totalBytesProcessed += bytesProcessed;
         totalRowProcessed += rowsProcessed;
-        uniqueRowsProduced.ifPresent(value -> totalUniqueRowsProduced += value);
+        uniqueRowsProduced.ifPresent(value -> {
+            totalUniqueRowsProduced += value;
+            aggregationFlushCount++;
+        });
 
         if (aggregationMode == AggregationMode.HLL) {
             // Use a sigmoid based function to identify if we need to process in PA mode - to determine low cardinlaity stream early,
@@ -102,6 +116,7 @@ public class PartialAggregationController
             totalBytesProcessed = 0;
             totalRowProcessed = 0;
             totalUniqueRowsProduced = 0;
+            aggregationFlushCount = 0;
             aggregationMode = useCardinalityBasedController ? AggregationMode.HLL : AggregationMode.AGGREGATION;
         }
     }
