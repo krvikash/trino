@@ -120,6 +120,10 @@ public class TestHiveLegacyDateCompatibility
 
             assertThat(onHive().executeQuery("SELECT id, date_col FROM " + hiveTableName)).containsOnly(EXPECTED_ROWS);
             assertThat(onTrino().executeQuery("SELECT id, date_col FROM " + trinoTableName)).containsOnly(EXPECTED_ROWS);
+
+            String ctasTable = hiveTableName + "_ctas";
+            onTrino().executeQuery("CREATE TABLE %s AS SELECT * FROM %s".formatted(ctasTable, trinoTableName));
+            assertThat(onTrino().executeQuery("SELECT id, date_col from %s".formatted(ctasTable))).containsOnly(EXPECTED_ROWS);
         }
         finally {
             onHive().executeQuery("DROP TABLE IF EXISTS " + hiveTableName);
@@ -187,6 +191,10 @@ public class TestHiveLegacyDateCompatibility
 
             assertThat(onHive().executeQuery("SELECT id, date_col FROM " + hiveTableName)).containsOnly(EXPECTED_ROWS);
             assertThat(onTrino().executeQuery("SELECT id, date_col FROM " + trinoTableName)).containsOnly(EXPECTED_ROWS);
+
+            String ctasTable = hiveTableName + "_ctas";
+            onTrino().executeQuery("CREATE TABLE %s AS SELECT * FROM %s".formatted(ctasTable, trinoTableName));
+            assertThat(onTrino().executeQuery("SELECT id, date_col from %s".formatted(ctasTable))).containsOnly(EXPECTED_ROWS);
         }
         finally {
             onHive().executeQuery("DROP TABLE IF EXISTS " + hiveTableName);
@@ -204,6 +212,10 @@ public class TestHiveLegacyDateCompatibility
 
             assertThat(onHive().executeQuery("SELECT id, date_col FROM " + hiveTableName)).containsOnly(EXPECTED_ROWS);
             assertThat(onTrino().executeQuery("SELECT id, date_col FROM " + trinoTableName)).containsOnly(EXPECTED_ROWS);
+
+            String ctasTable = hiveTableName + "_ctas";
+            onTrino().executeQuery("CREATE TABLE %s AS SELECT * FROM %s".formatted(ctasTable, trinoTableName));
+            assertThat(onTrino().executeQuery("SELECT id, date_col FROM %s".formatted(ctasTable))).containsOnly(EXPECTED_ROWS);
         }
         finally {
             onHive().executeQuery("DROP TABLE IF EXISTS " + hiveTableName);
