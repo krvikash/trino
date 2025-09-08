@@ -12,7 +12,7 @@ jobs:
   triage:
     runs-on: [self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest]
     steps:
-      - uses: actions/labeler@v5
+      - uses: actions/labeler@v6
         with:
           repo-token: "${{ secrets.GITHUB_TOKEN }}"
           # Do not sync labels as this reverts manually added labels such as "tests:all".
