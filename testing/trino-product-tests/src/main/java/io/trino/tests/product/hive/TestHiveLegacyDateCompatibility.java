@@ -150,6 +150,32 @@ public class TestHiveLegacyDateCompatibility
         }
     }
 
+    @Test(groups = {HIVE4, PROFILE_SPECIFIC_TESTS})
+    public void testHiveParquetLegacyLeapYearDateTableCompatibility()
+    {
+        String hiveTableName = "test_hive_parquet_legacy_leap_year_%s".formatted(randomNameSuffix());
+        String trinoTableName = "%s.%s.%s".formatted(TRINO_CATALOG, SCHEMA, hiveTableName);
+
+        try {
+            onHive().executeQuery("SET hive.parquet.date.proleptic.gregorian=false");
+            onHive().executeQuery("CREATE TABLE %s.%s (id int, date_col date) STORED AS PARQUET ".formatted(SCHEMA, hiveTableName));
+            onHive().executeQuery("INSERT INTO %s.%s VALUES (1, '1000-02-29'), (2,'1600-02-29'), (3,'1700-02-29'), (4,'2000-02-29')".formatted(SCHEMA, hiveTableName));
+
+            // Hive cannot accept Julian leap year dates
+            QueryAssert.Row[] expectedRows = {
+                    row(1, null),
+                    row(2, Date.valueOf("1600-02-29")),
+                    row(3, null),
+                    row(4, Date.valueOf("2000-02-29"))};
+
+            assertThat(onHive().executeQuery("SELECT id, date_col FROM " + hiveTableName)).containsOnly(expectedRows);
+            assertThat(onTrino().executeQuery("SELECT id, date_col FROM " + trinoTableName)).containsOnly(expectedRows);
+        }
+        finally {
+            onHive().executeQuery("DROP TABLE IF EXISTS " + hiveTableName);
+        }
+    }
+
     private void testHiveOrcLegacyDateCompatibility(boolean hiveWritesInProlepticGregorian)
     {
         String hiveTableName = "test_hive_orc_legacy_date_compatibility_%s".formatted(randomNameSuffix());
