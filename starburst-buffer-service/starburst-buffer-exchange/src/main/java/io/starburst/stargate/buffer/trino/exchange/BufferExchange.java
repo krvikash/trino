@@ -460,25 +460,30 @@ public class BufferExchange
             }
 
             for (long nodeId : bufferNodeIds) {
-                ListenableFuture<Void> future = Futures.catching(
-                        dataApi.removeExchange(nodeId, externalExchangeId),
-                        DataApiException.class,
-                        dataApiException -> {
-                            if (dataApiException.getErrorCode() == ErrorCode.EXCHANGE_NOT_FOUND
-                                    || dataApiException.getErrorCode() == ErrorCode.BUFFER_NODE_NOT_FOUND
-                                    || dataApiException.getErrorCode() == ErrorCode.DRAINED) {
-                                // ignore
-                                return null;
-                            }
-                            throw dataApiException;
-                        },
-                        directExecutor());
+                ListenableFuture<Void> future = triggerRemoveExchange(nodeId);
                 addExceptionCallback(future, (t) -> {
                     callerStack.addSuppressed(t);
                     log.warn(callerStack, "Could not remove exchange %s on node %d", externalExchangeId, nodeId);
                 });
             }
         }, 1000, MILLISECONDS);
+    }
+
+    private ListenableFuture<Void> triggerRemoveExchange(long bufferNodeId)
+    {
+        return Futures.catching(
+                dataApi.removeExchange(bufferNodeId, externalExchangeId),
+                DataApiException.class,
+                dataApiException -> {
+                    if (dataApiException.getErrorCode() == ErrorCode.EXCHANGE_NOT_FOUND
+                            || dataApiException.getErrorCode() == ErrorCode.BUFFER_NODE_NOT_FOUND
+                            || dataApiException.getErrorCode() == ErrorCode.DRAINED) {
+                        // ignore
+                        return null;
+                    }
+                    throw dataApiException;
+                },
+                directExecutor());
     }
 
     public synchronized void stopPolling()
