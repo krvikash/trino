@@ -415,6 +415,19 @@ public class BufferExchange
             return;
         }
 
+        if (closed.get()) {
+            // race condition between closing exchange and adding a new node to poll
+            // remove exchange immediately
+            RuntimeException callerStack = new RuntimeException("caller");
+            addExceptionCallback(
+                    triggerRemoveExchange(bufferNodeId),
+                    exception -> {
+                        callerStack.addSuppressed(exception);
+                        log.warn(callerStack, "Could not remove exchange %s on node %d", externalExchangeId, bufferNodeId);
+                    }, directExecutor());
+            return;
+        }
+
         ChunkHandlesPoller poller = new ChunkHandlesPoller(
                 executorService,
                 externalExchangeId,
