@@ -289,6 +289,8 @@ public final class DistributedQueryRunner
             InternalNode currentNode = server.getCurrentNode();
             this.coordinator.registerServer(currentNode);
             this.backupCoordinator.ifPresent(backup -> backup.registerServer(currentNode));
+            server.registerServer(this.coordinator.getCurrentNode());
+            this.backupCoordinator.ifPresent(backup -> server.registerServer(backup.getCurrentNode()));
         }
         return server;
     }

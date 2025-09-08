@@ -16,7 +16,6 @@ package io.trino.node;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.trino.server.ServerConfig;
 
 public class TestingNodeManagerModule
         extends AbstractConfigurationAwareModule
@@ -24,14 +23,8 @@ public class TestingNodeManagerModule
     @Override
     protected void setup(Binder binder)
     {
-        ServerConfig serverConfig = buildConfigObject(ServerConfig.class);
-        if (serverConfig.isCoordinator()) {
-            binder.bind(TestingInternalNodeManager.class).in(Scopes.SINGLETON);
-            binder.bind(InternalNodeManager.class).to(TestingInternalNodeManager.class).in(Scopes.SINGLETON);
-        }
-        else {
-            binder.bind(InternalNodeManager.class).to(WorkerInternalNodeManager.class).in(Scopes.SINGLETON);
-        }
+        binder.bind(TestingInternalNodeManager.class).in(Scopes.SINGLETON);
+        binder.bind(InternalNodeManager.class).to(TestingInternalNodeManager.class).in(Scopes.SINGLETON);
         binder.bind(Announcer.class).to(TestingAnnouncer.class).in(Scopes.SINGLETON);
     }
 }

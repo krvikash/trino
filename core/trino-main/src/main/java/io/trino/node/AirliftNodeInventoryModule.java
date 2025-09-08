@@ -60,29 +60,29 @@ public class AirliftNodeInventoryModule
     protected void setup(Binder binder)
     {
         boolean coordinator = buildConfigObject(ServerConfig.class).isCoordinator();
+        if (buildConfigObject(EmbeddedDiscoveryConfig.class).isEnabled()) {
+            install(new EmbeddedDiscoveryModule());
+        }
+
+        binder.bind(NodeInventory.class).to(AirliftNodeInventory.class).in(Scopes.SINGLETON);
+
+        // selector
+        discoveryBinder(binder).bindSelector("trino");
+
         if (coordinator) {
-            if (buildConfigObject(EmbeddedDiscoveryConfig.class).isEnabled()) {
-                install(new EmbeddedDiscoveryModule());
-            }
-
-            binder.bind(NodeInventory.class).to(AirliftNodeInventory.class).in(Scopes.SINGLETON);
-
-            // selector
-            discoveryBinder(binder).bindSelector("trino");
-
             // coordinator announcement
             discoveryBinder(binder).bindHttpAnnouncement("trino-coordinator");
-
-            // failure detector
-            install(new FailureDetectorModule());
-            jaxrsBinder(binder).bind(NodeResource.class);
-
-            // server security configuration
-            resourceSecurityBinder(binder)
-                    .managementReadResource(ServiceResource.class)
-                    .internalOnlyResource(DynamicAnnouncementResource.class)
-                    .internalOnlyResource(StoreResource.class);
         }
+
+        // failure detector
+        install(new FailureDetectorModule());
+        jaxrsBinder(binder).bind(NodeResource.class);
+
+        // server security configuration
+        resourceSecurityBinder(binder)
+                .managementReadResource(ServiceResource.class)
+                .internalOnlyResource(DynamicAnnouncementResource.class)
+                .internalOnlyResource(StoreResource.class);
 
         // both coordinator and worker must announce
         install(new DiscoveryModule());

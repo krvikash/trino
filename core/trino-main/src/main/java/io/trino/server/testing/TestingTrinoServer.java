@@ -369,7 +369,7 @@ public class TestingTrinoServer
         }
 
         modules.add(aiModelAccessControlModule());
-        modules.add(new ModelConnectionSpecsLoaderModule(modelConnectionSpecsLoader));
+        modules.add(new ModelConnectionSpecsLoaderModule(modelConnectionSpecsLoader, coordinator));
 
         modules.add(additionalModule);
 
@@ -425,7 +425,6 @@ public class TestingTrinoServer
             clusterMemoryManager = injector.getInstance(ClusterMemoryManager.class);
             statsCalculator = injector.getInstance(StatsCalculator.class);
             injector.getInstance(CertificateAuthenticatorManager.class).useDefaultAuthenticator();
-            nodeManager = injector.getInstance(TestingInternalNodeManager.class);
         }
         else {
             dispatchManager = null;
@@ -436,8 +435,8 @@ public class TestingTrinoServer
             nodePartitioningManager = null;
             clusterMemoryManager = null;
             statsCalculator = null;
-            nodeManager = null;
         }
+        nodeManager = injector.getInstance(TestingInternalNodeManager.class);
         localMemoryManager = injector.getInstance(LocalMemoryManager.class);
         nodeStateManager = injector.getInstance(NodeStateManager.class);
         taskManager = injector.getInstance(SqlTaskManager.class);
@@ -733,7 +732,6 @@ public class TestingTrinoServer
 
     public void registerServer(InternalNode server)
     {
-        checkState(coordinator, "Current server is not a coordinator");
         nodeManager.addNodes(server);
     }
 
@@ -793,19 +791,28 @@ public class TestingTrinoServer
             extends AbstractConfigurationAwareModule
     {
         private final Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader;
+        private final boolean coordinator;
 
-        public ModelConnectionSpecsLoaderModule(Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader)
+        public ModelConnectionSpecsLoaderModule(Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader, boolean coordinator)
         {
             this.modelConnectionSpecsLoader = requireNonNull(modelConnectionSpecsLoader, "modelConnectionSpecsLoader is null");
+            this.coordinator = coordinator;
         }
 
         @Override
         protected void setup(Binder binder)
         {
             if (modelConnectionSpecsLoader.isPresent()) {
-                install(new AiModelConnectionSpecsLoaderModule());
+                if (coordinator) {
+                    jaxrsBinder(binder).bindInstance(new TestingModelConnectionSpecsResource(modelConnectionSpecsLoader.get()));
+                    newOptionalBinder(binder, ModelConnectionSpecsLoader.class)
+                            .setDefault()
+                            .toInstance(EMPTY_LOADER);
+                }
+                else {
+                    install(new AiModelConnectionSpecsLoaderModule());
+                }
                 install(new InternalHttpClientModule());
-                jaxrsBinder(binder).bindInstance(new TestingModelConnectionSpecsResource(modelConnectionSpecsLoader.get()));
             }
             else {
                 newOptionalBinder(binder, ModelConnectionSpecsLoader.class)

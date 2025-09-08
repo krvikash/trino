@@ -21,8 +21,6 @@ import com.google.inject.Singleton;
 import io.trino.execution.QueryManager;
 import io.trino.execution.resourcegroups.NoOpResourceGroupManager;
 import io.trino.execution.resourcegroups.ResourceGroupManager;
-import io.trino.failuredetector.FailureDetector;
-import io.trino.failuredetector.NoOpFailureDetector;
 import io.trino.metadata.LanguageFunctionProvider;
 import io.trino.metadata.WorkerLanguageFunctionProvider;
 import io.trino.server.ui.NoWebUiAuthenticationFilter;
@@ -41,9 +39,6 @@ public class WorkerModule
 
         // Install no-op resource group manager on workers, since only coordinators manage resource groups.
         binder.bind(ResourceGroupManager.class).to(NoOpResourceGroupManager.class).in(Scopes.SINGLETON);
-
-        // Install no-op failure detector on workers, since only coordinators need global node selection.
-        binder.bind(FailureDetector.class).to(NoOpFailureDetector.class).in(Scopes.SINGLETON);
 
         // HACK: this binding is needed by SystemConnectorModule, but will only be used on the coordinator
         binder.bind(QueryManager.class).toInstance(newProxy(QueryManager.class, (proxy, method, args) -> {
