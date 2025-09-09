@@ -123,6 +123,17 @@ public final class PredicateUtils
             Map<List<String>, ColumnDescriptor> descriptorsByPath,
             DateTimeZone timeZone)
     {
+        return buildPredicate(requestedSchema, parquetTupleDomain, descriptorsByPath, timeZone, false, false);
+    }
+
+    public static TupleDomainParquetPredicate buildPredicate(
+            MessageType requestedSchema,
+            TupleDomain<ColumnDescriptor> parquetTupleDomain,
+            Map<List<String>, ColumnDescriptor> descriptorsByPath,
+            DateTimeZone timeZone,
+            boolean legacyDate,
+            boolean legacyTimestamp)
+    {
         ImmutableList.Builder<ColumnDescriptor> columnReferences = ImmutableList.builder();
         for (String[] paths : requestedSchema.getPaths()) {
             ColumnDescriptor descriptor = descriptorsByPath.get(Arrays.asList(paths));
@@ -130,7 +141,7 @@ public final class PredicateUtils
                 columnReferences.add(descriptor);
             }
         }
-        return new TupleDomainParquetPredicate(parquetTupleDomain, columnReferences.build(), timeZone);
+        return new TupleDomainParquetPredicate(parquetTupleDomain, columnReferences.build(), timeZone, legacyDate, legacyTimestamp);
     }
 
     public static boolean predicateMatches(
@@ -142,7 +153,9 @@ public final class PredicateUtils
             Optional<ColumnIndexStore> columnIndexStore,
             Optional<BloomFilterStore> bloomFilterStore,
             DateTimeZone timeZone,
-            int domainCompactionThreshold)
+            int domainCompactionThreshold,
+            boolean legacyDate,
+            boolean legacyTimestamp)
             throws IOException
     {
         if (columnsMetadata.getRowCount() == 0) {
@@ -160,7 +173,7 @@ public final class PredicateUtils
         // Perform column index, bloom filter checks and dictionary lookups only for the subset of columns where it can be useful.
         // This prevents unnecessary filesystem reads and decoding work when the predicate on a column comes from
         // file-level min/max stats or more generally when the predicate selects a range equal to or wider than row-group min/max.
-        TupleDomainParquetPredicate indexPredicate = new TupleDomainParquetPredicate(parquetTupleDomain, candidateColumns.get(), timeZone);
+        TupleDomainParquetPredicate indexPredicate = new TupleDomainParquetPredicate(parquetTupleDomain, candidateColumns.get(), timeZone, legacyDate, legacyTimestamp);
 
         // Page stats is finer grained but relatively more expensive, so we do the filtering after above block filtering.
         if (columnIndexStore.isPresent() && !indexPredicate.matches(columnValueCounts, columnIndexStore.get(), dataSource.getId())) {
@@ -193,6 +206,36 @@ public final class PredicateUtils
             ParquetReaderOptions options)
             throws IOException
     {
+        return getFilteredRowGroups(
+                splitStart,
+                splitLength,
+                dataSource,
+                parquetMetadata,
+                parquetTupleDomains,
+                parquetPredicates,
+                descriptorsByPath,
+                timeZone,
+                domainCompactionThreshold,
+                options,
+                false,
+                false);
+    }
+
+    public static List<RowGroupInfo> getFilteredRowGroups(
+            long splitStart,
+            long splitLength,
+            ParquetDataSource dataSource,
+            ParquetMetadata parquetMetadata,
+            List<TupleDomain<ColumnDescriptor>> parquetTupleDomains,
+            List<TupleDomainParquetPredicate> parquetPredicates,
+            Map<List<String>, ColumnDescriptor> descriptorsByPath,
+            DateTimeZone timeZone,
+            int domainCompactionThreshold,
+            ParquetReaderOptions options,
+            boolean legacyDate,
+            boolean legacyTimestamp)
+            throws IOException
+    {
         ImmutableList.Builder<RowGroupInfo> rowGroupInfoBuilder = ImmutableList.builder();
         for (BlockMetadata block : parquetMetadata.getBlocks(splitStart, splitLength)) {
             for (int i = 0; i < parquetTupleDomains.size(); i++) {
@@ -210,7 +253,9 @@ public final class PredicateUtils
                         columnIndex,
                         bloomFilterStore,
                         timeZone,
-                        domainCompactionThreshold)) {
+                        domainCompactionThreshold,
+                        legacyDate,
+                        legacyTimestamp)) {
                     rowGroupInfoBuilder.add(new RowGroupInfo(columnsMetadata, block.fileRowCountOffset(), columnIndex));
                     break;
                 }

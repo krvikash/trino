@@ -498,6 +498,12 @@ public class TestTupleDomainParquetPredicate
         assertThat(getDomain(columnDescriptor, DATE, 10, intColumnStats(100, 100), ID, UTC)).isEqualTo(singleValue(DATE, 100L));
         assertThat(getDomain(columnDescriptor, DATE, 10, intColumnStats(0, 100), ID, UTC)).isEqualTo(create(ValueSet.ofRanges(range(DATE, 0L, true, 100L, true)), false));
 
+        // legacy dates in Julian calendar
+        // 0001-01-01 -> Julian day: -719165 , Proleptic Gregorian: -718798
+        assertThat(getDomain(columnDescriptor, DATE, 10, intColumnStats(-719165, -719165), ID, UTC, true, false)).isEqualTo(singleValue(DATE, -718798L));
+        // 1001-01-01 -> Julian day: -354281 , Proleptic Gregorian: -354286
+        assertThat(getDomain(columnDescriptor, DATE, 10, intColumnStats(-354281, -354281), ID, UTC, true, false)).isEqualTo(singleValue(DATE, -354286L));
+
         // fail on corrupted statistics
         assertThatExceptionOfType(ParquetCorruptionException.class)
                 .isThrownBy(() -> getDomain(columnDescriptor, DATE, 10, intColumnStats(200, 100), ID, UTC))
@@ -790,7 +796,7 @@ public class TestTupleDomainParquetPredicate
                 toByteBufferList(null, 2L, null, 4L, null, 9L),
                 toByteBufferList(null, 3L, null, 15L, null, 10L));
         ColumnDescriptor column = new ColumnDescriptor(new String[] {"path"}, Types.optional(INT64).named("Test column"), 0, 0);
-        assertThat(getDomain(BIGINT, 200, columnIndex, new ParquetDataSourceId("test"), column, UTC))
+        assertThat(getDomain(BIGINT, 200, columnIndex, new ParquetDataSourceId("test"), column, UTC, false, false))
                 .isEqualTo(Domain.create(
                         ValueSet.ofRanges(
                                 range(BIGINT, 2L, true, 3L, true),
@@ -811,7 +817,7 @@ public class TestTupleDomainParquetPredicate
                 toByteBufferList(2L, 4L, 9L),
                 toByteBufferList(3L, 15L, 10L));
         ColumnDescriptor column = new ColumnDescriptor(new String[] {"path"}, Types.optional(INT64).named("Test column"), 0, 0);
-        assertThat(getDomain(BIGINT, 200, columnIndex, new ParquetDataSourceId("test"), column, UTC))
+        assertThat(getDomain(BIGINT, 200, columnIndex, new ParquetDataSourceId("test"), column, UTC, false, false))
                 .isEqualTo(Domain.create(
                         ValueSet.ofRanges(
                                 range(BIGINT, 2L, true, 3L, true),

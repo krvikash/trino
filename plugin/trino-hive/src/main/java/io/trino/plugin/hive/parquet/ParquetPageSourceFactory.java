@@ -253,7 +253,7 @@ public class ParquetPageSourceFactory
             List<TupleDomainParquetPredicate> parquetPredicates;
             if (options.isIgnoreStatistics()) {
                 parquetTupleDomains = ImmutableList.of(TupleDomain.all());
-                parquetPredicates = ImmutableList.of(buildPredicate(requestedSchema, TupleDomain.all(), descriptorsByPath, timeZone));
+                parquetPredicates = ImmutableList.of(buildPredicate(requestedSchema, TupleDomain.all(), descriptorsByPath, timeZone, coercionContext.convertDateToProleptic(), coercionContext.convertHiveInt96TimestampToProleptic()));
             }
             else {
                 ImmutableList.Builder<TupleDomain<ColumnDescriptor>> parquetTupleDomainsBuilder = ImmutableList.builderWithExpectedSize(disjunctTupleDomains.size());
@@ -261,7 +261,7 @@ public class ParquetPageSourceFactory
                 for (TupleDomain<HiveColumnHandle> tupleDomain : disjunctTupleDomains) {
                     TupleDomain<ColumnDescriptor> parquetTupleDomain = getParquetTupleDomain(descriptorsByPath, tupleDomain, fileSchema, useColumnNames);
                     parquetTupleDomainsBuilder.add(parquetTupleDomain);
-                    parquetPredicatesBuilder.add(buildPredicate(requestedSchema, parquetTupleDomain, descriptorsByPath, timeZone));
+                    parquetPredicatesBuilder.add(buildPredicate(requestedSchema, parquetTupleDomain, descriptorsByPath, timeZone, coercionContext.convertDateToProleptic(), coercionContext.convertHiveInt96TimestampToProleptic()));
                 }
                 parquetTupleDomains = parquetTupleDomainsBuilder.build();
                 parquetPredicates = parquetPredicatesBuilder.build();
@@ -277,7 +277,9 @@ public class ParquetPageSourceFactory
                     descriptorsByPath,
                     timeZone,
                     domainCompactionThreshold,
-                    options);
+                    options,
+                    coercionContext.convertDateToProleptic(),
+                    coercionContext.convertHiveInt96TimestampToProleptic());
 
             ParquetDataSourceId dataSourceId = dataSource.getId();
             ParquetDataSource finalDataSource = dataSource;

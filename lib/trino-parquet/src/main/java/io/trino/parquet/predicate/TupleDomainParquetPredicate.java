@@ -32,6 +32,7 @@ import io.trino.spi.type.DecimalConversions;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Decimals;
 import io.trino.spi.type.Int128;
+import io.trino.spi.type.LongTimestamp;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.UuidType;
@@ -73,6 +74,8 @@ import static io.trino.parquet.ParquetTypeUtils.getShortDecimalValue;
 import static io.trino.parquet.predicate.PredicateUtils.isStatisticsOverflow;
 import static io.trino.parquet.reader.ColumnReaderFactory.isDecimalRescaled;
 import static io.trino.plugin.base.type.TrinoTimestampEncoderFactory.createTimestampEncoder;
+import static io.trino.plugin.base.util.CalendarUtils.convertHybridDaysToProlepticGregorian;
+import static io.trino.plugin.base.util.CalendarUtils.convertHybridMicrosToProlepticGregorian;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
@@ -96,12 +99,21 @@ public class TupleDomainParquetPredicate
     private final TupleDomain<ColumnDescriptor> effectivePredicate;
     private final List<ColumnDescriptor> columns;
     private final DateTimeZone timeZone;
+    private final boolean legacyDate;
+    private final boolean legacyTimestamp;
 
     public TupleDomainParquetPredicate(TupleDomain<ColumnDescriptor> effectivePredicate, List<ColumnDescriptor> columns, DateTimeZone timeZone)
+    {
+        this(effectivePredicate, columns, timeZone, false, false);
+    }
+
+    public TupleDomainParquetPredicate(TupleDomain<ColumnDescriptor> effectivePredicate, List<ColumnDescriptor> columns, DateTimeZone timeZone, boolean legacyDate, boolean legacyTimestamp)
     {
         this.effectivePredicate = requireNonNull(effectivePredicate, "effectivePredicate is null");
         this.columns = ImmutableList.copyOf(requireNonNull(columns, "columns is null"));
         this.timeZone = requireNonNull(timeZone, "timeZone is null");
+        this.legacyDate = legacyDate;
+        this.legacyTimestamp = legacyTimestamp;
     }
 
     public boolean isDiscreteSet(ColumnDescriptor column)
@@ -167,7 +179,9 @@ public class TupleDomainParquetPredicate
                     columnValueCount,
                     columnStatistics,
                     id,
-                    timeZone);
+                    timeZone,
+                    legacyDate,
+                    legacyTimestamp);
             if (!effectivePredicateDomain.overlaps(domain)) {
                 return Optional.empty();
             }
@@ -239,7 +253,7 @@ public class TupleDomainParquetPredicate
             if (columnValueCount == null) {
                 throw new IllegalArgumentException(format("Missing columnValueCount for column %s in %s", column, id));
             }
-            Domain domain = getDomain(effectivePredicateDomain.getType(), columnValueCount, columnIndex, id, column, timeZone);
+            Domain domain = getDomain(effectivePredicateDomain.getType(), columnValueCount, columnIndex, id, column, timeZone, legacyDate, legacyTimestamp);
             if (!effectivePredicateDomain.overlaps(domain)) {
                 return false;
             }
@@ -302,7 +316,7 @@ public class TupleDomainParquetPredicate
 
     private boolean effectivePredicateMatches(Domain effectivePredicateDomain, DictionaryDescriptor dictionary)
     {
-        return effectivePredicateDomain.overlaps(getDomain(effectivePredicateDomain.getType(), dictionary, timeZone));
+        return effectivePredicateDomain.overlaps(getDomain(effectivePredicateDomain.getType(), dictionary, timeZone, legacyDate, legacyTimestamp));
     }
 
     @VisibleForTesting
@@ -313,6 +327,21 @@ public class TupleDomainParquetPredicate
             Statistics<?> statistics,
             ParquetDataSourceId id,
             DateTimeZone timeZone)
+            throws ParquetCorruptionException
+    {
+        return getDomain(column, type, columnValuesCount, statistics, id, timeZone, false, false);
+    }
+
+    @VisibleForTesting
+    public static Domain getDomain(
+            ColumnDescriptor column,
+            Type type,
+            long columnValuesCount,
+            Statistics<?> statistics,
+            ParquetDataSourceId id,
+            DateTimeZone timeZone,
+            boolean legacyDate,
+            boolean legacyTimestamp)
             throws ParquetCorruptionException
     {
         if (statistics == null || statistics.isEmpty()) {
@@ -338,7 +367,9 @@ public class TupleDomainParquetPredicate
                     ImmutableList.of(min instanceof Binary minValue ? Slices.wrappedBuffer(minValue.getBytes()) : min),
                     ImmutableList.of(max instanceof Binary maxValue ? Slices.wrappedBuffer(maxValue.getBytes()) : max),
                     hasNullValue,
-                    timeZone);
+                    timeZone,
+                    legacyDate,
+                    legacyTimestamp);
         }
         catch (Exception e) {
             throw corruptionException(column.toString(), id, statistics, e);
@@ -355,7 +386,9 @@ public class TupleDomainParquetPredicate
             List<Object> minimums,
             List<Object> maximums,
             boolean hasNullValue,
-            DateTimeZone timeZone)
+            DateTimeZone timeZone,
+            boolean legacyDate,
+            boolean legacyTimestamp)
     {
         checkArgument(minimums.size() == maximums.size(), "Expected minimums and maximums to have the same size");
 
@@ -380,6 +413,10 @@ public class TupleDomainParquetPredicate
             for (int i = 0; i < minimums.size(); i++) {
                 long min = asLong(minimums.get(i));
                 long max = asLong(maximums.get(i));
+                if (type.equals(DATE) && legacyDate) {
+                    min = convertHybridDaysToProlepticGregorian(toIntExact(min));
+                    max = convertHybridDaysToProlepticGregorian(toIntExact(max));
+                }
                 if (isStatisticsOverflow(type, min, max)) {
                     return Domain.create(ValueSet.all(type), hasNullValue);
                 }
@@ -472,7 +509,11 @@ public class TupleDomainParquetPredicate
                         return Domain.create(ValueSet.all(type), hasNullValue);
                     }
 
-                    rangesBuilder.addValue(timestampEncoder.getTimestamp(decodeInt96Timestamp(Binary.fromConstantByteArray(minSlice.getBytes()))));
+                    Object timestamp = timestampEncoder.getTimestamp(decodeInt96Timestamp(Binary.fromConstantByteArray(minSlice.getBytes())));
+                    if (legacyTimestamp) {
+                        timestamp = convertToProlepticGregorian(timestamp);
+                    }
+                    rangesBuilder.addValue(timestamp);
                 }
                 return Domain.create(rangesBuilder.build(), hasNullValue);
             }
@@ -503,6 +544,24 @@ public class TupleDomainParquetPredicate
         }
 
         return Domain.create(ValueSet.all(type), hasNullValue);
+    }
+
+    private static Object convertToProlepticGregorian(Object timestamp)
+    {
+        switch (timestamp) {
+            // LongTimestamp
+            case LongTimestamp longTimestamp -> {
+                long prolepticMicros = convertHybridMicrosToProlepticGregorian(longTimestamp.getEpochMicros());
+                return new LongTimestamp(prolepticMicros, longTimestamp.getPicosOfMicro());
+            }
+            // ShortTimestamp
+            case Long micros -> {
+                return convertHybridMicrosToProlepticGregorian(micros);
+            }
+            case null, default -> {
+                return timestamp;
+            }
+        }
     }
 
     private static long getShortDecimal(Object value, DecimalType columnType, ColumnDescriptor column)
@@ -567,7 +626,9 @@ public class TupleDomainParquetPredicate
             ColumnIndex columnIndex,
             ParquetDataSourceId id,
             ColumnDescriptor descriptor,
-            DateTimeZone timeZone)
+            DateTimeZone timeZone,
+            boolean legacyDate,
+            boolean legacyTimestamp)
             throws ParquetCorruptionException
     {
         if (columnIndex == null) {
@@ -613,7 +674,7 @@ public class TupleDomainParquetPredicate
                 max.add(converterFunction.apply(maxValues.get(i)));
             }
 
-            return getDomain(descriptor, type, min, max, hasNullValue, timeZone);
+            return getDomain(descriptor, type, min, max, hasNullValue, timeZone, legacyDate, legacyTimestamp);
         }
         catch (Exception e) {
             throw corruptionException(columnName, id, columnIndex, e);
@@ -623,10 +684,10 @@ public class TupleDomainParquetPredicate
     @VisibleForTesting
     public static Domain getDomain(Type type, DictionaryDescriptor dictionaryDescriptor)
     {
-        return getDomain(type, dictionaryDescriptor, DateTimeZone.getDefault());
+        return getDomain(type, dictionaryDescriptor, DateTimeZone.getDefault(), false, false);
     }
 
-    private static Domain getDomain(Type type, DictionaryDescriptor dictionaryDescriptor, DateTimeZone timeZone)
+    private static Domain getDomain(Type type, DictionaryDescriptor dictionaryDescriptor, DateTimeZone timeZone, boolean legacyDate, boolean legacyTimestamp)
     {
         if (dictionaryDescriptor == null) {
             return Domain.all(type);
@@ -665,7 +726,7 @@ public class TupleDomainParquetPredicate
         }
 
         // TODO: when min == max (i.e., singleton ranges, the construction of Domains can be done more efficiently
-        return getDomain(columnDescriptor, type, values, values, dictionaryDescriptor.isNullAllowed(), timeZone);
+        return getDomain(columnDescriptor, type, values, values, dictionaryDescriptor.isNullAllowed(), timeZone, legacyDate, legacyTimestamp);
     }
 
     private static ParquetCorruptionException corruptionException(String column, ParquetDataSourceId id, Statistics<?> statistics, Exception cause)
@@ -767,7 +828,7 @@ public class TupleDomainParquetPredicate
 
             FilterPredicate columnFilter = FilterApi.userDefined(
                     new TrinoIntColumn(ColumnPath.get(column.getPath())),
-                    new DomainUserDefinedPredicate<>(column, domain, timeZone));
+                    new DomainUserDefinedPredicate<>(column, domain, timeZone, legacyDate, legacyTimestamp));
             if (filter == null) {
                 filter = columnFilter;
             }
@@ -789,12 +850,16 @@ public class TupleDomainParquetPredicate
         private final ColumnDescriptor columnDescriptor;
         private final Domain columnDomain;
         private final DateTimeZone timeZone;
+        private final boolean legacyDate;
+        private final boolean legacyTimestamp;
 
-        public DomainUserDefinedPredicate(ColumnDescriptor columnDescriptor, Domain domain, DateTimeZone timeZone)
+        public DomainUserDefinedPredicate(ColumnDescriptor columnDescriptor, Domain domain, DateTimeZone timeZone, boolean legacyDate, boolean legacyTimestamp)
         {
             this.columnDescriptor = requireNonNull(columnDescriptor, "columnDescriptor is null");
             this.columnDomain = domain;
             this.timeZone = timeZone;
+            this.legacyDate = legacyDate;
+            this.legacyTimestamp = legacyTimestamp;
         }
 
         @Override
@@ -822,7 +887,9 @@ public class TupleDomainParquetPredicate
                     ImmutableList.of(min instanceof Binary minBinary ? Slices.wrappedBuffer(minBinary.getBytes()) : min),
                     ImmutableList.of(max instanceof Binary maxBinary ? Slices.wrappedBuffer(maxBinary.getBytes()) : max),
                     true,
-                    timeZone);
+                    timeZone,
+                    legacyDate,
+                    legacyTimestamp);
             return !columnDomain.overlaps(domain);
         }
 

@@ -165,7 +165,7 @@ public class ParquetTestUtils
         Map<List<String>, ColumnDescriptor> descriptorsByPath = getDescriptors(fileSchema, fileSchema);
         TupleDomain<ColumnDescriptor> parquetTupleDomain = predicate.transformKeys(
                 columnName -> descriptorsByPath.get(ImmutableList.of(columnName.toLowerCase(ENGLISH))));
-        TupleDomainParquetPredicate parquetPredicate = buildPredicate(fileSchema, parquetTupleDomain, descriptorsByPath, UTC);
+        TupleDomainParquetPredicate parquetPredicate = buildPredicate(fileSchema, parquetTupleDomain, descriptorsByPath, UTC, false, false);
         List<RowGroupInfo> rowGroups = getFilteredRowGroups(
                 splitOffset,
                 splitLength,
