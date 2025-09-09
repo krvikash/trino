@@ -22,6 +22,7 @@ import io.trino.orc.metadata.statistics.BloomFilter;
 import io.trino.orc.metadata.statistics.BooleanStatistics;
 import io.trino.orc.metadata.statistics.ColumnStatistics;
 import io.trino.orc.metadata.statistics.RangeStatistics;
+import io.trino.orc.metadata.statistics.TimestampStatistics;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.ValueSet;
@@ -44,6 +45,8 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
+import static io.trino.plugin.base.util.CalendarUtils.convertHybridDaysToProlepticGregorian;
+import static io.trino.plugin.base.util.CalendarUtils.convertHybridMillisToProlepticGregorian;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.Chars.truncateToLengthAndTrimSpaces;
@@ -67,6 +70,7 @@ import static io.trino.spi.type.TinyintType.TINYINT;
 import static java.lang.Float.floatToRawIntBits;
 import static java.lang.Float.intBitsToFloat;
 import static java.lang.Math.floorDiv;
+import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
 public class TupleDomainOrcPredicate
@@ -75,17 +79,19 @@ public class TupleDomainOrcPredicate
     private final List<ColumnDomain> columnDomains;
     private final boolean orcBloomFiltersEnabled;
     private final int domainCompactionThreshold;
+    private final boolean legacyDateTime;
 
     public static TupleDomainOrcPredicateBuilder builder()
     {
         return new TupleDomainOrcPredicateBuilder();
     }
 
-    private TupleDomainOrcPredicate(List<ColumnDomain> columnDomains, boolean orcBloomFiltersEnabled, int domainCompactionThreshold)
+    private TupleDomainOrcPredicate(List<ColumnDomain> columnDomains, boolean orcBloomFiltersEnabled, int domainCompactionThreshold, boolean legacyDateTime)
     {
         this.columnDomains = ImmutableList.copyOf(requireNonNull(columnDomains, "columnDomains is null"));
         this.orcBloomFiltersEnabled = orcBloomFiltersEnabled;
         this.domainCompactionThreshold = domainCompactionThreshold;
+        this.legacyDateTime = legacyDateTime;
     }
 
     @Override
@@ -109,7 +115,7 @@ public class TupleDomainOrcPredicate
 
     private boolean columnOverlaps(Domain predicateDomain, long numberOfRows, ColumnStatistics columnStatistics)
     {
-        Domain stripeDomain = getDomain(predicateDomain.getType(), numberOfRows, columnStatistics);
+        Domain stripeDomain = getDomain(predicateDomain.getType(), numberOfRows, columnStatistics, legacyDateTime);
         if (!stripeDomain.overlaps(predicateDomain)) {
             // there is no overlap between the predicate and this column
             return false;
@@ -195,6 +201,12 @@ public class TupleDomainOrcPredicate
     @VisibleForTesting
     public static Domain getDomain(Type type, long rowCount, ColumnStatistics columnStatistics)
     {
+        return getDomain(type, rowCount, columnStatistics, false);
+    }
+
+    @VisibleForTesting
+    public static Domain getDomain(Type type, long rowCount, ColumnStatistics columnStatistics, boolean legacyDateTime)
+    {
         if (rowCount == 0) {
             return Domain.none(type);
         }
@@ -241,6 +253,9 @@ public class TupleDomainOrcPredicate
             return createDomain(type, hasNullValue, columnStatistics.getStringStatistics());
         }
         else if (type instanceof DateType && columnStatistics.getDateStatistics() != null) {
+            if (legacyDateTime) {
+                return createDomain(type, hasNullValue, columnStatistics.getDateStatistics(), value -> (long) convertHybridDaysToProlepticGregorian(toIntExact(value)));
+            }
             return createDomain(type, hasNullValue, columnStatistics.getDateStatistics(), value -> (long) value);
         }
         else if ((type.equals(TIMESTAMP_MILLIS) || type.equals(TIMESTAMP_MICROS)) && columnStatistics.getTimestampStatistics() != null) {
@@ -250,18 +265,30 @@ public class TupleDomainOrcPredicate
             // timestamps. For example, the stats for timestamp 2020-09-22 12:34:56.678910 are truncated to 2020-09-22 12:34:56.678.
             // If Trino is using millisecond precision, the timestamp gets rounded to the next millisecond (2020-09-22 12:34:56.679), so the
             // upper bound of the domain we create must be adjusted accordingly, to includes the rounded timestamp.
+            TimestampStatistics timestampStatistics = columnStatistics.getTimestampStatistics();
+            if (legacyDateTime) {
+                timestampStatistics = new TimestampStatistics(
+                        convertHybridMillisToProlepticGregorian(columnStatistics.getTimestampStatistics().getMin()),
+                        convertHybridMillisToProlepticGregorian(columnStatistics.getTimestampStatistics().getMax()));
+            }
             return createDomain(
                     type,
                     hasNullValue,
-                    columnStatistics.getTimestampStatistics(),
+                    timestampStatistics,
                     min -> min * MICROSECONDS_PER_MILLISECOND,
                     max -> (max + 1) * MICROSECONDS_PER_MILLISECOND);
         }
         else if (type.equals(TIMESTAMP_NANOS) && columnStatistics.getTimestampStatistics() != null) {
+            TimestampStatistics timestampStatistics = columnStatistics.getTimestampStatistics();
+            if (legacyDateTime) {
+                timestampStatistics = new TimestampStatistics(
+                        convertHybridMillisToProlepticGregorian(timestampStatistics.getMin()),
+                        convertHybridMillisToProlepticGregorian(timestampStatistics.getMax()));
+            }
             return createDomain(
                     type,
                     hasNullValue,
-                    columnStatistics.getTimestampStatistics(),
+                    timestampStatistics,
                     min -> new LongTimestamp(min * MICROSECONDS_PER_MILLISECOND, 0),
                     max -> new LongTimestamp((max + 1) * MICROSECONDS_PER_MILLISECOND, 0));
         }
@@ -328,6 +355,7 @@ public class TupleDomainOrcPredicate
         private final List<ColumnDomain> columns = new ArrayList<>();
         private boolean bloomFiltersEnabled;
         private int domainCompactionThreshold;
+        private boolean legacyDateTime;
 
         public TupleDomainOrcPredicateBuilder addColumn(OrcColumnId columnId, Domain domain)
         {
@@ -348,9 +376,15 @@ public class TupleDomainOrcPredicate
             return this;
         }
 
+        public TupleDomainOrcPredicateBuilder setLegacyDateTime(boolean legacyTimestamp)
+        {
+            this.legacyDateTime = legacyTimestamp;
+            return this;
+        }
+
         public TupleDomainOrcPredicate build()
         {
-            return new TupleDomainOrcPredicate(columns, bloomFiltersEnabled, domainCompactionThreshold);
+            return new TupleDomainOrcPredicate(columns, bloomFiltersEnabled, domainCompactionThreshold, legacyDateTime);
         }
     }
 

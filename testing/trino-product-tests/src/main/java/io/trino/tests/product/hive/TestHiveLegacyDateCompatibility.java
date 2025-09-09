@@ -249,6 +249,71 @@ public class TestHiveLegacyDateCompatibility
         }
     }
 
+    @Test(groups = {HIVE4, PROFILE_SPECIFIC_TESTS})
+    public void testHiveOrcHandlePushdownWhenLegacyDate()
+    {
+        String hiveTableName = "test_hive_orc_handle_pushdown_when_legacy_date_%s".formatted(randomNameSuffix());
+        String trinoTableName = format("%s.default.%s", TRINO_CATALOG, hiveTableName);
+
+        try {
+            onHive().executeQuery("CREATE TABLE %s.%s (date_col date) STORED AS ORC tblproperties (\"orc.proleptic.gregorian\" = \"false\")".formatted(SCHEMA, hiveTableName));
+            onHive().executeQuery("INSERT INTO %s.%s VALUES ('0001-01-01')".formatted(SCHEMA, hiveTableName));
+
+            assertThat(onTrino().executeQuery("SELECT 1 FROM " + trinoTableName + " WHERE date_col = DATE '0001-01-01'"))
+                    .containsOnly(row(1));
+        }
+        finally {
+            onHive().executeQuery("DROP TABLE IF EXISTS " + hiveTableName);
+        }
+    }
+
+    @Test(groups = {HIVE4, PROFILE_SPECIFIC_TESTS})
+    public void testHiveOrcHandlePushdownWhenLegacyDateComplexStructure()
+    {
+        String hiveTableName = "test_hive_orc_handle_pushdown_when_legacy_date_complex%s".formatted(randomNameSuffix());
+        String trinoTableName = format("%s.default.%s", TRINO_CATALOG, hiveTableName);
+
+        try {
+            onTrino().executeQuery("SET SESSION hive.timestamp_precision = '%s'".formatted(MILLISECONDS));
+            onHive().executeQuery("""
+                    CREATE TABLE %s.%s(
+                    id INT,
+                    date_struct STRUCT<id:INT, date_col:DATE, tmst:TIMESTAMP>,
+                    dates ARRAY<DATE>,
+                    date_map MAP<DATE, INT>,
+                    timestamps ARRAY<TIMESTAMP>,
+                    timestamp_map MAP<TIMESTAMP, INT>,
+                    dates_timestamps ARRAY<STRUCT<date_col:DATE, tmst:TIMESTAMP>>)
+                    STORED AS ORC tblproperties ("orc.proleptic.gregorian" = "false");""".formatted(SCHEMA, hiveTableName));
+
+            onHive().executeQuery("""
+                    INSERT INTO %s.%s VALUES
+                    (
+                        1,
+                        named_struct('id', 1, 'date_col', DATE '0001-01-01', 'tmst', TIMESTAMP '0001-01-01 00:00:00'),
+                        array(DATE '0001-01-01', DATE '2022-04-13'),
+                        map(DATE '0001-01-01', 1, DATE '2022-04-13', 2),
+                        array(TIMESTAMP '0001-01-01 00:00:00', TIMESTAMP '2022-04-13 12:34:56.789') ,
+                        map(TIMESTAMP '0001-01-01 00:00:00', 1, TIMESTAMP '2022-04-13 12:34:56.789', 2),
+                        array(named_struct('date_col', DATE '0001-01-01', 'tmst', TIMESTAMP '0001-01-01 00:00:00'),
+                              named_struct('date_col', DATE '2022-04-13', 'tmst', TIMESTAMP '2022-04-13 12:34:56.789'))
+                    )
+                    """.formatted(SCHEMA, hiveTableName));
+
+            assertThat(onTrino().executeQuery("SELECT 1 FROM " + trinoTableName + " WHERE date_struct.date_col = DATE '0001-01-01'")).containsOnly(row(1));
+            assertThat(onTrino().executeQuery("SELECT 1 FROM " + trinoTableName + " WHERE date_struct.tmst = TIMESTAMP '0001-01-01 00:00:00'")).containsOnly(row(1));
+            assertThat(onTrino().executeQuery("SELECT 1 FROM " + trinoTableName + " WHERE contains(dates, DATE '0001-01-01')")).containsOnly(row(1));
+            assertThat(onTrino().executeQuery("SELECT 1 FROM " + trinoTableName + " WHERE date_map[DATE '0001-01-01'] = 1;")).containsOnly(row(1));
+            assertThat(onTrino().executeQuery("SELECT 1 FROM " + trinoTableName + " WHERE contains(timestamps, TIMESTAMP '0001-01-01 00:00:00')")).containsOnly(row(1));
+            assertThat(onTrino().executeQuery("SELECT 1 FROM " + trinoTableName + " WHERE timestamp_map[TIMESTAMP '0001-01-01 00:00:00'] = 1;")).containsOnly(row(1));
+            assertThat(onTrino().executeQuery("SELECT 1 FROM " + trinoTableName + " CROSS JOIN  UNNEST(" + trinoTableName + ".dates_timestamps) as arr(d,t)  where d = DATE '0001-01-01';")).containsOnly(row(1));
+            assertThat(onTrino().executeQuery("SELECT 1 FROM " + trinoTableName + " CROSS JOIN  UNNEST(" + trinoTableName + ".dates_timestamps) as arr(d,t)  where t = TIMESTAMP '0001-01-01 00:00:00.000';")).containsOnly(row(1));
+        }
+        finally {
+            onHive().executeQuery("DROP TABLE IF EXISTS " + hiveTableName);
+        }
+    }
+
     private void testHiveOrcLegacyDateCompatibility(boolean hiveWritesInProlepticGregorian)
     {
         String hiveTableName = "test_hive_orc_legacy_date_compatibility_%s".formatted(randomNameSuffix());

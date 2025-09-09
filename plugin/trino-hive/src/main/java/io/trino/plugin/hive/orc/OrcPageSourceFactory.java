@@ -319,7 +319,8 @@ public class OrcPageSourceFactory
 
             TupleDomainOrcPredicateBuilder predicateBuilder = TupleDomainOrcPredicate.builder()
                     .setBloomFiltersEnabled(options.isBloomFiltersEnabled())
-                    .setDomainCompactionThreshold(domainCompactionThreshold);
+                    .setDomainCompactionThreshold(domainCompactionThreshold)
+                    .setLegacyDateTime(convertDateToProleptic);
             Map<HiveColumnHandle, Domain> effectivePredicateDomains = effectivePredicate.getDomains()
                     .orElseThrow(() -> new IllegalArgumentException("Effective predicate is none"));
             TransformConnectorPageSource.Builder transforms = TransformConnectorPageSource.builder();

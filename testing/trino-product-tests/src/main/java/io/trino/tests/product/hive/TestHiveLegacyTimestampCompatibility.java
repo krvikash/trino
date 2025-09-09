@@ -180,6 +180,25 @@ public class TestHiveLegacyTimestampCompatibility
         }
     }
 
+    @Test(groups = {HIVE4, PROFILE_SPECIFIC_TESTS})
+    public void testHiveOrcHandlePushdownWhenLegacyTimestamp()
+    {
+        String hiveTableName = "test_hive_orc_handle_pushdown_when_legacy_timestamp_%s".formatted(randomNameSuffix());
+        String trinoTableName = format("%s.default.%s", TRINO_CATALOG, hiveTableName);
+
+        try {
+            onTrino().executeQuery("SET SESSION hive.timestamp_precision = '%s'".formatted(MILLISECONDS));
+            onHive().executeQuery("CREATE TABLE %s.%s (tmst timestamp) STORED AS ORC tblproperties (\"orc.proleptic.gregorian\" = \"false\")".formatted(SCHEMA, hiveTableName));
+            onHive().executeQuery("INSERT INTO %s.%s VALUES (TIMESTAMP '0001-01-01 11:12:13.456')".formatted(SCHEMA, hiveTableName));
+
+            assertThat(onTrino().executeQuery("SELECT 1 FROM " + trinoTableName + " WHERE tmst = TIMESTAMP '0001-01-01 11:12:13.456'"))
+                    .containsOnly(row(1));
+        }
+        finally {
+            onHive().executeQuery("DROP TABLE IF EXISTS " + hiveTableName);
+        }
+    }
+
     private void testHiveParquetLegacyTimestampCompatibility(
             HiveTimestampPrecision trinoTimestampPrecision,
             List<String> timestamps)
