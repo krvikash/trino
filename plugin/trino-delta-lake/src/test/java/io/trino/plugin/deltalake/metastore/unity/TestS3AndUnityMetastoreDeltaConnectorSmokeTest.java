@@ -357,6 +357,7 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
             DATABRICKS.execute("""
                 CREATE TABLE %s.%s.%s (c int, d int NOT NULL)
                 USING DELTA
+                TBLPROPERTIES ('delta.enableRowTracking'='false')
                 """.formatted(DATABRICKS_UNITY_CATALOG_NAME, SCHEMA_NAME, tableName));
             assertQueryFails("COMMENT ON TABLE " + tableName + " IS 'comment'", "Writes are not supported on managed tables for Unity metastore");
             assertQueryFails("COMMENT ON COLUMN " + tableName + ".c IS 'comment'", "Writes are not supported on managed tables for Unity metastore");
