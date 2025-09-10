@@ -212,6 +212,7 @@ import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.CommitFailedException;
 import org.apache.iceberg.exceptions.CommitStateUnknownException;
 import org.apache.iceberg.exceptions.NotFoundException;
+import org.apache.iceberg.exceptions.RESTException;
 import org.apache.iceberg.exceptions.ValidationException;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.expressions.Term;
@@ -2403,7 +2404,7 @@ public class IcebergMetadata
         try {
             commit(update, session);
         }
-        catch (UncheckedIOException | ValidationException | CommitFailedException | CommitStateUnknownException e) {
+        catch (UncheckedIOException | ValidationException | CommitFailedException | CommitStateUnknownException | RESTException e) {
             throw new TrinoException(ICEBERG_COMMIT_ERROR, format("Failed to commit during %s: %s", operation, firstNonNull(e.getMessage(), e)), e);
         }
     }
@@ -2413,7 +2414,7 @@ public class IcebergMetadata
         try {
             transaction.commitTransaction();
         }
-        catch (UncheckedIOException | ValidationException | CommitFailedException | CommitStateUnknownException e) {
+        catch (UncheckedIOException | ValidationException | CommitFailedException | CommitStateUnknownException | RESTException e) {
             throw new TrinoException(ICEBERG_COMMIT_ERROR, format("Failed to commit the transaction during %s: %s", operation, firstNonNull(e.getMessage(), e)), e);
         }
     }
