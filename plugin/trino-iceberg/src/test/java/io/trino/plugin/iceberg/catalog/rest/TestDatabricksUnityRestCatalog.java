@@ -26,7 +26,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
-import static io.trino.testing.assertions.Assert.assertEventually;
 import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestDatabricksUnityRestCatalog
@@ -68,6 +67,7 @@ final class TestDatabricksUnityRestCatalog
                 Statement statement = connection.createStatement()) {
             statement.execute("SET spark.databricks.delta.dbiManagedIcebergTable.v3.enabled = true");
             statement.execute("SET spark.databricks.delta.uniform.iceberg.v3.enabled = true");
+            statement.execute("SET spark.databricks.delta.uniform.iceberg.sync.convert.enabled = true");
             statement.execute("SET spark.databricks.delta.dbiManagedIcebergTable.metadataValidationRate = 0");
             statement.execute("SET spark.databricks.delta.optimizeWrite.enabled = false");
             statement.execute("SET spark.databricks.delta.autoCompact.enabled = false");
@@ -80,13 +80,10 @@ final class TestDatabricksUnityRestCatalog
                 statement.execute("DELETE FROM " + table.getName() + " WHERE x = 2");
 
                 String trinoTableName = table.getName().substring(table.getName().lastIndexOf('.') + 1);
-                // Wait until Iceberg metadata refreshes in Databricks
-                assertEventually(() -> {
-                    assertThat(computeActual("SELECT file_format FROM default.\"" + trinoTableName + "$files\"").getOnlyColumnAsSet())
-                            .contains("PUFFIN");
-                    assertThat(query("SELECT * FROM default." + trinoTableName))
-                            .matches("VALUES 1, 3");
-                });
+                assertThat(computeActual("SELECT file_format FROM default.\"" + trinoTableName + "$files\"").getOnlyColumnAsSet())
+                        .contains("PUFFIN");
+                assertThat(query("SELECT * FROM default." + trinoTableName))
+                        .matches("VALUES 1, 3");
 
                 assertQueryFails("INSERT INTO default." + trinoTableName + " VALUES 2", ".*not a Managed Iceberg table.*");
             }
