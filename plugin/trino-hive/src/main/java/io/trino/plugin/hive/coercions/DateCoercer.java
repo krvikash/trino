@@ -26,8 +26,8 @@ import java.time.format.DateTimeParseException;
 
 import static io.airlift.slice.SliceUtf8.countCodePoints;
 import static io.airlift.slice.Slices.utf8Slice;
+import static io.trino.plugin.base.util.CalendarUtils.convertHybridDaysToProlepticGregorian;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_INVALID_TIMESTAMP_COERCION;
-import static io.trino.plugin.hive.util.CalendarUtils.convertHybridDaysToProlepticGregorian;
 import static io.trino.spi.StandardErrorCode.INVALID_ARGUMENTS;
 import static io.trino.spi.type.DateType.DATE;
 import static java.lang.String.format;

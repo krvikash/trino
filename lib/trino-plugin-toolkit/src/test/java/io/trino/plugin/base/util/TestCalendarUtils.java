@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.hive.util;
+package io.trino.plugin.base.util;
 
 import org.junit.jupiter.api.Test;
 
@@ -25,8 +25,8 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.TimeZone;
 
-import static io.trino.plugin.hive.util.CalendarUtils.convertHybridDaysToProlepticGregorian;
-import static io.trino.plugin.hive.util.CalendarUtils.convertHybridMillisToProlepticGregorian;
+import static io.trino.plugin.base.util.CalendarUtils.convertHybridDaysToProlepticGregorian;
+import static io.trino.plugin.base.util.CalendarUtils.convertHybridMillisToProlepticGregorian;
 import static java.lang.Math.floor;
 import static java.time.ZoneOffset.UTC;
 import static java.util.concurrent.TimeUnit.DAYS;

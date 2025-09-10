@@ -30,8 +30,8 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.plugin.base.util.CalendarUtils.convertHybridMicrosToProlepticGregorian;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_INVALID_TIMESTAMP_COERCION;
-import static io.trino.plugin.hive.util.CalendarUtils.convertHybridMicrosToProlepticGregorian;
 import static io.trino.spi.type.TimestampType.MAX_PRECISION;
 import static io.trino.spi.type.TimestampType.MAX_SHORT_PRECISION;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_SECOND;
