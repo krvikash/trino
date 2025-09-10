@@ -49,14 +49,7 @@ public class NodeManagerModule
                     }).build());
         }
         else {
-            // temporary change, to ensure the workers have access to a functioning InternalNodeManager
-            // because some Starburst-specific code requires a way to locate the coordinator
-            binder.bind(InternalNodeManager.class).to(CoordinatorNodeManager.class).in(Scopes.SINGLETON);
-            install(internalHttpClientModule("node-manager", ForNodeManager.class)
-                    .withConfigDefaults(config -> {
-                        config.setIdleTimeout(new Duration(30, SECONDS));
-                        config.setRequestTimeout(new Duration(10, SECONDS));
-                    }).build());
+            binder.bind(InternalNodeManager.class).to(WorkerInternalNodeManager.class).in(Scopes.SINGLETON);
         }
 
         install(switchModule(

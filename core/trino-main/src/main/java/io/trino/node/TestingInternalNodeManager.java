@@ -55,6 +55,7 @@ public class TestingInternalNodeManager
     public TestingInternalNodeManager(InternalNode currentNode)
     {
         this.currentNode = requireNonNull(currentNode, "currentNode is null");
+        checkArgument(currentNode.isCoordinator(), "currentNode must be a coordinator: %s", currentNode);
 
         this.allNodes = new AllNodes(
                 ImmutableSet.of(currentNode),
