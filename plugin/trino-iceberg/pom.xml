@@ -510,6 +510,12 @@
         </dependency>
 
         <dependency>
+            <groupId>com.databricks</groupId>
+            <artifactId>databricks-jdbc</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>configuration-testing</artifactId>
             <scope>test</scope>
@@ -809,6 +815,8 @@
                         <ignoredResourcePattern>iceberg-build.properties</ignoredResourcePattern>
                         <ignoredResourcePattern>mozilla/public-suffix-list.txt</ignoredResourcePattern>
                         <ignoredResourcePattern>mime.types</ignoredResourcePattern>
+                        <!-- com.databricks:databricks-jdbc:2.7.1, org.apache.logging.log4j:log4j-api -->
+                        <ignoredResourcePattern>Log4j-charsets.properties</ignoredResourcePattern>
                     </ignoredResourcePatterns>
                 </configuration>
             </plugin>
@@ -846,6 +854,7 @@
                                 <exclude>**/Test*FailureRecoveryTest.java</exclude>
                                 <exclude>**/TestIcebergSnowflakeCatalogConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestTrinoSnowflakeCatalog.java</exclude>
+                                <exclude>**/TestDatabricksUnityRestCatalog.java</exclude>
                                 <exclude>**/TestIcebergAiFunctions.java</exclude>
                             </excludes>
                         </configuration>
@@ -913,6 +922,7 @@
                                 <include>**/TestIcebergAbfsConnectorSmokeTest.java</include>
                                 <include>**/TestIcebergSnowflakeCatalogConnectorSmokeTest.java</include>
                                 <include>**/TestTrinoSnowflakeCatalog.java</include>
+                                <include>**/TestDatabricksUnityRestCatalog.java</include>
                                 <include>**/TestIcebergAiFunctions.java</include>
                             </includes>
                         </configuration>

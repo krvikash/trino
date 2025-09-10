@@ -18,13 +18,13 @@ import java.nio.ByteOrder;
 import java.util.zip.CRC32;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.plugin.iceberg.delete.DeletionVectors.CRC_SIZE_BYTES;
-import static io.trino.plugin.iceberg.delete.DeletionVectors.LENGTH_SIZE_BYTES;
 
 // Exposes package-private BitmapPositionDeleteIndex
 public class TrinoBitmapPositionDeleteIndex
         extends BitmapPositionDeleteIndex
 {
+    private static final int LENGTH_SIZE_BYTES = 4;
+    private static final int CRC_SIZE_BYTES = 4;
     private static final int BITMAP_DATA_OFFSET = 4;
     private static final int MAGIC_NUMBER = 1681511377;
 

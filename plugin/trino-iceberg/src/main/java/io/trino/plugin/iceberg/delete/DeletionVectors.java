@@ -23,15 +23,12 @@ import static org.apache.iceberg.deletes.TrinoBitmapPositionDeleteIndex.deserial
 
 public final class DeletionVectors
 {
-    public static final int LENGTH_SIZE_BYTES = 4;
-    public static final int CRC_SIZE_BYTES = 4;
-
     private DeletionVectors() {}
 
     public static void readDeletionVector(TrinoInput input, long recordCount, Long contentOffset, Long contentSizeInBytes, LongBitmapDataProvider deletedRows)
             throws IOException
     {
-        byte[] bytes = input.readFully(contentOffset, LENGTH_SIZE_BYTES + toIntExact(contentSizeInBytes) + CRC_SIZE_BYTES).getBytes();
+        byte[] bytes = input.readFully(contentOffset, toIntExact(contentSizeInBytes)).getBytes();
         deserialize(bytes, recordCount, contentSizeInBytes).forEach(deletedRows::addLong);
     }
 }
