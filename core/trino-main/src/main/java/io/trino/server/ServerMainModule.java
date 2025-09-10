@@ -64,6 +64,7 @@ import io.trino.memory.MemoryInfo;
 import io.trino.memory.MemoryManagerConfig;
 import io.trino.memory.MemoryResource;
 import io.trino.memory.NodeMemoryConfig;
+import io.trino.memory.RssMonitor;
 import io.trino.metadata.BlockEncodingManager;
 import io.trino.metadata.DisabledSystemSecurityMetadata;
 import io.trino.metadata.FunctionBundle;
@@ -280,6 +281,10 @@ public class ServerMainModule
         binder.bind(LocalMemoryManagerExporter.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, VersionEmbedder.class).setDefault().to(EmbedVersion.class).in(Scopes.SINGLETON);
         newExporter(binder).export(SqlTaskManager.class).withGeneratedName();
+
+        // RSS Monitor
+        binder.bind(RssMonitor.class).in(Scopes.SINGLETON);
+        newExporter(binder).export(RssMonitor.class).withGeneratedName();
 
         binder.bind(MultilevelSplitQueue.class).in(Scopes.SINGLETON);
         newExporter(binder).export(MultilevelSplitQueue.class).withGeneratedName();

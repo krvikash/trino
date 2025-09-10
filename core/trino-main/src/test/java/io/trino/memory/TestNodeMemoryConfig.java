@@ -15,6 +15,7 @@ package io.trino.memory;
 
 import com.google.common.collect.ImmutableMap;
 import io.airlift.units.DataSize;
+import io.airlift.units.Duration;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -22,6 +23,8 @@ import java.util.Map;
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
+import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class TestNodeMemoryConfig
 {
@@ -32,7 +35,8 @@ public class TestNodeMemoryConfig
     {
         assertRecordedDefaults(recordDefaults(NodeMemoryConfig.class)
                 .setMaxQueryMemoryPerNode(DataSize.ofBytes(Math.round(AVAILABLE_HEAP_MEMORY * 0.3)).toString())
-                .setHeapHeadroom(DataSize.ofBytes(Math.round(AVAILABLE_HEAP_MEMORY * 0.3)).toString()));
+                .setHeapHeadroom(DataSize.ofBytes(Math.round(AVAILABLE_HEAP_MEMORY * 0.3)).toString())
+                .setRssMemorySampleInterval(null));
     }
 
     @Test
@@ -41,11 +45,13 @@ public class TestNodeMemoryConfig
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("query.max-memory-per-node", "1GB")
                 .put("memory.heap-headroom-per-node", "1GB")
+                .put("memory.rss-memory-monitor-interval", "10s")
                 .buildOrThrow();
 
         NodeMemoryConfig expected = new NodeMemoryConfig()
                 .setMaxQueryMemoryPerNode("1GB")
-                .setHeapHeadroom("1GB");
+                .setHeapHeadroom("1GB")
+                .setRssMemorySampleInterval(new Duration(10, SECONDS));
 
         assertFullMapping(properties, expected);
     }
@@ -56,11 +62,13 @@ public class TestNodeMemoryConfig
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("query.max-memory-per-node", "50%")
                 .put("memory.heap-headroom-per-node", "25%")
+                .put("memory.rss-memory-monitor-interval", "10m")
                 .buildOrThrow();
 
         NodeMemoryConfig expected = new NodeMemoryConfig()
                 .setMaxQueryMemoryPerNode(DataSize.ofBytes(Math.round(AVAILABLE_HEAP_MEMORY * 0.5)).toString())
-                .setHeapHeadroom(DataSize.ofBytes(Math.round(AVAILABLE_HEAP_MEMORY * 0.25)).toString());
+                .setHeapHeadroom(DataSize.ofBytes(Math.round(AVAILABLE_HEAP_MEMORY * 0.25)).toString())
+                .setRssMemorySampleInterval(new Duration(10, MINUTES));
 
         assertFullMapping(properties, expected);
     }

@@ -17,8 +17,12 @@ import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.DefunctConfig;
 import io.airlift.units.DataSize;
+import io.airlift.units.Duration;
+import io.airlift.units.MinDuration;
 import io.trino.execution.HeapSizeParser;
 import jakarta.validation.constraints.NotNull;
+
+import java.util.Optional;
 
 // This is separate from MemoryManagerConfig because it's difficult to test the default value of maxQueryMemoryPerNode
 @DefunctConfig({
@@ -32,6 +36,7 @@ public class NodeMemoryConfig
 {
     private DataSize maxQueryMemoryPerNode = HeapSizeParser.DEFAULT.parse("30%");
     private DataSize heapHeadroom = HeapSizeParser.DEFAULT.parse("30%");
+    private Optional<Duration> rssMemorySampleInterval = Optional.empty();
 
     @NotNull
     public DataSize getMaxQueryMemoryPerNode()
@@ -57,6 +62,19 @@ public class NodeMemoryConfig
     public NodeMemoryConfig setHeapHeadroom(String heapHeadroom)
     {
         this.heapHeadroom = HeapSizeParser.DEFAULT.parse(heapHeadroom);
+        return this;
+    }
+
+    @NotNull
+    public Optional<@MinDuration("5s") Duration> getRssMemorySampleInterval()
+    {
+        return rssMemorySampleInterval;
+    }
+
+    @Config("memory.rss-memory-monitor-interval")
+    public NodeMemoryConfig setRssMemorySampleInterval(Duration rssMemorySampleInterval)
+    {
+        this.rssMemorySampleInterval = Optional.ofNullable(rssMemorySampleInterval);
         return this;
     }
 }
