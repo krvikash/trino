@@ -1910,6 +1910,18 @@ public class TestMongoConnectorTest
         return Optional.of(setup);
     }
 
+    @Test
+    void testSetColumnTypeFromRowToJson()
+    {
+        try (TestTable table = newTrinoTable("test_set_column_type", "(x ROW(field INT))")) {
+            assertUpdate("INSERT INTO " + table.getName() + " SELECT ROW(1)", 1);
+            assertThat(query("SELECT x FROM " + table.getName())).matches("SELECT CAST(row(1) AS ROW(field INT))");
+
+            assertUpdate("ALTER TABLE " + table.getName() + " ALTER COLUMN x SET DATA TYPE JSON");
+            assertThat(query("SELECT x FROM " + table.getName())).matches("VALUES JSON '{\"field\":1}'");
+        }
+    }
+
     private void assertOneNotNullResult(String query)
     {
         MaterializedResult results = getQueryRunner().execute(getSession(), query).toTestTypes();

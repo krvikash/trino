@@ -104,6 +104,7 @@ import static io.trino.plugin.mongodb.MongoSession.COLLECTION_NAME;
 import static io.trino.plugin.mongodb.MongoSession.DATABASE_NAME;
 import static io.trino.plugin.mongodb.MongoSession.ID;
 import static io.trino.plugin.mongodb.MongoSessionProperties.isProjectionPushdownEnabled;
+import static io.trino.plugin.mongodb.TypeUtils.isJsonType;
 import static io.trino.plugin.mongodb.TypeUtils.isPushdownSupportedType;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
@@ -386,6 +387,9 @@ public class MongoMetadata
         }
         if (sourceType instanceof ArrayType sourceArrayType && newType instanceof ArrayType newArrayType) {
             return canChangeColumnType(sourceArrayType.getElementType(), newArrayType.getElementType());
+        }
+        if (sourceType instanceof RowType && isJsonType(newType)) {
+            return true;
         }
         if (sourceType instanceof RowType sourceRowType && newType instanceof RowType newRowType) {
             List<Field> fields = Streams.concat(sourceRowType.getFields().stream(), newRowType.getFields().stream())
