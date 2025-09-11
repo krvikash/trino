@@ -108,6 +108,7 @@ import static io.trino.sql.planner.optimizations.PlanNodeSearcher.searchFrom;
 import static io.trino.sql.planner.plan.ExchangeNode.Scope.REMOTE;
 import static io.trino.sql.planner.plan.ExchangeNode.Type.REPLICATE;
 import static io.trino.testing.QueryAssertions.assertEqualsIgnoreOrder;
+import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TransactionBuilder.transaction;
 import static io.trino.tpch.TpchTable.CUSTOMER;
 import static io.trino.tpch.TpchTable.LINE_ITEM;
@@ -331,23 +332,24 @@ public abstract class BaseCacheSubqueriesTest
     @MethodSource("isDynamicRowFilteringEnabled")
     public void testDynamicFilterCache(boolean isDynamicRowFilteringEnabled)
     {
-        createPartitionedTableAsSelect("orders_part", ImmutableList.of("custkey"), "select orderkey, orderdate, orderpriority, mod(custkey, 10) as custkey from orders");
-        @Language("SQL") String totalScanOrdersQuery = "select count(orderkey) from orders_part";
+        String tableName = "orders_part" + randomNameSuffix();
+        createPartitionedTableAsSelect(tableName, ImmutableList.of("custkey"), "select orderkey, orderdate, orderpriority, mod(custkey, 10) as custkey from orders");
+        @Language("SQL") String totalScanOrdersQuery = "select count(orderkey) from " + tableName;
         @Language("SQL") String firstJoinQuery = """
-                select count(orderkey) from orders_part o join (select * from (values 0, 1, 2) t(custkey)) t on o.custkey = t.custkey
+                select count(orderkey) from %1$s o join (select * from (values 0, 1, 2) t(custkey)) t on o.custkey = t.custkey
                 union all
-                select count(orderkey) from orders_part o join (select * from (values 0, 1, 2) t(custkey)) t on o.custkey = t.custkey
-                """;
+                select count(orderkey) from %1$s o join (select * from (values 0, 1, 2) t(custkey)) t on o.custkey = t.custkey
+                """.formatted(tableName);
         @Language("SQL") String secondJoinQuery = """
-                select count(orderkey) from orders_part o join (select * from (values 0, 1, 2, 4) t(custkey)) t on o.custkey = t.custkey
+                select count(orderkey) from %1$s o join (select * from (values 0, 1, 2, 4) t(custkey)) t on o.custkey = t.custkey
                 union all
-                select count(orderkey) from orders_part o join (select * from (values 0, 1, 2, 3) t(custkey)) t on o.custkey = t.custkey
-                """;
+                select count(orderkey) from %1$s o join (select * from (values 0, 1, 2, 3) t(custkey)) t on o.custkey = t.custkey
+                """.formatted(tableName);
         @Language("SQL") String thirdJoinQuery = """
-                select count(orderkey) from orders_part o join (select * from (values 0, 1) t(custkey)) t on o.custkey = t.custkey
+                select count(orderkey) from %1$s o join (select * from (values 0, 1) t(custkey)) t on o.custkey = t.custkey
                 union all
-                select count(orderkey) from orders_part o join (select * from (values 0, 1) t(custkey)) t on o.custkey = t.custkey
-                """;
+                select count(orderkey) from %1$s o join (select * from (values 0, 1) t(custkey)) t on o.custkey = t.custkey
+                """.formatted(tableName);
 
         Session cacheSubqueriesEnabled = withDynamicRowFiltering(withCacheEnabled(), isDynamicRowFilteringEnabled);
         Session cacheSubqueriesDisabled = withDynamicRowFiltering(withCacheDisabled(), isDynamicRowFilteringEnabled);
@@ -375,7 +377,7 @@ public abstract class BaseCacheSubqueriesTest
         assertThat(getLoadCachedDataOperatorInputPositions(thirdJoinExecution.queryId())).isPositive();
         assertThat(getScanOperatorInputPositions(thirdJoinExecution.queryId())).isZero();
 
-        assertUpdate("drop table orders_part");
+        assertUpdate("drop table " + tableName);
     }
 
     @Test
@@ -400,23 +402,24 @@ public abstract class BaseCacheSubqueriesTest
     @Test
     public void testPredicateOnPartitioningColumnThatWasNotFullyPushed()
     {
-        createPartitionedTableAsSelect("orders_part", ImmutableList.of("orderkey"), "select orderdate, orderpriority, mod(orderkey, 50) as orderkey from orders");
+        String tableName = "orders_part" + randomNameSuffix();
+        createPartitionedTableAsSelect(tableName, ImmutableList.of("orderkey"), "select orderdate, orderpriority, mod(orderkey, 50) as orderkey from orders");
         // mod predicate will be not pushed to connector
         @Language("SQL") String query =
                 """
                         select * from (
-                            select orderdate from orders_part where orderkey > 5 and mod(orderkey, 10) = 0 and orderpriority = '1-MEDIUM'
+                            select orderdate from %1$s where orderkey > 5 and mod(orderkey, 10) = 0 and orderpriority = '1-MEDIUM'
                             union all
-                            select orderdate from orders_part where orderkey > 10 and mod(orderkey, 10) = 1 and orderpriority = '3-MEDIUM'
+                            select orderdate from %1$s where orderkey > 10 and mod(orderkey, 10) = 1 and orderpriority = '3-MEDIUM'
                         ) order by orderdate
-                        """;
+                        """.formatted(tableName);
         MaterializedResultWithPlan cacheDisabledResult = executeWithPlan(withCacheDisabled(), query);
         executeWithPlan(withCacheEnabled(), query);
         MaterializedResultWithPlan cacheEnabledResult = executeWithPlan(withCacheEnabled(), query);
 
         assertThat(getLoadCachedDataOperatorInputPositions(cacheEnabledResult.queryId())).isPositive();
         assertThat(cacheDisabledResult.result()).isEqualTo(cacheEnabledResult.result());
-        assertUpdate("drop table orders_part");
+        assertUpdate("drop table " + tableName);
     }
 
     @Test
@@ -455,22 +458,23 @@ public abstract class BaseCacheSubqueriesTest
     @Test
     public void testPartitionedQueryCache()
     {
-        createPartitionedTableAsSelect("orders_part", ImmutableList.of("orderpriority"), "select orderkey, orderdate, orderpriority from orders");
+        String tableName = "orders_part" + randomNameSuffix();
+        createPartitionedTableAsSelect(tableName, ImmutableList.of("orderpriority"), "select orderkey, orderdate, orderpriority from orders");
         @Language("SQL") String selectTwoPartitions = """
-                        select orderkey from orders_part where orderpriority IN ('3-MEDIUM', '1-URGENT')
+                        select orderkey from %1$s where orderpriority IN ('3-MEDIUM', '1-URGENT')
                         union all
-                        select orderkey from orders_part where orderpriority IN ('3-MEDIUM', '1-URGENT')
-                """;
+                        select orderkey from %1$s where orderpriority IN ('3-MEDIUM', '1-URGENT')
+                """.formatted(tableName);
         @Language("SQL") String selectAllPartitions = """
-                        select orderkey from orders_part
+                        select orderkey from %1$s
                         union all
-                        select orderkey from orders_part
-                """;
+                        select orderkey from %1$s
+                """.formatted(tableName);
         @Language("SQL") String selectSinglePartition = """
-                        select orderkey from orders_part where orderpriority = '3-MEDIUM'
+                        select orderkey from %1$s where orderpriority = '3-MEDIUM'
                         union all
-                        select orderkey from orders_part where orderpriority = '3-MEDIUM'
-                """;
+                        select orderkey from %1$s where orderpriority = '3-MEDIUM'
+                """.formatted(tableName);
 
         MaterializedResultWithPlan twoPartitionsQueryFirst = executeWithPlan(withCacheEnabled(), selectTwoPartitions);
         Plan twoPartitionsQueryPlan = getDistributedQueryRunner().getQueryPlan(twoPartitionsQueryFirst.queryId());
@@ -487,15 +491,15 @@ public abstract class BaseCacheSubqueriesTest
 
         PlanSignatureWithPredicate signature = new PlanSignatureWithPredicate(
                 new PlanSignature(
-                        scanFilterProjectKey(new CacheTableId(catalogId + ":" + getCacheTableId(getSession(), "orders_part"))),
+                        scanFilterProjectKey(new CacheTableId(catalogId + ":" + getCacheTableId(getSession(), tableName))),
                         Optional.empty(),
-                        ImmutableList.of(getCacheColumnId(getSession(), "orders_part", "orderkey")),
+                        ImmutableList.of(getCacheColumnId(getSession(), tableName, "orderkey")),
                         ImmutableList.of(BIGINT)),
                 TupleDomain.all());
 
         PlanMatchPattern chooseAlternativeNode = chooseAlternativeNode(
-                tableScan("orders_part"),
-                cacheDataPlanNode(tableScan("orders_part")),
+                tableScan(tableName),
+                cacheDataPlanNode(tableScan(tableName)),
                 node(LoadCachedDataPlanNode.class)
                         .with(LoadCachedDataPlanNode.class, node -> node.getPlanSignature().equals(signature)));
 
@@ -522,7 +526,7 @@ public abstract class BaseCacheSubqueriesTest
         assertThat(getLoadCachedDataOperatorInputPositions(singlePartitionQuery.queryId())).isPositive();
 
         // make sure that adding new partition doesn't invalidate existing cache entries
-        computeActual("insert into orders_part values (-42, date '1991-01-01', 'foo')");
+        computeActual("insert into " + tableName + " values (-42, date '1991-01-01', 'foo')");
         singlePartitionQuery = executeWithPlan(withCacheEnabled(), selectSinglePartition);
         assertThat(getScanOperatorInputPositions(singlePartitionQuery.queryId())).isZero();
         assertThat(getLoadCachedDataOperatorInputPositions(singlePartitionQuery.queryId())).isPositive();
@@ -532,18 +536,19 @@ public abstract class BaseCacheSubqueriesTest
         assertThat(twoPartitionsRowCount).isEqualTo(twoPartitionsQuerySecond.result().getRowCount());
         assertThat(twoPartitionsRowCount).isLessThan(allPartitionsQuery.result().getRowCount());
         assertThat(singlePartitionQuery.result().getRowCount()).isLessThan(twoPartitionsRowCount);
-        assertUpdate("drop table orders_part");
+        assertUpdate("drop table " + tableName);
     }
 
     @Test
     public void testCommonSubqueryCacheSplitByIntersectionOfEnforcedConstraint()
     {
-        createPartitionedTableAsSelect("orders_part", ImmutableList.of("orderpriority"), "select orderkey, orderdate, orderpriority from orders");
+        String tableName = "orders_part" + randomNameSuffix();
+        createPartitionedTableAsSelect(tableName, ImmutableList.of("orderpriority"), "select orderkey, orderdate, orderpriority from orders");
         @Language("SQL") String query = """
-                        select orderkey from orders_part where orderpriority = '3-MEDIUM'
+                        select orderkey from %1$s where orderpriority = '3-MEDIUM'
                         union all
-                        select orderkey from orders_part where orderpriority = '1-URGENT'
-                """;
+                        select orderkey from %1$s where orderpriority = '1-URGENT'
+                """.formatted(tableName);
         // no caching because enforced constraint does not intersect between subplans
         MaterializedResultWithPlan result = executeWithPlan(withCommonSubqueryCacheEnabled(), query);
         assertThat(getScanOperatorInputPositions(result.queryId())).isPositive();
@@ -552,15 +557,15 @@ public abstract class BaseCacheSubqueriesTest
         assertThat(getScanOperatorInputPositions(result.queryId())).isPositive();
         assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isZero();
         query = """
-                        select orderkey from orders_part where orderpriority = '1-URGENT'
+                        select orderkey from %1$s where orderpriority = '1-URGENT'
                         union all
-                        select orderkey from orders_part where orderpriority = '1-URGENT'
-                """;
+                        select orderkey from %1$s where orderpriority = '1-URGENT'
+                """.formatted(tableName);
         executeWithPlan(withCommonSubqueryCacheEnabled(), query);
         result = executeWithPlan(withCommonSubqueryCacheEnabled(), query);
         assertThat(getScanOperatorInputPositions(result.queryId())).isZero();
         assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isPositive();
-        assertUpdate("drop table orders_part");
+        assertUpdate("drop table " + tableName);
     }
 
     @ParameterizedTest
