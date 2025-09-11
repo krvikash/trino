@@ -19,8 +19,7 @@ import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
 import io.airlift.json.JsonCodec;
 import io.starburst.ai.model.ModelConnectionSpecs;
-import io.trino.node.InternalNode;
-import io.trino.node.InternalNodeManager;
+import io.trino.node.CoordinatorLocator;
 import io.trino.server.InternalHttpClient;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 
@@ -40,13 +39,13 @@ public class RemoteModelConnectionSpecsLoader
     private static final JsonCodec<ModelConnectionSpecs> CONNECTION_SPECS_CODEC = jsonCodec(ModelConnectionSpecs.class);
 
     private final HttpClient httpClient;
-    private final InternalNodeManager internalNodeManager;
+    private final CoordinatorLocator coordinatorLocator;
 
     @Inject
-    public RemoteModelConnectionSpecsLoader(@InternalHttpClient HttpClient httpClient, InternalNodeManager internalNodeManager)
+    public RemoteModelConnectionSpecsLoader(@InternalHttpClient HttpClient httpClient, CoordinatorLocator coordinatorLocator)
     {
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
-        this.internalNodeManager = requireNonNull(internalNodeManager, "internalNodeManager is null");
+        this.coordinatorLocator = requireNonNull(coordinatorLocator, "coordinatorLocator is null");
     }
 
     @Override
@@ -62,8 +61,8 @@ public class RemoteModelConnectionSpecsLoader
 
     private URI coordinatorUri()
     {
-        return internalNodeManager.getAllNodes().activeCoordinators().stream()
-                .map(InternalNode::getInternalUri).findAny()
+        return coordinatorLocator.getCoordinatorUris().stream()
+                .findFirst()
                 .orElseThrow(() -> new IllegalStateException("No active coordinator found"));
     }
 }

@@ -369,7 +369,7 @@ public class TestingTrinoServer
         }
 
         modules.add(aiModelAccessControlModule());
-        modules.add(new ModelConnectionSpecsLoaderModule(modelConnectionSpecsLoader));
+        modules.add(new ModelConnectionSpecsLoaderModule(modelConnectionSpecsLoader, coordinator));
 
         modules.add(additionalModule);
 
@@ -793,19 +793,23 @@ public class TestingTrinoServer
             extends AbstractConfigurationAwareModule
     {
         private final Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader;
+        private final boolean coordinator;
 
-        public ModelConnectionSpecsLoaderModule(Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader)
+        public ModelConnectionSpecsLoaderModule(Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader, boolean coordinator)
         {
             this.modelConnectionSpecsLoader = requireNonNull(modelConnectionSpecsLoader, "modelConnectionSpecsLoader is null");
+            this.coordinator = coordinator;
         }
 
         @Override
         protected void setup(Binder binder)
         {
             if (modelConnectionSpecsLoader.isPresent()) {
+                if (coordinator) {
+                    jaxrsBinder(binder).bindInstance(new TestingModelConnectionSpecsResource(modelConnectionSpecsLoader.get()));
+                }
                 install(new AiModelConnectionSpecsLoaderModule());
                 install(new InternalHttpClientModule());
-                jaxrsBinder(binder).bindInstance(new TestingModelConnectionSpecsResource(modelConnectionSpecsLoader.get()));
             }
             else {
                 newOptionalBinder(binder, ModelConnectionSpecsLoader.class)
