@@ -28,7 +28,6 @@ import io.trino.plugin.hive.metastore.file.FileHiveMetastoreFactory;
 import io.trino.plugin.hive.util.HiveBlockEncodingSerde;
 import io.trino.plugin.iceberg.catalog.file.FileMetastoreTableOperationsProvider;
 import io.trino.plugin.iceberg.catalog.hms.TrinoHiveCatalogFactory;
-import io.trino.plugin.iceberg.catalog.rest.DefaultIcebergFileSystemFactory;
 import io.trino.plugin.iceberg.delete.DeleteFile;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.block.Block;
