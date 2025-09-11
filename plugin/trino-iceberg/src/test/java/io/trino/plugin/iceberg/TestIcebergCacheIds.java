@@ -72,6 +72,7 @@ import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorS
 import static io.trino.plugin.hive.HiveTestUtils.HDFS_FILE_SYSTEM_FACTORY;
 import static io.trino.plugin.iceberg.ColumnIdentity.primitiveColumnIdentity;
 import static io.trino.plugin.iceberg.IcebergTestUtils.FILE_IO_FACTORY;
+import static io.trino.plugin.iceberg.IcebergTestUtils.TABLE_STATISTICS_READER;
 import static io.trino.spi.predicate.Domain.singleValue;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
@@ -132,6 +133,7 @@ public class TestIcebergCacheIds
                         true,
                         newDirectExecutorService()),
                 new DefaultIcebergFileSystemFactory(HDFS_FILE_SYSTEM_FACTORY),
+                TABLE_STATISTICS_READER,
                 new TableStatisticsWriter(new NodeVersion("test-version")),
                 Optional.of(metastoreFactory),
                 newDirectExecutorService(),
