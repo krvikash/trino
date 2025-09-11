@@ -240,7 +240,9 @@ public class StarburstFunctions
     public TableFunctionProcessorProvider getTableFunctionProcessorProvider(ConnectorTableFunctionHandle functionHandle)
     {
         if (functionHandle instanceof GenerateEmbeddingsFunctionHandle) {
-            return GenerateEmbeddingsTableFunction.getGenerateEmbeddingsFunctionProcessorProvider(clientProvider);
+            return new ClassLoaderSafeTableFunctionProcessorProvider(
+                    GenerateEmbeddingsTableFunction.getGenerateEmbeddingsFunctionProcessorProvider(clientProvider),
+                    getClass().getClassLoader());
         }
         if (functionHandle instanceof UnloadFunctionHandle) {
             return new ClassLoaderSafeTableFunctionProcessorProvider(getUnloadFunctionProcessorProvider(
