@@ -196,7 +196,7 @@ public class Chunk
         @GuardedBy("this")
         private boolean releaseRequested;
         @GuardedBy("this")
-        private byte referenceCount;
+        private short referenceCount;
 
         public ChunkData(
                 MemoryAllocator memoryAllocator,
