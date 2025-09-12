@@ -15,6 +15,7 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
+import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
@@ -39,6 +40,8 @@ import static java.util.Objects.requireNonNull;
 // This class is not thread safe
 public class Chunk
 {
+    private static final Logger log = Logger.get(Chunk.class);
+
     private final long bufferNodeId;
     private final String exchangeId;
     private final int partitionId;
@@ -69,7 +72,8 @@ public class Chunk
                 executor,
                 chunkSizeInBytes,
                 chunkSliceSizeInBytes,
-                calculateDataPagesChecksum);
+                calculateDataPagesChecksum,
+                this);
     }
 
     // [test-only] placeholder for chunks
@@ -173,6 +177,12 @@ public class Chunk
         closed = true;
     }
 
+    @Override
+    public String toString()
+    {
+        return "chunkId %d in %s/%d".formatted(chunkId, exchangeId, partitionId);
+    }
+
     private static class ChunkData
     {
         private final MemoryAllocator memoryAllocator;
@@ -180,6 +190,7 @@ public class Chunk
         private final int chunkSizeInBytes;
         private final int chunkSliceSizeInBytes;
         private final boolean calculateDataPagesChecksum;
+        private final Chunk chunk;
         @GuardedBy("this")
         private final List<Slice> completedSlices;
         @GuardedBy("this")
@@ -203,7 +214,8 @@ public class Chunk
                 ExecutorService executor,
                 int chunkSizeInBytes,
                 int chunkSliceSizeInBytes,
-                boolean calculateDataPagesChecksum)
+                boolean calculateDataPagesChecksum,
+                Chunk chunk)
         {
             checkArgument(chunkSizeInBytes >= chunkSliceSizeInBytes && chunkSizeInBytes % chunkSliceSizeInBytes == 0,
                     "chunkSizeInBytes %s is not a multiple of chunkSliceSizeInBytes %s", chunkSizeInBytes, chunkSliceSizeInBytes);
@@ -212,6 +224,7 @@ public class Chunk
             this.chunkSizeInBytes = chunkSizeInBytes;
             this.chunkSliceSizeInBytes = chunkSliceSizeInBytes;
             this.calculateDataPagesChecksum = calculateDataPagesChecksum;
+            this.chunk = chunk;
             int initialCapacity = this.chunkSizeInBytes / chunkSliceSizeInBytes;
             this.completedSlices = new ArrayList<>(initialCapacity);
             this.chunkSliceLeases = new ArrayList<>(initialCapacity);
@@ -259,7 +272,9 @@ public class Chunk
 
         public synchronized ChunkDataLease get()
         {
-            referenceCount++;
+            if ((++referenceCount % 128) == 0) {
+                log.warn("reference count (%d) for %s is higher then expected", referenceCount, chunk.toString());
+            }
             Runnable releaseCallback = () -> {
                 synchronized (this) {
                     referenceCount--;
