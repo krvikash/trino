@@ -18,7 +18,6 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.iceberg.delete.PositionDeleteFiles;
 import io.trino.spi.connector.ConnectorInsertTableHandle;
 import io.trino.spi.connector.ConnectorOutputTableHandle;
-import io.trino.spi.connector.RetryMode;
 import io.trino.spi.connector.SchemaTableName;
 import org.apache.iceberg.RowLevelOperationMode;
 
@@ -41,7 +40,6 @@ public record IcebergWritableTableHandle(
         String outputPath,
         IcebergFileFormat fileFormat,
         Map<String, String> storageProperties,
-        RetryMode retryMode,
         Map<String, String> fileIoProperties,
         RowLevelOperationMode operationMode,
         Optional<String> branch)
@@ -58,7 +56,6 @@ public record IcebergWritableTableHandle(
         requireNonNull(outputPath, "outputPath is null");
         requireNonNull(fileFormat, "fileFormat is null");
         storageProperties = ImmutableMap.copyOf(requireNonNull(storageProperties, "storageProperties is null"));
-        requireNonNull(retryMode, "retryMode is null");
         checkArgument(partitionsSpecsAsJson.containsKey(partitionSpecId), "partitionSpecId missing from partitionSpecs");
         fileIoProperties = ImmutableMap.copyOf(requireNonNull(fileIoProperties, "fileIoProperties is null"));
         requireNonNull(branch, "branch is null");
