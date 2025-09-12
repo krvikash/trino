@@ -17,13 +17,16 @@ import com.google.common.collect.ImmutableMap;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.trino.operator.RetryPolicy;
+import jakarta.validation.constraints.AssertTrue;
 import org.junit.jupiter.api.Test;
 
+import java.util.EnumSet;
 import java.util.Map;
 
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
+import static io.airlift.testing.ValidationAssertions.assertFailsValidation;
 import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
@@ -77,6 +80,7 @@ public class TestQueryManagerConfig
                 .setRequiredWorkers(1)
                 .setRequiredWorkersMaxWait(new Duration(5, MINUTES))
                 .setRetryPolicy(RetryPolicy.NONE)
+                .setAllowedRetryPolicies(EnumSet.allOf(RetryPolicy.class))
                 .setQueryRetryAttempts(4)
                 .setTaskRetryAttemptsPerTask(4)
                 .setRetryInitialDelay(new Duration(10, SECONDS))
@@ -164,6 +168,7 @@ public class TestQueryManagerConfig
                 .put("query-manager.required-workers", "333")
                 .put("query-manager.required-workers-max-wait", "33m")
                 .put("retry-policy", "QUERY")
+                .put("allowed-retry-policies", "QUERY,TASK")
                 .put("query-retry-attempts", "0")
                 .put("task-retry-attempts-per-task", "9")
                 .put("retry-initial-delay", "1m")
@@ -248,6 +253,7 @@ public class TestQueryManagerConfig
                 .setRequiredWorkers(333)
                 .setRequiredWorkersMaxWait(new Duration(33, MINUTES))
                 .setRetryPolicy(RetryPolicy.QUERY)
+                .setAllowedRetryPolicies(EnumSet.of(RetryPolicy.QUERY, RetryPolicy.TASK))
                 .setQueryRetryAttempts(0)
                 .setTaskRetryAttemptsPerTask(9)
                 .setRetryInitialDelay(new Duration(1, MINUTES))
@@ -298,5 +304,17 @@ public class TestQueryManagerConfig
                 .setMaxWriterTaskCount(101);
 
         assertFullMapping(properties, expected);
+    }
+
+    @Test
+    public void testAllowedRetryPoliciesValidation()
+    {
+        assertFailsValidation(
+                new QueryManagerConfig()
+                        .setAllowedRetryPolicies(EnumSet.of(RetryPolicy.NONE, RetryPolicy.TASK))
+                        .setRetryPolicy(RetryPolicy.QUERY),
+                "retryPolicyAllowed",
+                "Selected retry-policy not present in allowed-retry-policies list",
+                AssertTrue.class);
     }
 }
