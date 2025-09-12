@@ -645,6 +645,7 @@ public class QueryManagerConfig
     }
 
     @Config("allowed-retry-policies")
+    @ConfigDescription("Retry policies that are allowed to be used")
     public QueryManagerConfig setAllowedRetryPolicies(Set<RetryPolicy> allowedRetryPolicies)
     {
         this.allowedRetryPolicies = ImmutableSet.copyOf(allowedRetryPolicies);
