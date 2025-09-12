@@ -644,7 +644,8 @@ public class QueryManagerConfig
         return allowedRetryPolicies;
     }
 
-    @Config("allowed-retry-policies")
+    @LegacyConfig("allowed-retry-policies")
+    @Config("retry-policy.allowed")
     @ConfigDescription("Retry policies that are allowed to be used")
     public QueryManagerConfig setAllowedRetryPolicies(Set<RetryPolicy> allowedRetryPolicies)
     {
@@ -652,7 +653,7 @@ public class QueryManagerConfig
         return this;
     }
 
-    @AssertTrue(message = "Selected retry-policy not present in allowed-retry-policies list")
+    @AssertTrue(message = "Selected retry policy not present in retry-policy.allowed list")
     public boolean isRetryPolicyAllowed()
     {
         return allowedRetryPolicies.contains(retryPolicy);

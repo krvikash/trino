@@ -169,7 +169,7 @@ public class TestQueryManagerConfig
                 .put("query-manager.required-workers", "333")
                 .put("query-manager.required-workers-max-wait", "33m")
                 .put("retry-policy", "QUERY")
-                .put("allowed-retry-policies", "QUERY,TASK")
+                .put("retry-policy.allowed", "QUERY,TASK")
                 .put("allow-exchange-in-query-retries", "false")
                 .put("query-retry-attempts", "0")
                 .put("task-retry-attempts-per-task", "9")
@@ -317,7 +317,7 @@ public class TestQueryManagerConfig
                         .setAllowedRetryPolicies(EnumSet.of(RetryPolicy.NONE, RetryPolicy.TASK))
                         .setRetryPolicy(RetryPolicy.QUERY),
                 "retryPolicyAllowed",
-                "Selected retry-policy not present in allowed-retry-policies list",
+                "Selected retry policy not present in retry-policy.allowed list",
                 AssertTrue.class);
     }
 }
