@@ -28,6 +28,7 @@ import io.trino.client.NodeVersion;
 import io.trino.connector.CatalogHandle;
 import io.trino.connector.CatalogServiceProvider;
 import io.trino.cost.StatsAndCosts;
+import io.trino.exchange.ExchangeManagerConfig;
 import io.trino.exchange.ExchangeManagerRegistry;
 import io.trino.execution.BaseTestSqlTaskManager.MockDirectExchangeClientSupplier;
 import io.trino.execution.buffer.OutputBuffers;
@@ -200,7 +201,7 @@ public final class TaskTestUtils
                 PLANNER_CONTEXT.getTypeOperators(),
                 hashCompiler,
                 new TableExecuteContextManager(),
-                new ExchangeManagerRegistry(noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), noopTracer(), new SecretsResolver(ImmutableMap.of())),
+                new ExchangeManagerRegistry(noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), noopTracer(), new SecretsResolver(ImmutableMap.of()), new ExchangeManagerConfig()),
                 new CacheManagerRegistry(new CacheConfig(), new LocalMemoryManager(new NodeMemoryConfig()), new TestingBlockEncodingSerde(), cacheStats, CURRENT_NODE, TestingInternalNodeManager.createDefault()),
                 new CachePerformanceTracker(),
                 new JsonCodecFactory(new ObjectMapperProvider()).jsonCodec(TupleDomain.class),

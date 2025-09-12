@@ -27,6 +27,7 @@ import io.airlift.tracing.Tracing;
 import io.opentelemetry.api.OpenTelemetry;
 import io.trino.FeaturesConfig;
 import io.trino.exchange.DirectExchangeInput;
+import io.trino.exchange.ExchangeManagerConfig;
 import io.trino.exchange.ExchangeManagerRegistry;
 import io.trino.execution.QueryManagerConfig;
 import io.trino.execution.StageId;
@@ -102,7 +103,7 @@ public class TestMergeOperator
                 httpClient,
                 new HttpClientConfig(),
                 executor,
-                new ExchangeManagerRegistry(OpenTelemetry.noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of())));
+                new ExchangeManagerRegistry(OpenTelemetry.noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of()), new ExchangeManagerConfig()));
         orderingCompiler = new OrderingCompiler(new TypeOperators());
     }
 

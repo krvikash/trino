@@ -36,6 +36,7 @@ import io.trino.connector.ConnectorServicesProvider;
 import io.trino.connector.MockConnectorFactory;
 import io.trino.connector.TestingLocalCatalogPruneTask;
 import io.trino.connector.WorkerDynamicCatalogManager;
+import io.trino.exchange.ExchangeManagerConfig;
 import io.trino.exchange.ExchangeManagerRegistry;
 import io.trino.execution.buffer.PipelinedOutputBuffers;
 import io.trino.execution.executor.RunningSplitInfo;
@@ -273,7 +274,7 @@ public class TestSqlTaskManagerRaceWithCatalogPrune
                 new NodeSpillConfig(),
                 new TestingGcMonitor(),
                 noopTracer(),
-                new ExchangeManagerRegistry(OpenTelemetry.noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of())),
+                new ExchangeManagerRegistry(OpenTelemetry.noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of()), new ExchangeManagerConfig()),
                 ignore -> true);
     }
 

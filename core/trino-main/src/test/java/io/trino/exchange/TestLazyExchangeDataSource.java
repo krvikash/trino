@@ -46,7 +46,7 @@ public class TestLazyExchangeDataSource
                     throw new UnsupportedOperationException();
                 },
                 RetryPolicy.NONE,
-                new ExchangeManagerRegistry(OpenTelemetry.noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of())))) {
+                new ExchangeManagerRegistry(OpenTelemetry.noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of()), new ExchangeManagerConfig()))) {
             ListenableFuture<Void> first = source.isBlocked();
             ListenableFuture<Void> second = source.isBlocked();
             assertThat(first)
