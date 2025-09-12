@@ -247,6 +247,7 @@ public class RedshiftClient
         this.connectorExpressionRewriter = JdbcConnectorExpressionRewriterBuilder.newBuilder()
                 .addStandardRules(this::quoted)
                 .add(new RewriteComparison(ImmutableSet.of(ComparisonOperator.EQUAL, ComparisonOperator.NOT_EQUAL)))
+                .withTypeClass("string_type", ImmutableSet.of("varchar", "char"))
                 .map("$equal(left, right)").to("left = right")
                 .map("$not_equal(left, right)").to("left <> right")
                 .map("$less_than(left, right)").to("left < right")
@@ -255,8 +256,8 @@ public class RedshiftClient
                 .map("$greater_than_or_equal(left, right)").to("left >= right")
                 .add(new RewriteIn())
                 // TODO Add support for arithmetical function
-                .map("$like(value: varchar, pattern: varchar): boolean").to("value LIKE pattern")
-                .map("$like(value: varchar, pattern: varchar, escape: varchar(1)): boolean").to("value LIKE pattern ESCAPE escape")
+                .map("$like(value: string_type, pattern: varchar): boolean").to("value LIKE pattern")
+                .map("$like(value: string_type, pattern: varchar, escape: varchar(1)): boolean").to("value LIKE pattern ESCAPE escape")
                 .map("$not($is_null(value))").to("value IS NOT NULL")
                 .map("$not(value: boolean)").to("NOT value")
                 .map("$is_null(value)").to("value IS NULL")

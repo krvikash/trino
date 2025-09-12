@@ -716,14 +716,19 @@ public class TestRedshiftConnectorTest
         testLikePredicatePushdown("varchar(1)", asciiData);
         testLikePredicatePushdown("varchar(65535)", unicodeData);
         testLikePredicatePushdown("varchar(65536)", unicodeData);
+        testLikePredicatePushdown("char", asciiData);
+        testLikePredicatePushdown("char(1)", asciiData);
+        testLikePredicatePushdown("char(4096)", asciiData);
+        testLikePredicatePushdown("char(4097)", asciiData);
+        testLikePredicatePushdown("char(65535)", asciiData);
+        testLikePredicatePushdown("char(65536)", asciiData);
     }
 
     private void testLikePredicatePushdown(String type, List<String> data)
     {
-        String tableName = "test_like_predicate_pushdown_" + type.replaceAll("[^a-zA-Z0-9]", "_");
         try (TestTable table = new TestTable(
                 getQueryRunner()::execute,
-                tableName,
+                "test_like_predicate_pushdown_" + type.replaceAll("[^a-zA-Z0-9]", "_"),
                 "(id integer, data %s)".formatted(type),
                 data)) {
             assertThat(query("SELECT id FROM " + table.getName() + " WHERE data LIKE '%A%'"))
@@ -739,11 +744,17 @@ public class TestRedshiftConnectorTest
         assertThat(query("SELECT nationkey FROM nation WHERE name LIKE '%A%' ESCAPE '\\'"))
                 .isFullyPushedDown();
 
+        List<String> asciiData = List.of("1, 'A%b'", "2, 'Asth'", "3, 'a%b'", "4, 'asth'", "5, NULL");
         List<String> unicodeData = List.of("1, 'A%b'", "2, 'Asth'", "3, 'ą%b'", "4, 'ąsth'", "5, NULL");
 
         testLikeWithEscapePredicatePushdown("varchar", unicodeData);
         testLikeWithEscapePredicatePushdown("varchar(65535)", unicodeData);
         testLikeWithEscapePredicatePushdown("varchar(65536)", unicodeData);
+        testLikeWithEscapePredicatePushdown("char(4)", asciiData);
+        testLikeWithEscapePredicatePushdown("char(4096)", asciiData);
+        testLikeWithEscapePredicatePushdown("char(4097)", asciiData);
+        testLikeWithEscapePredicatePushdown("char(65535)", asciiData);
+        testLikeWithEscapePredicatePushdown("char(65536)", asciiData);
     }
 
     private void testLikeWithEscapePredicatePushdown(String type, List<String> data)
@@ -757,6 +768,37 @@ public class TestRedshiftConnectorTest
             assertThat(query("SELECT id FROM " + table.getName() + " WHERE data LIKE '%A\\%%' ESCAPE '\\'"))
                     .isFullyPushedDown();
             assertThat(query("SELECT id FROM " + table.getName() + " WHERE data LIKE '%ą\\%%' ESCAPE '\\'"))
+                    .isFullyPushedDown();
+        }
+    }
+
+    @Test
+    public void testLikePredicatePushdownWithSpaces()
+    {
+        // Additional tests for CHAR with trailing spaces as Redshift pad CHAR values with spaces to the defined length
+        try (TestTable table = new TestTable(
+                getQueryRunner()::execute,
+                "test_like_predicate_pushdown_char_with_spaces",
+                "(id integer, data CHAR(5))",
+                List.of("1, 'ABC'", "2, 'ABC '", "3, 'ABC  '", "4, NULL"))) {
+
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE data LIKE 'ABC'"))
+                    .returnsEmptyResult()
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE data LIKE 'ABC '"))
+                    .returnsEmptyResult()
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE data LIKE 'ABC  '"))
+                    .matches("VALUES 1, 2, 3")
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE data LIKE 'ABC%'"))
+                    .matches("VALUES 1, 2, 3")
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE data LIKE 'ABC %'"))
+                    .matches("VALUES 1, 2, 3")
+                    .isFullyPushedDown();
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE data LIKE 'ABC  %'"))
+                    .matches("VALUES 1, 2, 3")
                     .isFullyPushedDown();
         }
     }
