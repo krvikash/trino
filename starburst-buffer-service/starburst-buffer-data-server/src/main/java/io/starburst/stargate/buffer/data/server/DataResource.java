@@ -768,24 +768,33 @@ public class DataResource
         }
 
         ChunkDataLease chunkDataLease = chunkDataResult.chunkDataLease().get();
-        int dataSize = chunkDataLease.serializedSizeInBytes() - CHUNK_SLICES_METADATA_SIZE;
-        readDataSize.update(dataSize);
-        readDataSizeDistribution.add(dataSize);
+        ArrayDeque<Slice> sliceQueue;
+        AsyncContext context;
+        try {
+            int dataSize = chunkDataLease.serializedSizeInBytes() - CHUNK_SLICES_METADATA_SIZE;
+            readDataSize.update(dataSize);
+            readDataSizeDistribution.add(dataSize);
 
-        // We need AsyncContext to complete an asynchronous write
-        AsyncContext context = request.getAsyncContext();
-        response.setStatus(Status.OK.getStatusCode());
-        response.setContentType(TRINO_CHUNK_DATA);
-        response.setContentLength(chunkDataLease.serializedSizeInBytes());
+            // We need AsyncContext to complete an asynchronous write
+            context = request.getAsyncContext();
+            response.setStatus(Status.OK.getStatusCode());
+            response.setContentType(TRINO_CHUNK_DATA);
+            response.setContentLength(chunkDataLease.serializedSizeInBytes());
 
-        Slice metaDataSlice = Slices.allocate(CHUNK_SLICES_METADATA_SIZE);
-        SliceOutput sliceOutput = metaDataSlice.getOutput();
-        sliceOutput.writeLong(chunkDataLease.getChecksum());
-        sliceOutput.writeInt(chunkDataLease.getNumDataPages());
+            Slice metaDataSlice = Slices.allocate(CHUNK_SLICES_METADATA_SIZE);
+            SliceOutput sliceOutput = metaDataSlice.getOutput();
+            sliceOutput.writeLong(chunkDataLease.getChecksum());
+            sliceOutput.writeInt(chunkDataLease.getNumDataPages());
 
-        ArrayDeque<Slice> sliceQueue = new ArrayDeque<>(chunkDataLease.getChunkSlices().size() + 1);
-        sliceQueue.add(metaDataSlice);
-        sliceQueue.addAll(chunkDataLease.getChunkSlices());
+            sliceQueue = new ArrayDeque<>(chunkDataLease.getChunkSlices().size() + 1);
+            sliceQueue.add(metaDataSlice);
+            sliceQueue.addAll(chunkDataLease.getChunkSlices());
+        }
+        catch (Throwable e) {
+            logger.warn(e, "error staging GET /%s/%s/pages/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId);
+            chunkDataLease.release();
+            return;
+        }
 
         outputStream.setWriteListener(new WriteListener() {
             private final AtomicBoolean done = new AtomicBoolean();
