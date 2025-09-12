@@ -10,6 +10,7 @@
 package io.starburst.ai.client;
 
 import com.google.common.collect.ImmutableMap;
+import io.airlift.configuration.secrets.SecretsResolver;
 import io.starburst.ai.model.ConnectionInfo;
 
 import java.util.Map;
@@ -24,7 +25,7 @@ public final class ModelSecretsResolver
 
     private ModelSecretsResolver() {}
 
-    static ConnectionInfo resolveConnectionInfo(ConnectionInfo connectionInfo, io.airlift.configuration.secrets.SecretsResolver secretsResolver)
+    static ConnectionInfo resolveConnectionInfo(ConnectionInfo connectionInfo, SecretsResolver secretsResolver)
     {
         return switch (connectionInfo) {
             case AwsBedrockConnectionInfo awsBedrockConnectionInfo -> resolveBedrockSecrets(awsBedrockConnectionInfo, secretsResolver);
@@ -32,7 +33,7 @@ public final class ModelSecretsResolver
         };
     }
 
-    public static AwsBedrockConnectionInfo resolveBedrockSecrets(AwsBedrockConnectionInfo connectionInfo, io.airlift.configuration.secrets.SecretsResolver secretsResolver)
+    public static AwsBedrockConnectionInfo resolveBedrockSecrets(AwsBedrockConnectionInfo connectionInfo, SecretsResolver secretsResolver)
     {
         if (connectionInfo.awsAccessKey().isEmpty() || connectionInfo.awsSecretKey().isEmpty()) {
             return connectionInfo;
@@ -44,7 +45,7 @@ public final class ModelSecretsResolver
         return new AwsBedrockConnectionInfo(awsAccessKey, awsSecretKey, connectionInfo.region(), connectionInfo.iamRole(), connectionInfo.externalId());
     }
 
-    public static OpenAiConnectionInfo resolveOpenAiSecrets(OpenAiConnectionInfo connectionInfo, io.airlift.configuration.secrets.SecretsResolver secretsResolver)
+    public static OpenAiConnectionInfo resolveOpenAiSecrets(OpenAiConnectionInfo connectionInfo, SecretsResolver secretsResolver)
     {
         return connectionInfo.apiKey().map(key ->
                         new OpenAiConnectionInfo(connectionInfo.endpoint(),
