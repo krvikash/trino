@@ -228,7 +228,10 @@ public class TestLanguageModelClient
         return new Object[][] {
                 {"haiku35"},
                 {"gpt4o_mini"},
-                {"meta_llama"}
+                {"meta_llama"},
+                // gpt4o_mini_auth_header tests header secret resolution end-to-end. It relies on the OpenAI client overwriting the
+                // Authorization header set via the credential. It could fail if the client behavior changes
+                {"gpt4o_mini_auth_header"}
         };
     }
 }

@@ -12,11 +12,14 @@ package io.starburst.ai.model;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
 import static io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
 import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElse;
 
 @JsonTypeInfo(
         use = JsonTypeInfo.Id.NAME,
@@ -29,13 +32,14 @@ import static java.util.Objects.requireNonNull;
 public sealed interface ConnectionInfo
         permits OpenAiConnectionInfo, AwsBedrockConnectionInfo
 {
-    record OpenAiConnectionInfo(Optional<String> endpoint, Optional<String> apiKey)
+    record OpenAiConnectionInfo(Optional<String> endpoint, Optional<String> apiKey, Map<String, List<String>> additionalHeaders)
             implements ConnectionInfo
     {
         public OpenAiConnectionInfo
         {
             requireNonNull(endpoint, "endpoint is null");
             requireNonNull(apiKey, "apiKey is null");
+            additionalHeaders = requireNonNullElse(additionalHeaders, Map.of());
         }
     }
 
@@ -44,7 +48,10 @@ public sealed interface ConnectionInfo
             Optional<String> awsSecretKey,
             Optional<String> region,
             Optional<String> iamRole,
-            Optional<String> externalId)
+            boolean isUseAnonymousCredentials,
+            Optional<String> externalId,
+            Optional<String> endpoint,
+            Map<String, List<String>> additionalHeaders)
             implements ConnectionInfo
     {
         public AwsBedrockConnectionInfo
@@ -54,6 +61,8 @@ public sealed interface ConnectionInfo
             requireNonNull(region, "region is null");
             requireNonNull(iamRole, "iamRole is null");
             requireNonNull(externalId, "externalId is null");
+            requireNonNull(endpoint, "endpoint is null");
+            additionalHeaders = requireNonNullElse(additionalHeaders, Map.of());
         }
     }
 }

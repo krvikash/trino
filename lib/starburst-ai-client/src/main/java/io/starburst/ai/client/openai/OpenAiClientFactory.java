@@ -63,7 +63,7 @@ public class OpenAiClientFactory
         requireNonNull(connectionInfo, "connectionInfo is null");
         Optional<AzureOpenAiConnectionInfo> azureOpenAiConnectionInfo = tryExtractAzureOpenAiConnectionInfo(connectionInfo.endpoint());
         OpenAiConnectionInfo updatedConnectionInfo = azureOpenAiConnectionInfo
-                .map(azureConnectionInfo -> new OpenAiConnectionInfo(Optional.of(azureConnectionInfo.endpoint()), connectionInfo.apiKey()))
+                .map(azureConnectionInfo -> new OpenAiConnectionInfo(Optional.of(azureConnectionInfo.endpoint()), connectionInfo.apiKey(), connectionInfo.additionalHeaders()))
                 .orElse(connectionInfo);
         // Ideally model name should be correctly parsed and populated from UI
         String modelName = azureOpenAiConnectionInfo.map(AzureOpenAiConnectionInfo::deployment).orElse(spec.modelName());
@@ -88,13 +88,14 @@ public class OpenAiClientFactory
         requireNonNull(connectionInfo, "connectionInfo is null");
         Optional<AzureOpenAiConnectionInfo> azureOpenAiConnectionInfo = tryExtractAzureOpenAiConnectionInfo(connectionInfo.endpoint());
         OpenAiConnectionInfo updatedConnectionInfo = azureOpenAiConnectionInfo
-                .map(azureConnectionInfo -> new OpenAiConnectionInfo(Optional.of(azureConnectionInfo.endpoint()), connectionInfo.apiKey()))
+                .map(azureConnectionInfo -> new OpenAiConnectionInfo(Optional.of(azureConnectionInfo.endpoint()), connectionInfo.apiKey(), connectionInfo.additionalHeaders()))
                 .orElse(connectionInfo);
         String modelName = azureOpenAiConnectionInfo.map(AzureOpenAiConnectionInfo::deployment).orElse(spec.modelName());
         return new OpenAiEmbeddingModelClient(modelName, spec.dimensions(), createOpenAiClient(updatedConnectionInfo, azureOpenAiConnectionInfo));
     }
 
-    private OpenAIClient createOpenAiClient(OpenAiConnectionInfo connectionInfo, Optional<AzureOpenAiConnectionInfo> azureOpenAiConnectionInfo)
+    @VisibleForTesting
+    OpenAIClient createOpenAiClient(OpenAiConnectionInfo connectionInfo, Optional<AzureOpenAiConnectionInfo> azureOpenAiConnectionInfo)
     {
         OpenAIOkHttpClient.Builder builder = OpenAIOkHttpClient.builder();
         azureOpenAiConnectionInfo.ifPresent(info -> {
@@ -105,12 +106,20 @@ public class OpenAiClientFactory
                 builder.azureServiceVersion(AzureOpenAIServiceVersion.fromString(info.apiVersion()));
             }
         });
+        if (connectionInfo.apiKey().isPresent() || !connectionInfo.additionalHeaders().isEmpty()) {
+            connectionInfo = resolveOpenAiSecrets(connectionInfo, secretsResolver);
+        }
         if (connectionInfo.apiKey().isPresent()) {
-            OpenAiConnectionInfo resolvedConnectionInfo = resolveOpenAiSecrets(connectionInfo, secretsResolver);
             // Which header is set based on the input - https://github.com/openai/openai-java/blob/6f9c7834bb0b099530286e15c6e3ba5df0f779e4/openai-java-core/src/main/kotlin/com/openai/core/ClientOptions.kt#L484-L494
-            azureOpenAiConnectionInfo.ifPresentOrElse(
-                    _ -> builder.credential(AzureApiKeyCredential.create(resolvedConnectionInfo.apiKey().orElseThrow())),
-                    () -> builder.apiKey(resolvedConnectionInfo.apiKey().orElseThrow()));
+            if (azureOpenAiConnectionInfo.isPresent()) {
+                builder.credential(AzureApiKeyCredential.create(connectionInfo.apiKey().get()));
+            }
+            else {
+                builder.apiKey(connectionInfo.apiKey().get());
+            }
+        }
+        if (!connectionInfo.additionalHeaders().isEmpty()) {
+            builder.putAllHeaders(connectionInfo.additionalHeaders());
         }
         connectionInfo.endpoint().ifPresent(builder::baseUrl);
         return builder.build();

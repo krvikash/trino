@@ -47,6 +47,19 @@ public class TestingUtils
                         }
                     },
                     {
+                        "id": "gpt4o_mini_auth_header",
+                        "modelName": "gpt-4o-mini",
+                        "kind": "GENERATE",
+                        "maxTokens": 8192,
+                        "temperature": 0.1,
+                        "connectionInfo": {
+                            "provider": "OPENAI",
+                            "endpoint": "https://api.openai.com/v1",
+                            "apiKey": "",
+                            "additionalHeaders": {"Authorization": ["bearer ${ENV:OPEN_AI_API_KEY}"]}
+                        }
+                    },
+                    {
                         "id": "meta_llama",
                         "modelName": "us.meta.llama3-3-70b-instruct-v1:0",
                         "kind": "GENERATE",

@@ -19,6 +19,7 @@ import io.starburst.ai.client.PromptDao;
 import io.starburst.ai.model.EmbeddingModelConnectionSpec;
 import io.starburst.ai.model.LanguageModelConnectionSpec;
 import io.trino.spi.TrinoException;
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -35,8 +36,11 @@ import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Map;
 
+import static io.starburst.ai.client.AiClientErrorCode.INVALID_MODEL_CONFIGURATION;
 import static io.starburst.ai.client.AiClientErrorCode.UNSUPPORTED_MODEL;
 import static io.starburst.ai.client.ModelSecretsResolver.resolveBedrockSecrets;
 import static io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
@@ -94,7 +98,55 @@ public class AwsBedrockClientFactory
     private BedrockRuntimeClient createBedrockClient(AwsBedrockConnectionInfo connectionInfo)
     {
         BedrockRuntimeClientBuilder clientBuilder = BedrockRuntimeClient.builder();
-        AwsCredentialsProvider awsCredentialsProvider = DefaultCredentialsProvider.create();
+        clientBuilder.credentialsProvider(getCredentialsProvider(connectionInfo));
+        connectionInfo.region().ifPresent(region ->
+                clientBuilder.region(Region.of(region)));
+
+        RetryCondition customRetryCondition = (context) -> {
+            Throwable exception = context.exception();
+            // Retry on default retryable conditions
+            // Note: this method is deprecated but there is currently no replacement in the RetryStrategy api
+            if (RetryCondition.defaultRetryCondition().shouldRetry(context)) {
+                return true;
+            }
+            // Retry on ModelErrorException with 424 status code
+            if (exception instanceof ModelErrorException modelErrorException) {
+                return modelErrorException.statusCode() == 424;
+            }
+            return false;
+        };
+
+        connectionInfo.endpoint().ifPresent(endpoint -> {
+            if (!endpoint.trim().isEmpty()) {
+                try {
+                    clientBuilder.endpointOverride(new URI(endpoint));
+                }
+                catch (URISyntaxException e) {
+                    throw new TrinoException(INVALID_MODEL_CONFIGURATION, e);
+                }
+            }
+        });
+
+        ClientOverrideConfiguration.Builder clientOverrideConfigurationBuilder = ClientOverrideConfiguration.builder()
+                .retryPolicy(RetryPolicy.builder()
+                        .numRetries(10)
+                        .retryCondition(customRetryCondition)
+                        .build());
+        if (!connectionInfo.additionalHeaders().isEmpty()) {
+            AwsBedrockConnectionInfo resolvedConnectionInfo = resolveBedrockSecrets(connectionInfo, secretsResolver);
+            resolvedConnectionInfo.additionalHeaders().forEach(clientOverrideConfigurationBuilder::putHeader);
+            clientBuilder.overrideConfiguration(clientOverrideConfigurationBuilder.build());
+        }
+
+        return clientBuilder.overrideConfiguration(clientOverrideConfigurationBuilder.build()).build();
+    }
+
+    private AwsCredentialsProvider getCredentialsProvider(AwsBedrockConnectionInfo connectionInfo)
+    {
+        if (connectionInfo.isUseAnonymousCredentials()) {
+            return AnonymousCredentialsProvider.create();
+        }
+        AwsCredentialsProvider awsCredentialsProvider = DefaultCredentialsProvider.builder().build();
         if (connectionInfo.awsAccessKey().isPresent() && connectionInfo.awsSecretKey().isPresent()) {
             AwsBedrockConnectionInfo resolvedConnectionInfo = resolveBedrockSecrets(connectionInfo, secretsResolver);
             awsCredentialsProvider = StaticCredentialsProvider.create(AwsBasicCredentials.create(resolvedConnectionInfo.awsAccessKey().orElseThrow(), resolvedConnectionInfo.awsSecretKey().orElseThrow()));
@@ -116,30 +168,6 @@ public class AwsBedrockClientFactory
                     .asyncCredentialUpdateEnabled(true);
             awsCredentialsProvider = assumeRoleCredentialsProvider.build();
         }
-        clientBuilder.credentialsProvider(awsCredentialsProvider);
-        connectionInfo.region().ifPresent(region ->
-                clientBuilder.region(Region.of(region)));
-
-        RetryCondition customRetryCondition = (context) -> {
-            Throwable exception = context.exception();
-            // Retry on default retryable conditions
-            // Note: this method is deprecated but there is currently no replacement in the RetryStrategy api
-            if (RetryCondition.defaultRetryCondition().shouldRetry(context)) {
-                return true;
-            }
-            // Retry on ModelErrorException with 424 status code
-            if (exception instanceof ModelErrorException modelErrorException) {
-                return modelErrorException.statusCode() == 424;
-            }
-            return false;
-        };
-
-        return clientBuilder
-                .overrideConfiguration(ClientOverrideConfiguration.builder()
-                        .retryPolicy(RetryPolicy.builder()
-                                .numRetries(10)
-                                .retryCondition(customRetryCondition)
-                                .build()).build())
-                .build();
+        return awsCredentialsProvider;
     }
 }

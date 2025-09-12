@@ -141,6 +141,13 @@
             <scope>provided</scope>
         </dependency>
 
+        <!--secrets-spi is a test only direct dependency, but is provided by io.airlift:configuration-->
+        <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>secrets-spi</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>slice</artifactId>
