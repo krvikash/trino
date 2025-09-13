@@ -10,6 +10,7 @@
 package io.starburst.server.troubleshooting;
 
 import com.google.inject.Key;
+import com.starburstdata.presto.plugin.ai.StarburstAiPlugin;
 import com.starburstdata.presto.server.StarburstServerExtensionsModule;
 import io.starburst.server.troubleshooting.TroubleshootingTestHelper.Unzipped;
 import io.airlift.discovery.client.ServiceDescriptor;
@@ -34,6 +35,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import static com.starburstdata.presto.license.TestingLicenseManager.NOOP_LICENSE_MANAGER;
 import static com.starburstdata.presto.protocol.StarburstClientCapabilities.QUERY_TROUBLESHOOTING;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.assertPropertyExists;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.findConfigZips;
@@ -130,6 +132,7 @@ public class TestQueryTroubleshootingForStaticCatalogs
         node.installPlugin(new TpchPlugin());
         node.installPlugin(new GeoPlugin());
         node.installPlugin(new PostgreSqlPlugin());
+        node.installPlugin(new StarburstAiPlugin(NOOP_LICENSE_MANAGER));
         node.getInstance(Key.get(ConnectorServicesProvider.class)).loadInitialCatalogs();
         return node;
     }
