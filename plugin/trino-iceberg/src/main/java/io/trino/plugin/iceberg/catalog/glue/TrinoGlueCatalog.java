@@ -335,9 +335,14 @@ public class TrinoGlueCatalog
         }
     }
 
-    private static DatabaseInput createDatabaseInput(String namespace, Map<String, Object> properties)
+    private DatabaseInput createDatabaseInput(String namespace, Map<String, Object> properties)
     {
         DatabaseInput.Builder databaseInput = DatabaseInput.builder().name(namespace);
+        if (defaultSchemaLocation.isPresent()) {
+            Location location = Location.of(defaultSchemaLocation.get())
+                    .appendPath(namespace + ".db");
+            databaseInput.locationUri(location.toString());
+        }
         properties.forEach((property, value) -> {
             switch (property) {
                 case LOCATION_PROPERTY -> databaseInput.locationUri((String) value);
