@@ -209,7 +209,7 @@ final class TestStorageFunctions
     }
 
     @ParameterizedTest
-    @EnumSource(mode = EXCLUDE, names = {"CSV", "ESRI", "REGEX"})
+    @EnumSource(mode = EXCLUDE, names = {"CSV", "ESRI", "REGEX", "SEQUENCEFILE_PROTOBUF"})
     void testLoadWithDescriptor(HiveStorageFormat format)
     {
         String location = "s3://%s/%s".formatted("test-bucket", randomNameSuffix());
@@ -291,7 +291,7 @@ final class TestStorageFunctions
     }
 
     @ParameterizedTest
-    @EnumSource(mode = EnumSource.Mode.EXCLUDE, names = {"REGEX", "ESRI"})
+    @EnumSource(mode = EnumSource.Mode.EXCLUDE, names = {"REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF"})
     void testUnload(HiveStorageFormat format)
             throws Exception
     {

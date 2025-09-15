@@ -46,6 +46,7 @@ import static io.trino.plugin.hive.HiveErrorCode.HIVE_UNSUPPORTED_FORMAT;
 import static io.trino.plugin.hive.WriterKind.INSERT;
 import static io.trino.plugin.hive.acid.AcidTransaction.NO_ACID_TRANSACTION;
 import static io.trino.plugin.hive.util.HiveWriteUtils.createPartitionValues;
+import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static java.util.Objects.requireNonNull;
 
 public class UnloadWriterFactory
@@ -162,6 +163,7 @@ public class UnloadWriterFactory
             case AVRO -> ".avro";
             case RCBINARY, RCTEXT -> ".rc";
             case SEQUENCEFILE -> ".seq";
+            case SEQUENCEFILE_PROTOBUF -> throw new TrinoException(NOT_SUPPORTED, "Unsupported file format: " + format);
             case JSON, OPENX_JSON, ESRI -> ".json";
             case TEXTFILE -> ".txt";
             case CSV -> ".csv";

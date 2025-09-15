@@ -32,11 +32,13 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import org.joda.time.DateTimeZone;
 
+import java.nio.file.Path;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.airlift.units.DataSize.Unit.GIGABYTE;
@@ -179,6 +181,10 @@ public class HiveConfig
     private int metadataParallelism = 8;
 
     private boolean parquetRebaseLegacyInt96Timestamp;
+
+    private Path protobufDescriptorsLocation;
+    private Duration protobufDescriptorsCacheRefreshInterval = new Duration(1, TimeUnit.DAYS);
+    private long protobufDescriptorsCacheMaxSize = 64;
 
     private boolean reuseCommonSubqueriesEnabled = true;
 
@@ -1326,6 +1332,45 @@ public class HiveConfig
     public HiveConfig setParquetRebaseLegacyInt96Timestamp(boolean parquetRebaseLegacyInt96Timestamp)
     {
         this.parquetRebaseLegacyInt96Timestamp = parquetRebaseLegacyInt96Timestamp;
+        return this;
+    }
+
+    public Path getProtobufDescriptorsLocation()
+    {
+        return protobufDescriptorsLocation;
+    }
+
+    @ConfigDescription("Directory where binary protobuf descriptors are stored to use for deserializing protobufs")
+    @Config("hive.protobuf.descriptors.location")
+    public HiveConfig setProtobufDescriptorsLocation(Path protobufDescriptorsLocation)
+    {
+        this.protobufDescriptorsLocation = protobufDescriptorsLocation;
+        return this;
+    }
+
+    public long getProtobufDescriptorsCacheMaxSize()
+    {
+        return protobufDescriptorsCacheMaxSize;
+    }
+
+    @ConfigDescription("The maximum amount of protobuf descriptors to keep in memory")
+    @Config("hive.protobuf.descriptors.cache.max-size")
+    public HiveConfig setProtobufDescriptorsCacheMaxSize(long size)
+    {
+        this.protobufDescriptorsCacheMaxSize = size;
+        return this;
+    }
+
+    public Duration getProtobufDescriptorsCacheRefreshInterval()
+    {
+        return protobufDescriptorsCacheRefreshInterval;
+    }
+
+    @ConfigDescription("Interval on when loaded descriptors should be refreshed")
+    @Config("hive.protobuf.descriptors.cache.refresh-interval")
+    public HiveConfig setProtobufDescriptorsCacheRefreshInterval(Duration refreshInterval)
+    {
+        this.protobufDescriptorsCacheRefreshInterval = refreshInterval;
         return this;
     }
 

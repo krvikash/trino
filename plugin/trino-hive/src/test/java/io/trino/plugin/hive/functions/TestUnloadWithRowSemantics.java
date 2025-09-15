@@ -80,7 +80,7 @@ public class TestUnloadWithRowSemantics
 
     @Override
     @ParameterizedTest
-    @EnumSource(mode = EnumSource.Mode.EXCLUDE, names = { "REGEX", "ESRI" })
+    @EnumSource(mode = EnumSource.Mode.EXCLUDE, names = { "REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF" })
     void testUnloadWithSortOrder(HiveStorageFormat format)
     {
         assertThatThrownBy(() -> super.testUnloadWithSortOrder(format))

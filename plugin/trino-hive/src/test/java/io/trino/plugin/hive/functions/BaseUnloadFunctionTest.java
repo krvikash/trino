@@ -53,6 +53,7 @@ import static io.trino.plugin.hive.HiveStorageFormat.RCBINARY;
 import static io.trino.plugin.hive.HiveStorageFormat.RCTEXT;
 import static io.trino.plugin.hive.HiveStorageFormat.REGEX;
 import static io.trino.plugin.hive.HiveStorageFormat.SEQUENCEFILE;
+import static io.trino.plugin.hive.HiveStorageFormat.SEQUENCEFILE_PROTOBUF;
 import static io.trino.plugin.hive.HiveStorageFormat.TEXTFILE;
 import static io.trino.testing.DataProviders.cartesianProduct;
 import static io.trino.testing.DataProviders.toDataProvider;
@@ -92,7 +93,7 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI"})
+    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF"})
     void testUnloadFormat(HiveStorageFormat format)
             throws Exception
     {
@@ -147,6 +148,7 @@ abstract class BaseUnloadFunctionTest
                 Stream.of(HiveStorageFormat.values())
                         .filter(format -> format != REGEX)
                         .filter(format -> format != ESRI)
+                        .filter(format -> format != SEQUENCEFILE_PROTOBUF)
                         .collect(toDataProvider()),
                 Stream.of(HiveCompressionOption.values())
                         .collect(toDataProvider()));
@@ -415,6 +417,7 @@ abstract class BaseUnloadFunctionTest
                 Stream.of(HiveStorageFormat.values())
                         .filter(format -> format != REGEX)
                         .filter(format -> format != ESRI)
+                        .filter(format -> format != SEQUENCEFILE_PROTOBUF)
                         .collect(toDataProvider()),
                 new Object[][] {
                         {"lowercase"},
@@ -611,7 +614,7 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI"})
+    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF"})
     void testUnloadBoolean(HiveStorageFormat format)
             throws Exception
     {
@@ -621,7 +624,7 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"AVRO", "CSV", "REGEX", "ESRI"})
+    @EnumSource(mode = Mode.EXCLUDE, names = {"AVRO", "CSV", "REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF"})
         // see testUnloadAvro
     void testUnloadTinyInt(HiveStorageFormat format)
             throws Exception
@@ -632,7 +635,7 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"AVRO", "CSV", "REGEX", "ESRI"})
+    @EnumSource(mode = Mode.EXCLUDE, names = {"AVRO", "CSV", "REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF"})
         // see testUnloadAvro
     void testUnloadSmallInt(HiveStorageFormat format)
             throws Exception
@@ -643,7 +646,7 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI"})
+    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF"})
     void testUnloadInteger(HiveStorageFormat format)
             throws Exception
     {
@@ -653,7 +656,7 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI"})
+    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF"})
     void testUnloadBigInt(HiveStorageFormat format)
             throws Exception
     {
@@ -663,7 +666,7 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI"})
+    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF"})
     void testUnloadReal(HiveStorageFormat format)
             throws Exception
     {
@@ -683,7 +686,7 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI"})
+    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF"})
     void testUnloadDouble(HiveStorageFormat format)
             throws Exception
     {
@@ -704,7 +707,7 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI"})
+    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF"})
     void testUnloadDecimal(HiveStorageFormat format)
             throws Exception
     {
@@ -718,7 +721,7 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI"})
+    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF"})
     void testUnloadChar(HiveStorageFormat format)
             throws Exception
     {
@@ -734,7 +737,7 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI"})
+    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF"})
     void testUnloadVarchar(HiveStorageFormat format)
             throws Exception
     {
@@ -750,7 +753,7 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"REGEX", "ESRI"})
+    @EnumSource(mode = Mode.EXCLUDE, names = {"REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF"})
     void testUnloadUnboundedVarchar(HiveStorageFormat format)
             throws Exception
     {
@@ -766,7 +769,7 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI"})
+    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF"})
     void testUnloadVarbinary(HiveStorageFormat format)
             throws Exception
     {
@@ -792,7 +795,7 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI"})
+    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF"})
     void testUnloadDate(HiveStorageFormat format)
             throws Exception
     {
@@ -809,7 +812,7 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI"})
+    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF"})
     void testUnloadTimestampMillis(HiveStorageFormat format)
             throws Exception
     {
@@ -830,7 +833,7 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI"})
+    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF"})
     void testUnloadTimestampMicros(HiveStorageFormat format)
             throws Exception
     {
@@ -853,7 +856,7 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI"})
+    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF"})
     void testUnloadTimestampNanos(HiveStorageFormat format)
             throws Exception
     {
@@ -893,7 +896,7 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI"})
+    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF"})
     void testUnloadArray(HiveStorageFormat format)
             throws Exception
     {
@@ -916,7 +919,7 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI"})
+    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF"})
     void testUnloadMap(HiveStorageFormat format)
             throws Exception
     {
@@ -927,7 +930,7 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI"})
+    @EnumSource(mode = Mode.EXCLUDE, names = {"CSV", "REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF"})
     void testUnloadRow(HiveStorageFormat format)
             throws Exception
     {
@@ -1216,7 +1219,7 @@ abstract class BaseUnloadFunctionTest
     }
 
     @ParameterizedTest
-    @EnumSource(mode = Mode.EXCLUDE, names = { "REGEX", "ESRI" })
+    @EnumSource(mode = Mode.EXCLUDE, names = { "REGEX", "ESRI", "SEQUENCEFILE_PROTOBUF" })
     void testUnloadWithSortOrder(HiveStorageFormat format)
             throws Exception
     {
