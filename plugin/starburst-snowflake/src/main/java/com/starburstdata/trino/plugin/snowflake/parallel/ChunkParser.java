@@ -87,7 +87,7 @@ final class ChunkParser
             String url = chunkNode.path("url").asText();
             int compressedSize = chunkNode.path("compressedSize").asInt();
             int uncompressedSize = chunkNode.path("uncompressedSize").asInt();
-            Chunk chunk = newFileChunk(url, uncompressedSize, compressedSize, headers);
+            Chunk chunk = newFileChunk(snowflakeSession.getServerUrl(), url, uncompressedSize, compressedSize, headers);
 
             if (currentBatchSize + chunk.compressedByteSize() > limitInBytes) {
                 splits.add(new SnowflakeArrowSplit(resultVersion, chunks.build(), parameters));

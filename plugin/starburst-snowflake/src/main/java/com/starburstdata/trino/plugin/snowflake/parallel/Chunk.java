@@ -13,7 +13,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.airlift.slice.SizeOf;
+import net.snowflake.client.core.SessionUtil;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Optional;
@@ -27,6 +30,7 @@ import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
 
 public record Chunk(
+        Optional<String> serverUrl,
         Optional<String> fileUrl,
         Optional<String> encodedArrowValue,
         int uncompressedByteSize,
@@ -35,10 +39,10 @@ public record Chunk(
 {
     private static final int INSTANCE_SIZE = instanceSize(Chunk.class);
 
-    static Chunk newFileChunk(String fileUrl, int uncompressedByteSize, int compressedByteSize, Map<String, String> headers)
+    static Chunk newFileChunk(String serverUrl, String fileUrl, int uncompressedByteSize, int compressedByteSize, Map<String, String> headers)
     {
         verify(!headers.isEmpty(), "Expected security headers for remote file chunks");
-        return new Chunk(Optional.of(fileUrl), Optional.empty(), uncompressedByteSize, compressedByteSize, headers);
+        return new Chunk(Optional.of(serverUrl), Optional.of(fileUrl), Optional.empty(), uncompressedByteSize, compressedByteSize, headers);
     }
 
     static Chunk newInlineChunk(String encodedArrowValue)
@@ -46,17 +50,19 @@ public record Chunk(
         int compressedBytes = encodedArrowValue.getBytes(UTF_8).length;
         // for inline chunk this value is not present in the metadata, so we approximate
         int uncompressedBytes = compressedBytes * 4;
-        return new Chunk(Optional.empty(), Optional.of(encodedArrowValue), uncompressedBytes, compressedBytes, emptyMap());
+        return new Chunk(Optional.empty(), Optional.empty(), Optional.of(encodedArrowValue), uncompressedBytes, compressedBytes, emptyMap());
     }
 
     @JsonCreator
     public Chunk(
+            @JsonProperty("serverUrl") Optional<String> serverUrl,
             @JsonProperty("fileUrl") Optional<String> fileUrl,
             @JsonProperty("encodedArrowValue") Optional<String> encodedArrowValue,
             @JsonProperty("uncompressedByteSize") int uncompressedByteSize,
             @JsonProperty("compressedByteSize") int compressedByteSize,
             @JsonProperty("headers") Map<String, String> headers)
     {
+        this.serverUrl = requireNonNull(serverUrl, "serverUrl is null");
         this.fileUrl = requireNonNull(fileUrl, "fileUrl is null");
         this.encodedArrowValue = requireNonNull(encodedArrowValue, "encodedArrowValue is null");
         this.uncompressedByteSize = uncompressedByteSize;
@@ -68,6 +74,12 @@ public record Chunk(
     public byte[] getInputStream(StarburstResultStreamProvider streamProvider)
     {
         if (fileUrl.isPresent()) {
+            try {
+                SessionUtil.resetOCSPUrlIfNecessary(serverUrl.orElseThrow(() -> new IllegalStateException("serverUrl is not present for file chunk")));
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException("Could not reset Snowflake OCSP cache", e);
+            }
             return streamProvider.getInputStream(this);
         }
         return decodeInlineData();
