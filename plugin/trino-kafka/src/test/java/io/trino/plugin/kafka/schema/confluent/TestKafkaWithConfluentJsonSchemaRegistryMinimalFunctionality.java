@@ -13,16 +13,19 @@
  */
 package io.trino.plugin.kafka.schema.confluent;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
+import io.airlift.json.ObjectMapperProvider;
 import io.confluent.kafka.schemaregistry.annotations.Schema;
 import io.confluent.kafka.serializers.json.KafkaJsonSchemaSerializer;
 import io.confluent.kafka.serializers.subject.RecordNameStrategy;
 import io.confluent.kafka.serializers.subject.TopicRecordNameStrategy;
 import io.trino.plugin.kafka.KafkaQueryRunner;
 import io.trino.plugin.kafka.KafkaTopicFieldDescription;
+import io.trino.plugin.kafka.schema.confluent.ubs.UbsMockSecurityAccrualCommand;
 import io.trino.spi.type.Type;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
@@ -59,6 +62,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
         extends AbstractTestQueryFramework
 {
+    private static final ObjectMapper MAPPER = new ObjectMapperProvider().get();
     private static final int MESSAGE_COUNT = 100;
     private static final ObjectSchema INITIAL_SCHEMA = ObjectSchema.builder()
             .addPropertySchema("col1", NumberSchema.builder().requiresInteger(true).build())
@@ -391,6 +395,144 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
 
         assertThatThrownBy(() -> getQueryRunner().execute(format("INSERT INTO %s VALUES(bigint '0', varchar 'x', bigint '1')", toDoubleQuoted(topicName))))
                 .hasMessage("Insert not supported");
+    }
+
+    /**
+     * Test for UBS mock data, see schema1 in the MockData_JsonSchema.pdf from https://starburstdata.atlassian.net/browse/PI-1411
+     */
+    @Test
+    void testUbsMockData()
+            throws Exception
+    {
+        String data = """
+                {
+                     "type": "FEE_PB",
+                     "source": "SBE",
+                     "time": 1755498206356,
+                     "data": {
+                         "accrualKey": "PB_123456",
+                         "accrualDate": "2025-08-12",
+                         "productTypeCode": "PB",
+                         "accrualType": "SCI",
+                         "accountIdentifierType": "CCONSOL",
+                         "accountIdentifier": "123456",
+                         "dayCount": 365,
+                         "dayCountMethod": "",
+                         "accrualRate": -0.3,
+                         "accrualAmount": 126.91,
+                         "accrualCurrency": "USD",
+                         "accrualStatus": "L",
+                         "accrualId": "123456",
+                         "postingAccountIdentifierType": "CCONSOL",
+                         "postingAccountIdentifier": "123456",
+                         "payDate": "2024-10-28",
+                         "settlementCurrency": "USD",
+                         "securityIdentifierType": "SEDOL",
+                         "securityIdentifier": "123456",
+                         "tradeIdentifier": 3456,
+                         "settledQuantity": -80000,
+                         "valuationCurrency": "USD",
+                         "fxRate": 1,
+                         "priceType": "COB",
+                         "price": 193.01,
+                         "market": "US",
+                         "submarket": "US",
+                         "securityStatus": "GC",
+                         "accrualBenchmarkRate": 193.01,
+                         "accrualSpread": 193.01
+                     }
+                 }
+                """;
+        String topicName = "topic-UbsMockData-" + randomNameSuffix();
+
+        testingKafka.sendMessages(Stream.of(new ProducerRecord<>(topicName, 1L, MAPPER.readValue(data, UbsMockSecurityAccrualCommand.class))), properties());
+        waitUntilTableExists(topicName);
+        assertCount(topicName, 1);
+
+        String dataColumnType = "row(fxRate double, dayCount bigint, settledQuantity double, postingAccountIdentifier varchar, accountIdentifier varchar, " +
+                                "accrualRate double, securityStatus varchar, postingAccountIdentifierType varchar, price double, accrualId varchar, accrualDate date, " +
+                                "tradeIdentifier bigint, dayCountMethod varchar, accrualBenchmarkRate double, accrualKey varchar, valuationCurrency varchar, priceType varchar, " +
+                                "accountIdentifierType varchar, submarket varchar, accrualStatus varchar, accrualType varchar, accrualCurrency varchar, market varchar, accrualAmount double, " +
+                                "settlementCurrency varchar, securityIdentifier varchar, accrualSpread double, securityIdentifierType varchar, productTypeCode varchar, payDate date)";
+        assertThat(query("SHOW COLUMNS FROM " + toDoubleQuoted(topicName)))
+                .skippingTypesCheck()
+                .matches("VALUES ('%s-key', 'bigint', '', ''), ".formatted(topicName.toLowerCase(ENGLISH)) +
+                         "('type', 'varchar', '', ''), " +
+                         "('source', 'varchar', '', ''), " +
+                         "('time', 'bigint', '', ''), " +
+                         "('data', '" + dataColumnType + "', '', '')");
+        assertThat(query("SELECT type, source, time FROM " + toDoubleQuoted(topicName)))
+                .matches("VALUES (VARCHAR 'FEE_PB', VARCHAR 'SBE', BIGINT '1755498206356')");
+        assertThat(query("SELECT data.fxRate, data.dayCount, data.settledQuantity, data.postingAccountIdentifier, data.accountIdentifier," +
+                         "data.accrualRate, data.securityStatus, data.postingAccountIdentifierType, data.price, data.accrualId, data.accrualDate," +
+                         "data.tradeIdentifier, data.dayCountMethod, data.accrualBenchmarkRate, data.accrualKey, data.valuationCurrency, data.priceType," +
+                         "data.accountIdentifierType, data.submarket, data.accrualStatus, data.accrualType, data.accrualCurrency, data.market, data.accrualAmount," +
+                         "data.settlementCurrency, data.securityIdentifier, data.accrualSpread, data.securityIdentifierType, data.productTypeCode, data.payDate " +
+                         "FROM " + toDoubleQuoted(topicName)))
+                .matches("VALUES (DOUBLE '1', BIGINT '365', DOUBLE '-80000', VARCHAR '123456', VARCHAR '123456'," +
+                         "DOUBLE '-0.3', VARCHAR 'GC', VARCHAR 'CCONSOL', DOUBLE '193.01', VARCHAR '123456', DATE '2025-08-12'," +
+                         "BIGINT '3456', VARCHAR '', DOUBLE '193.01', VARCHAR 'PB_123456', VARCHAR 'USD', VARCHAR 'COB'," +
+                         "VARCHAR 'CCONSOL', VARCHAR 'US', VARCHAR 'L', VARCHAR 'SCI', VARCHAR 'USD', VARCHAR 'US', DOUBLE '126.91'," +
+                         "VARCHAR 'USD', VARCHAR '123456', DOUBLE '193.01', VARCHAR 'SEDOL', VARCHAR 'PB', DATE '2024-10-28')");
+
+        data = """
+                {
+                    "type": "NSF_SWAP",
+                    "source": "NSF",
+                    "time": 1755498134405,
+                    "data": {
+                        "accrualKey": "SWAP_test-psds-nsf-6",
+                        "accrualDate": "2025-08-17",
+                        "productTypeCode": "SWAP",
+                        "accrualType": "NSF",
+                        "accountIdentifierType": "WRAPPER",
+                        "accountIdentifier": "583313",
+                        "dayCount": 365,
+                        "dayCountMethod": "TEST",
+                        "accrualRate": -0.3,
+                        "accrualAmount": 126.91,
+                        "accrualCurrency": "USD",
+                        "accrualStatus": "L",
+                        "accrualId": "test-psds-nsf-6",
+                        "postingAccountIdentifierType": "CCONSOL",
+                        "postingAccountIdentifier": "TEST",
+                        "payDate": "2024-10-28",
+                        "settlementCurrency": "USD",
+                        "securityIdentifierType": "SEDOL",
+                        "securityIdentifier": "12345",
+                        "tradeIdentifier": 3456,
+                        "settledQuantity": -80000,
+                        "valuationCurrency": "USD",
+                        "fxRate": 1,
+                        "priceType": "COB",
+                        "price": 193.01,
+                        "submarket": "US",
+                        "securityStatus": "GC",
+                        "accrualBenchmarkRate": 193.01,
+                        "accrualSpread": 193.01,
+                        "totalLongQuantity": 193.01,
+                        "totalShortQuantity": 193.01,
+                        "nettedQuantity": 193.01
+                    }
+                }
+                """;
+        testingKafka.sendMessages(Stream.of(new ProducerRecord<>(topicName, 2L, MAPPER.readValue(data, UbsMockSecurityAccrualCommand.class))), properties());
+        assertCount(topicName, 2);
+
+        assertThat(query("SELECT type, source, time FROM " + toDoubleQuoted(topicName)))
+                .matches("VALUES (VARCHAR 'FEE_PB', VARCHAR 'SBE', BIGINT '1755498206356'), " +
+                         "(VARCHAR 'NSF_SWAP', VARCHAR 'NSF', BIGINT '1755498134405')");
+        assertThat(query("SELECT data.fxRate, data.dayCount, data.settledQuantity, data.postingAccountIdentifier, data.accountIdentifier," +
+                         "data.accrualRate, data.securityStatus, data.postingAccountIdentifierType, data.price, data.accrualId, data.accrualDate," +
+                         "data.tradeIdentifier, data.dayCountMethod, data.accrualBenchmarkRate, data.accrualKey, data.valuationCurrency, data.priceType," +
+                         "data.accountIdentifierType, data.submarket, data.accrualStatus, data.accrualType, data.accrualCurrency, data.market, data.accrualAmount," +
+                         "data.settlementCurrency, data.securityIdentifier, data.accrualSpread, data.securityIdentifierType, data.productTypeCode, data.payDate " +
+                         "FROM " + toDoubleQuoted(topicName) + " WHERE time = 1755498134405"))
+                .matches("VALUES (DOUBLE '1', BIGINT '365', DOUBLE '-80000', VARCHAR 'TEST', VARCHAR '583313'," +
+                         "DOUBLE '-0.3', VARCHAR 'GC', VARCHAR 'CCONSOL', DOUBLE '193.01', VARCHAR 'test-psds-nsf-6', DATE '2025-08-17'," +
+                         "BIGINT '3456', VARCHAR 'TEST', DOUBLE '193.01', VARCHAR 'SWAP_test-psds-nsf-6', VARCHAR 'USD', VARCHAR 'COB'," +
+                         "VARCHAR 'WRAPPER', VARCHAR 'US', VARCHAR 'L', VARCHAR 'NSF', VARCHAR 'USD', CAST(null AS VARCHAR), DOUBLE '126.91'," +
+                         "VARCHAR 'USD', VARCHAR '12345', DOUBLE '193.01', VARCHAR 'SEDOL', VARCHAR 'SWAP', DATE '2024-10-28')");
     }
 
     private Map<String, String> properties()
