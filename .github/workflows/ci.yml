@@ -1152,11 +1152,11 @@ jobs:
           $MAVEN test ${MAVEN_TEST} -pl '
             !:starburst-buffer-testing,
             !:starburst-buffer-exchange-tests,
-            !:starburst-ai-client,
             !:starburst-ai-client-model,
             !:starburst-base-jdbc,
             !:starburst-dynamodb,
             !:starburst-functions,
+            !:starburst-functions-client,
             !:starburst-license,
             !:starburst-oracle,
             !:starburst-salesforce,
@@ -1309,9 +1309,9 @@ jobs:
             - { modules: lib/trino-filesystem-gcs, profile: cloud-tests }
             - { modules: lib/trino-filesystem-s3, profile: cloud-tests }
             - { modules: lib/trino-hdfs, profile: cloud-tests }
-            - { modules: lib/starburst-ai-client }
             - { modules: plugin/starburst-dynamodb }
             - { modules: plugin/starburst-functions }
+            - { modules: lib/starburst-functions-client }
             - { modules: plugin/starburst-oracle }
             - { modules: plugin/starburst-sap-hana }
             - { modules: plugin/starburst-sqlserver }
@@ -1408,7 +1408,7 @@ jobs:
         id: tests
         if: >-
           matrix.modules != 'plugin/starburst-functions'
-          && matrix.modules != 'lib/starburst-ai-client'
+          && matrix.modules != 'lib/starburst-functions-client'
           && ! (contains(matrix.modules, 'trino-mongodb') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-bigquery') && contains(matrix.profile, 'cloud-tests-2'))
           && ! (contains(matrix.modules, 'trino-delta-lake') && contains(matrix.profile, 'cloud-tests'))
@@ -1438,7 +1438,7 @@ jobs:
           ABFS_ACCOUNT: ${{ vars.AZURE_ABFS_HIERARCHICAL_ACCOUNT }}
           ABFS_ACCESS_KEY: ${{ secrets.AZURE_ABFS_HIERARCHICAL_ACCESS_KEY }}
         if: >-
-          (matrix.modules == 'plugin/starburst-functions' ||  matrix.modules == 'lib/starburst-ai-client')
+          (matrix.modules == 'plugin/starburst-functions' ||  matrix.modules == 'lib/starburst-functions-client')
           && (env.OPEN_AI_API_KEY != '' && env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' && env.AWS_REGION != '')
         run: |
           export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"

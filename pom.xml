@@ -41,7 +41,7 @@
         <module>core/trino-spi</module>
         <module>core/trino-web-ui</module>
         <module>docs</module>
-        <module>lib/starburst-ai-client</module>
+        <module>lib/starburst-functions-client</module>
         <module>lib/starburst-license</module>
         <module>lib/starburst-schema-discovery</module>
         <module>lib/starburst-testing-auto-configuration</module>
@@ -1024,19 +1024,6 @@
 
             <dependency>
                 <groupId>io.trino</groupId>
-                <artifactId>starburst-ai-client</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>io.trino</groupId>
-                <artifactId>starburst-ai-client</artifactId>
-                <version>${project.version}</version>
-                <type>test-jar</type>
-            </dependency>
-
-            <dependency>
-                <groupId>io.trino</groupId>
                 <artifactId>starburst-ai-client-model</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -1057,6 +1044,19 @@
             <dependency>
                 <groupId>io.trino</groupId>
                 <artifactId>starburst-functions</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
+                <artifactId>starburst-functions-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
+                <artifactId>starburst-functions-client</artifactId>
                 <version>${project.version}</version>
                 <type>test-jar</type>
             </dependency>

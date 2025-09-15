@@ -9,8 +9,8 @@
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <artifactId>starburst-ai-client</artifactId>
-    <description>Starburst AI Client</description>
+    <artifactId>starburst-functions-client</artifactId>
+    <description>Starburst Functions Client</description>
 
     <dependencies>
         <dependency>

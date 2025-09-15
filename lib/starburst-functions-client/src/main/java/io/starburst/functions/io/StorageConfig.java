@@ -7,7 +7,7 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package com.starburstdata.trino.plugin.functions.io;
+package io.starburst.functions.io;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;

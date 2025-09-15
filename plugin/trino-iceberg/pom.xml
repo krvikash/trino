@@ -116,7 +116,7 @@
 
         <dependency>
             <groupId>io.trino</groupId>
-            <artifactId>starburst-ai-client</artifactId>
+            <artifactId>starburst-functions-client</artifactId>
         </dependency>
 
         <dependency>
@@ -548,7 +548,14 @@
 
         <dependency>
             <groupId>io.trino</groupId>
-            <artifactId>starburst-ai-client</artifactId>
+            <artifactId>starburst-functions</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>starburst-functions</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -556,14 +563,7 @@
 
         <dependency>
             <groupId>io.trino</groupId>
-            <artifactId>starburst-functions</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>io.trino</groupId>
-            <artifactId>starburst-functions</artifactId>
+            <artifactId>starburst-functions-client</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>

@@ -11,7 +11,7 @@ package com.starburstdata.trino.plugin.functions.io.functions;
 
 import com.google.inject.Inject;
 import com.google.inject.Provider;
-import com.starburstdata.trino.plugin.functions.io.StorageConfig;
+import io.starburst.functions.io.StorageConfig;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorTableFunction;
 import io.trino.plugin.hive.LocationAccessControl;

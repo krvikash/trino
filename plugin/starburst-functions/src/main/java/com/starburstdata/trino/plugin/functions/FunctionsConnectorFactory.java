@@ -77,7 +77,7 @@ public class FunctionsConnectorFactory
 
         Injector injector = app
                 .doNotInitializeLogging()
-                .loadSecretsPlugins() // starburst-ai-client requires access to secrets.
+                .loadSecretsPlugins() // starburst-functions-client requires access to secrets.
                 .setRequiredConfigurationProperties(config)
                 .initialize();
 

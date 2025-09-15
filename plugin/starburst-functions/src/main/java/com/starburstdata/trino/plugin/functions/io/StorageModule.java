@@ -18,6 +18,7 @@ import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
 import com.starburstdata.trino.plugin.functions.io.functions.Load;
 import com.starburstdata.trino.plugin.functions.io.functions.Unload;
+import io.starburst.functions.io.StorageConfig;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
 import io.trino.plugin.hive.HiveConfig;
