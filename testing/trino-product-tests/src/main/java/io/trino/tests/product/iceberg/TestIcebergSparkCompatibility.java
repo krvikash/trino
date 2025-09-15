@@ -2999,9 +2999,10 @@ public class TestIcebergSparkCompatibility
 
         onTrino().executeQuery("UPDATE " + trinoTableName + " SET nationkey = 110 WHERE nationkey = 10");
 
-        List<Row> expected = List.of(row(0, 2, 110));
-        assertThat(onTrino().executeQuery("SELECT \"$row_id\",\"$last_updated_sequence_number\", nationkey FROM " + trinoTableName + " WHERE nationkey = 110")).containsOnly(expected);
-        assertThat(onSpark().executeQuery("SELECT _row_id, _last_updated_sequence_number, nationkey FROM " + sparkTableName + " WHERE nationkey = 110")).containsOnly(expected);
+        // we fetch row_id from iceberg metadata, based on first_row_id, after upgrade it could be either 0 or 1, we don't have controll on it
+        List<Row> expected = List.of(row(2, 110));
+        assertThat(onTrino().executeQuery("SELECT \"$last_updated_sequence_number\", nationkey FROM " + trinoTableName + " WHERE nationkey = 110 AND \"$row_id\" <= 1")).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT _last_updated_sequence_number, nationkey FROM " + sparkTableName + " WHERE nationkey = 110 AND _row_id <= 1")).containsOnly(expected);
     }
 
     @Test(groups = {ICEBERG, PROFILE_SPECIFIC_TESTS})
@@ -3028,9 +3029,10 @@ public class TestIcebergSparkCompatibility
 
         onTrino().executeQuery("UPDATE " + trinoTableName + " SET nationkey = 110 WHERE nationkey = 10");
 
-        List<Row> expected = List.of(row(0, 2, 110));
-        assertThat(onTrino().executeQuery("SELECT \"$row_id\",\"$last_updated_sequence_number\", nationkey FROM " + trinoTableName + " WHERE nationkey = 110")).containsOnly(expected);
-        assertThat(onSpark().executeQuery("SELECT _row_id, _last_updated_sequence_number, nationkey FROM " + sparkTableName + " WHERE nationkey = 110")).containsOnly(expected);
+        // we fetch row_id from iceberg metadata, based on first_row_id, after upgrade it could be either 0 or 1, we don't have controll on it
+        List<Row> expected = List.of(row(2, 110));
+        assertThat(onTrino().executeQuery("SELECT \"$last_updated_sequence_number\", nationkey FROM " + trinoTableName + " WHERE nationkey = 110 AND \"$row_id\" <= 1")).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT _last_updated_sequence_number, nationkey FROM " + sparkTableName + " WHERE nationkey = 110 AND _row_id <= 1")).containsOnly(expected);
     }
 
     @Test(groups = {ICEBERG, PROFILE_SPECIFIC_TESTS})
@@ -3057,9 +3059,10 @@ public class TestIcebergSparkCompatibility
 
         onTrino().executeQuery("UPDATE " + trinoTableName + " SET nationkey = 110 WHERE nationkey = 10");
 
-        List<Row> expected = List.of(row(0, 2, 110));
-        assertThat(onTrino().executeQuery("SELECT \"$row_id\",\"$last_updated_sequence_number\", nationkey FROM " + trinoTableName + " WHERE nationkey = 110")).containsOnly(expected);
-        assertThat(onSpark().executeQuery("SELECT _row_id, _last_updated_sequence_number, nationkey FROM " + sparkTableName + " WHERE nationkey = 110")).containsOnly(expected);
+        // we fetch row_id from iceberg metadata, based on first_row_id, after upgrade it could be either 0 or 1, we don't have controll on it
+        List<Row> expected = List.of(row(2, 110));
+        assertThat(onTrino().executeQuery("SELECT \"$last_updated_sequence_number\", nationkey FROM " + trinoTableName + " WHERE nationkey = 110 AND \"$row_id\" <= 1")).containsOnly(expected);
+        assertThat(onSpark().executeQuery("SELECT _last_updated_sequence_number, nationkey FROM " + sparkTableName + " WHERE nationkey = 110 AND _row_id <= 1")).containsOnly(expected);
     }
 
     @Test(groups = {ICEBERG, PROFILE_SPECIFIC_TESTS}, dataProvider = "storageFormats")
