@@ -1,16 +1,15 @@
 package io.trino.node;
 
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.discovery.client.DiscoveryClientConfig;
 
 import java.net.URI;
-import java.util.List;
 import java.util.Set;
 
-import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.configuration.SwitchModule.switchModule;
 
@@ -42,7 +41,7 @@ public class InternalCoordinatorLocatorModule
         @Provides
         private InternalCoordinatorLocator coordinatorLocator(AnnounceNodeAnnouncerConfig config)
         {
-            List<URI> uris = config.getCoordinatorUris();
+            Set<URI> uris = ImmutableSet.copyOf(config.getCoordinatorUris());
             return () -> uris;
         }
     }
@@ -60,7 +59,7 @@ public class InternalCoordinatorLocatorModule
         private InternalCoordinatorLocator coordinatorUris(DiscoveryClientConfig config)
         {
             URI uris = config.getDiscoveryServiceURI();
-            return () -> ImmutableList.of(uris);
+            return () -> ImmutableSet.of(uris);
         }
     }
 
@@ -77,7 +76,7 @@ public class InternalCoordinatorLocatorModule
         private InternalCoordinatorLocator coordinatorUris(DnsNodeInventoryConfig config)
         {
             Set<String> hosts = config.getHosts();
-            return () -> hosts.stream().map(URI::create).collect(toImmutableList());
+            return () -> hosts.stream().map(URI::create).collect(toImmutableSet());
         }
     }
 }

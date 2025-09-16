@@ -25,8 +25,9 @@ import io.starburst.stargate.buffer.discovery.client.HttpDiscoveryClient;
 import io.trino.node.InternalCoordinatorLocator;
 
 import java.net.URI;
-import java.util.List;
+import java.util.Set;
 
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.starburst.stargate.buffer.data.server.DataServerApplicationModules.getDataServerApplicationModules;
 import static io.trino.server.buffer.EmbeddedBufferServiceConfig.EMBEDDED_BUFFER_SERVICE_CONFIG_PREFIX;
@@ -47,14 +48,14 @@ public class EmbeddedBufferServiceDataModule
     {
         return new HttpDiscoveryClient(
                 () -> {
-                    List<URI> coordinatorUris = locator.getCoordinatorUris();
+                    Set<URI> coordinatorUris = locator.getCoordinatorUris();
                     if (coordinatorUris.isEmpty()) {
                         throw new IllegalStateException("No coordinators available");
                     }
                     if (coordinatorUris.size() > 1) {
                         throw new IllegalStateException("Multiple coordinators not supported");
                     }
-                    return coordinatorUris.get(0);
+                    return getOnlyElement(coordinatorUris);
                 },
                 httpClient);
     }
