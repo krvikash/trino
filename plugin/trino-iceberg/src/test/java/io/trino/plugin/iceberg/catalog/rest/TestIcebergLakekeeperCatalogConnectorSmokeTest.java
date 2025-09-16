@@ -233,7 +233,7 @@ final class TestIcebergLakekeeperCatalogConnectorSmokeTest
     {
         assertThatThrownBy(super::testVariantType)
                 .hasMessageContaining("Failed to create transaction")
-                .hasStackTraceContaining("Unable to process: Failed to deserialize the JSON body into the target type");
+                .hasStackTraceContaining("Failed to deserialize the JSON body into the target type");
     }
 
     @Test
