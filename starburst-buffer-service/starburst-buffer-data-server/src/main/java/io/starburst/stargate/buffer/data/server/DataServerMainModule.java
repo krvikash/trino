@@ -49,25 +49,25 @@ import static java.util.concurrent.Executors.newCachedThreadPool;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
-public class MainModule
+public class DataServerMainModule
         extends AbstractConfigurationAwareModule
 {
     private final long bufferNodeId;
     private final boolean discoveryBroadcastEnabled;
     private final Ticker ticker;
 
-    public MainModule()
+    public DataServerMainModule()
     {
         this(new SecureRandom().nextLong());
     }
 
-    private MainModule(long bufferNodeId)
+    private DataServerMainModule(long bufferNodeId)
     {
         this(bufferNodeId, true, Ticker.systemTicker());
     }
 
     @VisibleForTesting
-    public MainModule(long bufferNodeId, boolean discoveryBroadcastEnabled, Ticker ticker)
+    public DataServerMainModule(long bufferNodeId, boolean discoveryBroadcastEnabled, Ticker ticker)
     {
         this.bufferNodeId = bufferNodeId;
         this.discoveryBroadcastEnabled = discoveryBroadcastEnabled;

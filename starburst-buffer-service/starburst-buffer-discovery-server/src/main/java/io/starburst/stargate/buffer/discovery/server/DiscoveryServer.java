@@ -47,7 +47,7 @@ public final class DiscoveryServer
                 new TracingModule("buffer-discover-server", firstNonNull(DiscoveryServer.class.getPackage().getImplementationVersion(), "unknown")),
                 DiscoveryManagerModule.withSystemTicker(),
                 FailuresTrackingManagerModule.withSystemTicker(),
-                new ServerModule());
+                new DiscoveryServerMainModule());
 
         try {
             app.initialize();

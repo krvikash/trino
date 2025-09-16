@@ -24,9 +24,9 @@ import io.airlift.log.LogJmxModule;
 import io.airlift.node.testing.TestingNodeModule;
 import io.airlift.tracing.TracingModule;
 import io.starburst.stargate.buffer.data.server.BufferNodeStateManager;
+import io.starburst.stargate.buffer.data.server.DataServerMainModule;
 import io.starburst.stargate.buffer.data.server.DataServerStatusProvider;
 import io.starburst.stargate.buffer.data.server.DiscoveryApiModule;
-import io.starburst.stargate.buffer.data.server.MainModule;
 import io.starburst.stargate.buffer.data.server.SpoolingStorageModule;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import io.starburst.stargate.buffer.status.StatusModule;
@@ -76,7 +76,7 @@ public class TestingDataServer
                 new LogJmxModule(),
                 new TracingModule("buffer-data-server", "testing"),
                 new StatusModule(),
-                new MainModule(nodeId, discoveryApiModule.isPresent(), Ticker.systemTicker()),
+                new DataServerMainModule(nodeId, discoveryApiModule.isPresent(), Ticker.systemTicker()),
                 useBlackholeStorage ? new BlackholeSpoolingStorageModule() : new SpoolingStorageModule()));
         discoveryApiModule.ifPresent(modules::add);
 

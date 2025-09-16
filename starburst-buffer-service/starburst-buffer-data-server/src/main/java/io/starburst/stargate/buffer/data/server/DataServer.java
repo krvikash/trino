@@ -54,7 +54,7 @@ public final class DataServer
                 new TracingModule("buffer-data-server", version),
                 new StatusModule(),
                 new DiscoveryApiModule(),
-                new MainModule(),
+                new DataServerMainModule(),
                 new SpoolingStorageModule());
 
         try {

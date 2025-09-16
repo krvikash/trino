@@ -24,7 +24,7 @@ import io.airlift.json.JsonModule;
 import io.airlift.log.LogJmxModule;
 import io.airlift.node.testing.TestingNodeModule;
 import io.starburst.stargate.buffer.discovery.server.DiscoveryManagerModule;
-import io.starburst.stargate.buffer.discovery.server.ServerModule;
+import io.starburst.stargate.buffer.discovery.server.DiscoveryServerMainModule;
 import io.starburst.stargate.buffer.discovery.server.failures.FailuresTrackingManagerModule;
 import jakarta.ws.rs.core.UriBuilder;
 import org.weakref.jmx.guice.MBeanModule;
@@ -59,7 +59,7 @@ public class TestingDiscoveryServer
                 new MBeanModule(),
                 new TestingJmxModule(),
                 new LogJmxModule(),
-                new ServerModule());
+                new DiscoveryServerMainModule());
 
         modules.add(timeTicker
                 .map(DiscoveryManagerModule::withTicker)
