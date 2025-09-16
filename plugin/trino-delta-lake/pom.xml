@@ -18,6 +18,12 @@
         <dependency>
             <groupId>com.databricks</groupId>
             <artifactId>databricks-sdk-java</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>javax.annotation</groupId>
+                    <artifactId>javax.annotation-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
