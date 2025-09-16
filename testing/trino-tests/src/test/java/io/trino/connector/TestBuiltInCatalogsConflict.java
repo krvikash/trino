@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.inject.Key;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.testing.TempFile;
+import io.opentelemetry.api.metrics.MeterProvider;
 import io.trino.cache.CacheManagerRegistry;
 import io.trino.spi.TrinoException;
 import io.trino.spi.catalog.CatalogName;
@@ -33,6 +34,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 
 import static io.trino.testing.TestingSession.testSessionBuilder;
@@ -89,7 +91,8 @@ public class TestBuiltInCatalogsConflict
                                     }),
                     ImmutableSet.of(),
                     cacheManagerRegistry,
-                    Executors.newSingleThreadScheduledExecutor());
+                    Executors.newSingleThreadScheduledExecutor(),
+                    new CatalogMetricsService(Optional.of(MeterProvider.noop())));
             assertThatThrownBy(catalogManager::loadInitialCatalogs)
                     .isInstanceOf(TrinoException.class)
                     .hasMessageContaining("Catalog name foo is reserved by Starburst");

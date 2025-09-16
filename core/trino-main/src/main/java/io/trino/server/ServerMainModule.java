@@ -33,6 +33,7 @@ import io.airlift.stats.JmxGcMonitor;
 import io.airlift.stats.PauseMeter;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
+import io.opentelemetry.api.metrics.MeterProvider;
 import io.starburst.server.substitution.MvSubstitutionModule;
 import io.starburst.stargate.buffer.data.memory.MemoryConfig;
 import io.trino.FeaturesConfig;
@@ -276,6 +277,7 @@ public class ServerMainModule
 
         newOptionalBinder(binder, ExplainAnalyzeContext.class);
         binder.bind(StatementAnalyzerFactory.class).in(Scopes.SINGLETON);
+        newOptionalBinder(binder, MeterProvider.class).setDefault().toInstance(MeterProvider.noop());
 
         // GC Monitor
         binder.bind(GcMonitor.class).to(JmxGcMonitor.class).in(Scopes.SINGLETON);

@@ -22,9 +22,11 @@ import com.starburstdata.dataframe.type.LongType;
 import com.starburstdata.dataframe.type.StringType;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.metrics.MeterProvider;
 import io.trino.Session;
 import io.trino.cache.CacheManagerConfig;
 import io.trino.cache.CacheManagerRegistry;
+import io.trino.connector.CatalogMetricsService;
 import io.trino.connector.CatalogServiceProvider;
 import io.trino.connector.CoordinatorDynamicCatalogManager;
 import io.trino.connector.InMemoryCatalogStore;
@@ -128,7 +130,7 @@ public class TestDataframeMetadataProvider
                 plannerContext.getMetadata(),
                 SQL_PARSER,
                 accessControl,
-                new CoordinatorDynamicCatalogManager(new InMemoryCatalogStore(), new LazyCatalogFactory(), NO_BUILTIN_CATALOGS, ImmutableSet.of(), new CacheManagerRegistry(noop(), noopTracer(), new SecretsResolver(ImmutableMap.of()), new CacheManagerConfig()), directExecutor()),
+                new CoordinatorDynamicCatalogManager(new InMemoryCatalogStore(), new LazyCatalogFactory(), NO_BUILTIN_CATALOGS, ImmutableSet.of(), new CacheManagerRegistry(noop(), noopTracer(), new SecretsResolver(ImmutableMap.of()), new CacheManagerConfig()), directExecutor(), new CatalogMetricsService(Optional.of(MeterProvider.noop()))),
                 new SessionPropertyManager(),
                 new SchemaPropertyManager(CatalogServiceProvider.fail()),
                 new ColumnPropertyManager(CatalogServiceProvider.fail()),
