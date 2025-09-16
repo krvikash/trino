@@ -7,6 +7,8 @@ import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.discovery.client.DiscoveryClientConfig;
 
 import java.net.URI;
+import java.util.List;
+import java.util.Set;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.configuration.ConfigBinder.configBinder;
@@ -40,7 +42,8 @@ public class InternalCoordinatorLocatorModule
         @Provides
         private InternalCoordinatorLocator coordinatorLocator(AnnounceNodeAnnouncerConfig config)
         {
-            return config::getCoordinatorUris;
+            List<URI> uris = config.getCoordinatorUris();
+            return () -> uris;
         }
     }
 
@@ -56,7 +59,8 @@ public class InternalCoordinatorLocatorModule
         @Provides
         private InternalCoordinatorLocator coordinatorUris(DiscoveryClientConfig config)
         {
-            return () -> ImmutableList.of(config.getDiscoveryServiceURI());
+            URI uris = config.getDiscoveryServiceURI();
+            return () -> ImmutableList.of(uris);
         }
     }
 
@@ -72,7 +76,8 @@ public class InternalCoordinatorLocatorModule
         @Provides
         private InternalCoordinatorLocator coordinatorUris(DnsNodeInventoryConfig config)
         {
-            return () -> config.getHosts().stream().map(URI::create).collect(toImmutableList());
+            Set<String> hosts = config.getHosts();
+            return () -> hosts.stream().map(URI::create).collect(toImmutableList());
         }
     }
 }
