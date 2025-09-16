@@ -237,3 +237,20 @@ If you are doing incremental update to version a commit which was not yet releas
 pulled into update.
 
 TODO: provide helper snippet.
+
+### get the cork PR reviewed and merged
+
+Seek the reviews from `@starburstdata/galaxy-trino-maintainers` on the `update/cork/trino-${TO_VERSION}-${TO_SHORT}` PR.
+When PR gets approved squash in the fixup commits and merge.
+
+**Note:** sometimes GitHub UI complains with *"This branch is out-of-date with the base branch"* and asks to rebase.
+It may happen even if everything is fine and seems like some bug in GitHub UI.
+
+To work around the problem merge the PR from the command line:
+```shell
+  git fetch origin && # update origin
+  git rebase origin/master && # rebase PR branch on top of current master
+  git push origin && # update PR branch
+  git push origin --force-with-lease head:master # merge PR to master
+```
+This will mark PR as merged automatically.
