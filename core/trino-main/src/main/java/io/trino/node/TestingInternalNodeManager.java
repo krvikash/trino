@@ -122,6 +122,13 @@ public class TestingInternalNodeManager
                         .collect(toImmutableSet())));
     }
 
+    public InternalCoordinatorLocator getTestingInternalCoordinatorLocator()
+    {
+        return () -> getCoordinators().stream()
+                .map(InternalNode::getInternalUri)
+                .collect(toImmutableSet());
+    }
+
     @GuardedBy("this")
     private void setAllNodes(AllNodes newAllNodes)
     {

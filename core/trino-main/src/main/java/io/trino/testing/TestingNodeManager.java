@@ -13,9 +13,12 @@
  */
 package io.trino.testing;
 
+import io.trino.spi.CoordinatorLocator;
 import io.trino.spi.Node;
 import io.trino.spi.NodeManager;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -76,6 +79,22 @@ public class TestingNodeManager
     public static TestingNodeManager create()
     {
         return builder().build();
+    }
+
+    public CoordinatorLocator getCoordinatorLocator()
+    {
+        return () -> getAllNodes().stream()
+                .filter(Node::isCoordinator)
+                .map(Node::getHostAndPort)
+                .map(hostAndPort -> {
+                    try {
+                        return new URI("http://%s:%s".formatted(hostAndPort.getHostText(), hostAndPort.getPort()));
+                    }
+                    catch (URISyntaxException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .collect(toImmutableSet());
     }
 
     public static Builder builder()
