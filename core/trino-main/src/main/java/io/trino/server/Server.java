@@ -49,6 +49,7 @@ import io.trino.exchange.ExchangeManagerRegistry;
 import io.trino.execution.resourcegroups.ResourceGroupManager;
 import io.trino.execution.warnings.WarningCollectorModule;
 import io.trino.node.Announcer;
+import io.trino.node.InternalCoordinatorLocatorModule;
 import io.trino.node.NodeManagerModule;
 import io.trino.security.AccessControlManager;
 import io.trino.security.AccessControlModule;
@@ -116,6 +117,7 @@ public class Server
                 new ExchangeManagerModule(),
                 new CacheManagerModule(),
                 new AiModelConnectionSpecsLoaderModule(),
+                new InternalCoordinatorLocatorModule(),
                 new InternalHttpClientModule(),
                 new CatalogManagerModule(),
                 new TransactionManagerModule(),

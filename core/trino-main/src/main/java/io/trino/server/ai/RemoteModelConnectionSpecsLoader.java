@@ -19,7 +19,7 @@ import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
 import io.airlift.json.JsonCodec;
 import io.starburst.ai.model.ModelConnectionSpecs;
-import io.trino.node.CoordinatorLocator;
+import io.trino.node.InternalCoordinatorLocator;
 import io.trino.server.InternalHttpClient;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 
@@ -39,10 +39,10 @@ public class RemoteModelConnectionSpecsLoader
     private static final JsonCodec<ModelConnectionSpecs> CONNECTION_SPECS_CODEC = jsonCodec(ModelConnectionSpecs.class);
 
     private final HttpClient httpClient;
-    private final CoordinatorLocator coordinatorLocator;
+    private final InternalCoordinatorLocator coordinatorLocator;
 
     @Inject
-    public RemoteModelConnectionSpecsLoader(@InternalHttpClient HttpClient httpClient, CoordinatorLocator coordinatorLocator)
+    public RemoteModelConnectionSpecsLoader(@InternalHttpClient HttpClient httpClient, InternalCoordinatorLocator coordinatorLocator)
     {
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.coordinatorLocator = requireNonNull(coordinatorLocator, "coordinatorLocator is null");

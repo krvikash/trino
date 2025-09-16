@@ -72,6 +72,7 @@ import io.trino.metadata.GlobalFunctionCatalog;
 import io.trino.metadata.SessionPropertyManager;
 import io.trino.metadata.TablePropertyManager;
 import io.trino.node.Announcer;
+import io.trino.node.InternalCoordinatorLocatorModule;
 import io.trino.node.InternalNode;
 import io.trino.node.InternalNodeManager;
 import io.trino.node.NodeManagerModule;
@@ -327,6 +328,7 @@ public class TestingTrinoServer
                 .add(new ServerMainModule(VERSION))
                 .add(new CacheManagerModule())
                 .add(new TestingWarningCollectorModule())
+                .add(new InternalCoordinatorLocatorModule())
                 .add(binder -> {
                     newSetBinder(binder, Filter.class)
                             .addBinding()

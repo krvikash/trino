@@ -16,7 +16,7 @@ package io.trino.node;
 import java.net.URI;
 import java.util.List;
 
-public interface CoordinatorLocator
+public interface InternalCoordinatorLocator
 {
     List<URI> getCoordinatorUris();
 }

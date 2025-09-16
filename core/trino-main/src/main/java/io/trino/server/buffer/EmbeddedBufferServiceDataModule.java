@@ -22,7 +22,7 @@ import io.starburst.stargate.buffer.data.server.DataServerConfig;
 import io.starburst.stargate.buffer.data.server.ForBufferDiscoveryClient;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import io.starburst.stargate.buffer.discovery.client.HttpDiscoveryClient;
-import io.trino.node.CoordinatorLocator;
+import io.trino.node.InternalCoordinatorLocator;
 
 import java.net.URI;
 import java.util.List;
@@ -43,7 +43,7 @@ public class EmbeddedBufferServiceDataModule
 
     @Inject
     @Provides
-    public DiscoveryApi getDiscoveryApi(@ForBufferDiscoveryClient HttpClient httpClient, CoordinatorLocator locator)
+    public DiscoveryApi getDiscoveryApi(@ForBufferDiscoveryClient HttpClient httpClient, InternalCoordinatorLocator locator)
     {
         return new HttpDiscoveryClient(
                 () -> {
