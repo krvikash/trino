@@ -39,8 +39,11 @@ public class InternalCoordinatorLocatorModule
         }
 
         @Provides
-        private InternalCoordinatorLocator coordinatorLocator(AnnounceNodeAnnouncerConfig config)
+        private InternalCoordinatorLocator coordinatorLocator(InternalNode currentNode, AnnounceNodeAnnouncerConfig config)
         {
+            if (currentNode.isCoordinator()) {
+                return () -> ImmutableSet.of(currentNode.getInternalUri());
+            }
             Set<URI> uris = ImmutableSet.copyOf(config.getCoordinatorUris());
             return () -> uris;
         }
