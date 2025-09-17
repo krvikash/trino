@@ -42,7 +42,7 @@ public class TestMemoryAllocator
     {
         long maxBytes = 100L;
         MemoryAllocator memoryAllocator = new MemoryAllocator(
-                new MemoryAllocatorConfig().setHeapHeadroom(DataSize.succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes)),
+                new MemoryAllocatorConfig().setHeapHeadroom(DataSize.succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes).toBytesValueString()),
                 new ChunkManagerConfig(),
                 new DataServerStats());
         assertThat((Object) memoryAllocator.getFreeMemory()).isEqualTo(100L);
@@ -93,7 +93,7 @@ public class TestMemoryAllocator
         DataSize chunkSliceSize = DataSize.of(1, KILOBYTE);
         MemoryAllocator memoryAllocator = new MemoryAllocator(
                 new MemoryAllocatorConfig()
-                        .setHeapHeadroom(DataSize.succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes))
+                        .setHeapHeadroom(DataSize.succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes).toBytesValueString())
                         .setChunkSlicePoolingFraction(0.8),
                 new ChunkManagerConfig().setChunkSliceSize(chunkSliceSize),
                 new DataServerStats());

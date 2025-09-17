@@ -430,7 +430,7 @@ public class TestChunkManager
         long maxBytes = 96L;
         MemoryAllocator memoryAllocator = new MemoryAllocator(
                 new MemoryAllocatorConfig()
-                        .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes))
+                        .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes).toBytesValueString())
                         .setAllocationRatioHighWatermark(0.8)
                         .setAllocationRatioLowWatermark(0.5),
                 new ChunkManagerConfig(),
@@ -513,7 +513,7 @@ public class TestChunkManager
         long maxBytes = 64L;
         MemoryAllocator memoryAllocator = new MemoryAllocator(
                 new MemoryAllocatorConfig()
-                        .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes))
+                        .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes).toBytesValueString())
                         .setAllocationRatioHighWatermark(0.8)
                         .setAllocationRatioLowWatermark(0.5),
                 new ChunkManagerConfig(),
@@ -582,7 +582,7 @@ public class TestChunkManager
         long maxBytes = 128L;
         MemoryAllocator memoryAllocator = new MemoryAllocator(
                 new MemoryAllocatorConfig()
-                        .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes))
+                        .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes).toBytesValueString())
                         .setAllocationRatioHighWatermark(0.9)
                         .setAllocationRatioLowWatermark(0.6),
                 new ChunkManagerConfig(),
@@ -657,7 +657,7 @@ public class TestChunkManager
         long maxBytes = 128L;
         MemoryAllocator memoryAllocator = new MemoryAllocator(
                 new MemoryAllocatorConfig()
-                        .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes))
+                        .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes).toBytesValueString())
                         .setAllocationRatioHighWatermark(0.9)
                         .setAllocationRatioLowWatermark(0.6),
                 new ChunkManagerConfig(),
@@ -732,7 +732,7 @@ public class TestChunkManager
         long maxBytes = 64L;
         MemoryAllocator memoryAllocator = new MemoryAllocator(
                 new MemoryAllocatorConfig()
-                        .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes))
+                        .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes).toBytesValueString())
                         .setAllocationRatioHighWatermark(0.8)
                         .setAllocationRatioLowWatermark(0.5),
                 new ChunkManagerConfig(),
@@ -843,7 +843,7 @@ public class TestChunkManager
         long maxBytes = 16L;
         MemoryAllocator memoryAllocator = new MemoryAllocator(
                 new MemoryAllocatorConfig()
-                        .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes))
+                        .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes).toBytesValueString())
                         .setAllocationRatioHighWatermark(1.0)
                         .setAllocationRatioLowWatermark(1.0),
                 new ChunkManagerConfig(),
@@ -889,7 +889,7 @@ public class TestChunkManager
         long maxBytes = 16L;
         MemoryAllocator memoryAllocator = new MemoryAllocator(
                 new MemoryAllocatorConfig()
-                        .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes))
+                        .setHeapHeadroom(succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes).toBytesValueString())
                         .setAllocationRatioHighWatermark(1.0)
                         .setAllocationRatioLowWatermark(1.0),
                 new ChunkManagerConfig(),

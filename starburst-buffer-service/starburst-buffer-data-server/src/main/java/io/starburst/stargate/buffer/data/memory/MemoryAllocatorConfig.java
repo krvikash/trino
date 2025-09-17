@@ -16,7 +16,7 @@ import jakarta.validation.constraints.NotNull;
 
 public class MemoryAllocatorConfig
 {
-    private DataSize heapHeadroom = DataSize.ofBytes(Math.round(Runtime.getRuntime().maxMemory() * 0.16));
+    private DataSize heapHeadroom = HeapSizeParser.DEFAULT.parse("16%");
     private double allocationRatioLowWatermark = 0.75;
     private double allocationRatioHighWatermark = 0.9;
     private double chunkSlicePoolingFraction = 0.8;
@@ -29,9 +29,9 @@ public class MemoryAllocatorConfig
 
     @Config("memory.heap-headroom")
     @ConfigDescription("The amount of heap memory to set aside as headroom/buffer (e.g., for untracked allocations)")
-    public MemoryAllocatorConfig setHeapHeadroom(DataSize heapHeadroom)
+    public MemoryAllocatorConfig setHeapHeadroom(String heapHeadroom)
     {
-        this.heapHeadroom = heapHeadroom;
+        this.heapHeadroom = HeapSizeParser.DEFAULT.parse(heapHeadroom);
         return this;
     }
 
