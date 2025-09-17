@@ -94,8 +94,7 @@ public class OpenAiClientFactory
         return new OpenAiEmbeddingModelClient(modelName, spec.dimensions(), createOpenAiClient(updatedConnectionInfo, azureOpenAiConnectionInfo));
     }
 
-    @VisibleForTesting
-    OpenAIClient createOpenAiClient(OpenAiConnectionInfo connectionInfo, Optional<AzureOpenAiConnectionInfo> azureOpenAiConnectionInfo)
+    private OpenAIClient createOpenAiClient(OpenAiConnectionInfo connectionInfo, Optional<AzureOpenAiConnectionInfo> azureOpenAiConnectionInfo)
     {
         OpenAIOkHttpClient.Builder builder = OpenAIOkHttpClient.builder();
         azureOpenAiConnectionInfo.ifPresent(info -> {
