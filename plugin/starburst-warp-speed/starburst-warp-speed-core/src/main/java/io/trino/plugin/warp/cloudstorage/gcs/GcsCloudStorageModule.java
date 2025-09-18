@@ -16,8 +16,12 @@ package io.trino.plugin.warp.cloudstorage.gcs;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Provides;
+import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import io.airlift.configuration.ConfigurationFactory;
+import io.trino.filesystem.gcs.GcsAccessTokenAuth;
+import io.trino.filesystem.gcs.GcsAuth;
+import io.trino.filesystem.gcs.GcsDefaultAuth;
 import io.trino.filesystem.gcs.GcsFileSystemConfig;
 import io.trino.filesystem.gcs.GcsFileSystemFactory;
 import io.trino.filesystem.gcs.GcsStorageFactory;
@@ -49,6 +53,14 @@ public class GcsCloudStorageModule
         configBinder(binder).bindConfig(GcsFileSystemConfig.class);
         binder.bind(GcsStorageFactory.class);
         binder.bind(GcsFileSystemFactory.class);
+
+        GcsFileSystemConfig config = configFactory.build(GcsFileSystemConfig.class);
+        if (config.isUseGcsAccessToken()) {
+            binder.bind(GcsAuth.class).to(GcsAccessTokenAuth.class).in(Scopes.SINGLETON);
+        }
+        else {
+            binder.bind(GcsAuth.class).to(GcsDefaultAuth.class).in(Scopes.SINGLETON);
+        }
 
         binder.bind(GcsCloudStorage.class).annotatedWith(annotation).to(GcsCloudStorage.class);
     }

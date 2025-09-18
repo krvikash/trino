@@ -15,6 +15,7 @@ package io.trino.plugin.hive.functions;
 
 import com.google.common.collect.ImmutableMap;
 import io.trino.filesystem.TrinoFileSystemFactory;
+import io.trino.filesystem.gcs.GcsDefaultAuth;
 import io.trino.filesystem.gcs.GcsFileSystemConfig;
 import io.trino.filesystem.gcs.GcsFileSystemFactory;
 import io.trino.filesystem.gcs.GcsStorageFactory;
@@ -59,7 +60,7 @@ public class TestUnloadGcs
             throws IOException
     {
         GcsFileSystemConfig config = new GcsFileSystemConfig().setJsonKey(gcsJsonKey);
-        return new GcsFileSystemFactory(config, new GcsStorageFactory(config));
+        return new GcsFileSystemFactory(config, new GcsStorageFactory(config, new GcsDefaultAuth(config)));
     }
 
     @Override

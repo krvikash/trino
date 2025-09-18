@@ -19,6 +19,7 @@ import io.trino.filesystem.azure.AzureAuthAccessKey;
 import io.trino.filesystem.azure.AzureFileSystem;
 import io.trino.filesystem.azure.AzureFileSystemConfig;
 import io.trino.filesystem.azure.AzureFileSystemFactory;
+import io.trino.filesystem.gcs.GcsDefaultAuth;
 import io.trino.filesystem.gcs.GcsFileSystem;
 import io.trino.filesystem.gcs.GcsFileSystemConfig;
 import io.trino.filesystem.gcs.GcsFileSystemFactory;
@@ -126,7 +127,7 @@ final class TestStorageFileSystem
             throws IOException
     {
         GcsFileSystemConfig config = new GcsFileSystemConfig().setJsonKey(GCP_CREDENTIALS_KEY);
-        GcsFileSystemFactory fileSystemFactory = new GcsFileSystemFactory(config, new GcsStorageFactory(config));
+        GcsFileSystemFactory fileSystemFactory = new GcsFileSystemFactory(config, new GcsStorageFactory(config, new GcsDefaultAuth(config)));
         return (GcsFileSystem) fileSystemFactory.create(session);
     }
 

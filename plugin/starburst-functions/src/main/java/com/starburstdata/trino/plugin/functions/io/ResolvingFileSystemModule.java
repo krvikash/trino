@@ -38,6 +38,9 @@ import io.trino.filesystem.cache.CachingHostAddressProvider;
 import io.trino.filesystem.cache.DefaultCacheKeyProvider;
 import io.trino.filesystem.cache.DefaultCachingHostAddressProvider;
 import io.trino.filesystem.cache.TrinoFileSystemCache;
+import io.trino.filesystem.gcs.GcsAccessTokenAuth;
+import io.trino.filesystem.gcs.GcsAuth;
+import io.trino.filesystem.gcs.GcsDefaultAuth;
 import io.trino.filesystem.gcs.GcsFileSystemConfig;
 import io.trino.filesystem.gcs.GcsFileSystemFactory;
 import io.trino.filesystem.gcs.GcsStorageFactory;
@@ -172,7 +175,8 @@ public class ResolvingFileSystemModule
             case "gs" -> {
                 GcsFileSystemConfig config = configFactory.build(GcsFileSystemConfig.class);
                 try {
-                    GcsStorageFactory storageFactory = new GcsStorageFactory(config);
+                    GcsAuth gcsAuth = config.isUseGcsAccessToken() ? new GcsAccessTokenAuth() : new GcsDefaultAuth(config);
+                    GcsStorageFactory storageFactory = new GcsStorageFactory(config, gcsAuth);
                     yield new GcsFileSystemFactory(config, storageFactory);
                 }
                 catch (IOException e) {
