@@ -1215,9 +1215,9 @@ public class DispatcherMetadata
     }
 
     @Override
-    public void executeTableExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle)
+    public Map<String, Long> executeTableExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle)
     {
-        proxiedConnectorMetadata.executeTableExecute(session, tableExecuteHandle);
+        return proxiedConnectorMetadata.executeTableExecute(session, tableExecuteHandle);
     }
 
     @Override
