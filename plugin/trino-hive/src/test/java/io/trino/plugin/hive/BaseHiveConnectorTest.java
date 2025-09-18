@@ -69,6 +69,7 @@ import io.trino.testing.sql.TrinoSqlExecutor;
 import io.trino.type.TypeDeserializer;
 import org.assertj.core.api.AbstractLongAssert;
 import org.intellij.lang.annotations.Language;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -131,6 +132,7 @@ import static io.trino.SystemSessionProperties.TASK_SCALE_WRITERS_ENABLED;
 import static io.trino.SystemSessionProperties.USE_TABLE_SCAN_NODE_PARTITIONING;
 import static io.trino.SystemSessionProperties.WRITER_SCALING_MIN_DATA_PROCESSED;
 import static io.trino.metastore.Table.TABLE_COMMENT;
+import static io.trino.metastore.type.VarcharTypeInfo.MAX_VARCHAR_LENGTH;
 import static io.trino.plugin.hive.HiveColumnHandle.BUCKET_COLUMN_NAME;
 import static io.trino.plugin.hive.HiveColumnHandle.FILE_MODIFIED_TIME_COLUMN_NAME;
 import static io.trino.plugin.hive.HiveColumnHandle.FILE_SIZE_COLUMN_NAME;
@@ -2189,6 +2191,7 @@ public abstract class BaseHiveConnectorTest
     }
 
     @Test
+    @Disabled // Starburst Hive connector coerces varchar(>65535) to unbounded varchar
     public void testCreateTableNonSupportedVarcharColumn()
     {
         assertThatThrownBy(() -> {
@@ -8486,6 +8489,43 @@ public abstract class BaseHiveConnectorTest
                 "(col integer)")) {
             assertUpdate("ALTER TABLE " + testTable.getName() + " ADD COLUMN var_column varchar(0)");
             assertThat(getColumnType(testTable.getName(), "var_column")).isEqualTo("varchar(1)");
+        }
+    }
+
+    @Test
+    public void testCoercingOversizedVarcharToUnboundedVarcharWithCtas()
+    {
+        String value = "x".repeat(MAX_VARCHAR_LENGTH + 1);
+        try (TestTable table = newTrinoTable(
+                "test_coercion_ctas_varchar",
+                "AS SELECT '" + value + "' AS var_column")) {
+            assertThat(getColumnType(table.getName(), "var_column")).isEqualTo("varchar");
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES VARCHAR '" + value + "'");
+        }
+    }
+
+    @Test
+    public void testCoercingOversizedVarcharToUnboundedVarcharWithCtasNoData()
+    {
+        String value = "x".repeat(MAX_VARCHAR_LENGTH + 1);
+        try (TestTable table = newTrinoTable(
+                "test_coercion_ctas_nd_varchar",
+                "AS SELECT '" + value + "' AS var_column WITH NO DATA")) {
+            assertThat(getColumnType(table.getName(), "var_column")).isEqualTo("varchar");
+            assertQueryReturnsEmptyResult("SELECT * FROM " + table.getName());
+        }
+    }
+
+    @Test
+    public void testCoercingOversizedVarcharToUnboundedVarcharWithAddColumn()
+    {
+        try (TestTable table = newTrinoTable(
+                "test_coercion_add_column_varchar",
+                "(col integer)")) {
+            assertUpdate("ALTER TABLE " + table.getName() + " ADD COLUMN var_column varchar(" + MAX_VARCHAR_LENGTH + 1 + ")");
+            assertThat(getColumnType(table.getName(), "var_column")).isEqualTo("varchar");
+            assertQueryReturnsEmptyResult("SELECT * FROM " + table.getName());
         }
     }
 
