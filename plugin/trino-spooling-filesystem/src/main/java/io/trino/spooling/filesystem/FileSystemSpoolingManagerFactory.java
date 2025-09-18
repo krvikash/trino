@@ -52,6 +52,7 @@ public class FileSystemSpoolingManagerFactory
 
         Injector injector = app
                 .doNotInitializeLogging()
+                .loadSecretsPlugins()
                 .setRequiredConfigurationProperties(config)
                 .initialize();
 
