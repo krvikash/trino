@@ -37,7 +37,7 @@ public class Footer
     private final Optional<ColumnMetadata<ColumnStatistics>> fileStats;
     private final Map<String, Slice> userMetadata;
     private final Optional<Integer> writerId;
-    private final Optional<CalendarKind> calendar;
+    private final CalendarKind calendar;
 
     public Footer(
             long numberOfRows,
@@ -47,7 +47,7 @@ public class Footer
             Optional<ColumnMetadata<ColumnStatistics>> fileStats,
             Map<String, Slice> userMetadata,
             Optional<Integer> writerId,
-            Optional<CalendarKind> calendar)
+            CalendarKind calendar)
     {
         this.numberOfRows = numberOfRows;
         rowsInRowGroup.ifPresent(value -> checkArgument(value > 0, "rowsInRowGroup must be at least 1"));
@@ -96,7 +96,7 @@ public class Footer
         return writerId;
     }
 
-    public Optional<CalendarKind> getCalendar()
+    public CalendarKind getCalendar()
     {
         return calendar;
     }

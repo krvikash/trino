@@ -271,10 +271,7 @@ public class OrcPageSourceFactory
             if (!originalFile && acidInfo.isPresent() && !acidInfo.get().orcAcidVersionValidated()) {
                 validateOrcAcidVersion(path, reader);
             }
-            boolean convertDateToProleptic = reader.getFooter()
-                    .getCalendar()
-                    .map(calendar -> calendar == JULIAN_GREGORIAN)
-                    .orElse(false);
+            boolean convertDateToProleptic = reader.getFooter().getCalendar() == JULIAN_GREGORIAN;
 
             List<OrcColumn> fileColumns = reader.getRootColumn().getNestedColumns();
             List<OrcColumn> fileReadColumns = new ArrayList<>();

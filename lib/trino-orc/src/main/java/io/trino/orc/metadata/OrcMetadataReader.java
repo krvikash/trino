@@ -154,7 +154,7 @@ public class OrcMetadataReader
                 toColumnStatistics(hiveWriterVersion, footer.getStatisticsList(), false),
                 toUserMetadata(footer.getMetadataList()),
                 Optional.of(footer.getWriter()),
-                Optional.of(toTrinoOrcCalendarKind(footer.getCalendar())));
+                toTrinoOrcCalendarKind(footer.getCalendar()));
     }
 
     private static List<StripeInformation> toStripeInformation(List<OrcProto.StripeInformation> types)
@@ -416,6 +416,7 @@ public class OrcMetadataReader
     private static CalendarKind toTrinoOrcCalendarKind(OrcProto.CalendarKind calendarKind)
     {
         return switch (calendarKind) {
+            case null -> UNKNOWN_CALENDAR;
             case OrcProto.CalendarKind.UNKNOWN_CALENDAR -> UNKNOWN_CALENDAR;
             case OrcProto.CalendarKind.JULIAN_GREGORIAN -> JULIAN_GREGORIAN;
             case OrcProto.CalendarKind.PROLEPTIC_GREGORIAN -> PROLEPTIC_GREGORIAN;

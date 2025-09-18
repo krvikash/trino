@@ -141,9 +141,8 @@ public class OrcMetadataWriter
                         .collect(toList()))
                 .addAllMetadata(footer.getUserMetadata().entrySet().stream()
                         .map(OrcMetadataWriter::toUserMetadata)
-                        .collect(toList()));
-
-        footer.getCalendar().ifPresent(calendar -> builder.setCalendar(toOrcCalendarKind(calendar)));
+                        .collect(toList()))
+                .setCalendar(toOrcCalendarKind(footer.getCalendar()));
 
         setWriter(builder);
 

@@ -16,7 +16,6 @@ package io.trino.tests.product.launcher.env.common;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import io.trino.tests.product.launcher.docker.DockerFiles;
-import io.trino.tests.product.launcher.docker.DockerFiles.ResourceProvider;
 import io.trino.tests.product.launcher.env.DockerContainer;
 import io.trino.tests.product.launcher.env.Environment;
 import io.trino.tests.product.launcher.env.EnvironmentConfig;
@@ -57,7 +56,7 @@ public class Hive4WithMinio
 
     private final PortBinder portBinder;
     private final String hadoopImagesVersion;
-    private final ResourceProvider configDir;
+    private final DockerFiles.ResourceProvider configDir;
     private final Minio minio;
 
     @Inject

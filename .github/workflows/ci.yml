@@ -1926,10 +1926,10 @@ jobs:
             - suite-delta-lake-databricks-unity-s3-credentials-vending
             - suite-delta-lake-databricks-unity-gcs-credentials-vending
             - suite-hive-databricks-unity
-            - suite-hive4
             - suite-exasol
             - suite-ranger
             - suite-gcs
+            - suite-hive4
             - suite-clients
             - suite-functions
             - suite-tpch
