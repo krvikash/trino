@@ -4076,11 +4076,14 @@ public class IcebergMetadata
         Table icebergTable = catalog.loadTable(session, handle.getSchemaTableName());
 
         DeleteFiles deleteFiles = icebergTable.newDelete()
-                .deleteFromRowFilter(toIcebergExpression(handle.getEnforcedPredicate()));
+                .deleteFromRowFilter(toIcebergExpression(handle.getEnforcedPredicate()))
+                .scanManifestsWith(icebergScanExecutor);
+
         handle.getBranch().ifPresent(branch -> {
             checkBranch(icebergTable, branch);
             deleteFiles.toBranch(branch);
         });
+
         commitUpdate(deleteFiles, session, "delete");
 
         Map<String, String> summary = icebergTable.currentSnapshot().summary();
@@ -4103,6 +4106,7 @@ public class IcebergMetadata
         beginTransaction(icebergTable);
         transaction.newDelete()
                 .deleteFromRowFilter(alwaysTrue())
+                .scanManifestsWith(icebergScanExecutor)
                 .commit();
         if (icebergTable.currentSnapshot() != null) {
             transaction.updatePartitionStatistics()
@@ -4695,6 +4699,7 @@ public class IcebergMetadata
             log.info("Performing full MV refresh for storage table: %s", table.name());
             transaction.newDelete()
                     .deleteFromRowFilter(Expressions.alwaysTrue())
+                    .scanManifestsWith(icebergScanExecutor)
                     .commit();
         }
         else {
