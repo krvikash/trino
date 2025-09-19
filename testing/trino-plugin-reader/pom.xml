@@ -45,6 +45,16 @@
                     <groupId>com.squareup.okhttp3</groupId>
                     <artifactId>okhttp-urlconnection</artifactId>
                 </exclusion>
+                <!-- workaround problem where trino-plugin-reader-*-executable.jar fails with
+                     java.lang.SecurityException: Invalid signature file digest for Manifest main attributes -->
+                <exclusion>
+                    <groupId>io.starburst.stargate.buffer</groupId>
+                    <artifactId>starburst-buffer-data-server</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.starburst.stargate.buffer</groupId>
+                    <artifactId>starburst-buffer-discovery-server</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
 
