@@ -135,12 +135,6 @@ public class PageProcessor
             metrics.recordFilterTime(filterResult.filterTimeNanos());
         }
 
-        if (filterEvaluator.isPresent()) {
-            FilterEvaluator.SelectionResult filterResult = filterEvaluator.get().evaluate(session, selectedPositions, page);
-            selectedPositions = filterResult.selectedPositions();
-            metrics.recordFilterTime(filterResult.filterTimeNanos());
-        }
-
         if (selectedPositions.isEmpty()) {
             return WorkProcessor.of();
         }
