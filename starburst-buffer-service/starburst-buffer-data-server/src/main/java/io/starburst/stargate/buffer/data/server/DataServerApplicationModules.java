@@ -21,7 +21,7 @@ public final class DataServerApplicationModules
 
     public static Module getDataServerApplicationModule()
     {
-        return getDataServerApplicationModule(Optional.empty(), false);
+        return getDataServerApplicationModule(Optional.empty(), true);
     }
 
     public static Module getDataServerApplicationModules(String configPrefix, boolean trinoCollocated)
