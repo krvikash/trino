@@ -735,46 +735,46 @@ IR version = 1
                     {ir.terminal = "true"}
             })
             {join_type = "INNER", may_skip_output_duplicates = "false", distribution_type = "PARTITIONED", dynamic_filter_ids = "[""df_3163"",""df_3164""]", statistics_and_cost_summary = "{""outputRowCount"":2.6698978388942245E10,""outputSizeInBytes"":2.488719856131346E12,""cpuCost"":2.8040918307873496E12,""memoryCost"":2.478730629704371E9,""networkCost"":9.455336358270672E9}"}
-        %399 = exchange(%361) : ("multiset(row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar))") -> "multiset(row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar))" ({
+        %399 = exchange(%361) : ("multiset(row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar))") -> "multiset(row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar))" ({
             ^inputSelector (%400 : "row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)")
                 %401 = field_reference(%400) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "decimal(7,2)" ()
                     {field_index = "0"}
-                %402 = field_reference(%400) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
-                    {field_index = "6"}
-                %403 = field_reference(%400) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
-                    {field_index = "7"}
-                %404 = field_reference(%400) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
-                    {field_index = "8"}
-                %405 = field_reference(%400) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "decimal(7,2)" ()
+                %402 = field_reference(%400) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "decimal(7,2)" ()
                     {field_index = "1"}
-                %406 = field_reference(%400) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
+                %403 = field_reference(%400) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
                     {field_index = "2"}
-                %407 = field_reference(%400) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
+                %404 = field_reference(%400) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
                     {field_index = "3"}
-                %408 = field_reference(%400) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
+                %405 = field_reference(%400) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
                     {field_index = "4"}
-                %409 = field_reference(%400) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "integer" ()
+                %406 = field_reference(%400) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "integer" ()
                     {field_index = "5"}
+                %407 = field_reference(%400) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
+                    {field_index = "6"}
+                %408 = field_reference(%400) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
+                    {field_index = "7"}
+                %409 = field_reference(%400) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
+                    {field_index = "8"}
                 %410 = field_reference(%400) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
                     {field_index = "9"}
                 %411 = field_reference(%400) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
                     {field_index = "10"}
                 %412 = field_reference(%400) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
                     {field_index = "11"}
-                %413 = row(%401, %402, %403, %404, %405, %406, %407, %408, %409, %410, %411, %412) : ("decimal(7,2)", "varchar", "varchar", "varchar", "decimal(7,2)", "varchar", "varchar", "varchar", "integer", "varchar", "varchar", "varchar") -> "row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)" ()
-                %414 = return(%413) : ("row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)") -> "row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)" ()
+                %413 = row(%401, %402, %403, %404, %405, %406, %407, %408, %409, %410, %411, %412) : ("decimal(7,2)", "decimal(7,2)", "varchar", "varchar", "varchar", "integer", "varchar", "varchar", "varchar", "varchar", "varchar", "varchar") -> "row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)" ()
+                %414 = return(%413) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)" ()
                     {ir.terminal = "true"}
             }, {
-            ^boundArguments (%415 : "row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)")
-                %416 = field_reference(%415) : ("row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)") -> "varchar" ()
+            ^boundArguments (%415 : "row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)")
+                %416 = field_reference(%415) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
                     {field_index = "11"}
-                %417 = field_reference(%415) : ("row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)") -> "varchar" ()
-                    {field_index = "3"}
+                %417 = field_reference(%415) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
+                    {field_index = "8"}
                 %418 = row(%416, %417) : ("varchar", "varchar") -> "row(varchar,varchar)" ()
                 %419 = return(%418) : ("row(varchar,varchar)") -> "row(varchar,varchar)" ()
                     {ir.terminal = "true"}
             }, {
-            ^orderingSelector (%420 : "row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)")
+            ^orderingSelector (%420 : "row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)")
                 %421 = constant() : () -> "empty row" ()
                     {constant_result = "{""type"":""empty row""}"}
                 %422 = return(%421) : ("empty row") -> "empty row" ()
@@ -850,12 +850,12 @@ IR version = 1
                     {ir.terminal = "true"}
             })
             {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
-        %460 = join(%399, %447) : ("multiset(row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar))", "multiset(row(varchar,varchar,varchar))") -> "multiset(row(decimal(7,2),varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar))" ({
-            ^leftCriteriaSelector (%461 : "row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)")
-                %462 = field_reference(%461) : ("row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)") -> "varchar" ()
+        %460 = join(%399, %447) : ("multiset(row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar))", "multiset(row(varchar,varchar,varchar))") -> "multiset(row(decimal(7,2),varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar))" ({
+            ^leftCriteriaSelector (%461 : "row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)")
+                %462 = field_reference(%461) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
                     {field_index = "11"}
-                %463 = field_reference(%461) : ("row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)") -> "varchar" ()
-                    {field_index = "3"}
+                %463 = field_reference(%461) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
+                    {field_index = "8"}
                 %464 = row(%462, %463) : ("varchar", "varchar") -> "row(varchar,varchar)" ()
                 %465 = return(%464) : ("row(varchar,varchar)") -> "row(varchar,varchar)" ()
                     {ir.terminal = "true"}
@@ -869,32 +869,32 @@ IR version = 1
                 %470 = return(%469) : ("row(varchar,varchar)") -> "row(varchar,varchar)" ()
                     {ir.terminal = "true"}
             }, {
-            ^filter (%471 : "row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)", %472 : "row(varchar,varchar,varchar)")
+            ^filter (%471 : "row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)", %472 : "row(varchar,varchar,varchar)")
                 %473 = constant() : () -> "boolean" ()
                     {constant_result = "{""type"":""boolean"",""value"":true}"}
                 %474 = return(%473) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             }, {
-            ^leftOutputSelector (%475 : "row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)")
-                %476 = field_reference(%475) : ("row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)") -> "decimal(7,2)" ()
+            ^leftOutputSelector (%475 : "row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)")
+                %476 = field_reference(%475) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "decimal(7,2)" ()
                     {field_index = "0"}
-                %477 = field_reference(%475) : ("row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)") -> "varchar" ()
-                    {field_index = "1"}
-                %478 = field_reference(%475) : ("row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)") -> "varchar" ()
-                    {field_index = "2"}
-                %479 = field_reference(%475) : ("row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)") -> "decimal(7,2)" ()
-                    {field_index = "4"}
-                %480 = field_reference(%475) : ("row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)") -> "varchar" ()
-                    {field_index = "5"}
-                %481 = field_reference(%475) : ("row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)") -> "varchar" ()
+                %477 = field_reference(%475) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
                     {field_index = "6"}
-                %482 = field_reference(%475) : ("row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)") -> "varchar" ()
+                %478 = field_reference(%475) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
                     {field_index = "7"}
-                %483 = field_reference(%475) : ("row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)") -> "integer" ()
-                    {field_index = "8"}
-                %484 = field_reference(%475) : ("row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)") -> "varchar" ()
+                %479 = field_reference(%475) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "decimal(7,2)" ()
+                    {field_index = "1"}
+                %480 = field_reference(%475) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
+                    {field_index = "2"}
+                %481 = field_reference(%475) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
+                    {field_index = "3"}
+                %482 = field_reference(%475) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
+                    {field_index = "4"}
+                %483 = field_reference(%475) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "integer" ()
+                    {field_index = "5"}
+                %484 = field_reference(%475) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
                     {field_index = "9"}
-                %485 = field_reference(%475) : ("row(decimal(7,2),varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar)") -> "varchar" ()
+                %485 = field_reference(%475) : ("row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar,varchar)") -> "varchar" ()
                     {field_index = "10"}
                 %486 = row(%476, %477, %478, %479, %480, %481, %482, %483, %484, %485) : ("decimal(7,2)", "varchar", "varchar", "decimal(7,2)", "varchar", "varchar", "varchar", "integer", "varchar", "varchar") -> "row(decimal(7,2),varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar)" ()
                 %487 = return(%486) : ("row(decimal(7,2),varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar)") -> "row(decimal(7,2),varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar)" ()
@@ -1778,9 +1778,9 @@ IR version = 1
         %990 = exchange(%960) : ("multiset(row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer))") -> "multiset(row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer))" ({
             ^inputSelector (%991 : "row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer)")
                 %992 = field_reference(%991) : ("row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer)") -> "bigint" ()
-                    {field_index = "1"}
-                %993 = field_reference(%991) : ("row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer)") -> "bigint" ()
                     {field_index = "0"}
+                %993 = field_reference(%991) : ("row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer)") -> "bigint" ()
+                    {field_index = "1"}
                 %994 = field_reference(%991) : ("row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer)") -> "decimal(7,2)" ()
                     {field_index = "2"}
                 %995 = field_reference(%991) : ("row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer)") -> "varchar" ()
@@ -1797,9 +1797,9 @@ IR version = 1
             }, {
             ^boundArguments (%1001 : "row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer)")
                 %1002 = field_reference(%1001) : ("row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer)") -> "bigint" ()
-                    {field_index = "0"}
-                %1003 = field_reference(%1001) : ("row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer)") -> "bigint" ()
                     {field_index = "1"}
+                %1003 = field_reference(%1001) : ("row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer)") -> "bigint" ()
+                    {field_index = "0"}
                 %1004 = row(%1002, %1003) : ("bigint", "bigint") -> "row(bigint,bigint)" ()
                 %1005 = return(%1004) : ("row(bigint,bigint)") -> "row(bigint,bigint)" ()
                     {ir.terminal = "true"}
@@ -1856,9 +1856,9 @@ IR version = 1
             }, {
             ^rightCriteriaSelector (%1032 : "row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer)")
                 %1033 = field_reference(%1032) : ("row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer)") -> "bigint" ()
-                    {field_index = "0"}
-                %1034 = field_reference(%1032) : ("row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer)") -> "bigint" ()
                     {field_index = "1"}
+                %1034 = field_reference(%1032) : ("row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer)") -> "bigint" ()
+                    {field_index = "0"}
                 %1035 = row(%1033, %1034) : ("bigint", "bigint") -> "row(bigint,bigint)" ()
                 %1036 = return(%1035) : ("row(bigint,bigint)") -> "row(bigint,bigint)" ()
                     {ir.terminal = "true"}
@@ -1905,9 +1905,9 @@ IR version = 1
             }, {
             ^dynamicFilterTargetSelector (%1059 : "row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer)")
                 %1060 = field_reference(%1059) : ("row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer)") -> "bigint" ()
-                    {field_index = "0"}
-                %1061 = field_reference(%1059) : ("row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer)") -> "bigint" ()
                     {field_index = "1"}
+                %1061 = field_reference(%1059) : ("row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer)") -> "bigint" ()
+                    {field_index = "0"}
                 %3800 = row(%1060, %1061) : ("bigint", "bigint") -> "row(bigint,bigint)" ()
                 %3801 = return(%3800) : ("row(bigint,bigint)") -> "row(bigint,bigint)" ()
                     {ir.terminal = "true"}

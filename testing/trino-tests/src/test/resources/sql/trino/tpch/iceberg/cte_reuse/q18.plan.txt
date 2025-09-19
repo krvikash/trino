@@ -386,66 +386,66 @@ IR version = 1
                     {ir.terminal = "true"}
             })
             {join_type = "INNER", may_skip_output_duplicates = "false", distribution_type = "PARTITIONED", dynamic_filter_ids = "[""df_1054""]", statistics_and_cost_summary = "{""outputRowCount"":1.35E9,""outputSizeInBytes"":5.3141601582E10,""cpuCost"":8.5388734611E11,""memoryCost"":5.227798986E10,""networkCost"":2.13489313302E11}"}
-        %255 = exchange(%227) : ("multiset(row(bigint,bigint,decimal(12,2),date,varchar))") -> "multiset(row(bigint,decimal(12,2),date,bigint,varchar))" ({
+        %255 = exchange(%227) : ("multiset(row(bigint,bigint,decimal(12,2),date,varchar))") -> "multiset(row(bigint,bigint,decimal(12,2),date,varchar))" ({
             ^inputSelector (%256 : "row(bigint,bigint,decimal(12,2),date,varchar)")
                 %257 = field_reference(%256) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "bigint" ()
                     {field_index = "0"}
-                %258 = field_reference(%256) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "decimal(12,2)" ()
-                    {field_index = "2"}
-                %259 = field_reference(%256) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "date" ()
-                    {field_index = "3"}
-                %260 = field_reference(%256) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "bigint" ()
+                %258 = field_reference(%256) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "bigint" ()
                     {field_index = "1"}
+                %259 = field_reference(%256) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "decimal(12,2)" ()
+                    {field_index = "2"}
+                %260 = field_reference(%256) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "date" ()
+                    {field_index = "3"}
                 %261 = field_reference(%256) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "varchar" ()
                     {field_index = "4"}
-                %262 = row(%257, %258, %259, %260, %261) : ("bigint", "decimal(12,2)", "date", "bigint", "varchar") -> "row(bigint,decimal(12,2),date,bigint,varchar)" ()
-                %263 = return(%262) : ("row(bigint,decimal(12,2),date,bigint,varchar)") -> "row(bigint,decimal(12,2),date,bigint,varchar)" ()
+                %262 = row(%257, %258, %259, %260, %261) : ("bigint", "bigint", "decimal(12,2)", "date", "varchar") -> "row(bigint,bigint,decimal(12,2),date,varchar)" ()
+                %263 = return(%262) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "row(bigint,bigint,decimal(12,2),date,varchar)" ()
                     {ir.terminal = "true"}
             }, {
-            ^boundArguments (%264 : "row(bigint,decimal(12,2),date,bigint,varchar)")
-                %265 = field_reference(%264) : ("row(bigint,decimal(12,2),date,bigint,varchar)") -> "bigint" ()
+            ^boundArguments (%264 : "row(bigint,bigint,decimal(12,2),date,varchar)")
+                %265 = field_reference(%264) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "bigint" ()
                     {field_index = "0"}
                 %266 = row(%265) : ("bigint") -> "row(bigint)" ()
                 %267 = return(%266) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             }, {
-            ^orderingSelector (%268 : "row(bigint,decimal(12,2),date,bigint,varchar)")
+            ^orderingSelector (%268 : "row(bigint,bigint,decimal(12,2),date,varchar)")
                 %269 = constant() : () -> "empty row" ()
                     {constant_result = "{""type"":""empty row""}"}
                 %270 = return(%269) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             })
             {exchange_type = "REPARTITION", exchange_scope = "REMOTE", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
-        %271 = exchange(%255) : ("multiset(row(bigint,decimal(12,2),date,bigint,varchar))") -> "multiset(row(bigint,decimal(12,2),date,bigint,varchar))" ({
-            ^inputSelector (%272 : "row(bigint,decimal(12,2),date,bigint,varchar)")
-                %273 = field_reference(%272) : ("row(bigint,decimal(12,2),date,bigint,varchar)") -> "bigint" ()
+        %271 = exchange(%255) : ("multiset(row(bigint,bigint,decimal(12,2),date,varchar))") -> "multiset(row(bigint,bigint,decimal(12,2),date,varchar))" ({
+            ^inputSelector (%272 : "row(bigint,bigint,decimal(12,2),date,varchar)")
+                %273 = field_reference(%272) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "bigint" ()
                     {field_index = "0"}
-                %274 = field_reference(%272) : ("row(bigint,decimal(12,2),date,bigint,varchar)") -> "decimal(12,2)" ()
+                %274 = field_reference(%272) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "bigint" ()
                     {field_index = "1"}
-                %275 = field_reference(%272) : ("row(bigint,decimal(12,2),date,bigint,varchar)") -> "date" ()
+                %275 = field_reference(%272) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "decimal(12,2)" ()
                     {field_index = "2"}
-                %276 = field_reference(%272) : ("row(bigint,decimal(12,2),date,bigint,varchar)") -> "bigint" ()
+                %276 = field_reference(%272) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "date" ()
                     {field_index = "3"}
-                %277 = field_reference(%272) : ("row(bigint,decimal(12,2),date,bigint,varchar)") -> "varchar" ()
+                %277 = field_reference(%272) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "varchar" ()
                     {field_index = "4"}
-                %278 = row(%273, %274, %275, %276, %277) : ("bigint", "decimal(12,2)", "date", "bigint", "varchar") -> "row(bigint,decimal(12,2),date,bigint,varchar)" ()
-                %279 = return(%278) : ("row(bigint,decimal(12,2),date,bigint,varchar)") -> "row(bigint,decimal(12,2),date,bigint,varchar)" ()
+                %278 = row(%273, %274, %275, %276, %277) : ("bigint", "bigint", "decimal(12,2)", "date", "varchar") -> "row(bigint,bigint,decimal(12,2),date,varchar)" ()
+                %279 = return(%278) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "row(bigint,bigint,decimal(12,2),date,varchar)" ()
                     {ir.terminal = "true"}
             }, {
-            ^boundArguments (%280 : "row(bigint,decimal(12,2),date,bigint,varchar)")
+            ^boundArguments (%280 : "row(bigint,bigint,decimal(12,2),date,varchar)")
                 %281 = constant() : () -> "empty row" ()
                     {constant_result = "{""type"":""empty row""}"}
                 %282 = return(%281) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             }, {
-            ^orderingSelector (%283 : "row(bigint,decimal(12,2),date,bigint,varchar)")
+            ^orderingSelector (%283 : "row(bigint,bigint,decimal(12,2),date,varchar)")
                 %284 = constant() : () -> "empty row" ()
                     {constant_result = "{""type"":""empty row""}"}
                 %285 = return(%284) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             })
             {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
-        %286 = join(%637, %271) : ("multiset(row(bigint,varbinary))", "multiset(row(bigint,decimal(12,2),date,bigint,varchar))") -> "multiset(row(bigint,varbinary,decimal(12,2),date,bigint,varchar))" ({
+        %286 = join(%637, %271) : ("multiset(row(bigint,varbinary))", "multiset(row(bigint,bigint,decimal(12,2),date,varchar))") -> "multiset(row(bigint,varbinary,bigint,decimal(12,2),date,varchar))" ({
             ^leftCriteriaSelector (%287 : "row(bigint,varbinary)")
                 %288 = field_reference(%287) : ("row(bigint,varbinary)") -> "bigint" ()
                     {field_index = "0"}
@@ -453,14 +453,14 @@ IR version = 1
                 %290 = return(%289) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             }, {
-            ^rightCriteriaSelector (%291 : "row(bigint,decimal(12,2),date,bigint,varchar)")
-                %292 = field_reference(%291) : ("row(bigint,decimal(12,2),date,bigint,varchar)") -> "bigint" ()
+            ^rightCriteriaSelector (%291 : "row(bigint,bigint,decimal(12,2),date,varchar)")
+                %292 = field_reference(%291) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "bigint" ()
                     {field_index = "0"}
                 %293 = row(%292) : ("bigint") -> "row(bigint)" ()
                 %294 = return(%293) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             }, {
-            ^filter (%295 : "row(bigint,varbinary)", %296 : "row(bigint,decimal(12,2),date,bigint,varchar)")
+            ^filter (%295 : "row(bigint,varbinary)", %296 : "row(bigint,bigint,decimal(12,2),date,varchar)")
                 %297 = constant() : () -> "boolean" ()
                     {constant_result = "{""type"":""boolean"",""value"":true}"}
                 %298 = return(%297) : ("boolean") -> "boolean" ()
@@ -475,80 +475,80 @@ IR version = 1
                 %303 = return(%302) : ("row(bigint,varbinary)") -> "row(bigint,varbinary)" ()
                     {ir.terminal = "true"}
             }, {
-            ^rightOutputSelector (%304 : "row(bigint,decimal(12,2),date,bigint,varchar)")
-                %305 = field_reference(%304) : ("row(bigint,decimal(12,2),date,bigint,varchar)") -> "decimal(12,2)" ()
+            ^rightOutputSelector (%304 : "row(bigint,bigint,decimal(12,2),date,varchar)")
+                %305 = field_reference(%304) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "bigint" ()
                     {field_index = "1"}
-                %306 = field_reference(%304) : ("row(bigint,decimal(12,2),date,bigint,varchar)") -> "date" ()
+                %306 = field_reference(%304) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "decimal(12,2)" ()
                     {field_index = "2"}
-                %307 = field_reference(%304) : ("row(bigint,decimal(12,2),date,bigint,varchar)") -> "bigint" ()
+                %307 = field_reference(%304) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "date" ()
                     {field_index = "3"}
-                %308 = field_reference(%304) : ("row(bigint,decimal(12,2),date,bigint,varchar)") -> "varchar" ()
+                %308 = field_reference(%304) : ("row(bigint,bigint,decimal(12,2),date,varchar)") -> "varchar" ()
                     {field_index = "4"}
-                %309 = row(%305, %306, %307, %308) : ("decimal(12,2)", "date", "bigint", "varchar") -> "row(decimal(12,2),date,bigint,varchar)" ()
-                %310 = return(%309) : ("row(decimal(12,2),date,bigint,varchar)") -> "row(decimal(12,2),date,bigint,varchar)" ()
+                %309 = row(%305, %306, %307, %308) : ("bigint", "decimal(12,2)", "date", "varchar") -> "row(bigint,decimal(12,2),date,varchar)" ()
+                %310 = return(%309) : ("row(bigint,decimal(12,2),date,varchar)") -> "row(bigint,decimal(12,2),date,varchar)" ()
                     {ir.terminal = "true"}
             }, {
-            ^dynamicFilterTargetSelector (%744 : "row(bigint,decimal(12,2),date,bigint,varchar)")
+            ^dynamicFilterTargetSelector (%744 : "row(bigint,bigint,decimal(12,2),date,varchar)")
                 %745 = constant() : () -> "empty row" ()
                     {constant_result = "{""type"":""empty row""}"}
                 %746 = return(%745) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             })
             {join_type = "INNER", may_skip_output_duplicates = "false", distribution_type = "PARTITIONED", dynamic_filter_ids = "[]", statistics_and_cost_summary = "{""outputRowCount"":5.543774745142998E9,""outputSizeInBytes"":2.681199495705409E11,""cpuCost"":1.605431544712541E12,""memoryCost"":6.7431100122E10,""networkCost"":3.74630729646E11}"}
-        %315 = exchange(%286) : ("multiset(row(bigint,varbinary,decimal(12,2),date,bigint,varchar))") -> "multiset(row(varchar,bigint,bigint,date,decimal(12,2),varbinary))" ({
-            ^inputSelector (%316 : "row(bigint,varbinary,decimal(12,2),date,bigint,varchar)")
-                %317 = field_reference(%316) : ("row(bigint,varbinary,decimal(12,2),date,bigint,varchar)") -> "varchar" ()
-                    {field_index = "5"}
-                %318 = field_reference(%316) : ("row(bigint,varbinary,decimal(12,2),date,bigint,varchar)") -> "bigint" ()
-                    {field_index = "4"}
-                %319 = field_reference(%316) : ("row(bigint,varbinary,decimal(12,2),date,bigint,varchar)") -> "bigint" ()
+        %315 = exchange(%286) : ("multiset(row(bigint,varbinary,bigint,decimal(12,2),date,varchar))") -> "multiset(row(bigint,varbinary,bigint,decimal(12,2),date,varchar))" ({
+            ^inputSelector (%316 : "row(bigint,varbinary,bigint,decimal(12,2),date,varchar)")
+                %317 = field_reference(%316) : ("row(bigint,varbinary,bigint,decimal(12,2),date,varchar)") -> "bigint" ()
                     {field_index = "0"}
-                %320 = field_reference(%316) : ("row(bigint,varbinary,decimal(12,2),date,bigint,varchar)") -> "date" ()
-                    {field_index = "3"}
-                %321 = field_reference(%316) : ("row(bigint,varbinary,decimal(12,2),date,bigint,varchar)") -> "decimal(12,2)" ()
-                    {field_index = "2"}
-                %322 = field_reference(%316) : ("row(bigint,varbinary,decimal(12,2),date,bigint,varchar)") -> "varbinary" ()
+                %318 = field_reference(%316) : ("row(bigint,varbinary,bigint,decimal(12,2),date,varchar)") -> "varbinary" ()
                     {field_index = "1"}
-                %323 = row(%317, %318, %319, %320, %321, %322) : ("varchar", "bigint", "bigint", "date", "decimal(12,2)", "varbinary") -> "row(varchar,bigint,bigint,date,decimal(12,2),varbinary)" ()
-                %324 = return(%323) : ("row(varchar,bigint,bigint,date,decimal(12,2),varbinary)") -> "row(varchar,bigint,bigint,date,decimal(12,2),varbinary)" ()
+                %319 = field_reference(%316) : ("row(bigint,varbinary,bigint,decimal(12,2),date,varchar)") -> "bigint" ()
+                    {field_index = "2"}
+                %320 = field_reference(%316) : ("row(bigint,varbinary,bigint,decimal(12,2),date,varchar)") -> "decimal(12,2)" ()
+                    {field_index = "3"}
+                %321 = field_reference(%316) : ("row(bigint,varbinary,bigint,decimal(12,2),date,varchar)") -> "date" ()
+                    {field_index = "4"}
+                %322 = field_reference(%316) : ("row(bigint,varbinary,bigint,decimal(12,2),date,varchar)") -> "varchar" ()
+                    {field_index = "5"}
+                %323 = row(%317, %318, %319, %320, %321, %322) : ("bigint", "varbinary", "bigint", "decimal(12,2)", "date", "varchar") -> "row(bigint,varbinary,bigint,decimal(12,2),date,varchar)" ()
+                %324 = return(%323) : ("row(bigint,varbinary,bigint,decimal(12,2),date,varchar)") -> "row(bigint,varbinary,bigint,decimal(12,2),date,varchar)" ()
                     {ir.terminal = "true"}
             }, {
-            ^boundArguments (%325 : "row(varchar,bigint,bigint,date,decimal(12,2),varbinary)")
+            ^boundArguments (%325 : "row(bigint,varbinary,bigint,decimal(12,2),date,varchar)")
                 %326 = constant() : () -> "empty row" ()
                     {constant_result = "{""type"":""empty row""}"}
                 %327 = return(%326) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             }, {
-            ^orderingSelector (%328 : "row(varchar,bigint,bigint,date,decimal(12,2),varbinary)")
+            ^orderingSelector (%328 : "row(bigint,varbinary,bigint,decimal(12,2),date,varchar)")
                 %329 = constant() : () -> "empty row" ()
                     {constant_result = "{""type"":""empty row""}"}
                 %330 = return(%329) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             })
             {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
-        %331 = aggregation(%315) : ("multiset(row(varchar,bigint,bigint,date,decimal(12,2),varbinary))") -> "multiset(row(varchar,bigint,bigint,date,decimal(12,2),decimal(38,2)))" ({
-            ^aggregates (%332 : "multiset(row(varchar,bigint,bigint,date,decimal(12,2),varbinary))")
-                %333 = aggregate_call(%332) : ("multiset(row(varchar,bigint,bigint,date,decimal(12,2),varbinary))") -> "decimal(38,2)" ({
-                    ^arguments (%334 : "row(varchar,bigint,bigint,date,decimal(12,2),varbinary)")
-                        %335 = field_reference(%334) : ("row(varchar,bigint,bigint,date,decimal(12,2),varbinary)") -> "varbinary" ()
-                            {field_index = "5"}
+        %331 = aggregation(%315) : ("multiset(row(bigint,varbinary,bigint,decimal(12,2),date,varchar))") -> "multiset(row(varchar,bigint,bigint,date,decimal(12,2),decimal(38,2)))" ({
+            ^aggregates (%332 : "multiset(row(bigint,varbinary,bigint,decimal(12,2),date,varchar))")
+                %333 = aggregate_call(%332) : ("multiset(row(bigint,varbinary,bigint,decimal(12,2),date,varchar))") -> "decimal(38,2)" ({
+                    ^arguments (%334 : "row(bigint,varbinary,bigint,decimal(12,2),date,varchar)")
+                        %335 = field_reference(%334) : ("row(bigint,varbinary,bigint,decimal(12,2),date,varchar)") -> "varbinary" ()
+                            {field_index = "1"}
                         %336 = row(%335) : ("varbinary") -> "row(varbinary)" ()
                         %337 = return(%336) : ("row(varbinary)") -> "row(varbinary)" ()
                             {ir.terminal = "true"}
                     }, {
-                    ^filterSelector (%338 : "row(varchar,bigint,bigint,date,decimal(12,2),varbinary)")
+                    ^filterSelector (%338 : "row(bigint,varbinary,bigint,decimal(12,2),date,varchar)")
                         %339 = constant() : () -> "empty row" ()
                             {constant_result = "{""type"":""empty row""}"}
                         %340 = return(%339) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     }, {
-                    ^maskSelector (%341 : "row(varchar,bigint,bigint,date,decimal(12,2),varbinary)")
+                    ^maskSelector (%341 : "row(bigint,varbinary,bigint,decimal(12,2),date,varchar)")
                         %342 = constant() : () -> "empty row" ()
                             {constant_result = "{""type"":""empty row""}"}
                         %343 = return(%342) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     }, {
-                    ^orderingSelector (%344 : "row(varchar,bigint,bigint,date,decimal(12,2),varbinary)")
+                    ^orderingSelector (%344 : "row(bigint,varbinary,bigint,decimal(12,2),date,varchar)")
                         %345 = constant() : () -> "empty row" ()
                             {constant_result = "{""type"":""empty row""}"}
                         %346 = return(%345) : ("empty row") -> "empty row" ()
@@ -559,17 +559,17 @@ IR version = 1
                 %348 = return(%347) : ("row(decimal(38,2))") -> "row(decimal(38,2))" ()
                     {ir.terminal = "true"}
             }, {
-            ^groupingKeysSelector (%349 : "row(varchar,bigint,bigint,date,decimal(12,2),varbinary)")
-                %350 = field_reference(%349) : ("row(varchar,bigint,bigint,date,decimal(12,2),varbinary)") -> "varchar" ()
-                    {field_index = "0"}
-                %351 = field_reference(%349) : ("row(varchar,bigint,bigint,date,decimal(12,2),varbinary)") -> "bigint" ()
-                    {field_index = "1"}
-                %352 = field_reference(%349) : ("row(varchar,bigint,bigint,date,decimal(12,2),varbinary)") -> "bigint" ()
+            ^groupingKeysSelector (%349 : "row(bigint,varbinary,bigint,decimal(12,2),date,varchar)")
+                %350 = field_reference(%349) : ("row(bigint,varbinary,bigint,decimal(12,2),date,varchar)") -> "varchar" ()
+                    {field_index = "5"}
+                %351 = field_reference(%349) : ("row(bigint,varbinary,bigint,decimal(12,2),date,varchar)") -> "bigint" ()
                     {field_index = "2"}
-                %353 = field_reference(%349) : ("row(varchar,bigint,bigint,date,decimal(12,2),varbinary)") -> "date" ()
-                    {field_index = "3"}
-                %354 = field_reference(%349) : ("row(varchar,bigint,bigint,date,decimal(12,2),varbinary)") -> "decimal(12,2)" ()
+                %352 = field_reference(%349) : ("row(bigint,varbinary,bigint,decimal(12,2),date,varchar)") -> "bigint" ()
+                    {field_index = "0"}
+                %353 = field_reference(%349) : ("row(bigint,varbinary,bigint,decimal(12,2),date,varchar)") -> "date" ()
                     {field_index = "4"}
+                %354 = field_reference(%349) : ("row(bigint,varbinary,bigint,decimal(12,2),date,varchar)") -> "decimal(12,2)" ()
+                    {field_index = "3"}
                 %355 = row(%350, %351, %352, %353, %354) : ("varchar", "bigint", "bigint", "date", "decimal(12,2)") -> "row(varchar,bigint,bigint,date,decimal(12,2))" ()
                 %356 = return(%355) : ("row(varchar,bigint,bigint,date,decimal(12,2))") -> "row(varchar,bigint,bigint,date,decimal(12,2))" ()
                     {ir.terminal = "true"}

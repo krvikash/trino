@@ -27,9 +27,11 @@ import io.trino.sql.planner.Symbol;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.sql.planner.SystemPartitioningHandle.FIXED_ARBITRARY_DISTRIBUTION;
 import static io.trino.sql.planner.SystemPartitioningHandle.FIXED_BROADCAST_DISTRIBUTION;
 import static io.trino.sql.planner.SystemPartitioningHandle.FIXED_HASH_DISTRIBUTION;
@@ -108,12 +110,69 @@ public class ExchangeNode
             checkArgument(type == Type.GATHER, "Merging exchange must be of GATHER type");
             checkArgument(inputs.size() == 1, "Merging exchange must have single input");
         });
+
+        // for a pass-through case, align the output layout with input layout. It simplifies processing Exchange operations in new IR
+        Optional<PartitioningSchemeAndInputs> alignedPartitioningSchemeAndInputs = getAlignedPartitioningSchemeAndInputs(sources, inputs, partitioningScheme);
+        if (alignedPartitioningSchemeAndInputs.isPresent()) {
+            this.partitioningScheme = alignedPartitioningSchemeAndInputs.get().partitioningScheme();
+            this.inputs = listOfListsCopy(alignedPartitioningSchemeAndInputs.get().inputs());
+        }
+        else {
+            this.partitioningScheme = partitioningScheme;
+            this.inputs = listOfListsCopy(inputs);
+        }
+
         this.type = type;
         this.sources = sources;
         this.scope = scope;
-        this.partitioningScheme = partitioningScheme;
-        this.inputs = listOfListsCopy(inputs);
         this.orderingScheme = orderingScheme;
+    }
+
+    private static Optional<PartitioningSchemeAndInputs> getAlignedPartitioningSchemeAndInputs(List<PlanNode> sources, List<List<Symbol>> inputs, PartitioningScheme partitioningScheme)
+    {
+        if (sources.size() != 1) {
+            return Optional.empty();
+        }
+        List<Symbol> sourceOutputLayout = getOnlyElement(sources).getOutputSymbols();
+        List<Symbol> exchangeInputLayout = getOnlyElement(inputs);
+        if (sourceOutputLayout.equals(exchangeInputLayout)) {
+            // already aligned
+            return Optional.empty();
+        }
+        Set<Symbol> sourceOutputSymbolSet = ImmutableSet.copyOf(sourceOutputLayout);
+        Set<Symbol> exchangeInputSymbolSet = ImmutableSet.copyOf(exchangeInputLayout);
+        if (!sourceOutputSymbolSet.equals(exchangeInputSymbolSet) ||
+                sourceOutputSymbolSet.size() != sourceOutputLayout.size() ||
+                exchangeInputSymbolSet.size() != exchangeInputLayout.size()) {
+            // not all symbols are passed through or there are duplicates
+            return Optional.empty();
+        }
+        // reorder the exchange input layout to match the source output layout
+        List<Integer> exchangeOutputsExpectedOrder = sourceOutputLayout.stream()
+                .map(exchangeInputLayout::indexOf)
+                .collect(toImmutableList());
+        List<Symbol> reorderedExchangeOutputs = exchangeOutputsExpectedOrder.stream()
+                .map(partitioningScheme.getOutputLayout()::get)
+                .collect(toImmutableList());
+
+        return Optional.of(new PartitioningSchemeAndInputs(
+                new PartitioningScheme(
+                        partitioningScheme.getPartitioning(),
+                        reorderedExchangeOutputs,
+                        partitioningScheme.isReplicateNullsAndAny(),
+                        partitioningScheme.getBucketToPartition(),
+                        partitioningScheme.getBucketCount(),
+                        partitioningScheme.getPartitionCount()),
+                ImmutableList.of(sourceOutputLayout)));
+    }
+
+    private record PartitioningSchemeAndInputs(PartitioningScheme partitioningScheme, List<List<Symbol>> inputs)
+    {
+        private PartitioningSchemeAndInputs
+        {
+            requireNonNull(partitioningScheme, "partitioningScheme is null");
+            requireNonNull(inputs, "inputs is null");
+        }
     }
 
     public static ExchangeNode partitionedExchange(PlanNodeId id, Scope scope, PlanNode child, List<Symbol> partitioningColumns)
