@@ -13,11 +13,7 @@
  */
 package io.trino.plugin.warp.extension.execution.debugtools.releasenotes;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import io.airlift.json.ObjectMapperProvider;
-import io.airlift.log.Logger;
 import io.trino.plugin.warp.annotation.Audit;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
@@ -27,12 +23,9 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 
-import java.io.IOException;
-import java.net.URL;
 import java.util.List;
 
 import static io.trino.plugin.warp.extension.execution.debugtools.releasenotes.ReleaseNotesResource.RELEASE_NOTES_PATH;
-import static java.util.Objects.requireNonNull;
 
 @TaskResourceMarker(worker = false)
 //@Api(value = "Release Notes", tags = "Release notes")
@@ -43,14 +36,10 @@ public class ReleaseNotesResource
         implements TaskResource
 {
     public static final String RELEASE_NOTES_PATH = "release-notes";
-    private static final Logger logger = Logger.get(ReleaseNotesResource.class);
-
-    private final ObjectMapperProvider objectMapperProvider;
 
     @Inject
-    public ReleaseNotesResource(ObjectMapperProvider objectMapperProvider)
+    public ReleaseNotesResource()
     {
-        this.objectMapperProvider = requireNonNull(objectMapperProvider);
     }
 
     @Audit
@@ -58,20 +47,6 @@ public class ReleaseNotesResource
     //@ApiOperation(value = "release-notes", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "DEBUG"))})
     public List<ReleaseNoteVersionData> getReleaseNotes(ReleaseNotesRequestData requestData)
     {
-        URL resource = this.getClass().getClassLoader().getResource("release-notes.txt");
-        ObjectMapper om = objectMapperProvider.get();
-        List<ReleaseNoteVersionData> ret = null;
-        try {
-            List<ReleaseNoteVersionData> list = om.readValue(resource, new TypeReference<>() {});
-            ret = switch (requestData.type()) {
-                case LATEST -> List.of(list.get(0));
-                case ALL -> list;
-                default -> null;
-            };
-        }
-        catch (IOException e) {
-            logger.warn("failed to read release notes file.");
-        }
-        return ret;
+        return null;
     }
 }

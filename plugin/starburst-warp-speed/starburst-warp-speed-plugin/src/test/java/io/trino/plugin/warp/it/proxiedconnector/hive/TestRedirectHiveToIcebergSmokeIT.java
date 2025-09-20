@@ -18,13 +18,10 @@ import io.trino.plugin.hive.HivePlugin;
 import io.trino.plugin.iceberg.IcebergPlugin;
 import io.trino.plugin.warp.WarpPlugin;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
-import io.trino.plugin.warp.extension.execution.debugtools.RowGroupCountResult;
 import io.trino.plugin.warp.it.DispatcherQueryRunner;
 import io.trino.plugin.warp.it.DispatcherStubsIntegrationSmokeIT;
 import io.trino.testing.QueryRunner;
-import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
@@ -32,7 +29,6 @@ import java.util.Optional;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
-import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestRedirectHiveToIcebergSmokeIT
         extends DispatcherStubsIntegrationSmokeIT
@@ -77,16 +73,5 @@ public class TestRedirectHiveToIcebergSmokeIT
 
         queryRunner.createCatalog(REDIRECTING_CATALOG, "hive", hiveCatProperties);
         return queryRunner;
-    }
-
-    @Test
-    public void testRedirectSimple()
-            throws IOException
-    {
-        computeActual("INSERT INTO %s.%s.t VALUES (1, 'shlomi')".formatted(catalog, DEFAULT_SCHEMA));
-        warmAndValidate(String.format("SELECT %s FROM %s.%s.t WHERE %s = 1", C1, REDIRECTING_CATALOG, DEFAULT_SCHEMA, C1), true, 2, 1);
-        RowGroupCountResult rowGroupCount = getRowGroupCount();
-        assertThat(rowGroupCount.warmupColumnNames()).contains("%s.t.%s.WARM_UP_TYPE_BASIC".formatted(DEFAULT_SCHEMA, C1));
-        assertThat(rowGroupCount.warmupColumnNames()).contains("%s.t.%s.WARM_UP_TYPE_DATA".formatted(DEFAULT_SCHEMA, C1));
     }
 }

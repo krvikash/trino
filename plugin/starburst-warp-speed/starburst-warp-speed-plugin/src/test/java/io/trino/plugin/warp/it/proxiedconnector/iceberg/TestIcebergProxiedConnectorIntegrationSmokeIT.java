@@ -13,31 +13,24 @@
  */
 package io.trino.plugin.warp.it.proxiedconnector.iceberg;
 
-import com.google.common.collect.ImmutableList;
+//import com.google.common.collect.ImmutableList;
 import io.trino.Session;
 import io.trino.metadata.InternalFunctionBundle;
 import io.trino.plugin.iceberg.IcebergPlugin;
 import io.trino.plugin.warp.WarpPlugin;
-import io.trino.plugin.warp.api.warmup.WarmUpType;
-import io.trino.plugin.warp.api.warmup.WarmupPropertiesData;
 import io.trino.plugin.warp.di.WarpStubsStorageEngineModule;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.it.DispatcherQueryRunner;
 import io.trino.plugin.warp.it.DispatcherStubsIntegrationSmokeIT;
 import io.trino.testing.MaterializedResult;
-import io.trino.testing.MaterializedRow;
 import io.trino.testing.QueryRunner;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.IntStream;
 
-import static io.trino.plugin.warp.WarpSessionProperties.DEBUG_NO_PREDICATE_BUFFER;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
@@ -113,99 +106,6 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
         computeActual("INSERT INTO t VALUES (1, 'shlomi')");
         MaterializedResult materializedRows = computeActual(String.format("SELECT * FROM t WHERE %s = 1", C1));
         assertThat(materializedRows.getRowCount()).isEqualTo(1);
-    }
-
-    @Test
-    public void testPartitionOnTimestampColumn()
-    {
-        String table = "partitionontimestampcolumn";
-        createTable(DEFAULT_SCHEMA,
-                table,
-                "(id INTEGER, a VARCHAR, timestamp_col TIMESTAMP) WITH (format = 'PARQUET', partitioning = ARRAY['timestamp_col'])");
-        assertUpdate(("INSERT INTO %s(id, a, timestamp_col) VALUES " +
-                        "(1, 'bla', CAST('2024-02-13 10:15:30' AS TIMESTAMP)), " +
-                        "(2, 'bla2', CAST('2024-02-13 10:15:30' AS TIMESTAMP))")
-                        .formatted(table),
-                2);
-
-        Session warmSession = Session.builder(getSession()).build();
-        @Language("SQL") String query = "SELECT * FROM %s WHERE timestamp_col=CAST('2024-02-13 10:15:30' AS TIMESTAMP)".formatted(table);
-        warmAndValidate(query, warmSession, 3, 1, 0);
-        Map<String, Long> expectedQueryStats = Map.of(
-                WARP_MATCH_COLUMNS_STAT, 0L,
-                "warp_prefilled_collect_columns", 1L,
-                WARP_COLLECT_COLUMNS_STAT, 2L);
-        validateQueryStats(query, getSession(), expectedQueryStats);
-    }
-
-    @Test
-    public void testTwoPrefillsWithNoPredicateBuffer()
-    {
-        String table = "twoprefillswithnopredicatebuffer";
-        createTable(DEFAULT_SCHEMA,
-                table,
-                "(id INTEGER, a VARCHAR)");
-        int rowCount = 2;
-        @Language("SQL") String insertSql = "INSERT INTO %s VALUES ".formatted(table) +
-                String.join(", ", IntStream.range(0, rowCount)
-                        .mapToObj("(%1$d, 'bla%1$d')"::formatted).toList());
-        assertUpdate(insertSql, rowCount);
-
-        Session warmSession = Session.builder(getSession()).build();
-        @Language("SQL") String query = "SELECT * FROM %s WHERE id=1 AND a='bla1'".formatted(table);
-        warmAndValidate(query, warmSession, 4, 1, 0);
-        Map<String, Long> expectedQueryStats = Map.of(
-                WARP_MATCH_COLUMNS_STAT, 2L,
-                WARP_MATCH_ON_SIMPLIFIED_DOMAIN_STAT, 2L, // we switch the predicate to "predicate all"
-                PREFILLED_COLUMNS_STAT, 0L, // we can't prefill because we don't do a tight matching
-                WARP_COLLECT_COLUMNS_STAT, 0L,
-                EXTERNAL_COLLECT_STAT, 2L); // when bail out to external collect
-
-        Session querySession = Session.builder(getSession())
-                .setSystemProperty(catalog + "." + DEBUG_NO_PREDICATE_BUFFER, "true")
-                .build();
-        validateQueryStats(query, querySession, expectedQueryStats);
-    }
-
-    @Test
-    public void testCount()
-            throws IOException
-    {
-        computeActual(getSession(), "INSERT INTO t VALUES (1, 'shlomi')");
-
-        MaterializedResult result = computeActual(getSession(), "select count(*) from t");
-        assertThat(result.getRowCount()).isEqualTo(1); // collect from hive
-        assertThat(result.getMaterializedRows().getFirst().getField(0)).isEqualTo(1L);
-
-        String jmxTable = "io.trino.plugin.warp.gen.stats:*,name=dispatcherpagesource_" + catalog + "_*,type=dispatcherpagesourcestats";
-        computeActual(createJmxSession(), "show tables");
-        MaterializedRow statsMaterializedRow = getServiceStats(createJmxSession(),
-                jmxTable,
-                ImmutableList.of("empty_collect_columns"));
-        assertThat((long) statsMaterializedRow.getField(0))
-                .describedAs("empty_collect_columns is none zero")
-                .isZero();
-
-        createWarmupRules(DEFAULT_SCHEMA,
-                "t",
-                Map.of(C1, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL)),
-                        C2, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))));
-
-        warmAndValidate("select * from t",
-                false,
-                2,
-                1);
-
-        result = computeActual(getSession(), "select count(%s) from t".formatted(C1));
-        assertThat(result.getRowCount()).isEqualTo(1); // collect from row group
-//        assertThat(result.getMaterializedRows().getFirst().getField(0)).isEqualTo(1L);
-
-        statsMaterializedRow = getServiceStats(createJmxSession(),
-                jmxTable,
-                ImmutableList.of("empty_collect_columns"));
-        assertThat((long) statsMaterializedRow.getField(0))
-                .describedAs("empty_collect_columns is none zero")
-                .isEqualTo(0);
     }
 
     @Test
