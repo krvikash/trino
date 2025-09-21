@@ -58,4 +58,25 @@ public final class VByteUtils
         sliceInput.read(vByteEncodedValues);
         VByteDecoder.decodeInts(vByteEncodedValues, 0, vByteEncodedValues.length, valuesCount, values, valuesOffset);
     }
+
+    public static int estimateEncodedIntsSizeInBytes(int length, int maxValueWidth)
+    {
+        // Follows the StreamVByte format and alternative encoding specifications:
+        // https://github.com/fast-pack/streamvbyte?tab=readme-ov-file#format-specification
+        // https://github.com/fast-pack/streamvbyte?tab=readme-ov-file#alternative-encoding
+        int controlBytes = (length + 3) / 4;
+        int byteCountPerValue;
+        if (maxValueWidth == 0) {
+            byteCountPerValue = 0;
+        }
+        else if (maxValueWidth > 16) {
+            byteCountPerValue = 4;
+        }
+        else {
+            byteCountPerValue = (maxValueWidth + 7) / 8;
+        }
+        long dataBytes = (long) length * byteCountPerValue;
+        long estimatedSize = (long) controlBytes + dataBytes + Integer.BYTES; // +4 for the encoded size
+        return (int) Math.min(estimatedSize, Integer.MAX_VALUE);
+    }
 }

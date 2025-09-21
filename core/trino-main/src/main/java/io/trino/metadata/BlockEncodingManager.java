@@ -20,7 +20,7 @@ import io.airlift.log.Logger;
 import io.starburst.vbyte.VByteNative;
 import io.trino.FeaturesConfig;
 import io.trino.block.DictionaryVByteBlockEncoding;
-import io.trino.block.IntArrayVByteBlockEncoding;
+import io.trino.block.IntArrayAdaptiveBlockEncoding;
 import io.trino.block.LongArrayVByteBlockEncoding;
 import io.trino.block.VariableWidthVByteBlockEncoding;
 import io.trino.spi.block.ArrayBlockEncoding;
@@ -48,8 +48,6 @@ import java.util.function.Predicate;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.spi.type.BigintType.BIGINT;
-import static io.trino.spi.type.DateType.DATE;
-import static io.trino.spi.type.IntegerType.INTEGER;
 import static java.util.Objects.requireNonNull;
 
 public final class BlockEncodingManager
@@ -71,7 +69,6 @@ public final class BlockEncodingManager
         // add the built-in BlockEncodings
         addBlockEncoding(new ByteArrayBlockEncoding());
         addBlockEncoding(new ShortArrayBlockEncoding());
-        addBlockEncoding(new IntArrayBlockEncoding());
         addBlockEncoding(new LongArrayBlockEncoding());
         addBlockEncoding(new Fixed12BlockEncoding());
         addBlockEncoding(new Int128ArrayBlockEncoding());
@@ -80,18 +77,26 @@ public final class BlockEncodingManager
         addBlockEncoding(new RowBlockEncoding());
         addBlockEncoding(new RunLengthBlockEncoding());
 
-        if (config.isExchangeVbyteBlockEncodingEnabled() && VByteNative.getLinkageError().isPresent()) {
-            log.warn(VByteNative.getLinkageError().orElseThrow(), "VByte block encoding disabled because of linkage error");
+        boolean vByteEncodingEnabled = false;
+        if (config.isExchangeVbyteBlockEncodingEnabled()) {
+            if (VByteNative.getLinkageError().isPresent()) {
+                log.warn(VByteNative.getLinkageError().orElseThrow(), "VByte block encoding disabled because of linkage error");
+            }
+            else {
+                vByteEncodingEnabled = true;
+            }
         }
-
-        if (config.isExchangeVbyteBlockEncodingEnabled() && VByteNative.getLinkageError().isEmpty()) {
+        if (config.isExchangeAdaptiveBlockEncodingEnabled()) {
+            addBlockEncoding(new IntArrayAdaptiveBlockEncoding(vByteEncodingEnabled));
+        }
+        else {
+            addBlockEncoding(new IntArrayBlockEncoding());
+        }
+        if (vByteEncodingEnabled) {
             addTypeSpecificBlockEncodingOverride(new LongArrayVByteBlockEncoding(),
                     type -> type.equals(BIGINT)
                             || (type instanceof DecimalType decimalType && decimalType.isShort()));
 
-            addTypeSpecificBlockEncodingOverride(new IntArrayVByteBlockEncoding(),
-                    type -> type.equals(INTEGER)
-                            || type.equals(DATE));
             addBlockEncoding(new DictionaryVByteBlockEncoding());
             addBlockEncoding(new VariableWidthVByteBlockEncoding());
         }

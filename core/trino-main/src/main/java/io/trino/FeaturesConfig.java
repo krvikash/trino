@@ -95,6 +95,7 @@ public class FeaturesConfig
      */
     private CompressionCodec exchangeCompressionCodec = LZ4;
     private boolean exchangeVbyteBlockEncodingEnabled = true;
+    private boolean exchangeAdaptiveBlockEncodingEnabled = true;
     private boolean pagesIndexEagerCompactionEnabled;
     private boolean omitDateTimeTypePrecision;
     private int maxRecursionDepth = 10;
@@ -396,6 +397,19 @@ public class FeaturesConfig
     public FeaturesConfig setExchangeVbyteBlockEncodingEnabled(boolean exchangeVbyteBlockEncodingEnabled)
     {
         this.exchangeVbyteBlockEncodingEnabled = exchangeVbyteBlockEncodingEnabled;
+        return this;
+    }
+
+    public boolean isExchangeAdaptiveBlockEncodingEnabled()
+    {
+        return exchangeAdaptiveBlockEncodingEnabled;
+    }
+
+    @Config("exchange.adaptive-block-encoding-enabled")
+    @ConfigDescription("Enable adaptive block encoding for relevant types")
+    public FeaturesConfig setExchangeAdaptiveBlockEncodingEnabled(boolean exchangeAdaptiveBlockEncodingEnabled)
+    {
+        this.exchangeAdaptiveBlockEncodingEnabled = exchangeAdaptiveBlockEncodingEnabled;
         return this;
     }
 
