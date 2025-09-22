@@ -75,7 +75,10 @@ execution on a Trino cluster:
   - List of retry policies that are allowed to be configured for a cluster.
     This property is used to prevent a user from configuring a retry policy that
     is not meant to be used on the given cluster.
-  - `NONE`, `QUERY`, `TASK` 
+  - `NONE`, `QUERY`, `TASK`
+* - `allow-exchange-in-query-retries`
+  - Can exchange manager be used for query retries if retry-policy is set to QUERY.
+  - `true`
 * - `exchange.deduplication-buffer-size`
   - [Data size](prop-type-data-size) of the coordinator's in-memory buffer used
     by fault-tolerant execution to store output of query
