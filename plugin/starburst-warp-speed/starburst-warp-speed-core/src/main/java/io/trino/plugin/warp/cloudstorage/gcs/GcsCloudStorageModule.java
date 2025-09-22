@@ -21,15 +21,16 @@ import com.google.inject.Singleton;
 import io.airlift.configuration.ConfigurationFactory;
 import io.trino.filesystem.gcs.GcsAccessTokenAuth;
 import io.trino.filesystem.gcs.GcsAuth;
-import io.trino.filesystem.gcs.GcsDefaultAuth;
 import io.trino.filesystem.gcs.GcsFileSystemConfig;
 import io.trino.filesystem.gcs.GcsFileSystemFactory;
+import io.trino.filesystem.gcs.GcsServiceAccountAuth;
 import io.trino.filesystem.gcs.GcsStorageFactory;
 import io.trino.spi.security.ConnectorIdentity;
 
 import java.lang.annotation.Annotation;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.trino.filesystem.gcs.GcsFileSystemConfig.AuthType.ACCESS_TOKEN;
 import static java.util.Objects.requireNonNull;
 
 public class GcsCloudStorageModule
@@ -55,11 +56,11 @@ public class GcsCloudStorageModule
         binder.bind(GcsFileSystemFactory.class);
 
         GcsFileSystemConfig config = configFactory.build(GcsFileSystemConfig.class);
-        if (config.isUseGcsAccessToken()) {
+        if (config.getAuthType() == ACCESS_TOKEN) {
             binder.bind(GcsAuth.class).to(GcsAccessTokenAuth.class).in(Scopes.SINGLETON);
         }
         else {
-            binder.bind(GcsAuth.class).to(GcsDefaultAuth.class).in(Scopes.SINGLETON);
+            binder.bind(GcsAuth.class).to(GcsServiceAccountAuth.class).in(Scopes.SINGLETON);
         }
 
         binder.bind(GcsCloudStorage.class).annotatedWith(annotation).to(GcsCloudStorage.class);

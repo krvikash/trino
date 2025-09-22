@@ -40,9 +40,9 @@ import io.trino.filesystem.cache.DefaultCachingHostAddressProvider;
 import io.trino.filesystem.cache.TrinoFileSystemCache;
 import io.trino.filesystem.gcs.GcsAccessTokenAuth;
 import io.trino.filesystem.gcs.GcsAuth;
-import io.trino.filesystem.gcs.GcsDefaultAuth;
 import io.trino.filesystem.gcs.GcsFileSystemConfig;
 import io.trino.filesystem.gcs.GcsFileSystemFactory;
+import io.trino.filesystem.gcs.GcsServiceAccountAuth;
 import io.trino.filesystem.gcs.GcsStorageFactory;
 import io.trino.filesystem.memory.MemoryFileSystemCache;
 import io.trino.filesystem.s3.S3FileSystemConfig;
@@ -68,6 +68,7 @@ import static com.google.common.collect.MoreCollectors.toOptional;
 import static com.google.inject.multibindings.MapBinder.newMapBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static com.starburstdata.trino.plugin.functions.io.StorageErrorCode.STORAGE_CLIENT_ERROR;
+import static io.trino.filesystem.gcs.GcsFileSystemConfig.AuthType.ACCESS_TOKEN;
 import static io.trino.plugin.base.util.JsonUtils.parseJson;
 import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
 import static java.util.Objects.requireNonNull;
@@ -175,7 +176,7 @@ public class ResolvingFileSystemModule
             case "gs" -> {
                 GcsFileSystemConfig config = configFactory.build(GcsFileSystemConfig.class);
                 try {
-                    GcsAuth gcsAuth = config.isUseGcsAccessToken() ? new GcsAccessTokenAuth() : new GcsDefaultAuth(config);
+                    GcsAuth gcsAuth = config.getAuthType() == ACCESS_TOKEN ? new GcsAccessTokenAuth() : new GcsServiceAccountAuth(config);
                     GcsStorageFactory storageFactory = new GcsStorageFactory(config, gcsAuth);
                     yield new GcsFileSystemFactory(config, storageFactory);
                 }
