@@ -130,6 +130,8 @@ public class StaticPromptDao
             Labels: %s
             Replace the values with the text "[MASKED]".
             Never replace the labels with "[MASKED]", only replace the values.
+            Keep all other text exactly the same, including spaces and punctuation.
+            Do not truncate or modify any part of the original text structure.
             Output only the masked text.
             Do not output anything else.
             =====
