@@ -30,7 +30,8 @@ public class TestRedshiftConfig
         assertRecordedDefaults(recordDefaults(RedshiftConfig.class)
                 .setFetchSize(null)
                 .setUnloadLocation(null)
-                .setUnloadIamRole(null));
+                .setUnloadIamRole(null)
+                .setVarcharPushdownEnabled(false));
     }
 
     @Test
@@ -40,12 +41,14 @@ public class TestRedshiftConfig
                 .put("redshift.fetch-size", "2000")
                 .put("redshift.unload-location", "s3://bucket")
                 .put("redshift.unload-iam-role", "arn:aws:iam::123456789000:role/redshift_iam_role")
+                .put("redshift.unsafe.varchar-pushdown.enabled", "true")
                 .buildOrThrow();
 
         RedshiftConfig expected = new RedshiftConfig()
                 .setFetchSize(2000)
                 .setUnloadLocation("s3://bucket")
-                .setUnloadIamRole("arn:aws:iam::123456789000:role/redshift_iam_role");
+                .setUnloadIamRole("arn:aws:iam::123456789000:role/redshift_iam_role")
+                .setVarcharPushdownEnabled(true);
 
         assertFullMapping(properties, expected);
     }

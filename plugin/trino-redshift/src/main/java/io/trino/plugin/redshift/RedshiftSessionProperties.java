@@ -29,6 +29,7 @@ public class RedshiftSessionProperties
         implements SessionPropertiesProvider
 {
     private static final String UNLOAD_ENABLED = "unload_enabled";
+    private static final String UNSAFE_VARCHAR_PUSHDOWN_ENABLED = "unsafe_varchar_pushdown_enabled";
 
     private final List<PropertyMetadata<?>> sessionProperties;
 
@@ -46,6 +47,11 @@ public class RedshiftSessionProperties
                             }
                         },
                         false))
+                .add(booleanProperty(
+                        UNSAFE_VARCHAR_PUSHDOWN_ENABLED,
+                        "Enable pushdown of VARCHAR predicates to Redshift. This may improve performance, but can cause incorrect results in case of trailing spaces",
+                        config.isVarcharPushdownEnabled(),
+                        false))
                 .build();
     }
 
@@ -58,5 +64,10 @@ public class RedshiftSessionProperties
     public static boolean isUnloadEnabled(ConnectorSession session)
     {
         return session.getProperty(UNLOAD_ENABLED, Boolean.class);
+    }
+
+    public static boolean isVarcharPushdownEnabled(ConnectorSession session)
+    {
+        return session.getProperty(UNSAFE_VARCHAR_PUSHDOWN_ENABLED, Boolean.class);
     }
 }

@@ -30,6 +30,7 @@ public class RedshiftConfig
     private Integer fetchSize;
     private String unloadLocation;
     private String unloadIamRole;
+    private boolean varcharPushdownEnabled;
 
     public Optional<@Min(0) Integer> getFetchSize()
     {
@@ -67,6 +68,19 @@ public class RedshiftConfig
     public RedshiftConfig setUnloadIamRole(String unloadIamRole)
     {
         this.unloadIamRole = unloadIamRole;
+        return this;
+    }
+
+    public boolean isVarcharPushdownEnabled()
+    {
+        return varcharPushdownEnabled;
+    }
+
+    @Config("redshift.unsafe.varchar-pushdown.enabled")
+    @ConfigDescription("Enable pushdown of VARCHAR predicates to Redshift. This may improve performance, but can cause incorrect results in case of trailing spaces")
+    public RedshiftConfig setVarcharPushdownEnabled(boolean varcharPushdownEnabled)
+    {
+        this.varcharPushdownEnabled = varcharPushdownEnabled;
         return this;
     }
 }

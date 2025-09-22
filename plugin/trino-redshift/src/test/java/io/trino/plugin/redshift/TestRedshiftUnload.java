@@ -62,6 +62,7 @@ final class TestRedshiftUnload
         return RedshiftQueryRunner.builder()
                 .setConnectorProperties(
                         Map.of(
+                                "redshift.unsafe.varchar-pushdown.enabled", "true",
                                 "redshift.unload-location", S3_UNLOAD_ROOT,
                                 "redshift.unload-iam-role", IAM_ROLE,
                                 "s3.region", AWS_REGION,

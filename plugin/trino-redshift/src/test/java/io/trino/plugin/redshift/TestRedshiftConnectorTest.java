@@ -14,6 +14,7 @@
 package io.trino.plugin.redshift;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
@@ -84,6 +85,7 @@ public class TestRedshiftConnectorTest
             throws Exception
     {
         return RedshiftQueryRunner.builder()
+                .setConnectorProperties(ImmutableMap.of("redshift.unsafe.varchar-pushdown.enabled", "true"))
                 // NOTE this can cause tests to time-out if larger tables like
                 //  lineitem and orders need to be re-created.
                 .setInitialTables(REQUIRED_TPCH_TABLES)
@@ -800,6 +802,43 @@ public class TestRedshiftConnectorTest
             assertThat(query("SELECT id FROM " + table.getName() + " WHERE data LIKE 'ABC  %'"))
                     .matches("VALUES 1, 2, 3")
                     .isFullyPushedDown();
+        }
+    }
+
+    @Test
+    public void testVarcharPredicatePushdownWithSpaces()
+    {
+        Session withoutPushdown = Session.builder(getSession())
+                .setSystemProperty("allow_pushdown_into_connectors", "false")
+                .build();
+
+        Session withVarcharPushdown = Session.builder(getSession())
+                .setCatalogSessionProperty("redshift", "unsafe_varchar_pushdown_enabled", "true")
+                .build();
+
+        Session withoutVarcharPushdown = Session.builder(getSession())
+                .setCatalogSessionProperty("redshift", "unsafe_varchar_pushdown_enabled", "false")
+                .build();
+
+        try (TestTable table = newTrinoTable(
+                "test",
+                "(id integer, data varchar(5))",
+                List.of("1, 'ABC'", "2, 'ABC '"))) {
+            // Redshfit ignores trailing spaces during comparison and equal operations,
+            // but Trino not
+            assertThat(query(withVarcharPushdown, "SELECT id FROM " + table.getName() + " WHERE data LIKE 'ABC'"))
+                    .matches("VALUES 1, 2");
+            assertThat(query(withoutVarcharPushdown, "SELECT id FROM " + table.getName() + " WHERE data LIKE 'ABC'"))
+                    .matches("VALUES 1");
+            assertThat(query(withoutPushdown, "SELECT id FROM " + table.getName() + " WHERE data LIKE 'ABC'"))
+                    .matches("VALUES 1");
+
+            assertThat(query(withVarcharPushdown, "SELECT id FROM " + table.getName() + " WHERE data = 'ABC'"))
+                    .matches("VALUES 1, 2");
+            assertThat(query(withoutVarcharPushdown, "SELECT id FROM " + table.getName() + " WHERE data = 'ABC'"))
+                    .matches("VALUES 1");
+            assertThat(query(withoutPushdown, "SELECT id FROM " + table.getName() + " WHERE data = 'ABC'"))
+                    .matches("VALUES 1");
         }
     }
 

@@ -117,6 +117,7 @@ import static com.google.common.base.Verify.verify;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_NON_TRANSIENT_ERROR;
 import static io.trino.plugin.jdbc.JdbcJoinPushdownUtil.implementJoinCostAware;
+import static io.trino.plugin.jdbc.PredicatePushdownController.DISABLE_PUSHDOWN;
 import static io.trino.plugin.jdbc.PredicatePushdownController.pushdownDiscreteValues;
 import static io.trino.plugin.jdbc.StandardColumnMappings.bigintWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.booleanColumnMapping;
@@ -135,10 +136,12 @@ import static io.trino.plugin.jdbc.StandardColumnMappings.smallintWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.tinyintWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.varbinaryReadFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.varcharColumnMapping;
+import static io.trino.plugin.jdbc.StandardColumnMappings.varcharReadFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.varcharWriteFunction;
 import static io.trino.plugin.jdbc.TypeHandlingJdbcSessionProperties.getUnsupportedTypeHandling;
 import static io.trino.plugin.jdbc.UnsupportedTypeHandling.CONVERT_TO_VARCHAR;
 import static io.trino.plugin.redshift.RedshiftErrorCode.REDSHIFT_INVALID_TYPE;
+import static io.trino.plugin.redshift.RedshiftSessionProperties.isVarcharPushdownEnabled;
 import static io.trino.spi.StandardErrorCode.INVALID_ARGUMENTS;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -689,7 +692,8 @@ public class RedshiftClient
                     throw new TrinoException(REDSHIFT_INVALID_TYPE, "column size not present");
                 }
                 int length = type.requiredColumnSize();
-                return Optional.of(varcharColumnMapping(
+                return Optional.of(redshiftVarcharColumnMapping(
+                        session,
                         length < VarcharType.MAX_LENGTH
                                 ? createVarcharType(length)
                                 : createUnboundedVarcharType(),
@@ -1025,5 +1029,13 @@ public class RedshiftClient
     private static SliceWriteFunction varbinaryWriteFunction()
     {
         return (statement, index, value) -> statement.unwrap(RedshiftPreparedStatement.class).setVarbyte(index, value.getBytes());
+    }
+
+    private static ColumnMapping redshiftVarcharColumnMapping(ConnectorSession session, VarcharType varcharType, boolean isRemoteCaseSensitive)
+    {
+        if (isVarcharPushdownEnabled(session)) {
+            return varcharColumnMapping(varcharType, isRemoteCaseSensitive);
+        }
+        return ColumnMapping.sliceMapping(varcharType, varcharReadFunction(varcharType), varcharWriteFunction(), DISABLE_PUSHDOWN);
     }
 }
