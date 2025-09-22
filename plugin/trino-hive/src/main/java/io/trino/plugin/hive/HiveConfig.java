@@ -95,6 +95,7 @@ public class HiveConfig
     private HiveStorageFormat hiveStorageFormat = HiveStorageFormat.ORC;
     private HiveCompressionOption hiveCompressionCodec = HiveCompressionOption.GZIP;
     private boolean respectTableFormat = true;
+    private boolean textRangeReadsEnable = true;
     private boolean immutablePartitions;
     private Optional<InsertExistingPartitionsBehavior> insertExistingPartitionsBehavior = Optional.empty();
     private boolean createEmptyBucketFiles;
@@ -531,6 +532,19 @@ public class HiveConfig
     public HiveConfig setRespectTableFormat(boolean respectTableFormat)
     {
         this.respectTableFormat = respectTableFormat;
+        return this;
+    }
+
+    public boolean isTextRangeReadsEnable()
+    {
+        return textRangeReadsEnable;
+    }
+
+    @Config("hive.text.range-reads-enabled")
+    @ConfigDescription("Use range read filesystem APIs to read from text files")
+    public HiveConfig setTextRangeReadsEnable(boolean textRangeReadsEnable)
+    {
+        this.textRangeReadsEnable = textRangeReadsEnable;
         return this;
     }
 

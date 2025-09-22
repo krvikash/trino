@@ -14,6 +14,8 @@
 package io.trino.plugin.hive.s3;
 
 import com.google.common.collect.ImmutableMap;
+import io.trino.Session;
+import io.trino.execution.buffer.CompressionCodec;
 import io.trino.plugin.hive.containers.Hive3MinioDataLake;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
@@ -126,5 +128,56 @@ public class TestHiveS3MinioQueries
         assertUpdate("INSERT INTO " + tableName + " VALUES " + values, 12);
         assertQuery("SELECT * FROM " + tableName, "VALUES " + values);
         assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
+    public void testQueryCsvTableWithSplitSmallerThanFile()
+    {
+        String hiveCatalogName = getSession().getCatalog().orElseThrow();
+        Session session = Session.builder(getSession())
+                .setCatalogSessionProperty(hiveCatalogName, "compression_codec", CompressionCodec.NONE.name())
+                .setCatalogSessionProperty(hiveCatalogName, "max_initial_split_size", "128kB")
+                .setCatalogSessionProperty(hiveCatalogName, "max_split_size", "1MB")
+                .build();
+        assertUpdate(
+                session,
+                """
+                        CREATE TABLE csv_table
+                        WITH (FORMAT='CSV')
+                        AS SELECT
+                               CAST(orderkey AS VARCHAR) orderkey,
+                               CAST(partkey AS VARCHAR) partkey,
+                               CAST(suppkey AS VARCHAR) suppkey,
+                               CAST(linenumber AS VARCHAR) linenumber,
+                               CAST(format('%.1f', quantity) AS VARCHAR) quantity,
+                               CAST(format('%.2f', extendedprice) AS VARCHAR) extendedprice,
+                               CAST(format('%.2f', discount) AS VARCHAR) discount,
+                               CAST(format('%.2f', tax) AS VARCHAR) tax,
+                               CAST(returnflag AS VARCHAR) returnflag,
+                               CAST(linestatus AS VARCHAR) linestatus,
+                               CAST(shipinstruct AS VARCHAR) shipinstruct,
+                               CAST(shipmode AS VARCHAR) shipmode,
+                               CAST(comment AS VARCHAR) comment
+                           FROM tpch.tiny.lineitem
+                        """,
+                60175);
+
+        assertQuery(session, "SELECT * FROM csv_table ORDER BY orderkey, linenumber", """
+                SELECT
+                    CAST(orderkey AS VARCHAR) orderkey,
+                                               CAST(partkey AS VARCHAR) partkey,
+                                               CAST(suppkey AS VARCHAR) suppkey,
+                                               CAST(linenumber AS VARCHAR) linenumber,
+                                               CAST(quantity AS VARCHAR) quantity,
+                                               trim(TO_CHAR(extendedprice, '999990D00')) extendedprice,
+                                               trim(TO_CHAR(discount, '9990D00')) discount,
+                                               trim(TO_CHAR(tax, '9990D00')) tax,
+                                               CAST(returnflag AS VARCHAR) returnflag,
+                                               CAST(linestatus AS VARCHAR) linestatus,
+                                               CAST(shipinstruct AS VARCHAR) shipinstruct,
+                                               CAST(shipmode AS VARCHAR) shipmode,
+                                               CAST(comment AS VARCHAR) comment
+                    FROM lineitem
+                    ORDER BY orderkey, linenumber""");
     }
 }

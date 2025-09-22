@@ -58,7 +58,8 @@ public class SequenceFileReaderFactory
             long start,
             long length,
             int headerCount,
-            int footerCount)
+            int footerCount,
+            boolean rangeReadsEnabled)
             throws IOException
     {
         LineReader lineReader = new SequenceFileReader(inputFile, start, length);
@@ -79,7 +80,7 @@ public class SequenceFileReaderFactory
     }
 
     @Override
-    public TrinoInputFile newInputFile(TrinoFileSystem trinoFileSystem, Location path, long estimatedFileSize, long fileModifiedTime)
+    public TrinoInputFile newInputFile(TrinoFileSystem trinoFileSystem, Location path, long estimatedFileSize, long fileModifiedTime, boolean rangeReadsEnabled)
     {
         // estimatedFileSize contains padded bytes
         // The reads in SequenceFileReader rely on non-padded file length to detect end of file

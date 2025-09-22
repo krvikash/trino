@@ -30,6 +30,7 @@ import java.io.InputStream;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.LongSupplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.hive.formats.HiveClassNames.SYMLINK_TEXT_INPUT_FORMAT_CLASS;
@@ -67,20 +68,31 @@ public class TextLineReaderFactory
             long start,
             long length,
             int headerCount,
-            int footerCount)
+            int footerCount,
+            boolean rangeReadsEnabled)
             throws IOException
     {
-        InputStream inputStream = inputFile.newStream();
+        InputStream inputStream;
+        LongSupplier inputStreamRetainedSize;
+        if (rangeReadsEnabled) {
+            ChunkedInputStream chunkedInputStream = new ChunkedInputStream(inputFile.newInput(), inputFile.length());
+            inputStream = chunkedInputStream;
+            inputStreamRetainedSize = chunkedInputStream::getRetainedSize;
+        }
+        else {
+            inputStream = inputFile.newStream();
+            inputStreamRetainedSize = () -> 0;
+        }
         try {
             Optional<Codec> codec = CompressionKind.forFile(inputFile.location().fileName())
                     .map(CompressionKind::createCodec);
             LineReader lineReader;
             if (codec.isPresent()) {
                 checkArgument(start == 0, "Compressed files are not splittable");
-                lineReader = TextLineReader.createCompressedReader(inputStream, fileBufferSize, codec.get());
+                lineReader = TextLineReader.createCompressedReader(inputStream, inputStreamRetainedSize, fileBufferSize, codec.get());
             }
             else {
-                lineReader = TextLineReader.createUncompressedReader(inputStream, fileBufferSize, start, length);
+                lineReader = TextLineReader.createUncompressedReader(inputStream, inputStreamRetainedSize, fileBufferSize, start, length);
             }
 
             if (headerCount > 0) {
@@ -105,9 +117,10 @@ public class TextLineReaderFactory
     }
 
     @Override
-    public TrinoInputFile newInputFile(TrinoFileSystem trinoFileSystem, Location path, long estimatedFileSize, long fileModifiedTime)
+    public TrinoInputFile newInputFile(TrinoFileSystem trinoFileSystem, Location path, long estimatedFileSize, long fileModifiedTime, boolean rangeReadsEnabled)
     {
-        return trinoFileSystem.newInputFile(path, estimatedFileSize, Instant.ofEpochMilli(fileModifiedTime));
+        // ChunkedInputStream needs a precise file length not estimated
+        return rangeReadsEnabled ? trinoFileSystem.newInputFile(path) : trinoFileSystem.newInputFile(path, estimatedFileSize, Instant.ofEpochMilli(fileModifiedTime));
     }
 
     private void skipHeader(LineReader lineReader, int headerCount)

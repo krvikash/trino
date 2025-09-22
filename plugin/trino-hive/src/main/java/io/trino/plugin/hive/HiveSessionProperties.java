@@ -86,6 +86,7 @@ public final class HiveSessionProperties
     private static final String ORC_OPTIMIZED_WRITER_MAX_STRIPE_ROWS = "orc_optimized_writer_max_stripe_rows";
     private static final String ORC_OPTIMIZED_WRITER_MAX_DICTIONARY_MEMORY = "orc_optimized_writer_max_dictionary_memory";
     private static final String ORC_USE_COLUMN_NAME = "orc_use_column_names";
+    private static final String TEXT_RANGE_READS_ENABLED = "chunked_line_reader_enabled";
     private static final String HIVE_STORAGE_FORMAT = "hive_storage_format";
     private static final String COMPRESSION_CODEC = "compression_codec";
     private static final String RESPECT_TABLE_FORMAT = "respect_table_format";
@@ -295,6 +296,11 @@ public final class HiveSessionProperties
                         ORC_USE_COLUMN_NAME,
                         "ORC: Access ORC columns using names from the file",
                         orcReaderConfig.isUseColumnNames(),
+                        false),
+                booleanProperty(
+                        TEXT_RANGE_READS_ENABLED,
+                        "Use range read filesystem APIs to read from text files",
+                        hiveConfig.isTextRangeReadsEnable(),
                         false),
                 enumProperty(
                         HIVE_STORAGE_FORMAT,
@@ -692,6 +698,11 @@ public final class HiveSessionProperties
     public static boolean isUseOrcColumnNames(ConnectorSession session)
     {
         return session.getProperty(ORC_USE_COLUMN_NAME, Boolean.class);
+    }
+
+    public static boolean isTextRangeReadsEnable(ConnectorSession session)
+    {
+        return session.getProperty(TEXT_RANGE_READS_ENABLED, Boolean.class);
     }
 
     public static HiveStorageFormat getHiveStorageFormat(ConnectorSession session)

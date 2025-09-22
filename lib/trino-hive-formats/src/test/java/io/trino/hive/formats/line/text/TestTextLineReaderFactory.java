@@ -44,20 +44,20 @@ public class TestTextLineReaderFactory
         TextLineReaderFactory readerFactory = new TextLineReaderFactory(1024, 1024, 8096);
         TrinoInputFile file = new MemoryInputFile(Location.of("memory:///test"), utf8Slice("header\ndata"));
 
-        assertThatThrownBy(() -> readerFactory.createLineReader(file, 1, 7, 2, 0))
+        assertThatThrownBy(() -> readerFactory.createLineReader(file, 1, 7, 2, 0, true))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageMatching("file cannot be split.* header.*");
 
-        assertThatThrownBy(() -> readerFactory.createLineReader(file, 1, 7, 0, 1))
+        assertThatThrownBy(() -> readerFactory.createLineReader(file, 1, 7, 0, 1, true))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageMatching("file cannot be split.* footer.*");
 
         // single header allowed in split file
         LineBuffer lineBuffer = new LineBuffer(1, 20);
-        LineReader lineReader = readerFactory.createLineReader(file, 0, 2, 1, 0);
+        LineReader lineReader = readerFactory.createLineReader(file, 0, 2, 1, 0, true);
         assertThat(lineReader.readLine(lineBuffer)).isFalse();
 
-        lineReader = readerFactory.createLineReader(file, 2, file.length() - 2, 1, 0);
+        lineReader = readerFactory.createLineReader(file, 2, file.length() - 2, 1, 0, true);
         assertThat(lineReader.readLine(lineBuffer)).isTrue();
         assertThat(new String(lineBuffer.getBuffer(), 0, lineBuffer.getLength(), StandardCharsets.UTF_8)).isEqualTo("data");
     }

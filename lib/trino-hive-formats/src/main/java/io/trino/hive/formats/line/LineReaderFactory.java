@@ -31,12 +31,14 @@ public interface LineReaderFactory
             long start,
             long length,
             int headerCount,
-            int footerCount)
+            int footerCount,
+            boolean rangeReadsEnabled)
             throws IOException;
 
     TrinoInputFile newInputFile(
             TrinoFileSystem trinoFileSystem,
             Location path,
             long estimatedFileSize,
-            long fileModifiedTime);
+            long fileModifiedTime,
+            boolean rangeReadsEnabled);
 }

@@ -50,17 +50,17 @@ public class TestSequenceFileWriterFactory
         TrinoInputFile file = new MemoryInputFile(Location.of("memory:///test"), wrappedBuffer(out.toByteArray()));
 
         SequenceFileReaderFactory readerFactory = new SequenceFileReaderFactory(1024, 8096);
-        assertThatThrownBy(() -> readerFactory.createLineReader(file, 1, 7, 2, 0))
+        assertThatThrownBy(() -> readerFactory.createLineReader(file, 1, 7, 2, 0, true))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageMatching("file cannot be split.* header.*");
 
-        assertThatThrownBy(() -> readerFactory.createLineReader(file, 1, 7, 0, 1))
+        assertThatThrownBy(() -> readerFactory.createLineReader(file, 1, 7, 0, 1, true))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageMatching("file cannot be split.* footer.*");
 
         // single header allowed in split file
         LineBuffer lineBuffer = new LineBuffer(1, 20);
-        LineReader lineReader = readerFactory.createLineReader(file, 0, 2, 1, 0);
+        LineReader lineReader = readerFactory.createLineReader(file, 0, 2, 1, 0, true);
         int count = 0;
         while (lineReader.readLine(lineBuffer)) {
             assertThat(new String(lineBuffer.getBuffer(), 0, lineBuffer.getLength(), StandardCharsets.UTF_8)).isEqualTo("data " + count);
@@ -70,7 +70,7 @@ public class TestSequenceFileWriterFactory
         // The exact number of lines is not important, but it should be more than 1.
         assertThat(count).isEqualTo(487);
 
-        lineReader = readerFactory.createLineReader(file, 2, file.length() - 2, 1, 0);
+        lineReader = readerFactory.createLineReader(file, 2, file.length() - 2, 1, 0, true);
         while (lineReader.readLine(lineBuffer)) {
             assertThat(new String(lineBuffer.getBuffer(), 0, lineBuffer.getLength(), StandardCharsets.UTF_8)).isEqualTo("data " + count);
             count++;

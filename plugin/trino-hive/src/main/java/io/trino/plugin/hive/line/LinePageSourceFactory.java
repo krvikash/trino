@@ -48,6 +48,7 @@ import static io.trino.hive.formats.line.LineDeserializer.EMPTY_LINE_DESERIALIZE
 import static io.trino.hive.thrift.metastore.hive_metastoreConstants.FILE_INPUT_FORMAT;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_CANNOT_OPEN_SPLIT;
 import static io.trino.plugin.hive.HivePageSourceProvider.projectColumnDereferences;
+import static io.trino.plugin.hive.HiveSessionProperties.isTextRangeReadsEnable;
 import static io.trino.plugin.hive.util.HiveUtil.getFooterCount;
 import static io.trino.plugin.hive.util.HiveUtil.getHeaderCount;
 import static io.trino.plugin.hive.util.HiveUtil.splitError;
@@ -130,7 +131,8 @@ public abstract class LinePageSourceFactory
         }
 
         TrinoFileSystem trinoFileSystem = fileSystemFactory.create(session);
-        TrinoInputFile inputFile = lineReaderFactory.newInputFile(trinoFileSystem, path, estimatedFileSize, fileModifiedTime);
+        boolean rangeReadsEnabled = isTextRangeReadsEnable(session);
+        TrinoInputFile inputFile = lineReaderFactory.newInputFile(trinoFileSystem, path, estimatedFileSize, fileModifiedTime, rangeReadsEnabled);
         try {
             // buffer file if small
             long smallFileReadTimeNanos = 0;
@@ -149,7 +151,7 @@ public abstract class LinePageSourceFactory
                 return new EmptyPageSource();
             }
 
-            LineReader lineReader = lineReaderFactory.createLineReader(inputFile, start, length, headerCount, footerCount);
+            LineReader lineReader = lineReaderFactory.createLineReader(inputFile, start, length, headerCount, footerCount, rangeReadsEnabled);
             // Split may be empty after discovering the real file size and skipping headers
             if (lineReader.isClosed()) {
                 return new EmptyPageSource();

@@ -41,6 +41,7 @@ public final class TextLineReader
     private final OptionalLong inputEnd;
     private final LongSupplier rawInputPositionSupplier;
     private final long initialRawInputPosition;
+    private final LongSupplier inputStreamRetainedSize;
 
     private boolean firstRecord = true;
     private int bufferStart;
@@ -49,30 +50,30 @@ public final class TextLineReader
     private boolean closed;
     private long readTimeNanos;
 
-    public static TextLineReader createCompressedReader(InputStream in, int bufferSize, Codec codec)
+    public static TextLineReader createCompressedReader(InputStream in, LongSupplier inputStreamRetainedSize, int bufferSize, Codec codec)
             throws IOException
     {
         CountingInputStream countingInputStream = new CountingInputStream(in);
         LongSupplier rawInputPositionSupplier = countingInputStream::getCount;
         in = codec.createStreamDecompressor(countingInputStream);
-        return new TextLineReader(in, bufferSize, 0, OptionalLong.empty(), rawInputPositionSupplier);
+        return new TextLineReader(in, inputStreamRetainedSize, bufferSize, 0, OptionalLong.empty(), rawInputPositionSupplier);
     }
 
-    public static TextLineReader createUncompressedReader(InputStream in, int bufferSize)
+    public static TextLineReader createUncompressedReader(InputStream in, LongSupplier inputStreamRetainedSize, int bufferSize)
             throws IOException
     {
-        return createUncompressedReader(in, bufferSize, 0, Long.MAX_VALUE);
+        return createUncompressedReader(in, inputStreamRetainedSize, bufferSize, 0, Long.MAX_VALUE);
     }
 
-    public static TextLineReader createUncompressedReader(InputStream in, int bufferSize, long splitStart, long splitLength)
+    public static TextLineReader createUncompressedReader(InputStream in, LongSupplier inputStreamRetainedSize, int bufferSize, long splitStart, long splitLength)
             throws IOException
     {
         CountingInputStream countingInputStream = new CountingInputStream(in);
         LongSupplier rawInputPositionSupplier = countingInputStream::getCount;
-        return new TextLineReader(countingInputStream, bufferSize, splitStart, OptionalLong.of(splitLength), rawInputPositionSupplier);
+        return new TextLineReader(countingInputStream, inputStreamRetainedSize, bufferSize, splitStart, OptionalLong.of(splitLength), rawInputPositionSupplier);
     }
 
-    private TextLineReader(InputStream in, int bufferSize, long splitStart, OptionalLong splitLength, LongSupplier rawInputPositionSupplier)
+    private TextLineReader(InputStream in, LongSupplier inputStreamRetainedSize, int bufferSize, long splitStart, OptionalLong splitLength, LongSupplier rawInputPositionSupplier)
             throws IOException
     {
         requireNonNull(in, "in is null");
@@ -83,6 +84,7 @@ public final class TextLineReader
         requireNonNull(rawInputPositionSupplier, "rawInputPositionSupplier is null");
 
         this.in = in;
+        this.inputStreamRetainedSize = requireNonNull(inputStreamRetainedSize, "inputStreamRetainedSize is null");
         this.buffer = new byte[bufferSize];
         this.inputEnd = splitLength.stream().map(length -> addExact(splitStart, length)).findAny();
         this.rawInputPositionSupplier = rawInputPositionSupplier;
@@ -124,7 +126,7 @@ public final class TextLineReader
     @Override
     public long getRetainedSize()
     {
-        return INSTANCE_SIZE + sizeOf(buffer);
+        return INSTANCE_SIZE + sizeOf(buffer) + inputStreamRetainedSize.getAsLong();
     }
 
     @VisibleForTesting
