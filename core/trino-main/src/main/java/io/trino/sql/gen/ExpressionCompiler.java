@@ -57,7 +57,7 @@ public class ExpressionCompiler
             OptionalInt initialBatchSize)
     {
         Optional<Supplier<PageFilter>> filterFunctionSupplier = Optional.empty();
-        Optional<Supplier<FilterEvaluator>> columnarFilterEvaluatorSupplier = createColumnarFilterEvaluator(columnarFilterEvaluationEnabled, filter, columnarFilterCompiler);
+        Optional<Supplier<FilterEvaluator>> columnarFilterEvaluatorSupplier = createColumnarFilterEvaluator(columnarFilterEvaluationEnabled, filter, columnarFilterCompiler, pageFunctionCompiler, classNameSuffix);
         if (columnarFilterEvaluatorSupplier.isEmpty()) {
             filterFunctionSupplier = filter.map(expression -> {
                 Optional<Supplier<PageFilter>> pageFilter = compilePageFilterWithBatchFunction(expression, classNameSuffix, pageFunctionCompiler);
@@ -81,7 +81,7 @@ public class ExpressionCompiler
                     .map(Supplier::get)
                     .collect(toImmutableList());
             Optional<Supplier<FilterEvaluator>> dynamicFilterSupplier = dynamicPageFilter
-                    .map(pageFilter -> () -> pageFilter.createDynamicPageFilterEvaluator(columnarFilterCompiler, dynamicFilter).get());
+                    .map(pageFilter -> () -> pageFilter.createDynamicPageFilterEvaluator(columnarFilterCompiler, pageFunctionCompiler, dynamicFilter).get());
             return new PageProcessor(filterEvaluator, dynamicFilterSupplier, pageProjections, initialBatchSize);
         };
     }

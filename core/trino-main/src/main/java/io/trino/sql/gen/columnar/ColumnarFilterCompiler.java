@@ -63,6 +63,7 @@ import static io.trino.cache.SafeCaches.buildNonEvictableCache;
 import static io.trino.operator.project.PageFieldsToInputParametersRewriter.rewritePageFieldsToInputParameters;
 import static io.trino.spi.StandardErrorCode.COMPILER_ERROR;
 import static io.trino.spi.StandardErrorCode.QUERY_EXCEEDED_COMPILER_LIMIT;
+import static io.trino.spi.function.FunctionKind.BATCH;
 import static io.trino.sql.gen.BytecodeUtils.invoke;
 import static io.trino.sql.gen.columnar.FilterEvaluator.isNotExpression;
 import static io.trino.sql.gen.columnar.IsNotNullColumnarFilter.createIsNotNullColumnarFilter;
@@ -128,10 +129,12 @@ public class ColumnarFilterCompiler
             if (filter instanceof CallExpression callExpression) {
                 if (isNotExpression(callExpression)) {
                     // "not(is_null(input_reference))" is handled explicitly as it is easy.
-                    // more generic cases like "not(equal(input_reference, constant))" are not handled yet
                     if (callExpression.arguments().getFirst() instanceof SpecialForm specialForm && specialForm.form() == IS_NULL) {
                         return Optional.of(createIsNotNullColumnarFilter(specialForm));
                     }
+                }
+                if (callExpression.resolvedFunction().functionKind() == BATCH) {
+                    // Batch functions are not supported in columnar filter evaluation
                     return Optional.empty();
                 }
                 return Optional.of(new CallColumnarFilterGenerator(callExpression, functionManager).generateColumnarFilter());

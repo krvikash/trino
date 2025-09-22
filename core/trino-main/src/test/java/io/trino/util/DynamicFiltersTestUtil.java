@@ -14,10 +14,12 @@
 package io.trino.util;
 
 import com.google.common.collect.ImmutableMap;
+import io.trino.metadata.FunctionManager;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.predicate.SortedRangeSet;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
+import io.trino.sql.gen.PageFunctionCompiler;
 import io.trino.sql.gen.columnar.ColumnarFilterCompiler;
 import io.trino.sql.gen.columnar.DynamicPageFilter;
 import io.trino.sql.gen.columnar.FilterEvaluator;
@@ -110,13 +112,14 @@ public final class DynamicFiltersTestUtil
             int channel = entry.getValue();
             layout.put(symbol, channel);
         }
+        FunctionManager functionManager = createTestingFunctionManager();
         return new DynamicPageFilter(
                 PLANNER_CONTEXT,
                 testSessionBuilder().build(),
                 columns.buildOrThrow(),
                 layout.buildOrThrow(),
                 selectivityThreshold)
-                .createDynamicPageFilterEvaluator(new ColumnarFilterCompiler(createTestingFunctionManager(), 0), dynamicFilter)
+                .createDynamicPageFilterEvaluator(new ColumnarFilterCompiler(functionManager, 0), new PageFunctionCompiler(functionManager, 0), dynamicFilter)
                 .get();
     }
 

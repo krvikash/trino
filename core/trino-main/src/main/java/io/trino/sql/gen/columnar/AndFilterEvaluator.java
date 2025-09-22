@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import io.trino.operator.project.SelectedPositions;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SourcePage;
+import io.trino.sql.gen.PageFunctionCompiler;
 import io.trino.sql.relational.RowExpression;
 import io.trino.sql.relational.SpecialForm;
 
@@ -31,14 +32,14 @@ import static io.trino.sql.relational.SpecialForm.Form.AND;
 public final class AndFilterEvaluator
         implements FilterEvaluator
 {
-    public static Optional<Supplier<FilterEvaluator>> createAndExpressionEvaluator(ColumnarFilterCompiler compiler, SpecialForm specialForm)
+    public static Optional<Supplier<FilterEvaluator>> createAndExpressionEvaluator(ColumnarFilterCompiler compiler, PageFunctionCompiler pageFunctionCompiler, SpecialForm specialForm, Optional<String> classNameSuffix)
     {
         checkArgument(specialForm.form() == AND, "specialForm %s should be AND", specialForm);
         checkArgument(specialForm.arguments().size() >= 2, "AND expression %s should have at least 2 arguments", specialForm);
 
         ImmutableList.Builder<Supplier<FilterEvaluator>> builder = ImmutableList.builder();
         for (RowExpression expression : specialForm.arguments()) {
-            Optional<Supplier<FilterEvaluator>> subExpressionEvaluator = FilterEvaluator.createColumnarFilterEvaluator(expression, compiler);
+            Optional<Supplier<FilterEvaluator>> subExpressionEvaluator = FilterEvaluator.createColumnarFilterEvaluator(expression, compiler, pageFunctionCompiler, classNameSuffix);
             if (subExpressionEvaluator.isEmpty()) {
                 return Optional.empty();
             }

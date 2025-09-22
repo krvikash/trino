@@ -24,6 +24,7 @@ import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.type.TypeManager;
 import io.trino.sql.PlannerContext;
+import io.trino.sql.gen.PageFunctionCompiler;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.optimizer.IrExpressionOptimizer;
 import io.trino.sql.planner.DomainTranslator;
@@ -90,7 +91,7 @@ public final class DynamicPageFilter
 
     // Compiled dynamic filter is generated once per split at PageProcessor#createWorkProcessor.
     // The supplied FilterEvaluator should not be shared across splits.
-    public synchronized Supplier<FilterEvaluator> createDynamicPageFilterEvaluator(ColumnarFilterCompiler compiler, InternalDynamicFilter dynamicFilter)
+    public synchronized Supplier<FilterEvaluator> createDynamicPageFilterEvaluator(ColumnarFilterCompiler compiler, PageFunctionCompiler pageFunctionCompiler, InternalDynamicFilter dynamicFilter)
     {
         requireNonNull(dynamicFilter, "dynamicFilter is null");
         // Sub-query cache may provide different instance of DynamicFilter per-split.
@@ -106,7 +107,7 @@ public final class DynamicPageFilter
         if (compiledDynamicFilter == null || isBlocked.isDone()) {
             isBlocked = dynamicFilter.isBlocked();
             boolean isAwaitable = dynamicFilter.isAwaitable();
-            compiledDynamicFilter = createDynamicFilterEvaluator(compiler, dynamicFilter.getCurrentDynamicFilterTupleDomain());
+            compiledDynamicFilter = createDynamicFilterEvaluator(compiler, pageFunctionCompiler, dynamicFilter.getCurrentDynamicFilterTupleDomain());
             if (!isAwaitable) {
                 isBlocked = null; // Dynamic filter will not narrow down anymore
             }
@@ -114,7 +115,7 @@ public final class DynamicPageFilter
         return compiledDynamicFilter;
     }
 
-    private Supplier<FilterEvaluator> createDynamicFilterEvaluator(ColumnarFilterCompiler compiler, DynamicFilterTupleDomain<ColumnHandle> currentPredicate)
+    private Supplier<FilterEvaluator> createDynamicFilterEvaluator(ColumnarFilterCompiler compiler, PageFunctionCompiler pageFunctionCompiler, DynamicFilterTupleDomain<ColumnHandle> currentPredicate)
     {
         if (currentPredicate.isNone()) {
             return SelectNoneEvaluator::new;
@@ -132,7 +133,7 @@ public final class DynamicPageFilter
                     // Run the expression derived from TupleDomain through IR optimizer to simplify predicates. E.g. SimplifyContinuousInValues
                     expression = irExpressionOptimizer.process(expression, session, ImmutableMap.of()).orElse(expression);
                     RowExpression rowExpression = translate(expression, sourceLayout, metadata, typeManager);
-                    return createColumnarFilterEvaluator(rowExpression, compiler);
+                    return createColumnarFilterEvaluator(rowExpression, compiler, pageFunctionCompiler, Optional.empty());
                 })
                 .filter(Optional::isPresent)
                 .map(Optional::get)

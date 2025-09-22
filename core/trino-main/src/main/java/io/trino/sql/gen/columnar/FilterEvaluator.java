@@ -14,26 +14,33 @@
 package io.trino.sql.gen.columnar;
 
 import com.google.common.collect.ImmutableList;
+import io.airlift.log.Logger;
 import io.trino.metadata.ResolvedFunction;
+import io.trino.operator.project.PageProjection;
 import io.trino.operator.project.SelectedPositions;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.type.Type;
+import io.trino.sql.gen.PageFunctionCompiler;
 import io.trino.sql.relational.CallExpression;
 import io.trino.sql.relational.ConstantExpression;
 import io.trino.sql.relational.InputReferenceExpression;
 import io.trino.sql.relational.RowExpression;
 import io.trino.sql.relational.SpecialForm;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Throwables.getCausalChain;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.spi.function.FunctionKind.BATCH;
 import static io.trino.spi.function.OperatorType.LESS_THAN_OR_EQUAL;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.sql.gen.LambdaExpressionExtractor.extractLambdaExpressions;
 import static io.trino.sql.gen.columnar.AndFilterEvaluator.createAndExpressionEvaluator;
 import static io.trino.sql.gen.columnar.DynamicPageFilter.DynamicFilterEvaluator;
 import static io.trino.sql.gen.columnar.OrFilterEvaluator.createOrExpressionEvaluator;
@@ -55,12 +62,15 @@ public sealed interface FilterEvaluator
         permits
         AndFilterEvaluator,
         ColumnarFilterEvaluator,
+        ColumnarFilterEvaluatorWithProjectedArguments,
         OrFilterEvaluator,
         PageFilterEvaluator,
         SelectAllEvaluator,
         SelectNoneEvaluator,
         DynamicFilterEvaluator
 {
+    Logger log = Logger.get(FilterEvaluator.class);
+
     SelectionResult evaluate(ConnectorSession session, SelectedPositions activePositions, SourcePage page);
 
     record SelectionResult(SelectedPositions selectedPositions, long filterTimeNanos) {}
@@ -68,15 +78,21 @@ public sealed interface FilterEvaluator
     static Optional<Supplier<FilterEvaluator>> createColumnarFilterEvaluator(
             boolean columnarFilterEvaluationEnabled,
             Optional<RowExpression> filter,
-            ColumnarFilterCompiler columnarFilterCompiler)
+            ColumnarFilterCompiler columnarFilterCompiler,
+            PageFunctionCompiler pageFunctionCompiler,
+            Optional<String> classNameSuffix)
     {
         if (columnarFilterEvaluationEnabled && filter.isPresent()) {
-            return createColumnarFilterEvaluator(filter.get(), columnarFilterCompiler);
+            return createColumnarFilterEvaluator(filter.get(), columnarFilterCompiler, pageFunctionCompiler, classNameSuffix);
         }
         return Optional.empty();
     }
 
-    static Optional<Supplier<FilterEvaluator>> createColumnarFilterEvaluator(RowExpression rowExpression, ColumnarFilterCompiler compiler)
+    static Optional<Supplier<FilterEvaluator>> createColumnarFilterEvaluator(
+            RowExpression rowExpression,
+            ColumnarFilterCompiler compiler,
+            PageFunctionCompiler pageFunctionCompiler,
+            Optional<String> classNameSuffix)
     {
         // Eventually this should use RowExpressionVisitor when we handle nested RowExpressions
         if (rowExpression instanceof ConstantExpression constantExpression) {
@@ -91,26 +107,24 @@ public sealed interface FilterEvaluator
             }
             if (isNotExpression(callExpression)) {
                 // "not(is_null(input_reference))" is handled explicitly as it is easy.
-                // more generic cases like "not(equal(input_reference, constant))" are not handled yet
                 if (callExpression.arguments().getFirst() instanceof SpecialForm specialFormArg && specialFormArg.form() == IS_NULL) {
                     return createIsNotNullExpressionEvaluator(compiler, callExpression);
                 }
-                return Optional.empty();
             }
-            return createCallExpressionEvaluator(compiler, callExpression);
+            return createCallExpressionEvaluator(compiler, pageFunctionCompiler, callExpression, classNameSuffix);
         }
         if (rowExpression instanceof SpecialForm specialFormArg) {
             if (specialFormArg.form() == IS_NULL) {
                 return createIsNullExpressionEvaluator(compiler, specialFormArg);
             }
             if (specialFormArg.form() == AND) {
-                return createAndExpressionEvaluator(compiler, specialFormArg);
+                return createAndExpressionEvaluator(compiler, pageFunctionCompiler, specialFormArg, classNameSuffix);
             }
             if (specialFormArg.form() == OR) {
-                return createOrExpressionEvaluator(compiler, specialFormArg);
+                return createOrExpressionEvaluator(compiler, pageFunctionCompiler, specialFormArg, classNameSuffix);
             }
             if (specialFormArg.form() == BETWEEN) {
-                return createBetweenEvaluator(compiler, specialFormArg);
+                return createBetweenEvaluator(compiler, pageFunctionCompiler, specialFormArg, classNameSuffix);
             }
             if (specialFormArg.form() == IN) {
                 return createInExpressionEvaluator(compiler, specialFormArg);
@@ -125,7 +139,7 @@ public sealed interface FilterEvaluator
         return isBuiltinFunctionName(functionName) && functionName.getFunctionName().equals("$not");
     }
 
-    private static Optional<Supplier<FilterEvaluator>> createBetweenEvaluator(ColumnarFilterCompiler compiler, SpecialForm specialForm)
+    private static Optional<Supplier<FilterEvaluator>> createBetweenEvaluator(ColumnarFilterCompiler compiler, PageFunctionCompiler pageFunctionCompiler, SpecialForm specialForm, Optional<String> classNameSuffix)
     {
         checkArgument(specialForm.form() == BETWEEN, "specialForm should be BETWEEN");
         checkArgument(specialForm.arguments().size() == 3, "BETWEEN should have 3 arguments %s", specialForm.arguments());
@@ -146,13 +160,15 @@ public sealed interface FilterEvaluator
         }
         return createAndExpressionEvaluator(
                 compiler,
+                pageFunctionCompiler,
                 new SpecialForm(
                         AND,
                         BOOLEAN,
                         ImmutableList.of(
                                 call(lessThanOrEqual, specialForm.arguments().get(1), valueExpression),
                                 call(lessThanOrEqual, valueExpression, specialForm.arguments().get(2))),
-                        ImmutableList.of()));
+                        ImmutableList.of()),
+                classNameSuffix);
     }
 
     private static Optional<Supplier<FilterEvaluator>> createInExpressionEvaluator(ColumnarFilterCompiler compiler, SpecialForm specialForm)
@@ -162,13 +178,66 @@ public sealed interface FilterEvaluator
         return compiledFilter.map(filterSupplier -> () -> createDictionaryAwareEvaluator(filterSupplier.get()));
     }
 
-    private static Optional<Supplier<FilterEvaluator>> createCallExpressionEvaluator(ColumnarFilterCompiler compiler, CallExpression callExpression)
+    private static Optional<Supplier<FilterEvaluator>> createCallExpressionEvaluator(
+            ColumnarFilterCompiler compiler,
+            PageFunctionCompiler pageFunctionCompiler,
+            CallExpression callExpression,
+            Optional<String> classNameSuffix)
     {
-        Optional<Supplier<ColumnarFilter>> compiledFilter = compiler.generateFilter(callExpression);
+        if (!extractLambdaExpressions(callExpression).isEmpty()) {
+            // not supported
+            return Optional.empty();
+        }
+        List<RowExpression> arguments = callExpression.arguments();
+        long intermediateProjectChannels = arguments.stream()
+                .filter(argumentExpression -> !(argumentExpression instanceof ConstantExpression || argumentExpression instanceof InputReferenceExpression))
+                .count();
+        List<Supplier<PageProjection>> argumentProjections;
+        CallExpression rewrittenCallExpression;
+        if (intermediateProjectChannels == 0) {
+            argumentProjections = ImmutableList.of();
+            rewrittenCallExpression = callExpression;
+        }
+        else {
+            ImmutableList.Builder<Supplier<PageProjection>> argumentProjectionsBuilder = ImmutableList.builder();
+            for (RowExpression argumentExpression : arguments) {
+                if (argumentExpression instanceof ConstantExpression) {
+                    // ConstantExpression is handled directly in the filter evaluation
+                    continue;
+                }
+                Optional<Supplier<PageProjection>> projection = compileProjection(pageFunctionCompiler, argumentExpression, classNameSuffix);
+                if (projection.isEmpty()) {
+                    return Optional.empty();
+                }
+                argumentProjectionsBuilder.add(projection.get());
+            }
+            argumentProjections = argumentProjectionsBuilder.build();
+
+            ImmutableList.Builder<RowExpression> filterInputExpressionsBuilder = ImmutableList.builder();
+            int argumentIndex = 0;
+            for (RowExpression argumentExpression : arguments) {
+                if (argumentExpression instanceof ConstantExpression) {
+                    filterInputExpressionsBuilder.add(argumentExpression);
+                }
+                else {
+                    filterInputExpressionsBuilder.add(new InputReferenceExpression(argumentIndex, argumentExpression.type()));
+                    argumentIndex++;
+                }
+            }
+            rewrittenCallExpression = new CallExpression(callExpression.resolvedFunction(), filterInputExpressionsBuilder.build());
+        }
+
+        Optional<Supplier<ColumnarFilter>> compiledFilter = compiler.generateFilter(rewrittenCallExpression);
         boolean isDeterministic = isDeterministic(callExpression);
         return compiledFilter.map(filterSupplier -> () -> {
             ColumnarFilter filter = filterSupplier.get();
-            return filter.getInputChannels().size() == 1 && isDeterministic ? createDictionaryAwareEvaluator(filter) : new ColumnarFilterEvaluator(filter);
+            FilterEvaluator evaluator = filter.getInputChannels().size() == 1 && isDeterministic ? createDictionaryAwareEvaluator(filter) : new ColumnarFilterEvaluator(filter);
+            if (intermediateProjectChannels == 0) {
+                return evaluator;
+            }
+            return new ColumnarFilterEvaluatorWithProjectedArguments(
+                    argumentProjections.stream().map(Supplier::get).collect(toImmutableList()),
+                    evaluator);
         });
     }
 
@@ -199,5 +268,21 @@ public sealed interface FilterEvaluator
     {
         checkArgument(filter.getInputChannels().size() == 1, "filter should have 1 input channel");
         return new ColumnarFilterEvaluator(new DictionaryAwareColumnarFilter(filter));
+    }
+
+    private static Optional<Supplier<PageProjection>> compileProjection(PageFunctionCompiler compiler, RowExpression expression, Optional<String> classNameSuffix)
+    {
+        try {
+            return Optional.of(compiler.compileProjection(expression, classNameSuffix));
+        }
+        catch (Throwable t) {
+            if (getCausalChain(t).stream().anyMatch(cause -> cause instanceof UnsupportedOperationException)) {
+                log.debug("Unsupported sub-expression for columnar evaluation %s, %s", expression, t);
+            }
+            else {
+                log.warn("Failed to compile sub-expression %s for columnar evaluation, %s", expression, t);
+            }
+            return Optional.empty();
+        }
     }
 }

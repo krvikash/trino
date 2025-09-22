@@ -72,7 +72,7 @@ public class TestLocalExecutionPlanner
         String filterQueryInner = "FROM (SELECT rand() as c1, rand() as c2, rand() as c3)";
         String filterQueryWhere = "WHERE c1 = rand() OR " + Joiner.on(" AND ").join(nCopies(1000, "c1 = rand()"))
                 + " OR " + Joiner.on(" AND ").join(nCopies(1000, " c2 = rand()"))
-                + " OR " + Joiner.on(" AND ").join(nCopies(1000, " c3 = rand()"));
+                + " OR " + Joiner.on(" AND ").join(nCopies(1000, " c3 + 1 BETWEEN rand() AND rand()"));
 
         assertTrinoExceptionThrownBy(() -> runner.execute("SELECT * " + filterQueryInner + filterQueryWhere))
                 .hasErrorCode(QUERY_EXCEEDED_COMPILER_LIMIT)
