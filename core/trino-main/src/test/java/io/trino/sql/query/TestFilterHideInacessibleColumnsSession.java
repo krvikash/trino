@@ -23,6 +23,7 @@ import io.trino.execution.scheduler.NodeSchedulerConfig;
 import io.trino.memory.MemoryManagerConfig;
 import io.trino.memory.NodeMemoryConfig;
 import io.trino.metadata.SessionPropertyManager;
+import io.trino.server.protocol.spooling.SpoolingEnabledConfig;
 import io.trino.sql.planner.OptimizerConfig;
 import org.junit.jupiter.api.Test;
 
@@ -69,6 +70,7 @@ public class TestFilterHideInacessibleColumnsSession
     {
         return new SessionPropertyManager(new SystemSessionProperties(
                 new QueryManagerConfig(),
+                new SpoolingEnabledConfig(),
                 new TaskManagerConfig(),
                 new MemoryManagerConfig(),
                 featuresConfig,

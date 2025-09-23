@@ -607,6 +607,7 @@ public class PlanTester
         Set<SystemSessionPropertiesProvider> systemSessionProperties = ImmutableSet.<SystemSessionPropertiesProvider>builder()
                 .add(new SystemSessionProperties(
                         new QueryManagerConfig(),
+                        new SpoolingEnabledConfig(),
                         taskManagerConfig,
                         new MemoryManagerConfig(),
                         new FeaturesConfig(),

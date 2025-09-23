@@ -26,6 +26,7 @@ import io.trino.execution.scheduler.NodeSchedulerConfig;
 import io.trino.memory.MemoryManagerConfig;
 import io.trino.memory.NodeMemoryConfig;
 import io.trino.operator.RetryPolicy;
+import io.trino.server.protocol.spooling.SpoolingEnabledConfig;
 import io.trino.spi.TrinoException;
 import io.trino.spi.session.PropertyMetadata;
 import io.trino.sql.planner.OptimizerConfig;
@@ -244,6 +245,7 @@ public final class SystemSessionProperties
     public static final String CLOSE_IDLE_WRITERS_TRIGGER_DURATION = "close_idle_writers_trigger_duration";
     public static final String COLUMNAR_FILTER_EVALUATION_ENABLED = "columnar_filter_evaluation_enabled";
     public static final String SPOOLING_ENABLED = "spooling_enabled";
+    public static final String SPOOLING_UNSUPPORTED_WARNING = "spooling_unsupported_warning";
     public static final String DEBUG_ADAPTIVE_PLANNER = "debug_adaptive_planner";
     public static final String DEBUG_CTE_REUSE = "debug_cte_reuse";
     public static final String SUPERSET_PREDICATE_PUSHDOWN_ENABLED = "superset_predicate_pushdown_enabled";
@@ -255,6 +257,7 @@ public final class SystemSessionProperties
     {
         this(
                 new QueryManagerConfig(),
+                new SpoolingEnabledConfig(),
                 new TaskManagerConfig(),
                 new MemoryManagerConfig(),
                 new FeaturesConfig(),
@@ -268,6 +271,7 @@ public final class SystemSessionProperties
     @Inject
     public SystemSessionProperties(
             QueryManagerConfig queryManagerConfig,
+            SpoolingEnabledConfig spoolingEnabledConfig,
             TaskManagerConfig taskManagerConfig,
             MemoryManagerConfig memoryManagerConfig,
             FeaturesConfig featuresConfig,
@@ -1297,6 +1301,16 @@ public final class SystemSessionProperties
                         "Enable client spooling protocol",
                         true,
                         true),
+                booleanProperty(
+                        SPOOLING_UNSUPPORTED_WARNING,
+                        "Generate warning when client lacks support for spooling protocol",
+                        spoolingEnabledConfig.isEnabled() && spoolingEnabledConfig.isUnsupportedWarningEnabled(),
+                        _ -> {
+                            if (!spoolingEnabledConfig.isEnabled()) {
+                                throw new TrinoException(INVALID_SESSION_PROPERTY, format("%s cannot be set when spooling is disabled", SPOOLING_UNSUPPORTED_WARNING));
+                            }
+                        },
+                        false),
                 booleanProperty(
                         DEBUG_ADAPTIVE_PLANNER,
                         "Enable debug information for the adaptive planner",
@@ -2334,6 +2348,11 @@ public final class SystemSessionProperties
     public static boolean isSpoolingEnabled(Session session)
     {
         return session.getSystemProperty(SPOOLING_ENABLED, Boolean.class);
+    }
+
+    public static boolean isSpoolingUnsupportedWarningEnabled(Session session)
+    {
+        return session.getSystemProperty(SPOOLING_UNSUPPORTED_WARNING, Boolean.class);
     }
 
     public static boolean isUnsafePushdownAllowed(Session session)
