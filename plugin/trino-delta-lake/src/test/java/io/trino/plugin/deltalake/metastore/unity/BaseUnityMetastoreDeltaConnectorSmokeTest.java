@@ -13,7 +13,10 @@
  */
 package io.trino.plugin.deltalake.metastore.unity;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import io.airlift.log.Logger;
 import io.trino.plugin.deltalake.DeltaLakeQueryRunner;
 import io.trino.testing.BaseConnectorSmokeTest;
@@ -23,6 +26,8 @@ import io.trino.testing.sql.SqlExecutor;
 import io.trino.tpch.TpchTable;
 import org.junit.jupiter.api.Test;
 
+import java.sql.SQLException;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -46,6 +51,17 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     protected static final String SCHEMA_NAME = TPCH_SCHEMA + "_delta_ci_external";
     private static final String HIVE_TABLE_NAME = "hive_table";
 
+    private static final String DATABRICKS_COMMUNICATION_FAILURE_MATCH =
+            "\\Q[Databricks][\\E(DatabricksJDBCDriver|JDBCDriver)\\Q](500593) Communication link failure. Failed to connect to server. Reason: " +
+            "TemporarilyUnavailableRetry timeout of 900 seconds has been hit.*";
+    private static final RetryPolicy DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY = RetryPolicy.builder()
+            .handleIf(throwable -> Throwables.getRootCause(throwable) instanceof SQLException)
+            .handleIf(throwable -> Pattern.compile(DATABRICKS_COMMUNICATION_FAILURE_MATCH).matcher(Throwables.getRootCause(throwable).getMessage()).find())
+            .withBackoff(1, 10, ChronoUnit.SECONDS)
+            .withMaxRetries(3)
+            .onRetry(event -> LOG.warn(event.getLastException(), "Query failed on attempt %d, will retry.", event.getAttemptCount()))
+            .build();
+
     protected abstract Map<String, String> getDeltaLakeProperties();
 
     protected abstract SqlExecutor onDatabricks();
@@ -67,7 +83,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
                 .setCreateTpchSchemas(false)
                 .build();
 
-        createTpchTables(queryRunner);
+        Failsafe.with(DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY).run(() -> createTpchTables(queryRunner));
         return queryRunner;
     }
 
