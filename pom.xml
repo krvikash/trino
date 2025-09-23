@@ -3321,6 +3321,11 @@
 
         <profile>
             <id>errorprone-compiler</id>
+            <properties>
+                <!-- set java target to 25 to enable incubator linking -->
+                <project.build.targetJdk>25</project.build.targetJdk>
+                <air.java.version>25.0.0</air.java.version>
+            </properties>
             <build>
                 <plugins>
                     <plugin>
