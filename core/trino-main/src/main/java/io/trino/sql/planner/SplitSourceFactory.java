@@ -92,9 +92,11 @@ import io.trino.sql.planner.plan.WindowNode;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.cache.CacheCommonSubqueries.getLoadCachedDataPlanNode;
@@ -231,6 +233,9 @@ public class SplitSourceFactory
             // we are interested only in functional predicate here, so we set the summary to ALL.
             Constraint constraint = new Constraint(
                     TupleDomain.all(),
+                    ConnectorExpressionTranslator.translateConjuncts(session, nonDynamicFilter).connectorExpression(),
+                    assignments.entrySet().stream()
+                            .collect(toImmutableMap(entry -> entry.getKey().name(), Entry::getValue)),
                     evaluator::isCandidate,
                     evaluator.getArguments());
 
