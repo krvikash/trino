@@ -49,6 +49,12 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Set up AWS code-artifacts login
+        uses: ./.github/actions/starburst-setup
+        with:
+          aws-access-key-id: ${{ vars.ENG_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
+          secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
       - uses: ./.github/actions/setup
         timeout-minutes: 10
       - name: Maven Checks
@@ -79,6 +85,12 @@ jobs:
           fetch-depth: 0 # checkout all commits, as the build result depends on `git describe` equivalent
       - uses: ./.github/actions/setup
         timeout-minutes: 10
+      - name: Set up AWS code-artifacts login
+        uses: ./.github/actions/starburst-setup
+        with:
+          aws-access-key-id: ${{ vars.ENG_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
+          secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
       - name: Maven Install
         run: |
           export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
