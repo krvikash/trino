@@ -32,6 +32,7 @@ import io.trino.execution.TableExecuteContextManager;
 import io.trino.execution.scheduler.TestingExchangeSourceHandle;
 import io.trino.execution.scheduler.faulttolerant.SplitAssigner.AssignmentResult;
 import io.trino.metadata.Split;
+import io.trino.spi.Node;
 import io.trino.spi.QueryId;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.exchange.Exchange;
@@ -616,13 +617,13 @@ public class TestEventDrivenTaskSource
         }
 
         @Override
-        public CompletableFuture<ExchangeSinkInstanceHandle> instantiateSink(ExchangeSinkHandle sinkHandle, int taskAttemptId)
+        public CompletableFuture<ExchangeSinkInstanceHandle> instantiateSink(ExchangeSinkHandle sinkHandle, int taskAttemptId, Optional<Node> taskNode)
         {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public CompletableFuture<ExchangeSinkInstanceHandle> updateSinkInstanceHandle(ExchangeSinkHandle sinkHandle, int taskAttemptId)
+        public CompletableFuture<ExchangeSinkInstanceHandle> updateSinkInstanceHandle(ExchangeSinkHandle sinkHandle, int taskAttemptId, Optional<Node> taskNode)
         {
             throw new UnsupportedOperationException();
         }

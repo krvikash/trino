@@ -31,7 +31,7 @@ import io.airlift.slice.Slice;
  * (when two identical tasks are running at the same time). The deduplication must be done
  * based on the sink identifier (see {@link Exchange#addSink(int)}). The implementation should
  * assume that the data written for the same {@link ExchangeSinkHandle} by multiple sink
- * instances (see {@link Exchange#instantiateSink(ExchangeSinkHandle, int)}) is identical
+ * instances (see {@link Exchange#instantiateSink(ExchangeSinkHandle, int, java.util.Optional)}) is identical
  * and the data written by an arbitrary instance can be chosen to be delivered while the
  * data written by other instances must be safely discarded
  */
@@ -57,9 +57,9 @@ public interface ExchangeManager
     /**
      * Called by a worker to create an {@link ExchangeSink} for a specific sink instance.
      * <p>
-     * A new sink instance is created by the coordinator for every task attempt (see {@link Exchange#instantiateSink(ExchangeSinkHandle, int)})
+     * A new sink instance is created by the coordinator for every task attempt (see {@link Exchange#instantiateSink(ExchangeSinkHandle, int, java.util.Optional)})
      *
-     * @param handle returned by {@link Exchange#instantiateSink(ExchangeSinkHandle, int)}
+     * @param handle returned by {@link Exchange#instantiateSink(ExchangeSinkHandle, int, java.util.Optional)}
      * @return {@link ExchangeSink} used by the engine to write data to an exchange
      */
     ExchangeSink createSink(ExchangeSinkInstanceHandle handle);

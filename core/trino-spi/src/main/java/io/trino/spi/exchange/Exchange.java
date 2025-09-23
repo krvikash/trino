@@ -14,8 +14,10 @@
 package io.trino.spi.exchange;
 
 import com.google.errorprone.annotations.ThreadSafe;
+import io.trino.spi.Node;
 
 import java.io.Closeable;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 @ThreadSafe
@@ -37,13 +39,13 @@ public interface Exchange
      *
      * @param taskPartitionId uniquely identifies a dataset written to a sink
      * @return {@link ExchangeSinkHandle} associated with the <code>taskPartitionId</code>.
-     * Must be passed to {@link #instantiateSink(ExchangeSinkHandle, int)} along with an attempt id to create a sink instance
+     * Must be passed to {@link #instantiateSink(ExchangeSinkHandle, int, Optional)} along with an attempt id to create a sink instance
      */
     ExchangeSinkHandle addSink(int taskPartitionId);
 
     /**
      * Called when no more sinks will be added with {@link #addSink(int)}.
-     * New sink instances for an existing sink may still be added with {@link #instantiateSink(ExchangeSinkHandle, int)}.
+     * New sink instances for an existing sink may still be added with {@link #instantiateSink(ExchangeSinkHandle, int, Optional)}.
      */
     void noMoreSinks();
 
@@ -61,10 +63,11 @@ public interface Exchange
      *
      * @param sinkHandle - handle returned by <code>addSink</code>
      * @param taskAttemptId - attempt id
+     * @param taskNode - node used by the task writing to the sink instance
      * @return ExchangeSinkInstanceHandle to be sent to a worker that is needed to create an {@link ExchangeSink} instance using
      * {@link ExchangeManager#createSink(ExchangeSinkInstanceHandle)}
      */
-    CompletableFuture<ExchangeSinkInstanceHandle> instantiateSink(ExchangeSinkHandle sinkHandle, int taskAttemptId);
+    CompletableFuture<ExchangeSinkInstanceHandle> instantiateSink(ExchangeSinkHandle sinkHandle, int taskAttemptId, Optional<Node> taskNode);
 
     /**
      * Update {@link ExchangeSinkInstanceHandle}. Update is requested by {@link ExchangeSink}.
@@ -72,9 +75,10 @@ public interface Exchange
      *
      * @param sinkHandle - handle returned by <code>addSink</code>
      * @param taskAttemptId - attempt id
+     * @param taskNode - node used by the task writing to the sink instance
      * @return updated handle
      */
-    CompletableFuture<ExchangeSinkInstanceHandle> updateSinkInstanceHandle(ExchangeSinkHandle sinkHandle, int taskAttemptId);
+    CompletableFuture<ExchangeSinkInstanceHandle> updateSinkInstanceHandle(ExchangeSinkHandle sinkHandle, int taskAttemptId, Optional<Node> taskNode);
 
     /**
      * Called by the engine when an attempt finishes successfully.

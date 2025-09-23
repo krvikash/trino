@@ -43,6 +43,7 @@ import io.trino.execution.buffer.SpoolingOutputBuffers;
 import io.trino.metadata.Split;
 import io.trino.node.InternalNode;
 import io.trino.node.InternalNodeManager;
+import io.trino.spi.Node;
 import io.trino.spi.TrinoException;
 import io.trino.spi.exchange.Exchange;
 import io.trino.spi.exchange.ExchangeId;
@@ -414,7 +415,7 @@ public class PipelinedStageExecution
             int numberOfPartitions = bucketToPartitionMap.length;
 
             exchangeSinkHandle = exchange.addSink(partition);
-            CompletableFuture<ExchangeSinkInstanceHandle> sinkInstanceHandleFuture = exchange.instantiateSink(exchangeSinkHandle, 0);
+            CompletableFuture<ExchangeSinkInstanceHandle> sinkInstanceHandleFuture = exchange.instantiateSink(exchangeSinkHandle, 0, Optional.of(node));
             ExchangeSinkInstanceHandle sinkInstanceHandle;
             try {
                 // todo make waiting for instantiation async
@@ -511,7 +512,12 @@ public class PipelinedStageExecution
                 if (respondedToVersion.compareAndSet(localVersion, remoteVersion)) {
                     TaskId taskId = taskStatus.getTaskId();
                     ExchangeSinkHandle exchangeSinkHandle = exchangeSinkHandles.get(taskId);
-                    ListenableFuture<ExchangeSinkInstanceHandle> future = toListenableFuture(exchange.updateSinkInstanceHandle(exchangeSinkHandle, 0));
+                    RemoteTask remoteTask = tasks.get(taskId.getPartitionId());
+                    Optional<Node> taskNode = nodeManager.getAllNodes().activeNodes().stream()
+                            .filter(node -> node.getNodeIdentifier().equals(remoteTask.getNodeId()))
+                            .map(Node.class::cast)
+                            .findFirst();
+                    ListenableFuture<ExchangeSinkInstanceHandle> future = toListenableFuture(exchange.updateSinkInstanceHandle(exchangeSinkHandle, 0, taskNode));
 
                     addExceptionCallback(future, this::fail);
 
@@ -523,7 +529,7 @@ public class PipelinedStageExecution
                         SpoolingOutputBuffers oldBuffers = spoolingOutputBuffers.get(taskId);
                         SpoolingOutputBuffers newBuffers = oldBuffers.withExchangeSinkInstanceHandle(newSinkInstanceHandle);
                         spoolingOutputBuffers.put(taskId, newBuffers);
-                        tasks.get(taskId.getPartitionId()).setOutputBuffers(newBuffers);
+                        remoteTask.setOutputBuffers(newBuffers);
                     });
                 }
             }

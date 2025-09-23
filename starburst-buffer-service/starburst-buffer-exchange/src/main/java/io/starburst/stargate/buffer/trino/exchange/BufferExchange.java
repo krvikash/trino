@@ -23,6 +23,7 @@ import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
+import io.trino.spi.Node;
 import io.trino.spi.QueryId;
 import io.trino.spi.StandardErrorCode;
 import io.trino.spi.TrinoException;
@@ -41,6 +42,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
@@ -168,7 +170,7 @@ public class BufferExchange
     }
 
     @Override
-    public synchronized CompletableFuture<ExchangeSinkInstanceHandle> instantiateSink(ExchangeSinkHandle sinkHandle, int taskAttemptId)
+    public synchronized CompletableFuture<ExchangeSinkInstanceHandle> instantiateSink(ExchangeSinkHandle sinkHandle, int taskAttemptId, Optional<Node> taskNode)
     {
         throwIfFailed();
         checkState(!closed.get(), "already closed");
@@ -185,7 +187,7 @@ public class BufferExchange
     }
 
     @Override
-    public synchronized CompletableFuture<ExchangeSinkInstanceHandle> updateSinkInstanceHandle(ExchangeSinkHandle sinkHandle, int taskAttemptId)
+    public synchronized CompletableFuture<ExchangeSinkInstanceHandle> updateSinkInstanceHandle(ExchangeSinkHandle sinkHandle, int taskAttemptId, Optional<Node> taskNode)
     {
         throwIfFailed();
         checkState(!closed.get(), "already closed");

@@ -92,6 +92,7 @@ import io.trino.node.InternalNodeManager;
 import io.trino.operator.RetryPolicy;
 import io.trino.server.DynamicFilterService;
 import io.trino.spi.ErrorCode;
+import io.trino.spi.Node;
 import io.trino.spi.TrinoException;
 import io.trino.spi.exchange.Exchange;
 import io.trino.spi.exchange.ExchangeContext;
@@ -1673,7 +1674,14 @@ public class EventDrivenFaultTolerantQueryScheduler
                 }
                 else if (!context.isWaitingForNode()) {
                     context.setWaitingForSinkInstanceHandle(true);
-                    Optional<GetExchangeSinkInstanceHandleResult> getExchangeSinkInstanceHandleResult = stageExecution.getExchangeSinkInstanceHandle(scheduledTask.partitionId());
+                    InternalNode node;
+                    try {
+                        node = Futures.getDone(nodeLease.getNode());
+                    }
+                    catch (ExecutionException e) {
+                        throw new UncheckedExecutionException(e);
+                    }
+                    Optional<GetExchangeSinkInstanceHandleResult> getExchangeSinkInstanceHandleResult = stageExecution.getExchangeSinkInstanceHandle(scheduledTask.partitionId(), node);
                     if (getExchangeSinkInstanceHandleResult.isPresent()) {
                         CompletableFuture<ExchangeSinkInstanceHandle> sinkInstanceHandleFuture = getExchangeSinkInstanceHandleResult.get().exchangeSinkInstanceHandleFuture();
                         sinkInstanceHandleFuture.whenComplete((sinkInstanceHandle, throwable) -> {
@@ -2357,7 +2365,7 @@ public class EventDrivenFaultTolerantQueryScheduler
             exchangeClosed = true;
         }
 
-        public Optional<GetExchangeSinkInstanceHandleResult> getExchangeSinkInstanceHandle(int partitionId)
+        public Optional<GetExchangeSinkInstanceHandleResult> getExchangeSinkInstanceHandle(int partitionId, Node taskNode)
         {
             if (getState().isDone()) {
                 return Optional.empty();
@@ -2372,7 +2380,7 @@ public class EventDrivenFaultTolerantQueryScheduler
 
             int attempt = maxTaskExecutionAttempts - partition.getRemainingAttempts();
             return Optional.of(new GetExchangeSinkInstanceHandleResult(
-                    exchange.instantiateSink(partition.getExchangeSinkHandle(), attempt),
+                    exchange.instantiateSink(partition.getExchangeSinkHandle(), attempt, Optional.of(taskNode)),
                     attempt));
         }
 
@@ -2511,7 +2519,14 @@ public class EventDrivenFaultTolerantQueryScheduler
                 return;
             }
             StagePartition partition = getStagePartition(taskId.getPartitionId());
-            CompletableFuture<ExchangeSinkInstanceHandle> exchangeSinkInstanceHandleFuture = exchange.updateSinkInstanceHandle(partition.getExchangeSinkHandle(), taskId.getAttemptId());
+            InternalNode node;
+            try {
+                node = Futures.getDone(partition.getNodeLease(taskId).getNode());
+            }
+            catch (ExecutionException e) {
+                throw new UncheckedExecutionException(e);
+            }
+            CompletableFuture<ExchangeSinkInstanceHandle> exchangeSinkInstanceHandleFuture = exchange.updateSinkInstanceHandle(partition.getExchangeSinkHandle(), taskId.getAttemptId(), Optional.of(node));
 
             exchangeSinkInstanceHandleFuture.whenComplete((sinkInstanceHandle, throwable) -> {
                 if (throwable != null) {
@@ -3072,6 +3087,11 @@ public class EventDrivenFaultTolerantQueryScheduler
                 return true;
             }
             return finalSelectors.contains(planNodeId);
+        }
+
+        public NodeLease getNodeLease(TaskId taskId)
+        {
+            return taskNodeLeases.get(taskId);
         }
 
         public void seal()

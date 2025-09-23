@@ -520,7 +520,7 @@ public class DeduplicatingDirectExchangeBuffer
                 exchange.noMoreSinks();
                 ExchangeSinkInstanceHandle sinkInstanceHandle;
                 try {
-                    sinkInstanceHandle = exchange.instantiateSink(this.sinkHandle, 0).get(SINK_INSTANCE_HANDLE_GET_TIMEOUT.toMillis(), MILLISECONDS);
+                    sinkInstanceHandle = exchange.instantiateSink(this.sinkHandle, 0, Optional.empty()).get(SINK_INSTANCE_HANDLE_GET_TIMEOUT.toMillis(), MILLISECONDS);
                 }
                 catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -598,7 +598,7 @@ public class DeduplicatingDirectExchangeBuffer
             verify(sinkHandle != null, "sinkHandle is null");
 
             if (exchangeSink.isHandleUpdateRequired()) {
-                CompletableFuture<ExchangeSinkInstanceHandle> sinkInstanceHandleFuture = exchange.updateSinkInstanceHandle(sinkHandle, 0);
+                CompletableFuture<ExchangeSinkInstanceHandle> sinkInstanceHandleFuture = exchange.updateSinkInstanceHandle(sinkHandle, 0, Optional.empty());
                 ExchangeSinkInstanceHandle sinkInstanceHandle;
                 try {
                     sinkInstanceHandle = sinkInstanceHandleFuture.get(SINK_INSTANCE_HANDLE_GET_TIMEOUT.toMillis(), MILLISECONDS);

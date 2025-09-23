@@ -50,6 +50,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
@@ -111,7 +112,7 @@ public class SourceBenchmarkDriver
             closer.register(exchange);
             ExchangeSinkHandle sinkHandle = exchange.addSink(0);
             exchange.noMoreSinks();
-            ExchangeSinkInstanceHandle sinkInstanceHandle = exchange.instantiateSink(sinkHandle, 0).get();
+            ExchangeSinkInstanceHandle sinkInstanceHandle = exchange.instantiateSink(sinkHandle, 0, Optional.empty()).get();
             ExchangeSink sink = exchangeManager.createSink(sinkInstanceHandle);
             Slice dataPage = buildDataPage(setup.pageSize());
 

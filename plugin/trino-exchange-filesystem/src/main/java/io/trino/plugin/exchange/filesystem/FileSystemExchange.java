@@ -25,6 +25,7 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import io.trino.plugin.exchange.filesystem.FileSystemExchangeSourceHandle.SourceFile;
+import io.trino.spi.Node;
 import io.trino.spi.exchange.Exchange;
 import io.trino.spi.exchange.ExchangeContext;
 import io.trino.spi.exchange.ExchangeId;
@@ -44,6 +45,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -154,7 +156,7 @@ public class FileSystemExchange
     }
 
     @Override
-    public CompletableFuture<ExchangeSinkInstanceHandle> instantiateSink(ExchangeSinkHandle sinkHandle, int taskAttemptId)
+    public CompletableFuture<ExchangeSinkInstanceHandle> instantiateSink(ExchangeSinkHandle sinkHandle, int taskAttemptId, Optional<Node> taskNode)
     {
         FileSystemExchangeSinkHandle fileSystemExchangeSinkHandle = (FileSystemExchangeSinkHandle) sinkHandle;
         int taskPartitionId = fileSystemExchangeSinkHandle.getPartitionId();
@@ -170,7 +172,7 @@ public class FileSystemExchange
     }
 
     @Override
-    public CompletableFuture<ExchangeSinkInstanceHandle> updateSinkInstanceHandle(ExchangeSinkHandle sinkHandle, int taskAttemptId)
+    public CompletableFuture<ExchangeSinkInstanceHandle> updateSinkInstanceHandle(ExchangeSinkHandle sinkHandle, int taskAttemptId, Optional<Node> taskNode)
     {
         // this implementation never requests an update
         throw new UnsupportedOperationException();

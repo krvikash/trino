@@ -42,6 +42,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -93,7 +94,7 @@ public class SinkBenchmarkDriver
             ExchangeContext exchangeContext = new ExchangeContextInstance(new QueryId("dummy"), new ExchangeId("dummy"), Span.getInvalid());
             Exchange exchange = exchangeManager.createExchange(exchangeContext, setup.outputPartitionsCount(), false);
             ExchangeSinkHandle sinkHandle = exchange.addSink(0);
-            ExchangeSinkInstanceHandle sinkeInstanceHandle = exchange.instantiateSink(sinkHandle, 0).get();
+            ExchangeSinkInstanceHandle sinkeInstanceHandle = exchange.instantiateSink(sinkHandle, 0, Optional.empty()).get();
             ExchangeSink sink = exchangeManager.createSink(sinkeInstanceHandle);
 
             AtomicLong dataCounter = new AtomicLong();
