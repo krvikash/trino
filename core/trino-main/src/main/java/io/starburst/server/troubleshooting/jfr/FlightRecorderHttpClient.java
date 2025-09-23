@@ -24,6 +24,7 @@ import io.airlift.http.client.Request;
 import io.airlift.http.client.Response;
 import io.airlift.http.client.ResponseHandler;
 import io.airlift.http.client.ResponseHandlerUtils;
+import io.airlift.log.Logger;
 import io.trino.server.InternalCommunicationConfig;
 import io.trino.spi.QueryId;
 
@@ -57,6 +58,8 @@ import static java.util.Objects.requireNonNull;
 
 class FlightRecorderHttpClient
 {
+    private static final Logger log = Logger.get(FlightRecorderHttpClient.class);
+
     private final HttpClient client;
     private final QueryId queryId;
     private final WorkerNodesProvider workerNodesProvider;
@@ -90,7 +93,12 @@ class FlightRecorderHttpClient
     {
         HttpResponses<String> results = parallelExecute(nodeIds, this::startRequest, createStatusCheckingHandler());
         if (!results.exceptions().isEmpty()) {
-            throw new RuntimeException("Could not start recordings on nodes: %s due to: %s".formatted(results.exceptions().keySet(), results.exceptions.values()));
+            if (results.exceptions().size() == nodeIds.size()) {
+                // fail if all nodes failed
+                throw new RuntimeException("Could not start recordings on nodes: %s due to: %s".formatted(results.exceptions().keySet(), results.exceptions.values()));
+            }
+            // otherwise just warn
+            log.warn("Could not start recordings on nodes: %s due to: %s", results.exceptions().keySet(), results.exceptions.values());
         }
     }
 
@@ -98,7 +106,12 @@ class FlightRecorderHttpClient
     {
         HttpResponses<String> results = parallelExecute(nodeIds, this::removeRequest, createStatusCheckingHandler());
         if (!results.exceptions().isEmpty()) {
-            throw new RuntimeException("Could not remove recordings on nodes: %s due to: %s".formatted(results.exceptions().keySet(), results.exceptions.values()));
+            if (results.exceptions().size() == nodeIds.size()) {
+                // fail if all nodes failed
+                throw new RuntimeException("Could not remove recordings on nodes: %s due to: %s".formatted(results.exceptions().keySet(), results.exceptions.values()));
+            }
+            // otherwise just warn
+            log.warn("Could not remove recordings on nodes: %s due to: %s", results.exceptions().keySet(), results.exceptions.values());
         }
     }
 

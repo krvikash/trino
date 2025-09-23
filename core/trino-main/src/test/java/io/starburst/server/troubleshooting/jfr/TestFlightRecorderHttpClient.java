@@ -42,15 +42,10 @@ final class TestFlightRecorderHttpClient
         ExecutorService executor = Executors.newSingleThreadExecutor();
         ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
         try {
-            int goodNodePort = 1;
             int badNodePort = 2;
-            ServiceDescriptor goodNode = worker("good node", URI.create("http://localhost:" + goodNodePort));
             ServiceDescriptor badNode = worker("bad node", URI.create("http://localhost:" + badNodePort));
-            WorkerNodesProvider workerNodesProvider = new WorkerNodesProvider(new StaticServiceSelector(goodNode, badNode));
+            WorkerNodesProvider workerNodesProvider = new WorkerNodesProvider(new StaticServiceSelector(badNode));
             TestingHttpClient.Processor processor = request -> {
-                if (request.getUri().getPort() == goodNodePort) {
-                    return new TestingResponse(HttpStatus.fromStatusCode(200), ArrayListMultimap.create(), "good response".getBytes(UTF_8));
-                }
                 if (request.getUri().getPort() == badNodePort) {
                     return new TestingResponse(HttpStatus.fromStatusCode(500), ArrayListMultimap.create(), new byte[] {});
                 }
@@ -62,7 +57,7 @@ final class TestFlightRecorderHttpClient
                     workerNodesProvider,
                     new InternalCommunicationConfig().setHttpsRequired(false));
             FlightRecorderHttpClient client = factory.create(new QueryId("query"));
-            ImmutableSet<String> nodeIds = ImmutableSet.of(goodNode.getNodeId(), badNode.getNodeId());
+            ImmutableSet<String> nodeIds = ImmutableSet.of(badNode.getNodeId());
 
             softly.assertThatThrownBy(() -> client.start(nodeIds))
                     .isInstanceOf(RuntimeException.class)
