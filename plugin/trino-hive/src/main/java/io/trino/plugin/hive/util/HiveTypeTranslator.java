@@ -57,6 +57,7 @@ import static io.trino.metastore.HiveType.HIVE_LONG;
 import static io.trino.metastore.HiveType.HIVE_SHORT;
 import static io.trino.metastore.HiveType.HIVE_STRING;
 import static io.trino.metastore.HiveType.HIVE_TIMESTAMP;
+import static io.trino.metastore.HiveType.HIVE_VARIANT;
 import static io.trino.metastore.type.CharTypeInfo.MAX_CHAR_LENGTH;
 import static io.trino.metastore.type.TypeInfoFactory.getCharTypeInfo;
 import static io.trino.metastore.type.TypeInfoFactory.getListTypeInfo;
@@ -75,6 +76,7 @@ import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.StandardTypes.JSON;
 import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.TimestampWithTimeZoneType.createTimestampWithTimeZoneType;
 import static io.trino.spi.type.TinyintType.TINYINT;
@@ -142,6 +144,9 @@ public final class HiveTypeTranslator
         }
         if (DATE.equals(type)) {
             return HIVE_DATE.getTypeInfo();
+        }
+        if (type.getTypeSignature().getBase().equals(JSON)) {
+            return HIVE_VARIANT.getTypeInfo();
         }
         if (type instanceof TimestampType) {
             return HIVE_TIMESTAMP.getTypeInfo();

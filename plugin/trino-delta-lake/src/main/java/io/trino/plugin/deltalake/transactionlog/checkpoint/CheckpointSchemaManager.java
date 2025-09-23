@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.plugin.deltalake.DeltaLakeMetadata.containsVariantType;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.extractPartitionColumns;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.extractSchema;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.isDeletionVectorEnabled;
@@ -144,7 +145,7 @@ public class CheckpointSchemaManager
 
         statsColumns.add(RowType.field(
                 "nullCount",
-                RowType.from(allColumns.stream().map(column -> buildNullCountType(Optional.of(column.physicalName()), column.physicalColumnType())).collect(toImmutableList()))));
+                RowType.from(allColumns.stream().filter(column -> !containsVariantType(column.type())).map(column -> buildNullCountType(Optional.of(column.physicalName()), column.physicalColumnType())).collect(toImmutableList()))));
 
         MapType stringMap = (MapType) typeManager.getType(TypeSignature.mapType(VARCHAR.getTypeSignature(), VARCHAR.getTypeSignature()));
         ImmutableList.Builder<RowType.Field> addFields = ImmutableList.builder();

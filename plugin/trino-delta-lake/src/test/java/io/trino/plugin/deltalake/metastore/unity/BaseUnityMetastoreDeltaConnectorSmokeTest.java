@@ -343,6 +343,33 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
         }
     }
 
+    @Test
+    public void testVariantForExternalTable()
+    {
+        String tableName = "test_variant_" + randomNameSuffix();
+        String tableLocation = format("%s/%s/%s", getDatabricksUnityExternalLocation(), SCHEMA_NAME, tableName);
+        // exercise the creation with variant type column
+        assertUpdate("CREATE TABLE " + tableName + " (id bigint, v json) WITH (location='" + tableLocation + "')");
+        assertUpdate("INSERT INTO " + tableName + " VALUES (1, NULL), (2, json '{\"key\":\"value\"}')", 2);
+        // test databricks can read Trino written value
+        // TODO: check the value
+        onDatabricks().execute("SELECT * FROM %s.%s.%s".formatted(getDatabricksUnityCatalogName(), SCHEMA_NAME, tableName));
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
+    public void testVariantForExternalTableCtas()
+    {
+        String tableName = "test_variant_ctas_" + randomNameSuffix();
+        String tableLocation = format("%s/%s/%s", getDatabricksUnityExternalLocation(), SCHEMA_NAME, tableName);
+        // exercise the creation with variant type column
+        assertUpdate("CREATE TABLE " + tableName + " WITH (location='" + tableLocation + "') AS SELECT 1 id, json '{\"key\":\"value\"}' v", 1);
+        // test databricks can read Trino written value
+        // TODO: check the value
+        onDatabricks().execute("SELECT * FROM %s.%s.%s".formatted(getDatabricksUnityCatalogName(), SCHEMA_NAME, tableName));
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
     @Override
     @Test
     public void testView()

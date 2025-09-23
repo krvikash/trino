@@ -77,6 +77,7 @@ import static com.google.common.collect.MoreCollectors.onlyElement;
 import static com.google.common.collect.MoreCollectors.toOptional;
 import static io.trino.plugin.deltalake.DeltaLakeColumnType.REGULAR;
 import static io.trino.plugin.deltalake.DeltaLakeErrorCode.DELTA_LAKE_INVALID_SCHEMA;
+import static io.trino.plugin.deltalake.DeltaLakeMetadata.containsVariantType;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.extractSchema;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.isDeletionVectorEnabled;
 import static io.trino.plugin.deltalake.transactionlog.TransactionLogAccess.columnsWithStats;
@@ -586,7 +587,7 @@ public class CheckpointEntryIterator
             minValues = Optional.of(parseMinMax(stats.getRow("minValues"), columnsWithMinMaxStats));
             maxValues = Optional.of(parseMinMax(stats.getRow("maxValues"), columnsWithMinMaxStats));
         }
-        nullCount = Optional.of(parseNullCount(stats.getRow("nullCount"), schema));
+        nullCount = Optional.of(parseNullCount(stats.getRow("nullCount"), schema.stream().filter(column -> !containsVariantType(column.type())).collect(toImmutableList())));
 
         return new DeltaLakeParquetFileStatistics(
                 Optional.of(numRecords),

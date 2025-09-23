@@ -38,6 +38,7 @@ import static io.trino.tempto.assertions.QueryAssert.assertQueryFailure;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.tests.product.TestGroups.DELTA_LAKE_DATABRICKS;
 import static io.trino.tests.product.TestGroups.DELTA_LAKE_DATABRICKS_122;
+import static io.trino.tests.product.TestGroups.DELTA_LAKE_DATABRICKS_154;
 import static io.trino.tests.product.TestGroups.DELTA_LAKE_OSS;
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.deltalake.S3ClientFactory.createS3Client;
@@ -433,6 +434,32 @@ public class TestDeltaLakeWriteDatabricksCompatibility
         catch (QueryExecutionException e) {
             assertThat(e).hasMessageMatching("(?s).* delta.minWriterVersion needs to be (an integer between \\[1, 7]|one of 1, 2, 3, 4, 5(, 6)?, 7).*");
             throw new SkipException("Cannot test unsupported writer version");
+        }
+    }
+
+    // the variant type requires databricks 15.3 and above
+    @Test(groups = {DELTA_LAKE_DATABRICKS_154, PROFILE_SPECIFIC_TESTS})
+    @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
+    public void testVariantType()
+    {
+        String tableName = "test_variant_type_" + randomNameSuffix();
+
+        onTrino().executeQuery("CREATE TABLE delta.default." + tableName + "(a INT, v JSON) " +
+                               "WITH (location = 's3://" + bucketName + "/databricks-compatibility-test-" + tableName + "', variant_type_preview_enabled = true)");
+
+        List<QueryAssert.Row> expectedRows = List.of(
+                QueryAssert.Row.row(1, "{\"key\":\"value\"}"),
+                QueryAssert.Row.row(2, "[1,2,3]"),
+                QueryAssert.Row.row(3, null));
+        try {
+            onTrino().executeQuery("INSERT INTO " + tableName + " VALUES (1, JSON '{\"key\": \"value\"}'), (2, JSON '[1, 2, 3]'), (3, null)");
+            assertThat(onTrino().executeQuery("SELECT * FROM " + tableName))
+                    .containsOnly(expectedRows);
+            assertThat(onDelta().executeQuery("SELECT * FROM default." + tableName))
+                    .containsOnly(expectedRows);
+        }
+        finally {
+            onTrino().executeQuery("DROP TABLE " + tableName);
         }
     }
 

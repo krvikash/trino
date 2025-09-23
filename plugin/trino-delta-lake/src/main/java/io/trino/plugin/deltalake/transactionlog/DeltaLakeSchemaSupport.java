@@ -80,6 +80,7 @@ import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.IC
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.IDENTITY_COLUMNS_FEATURE_NAME;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.INVARIANTS_FEATURE_NAME;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.IN_COMMIT_TIMESTAMP_FEATURE_NAME;
+import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.VARIANT_TYPE_PREVIEW_FEATURE_NAME;
 import static io.trino.plugin.deltalake.transactionlog.MetadataEntry.DELTA_CHANGE_DATA_FEED_ENABLED_PROPERTY;
 import static io.trino.plugin.deltalake.transactionlog.MetadataEntry.DELTA_IN_COMMIT_TIMESTAMP_ENABLED_PROPERTY;
 import static io.trino.spi.StandardErrorCode.DUPLICATE_COLUMN_NAME;
@@ -409,6 +410,9 @@ public final class DeltaLakeSchemaSupport
         if (type instanceof DecimalType decimalType) {
             return Optional.of(format("decimal(%s,%s)", decimalType.getPrecision(), decimalType.getScale()));
         }
+        if (type.getTypeSignature().getBase().equals(JSON)) {
+            return Optional.of("variant");
+        }
         return Optional.ofNullable(PRIMITIVE_TYPE_MAPPING.get(type));
     }
 
@@ -712,6 +716,11 @@ public final class DeltaLakeSchemaSupport
             return Optional.empty();
         }
         return Optional.of(parseBoolean(inCommitTimestampEnabled));
+    }
+
+    public static boolean variantTypePreviewEnabled(ProtocolEntry protocolEntry)
+    {
+        return protocolEntry.readerFeaturesContains(VARIANT_TYPE_PREVIEW_FEATURE_NAME) || protocolEntry.writerFeaturesContains(VARIANT_TYPE_PREVIEW_FEATURE_NAME);
     }
 
     public static Map<String, Map<String, Object>> getColumnsMetadata(MetadataEntry metadataEntry)

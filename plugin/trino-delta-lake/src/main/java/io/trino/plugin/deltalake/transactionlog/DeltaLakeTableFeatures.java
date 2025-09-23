@@ -68,6 +68,8 @@ public final class DeltaLakeTableFeatures
             .add(VACUUM_PROTOCOL_CHECK_FEATURE_NAME)
             .add(IN_COMMIT_TIMESTAMP_FEATURE_NAME)
             .add(CATALOG_OWNED_TABLE_PREVIEW_FEATURE_NAME)
+            .add(VARIANT_TYPE_FEATURE_NAME)
+            .add(VARIANT_TYPE_PREVIEW_FEATURE_NAME)
             .build();
 
     private DeltaLakeTableFeatures() {}

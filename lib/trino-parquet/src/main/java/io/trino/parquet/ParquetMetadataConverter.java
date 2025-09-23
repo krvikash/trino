@@ -95,6 +95,7 @@ import static org.apache.parquet.schema.LogicalTypeAnnotation.variantType;
 public final class ParquetMetadataConverter
 {
     public static final long MAX_STATS_SIZE = 4096;
+    public static final byte VARIANT_SPEC_VERSION = 1;
 
     private ParquetMetadataConverter() {}
 
@@ -159,7 +160,7 @@ public final class ParquetMetadataConverter
             }
             case UUID -> uuidType();
             case FLOAT16 -> float16Type();
-            case VARIANT -> variantType((byte) 1);
+            case VARIANT -> variantType(VARIANT_SPEC_VERSION);
             case GEOMETRY -> geometryType("OGC:CRS84");
             case GEOGRAPHY -> geographyType();
         };

@@ -33,6 +33,8 @@ import static io.trino.plugin.deltalake.DeltaLakeMetadata.DELETION_VECTORS_SUPPO
 import static io.trino.plugin.deltalake.DeltaLakeMetadata.IN_COMMIT_TIMESTAMP_SUPPORTED_WRITER_VERSION;
 import static io.trino.plugin.deltalake.DeltaLakeMetadata.TIMESTAMP_NTZ_SUPPORTED_READER_VERSION;
 import static io.trino.plugin.deltalake.DeltaLakeMetadata.TIMESTAMP_NTZ_SUPPORTED_WRITER_VERSION;
+import static io.trino.plugin.deltalake.DeltaLakeMetadata.VARIANT_SUPPORTED_READER_VERSION;
+import static io.trino.plugin.deltalake.DeltaLakeMetadata.VARIANT_SUPPORTED_WRITER_VERSION;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.CHANGE_DATA_FEED_FEATURE_NAME;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.COLUMN_MAPPING_FEATURE_NAME;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.DELETION_VECTORS_FEATURE_NAME;
@@ -40,6 +42,8 @@ import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.IN
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.MIN_VERSION_SUPPORTS_READER_FEATURES;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.MIN_VERSION_SUPPORTS_WRITER_FEATURES;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.TIMESTAMP_NTZ_FEATURE_NAME;
+import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.VARIANT_TYPE_FEATURE_NAME;
+import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.VARIANT_TYPE_PREVIEW_FEATURE_NAME;
 import static java.util.Objects.requireNonNull;
 
 public record ProtocolEntry(
@@ -155,6 +159,27 @@ public record ProtocolEntry(
         {
             writerVersion = max(writerVersion, IN_COMMIT_TIMESTAMP_SUPPORTED_WRITER_VERSION);
             writerFeatures.add(IN_COMMIT_TIMESTAMP_FEATURE_NAME);
+            return this;
+        }
+
+        public Builder enableVariantTypePreview()
+        {
+            readerVersion = max(readerVersion, VARIANT_SUPPORTED_READER_VERSION);
+            writerVersion = max(writerVersion, VARIANT_SUPPORTED_WRITER_VERSION);
+
+            readerFeatures.add(VARIANT_TYPE_PREVIEW_FEATURE_NAME);
+            writerFeatures.add(VARIANT_TYPE_PREVIEW_FEATURE_NAME);
+            return this;
+        }
+
+        public Builder enableVariantType()
+        {
+            readerVersion = max(readerVersion, VARIANT_SUPPORTED_READER_VERSION);
+            writerVersion = max(writerVersion, VARIANT_SUPPORTED_WRITER_VERSION);
+            if (!readerFeatures.contains(VARIANT_TYPE_PREVIEW_FEATURE_NAME) || !writerFeatures.contains(VARIANT_TYPE_PREVIEW_FEATURE_NAME)) {
+                readerFeatures.add(VARIANT_TYPE_FEATURE_NAME);
+                writerFeatures.add(VARIANT_TYPE_FEATURE_NAME);
+            }
             return this;
         }
 

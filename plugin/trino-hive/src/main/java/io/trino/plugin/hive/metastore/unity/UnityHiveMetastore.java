@@ -819,6 +819,9 @@ public class UnityHiveMetastore
         if (hiveType.equals(HiveType.HIVE_BINARY)) {
             return "\"binary\"";
         }
+        if (hiveType.equals(HiveType.HIVE_VARIANT)) {
+            return "\"variant\"";
+        }
 
         if (hiveType.getTypeInfo() instanceof DecimalTypeInfo) {
             return "\"%s\"".formatted(hiveType.toString());

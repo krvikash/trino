@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.parquet.ParquetMetadataConverter.VARIANT_SPEC_VERSION;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -47,6 +48,7 @@ import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.StandardTypes.ARRAY;
+import static io.trino.spi.type.StandardTypes.JSON;
 import static io.trino.spi.type.StandardTypes.MAP;
 import static io.trino.spi.type.StandardTypes.ROW;
 import static io.trino.spi.type.TinyintType.TINYINT;
@@ -221,6 +223,15 @@ public class ParquetSchemaConverter
         if (type instanceof VarbinaryType) {
             return Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, repetition).named(name);
         }
+        if (type.getTypeSignature().getBase().equals(JSON)) {
+            PrimitiveType metadata = Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, REQUIRED).named("metadata");
+            PrimitiveType value = Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, REQUIRED).named("value");
+            return Types.optionalGroup()
+                    .addFields(metadata, value)
+                    .as(LogicalTypeAnnotation.variantType(VARIANT_SPEC_VERSION))
+                    .named(name);
+        }
+
         throw new TrinoException(NOT_SUPPORTED, format("Unsupported primitive type: %s", type));
     }
 

@@ -151,7 +151,6 @@ public class TestDeltaLakeBasic
             new ResourceTable("uniform_iceberg_v2", "databricks143/uniform_iceberg_v2"),
             new ResourceTable("unsupported_writer_feature", "databricks133/identity_columns_table_feature"),
             new ResourceTable("unsupported_writer_version", "deltalake/unsupported_writer_version"),
-            new ResourceTable("variant", "databricks153/variant"),
             new ResourceTable("variant_types", "databricks153/variant_types"),
             new ResourceTable("type_widening", "databricks153/type_widening"),
             new ResourceTable("type_widening_partition", "databricks153/type_widening_partition"),
@@ -1595,8 +1594,14 @@ public class TestDeltaLakeBasic
      */
     @Test
     public void testVariant()
+        throws Exception
     {
-        assertThat(query("DESCRIBE variant")).result().projected("Column", "Type")
+        String tableName = "test_variant_" + randomNameSuffix();
+        Path tableLocation = catalogDir.resolve(tableName);
+        copyDirectoryContents(new File(Resources.getResource("databricks153/variant").toURI()).toPath(), tableLocation);
+        assertUpdate("CALL system.register_table(CURRENT_SCHEMA, '%s', '%s')".formatted(tableName, tableLocation.toUri()));
+
+        assertThat(query("DESCRIBE " + tableName)).result().projected("Column", "Type")
                 .skippingTypesCheck()
                 .matches("VALUES " +
                         "('col_int', 'integer')," +
@@ -1606,7 +1611,7 @@ public class TestDeltaLakeBasic
                         "('struct_variant', 'row(x json)')," +
                         "('col_string', 'varchar')");
 
-        assertThat(query("SELECT col_int, simple_variant, array_variant[1], map_variant['key1'], struct_variant.x, col_string FROM variant"))
+        assertThat(query("SELECT col_int, simple_variant, array_variant[1], map_variant['key1'], struct_variant.x, col_string FROM " + tableName))
                 .skippingTypesCheck()
                 .matches("VALUES " +
                         "(1, JSON '{\"col\":1}', JSON '{\"array\":2}', JSON '{\"map\":3}', JSON '{\"struct\":4}', 'test data')," +
@@ -1614,7 +1619,34 @@ public class TestDeltaLakeBasic
                         "(3, NULL, NULL, NULL, NULL, 'test null')," +
                         "(4, JSON '1', JSON '2', JSON '3', JSON '4', 'test without fields')");
 
-        assertQueryFails("INSERT INTO variant VALUES (2, null, null, null, null, 'new data')", "Unsupported writer features: .*");
+        assertUpdate("INSERT INTO " + tableName + " VALUES (5, JSON '{\"col\":1}', NULL, MAP(ARRAY[CAST('x' AS VARCHAR)], ARRAY[JSON '{\"map\":3}']), NULL, VARCHAR 'new data')", 1);
+        assertThat(query("SELECT col_int, simple_variant, array_variant[1], map_variant['x'], struct_variant.x, col_string FROM " + tableName + " WHERE col_int = 5"))
+                .skippingTypesCheck()
+                .matches("VALUES (5, JSON '{\"col\":1}', NULL, JSON '{\"map\":3}', null, 'new data')");
+
+        assertUpdate("INSERT INTO " + tableName + " VALUES (6, NULL, NULL, NULL, NULL, NULL)", 1);
+        assertThat(query("SELECT col_int, simple_variant, array_variant, map_variant, struct_variant.x, col_string FROM " + tableName + " WHERE col_int = 6"))
+                .skippingTypesCheck()
+                .matches("VALUES (6, NULL, NULL, NULL, NULL, NULL)");
+
+        assertThat(query("SELECT * FROM \"" + tableName + "$properties\""))
+                .skippingTypesCheck()
+                .matches("VALUES " +
+                         "('delta.enableDeletionVectors', 'true')," +
+                         "('delta.minReaderVersion', '3')," +
+                         "('delta.minWriterVersion', '7')," +
+                         "('delta.feature.deletionVectors', 'supported')," +
+                         "('delta.feature.variantType-preview', 'supported')");
+
+        // generate a checkpoint
+        for (int i = 0; i < 5; i++) {
+            assertUpdate("INSERT INTO " + tableName + " VALUES (100, NULL, NULL, NULL, NULL, NULL)", 1);
+        }
+        String checkpointPath = tableLocation.resolve("_delta_log/00000000000000000010.checkpoint.parquet").toString();
+        assertThat(FILE_SYSTEM.newInputFile(Location.of(checkpointPath)).exists()).isTrue();
+
+        assertThat(query("SELECT count(*) FROM " + tableName))
+                .matches("VALUES BIGINT '11'"); // 4 + 2 + 5
     }
 
     /**
@@ -1649,6 +1681,28 @@ public class TestDeltaLakeBasic
                          "(3, JSON 'null', NULL)," +
                          "(4, NULL, NULL)," +
                          "(5, JSON '{\"a\":5}', NULL)");
+    }
+
+    @Test
+    void testVariantNullCountStatistics()
+            throws IOException
+    {
+        try (TestTable table = newTrinoTable("test_variant_statistics_null_count_", "(variant json)")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES JSON '{\"a\":\"abc\"}', NULL, JSON 'null'", 3);
+            assertThat(query("TABLE " +  table.getName()))
+                    .matches("VALUES JSON '{\"a\":\"abc\"}', CAST(NULL AS JSON), JSON 'null'");
+            String tableLocation = getTableLocation(table.getName());
+            List<DeltaLakeTransactionLogEntry> transactionLogs = getEntriesFromJson(1L, tableLocation + "/_delta_log");
+            AddFileEntry addFileEntry = transactionLogs.stream()
+                    .map(DeltaLakeTransactionLogEntry::getAdd)
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .orElseThrow();
+
+            Optional<Long> variantColumnNullCount = addFileEntry.getStats()
+                    .flatMap(statistics -> statistics.getNullCount("variant"));
+            assertThat(variantColumnNullCount).hasValue(1L);
+        }
     }
 
     /**

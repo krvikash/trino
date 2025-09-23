@@ -16,6 +16,7 @@ package io.trino.plugin.deltalake;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import io.trino.filesystem.Location;
 import io.trino.parquet.ParquetDataSourceId;
@@ -50,12 +51,14 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeParquetStatisticsUtils.hasInvalidStatistics;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeParquetStatisticsUtils.jsonEncodeMax;
@@ -63,6 +66,7 @@ import static io.trino.plugin.deltalake.transactionlog.DeltaLakeParquetStatistic
 import static io.trino.spi.block.ColumnarArray.toColumnarArray;
 import static io.trino.spi.block.ColumnarMap.toColumnarMap;
 import static io.trino.spi.type.DateTimeEncoding.unpackMillisUtc;
+import static io.trino.spi.type.StandardTypes.JSON;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MILLIS;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
@@ -198,8 +202,19 @@ public final class DeltaLakeWriter
                 // Lowercase because the subsequent logic expects lowercase
                 .collect(toImmutableMap(column -> column.basePhysicalColumnName().toLowerCase(ENGLISH), DeltaLakeColumnHandle::basePhysicalType));
 
+        Set<String> variantNames = typeForColumn.entrySet().stream()
+                .filter(entry -> entry.getValue().getTypeSignature().getBase().equals(JSON))
+                .map(Map.Entry::getKey)
+                .collect(toImmutableSet());
+
+        ImmutableMap.Builder<String, Object> variantNullCounts = ImmutableMap.builder();
         ImmutableMultimap.Builder<String, ColumnChunkMetadata> metadataForColumn = ImmutableMultimap.builder();
         for (BlockMetadata blockMetaData : parquetMetadata.getBlocks()) {
+            if (isVariantBlockMetadata(variantNames, blockMetaData)) {
+                ColumnChunkMetadata variantMetadata = blockMetaData.columns().getFirst();
+                variantNullCounts.put(variantMetadata.getPath().iterator().next(), variantMetadata.getStatistics().getNumNulls());
+                continue;
+            }
             for (ColumnChunkMetadata columnChunkMetaData : blockMetaData.columns()) {
                 if (columnChunkMetaData.getPath().size() != 1) {
                     continue; // Only base column stats are supported
@@ -209,24 +224,50 @@ public final class DeltaLakeWriter
             }
         }
 
-        return mergeStats(metadataForColumn.build(), typeForColumn, rowCount);
+        return mergeStats(metadataForColumn.build(), typeForColumn, rowCount, variantNullCounts);
+    }
+
+    private static boolean isVariantBlockMetadata(Set<String> variantNames, BlockMetadata blockMetaData)
+    {
+        if (variantNames.isEmpty()) {
+            return false;
+        }
+        if (blockMetaData.columns().size() != 2) {
+            return false;
+        }
+        List<String> firstPath = blockMetaData.columns().getFirst().getPath().toList();
+        List<String> secondPath = blockMetaData.columns().getLast().getPath().toList();
+        if (firstPath.size() != 2 || secondPath.size() != 2) {
+            return false;
+        }
+        String firstParent = firstPath.getFirst();
+        String secondParent = secondPath.getFirst();
+        if (variantNames.contains(firstParent) && firstParent.equals(secondParent)) {
+            return ImmutableSet.of(firstPath.getLast(), secondPath.getLast()).equals(ImmutableSet.of("metadata", "value"));
+        }
+        return false;
     }
 
     @VisibleForTesting
     static DeltaLakeJsonFileStatistics mergeStats(Multimap<String, ColumnChunkMetadata> metadataForColumn, Map</* lowercase */ String, Type> typeForColumn, long rowCount)
     {
+        return mergeStats(metadataForColumn, typeForColumn, rowCount, ImmutableMap.builder());
+    }
+
+    static DeltaLakeJsonFileStatistics mergeStats(Multimap<String, ColumnChunkMetadata> metadataForColumn, Map</* lowercase */ String, Type> typeForColumn, long rowCount, ImmutableMap.Builder<String, Object> nullCount)
+    {
         Map<String, Optional<Statistics<?>>> statsForColumn = metadataForColumn.keySet().stream()
                 .collect(toImmutableMap(identity(), key -> mergeMetadataList(metadataForColumn.get(key))));
 
-        Map<String, Object> nullCount = statsForColumn.entrySet().stream()
+        statsForColumn.entrySet().stream()
                 .filter(entry -> entry.getValue().isPresent())
-                .collect(toImmutableMap(Map.Entry::getKey, entry -> entry.getValue().get().getNumNulls()));
+                .forEach(entry -> nullCount.put(entry.getKey(), entry.getValue().get().getNumNulls()));
 
         return new DeltaLakeJsonFileStatistics(
                 Optional.of(rowCount),
                 Optional.of(jsonEncodeMin(statsForColumn, typeForColumn)),
                 Optional.of(jsonEncodeMax(statsForColumn, typeForColumn)),
-                Optional.of(nullCount));
+                Optional.of(nullCount.buildOrThrow()));
     }
 
     private static Optional<Statistics<?>> mergeMetadataList(Collection<ColumnChunkMetadata> metadataList)

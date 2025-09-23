@@ -53,6 +53,7 @@ import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.StandardTypes.JSON;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
 import static io.trino.spi.type.TinyintType.TINYINT;
@@ -190,6 +191,24 @@ public final class DeltaLakeParquetSchemas
         }
 
         String primitiveType = typeNode.asText();
+
+        if (primitiveType.equals("variant")) {
+            PrimitiveType metadata = Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, REQUIRED).named("metadata");
+            PrimitiveType value = Types.primitive(PrimitiveType.PrimitiveTypeName.BINARY, REQUIRED).named("value");
+            Types.GroupBuilder<GroupType> groupTypeGroupBuilder = Types.optionalGroup()
+                    .addFields(metadata, value)
+                    .as(LogicalTypeAnnotation.variantType((byte) 1));
+
+            if (id.isPresent()) {
+                groupTypeGroupBuilder.id(id.getAsInt());
+            }
+
+            List<String> fullName = ImmutableList.<String>builder().addAll(parent).add(name).build();
+            primitiveTypesBuilder.put(fullName, typeManager.getType(new TypeSignature(JSON)));
+
+            return groupTypeGroupBuilder.named(name);
+        }
+
         return buildPrimitiveType(primitiveType, typeManager, repetition, name, id, parent, primitiveTypesBuilder);
     }
 

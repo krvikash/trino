@@ -268,6 +268,7 @@ import static io.trino.plugin.deltalake.DeltaLakeTableProperties.getDeletionVect
 import static io.trino.plugin.deltalake.DeltaLakeTableProperties.getInCommitTimestampEnabled;
 import static io.trino.plugin.deltalake.DeltaLakeTableProperties.getLocation;
 import static io.trino.plugin.deltalake.DeltaLakeTableProperties.getPartitionedBy;
+import static io.trino.plugin.deltalake.DeltaLakeTableProperties.getVariantTypePreviewEnabled;
 import static io.trino.plugin.deltalake.metastore.DeltaLakeTableMetadataScheduler.containsSchemaString;
 import static io.trino.plugin.deltalake.metastore.DeltaLakeTableMetadataScheduler.getLastTransactionVersion;
 import static io.trino.plugin.deltalake.metastore.DeltaLakeTableMetadataScheduler.isSameTransactionVersion;
@@ -305,6 +306,7 @@ import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.se
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.serializeSchemaAsJson;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.serializeStatsAsJson;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.validateType;
+import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.variantTypePreviewEnabled;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.verifySupportedColumnMapping;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.CATALOG_OWNED_TABLE_PREVIEW_FEATURE_NAME;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.IN_COMMIT_TIMESTAMP_FEATURE_NAME;
@@ -372,6 +374,7 @@ import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.StandardTypes.JSON;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_MILLISECOND;
 import static io.trino.spi.type.TinyintType.TINYINT;
@@ -432,6 +435,8 @@ public class DeltaLakeMetadata
     public static final int DELETION_VECTORS_SUPPORTED_READER_VERSION = 3;
     public static final int DELETION_VECTORS_SUPPORTED_WRITER_VERSION = 7;
     public static final int IN_COMMIT_TIMESTAMP_SUPPORTED_WRITER_VERSION = 7;
+    public static final int VARIANT_SUPPORTED_READER_VERSION = 3;
+    public static final int VARIANT_SUPPORTED_WRITER_VERSION = 7;
     private static final RetryPolicy<Object> TRANSACTION_CONFLICT_RETRY_POLICY = RetryPolicy.builder()
             .handleIf(throwable -> Throwables.getCausalChain(throwable).stream().anyMatch(TransactionConflictException.class::isInstance))
             .withDelay(Duration.ofMillis(400))
@@ -1396,6 +1401,7 @@ public class DeltaLakeMetadata
 
         validateTableColumns(tableMetadata);
         boolean containsTimestampType = false;
+        boolean containsVariantType = false;
         DeltaLakeTable.Builder deltaTable = DeltaLakeTable.builder();
         for (ColumnMetadata column : tableMetadata.getColumns()) {
             deltaTable.addColumn(
@@ -1406,6 +1412,9 @@ public class DeltaLakeMetadata
                     generateColumnMetadata(columnMappingMode, fieldId));
             if (!containsTimestampType) {
                 containsTimestampType = containsTimestampType(column.getType());
+            }
+            if (!containsVariantType) {
+                containsVariantType = containsVariantType(column.getType());
             }
         }
 
@@ -1438,12 +1447,12 @@ public class DeltaLakeMetadata
                             transactionLogWriter.appendRemoveFileEntry(new RemoveFileEntry(addFileEntry.getPath(), addFileEntry.getPartitionValues(), writeTimestamp, true, Optional.empty()));
                         }
                     }
-                    protocolEntry = protocolEntryForTable(tableHandle.getProtocolEntry().minReaderVersion(), tableHandle.getProtocolEntry().minWriterVersion(), containsTimestampType, tableMetadata.getProperties());
+                    protocolEntry = protocolEntryForTable(tableHandle.getProtocolEntry().minReaderVersion(), tableHandle.getProtocolEntry().minWriterVersion(), containsTimestampType, tableMetadata.getProperties(), containsVariantType);
                     statisticsAccess.deleteExtendedStatistics(session, schemaTableName, location, tableHandle.toCredentialsHandle());
                 }
                 else {
                     setRollback(() -> deleteRecursivelyIfExists(fileSystem, deltaLogDirectory));
-                    protocolEntry = protocolEntryForTable(DEFAULT_READER_VERSION, DEFAULT_WRITER_VERSION, containsTimestampType, tableMetadata.getProperties());
+                    protocolEntry = protocolEntryForTable(DEFAULT_READER_VERSION, DEFAULT_WRITER_VERSION, containsTimestampType, tableMetadata.getProperties(), containsVariantType);
                 }
 
                 appendTableEntries(
@@ -1687,11 +1696,13 @@ public class DeltaLakeMetadata
 
         boolean usePhysicalName = columnMappingMode == ID || columnMappingMode == NAME;
         boolean containsTimestampType = false;
+        boolean containsVariantType = false;
         int columnSize = tableMetadata.getColumns().size();
         DeltaLakeTable.Builder deltaTable = DeltaLakeTable.builder();
         ImmutableList.Builder<DeltaLakeColumnHandle> columnHandles = ImmutableList.builderWithExpectedSize(columnSize);
         for (ColumnMetadata column : tableMetadata.getColumns()) {
             containsTimestampType |= containsTimestampType(column.getType());
+            containsVariantType |= containsVariantType(column.getType());
             Object serializedType = serializeColumnType(columnMappingMode, fieldId, column.getType());
             Type physicalType;
             try {
@@ -1730,14 +1741,14 @@ public class DeltaLakeMetadata
         ProtocolEntry protocolEntry;
 
         if (replaceExistingTable) {
-            protocolEntry = protocolEntryForTable(handle.getProtocolEntry().minReaderVersion(), handle.getProtocolEntry().minWriterVersion(), containsTimestampType, tableMetadata.getProperties());
+            protocolEntry = protocolEntryForTable(handle.getProtocolEntry().minReaderVersion(), handle.getProtocolEntry().minWriterVersion(), containsTimestampType, tableMetadata.getProperties(), containsVariantType);
             readVersion = OptionalLong.of(handle.getReadVersion());
         }
         else {
             TrinoFileSystem fileSystem = fileSystemFactory.create(session, location);
             checkPathContainsNoFiles(fileSystem, finalLocation);
             setRollback(() -> deleteRecursivelyIfExists(fileSystem, finalLocation));
-            protocolEntry = protocolEntryForTable(DEFAULT_READER_VERSION, DEFAULT_WRITER_VERSION, containsTimestampType, tableMetadata.getProperties());
+            protocolEntry = protocolEntryForTable(DEFAULT_READER_VERSION, DEFAULT_WRITER_VERSION, containsTimestampType, tableMetadata.getProperties(), containsVariantType);
         }
 
         return new DeltaLakeOutputTableHandle(
@@ -1826,6 +1837,11 @@ public class DeltaLakeMetadata
                 .collect(toImmutableList());
 
         if (columns.stream().filter(column -> partitionColumnNames.contains(column.getName()))
+                .anyMatch(column -> column.getType().getTypeSignature().getBase().equals(JSON))) {
+            throw new TrinoException(DELTA_LAKE_INVALID_SCHEMA, "Using variant type on partitioned columns is unsupported");
+        }
+
+        if (columns.stream().filter(column -> partitionColumnNames.contains(column.getName()))
                 .anyMatch(column -> column.getType() instanceof ArrayType || column.getType() instanceof MapType || column.getType() instanceof RowType)) {
             throw new TrinoException(DELTA_LAKE_INVALID_SCHEMA, "Using array, map or row type on partitioned columns is unsupported");
         }
@@ -1854,6 +1870,21 @@ public class DeltaLakeMetadata
         catch (IOException e) {
             LOG.warn(e, "IOException while trying to delete '%s'", path);
         }
+    }
+
+    public static boolean containsVariantType(Type type)
+    {
+        if (type instanceof ArrayType arrayType) {
+            return containsVariantType(arrayType.getElementType());
+        }
+        if (type instanceof MapType mapType) {
+            return containsVariantType(mapType.getKeyType()) || containsVariantType(mapType.getValueType());
+        }
+        if (type instanceof RowType rowType) {
+            return rowType.getFields().stream().anyMatch(field -> containsVariantType(field.getType()));
+        }
+        checkArgument(type.getTypeParameters().isEmpty(), "Unexpected type parameters for type %s", type);
+        return type.getTypeSignature().getBase().equals(JSON);
     }
 
     private static boolean containsTimestampType(Type type)
@@ -2187,7 +2218,9 @@ public class DeltaLakeMetadata
                             changeDataFeedEnabled,
                             columnMappingMode,
                             deletionVectorEnabled,
-                            inCommitTimestampEnabled),
+                            inCommitTimestampEnabled,
+                            variantTypePreviewEnabled(protocolEntry),
+                            containsVariantType(newColumnMetadata.getType())),
                     MetadataEntry.builder(handle.getMetadataEntry())
                             .setSchemaString(schemaString)
                             .setConfiguration(configuration),
@@ -3373,7 +3406,7 @@ public class DeltaLakeMetadata
         }
     }
 
-    private ProtocolEntry protocolEntryForTable(int readerVersion, int writerVersion, boolean containsTimestampType, Map<String, Object> properties)
+    private ProtocolEntry protocolEntryForTable(int readerVersion, int writerVersion, boolean containsTimestampType, Map<String, Object> properties, boolean containsVariantType)
     {
         return protocolEntry(
                 ProtocolEntry.builder(readerVersion, writerVersion),
@@ -3381,7 +3414,9 @@ public class DeltaLakeMetadata
                 getChangeDataFeedEnabled(properties),
                 getColumnMappingMode(properties),
                 getDeletionVectorsEnabled(properties),
-                getInCommitTimestampEnabled(properties));
+                getInCommitTimestampEnabled(properties),
+                getVariantTypePreviewEnabled(properties),
+                containsVariantType);
     }
 
     private ProtocolEntry protocolEntry(
@@ -3390,7 +3425,9 @@ public class DeltaLakeMetadata
             Optional<Boolean> changeDataFeedEnabled,
             ColumnMappingMode columnMappingMode,
             boolean deletionVectorsEnabled,
-            Optional<Boolean> inCommitTimestampEnabled)
+            Optional<Boolean> inCommitTimestampEnabled,
+            boolean variantTypePreviewEnabled,
+            boolean containsVariantType)
     {
         if (changeDataFeedEnabled.isPresent() && changeDataFeedEnabled.get()) {
             protocolEntry.enableChangeDataFeed();
@@ -3406,6 +3443,12 @@ public class DeltaLakeMetadata
         }
         if (inCommitTimestampEnabled.isPresent() && inCommitTimestampEnabled.get()) {
             protocolEntry.enableInCommitTimestamp();
+        }
+        if (variantTypePreviewEnabled) {
+            protocolEntry.enableVariantTypePreview();
+        }
+        if (containsVariantType) {
+            protocolEntry.enableVariantType();
         }
         return protocolEntry.build();
     }

@@ -44,6 +44,7 @@ public class DeltaLakeTableProperties
     public static final String COLUMN_MAPPING_MODE_PROPERTY = "column_mapping_mode";
     public static final String DELETION_VECTORS_ENABLED_PROPERTY = "deletion_vectors_enabled";
     public static final String IN_COMMIT_TIMESTAMP_ENABLED_PROPERTY = "in_commit_timestamp_enabled";
+    public static final String VARIANT_TYPE_PREVIEW_ENABLED_PROPERTY = "variant_type_preview_enabled";
 
     private final List<PropertyMetadata<?>> tableProperties;
 
@@ -100,6 +101,11 @@ public class DeltaLakeTableProperties
                         "Enables in-commit timestamp",
                         null,
                         false))
+                .add(booleanProperty(
+                        VARIANT_TYPE_PREVIEW_ENABLED_PROPERTY,
+                        "Enables variant type preview feature",
+                        null,
+                        false))
                 .build();
     }
 
@@ -149,5 +155,10 @@ public class DeltaLakeTableProperties
     public static Optional<Boolean> getInCommitTimestampEnabled(Map<String, Object> tableProperties)
     {
         return Optional.ofNullable((Boolean) tableProperties.get(IN_COMMIT_TIMESTAMP_ENABLED_PROPERTY));
+    }
+
+    public static boolean getVariantTypePreviewEnabled(Map<String, Object> tableProperties)
+    {
+        return (boolean) tableProperties.getOrDefault(VARIANT_TYPE_PREVIEW_ENABLED_PROPERTY, false);
     }
 }

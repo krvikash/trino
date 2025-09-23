@@ -1027,11 +1027,14 @@ abstract class BaseUnloadFunctionTest
 
     @Test
     void testUnloadUnsupportedColumnType()
+            throws Exception
     {
-        String location = directory.resolve("test_anonymous_column").toUri().toString();
+        String tableName = "test_unsupported_column_type_" + randomNameSuffix();
+        String location = directory.resolve(tableName).toUri().toString();
+        Files.createDirectory(directory.resolve(tableName));
         assertQueryFails(
                 "SELECT * FROM TABLE(hive.system.unload(input => TABLE(SELECT JSON '{}' x), location => '" + location + "', format => 'ORC'))",
-                "Unsupported Hive type: json");
+                "Unsupported Hive type: variant");
     }
 
     @Test

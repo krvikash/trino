@@ -92,6 +92,7 @@ import static io.airlift.slice.SizeOf.estimatedSizeOf;
 import static io.airlift.slice.SizeOf.instanceSize;
 import static io.trino.cache.CacheUtils.invalidateAllIf;
 import static io.trino.plugin.deltalake.DeltaLakeErrorCode.DELTA_LAKE_INVALID_SCHEMA;
+import static io.trino.plugin.deltalake.DeltaLakeMetadata.containsVariantType;
 import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.isCheckpointFilteringEnabled;
 import static io.trino.plugin.deltalake.transactionlog.TransactionLogParser.readLastCheckpoint;
 import static io.trino.plugin.deltalake.transactionlog.TransactionLogUtil.getTransactionLogDir;
@@ -505,6 +506,9 @@ public class TransactionLogAccess
                 .filter(column -> !partitionColumns.contains(column.name()))
                 .filter(column -> {
                     Type type = column.type();
+                    if (containsVariantType(type)) {
+                        return false;
+                    }
                     return !(type instanceof MapType || type instanceof ArrayType || type.equals(BooleanType.BOOLEAN) || type.equals(VarbinaryType.VARBINARY));
                 })
                 .collect(toImmutableList());
