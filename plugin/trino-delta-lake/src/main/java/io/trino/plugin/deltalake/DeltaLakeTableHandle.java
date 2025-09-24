@@ -18,7 +18,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.units.DataSize;
-import io.trino.plugin.deltalake.metastore.VendedCredentials;
 import io.trino.plugin.deltalake.metastore.VendedCredentialsHandle;
 import io.trino.plugin.deltalake.transactionlog.MetadataEntry;
 import io.trino.plugin.deltalake.transactionlog.ProtocolEntry;
@@ -31,6 +30,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.plugin.deltalake.DeltaLakeMetadata.isCatalogOwnedTable;
 import static io.trino.plugin.deltalake.DeltaLakeTableHandle.WriteType.UPDATE;
 import static java.util.Objects.requireNonNull;
 
@@ -47,6 +47,7 @@ public class DeltaLakeTableHandle
     private final String schemaName;
     private final String tableName;
     private final boolean managed;
+    private final Optional<String> tableId;
     private final String location;
     private final MetadataEntry metadataEntry;
     private final ProtocolEntry protocolEntry;
@@ -72,13 +73,12 @@ public class DeltaLakeTableHandle
     // Used only for validation when config property delta.query-partition-filter-required is enabled.
     private final Set<DeltaLakeColumnHandle> constraintColumns;
 
-    private final Optional<VendedCredentials> vendedCredentials;
-
     @JsonCreator
     public DeltaLakeTableHandle(
             @JsonProperty("schemaName") String schemaName,
             @JsonProperty("tableName") String tableName,
             @JsonProperty("managed") boolean managed,
+            @JsonProperty("tableId") Optional<String> tableId,
             @JsonProperty("location") String location,
             @JsonProperty("metadataEntry") MetadataEntry metadataEntry,
             @JsonProperty("protocolEntry") ProtocolEntry protocolEntry,
@@ -90,13 +90,13 @@ public class DeltaLakeTableHandle
             @JsonProperty("updateRowIdColumns") Optional<List<DeltaLakeColumnHandle>> updateRowIdColumns,
             @JsonProperty("analyzeHandle") Optional<AnalyzeHandle> analyzeHandle,
             @JsonProperty("readVersion") long readVersion,
-            @JsonProperty("timeTravel") boolean timeTravel,
-            @JsonProperty("vendedCredentials") Optional<VendedCredentials> vendedCredentials)
+            @JsonProperty("timeTravel") boolean timeTravel)
     {
         this(
                 schemaName,
                 tableName,
                 managed,
+                tableId,
                 location,
                 metadataEntry,
                 protocolEntry,
@@ -112,14 +112,14 @@ public class DeltaLakeTableHandle
                 false,
                 Optional.empty(),
                 readVersion,
-                timeTravel,
-                vendedCredentials);
+                timeTravel);
     }
 
     public DeltaLakeTableHandle(
             String schemaName,
             String tableName,
             boolean managed,
+            Optional<String> tableId,
             String location,
             MetadataEntry metadataEntry,
             ProtocolEntry protocolEntry,
@@ -135,12 +135,12 @@ public class DeltaLakeTableHandle
             boolean isOptimize,
             Optional<DataSize> maxScannedFileSize,
             long readVersion,
-            boolean timeTravel,
-            Optional<VendedCredentials> vendedCredentials)
+            boolean timeTravel)
     {
         this.schemaName = requireNonNull(schemaName, "schemaName is null");
         this.tableName = requireNonNull(tableName, "tableName is null");
         this.managed = managed;
+        this.tableId = requireNonNull(tableId, "tableId is null");
         this.location = requireNonNull(location, "location is null");
         this.metadataEntry = requireNonNull(metadataEntry, "metadataEntry is null");
         this.protocolEntry = requireNonNull(protocolEntry, "protocolEntry is null");
@@ -159,7 +159,6 @@ public class DeltaLakeTableHandle
         this.readVersion = readVersion;
         this.timeTravel = timeTravel;
         this.constraintColumns = ImmutableSet.copyOf(requireNonNull(constraintColumns, "constraintColumns is null"));
-        this.vendedCredentials = requireNonNull(vendedCredentials, "vendedCredentials is null");
     }
 
     public DeltaLakeTableHandle withProjectedColumns(Set<DeltaLakeColumnHandle> projectedColumns)
@@ -168,6 +167,7 @@ public class DeltaLakeTableHandle
                 schemaName,
                 tableName,
                 managed,
+                tableId,
                 location,
                 metadataEntry,
                 protocolEntry,
@@ -183,8 +183,7 @@ public class DeltaLakeTableHandle
                 isOptimize,
                 maxScannedFileSize,
                 readVersion,
-                timeTravel,
-                vendedCredentials);
+                timeTravel);
     }
 
     public DeltaLakeTableHandle forOptimize(boolean recordScannedFiles, DataSize maxScannedFileSize)
@@ -193,6 +192,7 @@ public class DeltaLakeTableHandle
                 schemaName,
                 tableName,
                 managed,
+                tableId,
                 location,
                 metadataEntry,
                 protocolEntry,
@@ -208,8 +208,7 @@ public class DeltaLakeTableHandle
                 true,
                 Optional.of(maxScannedFileSize),
                 readVersion,
-                timeTravel,
-                vendedCredentials);
+                timeTravel);
     }
 
     @Override
@@ -247,6 +246,12 @@ public class DeltaLakeTableHandle
         return managed;
     }
 
+    @JsonProperty
+    public Optional<String> getTableId()
+    {
+        return tableId;
+    }
+
     @Override
     public String location()
     {
@@ -256,7 +261,7 @@ public class DeltaLakeTableHandle
     @Override
     public VendedCredentialsHandle toCredentialsHandle()
     {
-        return new VendedCredentialsHandle(false, managed, location, vendedCredentials.orElse(VendedCredentials.empty()));
+        return new VendedCredentialsHandle(isCatalogOwnedTable(protocolEntry), managed, tableId, location, Optional.empty());
     }
 
     @JsonProperty
@@ -362,6 +367,7 @@ public class DeltaLakeTableHandle
                 getSchemaName(),
                 getTableName(),
                 isManaged(),
+                getTableId(),
                 getLocation(),
                 getMetadataEntry(),
                 getProtocolEntry(),
@@ -378,14 +384,7 @@ public class DeltaLakeTableHandle
                 getUpdateRowIdColumns(),
                 getAnalyzeHandle(),
                 getReadVersion(),
-                isTimeTravel(),
-                Optional.empty());
-    }
-
-    @JsonProperty
-    public Optional<VendedCredentials> getVendedCredentials()
-    {
-        return vendedCredentials;
+                isTimeTravel());
     }
 
     @Override
@@ -409,6 +408,7 @@ public class DeltaLakeTableHandle
                 Objects.equals(schemaName, that.schemaName) &&
                 Objects.equals(tableName, that.tableName) &&
                 managed == that.managed &&
+                Objects.equals(tableId, that.tableId) &&
                 Objects.equals(location, that.location) &&
                 Objects.equals(metadataEntry, that.metadataEntry) &&
                 Objects.equals(protocolEntry, that.protocolEntry) &&
@@ -422,8 +422,7 @@ public class DeltaLakeTableHandle
                 isOptimize == that.isOptimize &&
                 Objects.equals(maxScannedFileSize, that.maxScannedFileSize) &&
                 readVersion == that.readVersion &&
-                timeTravel == that.timeTravel &&
-                Objects.equals(vendedCredentials, that.vendedCredentials);
+                timeTravel == that.timeTravel;
     }
 
     @Override
@@ -433,6 +432,7 @@ public class DeltaLakeTableHandle
                 schemaName,
                 tableName,
                 managed,
+                tableId,
                 location,
                 metadataEntry,
                 protocolEntry,
@@ -447,7 +447,6 @@ public class DeltaLakeTableHandle
                 isOptimize,
                 maxScannedFileSize,
                 readVersion,
-                timeTravel,
-                vendedCredentials);
+                timeTravel);
     }
 }

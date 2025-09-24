@@ -13,17 +13,21 @@
  */
 package io.trino.plugin.deltalake.metastore;
 
+import java.util.Optional;
+
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 public record VendedCredentialsHandle(
         boolean catalogOwned,
         boolean managed,
+        Optional<String> tableId,
         String tableLocation,
-        VendedCredentials vendedCredentials)
+        Optional<FileSystemCredentials> vendedCredentials)
 {
     public VendedCredentialsHandle
     {
+        requireNonNull(tableId, "tableId is null");
         requireNonNull(tableLocation, "tableLocation is null");
         requireNonNull(vendedCredentials, "vendedCredentials is null");
 
@@ -34,16 +38,16 @@ public record VendedCredentialsHandle(
 
     public static VendedCredentialsHandle empty(String tableLocation)
     {
-        return new VendedCredentialsHandle(false, false, tableLocation, VendedCredentials.empty());
+        return new VendedCredentialsHandle(false, false, Optional.empty(), tableLocation, Optional.empty());
     }
 
     public static VendedCredentialsHandle of(DeltaMetastoreTable table)
     {
-        return new VendedCredentialsHandle(table.catalogOwned(), table.managed(), table.location(), table.vendedCredentials().orElse(VendedCredentials.empty()));
+        return new VendedCredentialsHandle(table.catalogOwned(), table.managed(), table.tableId(), table.location(), Optional.empty());
     }
 
-    public VendedCredentialsHandle withVendedCredentials(VendedCredentials vendedCredentials)
+    public VendedCredentialsHandle withVendedCredentials(FileSystemCredentials vendedCredentials)
     {
-        return new VendedCredentialsHandle(catalogOwned, managed, tableLocation, vendedCredentials);
+        return new VendedCredentialsHandle(catalogOwned, managed, tableId, tableLocation, Optional.of(vendedCredentials));
     }
 }

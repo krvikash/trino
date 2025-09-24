@@ -20,7 +20,6 @@ import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.cache.CachingHiveMetastore;
 import io.trino.plugin.deltalake.metastore.DeltaLakeTableMetadataScheduler;
 import io.trino.plugin.deltalake.metastore.HiveMetastoreBackedDeltaLakeMetastore;
-import io.trino.plugin.deltalake.metastore.VendedCredentialsProvider;
 import io.trino.plugin.deltalake.statistics.CachingExtendedStatisticsAccess;
 import io.trino.plugin.deltalake.statistics.FileBasedTableStatisticsProvider;
 import io.trino.plugin.deltalake.transactionlog.TransactionLogAccess;
@@ -71,7 +70,6 @@ public class DeltaLakeMetadataFactory
     private final boolean isOperateOnUnityMetastore;
     private final String trinoVersion;
     private final TransactionLogReaderFactory transactionLogReaderFactory;
-    private final VendedCredentialsProvider vendedCredentialsProvider;
 
     @Inject
     public DeltaLakeMetadataFactory(
@@ -93,8 +91,7 @@ public class DeltaLakeMetadataFactory
             DeltaLakeTableMetadataScheduler metadataScheduler,
             @ForDeltaLakeMetadata ExecutorService executorService,
             MetastoreTypeConfig metastoreTypeConfig,
-            TransactionLogReaderFactory transactionLogReaderFactory,
-            VendedCredentialsProvider vendedCredentialsProvider)
+            TransactionLogReaderFactory transactionLogReaderFactory)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.hiveMetastoreFactory = requireNonNull(hiveMetastoreFactory, "hiveMetastore is null");
@@ -125,7 +122,6 @@ public class DeltaLakeMetadataFactory
         }
         this.isOperateOnUnityMetastore = metastoreTypeConfig.getMetastoreType() == UNITY;
         this.transactionLogReaderFactory = requireNonNull(transactionLogReaderFactory, "transactionLogLoaderFactory is null");
-        this.vendedCredentialsProvider = requireNonNull(vendedCredentialsProvider, "vendedCredentialsProvider is null");
     }
 
     public DeltaLakeMetadata create(ConnectorIdentity identity)
@@ -166,7 +162,6 @@ public class DeltaLakeMetadataFactory
                 allowManagedTableRename,
                 isOperateOnUnityMetastore,
                 metadataFetchingExecutor,
-                transactionLogReaderFactory,
-                vendedCredentialsProvider);
+                transactionLogReaderFactory);
     }
 }

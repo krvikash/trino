@@ -59,6 +59,7 @@ public final class TestingDeltaLakeUtils
                 schemaTableName.getSchemaName(),
                 schemaTableName.getTableName(),
                 true,
+                Optional.empty(),
                 tableLocation,
                 new MetadataEntry("id", "test", "description", null, "", ImmutableList.of(), ImmutableMap.of(), 0),
                 new ProtocolEntry(1, 2, Optional.empty(), Optional.empty()),
@@ -70,8 +71,7 @@ public final class TestingDeltaLakeUtils
                 Optional.empty(),
                 Optional.empty(),
                 0,
-                false,
-                Optional.empty());
+                false);
     }
 
     public static DeltaLakeTableHandle createTable(MetadataEntry metadataEntry, ProtocolEntry protocolEntry)
@@ -80,6 +80,7 @@ public final class TestingDeltaLakeUtils
                 "schema",
                 "table",
                 true,
+                Optional.empty(),
                 "",
                 metadataEntry,
                 protocolEntry,
@@ -91,8 +92,7 @@ public final class TestingDeltaLakeUtils
                 Optional.empty(),
                 Optional.empty(),
                 0,
-                false,
-                Optional.empty());
+                false);
     }
 
     public static List<AddFileEntry> getTableActiveFiles(TransactionLogAccess transactionLogAccess, TrinoFileSystemFactory fileSystemFactory, String tableLocation)

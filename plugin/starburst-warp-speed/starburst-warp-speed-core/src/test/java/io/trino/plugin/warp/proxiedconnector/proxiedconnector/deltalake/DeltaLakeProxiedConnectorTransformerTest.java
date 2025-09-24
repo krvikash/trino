@@ -125,6 +125,7 @@ public class DeltaLakeProxiedConnectorTransformerTest
                         tableHandle.getSchemaName(),
                         tableHandle.getTableName(),
                         tableHandle.isManaged(),
+                        tableHandle.getTableId(),
                         tableHandle.getLocation(),
                         tableHandle.getMetadataEntry(),
                         tableHandle.getProtocolEntry(),
@@ -136,8 +137,7 @@ public class DeltaLakeProxiedConnectorTransformerTest
                         tableHandle.getUpdateRowIdColumns(),
                         tableHandle.getAnalyzeHandle(),
                         tableHandle.getReadVersion(),
-                        tableHandle.isTimeTravel(),
-                        tableHandle.getVendedCredentials()));
+                        tableHandle.isTimeTravel()));
     }
 
     @Test
@@ -167,6 +167,7 @@ public class DeltaLakeProxiedConnectorTransformerTest
                 "schemaName",
                 "tableName",
                 true,
+                Optional.empty(),
                 "location",
                 mock(MetadataEntry.class),
                 mock(ProtocolEntry.class),
@@ -178,7 +179,6 @@ public class DeltaLakeProxiedConnectorTransformerTest
                 Optional.empty(),
                 Optional.empty(),
                 1L,
-                false,
-                Optional.empty());
+                false);
     }
 }

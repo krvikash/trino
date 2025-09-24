@@ -15,7 +15,7 @@ package io.trino.plugin.deltalake.metastore.unity;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
-import io.trino.plugin.deltalake.metastore.VendedCredentials;
+import io.trino.plugin.deltalake.metastore.FileSystemCredentials;
 import io.trino.plugin.deltalake.metastore.VendedCredentialsHandle;
 import io.trino.plugin.deltalake.metastore.VendedCredentialsProvider;
 import io.trino.plugin.hive.metastore.unity.UnityHiveMetastoreFactory;
@@ -28,14 +28,15 @@ import io.unitycatalog.client.model.TableOperation;
 import io.unitycatalog.client.model.TemporaryCredentials;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
-import static io.trino.plugin.hive.metastore.unity.UnityHiveMetastore.VENDED_GCS_OAUTH_TOKEN;
-import static io.trino.plugin.hive.metastore.unity.UnityHiveMetastore.VENDED_S3_ACCESS_KEY;
-import static io.trino.plugin.hive.metastore.unity.UnityHiveMetastore.VENDED_S3_SECRET_KEY;
-import static io.trino.plugin.hive.metastore.unity.UnityHiveMetastore.VENDED_S3_SESSION_TOKEN;
+import static io.trino.filesystem.gcs.GcsFileSystemConstants.EXTRA_CREDENTIALS_OAUTH_TOKEN_EXPIRE_AT_PROPERTY;
+import static io.trino.filesystem.gcs.GcsFileSystemConstants.EXTRA_CREDENTIALS_OAUTH_TOKEN_PROPERTY;
+import static io.trino.filesystem.s3.S3FileSystemConstants.EXTRA_CREDENTIALS_ACCESS_KEY_PROPERTY;
+import static io.trino.filesystem.s3.S3FileSystemConstants.EXTRA_CREDENTIALS_SECRET_KEY_PROPERTY;
+import static io.trino.filesystem.s3.S3FileSystemConstants.EXTRA_CREDENTIALS_SESSION_TOKEN_PROPERTY;
 import static java.util.Objects.requireNonNull;
 
 public class UnityVendedCredentialsProvider
@@ -52,12 +53,11 @@ public class UnityVendedCredentialsProvider
     @Override
     public VendedCredentialsHandle getFreshCredentials(VendedCredentialsHandle handle)
     {
-        VendedCredentials vendedCredentials = handle.vendedCredentials();
-        if (vendedCredentials.isFresh()) {
+        if (handle.vendedCredentials().map(FileSystemCredentials::isValid).orElse(false)) {
             return handle;
         }
 
-        Optional<String> tableId = vendedCredentials.tableId();
+        Optional<String> tableId = handle.tableId();
         TemporaryCredentials temporaryCredentials;
         if (handle.catalogOwned()) {
             temporaryCredentials = unityMetastore.getTemporaryTableCredentials(tableId.orElseThrow(), TableOperation.READ_WRITE);
@@ -74,9 +74,9 @@ public class UnityVendedCredentialsProvider
         ImmutableMap.Builder<String, String> credentialsBuilder = ImmutableMap.builder();
         AwsCredentials awsTempCredentials = temporaryCredentials.getAwsTempCredentials();
         if (awsTempCredentials != null) {
-            credentialsBuilder.put(VENDED_S3_ACCESS_KEY, awsTempCredentials.getAccessKeyId());
-            credentialsBuilder.put(VENDED_S3_SECRET_KEY, awsTempCredentials.getSecretAccessKey());
-            credentialsBuilder.put(VENDED_S3_SESSION_TOKEN, awsTempCredentials.getSessionToken());
+            credentialsBuilder.put(EXTRA_CREDENTIALS_ACCESS_KEY_PROPERTY, awsTempCredentials.getAccessKeyId());
+            credentialsBuilder.put(EXTRA_CREDENTIALS_SECRET_KEY_PROPERTY, awsTempCredentials.getSecretAccessKey());
+            credentialsBuilder.put(EXTRA_CREDENTIALS_SESSION_TOKEN_PROPERTY, awsTempCredentials.getSessionToken());
         }
 
         AzureUserDelegationSAS azureUserDelegationSas = temporaryCredentials.getAzureUserDelegationSas();
@@ -87,13 +87,24 @@ public class UnityVendedCredentialsProvider
 
         GcpOauthToken gcpOauthToken = temporaryCredentials.getGcpOauthToken();
         if (gcpOauthToken != null) {
-            credentialsBuilder.put(VENDED_GCS_OAUTH_TOKEN, gcpOauthToken.getOauthToken());
+            credentialsBuilder.put(EXTRA_CREDENTIALS_OAUTH_TOKEN_PROPERTY, gcpOauthToken.getOauthToken());
+            credentialsBuilder.put(EXTRA_CREDENTIALS_OAUTH_TOKEN_EXPIRE_AT_PROPERTY, String.valueOf(expireAt.toEpochMilli()));
         }
 
         verify(awsTempCredentials != null || gcpOauthToken != null, "No supported cloud credentials returned from Unity Catalog");
 
-        VendedCredentials freshCredentials = new VendedCredentials(tableId, expireAt, credentialsBuilder.buildOrThrow());
-        checkArgument(freshCredentials.isFresh(), "Unexpected stale credentials: %s", freshCredentials);
-        return handle.withVendedCredentials(freshCredentials);
+        return handle.withVendedCredentials(new FileSystemCredentials() {
+            @Override
+            public Map<String, String> asExtraCredentials()
+            {
+                return credentialsBuilder.buildOrThrow();
+            }
+
+            @Override
+            public boolean isValid()
+            {
+                return Instant.now().isBefore(expireAt);
+            }
+        });
     }
 }

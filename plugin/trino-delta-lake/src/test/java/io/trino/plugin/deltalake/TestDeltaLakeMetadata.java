@@ -505,6 +505,7 @@ public class TestDeltaLakeMetadata
                 "test_schema_name",
                 "test_table_name",
                 true,
+                Optional.empty(),
                 "test_location",
                 createMetadataEntry(),
                 new ProtocolEntry(1, 2, Optional.empty(), Optional.empty()),
@@ -516,8 +517,7 @@ public class TestDeltaLakeMetadata
                 Optional.of(ImmutableList.of(DOUBLE_COLUMN_HANDLE)),
                 Optional.empty(),
                 0,
-                false,
-                Optional.empty());
+                false);
     }
 
     private static TupleDomain<DeltaLakeColumnHandle> createConstrainedColumnsTuple(

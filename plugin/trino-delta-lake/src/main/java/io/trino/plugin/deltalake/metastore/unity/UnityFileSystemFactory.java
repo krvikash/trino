@@ -18,23 +18,14 @@ import com.google.inject.Inject;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.plugin.deltalake.DeltaLakeFileSystemFactory;
+import io.trino.plugin.deltalake.metastore.FileSystemCredentials;
 import io.trino.plugin.deltalake.metastore.VendedCredentialsHandle;
 import io.trino.plugin.deltalake.metastore.VendedCredentialsProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.security.ConnectorIdentity;
 
-import java.time.Instant;
-import java.util.Map;
+import java.util.Optional;
 
-import static io.trino.filesystem.gcs.GcsFileSystemConstants.EXTRA_CREDENTIALS_OAUTH_TOKEN_EXPIRE_AT_PROPERTY;
-import static io.trino.filesystem.gcs.GcsFileSystemConstants.EXTRA_CREDENTIALS_OAUTH_TOKEN_PROPERTY;
-import static io.trino.filesystem.s3.S3FileSystemConstants.EXTRA_CREDENTIALS_ACCESS_KEY_PROPERTY;
-import static io.trino.filesystem.s3.S3FileSystemConstants.EXTRA_CREDENTIALS_SECRET_KEY_PROPERTY;
-import static io.trino.filesystem.s3.S3FileSystemConstants.EXTRA_CREDENTIALS_SESSION_TOKEN_PROPERTY;
-import static io.trino.plugin.hive.metastore.unity.UnityHiveMetastore.VENDED_GCS_OAUTH_TOKEN;
-import static io.trino.plugin.hive.metastore.unity.UnityHiveMetastore.VENDED_S3_ACCESS_KEY;
-import static io.trino.plugin.hive.metastore.unity.UnityHiveMetastore.VENDED_S3_SECRET_KEY;
-import static io.trino.plugin.hive.metastore.unity.UnityHiveMetastore.VENDED_S3_SESSION_TOKEN;
 import static java.util.Objects.requireNonNull;
 
 public class UnityFileSystemFactory
@@ -55,21 +46,7 @@ public class UnityFileSystemFactory
     {
         requireNonNull(vendedCredentialsHandle, "vendedCredentialsHandle is null");
 
-        vendedCredentialsHandle = vendedCredentialsProvider.getFreshCredentials(vendedCredentialsHandle);
-        Map<String, String> credentials = vendedCredentialsHandle.vendedCredentials().credentials();
-
-        ImmutableMap.Builder<String, String> extraCredentialsBuilder = ImmutableMap.builder();
-        if (credentials.containsKey(VENDED_S3_ACCESS_KEY)) {
-            extraCredentialsBuilder.put(EXTRA_CREDENTIALS_ACCESS_KEY_PROPERTY, credentials.get(VENDED_S3_ACCESS_KEY))
-                    .put(EXTRA_CREDENTIALS_SECRET_KEY_PROPERTY, credentials.get(VENDED_S3_SECRET_KEY))
-                    .put(EXTRA_CREDENTIALS_SESSION_TOKEN_PROPERTY, credentials.get(VENDED_S3_SESSION_TOKEN));
-        }
-
-        if (credentials.containsKey(VENDED_GCS_OAUTH_TOKEN)) {
-            extraCredentialsBuilder.put(EXTRA_CREDENTIALS_OAUTH_TOKEN_PROPERTY, credentials.get(VENDED_GCS_OAUTH_TOKEN));
-            Instant expireAt = vendedCredentialsHandle.vendedCredentials().expireAt();
-            extraCredentialsBuilder.put(EXTRA_CREDENTIALS_OAUTH_TOKEN_EXPIRE_AT_PROPERTY, String.valueOf(expireAt.toEpochMilli()));
-        }
+        Optional<FileSystemCredentials> freshCredentials = vendedCredentialsProvider.getFreshCredentials(vendedCredentialsHandle).vendedCredentials();
 
         ConnectorIdentity identity = session.getIdentity();
         ConnectorIdentity identityWithExtraCredentials = ConnectorIdentity.forUser(identity.getUser())
@@ -77,7 +54,7 @@ public class UnityFileSystemFactory
                 .withPrincipal(identity.getPrincipal())
                 .withEnabledSystemRoles(identity.getEnabledSystemRoles())
                 .withConnectorRole(identity.getConnectorRole())
-                .withExtraCredentials(extraCredentialsBuilder.buildOrThrow())
+                .withExtraCredentials(freshCredentials.map(FileSystemCredentials::asExtraCredentials).orElse(ImmutableMap.of()))
                 .build();
         return fileSystemFactory.create(identityWithExtraCredentials);
     }
