@@ -233,6 +233,9 @@ to the following table:
 * - `DateTime[(timezone)]`
   - `TIMESTAMP(0) [WITH TIME ZONE]`
   -
+* - `DateTime64[n, (timezone)]`
+  - `TIMESTAMP(n) [WITH TIME ZONE]`
+  - `n` in [0-9]
 * - `IPv4`
   - `IPADDRESS`
   -
@@ -301,15 +304,22 @@ to the following table:
 * - `DATE`
   - `Date`
   -
-* - `TIMESTAMP(0)`
-  - `DateTime`
-  -
+* - `TIMESTAMP(n)`
+  - `DateTime64(n)`
+  - `n` in [0-9]
+* - `TIMESTAMP(n) WITH TIME ZONE`
+  - `DateTime64(n, timezone)`
+  - `n` in [0-9]. Creating table is not supported.
 * - `UUID`
   - `UUID`
   -
 :::
 
 No other types are supported.
+
+:::{note}
+Timestamps inserted from Trino are rounded to match the target precision.
+:::
 
 ```{include} jdbc-type-mapping.fragment
 ```

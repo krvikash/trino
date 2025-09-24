@@ -16,6 +16,7 @@ package io.trino.plugin.clickhouse;
 import com.google.common.collect.ImmutableList;
 import io.trino.Session;
 import io.trino.spi.type.TimeZoneKey;
+import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.UuidType;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.TestingSession;
@@ -35,10 +36,13 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
+import static io.trino.plugin.clickhouse.ClickHouseClient.CLICKHOUSE_MAX_SUPPORTED_TIMESTAMP_PRECISION;
 import static io.trino.plugin.clickhouse.ClickHouseQueryRunner.TPCH_SCHEMA;
 import static io.trino.plugin.jdbc.TypeHandlingJdbcSessionProperties.UNSUPPORTED_TYPE_HANDLING;
 import static io.trino.plugin.jdbc.UnsupportedTypeHandling.CONVERT_TO_VARCHAR;
@@ -52,6 +56,7 @@ import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_SECONDS;
+import static io.trino.spi.type.TimestampWithTimeZoneType.createTimestampWithTimeZoneType;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -59,6 +64,7 @@ import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.type.IpAddressType.IPADDRESS;
 import static java.lang.String.format;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 @TestInstance(PER_CLASS)
@@ -72,10 +78,15 @@ public abstract class BaseClickHouseTypeMapping
     // minutes offset change since 1932-04-01, no DST
     private static final ZoneId KATHMANDU = ZoneId.of("Asia/Kathmandu");
     private static final Function<ZoneId, String> DATETIME_TYPE_FACTORY = "DateTime('%s')"::formatted;
+    private static final BiFunction<Integer, ZoneId, String> DATETIME64_TYPE_FACTORY = "DateTime64(%d, '%s')"::formatted;
 
     // https://clickhouse.com/docs/sql-reference/data-types/datetime
     private static final String MIN_SUPPORTED_DATETIME_VALUE = "1970-01-01 00:00:00";
     private static final String MAX_SUPPORTED_DATETIME_VALUE = "2106-02-07 06:28:15";
+    // https://clickhouse.com/docs/sql-reference/data-types/datetime64
+    private static final String MIN_SUPPORTED_DATETIME64_VALUE = "1900-01-01 00:00:00";
+    private static final String MAX_SUPPORTED_DATETIME64_VALUE_PRECISION_8 = "2299-12-31 23:59:59.99999999";
+    private static final String MAX_SUPPORTED_DATETIME64_VALUE_PRECISION_9 = "2262-04-11 23:47:16.854775807";
 
     protected TestingClickHouseServer clickhouseServer;
 
@@ -940,6 +951,15 @@ public abstract class BaseClickHouseTypeMapping
                     .addRoundTrip("timestamp(0)", "timestamp '2018-03-25 03:17:17'", createTimestampType(0), "TIMESTAMP '2018-03-25 03:17:17'") // time gap in Vilnius
                     .addRoundTrip("timestamp(0)", "timestamp '2018-10-28 01:33:17'", createTimestampType(0), "TIMESTAMP '2018-10-28 01:33:17'") // time doubled in JVM zone
                     .addRoundTrip("timestamp(0)", "timestamp '2018-10-28 03:33:33'", createTimestampType(0), "TIMESTAMP '2018-10-28 03:33:33'") // time double in Vilnius
+                    .addRoundTrip("timestamp(1)", "timestamp '2024-01-01 12:34:56.1'", createTimestampType(1), "TIMESTAMP '2024-01-01 12:34:56.1'")
+                    .addRoundTrip("timestamp(2)", "timestamp '2024-01-01 12:34:56.12'", createTimestampType(2), "TIMESTAMP '2024-01-01 12:34:56.12'")
+                    .addRoundTrip("timestamp(3)", "timestamp '2024-01-01 12:34:56.123'", createTimestampType(3), "TIMESTAMP '2024-01-01 12:34:56.123'")
+                    .addRoundTrip("timestamp(4)", "timestamp '2024-01-01 12:34:56.1234'", createTimestampType(4), "TIMESTAMP '2024-01-01 12:34:56.1234'")
+                    .addRoundTrip("timestamp(5)", "timestamp '2024-01-01 12:34:56.12345'", createTimestampType(5), "TIMESTAMP '2024-01-01 12:34:56.12345'")
+                    .addRoundTrip("timestamp(6)", "timestamp '2024-01-01 12:34:56.123456'", createTimestampType(6), "TIMESTAMP '2024-01-01 12:34:56.123456'")
+                    .addRoundTrip("timestamp(7)", "timestamp '2024-01-01 12:34:56.1234567'", createTimestampType(7), "TIMESTAMP '2024-01-01 12:34:56.1234567'")
+                    .addRoundTrip("timestamp(8)", "timestamp '2024-01-01 12:34:56.12345678'", createTimestampType(8), "TIMESTAMP '2024-01-01 12:34:56.12345678'")
+                    .addRoundTrip("timestamp(9)", "timestamp '2024-01-01 12:34:56.123456789'", createTimestampType(9), "TIMESTAMP '2024-01-01 12:34:56.123456789'")
                     .execute(getQueryRunner(), session, trinoCreateAsSelect(session, "test_timestamp"))
                     .execute(getQueryRunner(), session, trinoCreateAsSelect("test_timestamp"))
                     .execute(getQueryRunner(), session, trinoCreateAndInsert(session, "test_timestamp"))
@@ -999,6 +1019,36 @@ public abstract class BaseClickHouseTypeMapping
     }
 
     @Test
+    void testClickHouseDateTime64MinMaxValues()
+    {
+        assertClickHouseDateTime64MinMaxValues("1900-01-01 00:00:00.1", 1); // min value in ClickHouse
+        assertClickHouseDateTime64MinMaxValues(MAX_SUPPORTED_DATETIME64_VALUE_PRECISION_8, 8); // max value with 8 precision in ClickHouse
+        assertClickHouseDateTime64MinMaxValues(MAX_SUPPORTED_DATETIME64_VALUE_PRECISION_9, 9); // max value with 9 precision in ClickHouse
+    }
+
+    private void assertClickHouseDateTime64MinMaxValues(String timestamp, int precision)
+    {
+        SqlDataTypeTest trinoCreateTests = SqlDataTypeTest.create()
+                .addRoundTrip("timestamp(%s)".formatted(precision), format("timestamp '%s'", timestamp), createTimestampType(precision), format("TIMESTAMP '%s'", timestamp));
+        SqlDataTypeTest clickHouseCreateTests = SqlDataTypeTest.create()
+                // In ClickHouse, timestamp(p) with p > 0 is mapped to DateTime64, If p = 0 (or no precision is specified), it is mapped to DateTime.
+                .addRoundTrip("timestamp(%s)".formatted(precision), format("'%s'", timestamp), createTimestampType(precision), format("TIMESTAMP '%s'", timestamp))
+                .addRoundTrip("datetime64(%s)".formatted(precision), format("'%s'", timestamp), createTimestampType(precision), format("TIMESTAMP '%s'", timestamp));
+
+        for (ZoneId timeZoneId : timezones()) {
+            Session session = Session.builder(getSession())
+                    .setTimeZoneKey(TimeZoneKey.getTimeZoneKey(timeZoneId.getId()))
+                    .build();
+            trinoCreateTests
+                    .execute(getQueryRunner(), session, trinoCreateAsSelect(session, "test_timestamp"))
+                    .execute(getQueryRunner(), session, trinoCreateAsSelect("test_timestamp"))
+                    .execute(getQueryRunner(), session, trinoCreateAndInsert(session, "test_timestamp"))
+                    .execute(getQueryRunner(), session, trinoCreateAndInsert("test_timestamp"));
+            clickHouseCreateTests.execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_timestamp"));
+        }
+    }
+
+    @Test
     public void testUnsupportedTimestamp()
     {
         testUnsupportedTimestamp("1969-12-31 23:59:59"); // MIN_SUPPORTED_DATETIME_VALUE - 1 second
@@ -1007,15 +1057,37 @@ public abstract class BaseClickHouseTypeMapping
 
     public void testUnsupportedTimestamp(String unsupportedTimestamp)
     {
-        try (TestTable table = newTrinoTable("test_unsupported_timestamp", "(dt timestamp(0))")) {
-            assertQueryFails(
-                    format("INSERT INTO %s VALUES (TIMESTAMP '%s')", table.getName(), unsupportedTimestamp),
-                    format("Timestamp must be between %s and %s in ClickHouse: %s", MIN_SUPPORTED_DATETIME_VALUE, MAX_SUPPORTED_DATETIME_VALUE, unsupportedTimestamp));
-        }
-
         try (TestTable table = new TestTable(onRemoteDatabase(), "tpch.test_unsupported_timestamp", "(dt datetime) ENGINE=Log")) {
             onRemoteDatabase().execute(format("INSERT INTO %s VALUES ('%s')", table.getName(), unsupportedTimestamp));
             assertQuery(format("SELECT dt <> TIMESTAMP '%s' FROM %s", unsupportedTimestamp, table.getName()), "SELECT true"); // Inserting an unsupported datetime in ClickHouse will turn it into another datetime
+        }
+    }
+
+    @Test
+    void testUnsupportedDateTime64()
+    {
+        assertUnsupportedDateTime64("1899-12-31 23:59:59", 0, MAX_SUPPORTED_DATETIME64_VALUE_PRECISION_8); // MIN_SUPPORTED_DATETIME64_VALUE - 1 second
+        assertUnsupportedDateTime64("2300-01-01 00:00:00", 8, MAX_SUPPORTED_DATETIME64_VALUE_PRECISION_8); // MAX_SUPPORTED_DATETIME64_VALUE_TILL_PRECISION_8 + 1 second
+        assertUnsupportedDateTime64("2262-04-11 23:47:17", 9, MAX_SUPPORTED_DATETIME64_VALUE_PRECISION_9); // MAX_SUPPORTED_DATETIME64_VALUE_PRECISION_9 + 1 second
+    }
+
+    private void assertUnsupportedDateTime64(String unsupportedTimestamp, int precision, String maxSupportedTimestamp)
+    {
+        try (TestTable table = newTrinoTable("test_unsupported_timestamp_datetime64", "(dt timestamp(%d))".formatted(precision))) {
+            assertQueryFails(
+                    format("INSERT INTO %s VALUES (TIMESTAMP '%s')", table.getName(), unsupportedTimestamp),
+                    format("Timestamp must be between %s and %s in ClickHouse: %s", MIN_SUPPORTED_DATETIME64_VALUE, maxSupportedTimestamp, unsupportedTimestamp));
+        }
+
+        try (TestTable table = new TestTable(onRemoteDatabase(), "tpch.test_unsupported_timestamp_datetime64", "(dt datetime64(%s)) ENGINE=Log".formatted(precision))) {
+            if (unsupportedTimestamp.equals("2262-04-11 23:47:17")) {
+                assertThatThrownBy(() -> onRemoteDatabase().execute(format("INSERT INTO %s VALUES ('%s')", table.getName(), unsupportedTimestamp)))
+                        .hasStackTraceContaining("Decimal math overflow: While executing ValuesBlockInputFormat. (DECIMAL_OVERFLOW)");
+            }
+            else {
+                onRemoteDatabase().execute(format("INSERT INTO %s VALUES ('%s')", table.getName(), unsupportedTimestamp));
+                assertQuery(format("SELECT dt <> TIMESTAMP '%s' FROM %s", unsupportedTimestamp, table.getName()), "SELECT true"); // Inserting an unsupported datetime in ClickHouse will turn it into another datetime
+            }
         }
     }
 
@@ -1041,22 +1113,63 @@ public abstract class BaseClickHouseTypeMapping
     }
 
     @Test
+    void testDateTime64WithTimeZoneUnsupportedRanges()
+    {
+        for (ZoneId zoneId : timezones()) {
+            String inputType = DATETIME64_TYPE_FACTORY.apply(8, zoneId);
+            assertDateTime64WithTimeZoneUnsupported(inputType, 8, "1899-12-31 23:59:59 UTC", "1899-12-31 23:59:59"); // min - 1 second
+            assertDateTime64WithTimeZoneUnsupported(inputType, 8, "2300-01-01 00:00:00 UTC", "2300-01-01 00:00:00"); // max with precision 8 + 1 second
+            assertDateTime64WithTimeZoneUnsupported(inputType, 8, "1900-01-01 00:00:00 Asia/Kathmandu", "1899-12-31 18:18:44"); // +5:41:16 offset before 1920
+            assertDateTime64WithTimeZoneUnsupported(inputType, 8, "1900-01-01 00:13:42 Asia/Kathmandu", "1899-12-31 18:32:26"); // +5:41:16 offset before 1920
+
+            inputType = DATETIME64_TYPE_FACTORY.apply(9, zoneId);
+            assertDateTime64WithTimeZoneUnsupported(inputType, 9, "2262-04-11 23:47:17 UTC", "2262-04-11 23:47:17"); // max with precision 9 + 1 second
+        }
+    }
+
+    private void assertDateTime64WithTimeZoneUnsupported(String inputType, int precision, String unsupportedTimestampWithTz, String unsupportedTimestampUtc)
+    {
+        String maxSupportedTimestamp;
+        if (precision == CLICKHOUSE_MAX_SUPPORTED_TIMESTAMP_PRECISION) {
+            maxSupportedTimestamp = MAX_SUPPORTED_DATETIME64_VALUE_PRECISION_9;
+        }
+        else {
+            maxSupportedTimestamp = MAX_SUPPORTED_DATETIME64_VALUE_PRECISION_8;
+        }
+
+        try (TestTable table = new TestTable(onRemoteDatabase(), "tpch.test_unsupported_timestamp_with_tz", "(dt %s) ENGINE=Log".formatted(inputType))) {
+            assertQueryFails(
+                    "INSERT INTO %s VALUES (TIMESTAMP '%s')".formatted(table.getName(), unsupportedTimestampWithTz),
+                    "Timestamp must be between %s and %s in ClickHouse: %s".formatted(MIN_SUPPORTED_DATETIME64_VALUE, maxSupportedTimestamp, unsupportedTimestampUtc));
+        }
+    }
+
+    @Test
     public void testClickHouseDateTimeWithTimeZone()
     {
         for (ZoneId sessionZone : timezones()) {
             Session session = Session.builder(getSession())
                     .setTimeZoneKey(TimeZoneKey.getTimeZoneKey(sessionZone.getId()))
                     .build();
-            SqlDataTypeTest.create()
-                    .addRoundTrip("DateTime('Asia/Kathmandu')", "timestamp '2024-01-01 12:34:56'", TIMESTAMP_TZ_SECONDS, "TIMESTAMP '2024-01-01 05:19:56 +05:45'")
-                    .addRoundTrip("DateTime('Asia/Kathmandu')", "timestamp '2024-01-01 12:34:56 Asia/Kathmandu'", TIMESTAMP_TZ_SECONDS, "TIMESTAMP '2024-01-01 12:34:56 +05:45'")
-                    .addRoundTrip("DateTime('Asia/Kathmandu')", "timestamp '2024-01-01 12:34:56 +00:00'", TIMESTAMP_TZ_SECONDS, "TIMESTAMP '2024-01-01 18:19:56 +05:45'")
-                    .addRoundTrip("DateTime('Asia/Kathmandu')", "timestamp '2024-01-01 12:34:56 -01:00'", TIMESTAMP_TZ_SECONDS, "TIMESTAMP '2024-01-01 19:19:56 +05:45'")
-                    .execute(getQueryRunner(), session, clickhouseCreateAndTrinoInsert("tpch.test_timestamp_with_time_zone"));
 
-            dateTimeWithTimeZoneTest(DATETIME_TYPE_FACTORY)
-                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.datetime_tz"));
+            SqlDataTypeTest clickhouseCreateAndTrinoInsertTests = SqlDataTypeTest.create();
+            addRoundTripTestsForClickHouseCreateAndTrinoInserts(clickhouseCreateAndTrinoInsertTests, DATETIME_TYPE_FACTORY, 0);
+            clickhouseCreateAndTrinoInsertTests.execute(getQueryRunner(), session, clickhouseCreateAndTrinoInsert("tpch.test_timestamp_with_time_zone"));
+
+            SqlDataTypeTest clickhouseCreateAndInsertTests = dateTimeWithTimeZoneTest(DATETIME_TYPE_FACTORY);
+            clickhouseCreateAndInsertTests.execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.datetime_tz"));
         }
+    }
+
+    private static void addRoundTripTestsForClickHouseCreateAndTrinoInserts(SqlDataTypeTest tests, Function<ZoneId, String> inputTypeFactory, int precision)
+    {
+        TimestampWithTimeZoneType expectedType = createTimestampWithTimeZoneType(precision);
+        String nanos = precision == 0 ? "" : "." + "123456789".substring(0, precision);
+        tests
+                .addRoundTrip(inputTypeFactory.apply(KATHMANDU), "timestamp '2024-01-01 12:34:56%s'".formatted(nanos), expectedType, "TIMESTAMP '2024-01-01 05:19:56%s +05:45'".formatted(nanos))
+                .addRoundTrip(inputTypeFactory.apply(KATHMANDU), "timestamp '2024-01-01 12:34:56%s %s'".formatted(nanos, KATHMANDU.getId()), expectedType, "TIMESTAMP '2024-01-01 12:34:56%s +05:45'".formatted(nanos))
+                .addRoundTrip(inputTypeFactory.apply(KATHMANDU), "timestamp '2024-01-01 12:34:56%s +00:00'".formatted(nanos), expectedType, "TIMESTAMP '2024-01-01 18:19:56%s +05:45'".formatted(nanos))
+                .addRoundTrip(inputTypeFactory.apply(KATHMANDU), "timestamp '2024-01-01 12:34:56%s -01:00'".formatted(nanos), expectedType, "TIMESTAMP '2024-01-01 19:19:56%s +05:45'".formatted(nanos));
     }
 
     private SqlDataTypeTest dateTimeWithTimeZoneTest(Function<ZoneId, String> inputTypeFactory)
@@ -1102,6 +1215,116 @@ public abstract class BaseClickHouseTypeMapping
                 .addRoundTrip(inputTypeFactory.apply(VILNIUS), "'1986-01-01 00:13:07'", TIMESTAMP_TZ_SECONDS, "TIMESTAMP '1986-01-01 00:13:07 +03:00'");
 
         return tests;
+    }
+
+    @Test
+    void testClickHouseDateTime64WithTimeZone()
+    {
+        for (ZoneId sessionZone : timezones()) {
+            Session session = Session.builder(getSession())
+                    .setTimeZoneKey(TimeZoneKey.getTimeZoneKey(sessionZone.getId()))
+                    .build();
+
+            SqlDataTypeTest clickhouseCreateAndTrinoInsertTests = SqlDataTypeTest.create();
+            IntStream.rangeClosed(0, CLICKHOUSE_MAX_SUPPORTED_TIMESTAMP_PRECISION).forEach(precision ->
+                    addRoundTripTestsForClickHouseCreateAndTrinoInserts(clickhouseCreateAndTrinoInsertTests, zoneId -> DATETIME64_TYPE_FACTORY.apply(precision, zoneId), precision));
+            clickhouseCreateAndTrinoInsertTests.execute(getQueryRunner(), session, clickhouseCreateAndTrinoInsert("tpch.test_timestamp_with_time_zone"));
+
+            SqlDataTypeTest clickhouseCreateAndInsertTests = SqlDataTypeTest.create();
+            IntStream.rangeClosed(0, CLICKHOUSE_MAX_SUPPORTED_TIMESTAMP_PRECISION).forEach(precision ->
+                    addRoundTripDateTime64WithTimeZoneTest(clickhouseCreateAndInsertTests, precision));
+            clickhouseCreateAndInsertTests.execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.datetime_tz"));
+        }
+    }
+
+    private void addRoundTripDateTime64WithTimeZoneTest(SqlDataTypeTest tests, int precision)
+    {
+        String inputTypeUtc = DATETIME64_TYPE_FACTORY.apply(precision, UTC);
+        String inputTypeKathmandu = DATETIME64_TYPE_FACTORY.apply(precision, KATHMANDU);
+        String inputTypeJvmZone = DATETIME64_TYPE_FACTORY.apply(precision, JVM_ZONE);
+        String inputTypeVilnius = DATETIME64_TYPE_FACTORY.apply(precision, VILNIUS);
+
+        TimestampWithTimeZoneType expectedType = createTimestampWithTimeZoneType(precision);
+        String nanos = precision == 0 ? "" : "." + "123456789".substring(0, precision);
+
+        tests
+                .addRoundTrip("Nullable(%s)".formatted(inputTypeUtc), "NULL", expectedType, "CAST(NULL AS TIMESTAMP(%d) WITH TIME ZONE)".formatted(precision))
+                .addRoundTrip("Nullable(%s)".formatted(inputTypeKathmandu), "NULL", expectedType, "CAST(NULL AS TIMESTAMP(%d) WITH TIME ZONE)".formatted(precision))
+
+                // before epoch
+                .addRoundTrip(inputTypeUtc, "'1958-01-01 13:18:03%s'".formatted(nanos), expectedType, "TIMESTAMP '1958-01-01 13:18:03%s Z'".formatted(nanos))
+                .addRoundTrip(inputTypeKathmandu, "'1958-01-01 13:18:03%s'".formatted(nanos), expectedType, "TIMESTAMP '1958-01-01 13:18:03%s +05:30'".formatted(nanos))
+
+                // epoch
+                .addRoundTrip(inputTypeUtc, "0%s".formatted(nanos), expectedType, "TIMESTAMP '1970-01-01 00:00:00%s Z'".formatted(nanos))
+                .addRoundTrip(inputTypeUtc, "'1970-01-01 00:00:00%s'".formatted(nanos), expectedType, "TIMESTAMP '1970-01-01 00:00:00%s Z'".formatted(nanos))
+                .addRoundTrip(inputTypeKathmandu, "'1970-01-01 00:00:00%s'".formatted(nanos), expectedType, "TIMESTAMP '1970-01-01 00:00:00%s +05:30'".formatted(nanos))
+
+                // after epoch
+                .addRoundTrip(inputTypeUtc, "'2019-03-18 10:01:17%s'".formatted(nanos), expectedType, "TIMESTAMP '2019-03-18 10:01:17%s Z'".formatted(nanos))
+                .addRoundTrip(inputTypeKathmandu, "'2019-03-18 10:01:17%s'".formatted(nanos), expectedType, "TIMESTAMP '2019-03-18 10:01:17%s +05:45'".formatted(nanos))
+                .addRoundTrip(DATETIME64_TYPE_FACTORY.apply(precision, ZoneId.of("GMT")), "'2019-03-18 10:01:17%s'".formatted(nanos), expectedType, "TIMESTAMP '2019-03-18 10:01:17%s Z'".formatted(nanos))
+                .addRoundTrip(DATETIME64_TYPE_FACTORY.apply(precision, ZoneId.of("UTC+00:00")), "'2019-03-18 10:01:17%s'".formatted(nanos), expectedType, "TIMESTAMP '2019-03-18 10:01:17%s Z'".formatted(nanos))
+
+                // time doubled in JVM zone
+                .addRoundTrip(inputTypeUtc, "'2018-10-28 01:33:17%s'".formatted(nanos), expectedType, "TIMESTAMP '2018-10-28 01:33:17%s Z'".formatted(nanos))
+                .addRoundTrip(inputTypeJvmZone, "'2018-10-28 01:33:17%s'".formatted(nanos), expectedType, "TIMESTAMP '2018-10-28 01:33:17%s -05:00'".formatted(nanos))
+                .addRoundTrip(inputTypeKathmandu, "'2018-10-28 01:33:17%s'".formatted(nanos), expectedType, "TIMESTAMP '2018-10-28 01:33:17%s +05:45'".formatted(nanos))
+
+                // time doubled in Vilnius
+                .addRoundTrip(inputTypeUtc, "'2018-10-28 03:33:33%s'".formatted(nanos), expectedType, "TIMESTAMP '2018-10-28 03:33:33%s Z'".formatted(nanos))
+                .addRoundTrip(inputTypeVilnius, "'2018-10-28 03:33:33%s'".formatted(nanos), expectedType, "TIMESTAMP '2018-10-28 03:33:33%s +03:00'".formatted(nanos))
+                .addRoundTrip(inputTypeKathmandu, "'2018-10-28 03:33:33%s'".formatted(nanos), expectedType, "TIMESTAMP '2018-10-28 03:33:33%s +05:45'".formatted(nanos))
+
+                // time gap in JVM zone
+                .addRoundTrip(inputTypeUtc, "'1970-01-01 00:13:42%s'".formatted(nanos), expectedType, "TIMESTAMP '1970-01-01 00:13:42%s Z'".formatted(nanos))
+                .addRoundTrip(inputTypeKathmandu, "'1970-01-01 00:13:42%s'".formatted(nanos), expectedType, "TIMESTAMP '1970-01-01 00:13:42%s +05:30'".formatted(nanos))
+                .addRoundTrip(inputTypeUtc, "'2018-04-01 02:13:55%s'".formatted(nanos), expectedType, "TIMESTAMP '2018-04-01 02:13:55%s Z'".formatted(nanos))
+                .addRoundTrip(inputTypeKathmandu, "'2018-04-01 02:13:55%s'".formatted(nanos), expectedType, "TIMESTAMP '2018-04-01 02:13:55%s +05:45'".formatted(nanos))
+
+                // time gap in Vilnius
+                .addRoundTrip(inputTypeKathmandu, "'2018-03-25 03:17:17%s'".formatted(nanos), expectedType, "TIMESTAMP '2018-03-25 03:17:17%s +05:45'".formatted(nanos))
+
+                // time gap in Kathmandu
+                .addRoundTrip(inputTypeVilnius, "'1986-01-01 00:13:07%s'".formatted(nanos), expectedType, "TIMESTAMP '1986-01-01 00:13:07%s +03:00'".formatted(nanos));
+    }
+
+    @Test
+    void testDateTime64WithTruncatedPrecision()
+    {
+        try (TestTable table = newTrinoTable("test_datetime64_truncated_precision", "(dt timestamp(3))")) {
+            onRemoteDatabase().execute("INSERT INTO tpch.%s VALUES ('2024-01-01 12:34:56.978765')".formatted(table.getName()));
+            computeActual("INSERT INTO %s VALUES (TIMESTAMP '2025-01-01 12:34:56.978765')".formatted(table.getName()));
+            // Timestamps inserted from Trino are rounded to match the target precision
+            assertQuery("SELECT dt FROM %s".formatted(table.getName()), "VALUES (TIMESTAMP '2024-01-01 12:34:56.978'), (TIMESTAMP '2025-01-01 12:34:56.979')");
+        }
+
+        try (TestTable table = new TestTable(onRemoteDatabase(), "tpch.test_datetime64_truncated_precision", "(dt datetime64(3)) ENGINE=Log")) {
+            onRemoteDatabase().execute("INSERT INTO %s VALUES ('2024-01-01 12:34:56.978765')".formatted(table.getName()));
+            computeActual("INSERT INTO %s VALUES (TIMESTAMP '2025-01-01 12:34:56.978765')".formatted(table.getName()));
+            // Timestamps inserted from Trino are rounded to match the target precision
+            assertQuery("SELECT dt FROM %s".formatted(table.getName()), "VALUES (TIMESTAMP '2024-01-01 12:34:56.978'), (TIMESTAMP '2025-01-01 12:34:56.979')");
+        }
+    }
+
+    @Test
+    void testDateTime64WithTimeZoneWithTruncatedPrecision()
+    {
+        for (ZoneId sessionZone : timezones()) {
+            Session session = Session.builder(getSession())
+                    .setTimeZoneKey(TimeZoneKey.getTimeZoneKey(sessionZone.getId()))
+                    .build();
+
+            SqlDataTypeTest.create()
+                    .addRoundTrip(DATETIME64_TYPE_FACTORY.apply(3, UTC), "'2024-01-01 12:34:56.978765'", createTimestampWithTimeZoneType(3), "TIMESTAMP '2024-01-01 12:34:56.978 Z'")
+                    .addRoundTrip(DATETIME64_TYPE_FACTORY.apply(3, KATHMANDU), "'2024-01-01 12:34:56.978765'", createTimestampWithTimeZoneType(3), "TIMESTAMP '2024-01-01 12:34:56.978 +05:45'")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_datetime64_truncated_precision"));
+
+            // Timestamps inserted from Trino are rounded to match the target precision
+            SqlDataTypeTest.create()
+                    .addRoundTrip(DATETIME64_TYPE_FACTORY.apply(3, KATHMANDU), "TIMESTAMP '2024-01-01 12:34:56.978765'", createTimestampWithTimeZoneType(3), "TIMESTAMP '2024-01-01 05:19:56.979 +05:45'")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndTrinoInsert("tpch.test_datetime64_truncated_precision"));
+        }
     }
 
     private List<ZoneId> timezones()
