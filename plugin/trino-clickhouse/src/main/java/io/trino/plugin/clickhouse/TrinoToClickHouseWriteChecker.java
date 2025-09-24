@@ -35,17 +35,23 @@ public class TrinoToClickHouseWriteChecker<T>
 {
     // Different versions of ClickHouse may support different min/max values for the
     // same data type, you can refer to the table below:
+
     //
-    // | version | column type | min value           | max value            |
-    // |---------|-------------|---------------------|----------------------|
-    // | any     | UInt8       | 0                   | 255                  |
-    // | any     | UInt16      | 0                   | 65535                |
-    // | any     | UInt32      | 0                   | 4294967295           |
-    // | any     | UInt64      | 0                   | 18446744073709551615 |
-    // | < 21.4  | Date        | 1970-01-01          | 2106-02-07           |
-    // | < 21.4  | DateTime    | 1970-01-01 00:00:00 | 2106-02-06 06:28:15  |
-    // | >= 21.4 | Date        | 1970-01-01          | 2149-06-06           |
-    // | >= 21.4 | DateTime    | 1970-01-01 00:00:00 | 2106-02-07 06:28:15  |
+    // | version         | column type   | min value                      | max value                      |
+    // |-----------------|---------------|--------------------------------|--------------------------------|
+    // | any             | UInt8         | 0                              | 255                            |
+    // | any             | UInt16        | 0                              | 65535                          |
+    // | any             | UInt32        | 0                              | 4294967295                     |
+    // | any             | UInt64        | 0                              | 18446744073709551615           |
+    // | < 21.4          | Date          | 1970-01-01                     | 2106-02-07                     |
+    // | < 21.4          | DateTime      | 1970-01-01 00:00:00            | 2106-02-06 06:28:15            |
+    // | < 21.4          | DateTime64    | 1970-01-01 00:00:00.000000000  | 2106-02-06 06:28:15.99999999   |
+    // | >= 21.4         | Date          | 1970-01-01                     | 2149-06-06                     |
+    // | >= 21.4         | DateTime      | 1970-01-01 00:00:00            | 2106-02-07 06:28:15            |
+    // | >= 21.4 < 22.8  | DateTime64(8) | 1925-01-01 00:00:00.000000000  | 2283-11-11 23:59:59.99999999   |
+    // | >= 21.4 < 22.8  | DateTime64(9) | 1925-01-01 00:00:00.000000000  | 2262-04-11 23:47:16.854775807  |
+    // | >= 22.8         | DateTime64(8) | 1900-01-01 00:00:00.000000000  | 2299-12-31 23:59:59.99999999   |
+    // | >= 22.8         | DateTime64(9) | 1900-01-01 00:00:00.000000000  | 2262-04-11 23:47:16.854775807  |
     //
     // And when the value written to ClickHouse is out of range, ClickHouse will store
     // the incorrect result, so we need to check the range of the written value to
@@ -68,6 +74,28 @@ public class TrinoToClickHouseWriteChecker<T>
                     new TimestampWriteValueChecker(
                             version -> version.isNewerOrEqualTo("21.4"),
                             new Range<>(LocalDateTime.parse("1970-01-01T00:00:00"), LocalDateTime.parse("2106-02-07T06:28:15")))));
+    private static final TrinoToClickHouseWriteChecker<LocalDateTime> DATETIME64_PRECISION_8 = new TrinoToClickHouseWriteChecker<>(
+            ImmutableList.of(
+                    new TimestampWriteValueChecker(
+                            version -> version.isOlderThan("21.4"),
+                            new Range<>(LocalDateTime.parse("1970-01-01T00:00:00.000000000"), LocalDateTime.parse("2106-02-06T06:28:15.99999999"))),
+                    new TimestampWriteValueChecker(
+                            version -> version.isNewerOrEqualTo("21.4") && version.isOlderThan("22.8"),
+                            new Range<>(LocalDateTime.parse("1925-01-01T00:00:00.000000000"), LocalDateTime.parse("2283-11-11T23:59:59.99999999"))),
+                    new TimestampWriteValueChecker(
+                            version -> version.isNewerOrEqualTo("22.8"),
+                            new Range<>(LocalDateTime.parse("1900-01-01T00:00:00.000000000"), LocalDateTime.parse("2299-12-31T23:59:59.99999999")))));
+    private static final TrinoToClickHouseWriteChecker<LocalDateTime> DATETIME64_PRECISION_9 = new TrinoToClickHouseWriteChecker<>(
+            ImmutableList.of(
+                    new TimestampWriteValueChecker(
+                            version -> version.isOlderThan("21.4"),
+                            new Range<>(LocalDateTime.parse("1970-01-01T00:00:00.000000000"), LocalDateTime.parse("2106-02-06T06:28:15.999999999"))),
+                    new TimestampWriteValueChecker(
+                            version -> version.isNewerOrEqualTo("21.4") && version.isOlderThan("22.8"),
+                            new Range<>(LocalDateTime.parse("1925-01-01T00:00:00.000000000"), LocalDateTime.parse("2262-04-11T23:47:16.854775807"))),
+                    new TimestampWriteValueChecker(
+                            version -> version.isNewerOrEqualTo("22.8"),
+                            new Range<>(LocalDateTime.parse("1900-01-01T00:00:00.000000000"), LocalDateTime.parse("2262-04-11T23:47:16.854775807")))));
 
     private final List<Checker<T>> checkers;
 
@@ -217,6 +245,19 @@ public class TrinoToClickHouseWriteChecker<T>
         public T getMax()
         {
             return max;
+        }
+    }
+
+    public static void validateDateTimeAndDateTime64(ClickHouseVersion version, LocalDateTime timestamp, int precision, boolean isDateTime)
+    {
+        if (isDateTime) {
+            DATETIME.validate(version, timestamp);
+        }
+        else if (precision == 9) {
+            DATETIME64_PRECISION_9.validate(version, timestamp);
+        }
+        else {
+            DATETIME64_PRECISION_8.validate(version, timestamp);
         }
     }
 }
