@@ -189,20 +189,20 @@ public class TestPagesSerde
         // empty page
         Page page = new Page(builder.build());
         int pageSize = serializedSize(ImmutableList.of(BIGINT), page);
-        assertThat(pageSize).isEqualTo(43);
+        assertThat(pageSize).isEqualTo(34);
 
         // page with one value
         BIGINT.writeLong(builder, 123);
-        pageSize = 35; // Now we have moved to the normal block implementation so the page size overhead is 35
+        pageSize = 34; // Now we have moved to the normal block implementation so the page size overhead is 34
         page = new Page(builder.build());
         int firstValueSize = serializedSize(ImmutableList.of(BIGINT), page) - pageSize;
-        assertThat(firstValueSize).isEqualTo(10); // value size + value overhead
+        assertThat(firstValueSize).isEqualTo(6); // value size (adaptive encoding, VByte mode)
 
         // page with two values
         BIGINT.writeLong(builder, 456);
         page = new Page(builder.build());
         int secondValueSize = serializedSize(ImmutableList.of(BIGINT), page) - (pageSize + firstValueSize);
-        assertThat(secondValueSize).isEqualTo(2); // value size (value overhead is shared with previous value)
+        assertThat(secondValueSize).isEqualTo(2); // value size (adaptive encoding, still VByte mode)
     }
 
     @Test

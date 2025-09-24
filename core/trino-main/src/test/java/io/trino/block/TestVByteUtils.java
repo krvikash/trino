@@ -47,4 +47,30 @@ class TestVByteUtils
         int estimatedSizeInBytes = VByteUtils.estimateEncodedIntsSizeInBytes(Integer.MAX_VALUE, 32);
         assertThat(estimatedSizeInBytes).isEqualTo(Integer.MAX_VALUE);
     }
+
+    @Test
+    void testEstimateEncodedLongsSizeInBytes()
+    {
+        for (int length = 1; length < 1024; length++) {
+            long[] values = new long[length];
+
+            for (int bitWidth = 0; bitWidth <= 64; bitWidth++) {
+                long value = bitWidth == 64 ? -1 : (1L << bitWidth) - 1;
+                Arrays.fill(values, value);
+
+                int estimatedSizeInBytes = VByteUtils.estimateEncodedLongsSizeInBytes(length, bitWidth);
+
+                DynamicSliceOutput encoded = new DynamicSliceOutput(0);
+                VByteUtils.vByteEncodeLongs(encoded, values, 0, length);
+                assertThat(estimatedSizeInBytes).isEqualTo(encoded.size());
+            }
+        }
+    }
+
+    @Test
+    void testEstimateEncodedLongsSizeInBytesOverflow()
+    {
+        int estimatedSizeInBytes = VByteUtils.estimateEncodedLongsSizeInBytes(Integer.MAX_VALUE, 32);
+        assertThat(estimatedSizeInBytes).isEqualTo(Integer.MAX_VALUE);
+    }
 }

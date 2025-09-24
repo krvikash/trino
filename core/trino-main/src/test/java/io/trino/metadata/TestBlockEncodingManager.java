@@ -36,6 +36,7 @@ class TestBlockEncodingManager
     {
         FeaturesConfig config = new FeaturesConfig();
         config.setExchangeVbyteBlockEncodingEnabled(false);
+        config.setExchangeAdaptiveBlockEncodingEnabled(false);
         BlockEncodingManager manager = new BlockEncodingManager(config);
 
         // no overrides so far

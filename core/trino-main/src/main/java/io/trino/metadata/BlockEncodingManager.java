@@ -21,7 +21,7 @@ import io.starburst.vbyte.VByteNative;
 import io.trino.FeaturesConfig;
 import io.trino.block.DictionaryVByteBlockEncoding;
 import io.trino.block.IntArrayAdaptiveBlockEncoding;
-import io.trino.block.LongArrayVByteBlockEncoding;
+import io.trino.block.LongArrayAdaptiveBlockEncoding;
 import io.trino.block.VariableWidthVByteBlockEncoding;
 import io.trino.spi.block.ArrayBlockEncoding;
 import io.trino.spi.block.Block;
@@ -37,7 +37,6 @@ import io.trino.spi.block.RowBlockEncoding;
 import io.trino.spi.block.RunLengthBlockEncoding;
 import io.trino.spi.block.ShortArrayBlockEncoding;
 import io.trino.spi.block.VariableWidthBlockEncoding;
-import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Type;
 
 import java.util.Map;
@@ -47,7 +46,6 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.spi.type.BigintType.BIGINT;
 import static java.util.Objects.requireNonNull;
 
 public final class BlockEncodingManager
@@ -69,7 +67,6 @@ public final class BlockEncodingManager
         // add the built-in BlockEncodings
         addBlockEncoding(new ByteArrayBlockEncoding());
         addBlockEncoding(new ShortArrayBlockEncoding());
-        addBlockEncoding(new LongArrayBlockEncoding());
         addBlockEncoding(new Fixed12BlockEncoding());
         addBlockEncoding(new Int128ArrayBlockEncoding());
         addBlockEncoding(new ArrayBlockEncoding());
@@ -88,15 +85,13 @@ public final class BlockEncodingManager
         }
         if (config.isExchangeAdaptiveBlockEncodingEnabled()) {
             addBlockEncoding(new IntArrayAdaptiveBlockEncoding(vByteEncodingEnabled));
+            addBlockEncoding(new LongArrayAdaptiveBlockEncoding(vByteEncodingEnabled));
         }
         else {
             addBlockEncoding(new IntArrayBlockEncoding());
+            addBlockEncoding(new LongArrayBlockEncoding());
         }
         if (vByteEncodingEnabled) {
-            addTypeSpecificBlockEncodingOverride(new LongArrayVByteBlockEncoding(),
-                    type -> type.equals(BIGINT)
-                            || (type instanceof DecimalType decimalType && decimalType.isShort()));
-
             addBlockEncoding(new DictionaryVByteBlockEncoding());
             addBlockEncoding(new VariableWidthVByteBlockEncoding());
         }

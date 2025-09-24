@@ -65,18 +65,34 @@ public final class VByteUtils
         // https://github.com/fast-pack/streamvbyte?tab=readme-ov-file#format-specification
         // https://github.com/fast-pack/streamvbyte?tab=readme-ov-file#alternative-encoding
         int controlBytes = (length + 3) / 4;
-        int byteCountPerValue;
-        if (maxValueWidth == 0) {
-            byteCountPerValue = 0;
-        }
-        else if (maxValueWidth > 16) {
-            byteCountPerValue = 4;
-        }
-        else {
-            byteCountPerValue = (maxValueWidth + 7) / 8;
-        }
+        int byteCountPerValue = estimateByteCountPerValue(maxValueWidth);
         long dataBytes = (long) length * byteCountPerValue;
         long estimatedSize = (long) controlBytes + dataBytes + Integer.BYTES; // +4 for the encoded size
         return (int) Math.min(estimatedSize, Integer.MAX_VALUE);
+    }
+
+    public static int estimateEncodedLongsSizeInBytes(int length, int maxValueWidth)
+    {
+        // Follows the StreamVByte format and alternative encoding specifications:
+        // https://github.com/fast-pack/streamvbyte?tab=readme-ov-file#format-specification
+        // https://github.com/fast-pack/streamvbyte?tab=readme-ov-file#alternative-encoding
+        int controlBytes = (length * 2 + 3) / 4;
+        int lowMaxValueWidth = Math.min(32, maxValueWidth);
+        int highMaxValueWidth = Math.max(0, maxValueWidth - 32);
+        int byteCountPerValue = estimateByteCountPerValue(lowMaxValueWidth) + estimateByteCountPerValue(highMaxValueWidth);
+        long dataBytes = (long) length * byteCountPerValue;
+        long estimatedSize = (long) controlBytes + dataBytes + Integer.BYTES; // +4 for the encoded size
+        return (int) Math.min(estimatedSize, Integer.MAX_VALUE);
+    }
+
+    private static int estimateByteCountPerValue(int maxValueWidth)
+    {
+        if (maxValueWidth == 0) {
+            return 0;
+        }
+        else if (maxValueWidth > 16) {
+            return 4;
+        }
+        return (maxValueWidth + 7) / 8;
     }
 }

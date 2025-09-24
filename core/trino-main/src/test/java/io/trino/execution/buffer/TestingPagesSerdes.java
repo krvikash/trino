@@ -25,6 +25,8 @@ public final class TestingPagesSerdes
     private TestingPagesSerdes() {}
 
     private static final InternalBlockEncodingSerde BLOCK_ENCODING_SERDE = new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig()), TESTING_TYPE_MANAGER);
+    private static final InternalBlockEncodingSerde BLOCK_ENCODING_SERDE_VBYTE_DISABLED = new InternalBlockEncodingSerde(
+            new BlockEncodingManager(new FeaturesConfig().setExchangeVbyteBlockEncodingEnabled(false)), TESTING_TYPE_MANAGER);
 
     public static PagesSerdeFactory createTestingPagesSerdeFactory()
     {
@@ -34,5 +36,10 @@ public final class TestingPagesSerdes
     public static PagesSerdeFactory createTestingPagesSerdeFactory(CompressionCodec compressionCodec)
     {
         return new PagesSerdeFactory(BLOCK_ENCODING_SERDE, compressionCodec);
+    }
+
+    public static PagesSerdeFactory createTestingPagesSerdeFactoryWithoutVByte(CompressionCodec compressionCodec)
+    {
+        return new PagesSerdeFactory(BLOCK_ENCODING_SERDE_VBYTE_DISABLED, compressionCodec);
     }
 }
