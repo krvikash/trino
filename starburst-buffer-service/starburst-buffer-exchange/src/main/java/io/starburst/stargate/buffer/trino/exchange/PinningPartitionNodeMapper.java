@@ -15,9 +15,11 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeStats;
+import io.trino.spi.Node;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.IntStream;
 
@@ -46,7 +48,7 @@ public class PinningPartitionNodeMapper
     }
 
     @Override
-    public synchronized ListenableFuture<PartitionNodeMapping> getMapping(int taskPartitionId)
+    public synchronized ListenableFuture<PartitionNodeMapping> getMapping(int taskPartitionId, Optional<Node> taskNode)
     {
         if (currentMapping == null) {
             currentMapping = computeMapping();

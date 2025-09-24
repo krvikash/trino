@@ -183,7 +183,7 @@ public class BufferExchange
         }
 
         BufferExchangeSinkHandle bufferExchangeSinkHandle = (BufferExchangeSinkHandle) sinkHandle;
-        return handleMappingFuture(taskAttemptId, bufferExchangeSinkHandle, partitionNodeMapper.getMapping(bufferExchangeSinkHandle.getTaskPartitionId()));
+        return handleMappingFuture(taskAttemptId, bufferExchangeSinkHandle, partitionNodeMapper.getMapping(bufferExchangeSinkHandle.getTaskPartitionId(), taskNode));
     }
 
     @Override
@@ -193,7 +193,7 @@ public class BufferExchange
         checkState(!closed.get(), "already closed");
         BufferExchangeSinkHandle bufferExchangeSinkHandle = (BufferExchangeSinkHandle) sinkHandle;
         partitionNodeMapper.refreshMapping();
-        return handleMappingFuture(taskAttemptId, bufferExchangeSinkHandle, partitionNodeMapper.getMapping(bufferExchangeSinkHandle.getTaskPartitionId()));
+        return handleMappingFuture(taskAttemptId, bufferExchangeSinkHandle, partitionNodeMapper.getMapping(bufferExchangeSinkHandle.getTaskPartitionId(), taskNode));
     }
 
     private CompletableFuture<ExchangeSinkInstanceHandle> handleMappingFuture(int taskAttemptId, BufferExchangeSinkHandle bufferExchangeSinkHandle, ListenableFuture<PartitionNodeMapping> newMappingFuture)

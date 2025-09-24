@@ -25,6 +25,7 @@ import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeStats;
 import io.starburst.stargate.buffer.trino.exchange.BufferNodeDiscoveryManager.BufferNodesState;
+import io.trino.spi.Node;
 import io.trino.spi.exchange.ExchangeId;
 
 import java.util.Collection;
@@ -33,6 +34,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -154,7 +156,7 @@ public class SmartPinningPartitionNodeMapper
     }
 
     @Override
-    public synchronized ListenableFuture<PartitionNodeMapping> getMapping(int taskPartitionId)
+    public synchronized ListenableFuture<PartitionNodeMapping> getMapping(int taskPartitionId, Optional<Node> taskNode)
     {
         ListenableFuture<BufferNodesState> bufferNodesStateFuture = getBufferNodeStateWithActiveNodes();
 
