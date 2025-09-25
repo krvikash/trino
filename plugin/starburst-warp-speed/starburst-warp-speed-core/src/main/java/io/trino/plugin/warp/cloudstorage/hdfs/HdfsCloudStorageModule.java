@@ -69,7 +69,7 @@ public class HdfsCloudStorageModule
                     binder1.bind(OpenTelemetry.class).toInstance(openTelemetry);
                     binder1.bind(Tracer.class).toInstance(openTelemetry.getTracer("warp.cloud-vendor"));
 
-                    binder1.install(new LifeCycleModule());
+                    binder1.install(new LifeCycleModule("HdfsCloudStorageModule"));
 
                     FileSystemModule fileSystemModule = new FileSystemModule(catalogName, context.getNodeManager(), context.getCurrentNode().isCoordinator(), openTelemetry, false);
                     fileSystemModule.setConfigurationFactory(configFactory);

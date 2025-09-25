@@ -57,6 +57,7 @@ public class LakehouseConnectorFactory
         checkStrictSpiVersionMatch(context, this);
         try (var _ = new ThreadContextClassLoader(getClass().getClassLoader())) {
             Bootstrap app = new Bootstrap(
+                    "io.trino.bootstrap.catalog." + catalogName,
                     new MBeanModule(),
                     new MBeanServerModule(),
                     new ConnectorObjectNameGeneratorModule("io.trino.plugin", "trino.plugin"),
