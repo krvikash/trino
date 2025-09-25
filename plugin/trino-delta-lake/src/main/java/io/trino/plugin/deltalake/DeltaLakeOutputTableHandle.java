@@ -74,6 +74,10 @@ public record DeltaLakeOutputTableHandle(
 
     public VendedCredentialsHandle toCredentialsHandle()
     {
+        // There is a external property in the table handle, but now if it's managed table
+        // we only can get READ-only credentials, so here we set managed to false.
+        // In the future, if we can get READ-WRITE credentials for managed table,
+        // we can set managed to true when external is false.
         return VendedCredentialsHandle.empty(location);
     }
 }

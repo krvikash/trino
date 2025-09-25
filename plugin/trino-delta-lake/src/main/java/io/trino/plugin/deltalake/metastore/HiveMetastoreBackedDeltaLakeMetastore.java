@@ -31,6 +31,7 @@ import static io.trino.plugin.deltalake.DeltaLakeErrorCode.DELTA_LAKE_INVALID_SC
 import static io.trino.plugin.deltalake.DeltaLakeMetadata.PATH_PROPERTY;
 import static io.trino.plugin.hive.TableType.MANAGED_TABLE;
 import static io.trino.plugin.hive.ViewReaderUtil.isSomeKindOfAView;
+import static io.trino.plugin.hive.metastore.unity.UnityHiveMetastore.UNITY_CATALOG_TABLE_ID;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -148,7 +149,7 @@ public class HiveMetastoreBackedDeltaLakeMetastore
 
         checkState("true".equals(table.getParameters().get("delta.enableInCommitTimestamps")), "Catalog owned table must enable in-commit timestamps");
         checkState(table.getTableType().equals(MANAGED_TABLE.name()), "Catalog owned table must be managed type table");
-        checkState(table.getParameters().containsKey("ucTableId"), "Catalog owned table must have a table id");
+        checkState(table.getParameters().containsKey(UNITY_CATALOG_TABLE_ID), "Catalog owned table must have a table id");
         return true;
     }
 
@@ -164,6 +165,6 @@ public class HiveMetastoreBackedDeltaLakeMetastore
 
     private static Optional<String> getTableId(Table table)
     {
-        return Optional.ofNullable(table.getParameters().get("ucTableId"));
+        return Optional.ofNullable(table.getParameters().get(UNITY_CATALOG_TABLE_ID));
     }
 }

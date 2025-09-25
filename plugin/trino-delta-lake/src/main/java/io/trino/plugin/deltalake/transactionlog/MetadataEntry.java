@@ -37,6 +37,7 @@ import static io.trino.plugin.deltalake.DeltaLakeErrorCode.DELTA_LAKE_INVALID_SC
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.COLUMN_MAPPING_MODE_CONFIGURATION_KEY;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.DELETION_VECTORS_CONFIGURATION_KEY;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.MAX_COLUMN_ID_CONFIGURATION_KEY;
+import static io.trino.plugin.hive.metastore.unity.UnityHiveMetastore.UNITY_CATALOG_TABLE_ID;
 import static java.lang.Long.parseLong;
 import static java.lang.String.format;
 import static java.util.Locale.ENGLISH;
@@ -181,7 +182,7 @@ public class MetadataEntry
             return Optional.empty();
         }
 
-        return Optional.ofNullable(configuration.get("ucTableId"));
+        return Optional.ofNullable(configuration.get(UNITY_CATALOG_TABLE_ID));
     }
 
     public static Map<String, String> configurationForNewTable(
