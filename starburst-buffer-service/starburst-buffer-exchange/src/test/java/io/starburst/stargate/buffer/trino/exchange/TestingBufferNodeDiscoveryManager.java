@@ -104,7 +104,7 @@ class TestingBufferNodeDiscoveryManager
         @CanIgnoreReturnValue
         public BufferNodesStateBuilder putNode(long nodeId, BufferNodeState state, BufferNodeStats stats)
         {
-            bufferNodesMap.put(nodeId, new BufferNodeInfo(nodeId, URI.create("http://node_" + nodeId), Optional.of(stats), state, Instant.now()));
+            bufferNodesMap.put(nodeId, new BufferNodeInfo(nodeId, URI.create("http://node" + nodeId + ":80"), Optional.of(stats), state, Instant.now()));
             return this;
         }
 

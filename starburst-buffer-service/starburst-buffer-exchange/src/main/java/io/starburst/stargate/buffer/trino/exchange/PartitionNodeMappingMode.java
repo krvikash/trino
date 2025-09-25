@@ -13,5 +13,6 @@ public enum PartitionNodeMappingMode
 {
     PINNING_SINGLE,
     PINNING_MULTI,
-    RANDOM
+    RANDOM,
+    LOCAL_PRIORITY
 }

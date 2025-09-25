@@ -75,6 +75,7 @@ public class BufferExchangeModule
         bindPartitionNodeMapper(PartitionNodeMappingMode.PINNING_SINGLE, PinningPartitionNodeMapperFactory.class);
         bindPartitionNodeMapper(PartitionNodeMappingMode.PINNING_MULTI, SmartPinningPartitionNodeMapperFactory.class);
         bindPartitionNodeMapper(PartitionNodeMappingMode.RANDOM, RandomPartitionNodeMapperFactory.class);
+        bindPartitionNodeMapper(PartitionNodeMappingMode.LOCAL_PRIORITY, LocalPriorityPartitionNodeMapperFactory.class);
 
         if (apiFactory.isEmpty()) {
             install(new RealBufferingServiceApiFactoryModule());

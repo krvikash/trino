@@ -667,7 +667,10 @@ public final class IcebergQueryRunner
                     .addExtraProperties(extraProperties.buildOrThrow())
                     .setAdditionalSetup(runner -> {
                         runner.installPlugin(new BufferExchangePlugin());
-                        runner.loadExchangeManager("buffer", ImmutableMap.of("exchange.use-embedded-buffer-service", "true"));
+                        runner.loadExchangeManager("buffer",
+                                ImmutableMap.of(
+                                        "exchange.use-embedded-buffer-service", "true",
+                                        "exchange.partition-node-mapping-mode", "LOCAL_PRIORITY"));
                     })
                     .build();
             log.info("======== SERVER STARTED ========");
