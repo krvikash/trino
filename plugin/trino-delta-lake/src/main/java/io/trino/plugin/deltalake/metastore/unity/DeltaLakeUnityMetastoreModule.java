@@ -22,7 +22,6 @@ import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.RawHiveMetastoreFactory;
 import io.trino.plugin.deltalake.AllowDeltaLakeManagedTableRename;
 import io.trino.plugin.deltalake.DeltaLakeConfig;
-import io.trino.plugin.deltalake.DeltaLakeFileSystemFactory;
 import io.trino.plugin.deltalake.MaxTableParameterLength;
 import io.trino.plugin.deltalake.metastore.DeltaLakeTableOperationsProvider;
 import io.trino.plugin.deltalake.metastore.VendedCredentialsProvider;
@@ -88,7 +87,6 @@ public class DeltaLakeUnityMetastoreModule
         // Databricks denied sharing the exact value as its undocumented but confirmed that it's greater than 512K when given Glue's reference.
         binder.bind(Key.get(int.class, MaxTableParameterLength.class)).toInstance(512000);
 
-        newOptionalBinder(binder, DeltaLakeFileSystemFactory.class).setBinding().to(UnityFileSystemFactory.class).in(Scopes.SINGLETON);
         install(conditionalModule(
                 UnityMetastoreConfig.class,
                 UnityMetastoreConfig::isVendedCredentialsEnabled,
