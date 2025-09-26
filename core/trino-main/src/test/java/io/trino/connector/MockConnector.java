@@ -395,6 +395,9 @@ public class MockConnector
     }
 
     @Override
+    public void shutdown() {}
+
+    @Override
     public Set<Procedure> getProcedures()
     {
         return procedures;

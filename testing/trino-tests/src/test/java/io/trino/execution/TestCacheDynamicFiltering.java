@@ -320,5 +320,8 @@ public class TestCacheDynamicFiltering
         {
             return new TestingPageSinkProvider();
         }
+
+        @Override
+        public void shutdown() {}
     }
 }
