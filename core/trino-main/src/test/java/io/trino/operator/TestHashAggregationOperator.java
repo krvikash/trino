@@ -22,6 +22,7 @@ import io.airlift.units.DataSize;
 import io.airlift.units.DataSize.Unit;
 import io.trino.ExceededMemoryLimitException;
 import io.trino.RowPagesBuilder;
+import io.trino.Session;
 import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.operator.HashAggregationOperator.HashAggregationOperatorFactory;
@@ -42,6 +43,7 @@ import io.trino.spiller.Spiller;
 import io.trino.spiller.SpillerFactory;
 import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.testing.MaterializedResult;
+import io.trino.testing.TestingSession;
 import io.trino.testing.TestingTaskContext;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
@@ -68,6 +70,7 @@ import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.DataSize.succinctBytes;
 import static io.trino.RowPagesBuilder.rowPagesBuilder;
 import static io.trino.SessionTestUtils.TEST_SESSION;
+import static io.trino.SystemSessionProperties.AGGREGATION_OPTIMIZED_GROUP_BY_HASH_ENABLED;
 import static io.trino.block.BlockAssertions.createLongsBlock;
 import static io.trino.block.BlockAssertions.createRepeatedValuesBlock;
 import static io.trino.operator.AggregationMetrics.INPUT_ROWS_WITH_PARTIAL_AGGREGATION_DISABLED_METRIC_NAME;
@@ -280,7 +283,10 @@ public class TestHashAggregationOperator
                 .addSequencePage(10, 300, 0)
                 .build();
 
-        DriverContext driverContext = createTaskContext(executor, scheduledExecutor, TEST_SESSION, DataSize.of(11, Unit.MEGABYTE))
+        Session session = TestingSession.testSessionBuilder(TEST_SESSION)
+                .setSystemProperty(AGGREGATION_OPTIMIZED_GROUP_BY_HASH_ENABLED, "false")
+                .build();
+        DriverContext driverContext = createTaskContext(executor, scheduledExecutor, session, DataSize.of(11, Unit.MEGABYTE))
                 .addPipelineContext(0, true, true, false)
                 .addDriverContext();
 

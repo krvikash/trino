@@ -15,6 +15,7 @@ package io.trino.operator;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
+import io.trino.annotation.UsedByGeneratedCode;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.TrinoException;
@@ -94,6 +95,39 @@ public class BigintGroupByHash
         Arrays.fill(groupIds, -1);
 
         valuesByGroupId = createBaseArray(maxFill);
+
+        // This interface is used for actively reserving memory (push model) for rehash.
+        // The caller can also query memory usage on this object (pull model)
+        this.updateMemory = requireNonNull(updateMemory, "updateMemory is null");
+    }
+
+    // Intended for use as a fallback from the optimized implementation when
+    // the size of a byte array that would be required exceeds Integer.MAX_VALUE
+    @UsedByGeneratedCode
+    public BigintGroupByHash(
+            UpdateMemory updateMemory,
+            int groupCount,
+            int nullGroupId,
+            long[] valuesByGroupId,
+            long[] values,
+            int[] groupIds)
+    {
+        this.hashCapacity = groupIds.length;
+        checkArgument(hashCapacity > 0, "hashCapacity must be greater than zero");
+        checkArgument(Integer.bitCount(hashCapacity) == 1, "hashCapacity must be a power of two");
+        checkArgument(values.length == groupIds.length, "values.length (%s) must equal to groupIds.length (%s)", values.length, groupIds.length);
+        checkArgument(values.length >= groupCount, "values.length (%s) must be >= groupCount (%s)", values.length, groupCount);
+
+        this.hashType = BIGINT;
+
+        maxFill = calculateMaxFill(hashCapacity);
+        mask = hashCapacity - 1;
+        this.values = new LongValuesArray(values);
+        this.groupIds = groupIds;
+
+        this.valuesByGroupId = new LongValuesArray(valuesByGroupId);
+        this.nextGroupId = groupCount;
+        this.nullGroupId = nullGroupId;
 
         // This interface is used for actively reserving memory (push model) for rehash.
         // The caller can also query memory usage on this object (pull model)

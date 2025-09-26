@@ -90,6 +90,7 @@ public class BenchmarkGroupByHashOnSimulatedData
                 data.getHashMode(),
                 EXPECTED_GROUP_COUNT,
                 false,
+                true,
                 hashStrategyCompiler,
                 NOOP);
         List<int[]> results = addInputPages(groupByHash, data.getPages(), data.getWorkType());

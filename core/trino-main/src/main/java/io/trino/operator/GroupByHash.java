@@ -20,6 +20,7 @@ import io.airlift.bytecode.DynamicClassLoader;
 import io.trino.Session;
 import io.trino.annotation.NotThreadSafe;
 import io.trino.cache.NonEvictableLoadingCache;
+import io.trino.operator.BigintGroupByHash.ValuesArray;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.type.ArrayType;
@@ -32,8 +33,10 @@ import java.lang.reflect.Constructor;
 import java.util.List;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.trino.SystemSessionProperties.isAggregationOptimizedGroupByHashEnabled;
 import static io.trino.SystemSessionProperties.isDictionaryAggregationEnabled;
 import static io.trino.cache.SafeCaches.buildNonEvictableCache;
+import static io.trino.spi.type.BigintType.BIGINT;
 
 @NotThreadSafe
 public interface GroupByHash
@@ -56,7 +59,7 @@ public interface GroupByHash
                     BigintGroupByHash.GetDictionaryGroupIdsWork.class,
                     BigintGroupByHash.GetRunLengthEncodedGroupIdsWork.class,
                     BigintGroupByHash.DictionaryLookBack.class,
-                    BigintGroupByHash.ValuesArray.class,
+                    ValuesArray.class,
                     BigintGroupByHash.LongValuesArray.class,
                     BigintGroupByHash.IntegerValuesArray.class,
                     BigintGroupByHash.ShortValuesArray.class,
@@ -72,11 +75,13 @@ public interface GroupByHash
             UpdateMemory updateMemory)
     {
         boolean dictionaryAggregationEnabled = isDictionaryAggregationEnabled(session);
+        boolean batchedBigintGroupByHashEnabled = isAggregationOptimizedGroupByHashEnabled(session);
         return createGroupByHash(
                 types,
                 selectGroupByHashMode(spillable, types),
                 expectedSize,
                 dictionaryAggregationEnabled,
+                batchedBigintGroupByHashEnabled,
                 hashStrategyCompiler,
                 updateMemory);
     }
@@ -116,10 +121,14 @@ public interface GroupByHash
             GroupByHashMode hashMode,
             int expectedSize,
             boolean dictionaryAggregationEnabled,
+            boolean batchedBigintGroupByHashEnabled,
             FlatHashStrategyCompiler hashStrategyCompiler,
             UpdateMemory updateMemory)
     {
         try {
+            if (batchedBigintGroupByHashEnabled && types.size() == 1 && BIGINT == types.get(0)) {
+                return new SwitchingGroupByHash(new BigintGroupByHashBatched(expectedSize, updateMemory));
+            }
             if (types.size() == 1 && BigintGroupByHash.isSupportedType(types.get(0))) {
                 Type hashType = getOnlyElement(types);
                 Constructor<? extends GroupByHash> constructor = specializedGroupByHashClasses.getUnchecked(hashType).getConstructor(int.class, UpdateMemory.class, Type.class);
@@ -136,6 +145,24 @@ public interface GroupByHash
                 dictionaryAggregationEnabled,
                 hashStrategyCompiler,
                 updateMemory);
+    }
+
+    static GroupByHash createBigintGroupByHash(
+            UpdateMemory updateMemory,
+            int groupCount,
+            int nullGroupId,
+            long[] valuesByGroupId,
+            long[] values,
+            int[] groupIds)
+    {
+        try {
+            Constructor<? extends GroupByHash> constructor = specializedGroupByHashClasses.getUnchecked(BIGINT)
+                    .getConstructor(UpdateMemory.class, int.class, int.class, long[].class, long[].class, int[].class);
+            return constructor.newInstance(updateMemory, groupCount, nullGroupId, valuesByGroupId, values, groupIds);
+        }
+        catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     long getEstimatedSize();

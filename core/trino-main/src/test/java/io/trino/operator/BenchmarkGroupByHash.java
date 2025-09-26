@@ -63,7 +63,7 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 @BenchmarkMode(Mode.AverageTime)
 public class BenchmarkGroupByHash
 {
-    private static final int POSITIONS = 10_000_000;
+    private static final int POSITIONS = 30_000_000;
     private static final String GROUP_COUNT_STRING = "3000000";
     private static final int GROUP_COUNT = Integer.parseInt(GROUP_COUNT_STRING);
     private static final int EXPECTED_SIZE = 10_000;
@@ -74,6 +74,25 @@ public class BenchmarkGroupByHash
     public Object addPages(MultiChannelBenchmarkData data)
     {
         GroupByHash groupByHash = new FlatGroupByHash(data.getTypes(), data.getFlatGroupByHashMode(), EXPECTED_SIZE, false, new FlatHashStrategyCompiler(TYPE_OPERATORS, new NullSafeHashCompiler(TYPE_OPERATORS)), NOOP);
+        addInputPagesToHash(groupByHash, data.getPages());
+        return groupByHash;
+    }
+
+    @Benchmark
+    @OperationsPerInvocation(POSITIONS)
+    public Object bigintAddPages(BigintGroupByHashData data)
+    {
+        GroupByHash groupByHash;
+        if (data.groupByHashType.equals("baseline")) {
+            groupByHash = new BigintGroupByHash(data.expectedSize, () -> true, BIGINT);
+        }
+        else if (data.groupByHashType.equals("batched")) {
+            groupByHash = new BigintGroupByHashBatched(EXPECTED_SIZE, () -> true);
+        }
+        else {
+            throw new IllegalArgumentException(data.groupByHashType);
+        }
+
         addInputPagesToHash(groupByHash, data.getPages());
         return groupByHash;
     }
@@ -175,6 +194,32 @@ public class BenchmarkGroupByHash
         }
         pages.add(pageBuilder.build());
         return pages.build();
+    }
+
+    @State(Scope.Thread)
+    public static class BigintGroupByHashData
+    {
+        @Param({"baseline", "batched"})
+        private String groupByHashType = "baseline";
+
+        @Param(GROUP_COUNT_STRING)
+        private int groupCount = GROUP_COUNT;
+
+        @Param(GROUP_COUNT_STRING)
+        public int expectedSize = GROUP_COUNT;
+
+        private List<Page> pages;
+
+        @Setup
+        public void setup()
+        {
+            pages = createIntegerPages(POSITIONS, groupCount, 1, BIGINT, false);
+        }
+
+        public List<Page> getPages()
+        {
+            return pages;
+        }
     }
 
     @SuppressWarnings("FieldMayBeFinal")
@@ -287,6 +332,10 @@ public class BenchmarkGroupByHash
         MultiChannelBenchmarkData data = new MultiChannelBenchmarkData();
         data.setup();
         new BenchmarkGroupByHash().addPages(data);
+
+        BigintGroupByHashData bigintData = new BigintGroupByHashData();
+        bigintData.setup();
+        new BenchmarkGroupByHash().bigintAddPages(bigintData);
 
         WriteMultiChannelBenchmarkData writeData = new WriteMultiChannelBenchmarkData();
         writeData.setup(data);

@@ -342,7 +342,7 @@ public class TestGroupByHash
 
             // Create GroupByHash with tiny size
             AtomicInteger rehashCount = new AtomicInteger();
-            GroupByHash groupByHash = createGroupByHash(ImmutableList.of(type), selectGroupByHashMode(false, ImmutableList.of(type)), 1, false, new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())), () -> {
+            GroupByHash groupByHash = createGroupByHash(ImmutableList.of(type), selectGroupByHashMode(false, ImmutableList.of(type)), 1, false, false, new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())), () -> {
                 rehashCount.incrementAndGet();
                 return true;
             });
@@ -360,7 +360,7 @@ public class TestGroupByHash
         // values expands into multiple FlatGroupByHash fixed record groups
         Block valuesBlock = createStringSequenceBlock(0, 1_000_000);
 
-        GroupByHash groupByHash = createGroupByHash(ImmutableList.of(type), selectGroupByHashMode(false, ImmutableList.of(type)), 10_000, false, new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())), () -> true);
+        GroupByHash groupByHash = createGroupByHash(ImmutableList.of(type), selectGroupByHashMode(false, ImmutableList.of(type)), 10_000, false, true, new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())), () -> true);
         assertThat(groupByHash.addPage(new Page(valuesBlock)).process()).isTrue();
         assertThat(groupByHash.getGroupCount()).isEqualTo(valuesBlock.getPositionCount());
 
@@ -436,7 +436,7 @@ public class TestGroupByHash
             int yields = 0;
 
             // test addPage
-            GroupByHash groupByHash = createGroupByHash(ImmutableList.of(type), selectGroupByHashMode(false, ImmutableList.of(type)), 1, false, new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())), updateMemory);
+            GroupByHash groupByHash = createGroupByHash(ImmutableList.of(type), selectGroupByHashMode(false, ImmutableList.of(type)), 1, false, true, new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())), updateMemory);
             boolean finish = false;
             Work<?> addPageWork = groupByHash.addPage(page);
             while (!finish) {
@@ -462,7 +462,7 @@ public class TestGroupByHash
             currentQuota.set(0);
             allowedQuota.set(6);
             yields = 0;
-            groupByHash = createGroupByHash(ImmutableList.of(type), selectGroupByHashMode(false, ImmutableList.of(type)), 1, false, new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())), updateMemory);
+            groupByHash = createGroupByHash(ImmutableList.of(type), selectGroupByHashMode(false, ImmutableList.of(type)), 1, false, true, new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())), updateMemory);
 
             finish = false;
             Work<int[]> getGroupIdsWork = groupByHash.getGroupIds(page);
@@ -712,10 +712,13 @@ public class TestGroupByHash
 
         Page singleBigintPage = new Page(bigintBlock);
         assertGroupByHashWork(singleBigintPage, ImmutableList.of(BIGINT), BigintGroupByHash.GetGroupIdsWork.class);
+        assertGroupByHashWork(singleBigintPage, ImmutableList.of(BIGINT), true, BigintGroupByHashBatched.GetGroupIdsWork.class);
         Page singleBigintDictionaryPage = new Page(bigintDictionaryBlock);
         assertGroupByHashWork(singleBigintDictionaryPage, ImmutableList.of(BIGINT), BigintGroupByHash.GetDictionaryGroupIdsWork.class);
+        assertGroupByHashWork(singleBigintDictionaryPage, ImmutableList.of(BIGINT), true, BigintGroupByHashBatched.GetDictionaryGroupIdsWork.class);
         Page singleBigintRlePage = new Page(bigintRleBlock);
         assertGroupByHashWork(singleBigintRlePage, ImmutableList.of(BIGINT), BigintGroupByHash.GetRunLengthEncodedGroupIdsWork.class);
+        assertGroupByHashWork(singleBigintRlePage, ImmutableList.of(BIGINT), true, BigintGroupByHashBatched.GetRunLengthEncodedGroupIdsWork.class);
 
         Page singleSmallintPage = new Page(smallintBlock);
         assertGroupByHashWork(singleSmallintPage, ImmutableList.of(SMALLINT), BigintGroupByHash.GetGroupIdsWork.class);
@@ -762,9 +765,45 @@ public class TestGroupByHash
         assertGroupByHashWork(lowCardinalityHugeDictionaryPage, ImmutableList.of(BIGINT, BIGINT), FlatGroupByHash.GetNonDictionaryGroupIdsWork.class);
     }
 
+    @Test
+    public void testBigintGroupByHashBatched()
+    {
+        Block inputBlock = BlockAssertions.createLongsBlock(0L, 1L, -1L, 777L, Integer.MAX_VALUE + 1L, null, Integer.MIN_VALUE - 1L, Long.MAX_VALUE, Long.MIN_VALUE);
+        Page page = new Page(inputBlock);
+        BigintGroupByHashBatched groupByHashBatched = new BigintGroupByHashBatched(4, () -> true);
+        assertThat(groupByHashBatched.addPage(page).process()).isTrue();
+        assertThat(groupByHashBatched.getGroupCount()).isEqualTo(inputBlock.getPositionCount());
+
+        Page outputPage = buildOutputPage(groupByHashBatched);
+        BlockAssertions.assertBlockEquals(BIGINT, outputPage.getBlock(0), inputBlock);
+
+        Optional<GroupByHash> maybeGroupByHash = groupByHashBatched.fallbackToBigintGroupByHash();
+        assertThat(maybeGroupByHash).isPresent();
+        GroupByHash groupByHash = maybeGroupByHash.get();
+        assertThat(groupByHash.getGroupCount()).isEqualTo(groupByHashBatched.getGroupCount());
+        Page witchedOutputPage = buildOutputPage(groupByHash);
+        BlockAssertions.assertBlockEquals(BIGINT, witchedOutputPage.getBlock(0), inputBlock);
+    }
+
+    private static Page buildOutputPage(GroupByHash groupByHash)
+    {
+        PageBuilder pageBuilder = new PageBuilder(ImmutableList.of(BIGINT));
+        for (int i = 0; i < groupByHash.getGroupCount(); i++) {
+            groupByHash.appendValuesTo(i, pageBuilder);
+            pageBuilder.declarePosition();
+        }
+        Page outputPage = pageBuilder.build();
+        return outputPage;
+    }
+
     private static void assertGroupByHashWork(Page page, List<Type> types, Class<?> clazz)
     {
-        GroupByHash groupByHash = createGroupByHash(types, selectGroupByHashMode(false, types), 100, true, new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())), NOOP);
+        assertGroupByHashWork(page, types, false, clazz);
+    }
+
+    private static void assertGroupByHashWork(Page page, List<Type> types, boolean batchedBigintGroupByHashEnabled, Class<?> clazz)
+    {
+        GroupByHash groupByHash = createGroupByHash(types, selectGroupByHashMode(false, types), 100, true, batchedBigintGroupByHashEnabled, new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())), NOOP);
         Work<int[]> work = groupByHash.getGroupIds(page);
         // Compare by name since classes are private
         assertThat(work.getClass().getName()).isEqualTo(clazz.getName());

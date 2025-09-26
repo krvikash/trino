@@ -14,7 +14,6 @@
 package io.trino.operator;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableSet;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.TrinoException;
@@ -23,51 +22,64 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.type.BigintType;
-import io.trino.spi.type.Type;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.util.Arrays;
-import java.util.Set;
+import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static io.airlift.slice.SizeOf.instanceSize;
 import static io.airlift.slice.SizeOf.sizeOf;
+import static io.trino.operator.GroupByHash.createBigintGroupByHash;
 import static io.trino.spi.StandardErrorCode.GENERIC_INSUFFICIENT_RESOURCES;
 import static io.trino.spi.type.BigintType.BIGINT;
-import static io.trino.spi.type.DateType.DATE;
-import static io.trino.spi.type.IntegerType.INTEGER;
-import static io.trino.spi.type.SmallintType.SMALLINT;
-import static io.trino.spi.type.TinyintType.TINYINT;
 import static it.unimi.dsi.fastutil.HashCommon.arraySize;
 import static it.unimi.dsi.fastutil.HashCommon.murmurHash3;
 import static java.lang.Math.min;
 import static java.lang.Math.toIntExact;
+import static java.nio.ByteOrder.LITTLE_ENDIAN;
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Optimized version of {@link BigintGroupByHash} that uses batching to amortize the cost of
+ * random memory reads, and keeps the group ids together with values in the same hash table, to minimize the
+ * number of the random reads.
+ */
 public class BigintGroupByHashBatched
         implements GroupByHash
 {
     private static final int INSTANCE_SIZE = instanceSize(BigintGroupByHashBatched.class);
-    private static final int BATCH_SIZE = 8192;
+    // Smaller batch size than in BigintGroupByHash to increase the chance that batch will fit into CPU L1 cache.
+    private static final int BATCH_SIZE = 64;
+    public static final int ENTRY_SIZE = Integer.BYTES + Long.BYTES;
+    private static final VarHandle LONG_HANDLE = MethodHandles.byteArrayViewVarHandle(long[].class, LITTLE_ENDIAN);
+    private static final VarHandle INT_HANDLE = MethodHandles.byteArrayViewVarHandle(int[].class, LITTLE_ENDIAN);
 
     private static final float FILL_RATIO = 0.75f;
-    private static final Set<Type> SUPPORTED_TYPES = ImmutableSet.of(BIGINT, INTEGER, SMALLINT, TINYINT, DATE);
+    private static final int EMPTY_SLOT = -1;
 
-    private final Type hashType;
+    private final int maxGroupCount;
+    // reusable array for computing hash batches into
+    private final int[] currentHashes = new int[BATCH_SIZE];
+    private final int[] initialGroupIds = new int[BATCH_SIZE];
+
     private int hashCapacity;
     private int maxFill;
     private int mask;
 
-    // the hash table from values to groupIds
-    private ValuesArray values;
-    private int[] groupIds;
+    // The hash table with int groupId and long value
+    // Ideally, we should use MemorySegment but the benchmarks show significant
+    // performance degradation that nullifies the improvement over the original implementation.
+    private byte[] hashTable;
 
     // groupId for the null value
-    private int nullGroupId = -1;
+    private int nullGroupId = EMPTY_SLOT;
 
     // reverse index from the groupId back to the value
-    private ValuesArray valuesByGroupId;
+    private long[] valuesByGroupId;
 
     private int nextGroupId;
     private DictionaryLookBack dictionaryLookBack;
@@ -76,24 +88,20 @@ public class BigintGroupByHashBatched
     private final UpdateMemory updateMemory;
     private long preallocatedMemoryInBytes;
     private long currentPageSizeInBytes;
-    // reusable array for computing hash batches into
-    private int[] currentHashes;
 
-    public BigintGroupByHashBatched(int expectedSize, UpdateMemory updateMemory, Type hashType)
+    public BigintGroupByHashBatched(int expectedSize, UpdateMemory updateMemory)
     {
         checkArgument(expectedSize > 0, "expectedSize must be greater than zero");
-        checkArgument(isSupportedType(hashType), "%s does not support for column of type %s", this.getClass().getSimpleName(), hashType);
 
-        this.hashType = hashType;
         hashCapacity = arraySize(expectedSize, FILL_RATIO);
 
         maxFill = calculateMaxFill(hashCapacity);
         mask = hashCapacity - 1;
-        values = createBaseArray(hashCapacity);
-        groupIds = new int[hashCapacity];
-        Arrays.fill(groupIds, -1);
+        maxGroupCount = calculateMaxFill(Integer.MAX_VALUE / ENTRY_SIZE);
+        hashTable = new byte[hashCapacity * ENTRY_SIZE];
+        markEmptySlots(hashTable);
 
-        valuesByGroupId = createBaseArray(maxFill);
+        valuesByGroupId = new long[maxFill];
 
         // This interface is used for actively reserving memory (push model) for rehash.
         // The caller can also query memory usage on this object (pull model)
@@ -102,30 +110,28 @@ public class BigintGroupByHashBatched
 
     private BigintGroupByHashBatched(BigintGroupByHashBatched other)
     {
-        hashType = other.hashType;
+        maxGroupCount = other.maxGroupCount;
         hashCapacity = other.hashCapacity;
         maxFill = other.maxFill;
         mask = other.mask;
-        values = other.values.replicateWithNewSize(maxFill);
-        groupIds = Arrays.copyOf(other.groupIds, other.groupIds.length);
+        hashTable = Arrays.copyOf(other.hashTable, other.hashTable.length);
         nullGroupId = other.nullGroupId;
-        valuesByGroupId = other.valuesByGroupId.replicateWithNewSize(maxFill);
+        valuesByGroupId = Arrays.copyOf(other.valuesByGroupId, maxFill);
         nextGroupId = other.nextGroupId;
         dictionaryLookBack = other.dictionaryLookBack == null ? null : other.dictionaryLookBack.copy();
         updateMemory = other.updateMemory;
         preallocatedMemoryInBytes = other.preallocatedMemoryInBytes;
         currentPageSizeInBytes = other.currentPageSizeInBytes;
-        currentHashes = other.currentHashes == null ? null : Arrays.copyOf(other.currentHashes, other.currentHashes.length);
     }
 
     @Override
     public long getEstimatedSize()
     {
         return INSTANCE_SIZE +
-                sizeOf(groupIds) +
-                values.getSize() +
-                valuesByGroupId.getSize() +
+                sizeOf(hashTable) +
+                sizeOf(valuesByGroupId) +
                 sizeOf(currentHashes) +
+                sizeOf(initialGroupIds) +
                 preallocatedMemoryInBytes;
     }
 
@@ -140,6 +146,7 @@ public class BigintGroupByHashBatched
     {
         dictionaryLookBack = null;
         currentPageSizeInBytes = 0;
+        hashTable = null;
     }
 
     @Override
@@ -151,7 +158,7 @@ public class BigintGroupByHashBatched
             blockBuilder.appendNull();
         }
         else {
-            hashType.writeLong(blockBuilder, valuesByGroupId.getValue(groupId));
+            BIGINT.writeLong(blockBuilder, valuesByGroupId[groupId]);
         }
     }
 
@@ -188,7 +195,7 @@ public class BigintGroupByHashBatched
     @Override
     public long getRawHash(int groupId)
     {
-        return BigintType.hash(valuesByGroupId.getValue(groupId));
+        return BigintType.hash(valuesByGroupId[groupId]);
     }
 
     @VisibleForTesting
@@ -204,10 +211,37 @@ public class BigintGroupByHashBatched
         return new BigintGroupByHashBatched(this);
     }
 
+    private void putIfAbsent(int initialPosition, int batchSize, Block block, int[] outGroupIds, int[] hashes, int[] initialGroupIds)
+    {
+        for (int i = 0; i < batchSize; i++) {
+            if (!block.isNull(initialPosition + i)) {
+                initialGroupIds[i] = (int) INT_HANDLE.get(hashTable, hashes[i]);
+            }
+        }
+        for (int i = 0; i < batchSize; i++) {
+            int position = initialPosition + i;
+            // output the group id for this row
+            outGroupIds[position] = putIfAbsent(position, block, hashes[i], initialGroupIds[i]);
+        }
+    }
+
+    private void putIfAbsent(int initialPosition, int batchSize, Block block, int[] hashes, int[] initialGroupIds)
+    {
+        for (int i = 0; i < batchSize; i++) {
+            if (!block.isNull(initialPosition + i)) {
+                initialGroupIds[i] = (int) INT_HANDLE.get(hashTable, hashes[i]);
+            }
+        }
+        for (int i = 0; i < batchSize; i++) {
+            int position = initialPosition + i;
+            putIfAbsent(position, block, hashes[i], initialGroupIds[i]);
+        }
+    }
+
     private int putIfAbsent(int position, Block block)
     {
         if (block.isNull(position)) {
-            if (nullGroupId < 0) {
+            if (nullGroupId == EMPTY_SLOT) {
                 // set null group id
                 nullGroupId = nextGroupId++;
             }
@@ -215,16 +249,16 @@ public class BigintGroupByHashBatched
             return nullGroupId;
         }
 
-        long value = hashType.getLong(block, position);
+        long value = BIGINT.getLong(block, position);
         int hashPosition = getHashPosition(value, mask);
 
-        return putValueIfAbsent(value, hashPosition);
+        return putValueIfAbsent(value, hashPosition, -2);
     }
 
-    private int putIfAbsent(int position, Block block, int hashPosition)
+    private int putIfAbsent(int position, Block block, int hashPosition, int initialGroupId)
     {
         if (block.isNull(position)) {
-            if (nullGroupId < 0) {
+            if (nullGroupId == EMPTY_SLOT) {
                 // set null group id
                 nullGroupId = nextGroupId++;
             }
@@ -232,24 +266,27 @@ public class BigintGroupByHashBatched
             return nullGroupId;
         }
 
-        return putValueIfAbsent(hashType.getLong(block, position), hashPosition);
+        return putValueIfAbsent(BIGINT.getLong(block, position), hashPosition, initialGroupId);
     }
 
-    private int putValueIfAbsent(long value, int hashPosition)
+    private int putValueIfAbsent(long value, int hashPosition, int initialGroupId)
     {
+        if (initialGroupId >= 0 && value == (long) LONG_HANDLE.get(hashTable, hashPosition + Integer.BYTES)) {
+            return initialGroupId;
+        }
+
         // look for an empty slot or a slot containing this key
         while (true) {
-            int groupId = groupIds[hashPosition];
-            if (groupId == -1) {
+            int groupId = (int) INT_HANDLE.get(hashTable, hashPosition);
+            if (groupId == EMPTY_SLOT) {
                 break;
             }
 
-            if (value == values.getValue(hashPosition)) {
+            if (value == (long) LONG_HANDLE.get(hashTable, hashPosition + Integer.BYTES)) {
                 return groupId;
             }
 
-            // increment position and mask to handle wrap around
-            hashPosition = (hashPosition + 1) & mask;
+            hashPosition = getNextHashPosition(hashPosition, hashTable);
         }
 
         return addNewGroup(hashPosition, value);
@@ -261,17 +298,9 @@ public class BigintGroupByHashBatched
         for (int i = 0; i < batchSize; i++) {
             int position = offset + i;
             if (!mayHaveNull || !block.isNull(position)) {
-                hashes[i] = getHashPosition(hashType.getLong(block, position), mask);
+                hashes[i] = getHashPosition(BIGINT.getLong(block, position), mask);
             }
         }
-    }
-
-    private int[] getHashesBufferArray(int size)
-    {
-        if (currentHashes == null || currentHashes.length < size) {
-            currentHashes = new int[Math.min(size, BATCH_SIZE)];
-        }
-        return currentHashes;
     }
 
     private int addNewGroup(int hashPosition, long value)
@@ -279,9 +308,9 @@ public class BigintGroupByHashBatched
         // record group id in hash
         int groupId = nextGroupId++;
 
-        values.setValue(hashPosition, value);
-        valuesByGroupId.setValue(groupId, value);
-        groupIds[hashPosition] = groupId;
+        INT_HANDLE.set(hashTable, hashPosition, groupId);
+        LONG_HANDLE.set(hashTable, hashPosition + Integer.BYTES, value);
+        valuesByGroupId[groupId] = value;
 
         // increase capacity, if necessary
         if (needRehash()) {
@@ -293,13 +322,13 @@ public class BigintGroupByHashBatched
     private boolean tryRehash()
     {
         long newCapacityLong = hashCapacity * 2L;
-        if (newCapacityLong > Integer.MAX_VALUE) {
-            throw new TrinoException(GENERIC_INSUFFICIENT_RESOURCES, "Size of hash table cannot exceed 1 billion entries");
+        if (newCapacityLong > maxGroupCount) {
+            throw new TrinoException(GENERIC_INSUFFICIENT_RESOURCES, "Size of hash table cannot exceed %s entries".formatted(maxGroupCount));
         }
         int newCapacity = toIntExact(newCapacityLong);
 
         // An estimate of how much extra memory is needed before we can go ahead and expand the hash table.
-        // This includes the new capacity for values, groupIds, and valuesByGroupId as well as the size of the current page
+        // This includes the new capacity for hashTable containing group ids and values, and valuesByGroupId as well as the size of the current page
         preallocatedMemoryInBytes = newCapacity * (long) (Long.BYTES + Integer.BYTES) + ((long) calculateMaxFill(newCapacity)) * Long.BYTES + currentPageSizeInBytes;
         if (!updateMemory.update()) {
             // reserved memory but has exceeded the limit
@@ -307,35 +336,33 @@ public class BigintGroupByHashBatched
         }
 
         int newMask = newCapacity - 1;
-        ValuesArray newValues = createBaseArray(newCapacity);
-        int[] newGroupIds = new int[newCapacity];
-        Arrays.fill(newGroupIds, -1);
+        byte[] newHashTable = new byte[newCapacity * ENTRY_SIZE];
+        markEmptySlots(newHashTable);
 
-        for (int i = 0; i < values.getArrayLength(); i++) {
-            int groupId = groupIds[i];
+        for (int i = 0; i < hashTable.length; i += ENTRY_SIZE) {
+            int groupId = (int) INT_HANDLE.get(hashTable, i);
 
-            if (groupId != -1) {
-                long value = values.getValue(i);
+            if (groupId != EMPTY_SLOT) {
+                long value = (long) LONG_HANDLE.get(hashTable, i + Integer.BYTES);
                 int hashPosition = getHashPosition(value, newMask);
 
                 // find an empty slot for the address
-                while (newGroupIds[hashPosition] != -1) {
-                    hashPosition = (hashPosition + 1) & newMask;
+                while ((int) INT_HANDLE.get(newHashTable, hashPosition) != EMPTY_SLOT) {
+                    hashPosition = getNextHashPosition(hashPosition, newHashTable);
                 }
 
                 // record the mapping
-                newValues.setValue(hashPosition, value);
-                newGroupIds[hashPosition] = groupId;
+                INT_HANDLE.set(newHashTable, hashPosition, groupId);
+                LONG_HANDLE.set(newHashTable, hashPosition + Integer.BYTES, value);
             }
         }
 
         mask = newMask;
         hashCapacity = newCapacity;
         maxFill = calculateMaxFill(hashCapacity);
-        values = newValues;
-        groupIds = newGroupIds;
+        hashTable = newHashTable;
 
-        this.valuesByGroupId = valuesByGroupId.replicateWithNewSize(maxFill);
+        this.valuesByGroupId = Arrays.copyOf(valuesByGroupId, maxFill);
 
         preallocatedMemoryInBytes = 0;
         // release temporary memory reservation
@@ -343,19 +370,30 @@ public class BigintGroupByHashBatched
         return true;
     }
 
+    private static void markEmptySlots(byte[] hashTable)
+    {
+        for (int i = 0; i < hashTable.length; i += ENTRY_SIZE) {
+            INT_HANDLE.set(hashTable, i, EMPTY_SLOT);
+        }
+    }
+
+    private static int getNextHashPosition(int hashPosition, byte[] hashTable)
+    {
+        hashPosition = hashPosition + ENTRY_SIZE;
+        if (hashPosition >= hashTable.length) {
+            hashPosition = 0;
+        }
+        return hashPosition;
+    }
+
     private boolean needRehash()
     {
         return nextGroupId >= maxFill;
     }
 
-    public static boolean isSupportedType(Type type)
-    {
-        return SUPPORTED_TYPES.contains(type);
-    }
-
     private static int getHashPosition(long rawHash, int mask)
     {
-        return (int) (murmurHash3(rawHash) & mask);
+        return ((int) (murmurHash3(rawHash) & mask)) * ENTRY_SIZE;
     }
 
     private static int calculateMaxFill(int hashSize)
@@ -387,6 +425,37 @@ public class BigintGroupByHashBatched
         return groupId;
     }
 
+    public boolean shouldFallback(int newPositions)
+    {
+        return nextGroupId + newPositions > maxGroupCount;
+    }
+
+    public Optional<GroupByHash> fallbackToBigintGroupByHash()
+    {
+        // An estimate of how much extra memory is needed before we can go ahead and create a new BigintGroupByHash.
+        // This includes the capacity for values and groupIds
+        preallocatedMemoryInBytes = hashCapacity * (long) (Long.BYTES + Integer.BYTES);
+        if (!updateMemory.update()) {
+            // reserved memory but has exceeded the limit
+            return Optional.empty();
+        }
+        long[] values = new long[hashCapacity];
+        int[] groupIds = new int[hashCapacity];
+        int entryIndex = 0;
+        for (int i = 0; i < hashTable.length; i += ENTRY_SIZE) {
+            groupIds[entryIndex] = (int) INT_HANDLE.get(hashTable, i);
+            values[entryIndex] = (long) LONG_HANDLE.get(hashTable, i + 4);
+            entryIndex++;
+        }
+        // free memory from the current hash table
+        hashTable = new byte[0];
+        GroupByHash bigintGroupByHash = createBigintGroupByHash(updateMemory, nextGroupId, nullGroupId, valuesByGroupId, values, groupIds);
+        preallocatedMemoryInBytes = 0;
+        // release temporary memory reservation
+        updateMemory.update();
+        return Optional.of(bigintGroupByHash);
+    }
+
     @VisibleForTesting
     class AddPageWork
             implements Work<Void>
@@ -407,18 +476,14 @@ public class BigintGroupByHashBatched
             checkState(lastPosition <= positionCount, "position count out of bound");
             int remainingPositions = positionCount - lastPosition;
 
-            int[] hashes = getHashesBufferArray(remainingPositions);
             while (remainingPositions != 0) {
-                int batchSize = min(remainingPositions, hashes.length);
+                int batchSize = min(remainingPositions, currentHashes.length);
                 if (!ensureHashTableSize(batchSize)) {
                     return false;
                 }
 
-                computeHashes(block, lastPosition, batchSize, hashes);
-                for (int i = 0; i < batchSize; i++) {
-                    int position = lastPosition + i;
-                    putIfAbsent(position, block, hashes[i]);
-                }
+                computeHashes(block, lastPosition, batchSize, currentHashes);
+                putIfAbsent(lastPosition, batchSize, block, currentHashes, initialGroupIds);
 
                 lastPosition += batchSize;
                 remainingPositions -= batchSize;
@@ -546,19 +611,14 @@ public class BigintGroupByHashBatched
 
             int remainingPositions = positionCount - lastPosition;
 
-            int[] hashes = getHashesBufferArray(remainingPositions);
             while (remainingPositions != 0) {
-                int batchSize = min(remainingPositions, hashes.length);
+                int batchSize = min(remainingPositions, currentHashes.length);
                 if (!ensureHashTableSize(batchSize)) {
                     return false;
                 }
 
-                computeHashes(block, lastPosition, batchSize, hashes);
-                for (int i = 0; i < batchSize; i++) {
-                    int position = lastPosition + i;
-                    // output the group id for this row
-                    groupIds[position] = putIfAbsent(position, block, hashes[i]);
-                }
+                computeHashes(block, lastPosition, batchSize, currentHashes);
+                putIfAbsent(lastPosition, batchSize, block, groupIds, currentHashes, initialGroupIds);
 
                 lastPosition += batchSize;
                 remainingPositions -= batchSize;
@@ -637,7 +697,7 @@ public class BigintGroupByHashBatched
     {
         private final RunLengthEncodedBlock block;
 
-        int groupId = -1;
+        int groupId = EMPTY_SLOT;
         private boolean processFinished;
         private boolean resultProduced;
 
@@ -701,7 +761,7 @@ public class BigintGroupByHashBatched
         {
             this.dictionary = dictionary;
             this.processed = new int[dictionary.getPositionCount()];
-            Arrays.fill(processed, -1);
+            Arrays.fill(processed, EMPTY_SLOT);
         }
 
         private DictionaryLookBack(DictionaryLookBack other)
@@ -722,7 +782,7 @@ public class BigintGroupByHashBatched
 
         public boolean isProcessed(int position)
         {
-            return processed[position] != -1;
+            return processed[position] != EMPTY_SLOT;
         }
 
         public void setProcessed(int position, int groupId)
@@ -733,217 +793,6 @@ public class BigintGroupByHashBatched
         public DictionaryLookBack copy()
         {
             return new DictionaryLookBack(this);
-        }
-    }
-
-    private ValuesArray createBaseArray(int size)
-    {
-        if (hashType == BIGINT) {
-            return new LongValuesArray(size);
-        }
-        else if (hashType == INTEGER || hashType == DATE) {
-            return new IntegerValuesArray(size);
-        }
-        else if (hashType == SMALLINT) {
-            return new ShortValuesArray(size);
-        }
-        return new ByteValuesArray(size);
-    }
-
-    interface ValuesArray
-    {
-        void setValue(int position, long value);
-
-        long getValue(int position);
-
-        long getSize();
-
-        int getArrayLength();
-
-        ValuesArray replicateWithNewSize(int maxFill);
-    }
-
-    static class LongValuesArray
-            implements ValuesArray
-    {
-        private final long[] values;
-
-        public LongValuesArray(int size)
-        {
-            this(new long[size]);
-        }
-
-        private LongValuesArray(long[] values)
-        {
-            this.values = values;
-        }
-
-        @Override
-        public void setValue(int position, long value)
-        {
-            values[position] = value;
-        }
-
-        @Override
-        public long getValue(int position)
-        {
-            return values[position];
-        }
-
-        @Override
-        public long getSize()
-        {
-            return sizeOf(values);
-        }
-
-        @Override
-        public int getArrayLength()
-        {
-            return values.length;
-        }
-
-        @Override
-        public ValuesArray replicateWithNewSize(int maxFill)
-        {
-            return new LongValuesArray(Arrays.copyOf(this.values, maxFill));
-        }
-    }
-
-    static class IntegerValuesArray
-            implements ValuesArray
-    {
-        private final int[] values;
-
-        public IntegerValuesArray(int size)
-        {
-            this(new int[size]);
-        }
-
-        private IntegerValuesArray(int[] values)
-        {
-            this.values = values;
-        }
-
-        @Override
-        public void setValue(int position, long value)
-        {
-            values[position] = (int) value;
-        }
-
-        @Override
-        public long getValue(int position)
-        {
-            return values[position];
-        }
-
-        @Override
-        public long getSize()
-        {
-            return sizeOf(values);
-        }
-
-        @Override
-        public int getArrayLength()
-        {
-            return values.length;
-        }
-
-        @Override
-        public ValuesArray replicateWithNewSize(int maxFill)
-        {
-            return new IntegerValuesArray(Arrays.copyOf(this.values, maxFill));
-        }
-    }
-
-    static class ShortValuesArray
-            implements ValuesArray
-    {
-        private final short[] values;
-
-        public ShortValuesArray(int size)
-        {
-            this(new short[size]);
-        }
-
-        private ShortValuesArray(short[] values)
-        {
-            this.values = values;
-        }
-
-        @Override
-        public void setValue(int position, long value)
-        {
-            values[position] = (short) value;
-        }
-
-        @Override
-        public long getValue(int position)
-        {
-            return values[position];
-        }
-
-        @Override
-        public long getSize()
-        {
-            return sizeOf(values);
-        }
-
-        @Override
-        public int getArrayLength()
-        {
-            return values.length;
-        }
-
-        @Override
-        public ValuesArray replicateWithNewSize(int maxFill)
-        {
-            return new ShortValuesArray(Arrays.copyOf(this.values, maxFill));
-        }
-    }
-
-    static class ByteValuesArray
-            implements ValuesArray
-    {
-        private final byte[] values;
-
-        public ByteValuesArray(int size)
-        {
-            this(new byte[size]);
-        }
-
-        public ByteValuesArray(byte[] values)
-        {
-            this.values = values;
-        }
-
-        @Override
-        public void setValue(int position, long value)
-        {
-            values[position] = (byte) value;
-        }
-
-        @Override
-        public long getValue(int position)
-        {
-            return values[position];
-        }
-
-        @Override
-        public long getSize()
-        {
-            return sizeOf(values);
-        }
-
-        @Override
-        public int getArrayLength()
-        {
-            return values.length;
-        }
-
-        @Override
-        public ValuesArray replicateWithNewSize(int maxFill)
-        {
-            return new ByteValuesArray(Arrays.copyOf(this.values, maxFill));
         }
     }
 }

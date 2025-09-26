@@ -240,6 +240,7 @@ public class TestGroupedTopNRowNumberBuilder
                 GroupByHash.selectGroupByHashMode(false, partitionTypes),
                 1,
                 false,
+                true,
                 new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())),
                 updateMemory);
     }

@@ -261,6 +261,7 @@ public class TestGroupedTopNRankBuilder
                 GroupByHash.selectGroupByHashMode(false, ImmutableList.of(partitionType)),
                 1,
                 false,
+                true,
                 new FlatHashStrategyCompiler(typeOperators, new NullSafeHashCompiler(typeOperators)),
                 updateMemory);
     }

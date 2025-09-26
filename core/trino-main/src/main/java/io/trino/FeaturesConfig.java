@@ -104,6 +104,7 @@ public class FeaturesConfig
     private RegexLibrary regexLibrary = JONI;
     private boolean spillEnabled;
     private DataSize aggregationOperatorUnspillMemoryLimit = DataSize.of(4, DataSize.Unit.MEGABYTE);
+    private boolean aggregationOptimizedGroupByHashEnabled = true;
     private List<Path> spillerSpillPaths = ImmutableList.of();
     private Integer spillerThreads;
     private double spillMaxUsedSpaceThreshold = 0.9;
@@ -275,6 +276,19 @@ public class FeaturesConfig
     public FeaturesConfig setAggregationOperatorUnspillMemoryLimit(DataSize aggregationOperatorUnspillMemoryLimit)
     {
         this.aggregationOperatorUnspillMemoryLimit = aggregationOperatorUnspillMemoryLimit;
+        return this;
+    }
+
+    public boolean isAggregationOptimizedGroupByHashEnabled()
+    {
+        return aggregationOptimizedGroupByHashEnabled;
+    }
+
+    @Config("aggregation.optimized-group-by-hash.enabled")
+    @ConfigDescription("Enable optimized computation of group by hash operation for BIGINT aggregations")
+    public FeaturesConfig setAggregationOptimizedGroupByHashEnabled(boolean aggregationOptimizedGroupByHashEnabled)
+    {
+        this.aggregationOptimizedGroupByHashEnabled = aggregationOptimizedGroupByHashEnabled;
         return this;
     }
 
