@@ -116,6 +116,7 @@ import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
 import static java.lang.String.format;
 import static java.time.ZoneOffset.UTC;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
@@ -180,6 +181,7 @@ public class TestDeltaLakeBasic
                 .addDeltaProperty("delta.register-table-procedure.enabled", "true")
                 .addDeltaProperty("delta.enable-non-concurrent-writes", "true")
                 .addDeltaProperty("delta.transaction-log.max-cached-file-size", "0B") // Tests json log streaming code path
+                .addDeltaProperty("delta.log-retention-duration.enabled", "true")
                 .build();
     }
 
@@ -2762,6 +2764,50 @@ public class TestDeltaLakeBasic
         assertThat(seventhCommitInfoEntry.inCommitTimestamp().getAsLong()).isGreaterThan(sixthCommitInfoEntry.inCommitTimestamp().getAsLong());
 
         return version;
+    }
+
+    /**
+     * @see databricks164.log_retention_duration
+     */
+    @Test
+    void testLogRetentionDuration()
+            throws Exception
+    {
+        String tableName = "log_retention_duration_" + randomNameSuffix();
+        Path tableLocation = catalogDir.resolve(tableName);
+        copyDirectoryContents(new File(Resources.getResource("databricks164/log_retention_duration").toURI()).toPath(), tableLocation);
+        assertUpdate("CALL system.register_table(CURRENT_SCHEMA, '%s', '%s')".formatted(tableName, tableLocation.toUri()));
+
+        assertThat(query("SELECT * FROM " + tableName))
+                .matches("VALUES (1, 1), (2, 2)");
+
+        SECONDS.sleep(10); // wait for 10 seconds to ensure the log retention duration is passed
+
+        // version 2
+        // generate first checkpoint, this should remove version 0 and 1 transaction logs
+        assertUpdate("INSERT INTO " + tableName + " VALUES (3, 3)", 1);
+
+        String transactionLogDir = getTableLocation(tableName) + "/_delta_log";
+        assertThat(fileNamesIn(tableLocation + "/_delta_log", false))
+                .doesNotContain(getTransactionLogJsonEntryPath(transactionLogDir, 0).toString(), getTransactionLogJsonEntryPath(transactionLogDir, 1).toString());
+
+        // time travel fail because we removed the transaction log files
+        assertQueryFails("SELECT * FROM " + tableName + " FOR VERSION AS OF 0", "Delta Lake snapshot ID does not exists: 0");
+        assertQueryFails("SELECT * FROM " + tableName + " FOR VERSION AS OF 1", "Delta Lake snapshot ID does not exists: 1");
+
+        // version 3
+        assertUpdate("INSERT INTO " + tableName + " VALUES (4, 4)", 1);
+        // version 4, generate second checkpoint
+        assertUpdate("INSERT INTO " + tableName + " VALUES (5, 5)", 1);
+        // version 2 still should exist because it's exists less than 10 seconds (note: there is a risk for flaky if system is slow)
+        assertThat(query("SELECT * FROM " + tableName + " FOR VERSION AS OF 2"))
+                .matches("VALUES (1, 1), (2, 2), (3, 3)");
+        // version 3 exists
+        assertThat(query("SELECT * FROM " + tableName + " FOR VERSION AS OF 3"))
+                .matches("VALUES (1, 1), (2, 2), (3, 3), (4, 4)");
+        // version 4 exists
+        assertThat(query("SELECT * FROM " + tableName + " FOR VERSION AS OF 4"))
+                .matches("VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5)");
     }
 
     /**

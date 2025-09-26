@@ -46,6 +46,7 @@ import io.trino.spi.type.TypeSignatureParameter;
 import io.trino.spi.type.VarcharType;
 import jakarta.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.AbstractMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -65,6 +66,8 @@ import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.Streams.stream;
+import static io.delta.kernel.internal.TableConfig.EXPIRED_LOG_CLEANUP_ENABLED;
+import static io.delta.kernel.internal.TableConfig.LOG_RETENTION;
 import static io.trino.plugin.deltalake.DeltaLakeColumnType.PARTITION_KEY;
 import static io.trino.plugin.deltalake.DeltaLakeErrorCode.DELTA_LAKE_INVALID_SCHEMA;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeTableFeatures.APPEND_ONLY_FEATURE_NAME;
@@ -190,6 +193,16 @@ public final class DeltaLakeSchemaSupport
     {
         String formats = metadataEntry.getConfiguration().get(UNIVERSAL_FORMAT_CONFIGURATION_KEY);
         return formats == null ? ImmutableList.of() : SPLITTER.splitToList(formats);
+    }
+
+    public static Duration getLogRetentionDuration(MetadataEntry metadataEntry)
+    {
+        return Duration.ofMillis(LOG_RETENTION.fromMetadata(metadataEntry.getConfiguration()));
+    }
+
+    public static boolean isExpireLogRetentionEnabled(MetadataEntry metadataEntry)
+    {
+        return EXPIRED_LOG_CLEANUP_ENABLED.fromMetadata(metadataEntry.getConfiguration());
     }
 
     public static ColumnMappingMode getColumnMappingMode(MetadataEntry metadata, ProtocolEntry protocolEntry)

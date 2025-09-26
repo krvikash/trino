@@ -98,6 +98,7 @@ public class DeltaLakeConfig
     private boolean deltaLogFileSystemCacheDisabled;
     private int metadataParallelism = 8;
     private int checkpointProcessingParallelism = 4;
+    private boolean logRetentionDurationEnabled;
 
     public Duration getMetadataCacheTtl()
     {
@@ -613,6 +614,19 @@ public class DeltaLakeConfig
     public DeltaLakeConfig setCheckpointProcessingParallelism(int checkpointProcessingParallelism)
     {
         this.checkpointProcessingParallelism = checkpointProcessingParallelism;
+        return this;
+    }
+
+    public boolean isLogRetentionDurationEnabled()
+    {
+        return logRetentionDurationEnabled;
+    }
+
+    @Config("delta.log-retention-duration.enabled")
+    @ConfigDescription("Enable use of log retention duration property to delete old log files when generating new checkpoint")
+    public DeltaLakeConfig setLogRetentionDurationEnabled(boolean logRetentionDurationEnabled)
+    {
+        this.logRetentionDurationEnabled = logRetentionDurationEnabled;
         return this;
     }
 }

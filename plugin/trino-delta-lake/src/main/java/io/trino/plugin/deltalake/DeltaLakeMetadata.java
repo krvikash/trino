@@ -30,6 +30,7 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.stats.cardinality.HyperLogLog;
 import io.airlift.units.DataSize;
+import io.trino.filesystem.FileEntry;
 import io.trino.filesystem.FileIterator;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
@@ -209,6 +210,9 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Sets.difference;
 import static com.google.common.primitives.Ints.max;
 import static io.airlift.units.DataSize.Unit.BYTE;
+import static io.delta.kernel.internal.util.FileNames.isCheckpointFile;
+import static io.delta.kernel.internal.util.FileNames.isChecksumFile;
+import static io.delta.kernel.internal.util.FileNames.isCommitFile;
 import static io.trino.filesystem.Locations.appendPath;
 import static io.trino.filesystem.Locations.areDirectoryLocationsEquivalent;
 import static io.trino.hive.formats.HiveClassNames.HIVE_SEQUENCEFILE_OUTPUT_FORMAT_CLASS;
@@ -291,10 +295,12 @@ import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.ge
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.getExactColumnNames;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.getGeneratedColumnExpressions;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.getIsolationLevel;
+import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.getLogRetentionDuration;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.getMaxColumnId;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.inCommitTimestampEnabled;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.isAppendOnly;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.isDeletionVectorEnabled;
+import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.isExpireLogRetentionEnabled;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.serializeColumnType;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.serializeSchemaAsJson;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.serializeStatsAsJson;
@@ -492,6 +498,7 @@ public class DeltaLakeMetadata
     private final Map<QueriedTable, TableSnapshot> queriedSnapshots = new ConcurrentHashMap<>();
     private final Executor metadataFetchingExecutor;
     private final TransactionLogReaderFactory transactionLogReaderFactory;
+    private final boolean logRetentionDurationEnabled;
 
     private record QueriedTable(SchemaTableName schemaTableName, long version)
     {
@@ -524,7 +531,8 @@ public class DeltaLakeMetadata
             boolean allowManagedTableRename,
             boolean isOperateOnUnityMetastore,
             Executor metadataFetchingExecutor,
-            TransactionLogReaderFactory transactionLogReaderFactory)
+            TransactionLogReaderFactory transactionLogReaderFactory,
+            boolean logRetentionDurationEnabled)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.metastore = requireNonNull(metastore, "metastore is null");
@@ -550,6 +558,7 @@ public class DeltaLakeMetadata
         this.isOperateOnUnityMetastore = isOperateOnUnityMetastore;
         this.metadataFetchingExecutor = requireNonNull(metadataFetchingExecutor, "metadataFetchingExecutor is null");
         this.transactionLogReaderFactory = requireNonNull(transactionLogReaderFactory, "transactionLogLoaderFactory");
+        this.logRetentionDurationEnabled = logRetentionDurationEnabled;
     }
 
     public static boolean isCatalogOwnedTable(ProtocolEntry protocolEntry)
@@ -3438,11 +3447,63 @@ public class DeltaLakeMetadata
             TransactionLogReader transactionLogReader = new FileSystemTransactionLogReader(tableLocation, credentialsHandle, fileSystemFactory);
             TableSnapshot snapshot = transactionLogAccess.loadSnapshot(session, transactionLogReader, table, tableLocation, Optional.of(newVersion), credentialsHandle);
             checkpointWriterManager.writeCheckpoint(session, snapshot, credentialsHandle);
+
+            if (logRetentionDurationEnabled) {
+                TrinoFileSystem fileSystem = fileSystemFactory.create(session, credentialsHandle);
+                MetadataEntry metadataEntry = transactionLogAccess.getMetadataEntry(session, fileSystem, snapshot);
+                // remove old log files if log retention is set and expired log retention is enabled
+                if (isExpireLogRetentionEnabled(metadataEntry)) {
+                    Duration logRetentionDuration = getLogRetentionDuration(metadataEntry);
+                    cleanupExpiredTransactionLogs(fileSystem, logRetentionDuration.toMillis(), Location.of(getTransactionLogDir(tableLocation)), newVersion);
+                }
+            }
         }
         catch (Exception e) {
             // We can't fail here as transaction was already committed, in case of INSERT this could result
             // in inserting data twice if client saw an error and decided to retry
             LOG.error(e, "Failed to write checkpoint for table %s for version %s", table, newVersion);
+        }
+    }
+
+    /**
+     * Delete log files older than retentionDuration duration before last checkpoint version
+     */
+    private static void cleanupExpiredTransactionLogs(TrinoFileSystem fileSystem, long logRetentionDurationMills, Location transactionLogDir, long newCheckpointVersion)
+    {
+        try {
+            Instant retentionThreshold = Instant.now().minusMillis(logRetentionDurationMills);
+
+            ImmutableList.Builder<Location> locationsToDeleteBuilder = ImmutableList.builder();
+            FileIterator fileIterator = fileSystem.listFiles(transactionLogDir);
+            while (fileIterator.hasNext()) {
+                FileEntry fileEntry = fileIterator.next();
+                if (fileEntry.lastModified().isAfter(retentionThreshold)) {
+                    continue;
+                }
+
+                Location location = fileEntry.location();
+                // don't remove subdirectory files, i,e _staged_commits files
+                if (!transactionLogDir.equals(location.parentDirectory())) {
+                    continue;
+                }
+
+                String fileName = location.fileName();
+                if (!isCommitFile(fileName) && !isCheckpointFile(fileName) && !isChecksumFile(fileName)) {
+                    continue;
+                }
+
+                locationsToDeleteBuilder.add(location);
+            }
+
+            List<Location> deleteFiles = locationsToDeleteBuilder.build();
+            if (!deleteFiles.isEmpty()) {
+                LOG.info("deleting %s old transaction log files when generating checkpoint version: %s", deleteFiles, newCheckpointVersion);
+                // TODO: perhaps batch delete if there are too many files
+                fileSystem.deleteFiles(deleteFiles);
+            }
+        }
+        catch (IOException e) {
+            throw new TrinoException(DELTA_LAKE_FILESYSTEM_ERROR, e);
         }
     }
 
