@@ -335,15 +335,16 @@ final class TestIcebergVariantDatatype
     @Test
     void testVariantNull()
     {
-        try (TestTable table = newTrinoTable("test_variant", "(id int, variant JSON)", List.of("1, JSON 'null'", "2, NULL", "3, JSON '{\"id\":3}'"))) {
+        try (TestTable table = newTrinoTable("test_variant_null_", "(id int, variant JSON, var_map MAP(VARCHAR, JSON))", List.of("1, JSON 'null', NULL", "2, NULL, NULL", "3, JSON '{\"id\":3}', NULL", "4, NULL, NULL"))) {
             assertThat(query("SELECT * FROM " + table.getName()))
-                    .matches("VALUES (1, JSON 'null'), (2, NULL),  (3, JSON '{\"id\":3}')");
+                    .skippingTypesCheck()
+                    .matches("VALUES (1, JSON 'null', NULL), (2, NULL, NULL),  (3, JSON '{\"id\":3}', NULL), (4, NULL, NULL)");
             assertThat(query("SELECT id FROM " + table.getName() + " WHERE variant = JSON 'null'"))
                     .matches("VALUES 1");
             assertThat(query("SELECT id FROM " + table.getName() + " WHERE variant IS NOT NULL"))
                     .matches("VALUES 1, 3");
             assertThat(query("SELECT id FROM " + table.getName() + " WHERE variant IS NULL"))
-                    .matches("VALUES 2");
+                    .matches("VALUES 2, 4");
         }
     }
 
