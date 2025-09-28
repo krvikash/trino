@@ -77,18 +77,20 @@ public sealed interface FilterEvaluator
 
     static Optional<Supplier<FilterEvaluator>> createColumnarFilterEvaluator(
             boolean columnarFilterEvaluationEnabled,
+            boolean columnarFilterSubexpressionEvaluationEnabled,
             Optional<RowExpression> filter,
             ColumnarFilterCompiler columnarFilterCompiler,
             PageFunctionCompiler pageFunctionCompiler,
             Optional<String> classNameSuffix)
     {
         if (columnarFilterEvaluationEnabled && filter.isPresent()) {
-            return createColumnarFilterEvaluator(filter.get(), columnarFilterCompiler, pageFunctionCompiler, classNameSuffix);
+            return createColumnarFilterEvaluator(columnarFilterSubexpressionEvaluationEnabled, filter.get(), columnarFilterCompiler, pageFunctionCompiler, classNameSuffix);
         }
         return Optional.empty();
     }
 
     static Optional<Supplier<FilterEvaluator>> createColumnarFilterEvaluator(
+            boolean columnarFilterSubexpressionEvaluationEnabled,
             RowExpression rowExpression,
             ColumnarFilterCompiler compiler,
             PageFunctionCompiler pageFunctionCompiler,
@@ -111,20 +113,20 @@ public sealed interface FilterEvaluator
                     return createIsNotNullExpressionEvaluator(compiler, callExpression);
                 }
             }
-            return createCallExpressionEvaluator(compiler, pageFunctionCompiler, callExpression, classNameSuffix);
+            return createCallExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, compiler, pageFunctionCompiler, callExpression, classNameSuffix);
         }
         if (rowExpression instanceof SpecialForm specialFormArg) {
             if (specialFormArg.form() == IS_NULL) {
                 return createIsNullExpressionEvaluator(compiler, specialFormArg);
             }
             if (specialFormArg.form() == AND) {
-                return createAndExpressionEvaluator(compiler, pageFunctionCompiler, specialFormArg, classNameSuffix);
+                return createAndExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, compiler, pageFunctionCompiler, specialFormArg, classNameSuffix);
             }
             if (specialFormArg.form() == OR) {
-                return createOrExpressionEvaluator(compiler, pageFunctionCompiler, specialFormArg, classNameSuffix);
+                return createOrExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, compiler, pageFunctionCompiler, specialFormArg, classNameSuffix);
             }
             if (specialFormArg.form() == BETWEEN) {
-                return createBetweenEvaluator(compiler, pageFunctionCompiler, specialFormArg, classNameSuffix);
+                return createBetweenEvaluator(columnarFilterSubexpressionEvaluationEnabled, compiler, pageFunctionCompiler, specialFormArg, classNameSuffix);
             }
             if (specialFormArg.form() == IN) {
                 return createInExpressionEvaluator(compiler, specialFormArg);
@@ -139,7 +141,7 @@ public sealed interface FilterEvaluator
         return isBuiltinFunctionName(functionName) && functionName.getFunctionName().equals("$not");
     }
 
-    private static Optional<Supplier<FilterEvaluator>> createBetweenEvaluator(ColumnarFilterCompiler compiler, PageFunctionCompiler pageFunctionCompiler, SpecialForm specialForm, Optional<String> classNameSuffix)
+    private static Optional<Supplier<FilterEvaluator>> createBetweenEvaluator(boolean columnarFilterSubexpressionEvaluationEnabled, ColumnarFilterCompiler compiler, PageFunctionCompiler pageFunctionCompiler, SpecialForm specialForm, Optional<String> classNameSuffix)
     {
         checkArgument(specialForm.form() == BETWEEN, "specialForm should be BETWEEN");
         checkArgument(specialForm.arguments().size() == 3, "BETWEEN should have 3 arguments %s", specialForm.arguments());
@@ -159,6 +161,7 @@ public sealed interface FilterEvaluator
             return compiledFilter.map(filterSupplier -> () -> createDictionaryAwareEvaluator(filterSupplier.get()));
         }
         return createAndExpressionEvaluator(
+                columnarFilterSubexpressionEvaluationEnabled,
                 compiler,
                 pageFunctionCompiler,
                 new SpecialForm(
@@ -179,6 +182,7 @@ public sealed interface FilterEvaluator
     }
 
     private static Optional<Supplier<FilterEvaluator>> createCallExpressionEvaluator(
+            boolean columnarFilterSubexpressionEvaluationEnabled,
             ColumnarFilterCompiler compiler,
             PageFunctionCompiler pageFunctionCompiler,
             CallExpression callExpression,
@@ -199,6 +203,9 @@ public sealed interface FilterEvaluator
             rewrittenCallExpression = callExpression;
         }
         else {
+            if (!columnarFilterSubexpressionEvaluationEnabled) {
+                return Optional.empty();
+            }
             ImmutableList.Builder<Supplier<PageProjection>> argumentProjectionsBuilder = ImmutableList.builder();
             for (RowExpression argumentExpression : arguments) {
                 if (argumentExpression instanceof ConstantExpression) {

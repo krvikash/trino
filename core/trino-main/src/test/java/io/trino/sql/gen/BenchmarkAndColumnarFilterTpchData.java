@@ -93,6 +93,7 @@ public class BenchmarkAndColumnarFilterTpchData
         List<? extends RowExpression> projections = ImmutableList.of(new InputReferenceExpression(EXTENDED_PRICE, DOUBLE));
         processor = expressionCompiler.compilePageProcessor(
                         columnarEvaluationEnabled,
+                        true,
                         Optional.of(filterExpression),
                         Optional.empty(),
                         projections,

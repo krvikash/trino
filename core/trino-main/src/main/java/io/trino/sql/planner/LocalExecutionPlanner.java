@@ -490,6 +490,7 @@ public class LocalExecutionPlanner
     private final NodeVersion version;
     private final int maxMethodComplexity;
     private final boolean specializeAggregationLoops;
+    private final boolean columnarFilterSubexpressionEvaluationEnabled;
 
     private final NonEvictableCache<FunctionKey, AccumulatorFactory> accumulatorFactoryCache = buildNonEvictableCache(CacheBuilder.newBuilder()
             .maximumSize(1000)
@@ -588,6 +589,7 @@ public class LocalExecutionPlanner
         this.version = requireNonNull(version, "version is null");
         this.maxMethodComplexity = compilerConfig.getRowExpressionMaxMethodComplexity();
         this.specializeAggregationLoops = compilerConfig.isSpecializeAggregationLoops();
+        this.columnarFilterSubexpressionEvaluationEnabled = compilerConfig.isColumnarFilterSubExpressionEvaluationEnabled();
     }
 
     public LocalExecutionPlan plan(
@@ -2279,6 +2281,7 @@ public class LocalExecutionPlanner
                 }
                 Function<InternalDynamicFilter, PageProcessor> pageProcessor = expressionCompiler.compilePageProcessor(
                         columnarFilterEvaluationEnabled,
+                        columnarFilterSubexpressionEvaluationEnabled,
                         translatedFilter,
                         dynamicPageFilterFactory,
                         translatedProjections,

@@ -771,6 +771,7 @@ public class TestColumnarFilters
     {
         PageProcessor compiledProcessor = FUNCTION_RESOLUTION.getExpressionCompiler().compilePageProcessor(
                         columnarEvaluationEnabled,
+                        true,
                         Optional.of(filter),
                         Optional.empty(),
                         ImmutableList.of(field(ROW_NUM_CHANNEL, BIGINT)),
@@ -1048,12 +1049,12 @@ public class TestColumnarFilters
 
     private static void assertThatColumnarFilterEvaluationIsSupported(RowExpression filterExpression)
     {
-        assertThat(createColumnarFilterEvaluator(filterExpression, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty())).isPresent();
+        assertThat(createColumnarFilterEvaluator(true, filterExpression, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty())).isPresent();
     }
 
     private static void assertThatColumnarFilterEvaluationIsNotSupported(RowExpression filterExpression)
     {
-        assertThat(createColumnarFilterEvaluator(filterExpression, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty())).isEmpty();
+        assertThat(createColumnarFilterEvaluator(true, filterExpression, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty())).isEmpty();
     }
 
     @ScalarFunction("custom_is_null")

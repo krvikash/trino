@@ -204,6 +204,7 @@ public class BenchmarkColumnarFilterParquetData
         ExpressionCompiler expressionCompiler = FUNCTION_RESOLUTION.getExpressionCompiler();
         compiledProcessor = expressionCompiler.compilePageProcessor(
                         columnarEvaluationEnabled,
+                        true,
                         Optional.of(filterExpression),
                         Optional.empty(),
                         ImmutableList.of(new InputReferenceExpression(EXTENDED_PRICE, DOUBLE)),

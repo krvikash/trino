@@ -32,14 +32,19 @@ import static io.trino.sql.relational.SpecialForm.Form.OR;
 public final class OrFilterEvaluator
         implements FilterEvaluator
 {
-    public static Optional<Supplier<FilterEvaluator>> createOrExpressionEvaluator(ColumnarFilterCompiler compiler, PageFunctionCompiler pageFunctionCompiler, SpecialForm specialForm, Optional<String> classNameSuffix)
+    public static Optional<Supplier<FilterEvaluator>> createOrExpressionEvaluator(
+            boolean columnarFilterSubexpressionEvaluationEnabled,
+            ColumnarFilterCompiler compiler,
+            PageFunctionCompiler pageFunctionCompiler,
+            SpecialForm specialForm,
+            Optional<String> classNameSuffix)
     {
         checkArgument(specialForm.form() == OR, "specialForm %s should be OR", specialForm);
         checkArgument(specialForm.arguments().size() >= 2, "OR expression %s should have at least 2 arguments", specialForm);
 
         ImmutableList.Builder<Supplier<FilterEvaluator>> builder = ImmutableList.builder();
         for (RowExpression expression : specialForm.arguments()) {
-            Optional<Supplier<FilterEvaluator>> subExpressionEvaluator = FilterEvaluator.createColumnarFilterEvaluator(expression, compiler, pageFunctionCompiler, classNameSuffix);
+            Optional<Supplier<FilterEvaluator>> subExpressionEvaluator = FilterEvaluator.createColumnarFilterEvaluator(columnarFilterSubexpressionEvaluationEnabled, expression, compiler, pageFunctionCompiler, classNameSuffix);
             if (subExpressionEvaluator.isEmpty()) {
                 return Optional.empty();
             }

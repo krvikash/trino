@@ -16,6 +16,7 @@ package io.trino.sql.planner;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.DefunctConfig;
+import io.airlift.configuration.LegacyConfig;
 import jakarta.validation.constraints.Min;
 
 @DefunctConfig("compiler.interpreter-enabled")
@@ -30,6 +31,7 @@ public class CompilerConfig
     private int rowExpressionMaxMethodComplexity = DEFAULT_ROW_EXPRESSION_MAX_METHOD_COMPLEXITY;
     private int rowExpressionMaxMethodsPerClass = DEFAULT_ROW_EXPRESSION_MAX_METHODS_PER_CLASS;
     private boolean specializeAggregationLoops = true;
+    private boolean columnarFilterSubExpressionEvaluationEnabled;
 
     @Min(0)
     public int getExpressionCacheSize()
@@ -80,6 +82,20 @@ public class CompilerConfig
     public CompilerConfig setSpecializeAggregationLoops(boolean specializeAggregationLoops)
     {
         this.specializeAggregationLoops = specializeAggregationLoops;
+        return this;
+    }
+
+    public boolean isColumnarFilterSubExpressionEvaluationEnabled()
+    {
+        return columnarFilterSubExpressionEvaluationEnabled;
+    }
+
+    @Config("compiler.columnar-filter-sub-expression-evaluation.enabled")
+    @LegacyConfig("debug.cast-filter-evaluation.enabled")
+    @ConfigDescription("Enables columnar evaluation of filter sub-expressions")
+    public CompilerConfig setColumnarFilterSubExpressionEvaluationEnabled(boolean columnarFilterSubExpressionEvaluationEnabled)
+    {
+        this.columnarFilterSubExpressionEvaluationEnabled = columnarFilterSubExpressionEvaluationEnabled;
         return this;
     }
 }

@@ -50,6 +50,7 @@ public class ExpressionCompiler
 
     public Function<InternalDynamicFilter, PageProcessor> compilePageProcessor(
             boolean columnarFilterEvaluationEnabled,
+            boolean columnarFilterSubexpressionEvaluationEnabled,
             Optional<RowExpression> filter,
             Optional<DynamicPageFilter> dynamicPageFilter,
             List<? extends RowExpression> projections,
@@ -57,7 +58,13 @@ public class ExpressionCompiler
             OptionalInt initialBatchSize)
     {
         Optional<Supplier<PageFilter>> filterFunctionSupplier = Optional.empty();
-        Optional<Supplier<FilterEvaluator>> columnarFilterEvaluatorSupplier = createColumnarFilterEvaluator(columnarFilterEvaluationEnabled, filter, columnarFilterCompiler, pageFunctionCompiler, classNameSuffix);
+        Optional<Supplier<FilterEvaluator>> columnarFilterEvaluatorSupplier = createColumnarFilterEvaluator(
+                columnarFilterEvaluationEnabled,
+                columnarFilterSubexpressionEvaluationEnabled,
+                filter,
+                columnarFilterCompiler,
+                pageFunctionCompiler,
+                classNameSuffix);
         if (columnarFilterEvaluatorSupplier.isEmpty()) {
             filterFunctionSupplier = filter.map(expression -> {
                 Optional<Supplier<PageFilter>> pageFilter = compilePageFilterWithBatchFunction(expression, classNameSuffix, pageFunctionCompiler);
@@ -89,14 +96,14 @@ public class ExpressionCompiler
     @VisibleForTesting
     public Supplier<PageProcessor> compilePageProcessor(Optional<RowExpression> filter, List<? extends RowExpression> projections)
     {
-        return () -> compilePageProcessor(true, filter, Optional.empty(), projections, Optional.empty(), OptionalInt.empty())
+        return () -> compilePageProcessor(true, true, filter, Optional.empty(), projections, Optional.empty(), OptionalInt.empty())
                 .apply(InternalDynamicFilter.EMPTY);
     }
 
     @VisibleForTesting
     public Supplier<PageProcessor> compilePageProcessor(Optional<RowExpression> filter, List<? extends RowExpression> projections, int initialBatchSize)
     {
-        return () -> compilePageProcessor(true, filter, Optional.empty(), projections, Optional.empty(), OptionalInt.of(initialBatchSize))
+        return () -> compilePageProcessor(true, true, filter, Optional.empty(), projections, Optional.empty(), OptionalInt.of(initialBatchSize))
                 .apply(InternalDynamicFilter.EMPTY);
     }
 }
