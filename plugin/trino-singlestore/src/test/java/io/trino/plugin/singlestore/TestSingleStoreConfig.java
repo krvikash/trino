@@ -31,7 +31,8 @@ public class TestSingleStoreConfig
     {
         assertRecordedDefaults(recordDefaults(SingleStoreConfig.class)
                 .setAutoReconnect(true)
-                .setConnectionTimeout(new Duration(10, TimeUnit.SECONDS)));
+                .setConnectionTimeout(new Duration(10, TimeUnit.SECONDS))
+                .setEnableStringPushdownWithBinary(false));
     }
 
     @Test
@@ -40,11 +41,13 @@ public class TestSingleStoreConfig
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("singlestore.auto-reconnect", "false")
                 .put("singlestore.connection-timeout", "4s")
+                .put("singlestore.experimental.enable-string-pushdown-with-binary", "true")
                 .buildOrThrow();
 
         SingleStoreConfig expected = new SingleStoreConfig()
                 .setAutoReconnect(false)
-                .setConnectionTimeout(new Duration(4, TimeUnit.SECONDS));
+                .setConnectionTimeout(new Duration(4, TimeUnit.SECONDS))
+                .setEnableStringPushdownWithBinary(true);
 
         assertFullMapping(properties, expected);
     }

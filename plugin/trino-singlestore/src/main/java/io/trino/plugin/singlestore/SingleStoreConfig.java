@@ -25,6 +25,7 @@ public class SingleStoreConfig
 {
     private boolean autoReconnect = true;
     private Duration connectionTimeout = new Duration(10, TimeUnit.SECONDS);
+    private boolean enableStringPushdownWithBinary;
 
     public boolean isAutoReconnect()
     {
@@ -50,6 +51,18 @@ public class SingleStoreConfig
     public SingleStoreConfig setConnectionTimeout(Duration connectionTimeout)
     {
         this.connectionTimeout = connectionTimeout;
+        return this;
+    }
+
+    public boolean isEnableStringPushdownWithBinary()
+    {
+        return enableStringPushdownWithBinary;
+    }
+
+    @Config("singlestore.experimental.enable-string-pushdown-with-binary")
+    public SingleStoreConfig setEnableStringPushdownWithBinary(boolean enableStringPushdownWithBinary)
+    {
+        this.enableStringPushdownWithBinary = enableStringPushdownWithBinary;
         return this;
     }
 }
