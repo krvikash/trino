@@ -32,14 +32,26 @@ import static io.trino.sql.relational.SpecialForm.Form.AND;
 public final class AndFilterEvaluator
         implements FilterEvaluator
 {
-    public static Optional<Supplier<FilterEvaluator>> createAndExpressionEvaluator(boolean columnarFilterSubexpressionEvaluationEnabled, ColumnarFilterCompiler compiler, PageFunctionCompiler pageFunctionCompiler, SpecialForm specialForm, Optional<String> classNameSuffix)
+    public static Optional<Supplier<FilterEvaluator>> createAndExpressionEvaluator(
+            boolean columnarFilterSubexpressionEvaluationEnabled,
+            boolean isDebugOutputEnabled,
+            ColumnarFilterCompiler compiler,
+            PageFunctionCompiler pageFunctionCompiler,
+            SpecialForm specialForm,
+            Optional<String> classNameSuffix)
     {
         checkArgument(specialForm.form() == AND, "specialForm %s should be AND", specialForm);
         checkArgument(specialForm.arguments().size() >= 2, "AND expression %s should have at least 2 arguments", specialForm);
 
         ImmutableList.Builder<Supplier<FilterEvaluator>> builder = ImmutableList.builder();
         for (RowExpression expression : specialForm.arguments()) {
-            Optional<Supplier<FilterEvaluator>> subExpressionEvaluator = FilterEvaluator.createColumnarFilterEvaluator(columnarFilterSubexpressionEvaluationEnabled, expression, compiler, pageFunctionCompiler, classNameSuffix);
+            Optional<Supplier<FilterEvaluator>> subExpressionEvaluator = FilterEvaluator.createColumnarFilterEvaluator(
+                    columnarFilterSubexpressionEvaluationEnabled,
+                    isDebugOutputEnabled,
+                    expression,
+                    compiler,
+                    pageFunctionCompiler,
+                    classNameSuffix);
             if (subExpressionEvaluator.isEmpty()) {
                 return Optional.empty();
             }

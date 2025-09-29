@@ -163,6 +163,7 @@ public class BenchmarkColumnarFilter
         compiledProcessor = expressionCompiler.compilePageProcessor(
                         columnarEvaluationEnabled,
                         true,
+                        false,
                         Optional.of(filterProvider.getExpression(type)),
                         Optional.empty(),
                         ImmutableList.of(field(0, type)),

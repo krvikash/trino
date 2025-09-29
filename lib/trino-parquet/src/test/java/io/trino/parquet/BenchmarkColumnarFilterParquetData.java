@@ -205,6 +205,7 @@ public class BenchmarkColumnarFilterParquetData
         compiledProcessor = expressionCompiler.compilePageProcessor(
                         columnarEvaluationEnabled,
                         true,
+                        false,
                         Optional.of(filterExpression),
                         Optional.empty(),
                         ImmutableList.of(new InputReferenceExpression(EXTENDED_PRICE, DOUBLE)),

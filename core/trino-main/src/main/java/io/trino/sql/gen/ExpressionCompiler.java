@@ -51,6 +51,7 @@ public class ExpressionCompiler
     public Function<InternalDynamicFilter, PageProcessor> compilePageProcessor(
             boolean columnarFilterEvaluationEnabled,
             boolean columnarFilterSubexpressionEvaluationEnabled,
+            boolean isDebugOutputEnabled,
             Optional<RowExpression> filter,
             Optional<DynamicPageFilter> dynamicPageFilter,
             List<? extends RowExpression> projections,
@@ -61,6 +62,7 @@ public class ExpressionCompiler
         Optional<Supplier<FilterEvaluator>> columnarFilterEvaluatorSupplier = createColumnarFilterEvaluator(
                 columnarFilterEvaluationEnabled,
                 columnarFilterSubexpressionEvaluationEnabled,
+                isDebugOutputEnabled,
                 filter,
                 columnarFilterCompiler,
                 pageFunctionCompiler,
@@ -96,14 +98,14 @@ public class ExpressionCompiler
     @VisibleForTesting
     public Supplier<PageProcessor> compilePageProcessor(Optional<RowExpression> filter, List<? extends RowExpression> projections)
     {
-        return () -> compilePageProcessor(true, true, filter, Optional.empty(), projections, Optional.empty(), OptionalInt.empty())
+        return () -> compilePageProcessor(true, true, false, filter, Optional.empty(), projections, Optional.empty(), OptionalInt.empty())
                 .apply(InternalDynamicFilter.EMPTY);
     }
 
     @VisibleForTesting
     public Supplier<PageProcessor> compilePageProcessor(Optional<RowExpression> filter, List<? extends RowExpression> projections, int initialBatchSize)
     {
-        return () -> compilePageProcessor(true, true, filter, Optional.empty(), projections, Optional.empty(), OptionalInt.of(initialBatchSize))
+        return () -> compilePageProcessor(true, true, false, filter, Optional.empty(), projections, Optional.empty(), OptionalInt.of(initialBatchSize))
                 .apply(InternalDynamicFilter.EMPTY);
     }
 }

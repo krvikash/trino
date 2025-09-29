@@ -94,6 +94,7 @@ public class BenchmarkAndColumnarFilterTpchData
         processor = expressionCompiler.compilePageProcessor(
                         columnarEvaluationEnabled,
                         true,
+                        false,
                         Optional.of(filterExpression),
                         Optional.empty(),
                         projections,

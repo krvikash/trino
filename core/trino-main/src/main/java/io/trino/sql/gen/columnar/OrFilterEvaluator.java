@@ -34,6 +34,7 @@ public final class OrFilterEvaluator
 {
     public static Optional<Supplier<FilterEvaluator>> createOrExpressionEvaluator(
             boolean columnarFilterSubexpressionEvaluationEnabled,
+            boolean isDebugOutputEnabled,
             ColumnarFilterCompiler compiler,
             PageFunctionCompiler pageFunctionCompiler,
             SpecialForm specialForm,
@@ -44,7 +45,13 @@ public final class OrFilterEvaluator
 
         ImmutableList.Builder<Supplier<FilterEvaluator>> builder = ImmutableList.builder();
         for (RowExpression expression : specialForm.arguments()) {
-            Optional<Supplier<FilterEvaluator>> subExpressionEvaluator = FilterEvaluator.createColumnarFilterEvaluator(columnarFilterSubexpressionEvaluationEnabled, expression, compiler, pageFunctionCompiler, classNameSuffix);
+            Optional<Supplier<FilterEvaluator>> subExpressionEvaluator = FilterEvaluator.createColumnarFilterEvaluator(
+                    columnarFilterSubexpressionEvaluationEnabled,
+                    isDebugOutputEnabled,
+                    expression,
+                    compiler,
+                    pageFunctionCompiler,
+                    classNameSuffix);
             if (subExpressionEvaluator.isEmpty()) {
                 return Optional.empty();
             }

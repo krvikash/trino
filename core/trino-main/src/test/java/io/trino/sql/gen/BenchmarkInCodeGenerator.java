@@ -193,6 +193,7 @@ public class BenchmarkInCodeGenerator
                     .compilePageProcessor(
                             columnarEvaluationEnabled,
                             true,
+                            false,
                             Optional.of(filter),
                             Optional.empty(),
                             ImmutableList.of(project),

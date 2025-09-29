@@ -31,11 +31,16 @@ import static java.util.Objects.requireNonNull;
 final class ColumnarFilterEvaluatorWithProjectedArguments
         implements FilterEvaluator
 {
+    private final DebugContext debugContext;
     private final List<PageProjection> argumentProjections;
     private final FilterEvaluator filter;
 
-    ColumnarFilterEvaluatorWithProjectedArguments(List<PageProjection> argumentProjections, FilterEvaluator filter)
+    ColumnarFilterEvaluatorWithProjectedArguments(
+            DebugContext debugContext,
+            List<PageProjection> argumentProjections,
+            FilterEvaluator filter)
     {
+        this.debugContext = requireNonNull(debugContext, "debugContext is null");
         this.argumentProjections = argumentProjections.stream()
                 .map(argumentProjection -> {
                     if (argumentProjection.isDeterministic() && argumentProjection.getInputChannels().size() == 1) {
@@ -54,13 +59,16 @@ final class ColumnarFilterEvaluatorWithProjectedArguments
         Block[] blocks = new Block[argumentProjections.size()];
         for (int i = 0; i < argumentProjections.size(); i++) {
             PageProjection projection = argumentProjections.get(i);
-            blocks[i] = projection.project(session, projection.getInputChannels().getInputChannels(page), activePositions);
+            SourcePage inputPage = projection.getInputChannels().getInputChannels(page);
+            blocks[i] = projection.project(session, inputPage, activePositions);
+            debugContext.logDebugOutput(i, blocks[i], inputPage, activePositions);
         }
         int positionsCount = activePositions.size();
         SourcePage filterInputPage = new TemporarySourcePage(positionsCount, blocks);
         long projectionTimeNanos = System.nanoTime() - start;
         SelectionResult result = filter.evaluate(session, SelectedPositions.positionsRange(0, positionsCount), filterInputPage);
         SelectedPositions translatedPositions = translateResultPositions(result.selectedPositions(), activePositions);
+        debugContext.logDebugFilteredPositions(translatedPositions);
         return new SelectionResult(translatedPositions, projectionTimeNanos + result.filterTimeNanos());
     }
 

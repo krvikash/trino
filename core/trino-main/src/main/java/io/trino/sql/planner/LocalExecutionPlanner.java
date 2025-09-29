@@ -342,6 +342,7 @@ import static io.trino.SystemSessionProperties.getTaskMinWriterCount;
 import static io.trino.SystemSessionProperties.getWriterScalingMinDataProcessed;
 import static io.trino.SystemSessionProperties.isAdaptivePartialAggregationEnabled;
 import static io.trino.SystemSessionProperties.isColumnarFilterEvaluationEnabled;
+import static io.trino.SystemSessionProperties.isDebugOutputEnabled;
 import static io.trino.SystemSessionProperties.isEnableDynamicRowFiltering;
 import static io.trino.SystemSessionProperties.isEnableLargeDynamicFilters;
 import static io.trino.SystemSessionProperties.isForceSpillingOperator;
@@ -2270,6 +2271,7 @@ public class LocalExecutionPlanner
 
             try {
                 boolean columnarFilterEvaluationEnabled = isColumnarFilterEvaluationEnabled(session);
+                boolean isDebugOutputEnabled = isDebugOutputEnabled(session);
                 Optional<DynamicPageFilter> dynamicPageFilterFactory = Optional.empty();
                 if (dynamicFilter != InternalDynamicFilter.EMPTY && isEnableDynamicRowFiltering(session)) {
                     dynamicPageFilterFactory = Optional.of(new DynamicPageFilter(
@@ -2282,6 +2284,7 @@ public class LocalExecutionPlanner
                 Function<InternalDynamicFilter, PageProcessor> pageProcessor = expressionCompiler.compilePageProcessor(
                         columnarFilterEvaluationEnabled,
                         columnarFilterSubexpressionEvaluationEnabled,
+                        isDebugOutputEnabled,
                         translatedFilter,
                         dynamicPageFilterFactory,
                         translatedProjections,
