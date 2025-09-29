@@ -472,6 +472,17 @@ public class TestSingleStoreConnectorTest
                         node(JoinNode.class,
                                 anyTree(node(TableScanNode.class)),
                                 anyTree(node(TableScanNode.class))));
+
+        // varchar IS (NOT) NULL predicate
+        try (TestTable table = newTrinoTable("test_null", "(id INT, data VARCHAR)", ImmutableList.of("1, 'test'", "2, NULL"))) {
+            assertThat(query(session, "SELECT id FROM " + table.getName() + " WHERE data IS NULL"))
+                    .matches("VALUES 2")
+                    .isFullyPushedDown();
+
+            assertThat(query(session, "SELECT id FROM " + table.getName() + " WHERE data IS NOT NULL"))
+                    .matches("VALUES 1")
+                    .isFullyPushedDown();
+        }
     }
 
     @Override
