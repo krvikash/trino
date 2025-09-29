@@ -43,6 +43,7 @@ import io.trino.type.BlockTypeOperators;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -71,7 +72,6 @@ import static io.trino.spi.type.RowType.anonymousRow;
 import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
-import static it.unimi.dsi.fastutil.ints.IntComparators.NATURAL_COMPARATOR;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -498,8 +498,8 @@ public class TestPositionsAppender
     private static void testAppend(TestType type, List<BlockView> inputs)
     {
         testAppendBatch(type, inputs);
-        testAppendRange(type, inputs);
         testAppendSingle(type, inputs);
+        testAppendRange(type, inputs);
     }
 
     private static void testAppendBatch(TestType type, List<BlockView> inputs)
@@ -517,38 +517,11 @@ public class TestPositionsAppender
         long initialRetainedSize = positionsAppender.getRetainedSizeInBytes();
 
         inputs.forEach(input -> {
-            List<PositionsRange> ranges = extractRanges(input.positions());
-            for (PositionsRange range : ranges) {
-                positionsAppender.appendRange(range.offset(), range.length(), input.block());
+            for (PositionRange range : computeRanges(input.positions())) {
+                positionsAppender.appendRange(input.block(), range.offset(), range.length());
             }
         });
         assertBuildResult(type, inputs, positionsAppender, initialRetainedSize);
-    }
-
-    private static List<PositionsRange> extractRanges(IntArrayList positions)
-    {
-        if (positions.isEmpty()) {
-            return ImmutableList.of();
-        }
-
-        IntArrayList sorted = positions.clone();
-        sorted.sort(NATURAL_COMPARATOR);
-        ImmutableList.Builder<PositionsRange> ranges = ImmutableList.builder();
-        int rangeOffset = positions.getInt(0);
-        int rangeLength = 1;
-        for (int i = 1; i < sorted.size(); i++) {
-            int current = sorted.getInt(i);
-            if (current == rangeOffset + rangeLength) {
-                rangeLength++;
-            }
-            else {
-                ranges.add(new PositionsRange(rangeOffset, rangeLength));
-                rangeOffset = current;
-                rangeLength = 1;
-            }
-        }
-        ranges.add(new PositionsRange(rangeOffset, rangeLength));
-        return ranges.build();
     }
 
     private static void assertBuildResult(TestType type, List<BlockView> inputs, UnnestingPositionsAppender positionsAppender, long initialRetainedSize)
@@ -656,13 +629,45 @@ public class TestPositionsAppender
         }
     }
 
-    private record PositionsRange(int offset, int length)
+    private record PositionRange(int offset, int length)
     {
-        private PositionsRange
+        private PositionRange
         {
-            checkArgument(offset >= 0, "offset is negative");
-            checkArgument(length >= 0, "length is negative");
+            checkArgument(offset >= 0, "offset must be >= 0, found: %s", offset);
+            checkArgument(length > 0, "length must be positive, found: %s", length);
         }
+    }
+
+    private static List<PositionRange> computeRanges(IntArrayList positions)
+    {
+        List<PositionRange> ranges = new ArrayList<>();
+        int start = 0;
+        while (start < positions.size()) {
+            int position = positions.getInt(start);
+            int length = 1;
+            while (start + length < positions.size() && position + length == positions.getInt(start + length)) {
+                length++;
+            }
+            ranges.add(new PositionRange(position, length));
+            start += length;
+        }
+        return List.copyOf(ranges);
+    }
+
+    @Test
+    public void testComputeRanges()
+    {
+        assertThat(computeRanges(allPositions(10))).isEqualTo(List.of(new PositionRange(0, 10)));
+        assertThat(computeRanges(IntArrayList.of(0, 2, 4, 6)))
+                .isEqualTo(List.of(
+                        new PositionRange(0, 1),
+                        new PositionRange(2, 1),
+                        new PositionRange(4, 1),
+                        new PositionRange(6, 1)));
+        assertThat(computeRanges(IntArrayList.of(1, 2, 4, 5)))
+                .isEqualTo(List.of(
+                        new PositionRange(1, 2),
+                        new PositionRange(4, 2)));
     }
 
     private static Function<Block, Block> adaptation()

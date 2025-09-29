@@ -45,9 +45,9 @@ final class TypedPositionsAppender
     }
 
     @Override
-    public void appendRange(int offset, int length, ValueBlock valueBlock)
+    public void appendRange(ValueBlock block, int offset, int length)
     {
-        blockBuilder.appendRange(valueBlock, offset, length);
+        blockBuilder.appendRange(block, offset, length);
     }
 
     @Override
