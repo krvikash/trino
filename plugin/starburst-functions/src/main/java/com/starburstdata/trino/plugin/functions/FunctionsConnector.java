@@ -13,6 +13,7 @@ import com.google.inject.Inject;
 import com.starburstdata.trino.plugin.functions.ai.AiTransactionHandle;
 import com.starburstdata.trino.plugin.functions.io.StoragePageSourceProvider;
 import com.starburstdata.trino.plugin.functions.io.StorageSplitManager;
+import io.airlift.bootstrap.LifeCycleManager;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorMetadata;
@@ -36,6 +37,7 @@ import static java.util.Objects.requireNonNull;
 public class FunctionsConnector
         implements Connector
 {
+    private final LifeCycleManager lifeCycleManager;
     private final ConnectorMetadata metadata;
     private final StorageSplitManager splitManager;
     private final StoragePageSourceProvider pageSourceProvider;
@@ -46,6 +48,7 @@ public class FunctionsConnector
 
     @Inject
     public FunctionsConnector(
+            LifeCycleManager lifeCycleManager,
             ConnectorMetadata metadata,
             StorageSplitManager splitManager,
             StoragePageSourceProvider pageSourceProvider,
@@ -54,6 +57,7 @@ public class FunctionsConnector
             Set<SystemTable> systemTables,
             Set<SessionPropertiesProvider> sessionProperties)
     {
+        this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
@@ -111,5 +115,11 @@ public class FunctionsConnector
     public List<PropertyMetadata<?>> getSessionProperties()
     {
         return sessionProperties;
+    }
+
+    @Override
+    public void shutdown()
+    {
+        lifeCycleManager.stop();
     }
 }

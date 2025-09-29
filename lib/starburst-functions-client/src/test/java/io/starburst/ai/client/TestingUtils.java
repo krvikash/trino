@@ -26,6 +26,7 @@ import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
 
 public class TestingUtils
 {
@@ -136,20 +137,20 @@ public class TestingUtils
                   ]
                 }""";
 
-    public static ModelClientProvider staticModelClientProvider(String modelSpecJson)
+    public static ModelClientProvider staticModelClientProvider(String modelSpecJson, ScheduledExecutorService reloadingExecutor)
     {
         File modelsFile = createModelConnectionSpecsFile(modelSpecJson);
-        return createModelClientProvider(modelsFile, false);
+        return createModelClientProvider(modelsFile, false, reloadingExecutor);
     }
 
-    public static ReloadingModelClientProvider reloadingModelClientProvider(File modelsFile)
+    public static ReloadingModelClientProvider reloadingModelClientProvider(File modelsFile, ScheduledExecutorService reloadingExecutor)
     {
-        ReloadingModelClientProvider reloadingModelClientProvider = createModelClientProvider(modelsFile, true);
+        ReloadingModelClientProvider reloadingModelClientProvider = createModelClientProvider(modelsFile, true, reloadingExecutor);
         reloadingModelClientProvider.start();
         return reloadingModelClientProvider;
     }
 
-    private static ReloadingModelClientProvider createModelClientProvider(File modelsFile, boolean clientCacheRefreshEnabled)
+    private static ReloadingModelClientProvider createModelClientProvider(File modelsFile, boolean clientCacheRefreshEnabled, ScheduledExecutorService reloadingExecutor)
     {
         AiFileStorageConfig config = new AiFileStorageConfig().setModelConnectionSpecsFile(modelsFile.getAbsolutePath());
         FileBackedModelConnectionSpecsLoader modelSpecsLoader = new FileBackedModelConnectionSpecsLoader(config);
@@ -172,7 +173,8 @@ public class TestingUtils
                 openAiClientFactory,
                 new AiClientConfig()
                         .setClientCacheRefreshEnabled(clientCacheRefreshEnabled),
-                secretsResolver);
+                secretsResolver,
+                reloadingExecutor);
     }
 
     public static File createModelConnectionSpecsFile(String content)

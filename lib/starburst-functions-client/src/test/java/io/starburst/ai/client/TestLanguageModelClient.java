@@ -15,6 +15,7 @@ import io.starburst.ai.client.bedrock.AwsBedrockLanguageModelClient;
 import io.starburst.ai.client.openai.OpenAiLanguageModelClient;
 import io.trino.spi.TrinoException;
 import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -23,15 +24,18 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.regex.Pattern;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.json.JsonCodec.listJsonCodec;
 import static io.airlift.json.JsonCodec.mapJsonCodec;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.starburst.ai.client.TestingUtils.LANGUAGE_MODEL_PROVIDERS;
 import static io.starburst.ai.client.TestingUtils.staticModelClientProvider;
 import static java.util.Locale.ENGLISH;
+import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -39,13 +43,21 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 @TestInstance(PER_CLASS)
 public class TestLanguageModelClient
 {
+    private ScheduledExecutorService reloadingExecutor;
     private ModelClientProvider modelClientProvider;
 
     @BeforeAll
     public void setup()
             throws IOException
     {
-        modelClientProvider = staticModelClientProvider(LANGUAGE_MODEL_PROVIDERS);
+        reloadingExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("reloading-model-client-provider"));
+        modelClientProvider = staticModelClientProvider(LANGUAGE_MODEL_PROVIDERS, reloadingExecutor);
+    }
+
+    @AfterAll
+    public void cleanup()
+    {
+        reloadingExecutor.shutdownNow();
     }
 
     @ParameterizedTest

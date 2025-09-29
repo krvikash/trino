@@ -9,7 +9,6 @@
  */
 package io.starburst.ai.client;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
@@ -27,7 +26,6 @@ import io.starburst.ai.model.ModelConnectionSpecs;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
 import org.weakref.jmx.Managed;
 import org.weakref.jmx.Nested;
 
@@ -38,13 +36,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.starburst.ai.client.ModelSecretsResolver.resolveConnectionInfo;
 import static io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
 import static io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
 import static io.trino.spi.StandardErrorCode.NOT_FOUND;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
 public class ReloadingModelClientProvider
         implements ModelClientProviderWithDao
@@ -58,7 +54,7 @@ public class ReloadingModelClientProvider
     private final AwsBedrockClientFactory awsBedrockClientFactory;
     private final OpenAiClientFactory openAiClientFactory;
 
-    private final ScheduledExecutorService reloadingExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("reloading-model-client-provider"));
+    private final ScheduledExecutorService reloadingExecutor;
     private final AtomicBoolean started = new AtomicBoolean();
 
     private final long clientTtlMillis;
@@ -92,7 +88,8 @@ public class ReloadingModelClientProvider
             AwsBedrockClientFactory awsBedrockClientFactory,
             OpenAiClientFactory openAiClientFactory,
             AiClientConfig config,
-            SecretsResolver secretsResolver)
+            SecretsResolver secretsResolver,
+            @ForAiClient ScheduledExecutorService reloadingExecutor)
     {
         this.tracer = requireNonNull(tracer, "tracer is null");
         this.defaultPromptDao = requireNonNull(defaultPromptDao, "defaultPromptDao is null");
@@ -103,6 +100,7 @@ public class ReloadingModelClientProvider
         this.clientCacheRefreshIntervalMillis = config.getClientCacheRefreshInterval().toMillis();
         this.clientCacheRefreshEnabled = config.isClientCacheRefreshEnabled();
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
+        this.reloadingExecutor = requireNonNull(reloadingExecutor, "reloadingExecutor is null");
         load();
     }
 
@@ -111,15 +109,6 @@ public class ReloadingModelClientProvider
     {
         if (clientCacheRefreshEnabled && started.compareAndSet(false, true)) {
             reloadingExecutor.scheduleWithFixedDelay(this::load, clientCacheRefreshIntervalMillis, clientCacheRefreshIntervalMillis, TimeUnit.MILLISECONDS);
-        }
-    }
-
-    @VisibleForTesting
-    @PreDestroy
-    public void shutdown()
-    {
-        if (started.compareAndSet(true, false)) {
-            reloadingExecutor.shutdownNow();
         }
     }
 

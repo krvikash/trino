@@ -11,6 +11,7 @@ package io.starburst.ai.client;
 
 import com.google.common.collect.ImmutableList;
 import io.airlift.slice.Slices;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -18,22 +19,33 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.starburst.ai.client.TestingUtils.EMBEDDING_MODEL_PROVIDERS;
 import static io.starburst.ai.client.TestingUtils.staticModelClientProvider;
+import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 @TestInstance(PER_CLASS)
 public class TestEmbeddingModelClient
 {
+    private ScheduledExecutorService reloadingExecutor;
     private ModelClientProvider modelClientProvider;
 
     @BeforeAll
     public void setup()
             throws IOException
     {
-        modelClientProvider = staticModelClientProvider(EMBEDDING_MODEL_PROVIDERS);
+        reloadingExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("reloading-model-client-provider"));
+        modelClientProvider = staticModelClientProvider(EMBEDDING_MODEL_PROVIDERS, reloadingExecutor);
+    }
+
+    @AfterAll
+    public void cleanup()
+    {
+        reloadingExecutor.shutdownNow();
     }
 
     @ParameterizedTest
