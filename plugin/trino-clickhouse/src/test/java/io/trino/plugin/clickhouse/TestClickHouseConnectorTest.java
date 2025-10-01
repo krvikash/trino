@@ -666,13 +666,13 @@ public class TestClickHouseConnectorTest
     @Override
     protected String errorMessageForCreateTableAsSelectNegativeDate(String date)
     {
-        return "Date must be between 1970-01-01 and 2149-06-06 in ClickHouse: " + date;
+        return "Date must be between 1900-01-01 and 2299-12-31 in ClickHouse: " + date;
     }
 
     @Override
     protected String errorMessageForInsertNegativeDate(String date)
     {
-        return "Date must be between 1970-01-01 and 2149-06-06 in ClickHouse: " + date;
+        return "Date must be between 1900-01-01 and 2299-12-31 in ClickHouse: " + date;
     }
 
     @Test
@@ -688,7 +688,7 @@ public class TestClickHouseConnectorTest
 
     protected String errorMessageForDateYearOfEraPredicate(String date)
     {
-        return "Date must be between 1970-01-01 and 2149-06-06 in ClickHouse: " + date;
+        return "Date must be between 1900-01-01 and 2299-12-31 in ClickHouse: " + date;
     }
 
     @Test

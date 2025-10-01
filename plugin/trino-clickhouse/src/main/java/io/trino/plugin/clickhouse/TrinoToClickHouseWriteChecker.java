@@ -66,6 +66,10 @@ public class TrinoToClickHouseWriteChecker<T>
             ImmutableList.of(
                     new DateWriteValueChecker(version -> version.isOlderThan("21.4"), new Range<>(LocalDate.parse("1970-01-01"), LocalDate.parse("2106-02-07"))),
                     new DateWriteValueChecker(version -> version.isNewerOrEqualTo("21.4"), new Range<>(LocalDate.parse("1970-01-01"), LocalDate.parse("2149-06-06")))));
+    public static final TrinoToClickHouseWriteChecker<LocalDate> DATE32 = new TrinoToClickHouseWriteChecker<>(
+            ImmutableList.of(
+                    new DateWriteValueChecker(version -> version.isOlderThan("22.8"), new Range<>(LocalDate.parse("1925-01-01"), LocalDate.parse("2283-11-11"))),
+                    new DateWriteValueChecker(version -> version.isNewerOrEqualTo("22.8"), new Range<>(LocalDate.parse("1900-01-01"), LocalDate.parse("2299-12-31")))));
     public static final TrinoToClickHouseWriteChecker<LocalDateTime> DATETIME = new TrinoToClickHouseWriteChecker<>(
             ImmutableList.of(
                     new TimestampWriteValueChecker(

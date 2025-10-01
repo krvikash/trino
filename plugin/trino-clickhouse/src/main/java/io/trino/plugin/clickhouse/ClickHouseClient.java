@@ -129,6 +129,7 @@ import static io.trino.plugin.clickhouse.ClickHouseTableProperties.ORDER_BY_PROP
 import static io.trino.plugin.clickhouse.ClickHouseTableProperties.PARTITION_BY_PROPERTY;
 import static io.trino.plugin.clickhouse.ClickHouseTableProperties.PRIMARY_KEY_PROPERTY;
 import static io.trino.plugin.clickhouse.ClickHouseTableProperties.SAMPLE_BY_PROPERTY;
+import static io.trino.plugin.clickhouse.TrinoToClickHouseWriteChecker.DATE32;
 import static io.trino.plugin.clickhouse.TrinoToClickHouseWriteChecker.DATETIME;
 import static io.trino.plugin.clickhouse.TrinoToClickHouseWriteChecker.UINT16;
 import static io.trino.plugin.clickhouse.TrinoToClickHouseWriteChecker.UINT32;
@@ -740,8 +741,10 @@ public class ClickHouseClient
                         DISABLE_PUSHDOWN));
 
             case Types.DATE:
-                return Optional.of(dateColumnMappingUsingLocalDate(version));
-
+                if (columnDataType == ClickHouseDataType.Date) {
+                    return Optional.of(dateColumnMappingUsingLocalDate(version));
+                }
+                return Optional.of(date32ColumnMappingUsingLocalDate(version));
             case Types.TIMESTAMP:
                 if (columnDataType == ClickHouseDataType.DateTime) {
                     // ClickHouse DateTime does not have sub-second precision
@@ -811,7 +814,7 @@ public class ClickHouseClient
             return WriteMapping.sliceMapping("String", varbinaryWriteFunction());
         }
         if (type == DATE) {
-            return WriteMapping.longMapping("Date", dateWriteFunctionUsingLocalDate(getClickHouseServerVersion(session)));
+            return WriteMapping.longMapping("Date32", date32WriteFunctionUsingLocalDate(getClickHouseServerVersion(session)));
         }
         if (type instanceof TimestampType timestampType) {
             return timestampWriteMapping(getClickHouseServerVersion(session), timestampType);
@@ -923,6 +926,24 @@ public class ClickHouseClient
             LocalDate date = LocalDate.ofEpochDay(value);
             // Deny unsupported dates eagerly to prevent unexpected results. ClickHouse stores '1970-01-01' when the date is out of supported range.
             TrinoToClickHouseWriteChecker.DATE.validate(version, date);
+            statement.setObject(index, date);
+        };
+    }
+
+    private static ColumnMapping date32ColumnMappingUsingLocalDate(ClickHouseVersion version)
+    {
+        return ColumnMapping.longMapping(
+                DATE,
+                dateReadFunctionUsingLocalDate(),
+                date32WriteFunctionUsingLocalDate(version));
+    }
+
+    private static LongWriteFunction date32WriteFunctionUsingLocalDate(ClickHouseVersion version)
+    {
+        return (statement, index, value) -> {
+            LocalDate date = LocalDate.ofEpochDay(value);
+            // Deny unsupported dates eagerly to prevent unexpected results. ClickHouse stores '1900-01-01' when the date is out of supported range.
+            DATE32.validate(version, date);
             statement.setObject(index, date);
         };
     }

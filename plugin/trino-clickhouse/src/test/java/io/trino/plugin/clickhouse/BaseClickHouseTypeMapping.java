@@ -864,6 +864,7 @@ public abstract class BaseClickHouseTypeMapping
                     .setTimeZoneKey(TimeZoneKey.getTimeZoneKey(sessionZone.getId()))
                     .build();
             SqlDataTypeTest.create()
+                    // trino's date map to clickhouse's date32
                     .addRoundTrip("date", "DATE '1970-02-03'", DATE, "DATE '1970-02-03'")
                     .addRoundTrip("date", "DATE '2017-07-01'", DATE, "DATE '2017-07-01'") // summer on northern hemisphere (possible DST)
                     .addRoundTrip("date", "DATE '2017-01-01'", DATE, "DATE '2017-01-01'") // winter on northern hemisphere (possible DST on southern hemisphere)
@@ -886,6 +887,25 @@ public abstract class BaseClickHouseTypeMapping
             SqlDataTypeTest.create()
                     .addRoundTrip("Nullable(date)", "NULL", DATE, "CAST(NULL AS DATE)")
                     .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_date"));
+        }
+    }
+
+    @Test
+    public void testDate32()
+    {
+        for (ZoneId sessionZone : timezones()) {
+            Session session = Session.builder(getSession())
+                    .setTimeZoneKey(TimeZoneKey.getTimeZoneKey(sessionZone.getId()))
+                    .build();
+            SqlDataTypeTest.create()
+                    .addRoundTrip("Nullable(date32)", "NULL", DATE, "CAST(NULL AS DATE)")
+                    .addRoundTrip("date32", "DATE '1970-02-03'", DATE, "DATE '1970-02-03'")
+                    .addRoundTrip("date32", "DATE '2017-07-01'", DATE, "DATE '2017-07-01'") // summer on northern hemisphere (possible DST)
+                    .addRoundTrip("date32", "DATE '2017-01-01'", DATE, "DATE '2017-01-01'") // winter on northern hemisphere (possible DST on southern hemisphere)
+                    .addRoundTrip("date32", "DATE '1970-01-01'", DATE, "DATE '1970-01-01'")
+                    .addRoundTrip("date32", "DATE '1983-04-01'", DATE, "DATE '1983-04-01'")
+                    .addRoundTrip("date32", "DATE '1983-10-01'", DATE, "DATE '1983-10-01'")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_date32"));
         }
     }
 
@@ -915,6 +935,34 @@ public abstract class BaseClickHouseTypeMapping
     }
 
     @Test
+    public void testClickHouseDate32MinMaxValues()
+    {
+        testClickHouseDate32MinMaxValues("1970-01-01");
+        testClickHouseDate32MinMaxValues("2149-06-06");
+    }
+
+    private void testClickHouseDate32MinMaxValues(String date)
+    {
+        SqlDataTypeTest clickHouseCreateTests = SqlDataTypeTest.create()
+                .addRoundTrip("date32", format("DATE '%s'", date), DATE, format("DATE '%s'", date));
+        SqlDataTypeTest trinoCreateTests = SqlDataTypeTest.create()
+                .addRoundTrip("date", format("DATE '%s'", date), DATE, format("DATE '%s'", date));
+
+        for (ZoneId timeZoneId : timezones()) {
+            Session session = Session.builder(getSession())
+                    .setTimeZoneKey(TimeZoneKey.getTimeZoneKey(timeZoneId.getId()))
+                    .build();
+            trinoCreateTests
+                    .execute(getQueryRunner(), session, trinoCreateAsSelect(session, "test_date32"))
+                    .execute(getQueryRunner(), session, trinoCreateAsSelect("test_date32"))
+                    .execute(getQueryRunner(), session, trinoCreateAndInsert(session, "test_date32"))
+                    .execute(getQueryRunner(), session, trinoCreateAndInsert("test_date32"));
+            clickHouseCreateTests
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_date32"));
+        }
+    }
+
+    @Test
     public void testUnsupportedDate()
     {
         testUnsupportedDate("1969-12-31");
@@ -926,13 +974,34 @@ public abstract class BaseClickHouseTypeMapping
         String minSupportedDate = "1970-01-01";
         String maxSupportedDate = "2149-06-06";
 
-        try (TestTable table = newTrinoTable("test_unsupported_date", "(dt date)")) {
+        try (TestTable table = new TestTable(onRemoteDatabase(), "tpch.test_unsupported_date", "(dt date) ENGINE=Log")) {
+            onRemoteDatabase().execute(format("INSERT INTO %s VALUES ('%s')", table.getName(), unsupportedDate));
+            assertQueryFails(
+                    format("INSERT INTO %s VALUES (DATE '%s')", table.getName(), unsupportedDate),
+                    format("Date must be between %s and %s in ClickHouse: %s", minSupportedDate, maxSupportedDate, unsupportedDate));
+            assertQuery(format("SELECT dt <> DATE '%s' FROM %s", unsupportedDate, table.getName()), "SELECT true"); // Inserting an unsupported date in ClickHouse will turn it into another date
+        }
+    }
+
+    @Test
+    public void testUnsupportedDate32()
+    {
+        testUnsupportedDate32("1899-12-31");
+        testUnsupportedDate32("2300-01-01");
+    }
+
+    private void testUnsupportedDate32(String unsupportedDate)
+    {
+        String minSupportedDate = "1900-01-01";
+        String maxSupportedDate = "2299-12-31";
+
+        try (TestTable table = newTrinoTable("test_unsupported_date32", "(dt date)")) {
             assertQueryFails(
                     format("INSERT INTO %s VALUES (DATE '%s')", table.getName(), unsupportedDate),
                     format("Date must be between %s and %s in ClickHouse: %s", minSupportedDate, maxSupportedDate, unsupportedDate));
         }
 
-        try (TestTable table = new TestTable(onRemoteDatabase(), "tpch.test_unsupported_date", "(dt date) ENGINE=Log")) {
+        try (TestTable table = new TestTable(onRemoteDatabase(), "tpch.test_unsupported_date", "(dt date32) ENGINE=Log")) {
             onRemoteDatabase().execute(format("INSERT INTO %s VALUES ('%s')", table.getName(), unsupportedDate));
             assertQuery(format("SELECT dt <> DATE '%s' FROM %s", unsupportedDate, table.getName()), "SELECT true"); // Inserting an unsupported date in ClickHouse will turn it into another date
         }

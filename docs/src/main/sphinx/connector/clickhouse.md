@@ -230,6 +230,9 @@ to the following table:
 * - `Date`
   - `DATE`
   -
+* - `Date32`
+  - `DATE`
+  - 
 * - `DateTime[(timezone)]`
   - `TIMESTAMP(0) [WITH TIME ZONE]`
   -
@@ -302,7 +305,7 @@ to the following table:
   - Enabling `clickhouse.map-string-as-varchar` config property changes the
     mapping to `VARCHAR`
 * - `DATE`
-  - `Date`
+  - `Date32`
   -
 * - `TIMESTAMP(n)`
   - `DateTime64(n)`
