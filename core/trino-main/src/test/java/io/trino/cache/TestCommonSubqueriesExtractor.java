@@ -1494,7 +1494,7 @@ public class TestCommonSubqueriesExtractor
         ProjectNode adaptationB = (ProjectNode) projectionB.adaptCommonSubplan(projectionB.getCommonSubplan(), idAllocator);
         // output symbols are remapped to match original subplan
         assertThat(adaptationB.isIdentity()).isFalse();
-        assertThat(adaptationB.getAssignments().getExpressions()).allMatch(expression -> expression instanceof Reference);
+        assertThat(adaptationB.getAssignments().expressions()).allMatch(expression -> expression instanceof Reference);
 
         // make sure plan signatures are same
         Reference mul2 = columnIdToSymbol(canonicalExpressionToColumnId(new Call(MULTIPLY_BIGINT, ImmutableList.of(new Reference(BIGINT, "[nationkey:bigint]"), new Constant(BIGINT, 2L)))), BIGINT).toSymbolReference();

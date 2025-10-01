@@ -1316,7 +1316,7 @@ class QueryPlanner
             }
         }
 
-        ImmutableList.Builder<Symbol> groupingKeys = ImmutableList.builder();
+        ImmutableSet.Builder<Symbol> groupingKeys = ImmutableSet.builder();
         groupingSets.stream()
                 .flatMap(List::stream)
                 .distinct()

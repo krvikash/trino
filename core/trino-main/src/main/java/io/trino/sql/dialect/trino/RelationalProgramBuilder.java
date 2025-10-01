@@ -636,7 +636,7 @@ public class RelationalProgramBuilder
             assignmentsBuilder.addOperation(constantNull);
         }
         else {
-            io.trino.sql.ir.Row assignmentsRow = new io.trino.sql.ir.Row(ImmutableList.copyOf(node.getAssignments().getExpressions()));
+            io.trino.sql.ir.Row assignmentsRow = new io.trino.sql.ir.Row(ImmutableList.copyOf(node.getAssignments().expressions()));
             assignmentsRow.accept(
                     new ScalarProgramBuilder(nameAllocator),
                     new Context(assignmentsBuilder, composedMapping(context, argumentMapping(assignmentsParameter, input.mapping()))));

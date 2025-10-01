@@ -358,7 +358,7 @@ public final class CanonicalSubplanExtractor
                 return Optional.empty();
             }
 
-            if (!node.getAssignments().getExpressions().stream().allMatch(DeterminismEvaluator::isDeterministic)) {
+            if (!node.getAssignments().expressions().stream().allMatch(DeterminismEvaluator::isDeterministic)) {
                 canonicalizeRecursively(source);
                 return Optional.empty();
             }
@@ -414,7 +414,7 @@ public final class CanonicalSubplanExtractor
             // original subquery. Therefore, common subplan predicate must match original subplan predicate.
             // If common subplan predicate is wider, then unsafe expressions could fail even though
             // evaluation of the original subplan would be successful.
-            boolean safeProjections = node.getAssignments().getExpressions().stream().allMatch(this::isSafeExpression);
+            boolean safeProjections = node.getAssignments().expressions().stream().allMatch(this::isSafeExpression);
             Set<Expression> requiredConjuncts = !safeProjections ? subplan.getPullableConjuncts() : ImmutableSet.of();
 
             CanonicalSubplanBuilder builder = extendSubplan ?
