@@ -37,8 +37,8 @@ public class TestingClickHouseServer
      * <a href="https://kb.altinity.com/altinity-kb-setup-and-maintenance/clickhouse-versions/">Versioning schema</a>
      */
     private static final DockerImageName CLICKHOUSE_IMAGE = DockerImageName.parse("clickhouse/clickhouse-server");
-    // https://clickhouse.com/docs/whats-new/changelog#257
-    public static final DockerImageName CLICKHOUSE_LATEST_IMAGE = CLICKHOUSE_IMAGE.withTag("25.7.7.68");   // EOL in 3 releases after 2025-07-24
+    // https://clickhouse.com/docs/whats-new/changelog#259
+    public static final DockerImageName CLICKHOUSE_LATEST_IMAGE = CLICKHOUSE_IMAGE.withTag("25.9.2.1");   // EOL in 3 releases after 2025-09-25
     // https://clickhouse.com/docs/whats-new/changelog#253
     public static final DockerImageName CLICKHOUSE_DEFAULT_IMAGE = CLICKHOUSE_IMAGE.withTag("25.3.6.56"); // EOL in 1 year after 2025-03-27
 
