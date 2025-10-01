@@ -70,7 +70,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
     }
 
     @Test
-    public void testDyamincCatalog()
+    public void testDynamicCatalog()
     {
         String catalogDir = "\"hive.metastore.catalog.dir\"='file://" + hiveDir.toAbsolutePath() + "'";
         String createCatalogSql = """
