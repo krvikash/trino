@@ -180,8 +180,6 @@ public class IterativeOptimizer
                     timeEnd = nanoTime();
                     if (result.getMainAlternative().isPresent()) {
                         changedPlanNodeIds.add(result.getMainAlternative().get().getId());
-                    }
-                    if (result.getMainAlternative().isPresent()) {
                         node = context.memo.replace(group, result.getMainAlternative().get(), rule.getClass().getName());
 
                         applied = true;
