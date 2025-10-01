@@ -117,8 +117,8 @@ public class PushPredicateIntoTableScan
                 plannerContext,
                 context.getStatsProvider());
 
-        if (rewritten.getAdditionalAlternatives().isEmpty() &&
-                (rewritten.getMainAlternative().isEmpty() || arePlansSame(filterNode, tableScan, rewritten.getMainAlternative().get()))) {
+        if (rewritten.additionalAlternatives().isEmpty() &&
+                (rewritten.mainAlternative().isEmpty() || arePlansSame(filterNode, tableScan, rewritten.mainAlternative().get()))) {
             return Result.empty();
         }
         return rewritten;

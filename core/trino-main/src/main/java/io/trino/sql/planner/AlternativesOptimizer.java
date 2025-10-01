@@ -279,8 +279,8 @@ public class AlternativesOptimizer
                 result = rule.apply(match.capture(nodeCapture), match.captures(), ruleContext(context));
 
                 if (!result.isEmpty()) {
-                    alternatives.add(result.getMainAlternative().orElse(node));
-                    for (PlanNode alternative : result.getAdditionalAlternatives()) {
+                    alternatives.add(result.mainAlternative().orElse(node));
+                    for (PlanNode alternative : result.additionalAlternatives()) {
                         Optional<TableScanNode> scanNode = findTableScanInChain(alternative, context);
                         checkArgument(scanNode.isPresent(), "TableScanNode not found");
                         alternatives.add(alternative);

@@ -63,7 +63,9 @@ public interface Rule<T>
         WarningCollector getWarningCollector();
     }
 
-    final class Result
+    record Result(
+            Optional<PlanNode> mainAlternative,
+            List<PlanNode> additionalAlternatives)
     {
         private static final Result EMPTY = new Result(Optional.empty(), emptyList());
 
@@ -89,23 +91,10 @@ public interface Rule<T>
             return new Result(Optional.of(transformedPlan), emptyList());
         }
 
-        private final Optional<PlanNode> mainAlternative;
-        private final List<PlanNode> additionalAlternatives;
-
-        private Result(Optional<PlanNode> mainAlternative, List<PlanNode> additionalAlternatives)
+        public Result
         {
-            this.mainAlternative = requireNonNull(mainAlternative, "mainAlternative is null");
-            this.additionalAlternatives = ImmutableList.copyOf(requireNonNull(additionalAlternatives, "additionalAlternatives is null"));
-        }
-
-        public Optional<PlanNode> getMainAlternative()
-        {
-            return mainAlternative;
-        }
-
-        public List<PlanNode> getAdditionalAlternatives()
-        {
-            return additionalAlternatives;
+            requireNonNull(mainAlternative, "mainAlternative is null");
+            additionalAlternatives = ImmutableList.copyOf(requireNonNull(additionalAlternatives, "additionalAlternatives is null"));
         }
 
         /**

@@ -96,7 +96,7 @@ public class RuleAssert
                         """,
                         rule,
                         textLogicalPlan(plan, planTester.getPlannerContext().getMetadata(), planTester.getPlannerContext().getFunctionManager(), StatsAndCosts.empty(), session, 2, false),
-                        textLogicalPlan(ruleApplication.result.getMainAlternative().get(), planTester.getPlannerContext().getMetadata(), planTester.getPlannerContext().getFunctionManager(), StatsAndCosts.empty(), session, 2, false)));
+                        textLogicalPlan(ruleApplication.result.mainAlternative().get(), planTester.getPlannerContext().getMetadata(), planTester.getPlannerContext().getFunctionManager(), StatsAndCosts.empty(), session, 2, false)));
             }
         }
         finally {
@@ -260,13 +260,13 @@ public class RuleAssert
             if (result.isEmpty()) {
                 throw new IllegalStateException("Rule did not produce transformed plans");
             }
-            if (result.getMainAlternative().isEmpty()) {
+            if (result.mainAlternative().isEmpty()) {
                 throw new IllegalStateException("The main alternative wasn't transformed");
             }
 
-            List<PlanNode> transformedPlans = new ArrayList<>(1 + result.getAdditionalAlternatives().size());
-            transformedPlans.add(result.getMainAlternative().get());
-            transformedPlans.addAll(result.getAdditionalAlternatives());
+            List<PlanNode> transformedPlans = new ArrayList<>(1 + result.additionalAlternatives().size());
+            transformedPlans.add(result.mainAlternative().get());
+            transformedPlans.addAll(result.additionalAlternatives());
             return transformedPlans;
         }
     }

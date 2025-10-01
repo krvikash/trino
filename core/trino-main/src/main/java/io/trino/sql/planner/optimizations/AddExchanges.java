@@ -671,7 +671,7 @@ public class AddExchanges
                         idAllocator,
                         plannerContext,
                         statsProvider)
-                        .getMainAlternative();
+                        .mainAlternative();
                 if (plan.isPresent()) {
                     return new PlanWithProperties(plan.get(), derivePropertiesRecursively(plan.get()));
                 }

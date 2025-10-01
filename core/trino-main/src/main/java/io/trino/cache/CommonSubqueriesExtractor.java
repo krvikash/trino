@@ -762,7 +762,7 @@ public final class CommonSubqueriesExtractor
                 idAllocator,
                 plannerContext,
                 node -> PlanNodeStatsEstimate.unknown())
-                .getMainAlternative();
+                .mainAlternative();
 
         // If ValuesNode was returned as a result of pushing down predicates we fall back
         // to filterNode to avoid introducing significant changes in plan. Changing node from TableScan to ValuesNode

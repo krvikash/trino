@@ -178,9 +178,9 @@ public class IterativeOptimizer
                     invoked = true;
                     Rule.Result result = transform(node, rule, context);
                     timeEnd = nanoTime();
-                    if (result.getMainAlternative().isPresent()) {
-                        changedPlanNodeIds.add(result.getMainAlternative().get().getId());
-                        node = context.memo.replace(group, result.getMainAlternative().get(), rule.getClass().getName());
+                    if (result.mainAlternative().isPresent()) {
+                        changedPlanNodeIds.add(result.mainAlternative().get().getId());
+                        node = context.memo.replace(group, result.mainAlternative().get(), rule.getClass().getName());
 
                         applied = true;
                         done = false;
@@ -211,7 +211,7 @@ public class IterativeOptimizer
                 long start = nanoTime();
                 result = rule.apply(match.capture(nodeCapture), match.captures(), ruleContext(context));
 
-                if (LOG.isDebugEnabled() && result.getMainAlternative().isPresent()) {
+                if (LOG.isDebugEnabled() && result.mainAlternative().isPresent()) {
                     LOG.debug(
                             "Rule: %s\nBefore:\n%s\nAfter:\n%s",
                             rule.getClass().getName(),
@@ -224,7 +224,7 @@ public class IterativeOptimizer
                                     0,
                                     false),
                             PlanPrinter.textLogicalPlan(
-                                    result.getMainAlternative().get(),
+                                    result.mainAlternative().get(),
                                     plannerContext.getMetadata(),
                                     plannerContext.getFunctionManager(),
                                     StatsAndCosts.empty(),
@@ -239,9 +239,9 @@ public class IterativeOptimizer
                 context.iterativeOptimizerStatsCollector.recordFailure(rule);
                 throw e;
             }
-            stats.record(rule, duration, result.getMainAlternative().isPresent());
+            stats.record(rule, duration, result.mainAlternative().isPresent());
 
-            if (result.getMainAlternative().isPresent()) {
+            if (result.mainAlternative().isPresent()) {
                 return result;
             }
         }
