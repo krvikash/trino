@@ -27,6 +27,7 @@ public class ClickHouseSessionProperties
         implements SessionPropertiesProvider
 {
     public static final String MAP_STRING_AS_VARCHAR = "map_string_as_varchar";
+    public static final String ALLOW_TIMESTAMP_UNSAFE_CAST_PUSHDOWN = "allow_timestamp_unsafe_cast_pushdown";
 
     private final List<PropertyMetadata<?>> sessionProperties;
 
@@ -38,6 +39,11 @@ public class ClickHouseSessionProperties
                         MAP_STRING_AS_VARCHAR,
                         "Map ClickHouse String and FixedString as varchar instead of varbinary",
                         clickHouseConfig.isMapStringAsVarchar(),
+                        false),
+                booleanProperty(
+                        ALLOW_TIMESTAMP_UNSAFE_CAST_PUSHDOWN,
+                        "Allow pushdown of unsafe casts when casting a timestamp with precision ≤ 8 to another timestamp with lower precision",
+                        clickHouseConfig.isAllowTimestampUnsafeCastPushdown(),
                         false));
     }
 
@@ -50,5 +56,10 @@ public class ClickHouseSessionProperties
     public static boolean isMapStringAsVarchar(ConnectorSession session)
     {
         return session.getProperty(MAP_STRING_AS_VARCHAR, Boolean.class);
+    }
+
+    public static boolean isAllowTimestampUnsafeCastPushdown(ConnectorSession session)
+    {
+        return session.getProperty(ALLOW_TIMESTAMP_UNSAFE_CAST_PUSHDOWN, Boolean.class);
     }
 }

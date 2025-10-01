@@ -22,6 +22,7 @@ public class ClickHouseConfig
 {
     // TODO (https://github.com/trinodb/trino/issues/7102) reconsider default behavior
     private boolean mapStringAsVarchar;
+    private boolean allowTimestampUnsafeCastPushdown;
 
     public boolean isMapStringAsVarchar()
     {
@@ -33,6 +34,19 @@ public class ClickHouseConfig
     public ClickHouseConfig setMapStringAsVarchar(boolean mapStringAsVarchar)
     {
         this.mapStringAsVarchar = mapStringAsVarchar;
+        return this;
+    }
+
+    public boolean isAllowTimestampUnsafeCastPushdown()
+    {
+        return allowTimestampUnsafeCastPushdown;
+    }
+
+    @Config("clickhouse.allow-timestamp-unsafe-cast-pushdown")
+    @ConfigDescription("Allow pushdown of unsafe casts when casting a timestamp with precision ≤ 8 to another timestamp with lower precision")
+    public ClickHouseConfig setAllowTimestampUnsafeCastPushdown(boolean allowTimestampUnsafeCastPushdown)
+    {
+        this.allowTimestampUnsafeCastPushdown = allowTimestampUnsafeCastPushdown;
         return this;
     }
 }

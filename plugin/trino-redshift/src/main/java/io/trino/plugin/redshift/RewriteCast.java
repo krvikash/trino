@@ -49,7 +49,7 @@ public class RewriteCast
     }
 
     @Override
-    protected Optional<JdbcTypeHandle> toJdbcTypeHandle(JdbcTypeHandle sourceTypeHandle, Type sourceType, Type targetType)
+    protected Optional<JdbcTypeHandle> toJdbcTypeHandle(@SuppressWarnings("unused") ConnectorSession session, JdbcTypeHandle sourceTypeHandle, Type sourceType, Type targetType)
     {
         if (!pushdownSupported(sourceTypeHandle, targetType)) {
             return Optional.empty();

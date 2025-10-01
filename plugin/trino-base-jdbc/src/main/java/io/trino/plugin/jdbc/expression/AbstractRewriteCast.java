@@ -46,7 +46,7 @@ public abstract class AbstractRewriteCast
 
     private final BiFunction<ConnectorSession, Type, String> jdbcTypeProvider;
 
-    protected abstract Optional<JdbcTypeHandle> toJdbcTypeHandle(JdbcTypeHandle sourceTypeHandle, Type sourceType, Type targetType);
+    protected abstract Optional<JdbcTypeHandle> toJdbcTypeHandle(ConnectorSession session, JdbcTypeHandle sourceTypeHandle, Type sourceType, Type targetType);
 
     public AbstractRewriteCast(BiFunction<ConnectorSession, Type, String> jdbcTypeProvider)
     {
@@ -73,7 +73,7 @@ public abstract class AbstractRewriteCast
         Variable variable = captures.get(VALUE);
         JdbcTypeHandle sourceTypeJdbcHandle = ((JdbcColumnHandle) context.getAssignment(variable.getName())).getJdbcTypeHandle();
         Type targetType = castExpression.getType();
-        Optional<JdbcTypeHandle> targetJdbcTypeHandle = toJdbcTypeHandle(sourceTypeJdbcHandle, variable.getType(), targetType);
+        Optional<JdbcTypeHandle> targetJdbcTypeHandle = toJdbcTypeHandle(context.getSession(), sourceTypeJdbcHandle, variable.getType(), targetType);
 
         if (targetJdbcTypeHandle.isEmpty()) {
             return Optional.empty();
