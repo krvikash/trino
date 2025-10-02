@@ -827,7 +827,7 @@ public final class CommonSubqueriesExtractor
         Assignments assignments = Assignments.copyOf(projections);
 
         // cache is sensitive to output symbols order
-        if (ImmutableSet.copyOf(subplan.getOutputSymbols()).equals(assignments.outputs())) {
+        if (subplan.getOutputSymbols().equals(ImmutableList.copyOf(assignments.outputs()))) {
             return Optional.empty();
         }
 

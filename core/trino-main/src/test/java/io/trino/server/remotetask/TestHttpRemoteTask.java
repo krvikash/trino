@@ -452,7 +452,7 @@ public class TestHttpRemoteTask
         // make sure initial dynamic filter is collected
         CompletableFuture<?> future = dynamicFilter.isBlocked();
         dynamicFilterService.addTaskDynamicFilters(
-                new TaskId(new StageId(queryId.getId(), 1), 1, 0),
+                new TaskId(new StageId(queryId.id(), 1), 1, 0),
                 ImmutableMap.of(filterId1, DynamicFilterDomain.singleValue(BIGINT, 1L)));
         future.get();
         assertThat(dynamicFilter.getCurrentPredicate()).isEqualTo(TupleDomain.withColumnDomains(ImmutableMap.of(
@@ -478,7 +478,7 @@ public class TestHttpRemoteTask
 
         future = dynamicFilter.isBlocked();
         dynamicFilterService.addTaskDynamicFilters(
-                new TaskId(new StageId(queryId.getId(), 1), 1, 0),
+                new TaskId(new StageId(queryId.id(), 1), 1, 0),
                 ImmutableMap.of(filterId2, DynamicFilterDomain.singleValue(BIGINT, 2L)));
         future.get();
         assertThat(dynamicFilter.getCurrentPredicate()).isEqualTo(TupleDomain.withColumnDomains(ImmutableMap.of(
