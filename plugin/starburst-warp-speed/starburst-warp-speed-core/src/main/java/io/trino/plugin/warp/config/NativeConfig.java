@@ -37,7 +37,7 @@ public class NativeConfig
 
     private DataSize maxRecJufferSize = DataSize.of(10, DataSize.Unit.MEGABYTE);
     private int lz4HcPercent = 10;
-    private DataSize collectTxSize = DataSize.of(8, DataSize.Unit.MEGABYTE);
+    private DataSize collectTxSize = DataSize.of(10, DataSize.Unit.MEGABYTE);
     private int storageCacheSizeInPages;
     private int skipIndexPercent = 80;
     private int limitNumIosInParallel = 2400;
