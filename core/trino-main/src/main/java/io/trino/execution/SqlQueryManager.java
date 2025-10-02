@@ -324,7 +324,7 @@ public class SqlQueryManager
 
         log.debug("Cancel stage %s", stageId);
 
-        queryTracker.tryGetQuery(stageId.getQueryId())
+        queryTracker.tryGetQuery(stageId.queryId())
                 .ifPresent(query -> query.cancelStage(stageId));
     }
 

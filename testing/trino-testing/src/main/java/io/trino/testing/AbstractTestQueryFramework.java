@@ -748,7 +748,7 @@ public abstract class AbstractTestQueryFramework
                 .getStages()
                 .get()
                 .getStages().stream()
-                .filter(stagesInfo -> stagesInfo.getStageId().getId() == operatorStats.getStageId())
+                .filter(stagesInfo -> stagesInfo.getStageId().id() == operatorStats.getStageId())
                 .findFirst()
                 .get()
                 .getTasks()

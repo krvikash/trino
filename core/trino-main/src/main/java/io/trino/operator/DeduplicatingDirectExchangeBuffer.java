@@ -578,7 +578,7 @@ public class DeduplicatingDirectExchangeBuffer
                         updateSinkInstanceHandleIfNecessary();
                     }
                 }
-                writeBuffer.writeInt(taskId.getStageId().getId());
+                writeBuffer.writeInt(taskId.getStageId().id());
                 writeBuffer.writeInt(taskId.getPartitionId());
                 writeBuffer.writeInt(taskId.getAttemptId());
                 writeBuffer.writeBytes(page);
