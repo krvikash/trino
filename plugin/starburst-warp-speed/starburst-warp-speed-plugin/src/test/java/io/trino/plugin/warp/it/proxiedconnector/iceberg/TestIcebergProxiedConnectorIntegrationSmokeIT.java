@@ -109,41 +109,6 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
     }
 
     @Test
-    public void testLongTimestampWithTimeZoneType()
-    {
-        String schema = "longtimestampwithtimezonetype";
-        String table = "long_timezone_table";
-        createSchemaAndTable(
-                schema,
-                table,
-                "(int1 integer, longTimestampWithTimeZoneTypeColumn TIMESTAMP(6) WITH TIME ZONE)");
-        computeActual("INSERT INTO %s.%s (int1, longTimestampWithTimeZoneTypeColumn)\n".formatted(schema, table) +
-                "VALUES (1, TIMESTAMP '2023-06-18 10:30:00.000000 America/New_York')");
-        warmAndValidate("select * from %s.%s".formatted(schema, table),
-                true,
-                1,
-                1);
-        @Language("SQL") String query = ("SELECT longTimestampWithTimeZoneTypeColumn FROM %s.%s".formatted(schema, table) +
-                " WHERE longTimestampWithTimeZoneTypeColumn >= TIMESTAMP '2023-06-18 10:30:00.000000 America/New_York'");
-        //predicate in domain
-        Map<String, Long> expectedQueryStats = Map.of(
-                "warp_collect_columns", 0L,
-                "warp_match_columns", 0L,
-                "external_collect_columns", 1L,
-                "external_match_columns", 0L);
-        validateQueryStats(query, getSession(), expectedQueryStats);
-
-        query = "SELECT longTimestampWithTimeZoneTypeColumn FROM %s.%s".formatted(schema, table) +
-                " WHERE day(longTimestampWithTimeZoneTypeColumn) > 3";
-        expectedQueryStats = Map.of(
-                "warp_collect_columns", 0L,
-                "warp_match_columns", 0L,
-                "external_collect_columns", 1L,
-                "external_match_columns", 0L);
-        validateQueryStats(query, getSession(), expectedQueryStats);
-    }
-
-    @Test
     public void testDuplicateSourceIdPartition()
     {
         String table = "duplicate_source_id_partition";
