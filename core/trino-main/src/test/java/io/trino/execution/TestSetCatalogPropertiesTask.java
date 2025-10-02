@@ -258,7 +258,7 @@ public class TestSetCatalogPropertiesTask
         Map<Class<? extends Statement>, DataDefinitionTask<?>> tasks = queryRunner.getCoordinator().getInstance(Key.get(new TypeLiteral<>() {}));
         CreateCatalogTask task = (CreateCatalogTask) tasks.get(CreateCatalog.class);
         CreateCatalog statement = new CreateCatalog(new NodeLocation(1, 1), new Identifier(catalogA), false, new Identifier(CONNECTOR_NAME), catalogProperties, Optional.empty(), Optional.empty());
-        ListenableFuture<Void> future = task.execute(statement, createNewQuery(), emptyList(), WarningCollector.NOOP);
+        ListenableFuture<Void> future = task.execute(statement, createNewQuery(queryRunner), emptyList(), WarningCollector.NOOP);
         getFutureValue(future);
     }
 
@@ -272,16 +272,16 @@ public class TestSetCatalogPropertiesTask
         Map<Class<? extends Statement>, DataDefinitionTask<?>> tasks = queryRunner.getCoordinator().getInstance(Key.get(new TypeLiteral<>() {}));
         SetCatalogPropertiesTask task = (SetCatalogPropertiesTask) tasks.get(SetCatalogProperties.class);
         SetCatalogProperties statement = new SetCatalogProperties(new Identifier(catalogName), properties);
-        ListenableFuture<Void> future = task.execute(statement, createNewQuery(), emptyList(), WarningCollector.NOOP);
+        ListenableFuture<Void> future = task.execute(statement, createNewQuery(queryRunner), emptyList(), WarningCollector.NOOP);
         getFutureValue(future);
     }
 
     private boolean catalogExists(String catalogB)
     {
-        return queryRunner.getPlannerContext().getMetadata().catalogExists(createNewQuery().getSession(), catalogB);
+        return queryRunner.getPlannerContext().getMetadata().catalogExists(createNewQuery(queryRunner).getSession(), catalogB);
     }
 
-    private QueryStateMachine createNewQuery()
+    private QueryStateMachine createNewQuery(QueryRunner queryRunner)
     {
         return QueryStateMachine.begin(
                 Optional.empty(),
