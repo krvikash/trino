@@ -393,8 +393,8 @@ public final class HttpRemoteTask
 
             this.outboundDynamicFiltersCollector = new DynamicFiltersCollector(this::triggerUpdate);
             dynamicFilterService.registerDynamicFilterConsumer(
-                    taskId.getQueryId(),
-                    taskId.getAttemptId(),
+                    taskId.queryId(),
+                    taskId.attemptId(),
                     outboundDynamicFilterIds,
                     outboundDynamicFiltersCollector::updateDomains);
 
@@ -1190,8 +1190,8 @@ public final class HttpRemoteTask
     {
         return tracer.spanBuilder(name)
                 .setParent(Context.current().with(parent))
-                .setAttribute(TrinoAttributes.QUERY_ID, taskId.getQueryId().toString())
-                .setAttribute(TrinoAttributes.STAGE_ID, taskId.getStageId().toString())
+                .setAttribute(TrinoAttributes.QUERY_ID, taskId.queryId().toString())
+                .setAttribute(TrinoAttributes.STAGE_ID, taskId.stageId().toString())
                 .setAttribute(TrinoAttributes.TASK_ID, taskId.toString());
     }
 

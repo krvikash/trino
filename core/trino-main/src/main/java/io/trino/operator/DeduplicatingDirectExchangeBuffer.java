@@ -193,8 +193,8 @@ public class DeduplicatingDirectExchangeBuffer
         checkState(!noMoreTasks, "no more tasks expected");
         checkState(allTasks.add(taskId), "task already registered: %s", taskId);
 
-        if (taskId.getAttemptId() > maxAttemptId) {
-            maxAttemptId = taskId.getAttemptId();
+        if (taskId.attemptId() > maxAttemptId) {
+            maxAttemptId = taskId.attemptId();
 
             pageBuffer.removePagesForPreviousAttempts(maxAttemptId);
             updateMaxRetainedSize();
@@ -216,7 +216,7 @@ public class DeduplicatingDirectExchangeBuffer
         checkState(!successfulTasks.contains(taskId), "task is finished: %s", taskId);
         checkState(!failedTasks.containsKey(taskId), "task is failed: %s", taskId);
 
-        if (taskId.getAttemptId() < maxAttemptId) {
+        if (taskId.attemptId() < maxAttemptId) {
             return;
         }
 
@@ -283,7 +283,7 @@ public class DeduplicatingDirectExchangeBuffer
         }
 
         Set<TaskId> latestAttemptTasks = allTasks.stream()
-                .filter(taskId -> taskId.getAttemptId() == maxAttemptId)
+                .filter(taskId -> taskId.attemptId() == maxAttemptId)
                 .collect(toImmutableSet());
 
         if (successfulTasks.containsAll(latestAttemptTasks)) {
@@ -293,7 +293,7 @@ public class DeduplicatingDirectExchangeBuffer
         }
 
         Map<TaskId, Throwable> failures = failedTasks.entrySet().stream()
-                .filter(entry -> entry.getKey().getAttemptId() == maxAttemptId)
+                .filter(entry -> entry.getKey().attemptId() == maxAttemptId)
                 .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
 
         Throwable failure = null;
@@ -578,9 +578,9 @@ public class DeduplicatingDirectExchangeBuffer
                         updateSinkInstanceHandleIfNecessary();
                     }
                 }
-                writeBuffer.writeInt(taskId.getStageId().id());
-                writeBuffer.writeInt(taskId.getPartitionId());
-                writeBuffer.writeInt(taskId.getAttemptId());
+                writeBuffer.writeInt(taskId.stageId().id());
+                writeBuffer.writeInt(taskId.partitionId());
+                writeBuffer.writeInt(taskId.attemptId());
                 writeBuffer.writeBytes(page);
                 exchangeSink.add(0, writeBuffer.slice().copy());
                 writeBuffer.reset();
@@ -628,7 +628,7 @@ public class DeduplicatingDirectExchangeBuffer
             while (iterator.hasNext()) {
                 Map.Entry<TaskId, List<Slice>> entry = iterator.next();
                 TaskId taskId = entry.getKey();
-                if (taskId.getAttemptId() < currentAttemptId) {
+                if (taskId.attemptId() < currentAttemptId) {
                     for (Slice page : entry.getValue()) {
                         removedPagesRetainedSizeInBytes += page.getRetainedSize();
                         removedPagesCount++;

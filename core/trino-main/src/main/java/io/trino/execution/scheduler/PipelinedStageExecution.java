@@ -387,7 +387,7 @@ public class PipelinedStageExecution
     @Override
     public synchronized void failTask(TaskId taskId, Throwable failureCause)
     {
-        RemoteTask task = requireNonNull(tasks.get(taskId.getPartitionId()), () -> "task not found: " + taskId);
+        RemoteTask task = requireNonNull(tasks.get(taskId.partitionId()), () -> "task not found: " + taskId);
         task.failLocallyImmediately(failureCause);
         fail(failureCause);
     }
@@ -484,7 +484,7 @@ public class PipelinedStageExecution
         taskLifecycleListener.taskCreated(fragmentId, task);
 
         // update output buffers
-        OutputBufferId outputBufferId = new OutputBufferId(task.getTaskId().getPartitionId());
+        OutputBufferId outputBufferId = new OutputBufferId(task.getTaskId().partitionId());
         updateSourceTasksOutputBuffers(outputBufferManager -> outputBufferManager.addOutputBuffer(outputBufferId));
 
         return Optional.of(task);
@@ -512,7 +512,7 @@ public class PipelinedStageExecution
                 if (respondedToVersion.compareAndSet(localVersion, remoteVersion)) {
                     TaskId taskId = taskStatus.getTaskId();
                     ExchangeSinkHandle exchangeSinkHandle = exchangeSinkHandles.get(taskId);
-                    RemoteTask remoteTask = tasks.get(taskId.getPartitionId());
+                    RemoteTask remoteTask = tasks.get(taskId.partitionId());
                     Optional<Node> taskNode = nodeManager.getAllNodes().activeNodes().stream()
                             .filter(node -> node.getNodeIdentifier().equals(remoteTask.getNodeId()))
                             .map(Node.class::cast)
@@ -568,7 +568,7 @@ public class PipelinedStageExecution
             case FINISHED:
                 if (hasSpoolingExchangeOutput()) {
                     ExchangeSinkHandle exchangeSinkHandle = exchangeSinkHandles.get(taskStatus.getTaskId());
-                    getOutputSpoolingExchange().sinkFinished(exchangeSinkHandle, taskStatus.getTaskId().getAttemptId());
+                    getOutputSpoolingExchange().sinkFinished(exchangeSinkHandle, taskStatus.getTaskId().attemptId());
                     newFlushingOrFinishedTaskObserved = addFinishedTask(taskStatus.getTaskId());
                     checkAllExchangeSinksFinished();
                 }
@@ -746,7 +746,7 @@ public class PipelinedStageExecution
 
         sourceOutputSelector.setPartitionCount(exchangeId, spoolingExchangeSourceTasks.get(sourceFragmentId).size());
         for (RemoteTask sourceTask : spoolingExchangeSourceTasks.get(sourceFragmentId)) {
-            sourceOutputSelector.include(exchangeId, sourceTask.getTaskId().getPartitionId(), sourceTask.getTaskId().getAttemptId());
+            sourceOutputSelector.include(exchangeId, sourceTask.getTaskId().partitionId(), sourceTask.getTaskId().attemptId());
         }
         sourceOutputSelector.setFinal();
 
@@ -844,7 +844,7 @@ public class PipelinedStageExecution
     {
         // Fetch the results from the buffer assigned to the task based on id
         URI exchangeLocation = sourceTask.getTaskStatus().getSelf();
-        URI splitLocation = uriBuilderFrom(exchangeLocation).appendPath("results").appendPath(String.valueOf(destinationTask.getTaskId().getPartitionId())).build();
+        URI splitLocation = uriBuilderFrom(exchangeLocation).appendPath("results").appendPath(String.valueOf(destinationTask.getTaskId().partitionId())).build();
         return new Split(REMOTE_CATALOG_HANDLE, new RemoteSplit(new DirectExchangeInput(sourceTask.getTaskId(), splitLocation.toString())));
     }
 
