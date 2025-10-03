@@ -24,23 +24,26 @@ import io.trino.spi.block.VariableWidthBlock;
 
 import java.util.Arrays;
 
-import static io.trino.block.VByteUtils.vByteDecodeInts;
-import static io.trino.block.VByteUtils.vByteEncodeInts;
 import static io.trino.spi.block.BlockShim.getRawArrayBase;
 import static io.trino.spi.block.BlockShim.getRawValueIsNull;
 import static io.trino.spi.block.EncoderUtil.decodeNullBits;
 import static io.trino.spi.block.EncoderUtil.encodeNullsAsBits;
 import static java.lang.String.format;
 
-public class VariableWidthVByteBlockEncoding
+public class VariableWidthAdaptiveBlockEncoding
         implements BlockEncoding
 {
-    public static final String NAME = "VARIABLE_WIDTH_VB";
+    private final AdaptiveIntEncoding adaptiveIntEncoding;
+
+    public VariableWidthAdaptiveBlockEncoding(boolean vByteEncodingEnabled)
+    {
+        this.adaptiveIntEncoding = new AdaptiveIntEncoding(vByteEncodingEnabled);
+    }
 
     @Override
     public String getName()
     {
-        return NAME;
+        return "VARWIDTH_AD";
     }
 
     @Override
@@ -70,7 +73,7 @@ public class VariableWidthVByteBlockEncoding
         }
 
         sliceOutput.appendInt(nonNullsCount);
-        vByteEncodeInts(sliceOutput, lengths, 0, nonNullsCount);
+        adaptiveIntEncoding.encode(sliceOutput, lengths, 0, nonNullsCount);
         encodeNullsAsBits(sliceOutput, getRawValueIsNull(variableWidthBlock), getRawArrayBase(variableWidthBlock), positionCount);
 
         sliceOutput
@@ -92,7 +95,7 @@ public class VariableWidthVByteBlockEncoding
         // Read the lengths array into the end of the offsets array, since nonNullsCount <= positionCount
         int lengthIndex = offsets.length - nonNullsCount;
 
-        vByteDecodeInts(sliceInput, nonNullsCount, offsets, lengthIndex);
+        adaptiveIntEncoding.decode(sliceInput, offsets, lengthIndex, nonNullsCount);
 
         boolean[] valueIsNull = decodeNullBits(sliceInput, positionCount).orElse(null);
         // Transform lengths back to offsets

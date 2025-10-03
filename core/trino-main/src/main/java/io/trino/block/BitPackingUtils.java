@@ -159,12 +159,17 @@ final class BitPackingUtils
 
     public static void decode(SliceInput input, int[] values, int length)
     {
+        decode(input, values, 0, length);
+    }
+
+    public static void decode(SliceInput input, int[] values, int offset, int length)
+    {
         checkArgument(length > 0, "length must be greater than 0");
 
         int encodedLength = input.readInt();
         int[] encoded = new int[encodedLength];
         IntWrapper encodedOffset = new IntWrapper(0);
-        IntWrapper valuesOffset = new IntWrapper(0);
+        IntWrapper valuesOffset = new IntWrapper(offset);
 
         input.readInts(encoded, 0, encodedLength);
         INT_CODEC.headlessUncompress(encoded, encodedOffset, encodedLength, values, valuesOffset, length);
@@ -187,14 +192,14 @@ final class BitPackingUtils
         output.writeInts(encoded, 0, encodedLength);
     }
 
-    public static void decodeDelta(SliceInput input, int[] values, int length)
+    public static void decodeDelta(SliceInput input, int[] values, int offset, int length)
     {
         checkArgument(length > 0, "length must be greater than 0");
 
         int encodedLength = input.readInt();
         int[] encoded = new int[encodedLength];
         IntWrapper encodedOffset = new IntWrapper(0);
-        IntWrapper valuesOffset = new IntWrapper(0);
+        IntWrapper valuesOffset = new IntWrapper(offset);
         IntWrapper initialValue = new IntWrapper(0);
 
         input.readInts(encoded, 0, encodedLength);

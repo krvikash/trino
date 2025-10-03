@@ -38,22 +38,27 @@ class AdaptiveIntEncoding
 
     public void decode(SliceInput input, int[] values, int length)
     {
+        decode(input, values, 0, length);
+    }
+
+    public void decode(SliceInput input, int[] values, int offset, int length)
+    {
         EncodingMethod method = EncodingMethod.fromByte(input.readByte());
         switch (method) {
             case RAW:
-                input.readInts(values, 0, length);
+                input.readInts(values, offset, length);
                 break;
             case RLE:
-                readRleEncodedInts(input, values);
+                readRleEncodedInts(input, values, offset);
                 break;
             case BITPACKING:
-                BitPackingUtils.decode(input, values, length);
+                BitPackingUtils.decode(input, values, offset, length);
                 break;
             case BITPACKING_DELTA:
-                BitPackingUtils.decodeDelta(input, values, length);
+                BitPackingUtils.decodeDelta(input, values, offset, length);
                 break;
             case V_BYTE:
-                vByteDecodeInts(input, length, values);
+                vByteDecodeInts(input, length, values, offset);
                 break;
             default:
                 throw new IllegalArgumentException("Unsupported block mode: " + method);
@@ -120,7 +125,7 @@ class AdaptiveIntEncoding
         BitPackingUtils.encode(output, runValues, 0, runValues.length);
     }
 
-    private static void readRleEncodedInts(SliceInput input, int[] output)
+    private static void readRleEncodedInts(SliceInput input, int[] output, int offset)
     {
         int runCount = input.readInt();
 
@@ -130,13 +135,13 @@ class AdaptiveIntEncoding
         BitPackingUtils.decode(input, runLengths, runLengths.length);
         BitPackingUtils.decode(input, runValues, runValues.length);
 
-        int offset = 0;
+        int currentOffset = offset;
         for (int i = 0; i < runCount; i++) {
             int runLength = runLengths[i];
             int value = runValues[i];
 
-            Arrays.fill(output, offset, offset + runLength, value);
-            offset += runLength;
+            Arrays.fill(output, currentOffset, currentOffset + runLength, value);
+            currentOffset += runLength;
         }
     }
 

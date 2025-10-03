@@ -22,7 +22,7 @@ import io.trino.FeaturesConfig;
 import io.trino.block.DictionaryAdaptiveBlockEncoding;
 import io.trino.block.IntArrayAdaptiveBlockEncoding;
 import io.trino.block.LongArrayAdaptiveBlockEncoding;
-import io.trino.block.VariableWidthVByteBlockEncoding;
+import io.trino.block.VariableWidthAdaptiveBlockEncoding;
 import io.trino.spi.block.ArrayBlockEncoding;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockEncoding;
@@ -87,16 +87,12 @@ public final class BlockEncodingManager
             addBlockEncoding(new IntArrayAdaptiveBlockEncoding(vByteEncodingEnabled));
             addBlockEncoding(new LongArrayAdaptiveBlockEncoding(vByteEncodingEnabled));
             addBlockEncoding(new DictionaryAdaptiveBlockEncoding(vByteEncodingEnabled));
+            addBlockEncoding(new VariableWidthAdaptiveBlockEncoding(vByteEncodingEnabled));
         }
         else {
             addBlockEncoding(new IntArrayBlockEncoding());
             addBlockEncoding(new LongArrayBlockEncoding());
             addBlockEncoding(new DictionaryBlockEncoding());
-        }
-        if (vByteEncodingEnabled) {
-            addBlockEncoding(new VariableWidthVByteBlockEncoding());
-        }
-        else {
             addBlockEncoding(new VariableWidthBlockEncoding());
         }
     }
