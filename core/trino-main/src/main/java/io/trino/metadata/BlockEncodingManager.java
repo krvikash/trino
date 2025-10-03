@@ -19,7 +19,7 @@ import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.starburst.vbyte.VByteNative;
 import io.trino.FeaturesConfig;
-import io.trino.block.DictionaryVByteBlockEncoding;
+import io.trino.block.DictionaryAdaptiveBlockEncoding;
 import io.trino.block.IntArrayAdaptiveBlockEncoding;
 import io.trino.block.LongArrayAdaptiveBlockEncoding;
 import io.trino.block.VariableWidthVByteBlockEncoding;
@@ -86,17 +86,17 @@ public final class BlockEncodingManager
         if (config.isExchangeAdaptiveBlockEncodingEnabled()) {
             addBlockEncoding(new IntArrayAdaptiveBlockEncoding(vByteEncodingEnabled));
             addBlockEncoding(new LongArrayAdaptiveBlockEncoding(vByteEncodingEnabled));
+            addBlockEncoding(new DictionaryAdaptiveBlockEncoding(vByteEncodingEnabled));
         }
         else {
             addBlockEncoding(new IntArrayBlockEncoding());
             addBlockEncoding(new LongArrayBlockEncoding());
+            addBlockEncoding(new DictionaryBlockEncoding());
         }
         if (vByteEncodingEnabled) {
-            addBlockEncoding(new DictionaryVByteBlockEncoding());
             addBlockEncoding(new VariableWidthVByteBlockEncoding());
         }
         else {
-            addBlockEncoding(new DictionaryBlockEncoding());
             addBlockEncoding(new VariableWidthBlockEncoding());
         }
     }

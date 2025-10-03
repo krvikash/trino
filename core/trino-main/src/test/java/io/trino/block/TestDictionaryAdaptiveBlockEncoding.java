@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 
+import java.util.Arrays;
 import java.util.Optional;
 
 import static io.trino.spi.block.BlockTestUtils.assertBlockEquals;
@@ -38,7 +39,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 @TestInstance(PER_CLASS)
 @Execution(CONCURRENT)
-public class TestDictionaryVByteBlockEncoding
+public class TestDictionaryAdaptiveBlockEncoding
 {
     private final Block dictionary = buildTestDictionary();
 
@@ -48,8 +49,10 @@ public class TestDictionaryVByteBlockEncoding
     public void setup()
     {
         BlockEncodingManager blockEncodingManager = new BlockEncodingManager(new FeaturesConfig());
-        blockEncodingManager.addTypeSpecificBlockEncodingOverride(new DictionaryVByteBlockEncoding(), _ -> true);
-        assertThat(blockEncodingManager.getBlockEncodingByBlockClassAndType(DictionaryBlock.class, Optional.of(VARCHAR))).isInstanceOf(DictionaryVByteBlockEncoding.class); // ensure proper setup
+        assertThat(blockEncodingManager.getBlockEncodingByBlockClassAndType(DictionaryBlock.class, Optional.empty()))
+                .isInstanceOf(DictionaryAdaptiveBlockEncoding.class);
+        assertThat(blockEncodingManager.getBlockEncodingByBlockClassAndType(DictionaryBlock.class, Optional.of(VARCHAR)))
+                .isInstanceOf(DictionaryAdaptiveBlockEncoding.class);
         blockEncodingSerde = new InternalBlockEncodingSerde(blockEncodingManager, TESTING_TYPE_MANAGER);
     }
 
@@ -102,7 +105,66 @@ public class TestDictionaryVByteBlockEncoding
         assertBlockEquals(VARCHAR, actualBlock, dictionary.getPositions(ids, 0, 4));
     }
 
-    private Block roundTripBlock(Block block)
+    @Test
+    public void testIdsInRandomOrder()
+    {
+        int positionCount = 1000;
+
+        int[] ids = new int[positionCount];
+        for (int i = 0; i < positionCount; i++) {
+            ids[i] = i % dictionary.getPositionCount();
+        }
+
+        int offset = 3; // this is to verify that offset is respected
+        DictionaryBlock dictionaryBlock = (DictionaryBlock) DictionaryBlock.create(ids.length, dictionary, ids)
+                .getRegion(offset, positionCount - offset);
+
+        Block actualBlock = roundTripBlock(dictionaryBlock);
+        assertBlockEquals(VARCHAR, actualBlock, dictionaryBlock);
+    }
+
+    @Test
+    public void testRleFriendlyIds()
+    {
+        int positionCount = 1000;
+
+        int[] ids = new int[positionCount];
+        for (int i = 0; i < positionCount; i++) {
+            ids[i] = i % dictionary.getPositionCount();
+        }
+        Arrays.sort(ids);
+
+        int offset = 3; // this is to verify that offset is respected
+        DictionaryBlock dictionaryBlock = (DictionaryBlock) DictionaryBlock.create(ids.length, dictionary, ids)
+                .getRegion(offset, positionCount - offset);
+
+        Block actualBlock = roundTripBlock(dictionaryBlock);
+        assertBlockEquals(VARCHAR, actualBlock, dictionaryBlock);
+    }
+
+    @Test
+    public void testDeltaFriendlyIds()
+    {
+        int positionCount = 1000;
+
+        BlockBuilder dictionaryBuilder = VARCHAR.createBlockBuilder(null, positionCount);
+        int[] ids = new int[positionCount];
+        for (int i = 0; i < positionCount; i++) {
+            VARCHAR.writeString(dictionaryBuilder, "string" + i);
+            ids[i] = i;
+        }
+        ids[ids.length - 1] = ids[ids.length - 2]; // ensure at least one repeat to prevent conversion into a variable-width block.
+        Block dictionary = dictionaryBuilder.build();
+
+        int offset = 3; // this is to verify that offset is respected
+        DictionaryBlock dictionaryBlock = (DictionaryBlock) DictionaryBlock.create(ids.length, dictionary, ids)
+                .getRegion(offset, positionCount - offset);
+
+        Block actualBlock = roundTripBlock(dictionaryBlock);
+        assertBlockEquals(VARCHAR, actualBlock, dictionaryBlock);
+    }
+
+    protected Block roundTripBlock(Block block)
     {
         DynamicSliceOutput sliceOutput = new DynamicSliceOutput(1024);
         blockEncodingSerde.writeBlock(sliceOutput, block);

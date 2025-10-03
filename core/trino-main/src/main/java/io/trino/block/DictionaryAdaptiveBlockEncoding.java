@@ -22,18 +22,20 @@ import io.trino.spi.block.DictionaryBlock;
 
 import java.util.Optional;
 
-import static io.trino.block.VByteUtils.vByteDecodeInts;
-import static io.trino.block.VByteUtils.vByteEncodeInts;
-
-public class DictionaryVByteBlockEncoding
+public class DictionaryAdaptiveBlockEncoding
         implements BlockEncoding
 {
-    public static final String NAME = "DICTIONARY_VB";
+    private final AdaptiveIntEncoding adaptiveIntEncoding;
+
+    public DictionaryAdaptiveBlockEncoding(boolean vByteEncodingEnabled)
+    {
+        this.adaptiveIntEncoding = new AdaptiveIntEncoding(vByteEncodingEnabled);
+    }
 
     @Override
     public String getName()
     {
-        return NAME;
+        return "DICT_AD";
     }
 
     @Override
@@ -61,7 +63,7 @@ public class DictionaryVByteBlockEncoding
         blockEncodingSerde.writeBlock(sliceOutput, dictionary);
 
         // ids
-        vByteEncodeInts(sliceOutput, dictionaryBlock.getRawIds(), dictionaryBlock.getRawIdsOffset(), dictionaryBlock.getPositionCount());
+        adaptiveIntEncoding.encode(sliceOutput, dictionaryBlock.getRawIds(), dictionaryBlock.getRawIdsOffset(), positionCount);
     }
 
     @Override
@@ -75,7 +77,7 @@ public class DictionaryVByteBlockEncoding
 
         // ids
         int[] ids = new int[positionCount];
-        vByteDecodeInts(sliceInput, positionCount, ids);
+        adaptiveIntEncoding.decode(sliceInput, ids, positionCount);
 
         // flatten the dictionary
         return dictionaryBlock.copyPositions(ids, 0, ids.length);
