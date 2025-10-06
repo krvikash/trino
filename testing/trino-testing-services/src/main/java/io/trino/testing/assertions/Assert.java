@@ -37,16 +37,35 @@ public final class Assert
     public static <E extends Exception> void assertEventually(Duration timeout, Duration retryFrequency, CheckedRunnable<E> assertion)
             throws E
     {
+        assertEventually(timeout, retryFrequency, Integer.MAX_VALUE, 0f, assertion);
+    }
+
+    public static <E extends Exception> void assertEventually(Duration timeout, Duration retryFrequency, int maxRetries, float minSuccessRate, CheckedRunnable<E> assertion)
+            throws E
+    {
+        int successCount = 0;
+        int attemptCount = 0;
+        Throwable lastFailure = null;
         long start = System.nanoTime();
         while (!Thread.currentThread().isInterrupted()) {
             try {
+                attemptCount++;
                 assertion.run();
-                return;
+                successCount++;
+                if (((float) successCount / attemptCount) >= minSuccessRate) {
+                    return;
+                }
+                if (Duration.nanosSince(start).compareTo(timeout) > 0 || attemptCount > maxRetries) {
+                    throw new AssertionError(
+                            String.format("Success rate %.1f%% is below the minimum required %.1f%%", ((float) successCount / attemptCount) * 100, minSuccessRate * 100),
+                            lastFailure);
+                }
             }
             catch (Exception | AssertionError e) {
-                if (Duration.nanosSince(start).compareTo(timeout) > 0) {
+                if (Duration.nanosSince(start).compareTo(timeout) > 0 || attemptCount > maxRetries) {
                     throw e;
                 }
+                lastFailure = e;
             }
             try {
                 Thread.sleep(retryFrequency.toMillis());
