@@ -93,7 +93,7 @@ public class TestIcebergTimeZoneParquetV3Test
 
     private static ValueArray array(VariantValue... values)
     {
-        ValueArray arr = ValueArray.array();
+        ValueArray arr = Variants.array();
         for (VariantValue value : values) {
             arr.add(value);
         }

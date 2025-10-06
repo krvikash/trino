@@ -494,9 +494,6 @@
                         <!-- trino-hive also contains this file. It is copied when compiled with maven on process-test-resources phase. -->
                         <ignoredResourcePattern>ozone-filesystem-hadoop3-1.4.0.jar</ignoredResourcePattern>
                     </ignoredResourcePatterns>
-                    <ignoredClassPatterns>
-                        <ignoredClassPattern>org.apache.iceberg.variants.ValueArray</ignoredClassPattern>
-                    </ignoredClassPatterns>
                 </configuration>
             </plugin>
         </plugins>

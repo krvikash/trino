@@ -433,9 +433,6 @@
                         <ignoredResourcePattern>mime.types</ignoredResourcePattern>
                         <ignoredResourcePattern>ozone-filesystem-hadoop3-1.4.0.jar</ignoredResourcePattern>
                     </ignoredResourcePatterns>
-                    <ignoredClassPatterns>
-                        <ignoredClassPattern>org.apache.iceberg.variants.ValueArray</ignoredClassPattern>
-                    </ignoredClassPatterns>
                 </configuration>
             </plugin>
 
