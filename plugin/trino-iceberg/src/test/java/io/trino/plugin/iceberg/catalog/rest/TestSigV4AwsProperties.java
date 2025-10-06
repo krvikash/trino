@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static io.trino.SessionTestUtils.TEST_SESSION;
 import static org.apache.iceberg.aws.AwsClientProperties.CLIENT_CREDENTIALS_PROVIDER;
 import static org.apache.iceberg.aws.AwsProperties.REST_ACCESS_KEY_ID;
 import static org.apache.iceberg.aws.AwsProperties.REST_SECRET_ACCESS_KEY;
@@ -35,7 +36,7 @@ final class TestSigV4AwsProperties
                         .setRegion("us-east-2")
                         .setAwsAccessKey("access-key")
                         .setAwsSecretKey("secret-key"))
-                .get();
+                .get(TEST_SESSION.getIdentity().toConnectorIdentity());
         assertThat(properties)
                 .containsEntry(REST_ACCESS_KEY_ID, "access-key")
                 .containsEntry(REST_SECRET_ACCESS_KEY, "secret-key");
@@ -47,7 +48,7 @@ final class TestSigV4AwsProperties
         Map<String, String> properties = new SigV4AwsProperties(
                 new IcebergRestCatalogSigV4Config(),
                 new S3FileSystemConfig().setRegion("us-east-2"))
-                .get();
+                .get(TEST_SESSION.getIdentity().toConnectorIdentity());
         assertThat(properties)
                 .doesNotContainKeys(REST_ACCESS_KEY_ID, REST_SECRET_ACCESS_KEY, CLIENT_CREDENTIALS_PROVIDER);
     }
@@ -77,7 +78,7 @@ final class TestSigV4AwsProperties
                 new S3FileSystemConfig()
                         .setRegion("us-east-2")
                         .setIamRole("arn:aws:iam::123456789012:role/example"))
-                .get();
+                .get(TEST_SESSION.getIdentity().toConnectorIdentity());
         assertThat(properties)
                 .containsEntry(CLIENT_CREDENTIALS_PROVIDER, "io.trino.plugin.iceberg.StsAwsCredentialProvider")
                 .doesNotContainKeys(REST_ACCESS_KEY_ID, REST_SECRET_ACCESS_KEY);
@@ -91,7 +92,7 @@ final class TestSigV4AwsProperties
                 new S3FileSystemConfig()
                         .setRegion("us-east-2")
                         .setAuthType(S3FileSystemConfig.S3AuthType.WEB_IDENTITY))
-                .get();
+                .get(TEST_SESSION.getIdentity().toConnectorIdentity());
 
         assertThat(properties)
                 .containsEntry(CLIENT_CREDENTIALS_PROVIDER, "software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsProvider")

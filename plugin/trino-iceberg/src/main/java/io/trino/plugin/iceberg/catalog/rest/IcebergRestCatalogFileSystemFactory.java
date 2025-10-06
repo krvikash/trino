@@ -46,7 +46,7 @@ public class IcebergRestCatalogFileSystemFactory
 {
     private final TrinoFileSystemFactory fileSystemFactory;
     private final boolean vendedCredentialsEnabled;
-    private final Map<String, String> catalogProperties;
+    private final IcebergRestCatalogPropertiesProvider catalogPropertiesProvider;
     private final Cache<VendedCredentialsCacheKey, CachedVendedCredentialsProviders> vendedCredentialsProvidersCache = EvictableCacheBuilder.newBuilder()
             .maximumSize(1_000)
             .expireAfterWrite(1, HOURS)
@@ -60,7 +60,7 @@ public class IcebergRestCatalogFileSystemFactory
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.vendedCredentialsEnabled = config.isVendedCredentialsEnabled();
-        this.catalogProperties = ImmutableMap.copyOf(catalogPropertiesProvider.catalogProperties());
+        this.catalogPropertiesProvider = requireNonNull(catalogPropertiesProvider, "catalogPropertiesProvider is null");
     }
 
     @VisibleForTesting
@@ -85,7 +85,7 @@ public class IcebergRestCatalogFileSystemFactory
                     CachedVendedCredentialsProviders cached = uncheckedCacheGet(
                             vendedCredentialsProvidersCache,
                             createVendedCredentialsCacheKey(identity, fileIoProperties, this.storageCredentials),
-                            () -> createVendedCredentialsProviders(fileIoProperties, this.storageCredentials));
+                            () -> createVendedCredentialsProviders(identity, fileIoProperties, this.storageCredentials));
 
                     return getTrinoFileSystem(location, identity, cached);
                 }
@@ -109,7 +109,7 @@ public class IcebergRestCatalogFileSystemFactory
                     CachedVendedCredentialsProviders cached = uncheckedCacheGet(
                             vendedCredentialsProvidersCache,
                             createVendedCredentialsCacheKey(identity, tableCredentials.fileIoProperties(), tableCredentials.storageCredentials()),
-                            () -> createVendedCredentialsProviders(tableCredentials.fileIoProperties(), tableCredentials.storageCredentials()));
+                            () -> createVendedCredentialsProviders(identity, tableCredentials.fileIoProperties(), tableCredentials.storageCredentials()));
 
                     return getTrinoFileSystem(location, identity, cached);
                 }
@@ -219,7 +219,7 @@ public class IcebergRestCatalogFileSystemFactory
         return Optional.empty();
     }
 
-    private CachedVendedCredentialsProviders createVendedCredentialsProviders(Map<String, String> fileIoProperties, List<IcebergStorageCredentials> storageCredentialsList)
+    private CachedVendedCredentialsProviders createVendedCredentialsProviders(ConnectorIdentity identity, Map<String, String> fileIoProperties, List<IcebergStorageCredentials> storageCredentialsList)
     {
         ImmutableMap.Builder<String, S3VendedCredentialsProvider> s3ProvidersBuilder = ImmutableMap.builder();
         ImmutableMap.Builder<String, GcsVendedCredentialsProvider> gcsProvidersBuilder = ImmutableMap.builder();
@@ -228,14 +228,14 @@ public class IcebergRestCatalogFileSystemFactory
         // Root-prefix providers built from fileIoProperties — act as catch-all fallback, matching any S3/GCS path
         createVendedCredentialsProviderIfPresent(
                 fileIoProperties,
-                () -> new S3VendedCredentialsProvider(catalogProperties, fileIoProperties),
+                () -> new S3VendedCredentialsProvider(catalogPropertiesProvider.catalogProperties(identity), fileIoProperties),
                 S3FileIOProperties.ACCESS_KEY_ID,
                 S3FileIOProperties.SECRET_ACCESS_KEY,
                 S3FileIOProperties.SESSION_TOKEN)
                 .ifPresent(vendedCredentialsProvider -> s3ProvidersBuilder.put("s3", vendedCredentialsProvider));
         createVendedCredentialsProviderIfPresent(
                 fileIoProperties,
-                () -> new GcsVendedCredentialsProvider(catalogProperties, fileIoProperties),
+                () -> new GcsVendedCredentialsProvider(catalogPropertiesProvider.catalogProperties(identity), fileIoProperties),
                 GCPProperties.GCS_OAUTH2_TOKEN)
                 .ifPresent(vendedCredentialsProvider -> gcsProvidersBuilder.put("gs", vendedCredentialsProvider));
         if (fileIoProperties.containsKey(GCPProperties.GCS_OAUTH2_TOKEN)) {
@@ -246,15 +246,15 @@ public class IcebergRestCatalogFileSystemFactory
         for (IcebergStorageCredentials storageCredentials : storageCredentialsList) {
             String credentialPrefix = storageCredentials.prefix();
             if (isS3Prefix(credentialPrefix)) {
-                s3ProvidersBuilder.put(credentialPrefix, new S3VendedCredentialsProvider(catalogProperties, mergeConfigs(fileIoProperties, storageCredentials.config())));
+                s3ProvidersBuilder.put(credentialPrefix, new S3VendedCredentialsProvider(catalogPropertiesProvider.catalogProperties(identity), mergeConfigs(fileIoProperties, storageCredentials.config())));
             }
             else if (isGcsPrefix(credentialPrefix)) {
-                gcsProvidersBuilder.put(credentialPrefix, new GcsVendedCredentialsProvider(catalogProperties, mergeConfigs(fileIoProperties, storageCredentials.config())));
+                gcsProvidersBuilder.put(credentialPrefix, new GcsVendedCredentialsProvider(catalogPropertiesProvider.catalogProperties(identity), mergeConfigs(fileIoProperties, storageCredentials.config())));
             }
         }
 
         // Azure does not make use of SupportsStorageCredentials mechanism; always from fileIoProperties
-        Optional<AzureVendedCredentialsProvider> azureVendedCredentialsProvider = createAzureVendedCredentialsProvider(fileIoProperties);
+        Optional<AzureVendedCredentialsProvider> azureVendedCredentialsProvider = createAzureVendedCredentialsProvider(identity, fileIoProperties);
 
         return new CachedVendedCredentialsProviders(
                 s3ProvidersBuilder.buildKeepingLast(),
@@ -306,11 +306,11 @@ public class IcebergRestCatalogFileSystemFactory
         return Optional.of(providerFactory.get());
     }
 
-    private Optional<AzureVendedCredentialsProvider> createAzureVendedCredentialsProvider(Map<String, String> fileIoProperties)
+    private Optional<AzureVendedCredentialsProvider> createAzureVendedCredentialsProvider(ConnectorIdentity identity, Map<String, String> fileIoProperties)
     {
         for (String key : fileIoProperties.keySet()) {
             if (key.startsWith(AzureProperties.ADLS_SAS_TOKEN_PREFIX)) {
-                return Optional.of(new AzureVendedCredentialsProvider(catalogProperties, fileIoProperties));
+                return Optional.of(new AzureVendedCredentialsProvider(ImmutableMap.copyOf(catalogPropertiesProvider.catalogProperties(identity)), fileIoProperties));
             }
         }
         return Optional.empty();

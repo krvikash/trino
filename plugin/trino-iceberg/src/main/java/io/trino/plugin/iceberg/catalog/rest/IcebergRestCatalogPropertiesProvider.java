@@ -16,6 +16,7 @@ package io.trino.plugin.iceberg.catalog.rest;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.trino.spi.NodeVersion;
+import io.trino.spi.security.ConnectorIdentity;
 import org.apache.iceberg.CatalogProperties;
 
 import java.util.Map;
@@ -27,6 +28,7 @@ import static org.apache.iceberg.rest.RESTCatalogProperties.TABLE_CACHE_MAX_ENTR
 
 public class IcebergRestCatalogPropertiesProvider
 {
+    private final SecurityProperties securityProperties;
     private final Map<String, String> catalogProperties;
 
     @Inject
@@ -36,7 +38,7 @@ public class IcebergRestCatalogPropertiesProvider
             NodeVersion nodeVersion)
     {
         requireNonNull(restConfig, "restConfig is null");
-        requireNonNull(securityProperties, "securityProperties is null");
+        this.securityProperties = requireNonNull(securityProperties, "securityProperties is null");
         requireNonNull(nodeVersion, "nodeVersion is null");
 
         ImmutableMap.Builder<String, String> properties = ImmutableMap.builder();
@@ -50,7 +52,6 @@ public class IcebergRestCatalogPropertiesProvider
         restConfig.getSocketTimeout().ifPresent(timeout -> properties.put("rest.client.socket-timeout-ms", String.valueOf(timeout.toMillis())));
         // Hardcoded literal because org.apache.iceberg.rest.HTTPClient.REST_MAX_RETRIES is private.
         properties.put("rest.client.max-retries", String.valueOf(restConfig.getMaxRetries()));
-        properties.putAll(securityProperties.get());
         if (restConfig.isVendedCredentialsEnabled()) {
             properties.put("header.X-Iceberg-Access-Delegation", "vended-credentials");
         }
@@ -68,8 +69,11 @@ public class IcebergRestCatalogPropertiesProvider
         catalogProperties = properties.buildOrThrow();
     }
 
-    public Map<String, String> catalogProperties()
+    public Map<String, String> catalogProperties(ConnectorIdentity identity)
     {
-        return catalogProperties;
+        return ImmutableMap.<String, String>builder()
+                .putAll(catalogProperties)
+                .putAll(securityProperties.get(identity))
+                .buildOrThrow();
     }
 }

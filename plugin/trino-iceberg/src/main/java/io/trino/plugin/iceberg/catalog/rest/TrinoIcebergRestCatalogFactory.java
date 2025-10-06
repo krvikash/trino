@@ -147,14 +147,14 @@ public class TrinoIcebergRestCatalogFactory
                                 : ConnectorIdentity.ofUser("fake");
                         return fileIoFactory.create(fileSystemFactory.create(currentIdentity, config), true, config);
                     });
-            icebergCatalogInstance.initialize(catalogName.toString(), catalogPropertiesProvider.catalogProperties());
+            icebergCatalogInstance.initialize(catalogName.toString(), catalogPropertiesProvider.catalogProperties(identity));
 
             icebergCatalog = icebergCatalogInstance;
         }
 
         // `OAuth2Properties.SCOPE` is not set as scope passed through credentials is unused in
         // https://github.com/apache/iceberg/blob/229d8f6fcd109e6c8943ea7cbb41dab746c6d0ed/core/src/main/java/org/apache/iceberg/rest/auth/OAuth2Util.java#L714-L721
-        Map<String, String> credentials = Maps.filterKeys(securityProperties.get(), key -> Set.of(TOKEN, CREDENTIAL).contains(key));
+        Map<String, String> credentials = Maps.filterKeys(securityProperties.get(identity), key -> Set.of(TOKEN, CREDENTIAL).contains(key));
 
         return new TrinoRestCatalog(
                 fileSystemFactory,

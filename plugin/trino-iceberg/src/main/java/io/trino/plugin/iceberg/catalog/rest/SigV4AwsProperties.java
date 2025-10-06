@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.trino.filesystem.s3.S3FileSystemConfig;
 import io.trino.plugin.iceberg.StsAwsCredentialProvider;
+import io.trino.spi.security.ConnectorIdentity;
 import software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsProvider;
 
 import java.util.Map;
@@ -92,7 +93,7 @@ public class SigV4AwsProperties
     }
 
     @Override
-    public Map<String, String> get()
+    public Map<String, String> get(ConnectorIdentity identity)
     {
         return properties;
     }

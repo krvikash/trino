@@ -15,6 +15,7 @@ package io.trino.plugin.iceberg.catalog.rest;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
+import io.trino.spi.security.ConnectorIdentity;
 import org.apache.iceberg.rest.auth.AuthProperties;
 import org.apache.iceberg.rest.auth.OAuth2Properties;
 
@@ -52,7 +53,7 @@ public class OAuth2SecurityProperties
     }
 
     @Override
-    public Map<String, String> get()
+    public Map<String, String> get(ConnectorIdentity identity)
     {
         return securityProperties;
     }
