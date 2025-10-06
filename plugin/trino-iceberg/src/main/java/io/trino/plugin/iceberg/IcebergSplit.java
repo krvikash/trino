@@ -55,7 +55,6 @@ public class IcebergSplit
     private final Map<String, String> fileIoProperties;
     private final Long dataSequenceNumber;
     private final Long firstRowId;
-    private final int formatVersion;
     private final List<HostAddress> addresses;
 
     @JsonCreator
@@ -73,8 +72,7 @@ public class IcebergSplit
             @JsonProperty("fileStatisticsDomain") TupleDomain<IcebergColumnHandle> fileStatisticsDomain,
             @JsonProperty("fileIoProperties") Map<String, String> fileIoProperties,
             @JsonProperty("dataSequenceNumber") Long dataSequenceNumber,
-            @JsonProperty("firstRowId") Long firstRowId,
-            @JsonProperty("formatVersion") int formatVersion)
+            @JsonProperty("firstRowId") Long firstRowId)
     {
         this(
                 path,
@@ -92,8 +90,7 @@ public class IcebergSplit
                 fileIoProperties,
                 ImmutableList.of(),
                 dataSequenceNumber,
-                firstRowId,
-                formatVersion);
+                firstRowId);
     }
 
     public IcebergSplit(
@@ -112,8 +109,7 @@ public class IcebergSplit
             Map<String, String> fileIoProperties,
             List<HostAddress> addresses,
             long dataSequenceNumber,
-            Long firstRowId,
-            int formatVersion)
+            Long firstRowId)
     {
         this.path = requireNonNull(path, "path is null");
         this.start = start;
@@ -131,7 +127,6 @@ public class IcebergSplit
         this.addresses = requireNonNull(addresses, "addresses is null");
         this.dataSequenceNumber = dataSequenceNumber;
         this.firstRowId = firstRowId;
-        this.formatVersion = formatVersion;
     }
 
     @JsonIgnore
@@ -234,12 +229,6 @@ public class IcebergSplit
     public Long getFirstRowId()
     {
         return firstRowId;
-    }
-
-    @JsonProperty
-    public int getFormatVersion()
-    {
-        return formatVersion;
     }
 
     @Override

@@ -734,8 +734,7 @@ public class IcebergSplitSource
                 fileIoProperties,
                 cachingHostAddressProvider.getHosts(task.file().location(), ImmutableList.of()),
                 task.file().dataSequenceNumber(),
-                task.file().firstRowId(),
-                tableHandle.getFormatVersion());
+                task.file().firstRowId());
     }
 
     private double getSplitWeight(FileScanTask task)

@@ -201,8 +201,7 @@ public class IcebergSplitManager
                 icebergSplit.getFileStatisticsDomain(),
                 icebergSplit.getFileIoProperties(),
                 icebergSplit.getDataSequenceNumber(),
-                icebergSplit.getFirstRowId(),
-                icebergSplit.getFormatVersion());
+                icebergSplit.getFirstRowId());
 
         return Optional.of(new CacheSplitId(splitIdCodec.toJson(new IcebergCacheSplitId(
                 icebergSplit.getPath(),

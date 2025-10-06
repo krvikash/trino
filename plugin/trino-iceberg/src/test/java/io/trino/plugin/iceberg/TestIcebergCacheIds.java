@@ -337,8 +337,7 @@ public class TestIcebergCacheIds
                 TupleDomain.all(),
                 ImmutableMap.of(),
                 0L,
-                null,
-                2);
+                null);
     }
 
     private static IcebergTableHandle createIcebergTableHandle(
