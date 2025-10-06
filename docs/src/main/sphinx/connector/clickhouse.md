@@ -415,6 +415,10 @@ The connector supports pushdown for a number of operations:
 - {func}`min`
 - {func}`sum`
 
+{ref}`Projection pushdown <projection-pushdown>` for the following functions:
+
+- {func}`date_trunc`
+
 
 ```{include} pushdown-correctness-behavior.fragment
 ```

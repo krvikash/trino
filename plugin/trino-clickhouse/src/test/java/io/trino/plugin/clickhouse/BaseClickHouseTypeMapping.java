@@ -71,12 +71,12 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 public abstract class BaseClickHouseTypeMapping
         extends AbstractTestQueryFramework
 {
-    private static final ZoneId UTC = ZoneId.of("UTC");
-    private static final ZoneId JVM_ZONE = ZoneId.systemDefault();
+    public static final ZoneId UTC = ZoneId.of("UTC");
+    public static final ZoneId JVM_ZONE = ZoneId.systemDefault();
     // no DST in 1970, but has DST in later years (e.g. 2018)
-    private static final ZoneId VILNIUS = ZoneId.of("Europe/Vilnius");
+    public static final ZoneId VILNIUS = ZoneId.of("Europe/Vilnius");
     // minutes offset change since 1932-04-01, no DST
-    private static final ZoneId KATHMANDU = ZoneId.of("Asia/Kathmandu");
+    public static final ZoneId KATHMANDU = ZoneId.of("Asia/Kathmandu");
     private static final Function<ZoneId, String> DATETIME_TYPE_FACTORY = "DateTime('%s')"::formatted;
     private static final BiFunction<Integer, ZoneId, String> DATETIME64_TYPE_FACTORY = "DateTime64(%d, '%s')"::formatted;
 

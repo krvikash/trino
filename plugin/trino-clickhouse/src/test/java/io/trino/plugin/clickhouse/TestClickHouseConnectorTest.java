@@ -17,11 +17,15 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.plugin.jdbc.BaseJdbcConnectorTest;
+import io.trino.spi.type.TimeZoneKey;
 import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.FilterNode;
+import io.trino.sql.planner.plan.PlanNode;
+import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
+import io.trino.testing.TestingSession;
 import io.trino.testing.datatype.CreateAndInsertDataSetup;
 import io.trino.testing.datatype.DataSetup;
 import io.trino.testing.sql.SqlExecutor;
@@ -34,11 +38,15 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 
+import static io.trino.plugin.clickhouse.BaseClickHouseTypeMapping.JVM_ZONE;
+import static io.trino.plugin.clickhouse.BaseClickHouseTypeMapping.KATHMANDU;
+import static io.trino.plugin.clickhouse.BaseClickHouseTypeMapping.VILNIUS;
 import static io.trino.plugin.clickhouse.ClickHouseSessionProperties.MAP_STRING_AS_VARCHAR;
 import static io.trino.plugin.clickhouse.ClickHouseTableProperties.ENGINE_PROPERTY;
 import static io.trino.plugin.clickhouse.ClickHouseTableProperties.ORDER_BY_PROPERTY;
@@ -1099,6 +1107,334 @@ public class TestClickHouseConnectorTest
                 .addTestCase("Nullable(IPv4)")
                 .addTestCase("Nullable(IPv6)")
                 .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_is_null"));
+    }
+
+    @Test
+    void testDateTruncProjectionPushdownWithDateType()
+    {
+        for (ZoneId zoneId : timezones()) {
+            Session session = Session.builder(getSession())
+                    .setTimeZoneKey(TimeZoneKey.getTimeZoneKey(zoneId.getId()))
+                    .build();
+            try (TestTable table = new TestTable(
+                    onRemoteDatabase(),
+                    "tpch.test_date_trunc_pushdown_with_date_type_",
+                    "(c_date Nullable(Date), c_date32 Nullable(Date32)) Engine = Log",
+                    List.of(
+                            "'2023-01-01', '2023-01-01'",
+                            "'2023-06-15', '2023-06-15'",
+                            "null, null"))) {
+                // date
+                assertDateTruncPushdown(session, table.getName(), "c_date", "day", "DATE '2023-01-01', DATE '2023-06-15', null");
+                assertDateTruncPushdown(session, table.getName(), "c_date", "week", "DATE '2022-12-26', DATE '2023-06-12', null");
+                assertDateTruncPushdown(session, table.getName(), "c_date", "month", "DATE '2023-01-01', DATE '2023-06-01', null");
+                assertDateTruncPushdown(session, table.getName(), "c_date", "quarter", "DATE '2023-01-01', DATE '2023-04-01', null");
+                assertDateTruncPushdown(session, table.getName(), "c_date", "year", "DATE '2023-01-01', DATE '2023-01-01', null");
+
+                // date32
+                assertDateTruncPushdown(session, table.getName(), "c_date32", "day", "DATE '2023-01-01', DATE '2023-06-15', null");
+                assertDateTruncPushdown(session, table.getName(), "c_date32", "week", "DATE '2022-12-26', DATE '2023-06-12', null");
+                assertDateTruncPushdown(session, table.getName(), "c_date32", "month", "DATE '2023-01-01', DATE '2023-06-01', null");
+                assertDateTruncPushdown(session, table.getName(), "c_date32", "quarter", "DATE '2023-01-01', DATE '2023-04-01', null");
+                assertDateTruncPushdown(session, table.getName(), "c_date32", "year", "DATE '2023-01-01', DATE '2023-01-01', null");
+            }
+        }
+    }
+
+    @Test
+    void testDateTruncProjectionPushdownWithTimestampType()
+    {
+        for (ZoneId zoneId : timezones()) {
+            Session session = Session.builder(getSession())
+                    .setTimeZoneKey(TimeZoneKey.getTimeZoneKey(zoneId.getId()))
+                    .build();
+            try (TestTable table = new TestTable(
+                    onRemoteDatabase(),
+                    "tpch.test_date_trunc_pushdown_with_timestamp_type_",
+                    "(c_datetime Nullable(DateTime), c_datetime64 Nullable(DateTime64), c_datetime64_0 Nullable(DateTime64(0)), c_datetime64_5 Nullable(DateTime64(5)), c_datetime64_9 Nullable(DateTime64(9))) Engine = Log",
+                    List.of(
+                            "'2023-01-01 12:34:56', '2023-01-01 12:34:56.123', '2023-01-01 12:34:56', '2023-01-01 12:34:56.12345', '2023-01-01 12:34:56.123456789'",
+                            "'2023-06-15 23:45:01', '2023-06-15 23:45:01.987', '2023-06-15 23:45:01', '2023-06-15 23:45:01.98765', '2023-06-15 23:45:01.987654321'",
+                            "null, null, null, null, null"))) {
+                // datetime
+                // millisecond unit is not supported with datetime type in ClickHouse
+                assertDateTruncNotPushdown(session, table.getName(), "c_datetime", "millisecond", "TIMESTAMP '2023-01-01 12:34:56', TIMESTAMP '2023-06-15 23:45:01', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime", "second", "TIMESTAMP '2023-01-01 12:34:56', TIMESTAMP '2023-06-15 23:45:01', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime", "minute", "TIMESTAMP '2023-01-01 12:34:00', TIMESTAMP '2023-06-15 23:45:00', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime", "hour", "TIMESTAMP '2023-01-01 12:00:00', TIMESTAMP '2023-06-15 23:00:00', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime", "day", "TIMESTAMP '2023-01-01 00:00:00', TIMESTAMP '2023-06-15 00:00:00', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime", "week", "TIMESTAMP '2022-12-26 00:00:00', TIMESTAMP '2023-06-12 00:00:00', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime", "month", "TIMESTAMP '2023-01-01 00:00:00', TIMESTAMP '2023-06-01 00:00:00', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime", "quarter", "TIMESTAMP '2023-01-01 00:00:00', TIMESTAMP '2023-04-01 00:00:00', null");
+                assertDateTruncPushdown(table.getName(), "c_datetime", "year", "TIMESTAMP '2023-01-01 00:00:00', TIMESTAMP '2023-01-01 00:00:00', null");
+
+                // datetime64
+                // millisecond unit is not pushdown
+                assertDateTruncNotPushdown(session, table.getName(), "c_datetime64", "millisecond", "TIMESTAMP '2023-01-01 12:34:56.123', TIMESTAMP '2023-06-15 23:45:01.987', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64", "second", "TIMESTAMP '2023-01-01 12:34:56.000', TIMESTAMP '2023-06-15 23:45:01.000', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64", "minute", "TIMESTAMP '2023-01-01 12:34:00.000', TIMESTAMP '2023-06-15 23:45:00.000', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64", "hour", "TIMESTAMP '2023-01-01 12:00:00.000', TIMESTAMP '2023-06-15 23:00:00.000', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64", "day", "TIMESTAMP '2023-01-01 00:00:00.000', TIMESTAMP '2023-06-15 00:00:00.000', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64", "week", "TIMESTAMP '2022-12-26 00:00:00.000', TIMESTAMP '2023-06-12 00:00:00.000', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64", "month", "TIMESTAMP '2023-01-01 00:00:00.000', TIMESTAMP '2023-06-01 00:00:00.000', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64", "quarter", "TIMESTAMP '2023-01-01 00:00:00.000', TIMESTAMP '2023-04-01 00:00:00.000', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64", "year", "TIMESTAMP '2023-01-01 00:00:00.000', TIMESTAMP '2023-01-01 00:00:00.000', null");
+
+                // datetime64(0)
+                // millisecond unit is not pushdown
+                assertDateTruncNotPushdown(session, table.getName(), "c_datetime64_0", "millisecond", "TIMESTAMP '2023-01-01 12:34:56', TIMESTAMP '2023-06-15 23:45:01', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64_0", "second", "TIMESTAMP '2023-01-01 12:34:56', TIMESTAMP '2023-06-15 23:45:01', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64_0", "minute", "TIMESTAMP '2023-01-01 12:34:00', TIMESTAMP '2023-06-15 23:45:00', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64_0", "hour", "TIMESTAMP '2023-01-01 12:00:00', TIMESTAMP '2023-06-15 23:00:00', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64_0", "day", "TIMESTAMP '2023-01-01 00:00:00', TIMESTAMP '2023-06-15 00:00:00', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64_0", "week", "TIMESTAMP '2022-12-26 00:00:00', TIMESTAMP '2023-06-12 00:00:00', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64_0", "month", "TIMESTAMP '2023-01-01 00:00:00', TIMESTAMP '2023-06-01 00:00:00', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64_0", "quarter", "TIMESTAMP '2023-01-01 00:00:00', TIMESTAMP '2023-04-01 00:00:00', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64_0", "year", "TIMESTAMP '2023-01-01 00:00:00', TIMESTAMP '2023-01-01 00:00:00', null");
+
+                // datetime64(5)
+                // millisecond unit is not pushdown
+                assertDateTruncNotPushdown(session, table.getName(), "c_datetime64_5", "millisecond", "TIMESTAMP '2023-01-01 12:34:56.12300', TIMESTAMP '2023-06-15 23:45:01.98700', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64_5", "second", "TIMESTAMP '2023-01-01 12:34:56.00000', TIMESTAMP '2023-06-15 23:45:01.00000', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64_5", "minute", "TIMESTAMP '2023-01-01 12:34:00.00000', TIMESTAMP '2023-06-15 23:45:00.00000', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64_5", "hour", "TIMESTAMP '2023-01-01 12:00:00.00000', TIMESTAMP '2023-06-15 23:00:00.00000', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64_5", "day", "TIMESTAMP '2023-01-01 00:00:00.00000', TIMESTAMP '2023-06-15 00:00:00.00000', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64_5", "week", "TIMESTAMP '2022-12-26 00:00:00.00000', TIMESTAMP '2023-06-12 00:00:00.00000', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64_5", "month", "TIMESTAMP '2023-01-01 00:00:00.00000', TIMESTAMP '2023-06-01 00:00:00.00000', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64_5", "quarter", "TIMESTAMP '2023-01-01 00:00:00.00000', TIMESTAMP '2023-04-01 00:00:00.00000', null");
+                assertDateTruncPushdown(session, table.getName(), "c_datetime64_5", "year", "TIMESTAMP '2023-01-01 00:00:00.00000', TIMESTAMP '2023-01-01 00:00:00.00000', null");
+            }
+        }
+    }
+
+    private void assertDateTruncPushdown(String tableName, String column, String unit, String expectedValue)
+    {
+        assertDateTruncPushdown(getSession(), tableName, column, unit, expectedValue);
+    }
+
+    private void assertDateTruncPushdown(Session session, String tableName, String column, String unit, String expectedValue)
+    {
+        assertThat(query(session, "SELECT date_trunc('%s', %s) FROM %s".formatted(unit, column, tableName)))
+                .matches("VALUES %s".formatted(expectedValue))
+                .isFullyPushedDown();
+    }
+
+    private List<ZoneId> timezones()
+    {
+        return ImmutableList.of(
+                ZoneId.of("UTC"),
+                JVM_ZONE,
+                // using two non-JVM zones so that we don't need to worry what ClickHouse system zone is
+                VILNIUS,
+                KATHMANDU,
+                TestingSession.DEFAULT_TIME_ZONE_KEY.getZoneId());
+    }
+
+    @Test
+    void testDateTruncProjectionPushdownWithTimestampTypeWithTz()
+    {
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_date_trunc_pushdown_with_timestamp_with_tz_type_",
+                "(c_datetime_tz Nullable(DateTime('Asia/Kathmandu')), c_datetime64_0_tz Nullable(DateTime64(0, 'Asia/Kathmandu')), c_datetime64_5_tz Nullable(DateTime64(5, 'Asia/Kathmandu')), c_datetime64_9 Nullable(DateTime64(9, 'Asia/Kathmandu'))) Engine = Log",
+                List.of(
+                        "'2023-01-01 12:34:56', '2023-01-01 12:34:56', '2023-01-01 12:34:56.12345', '2023-01-01 12:34:56.123456789'",
+                        "'2023-06-15 23:45:01', '2023-06-15 23:45:01', '2023-06-15 23:45:01.98765', '2023-06-15 23:45:01.987654321'",
+                        "null, null, null, null"))) {
+            // datetime('<TZ>')
+            assertDateTruncNotPushdown(table.getName(), "c_datetime_tz", "millisecond", "TIMESTAMP '2023-01-01 12:34:56 +05:45', TIMESTAMP '2023-06-15 23:45:01 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime_tz", "second", "TIMESTAMP '2023-01-01 12:34:56 +05:45', TIMESTAMP '2023-06-15 23:45:01 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime_tz", "minute", "TIMESTAMP '2023-01-01 12:34:00 +05:45', TIMESTAMP '2023-06-15 23:45:00 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime_tz", "hour", "TIMESTAMP '2023-01-01 12:00:00 +05:45', TIMESTAMP '2023-06-15 23:00:00 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime_tz", "day", "TIMESTAMP '2023-01-01 00:00:00 +05:45', TIMESTAMP '2023-06-15 00:00:00 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime_tz", "week", "TIMESTAMP '2022-12-26 00:00:00 +05:45', TIMESTAMP '2023-06-12 00:00:00 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime_tz", "month", "TIMESTAMP '2023-01-01 00:00:00 +05:45', TIMESTAMP '2023-06-01 00:00:00 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime_tz", "quarter", "TIMESTAMP '2023-01-01 00:00:00 +05:45', TIMESTAMP '2023-04-01 00:00:00 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime_tz", "year", "TIMESTAMP '2023-01-01 00:00:00 +05:45', TIMESTAMP '2023-01-01 00:00:00 +05:45', null");
+
+            // datetime64(0, '<TZ>')
+            assertDateTruncNotPushdown(table.getName(), "c_datetime64_0_tz", "millisecond", "TIMESTAMP '2023-01-01 12:34:56 +05:45', TIMESTAMP '2023-06-15 23:45:01 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime64_0_tz", "second", "TIMESTAMP '2023-01-01 12:34:56 +05:45', TIMESTAMP '2023-06-15 23:45:01 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime64_0_tz", "minute", "TIMESTAMP '2023-01-01 12:34:00 +05:45', TIMESTAMP '2023-06-15 23:45:00 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime64_0_tz", "hour", "TIMESTAMP '2023-01-01 12:00:00 +05:45', TIMESTAMP '2023-06-15 23:00:00 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime64_0_tz", "day", "TIMESTAMP '2023-01-01 00:00:00 +05:45', TIMESTAMP '2023-06-15 00:00:00 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime64_0_tz", "week", "TIMESTAMP '2022-12-26 00:00:00 +05:45', TIMESTAMP '2023-06-12 00:00:00 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime64_0_tz", "month", "TIMESTAMP '2023-01-01 00:00:00 +05:45', TIMESTAMP '2023-06-01 00:00:00 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime64_0_tz", "quarter", "TIMESTAMP '2023-01-01 00:00:00 +05:45', TIMESTAMP '2023-04-01 00:00:00 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime64_0_tz", "year", "TIMESTAMP '2023-01-01 00:00:00 +05:45', TIMESTAMP '2023-01-01 00:00:00 +05:45', null");
+
+            // datetime64(5, '<TZ>')
+            assertDateTruncNotPushdown(table.getName(), "c_datetime64_5_tz", "millisecond", "TIMESTAMP '2023-01-01 12:34:56.12300 +05:45', TIMESTAMP '2023-06-15 23:45:01.98700 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime64_5_tz", "second", "TIMESTAMP '2023-01-01 12:34:56.00000 +05:45', TIMESTAMP '2023-06-15 23:45:01.00000 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime64_5_tz", "minute", "TIMESTAMP '2023-01-01 12:34:00.00000 +05:45', TIMESTAMP '2023-06-15 23:45:00.00000 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime64_5_tz", "hour", "TIMESTAMP '2023-01-01 12:00:00.00000 +05:45', TIMESTAMP '2023-06-15 23:00:00.00000 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime64_5_tz", "day", "TIMESTAMP '2023-01-01 00:00:00.00000 +05:45', TIMESTAMP '2023-06-15 00:00:00.00000 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime64_5_tz", "week", "TIMESTAMP '2022-12-26 00:00:00.00000 +05:45', TIMESTAMP '2023-06-12 00:00:00.00000 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime64_5_tz", "month", "TIMESTAMP '2023-01-01 00:00:00.00000 +05:45', TIMESTAMP '2023-06-01 00:00:00.00000 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime64_5_tz", "quarter", "TIMESTAMP '2023-01-01 00:00:00.00000 +05:45', TIMESTAMP '2023-04-01 00:00:00.00000 +05:45', null");
+            assertDateTruncNotPushdown(table.getName(), "c_datetime64_5_tz", "year", "TIMESTAMP '2023-01-01 00:00:00.00000 +05:45', TIMESTAMP '2023-01-01 00:00:00.00000 +05:45', null");
+        }
+    }
+
+    private void assertDateTruncNotPushdown(String tableName, String column, String unit, String expectedValue)
+    {
+        assertDateTruncNotPushdown(getSession(), tableName, column, unit, expectedValue);
+    }
+
+    private void assertDateTruncNotPushdown(Session session, String tableName, String column, String unit, String expectedValue)
+    {
+        assertThat(query(session, "SELECT date_trunc('%s', %s) FROM %s".formatted(unit, column, tableName)))
+                .matches("VALUES %s".formatted(expectedValue))
+                .isNotFullyPushedDown(ProjectNode.class);
+    }
+
+    @Test
+    void testDateTruncPredicateNotPushdown()
+    {
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_date_trunc_pushdown_with_date_type_",
+                "(c_date Nullable(Date), c_date32 Nullable(Date32), c_datetime64_5 Nullable(DateTime64(5)), c_datetime64_5_tz Nullable(DateTime64(5, 'Asia/Kathmandu'))) Engine = Log",
+                List.of(
+                        "'2023-01-01', '2023-01-01', '2023-01-01 12:34:56.12345', '2023-01-01 12:34:56.12345'",
+                        "'2024-06-15', '2024-06-15', '2024-06-15 23:45:01.98765', '2024-06-15 23:45:01.98765'",
+                        "null, null, null, null"))) {
+            // date
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_date", "day", "DATE '2023-01-01'", ProjectNode.class);
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_date", "week", "DATE '2022-12-26'", FilterNode.class);
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_date", "month", "DATE '2023-01-01'", ProjectNode.class);
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_date", "quarter", "DATE '2023-01-01'", FilterNode.class);
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_date", "year", "DATE '2023-01-01'", ProjectNode.class);
+
+            // datetime64
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_datetime64_5", "millisecond", "TIMESTAMP '2023-01-01 12:34:56.12300'", FilterNode.class);
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_datetime64_5", "second", "TIMESTAMP '2023-01-01 12:34:56.00000'", FilterNode.class);
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_datetime64_5", "minute", "TIMESTAMP '2023-01-01 12:34:00.00000'", FilterNode.class);
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_datetime64_5", "hour", "TIMESTAMP '2023-01-01 12:00:00.00000'", ProjectNode.class);
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_datetime64_5", "day", "TIMESTAMP '2023-01-01 00:00:00.00000'", ProjectNode.class);
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_datetime64_5", "week", "TIMESTAMP '2022-12-26 00:00:00.00000'", FilterNode.class);
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_datetime64_5", "month", "TIMESTAMP '2023-01-01 00:00:00.00000'", ProjectNode.class);
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_datetime64_5", "quarter", "TIMESTAMP '2023-01-01 00:00:00.00000'", FilterNode.class);
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_datetime64_5", "year", "TIMESTAMP '2023-01-01 00:00:00.00000'", ProjectNode.class);
+
+            // datetime64(5, '<TZ>')
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_datetime64_5_tz", "millisecond", "TIMESTAMP '2023-01-01 12:34:56.12300 +05:45'", FilterNode.class);
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_datetime64_5_tz", "second", "TIMESTAMP '2023-01-01 12:34:56.00000 +05:45'", FilterNode.class);
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_datetime64_5_tz", "minute", "TIMESTAMP '2023-01-01 12:34:00.00000 +05:45'", FilterNode.class);
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_datetime64_5_tz", "hour", "TIMESTAMP '2023-01-01 12:00:00.00000 +05:45'", FilterNode.class);
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_datetime64_5_tz", "day", "TIMESTAMP '2023-01-01 00:00:00.00000 +05:45'", FilterNode.class);
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_datetime64_5_tz", "week", "TIMESTAMP '2022-12-26 00:00:00.00000 +05:45'", FilterNode.class);
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_datetime64_5_tz", "month", "TIMESTAMP '2023-01-01 00:00:00.00000 +05:45'", FilterNode.class);
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_datetime64_5_tz", "quarter", "TIMESTAMP '2023-01-01 00:00:00.00000 +05:45'", FilterNode.class);
+            assertDateTruncPredicateNotPushdown(table.getName(), "c_datetime64_5_tz", "year", "TIMESTAMP '2023-01-01 00:00:00.00000 +05:45'", FilterNode.class);
+        }
+    }
+
+    private void assertDateTruncPredicateNotPushdown(String tableName, String column, String unit, String predicateValue, Class<? extends PlanNode> nodeNotPushedDown)
+    {
+        assertThat(query("SELECT true FROM %s WHERE date_trunc('%s', %s) = %s".formatted(tableName, unit, column, predicateValue)))
+                .matches("VALUES true")
+                .isNotFullyPushedDown(nodeNotPushedDown);
+    }
+
+    @Test
+    void testDateTruncProjectionPushdownWithMinAndMaxDate()
+    {
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_date_trunc_pushdown_with_min_max_date_",
+                "(c_date Nullable(Date)) Engine = Log",
+                List.of(
+                        "'1970-01-01'",
+                        "'2106-02-07'",
+                        "null"))) {
+            assertDateTruncPushdown(table.getName(), "c_date", "day", "DATE '1970-01-01', DATE '2106-02-07', null");
+            assertDateTruncPushdown(table.getName(), "c_date", "week", "DATE '1969-12-29', DATE '2106-02-01', null");
+            assertDateTruncPushdown(table.getName(), "c_date", "month", "DATE '1970-01-01', DATE '2106-02-01', null");
+            assertDateTruncPushdown(table.getName(), "c_date", "quarter", "DATE '1970-01-01', DATE '2106-01-01', null");
+            assertDateTruncPushdown(table.getName(), "c_date", "year", "DATE '1970-01-01', DATE '2106-01-01', null");
+        }
+    }
+
+    @Test
+    void testDateTruncProjectionPushdownWithMinAndMaxDate32()
+    {
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_date_trunc_pushdown_with_min_max_date32_",
+                "(c_date32 Nullable(Date32)) Engine = Log",
+                List.of(
+                        "'1900-01-01'",
+                        "'2299-12-31'",
+                        "null"))) {
+            assertDateTruncPushdown(table.getName(), "c_date32", "day", "DATE '1900-01-01', DATE '2299-12-31', null");
+            assertDateTruncPushdown(table.getName(), "c_date32", "week", "DATE '1900-01-01', DATE '2299-12-25', null");
+            assertDateTruncPushdown(table.getName(), "c_date32", "month", "DATE '1900-01-01', DATE '2299-12-01', null");
+            assertDateTruncPushdown(table.getName(), "c_date32", "quarter", "DATE '1900-01-01', DATE '2299-10-01', null");
+            assertDateTruncPushdown(table.getName(), "c_date32", "year", "DATE '1900-01-01', DATE '2299-01-01', null");
+        }
+    }
+
+    @Test
+    void testDateTruncProjectionPushdownWithMinAndMaxDateTime()
+    {
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_date_trunc_pushdown_with_min_max_datetime_",
+                "(c_datetime Nullable(DateTime)) Engine = Log",
+                List.of(
+                        "'1970-01-01 00:00:00'",
+                        "'2106-02-07 06:28:15'",
+                        "null"))) {
+            assertDateTruncNotPushdown(table.getName(), "c_datetime", "millisecond", "TIMESTAMP '1970-01-01 00:00:00', TIMESTAMP '2106-02-07 06:28:15', null");
+            assertDateTruncPushdown(table.getName(), "c_datetime", "second", "TIMESTAMP '1970-01-01 00:00:00', TIMESTAMP '2106-02-07 06:28:15', null");
+            assertDateTruncPushdown(table.getName(), "c_datetime", "minute", "TIMESTAMP '1970-01-01 00:00:00', TIMESTAMP '2106-02-07 06:28:00', null");
+            assertDateTruncPushdown(table.getName(), "c_datetime", "hour", "TIMESTAMP '1970-01-01 00:00:00', TIMESTAMP '2106-02-07 06:00:00', null");
+            assertDateTruncPushdown(table.getName(), "c_datetime", "day", "TIMESTAMP '1970-01-01 00:00:00', TIMESTAMP '2106-02-07 00:00:00', null");
+            assertDateTruncPushdown(table.getName(), "c_datetime", "week", "TIMESTAMP '1969-12-29 00:00:00', TIMESTAMP '2106-02-01 00:00:00', null");
+            assertDateTruncPushdown(table.getName(), "c_datetime", "month", "TIMESTAMP '1970-01-01 00:00:00', TIMESTAMP '2106-02-01 00:00:00', null");
+            assertDateTruncPushdown(table.getName(), "c_datetime", "quarter", "TIMESTAMP '1970-01-01 00:00:00', TIMESTAMP '2106-01-01 00:00:00', null");
+            assertDateTruncPushdown(table.getName(), "c_datetime", "year", "TIMESTAMP '1970-01-01 00:00:00', TIMESTAMP '2106-01-01 00:00:00', null");
+        }
+    }
+
+    @Test
+    void testDateTruncProjectionPushdownWithMinAndMaxDateTime64()
+    {
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_date_trunc_pushdown_with_min_max_datetime64_8_",
+                "(c_datetime64_8 Nullable(DateTime64(8))) Engine = Log",
+                List.of(
+                        "'1900-01-01 00:00:00.00000000'",
+                        "'2299-12-31 23:59:59.99999999'",
+                        "null"))) {
+            assertDateTruncNotPushdown(table.getName(), "c_datetime64_8", "millisecond", "TIMESTAMP '1900-01-01 00:00:00.00000000', TIMESTAMP '2299-12-31 23:59:59.99900000', null");
+            assertDateTruncPushdown(table.getName(), "c_datetime64_8", "second", "TIMESTAMP '1900-01-01 00:00:00.00000000', TIMESTAMP '2299-12-31 23:59:59.00000000', null");
+            assertDateTruncPushdown(table.getName(), "c_datetime64_8", "minute", "TIMESTAMP '1900-01-01 00:00:00.00000000', TIMESTAMP '2299-12-31 23:59:00.00000000', null");
+            assertDateTruncPushdown(table.getName(), "c_datetime64_8", "hour", "TIMESTAMP '1900-01-01 00:00:00.00000000', TIMESTAMP '2299-12-31 23:00:00.00000000', null");
+            assertDateTruncPushdown(table.getName(), "c_datetime64_8", "day", "TIMESTAMP '1900-01-01 00:00:00.00000000', TIMESTAMP '2299-12-31 00:00:00.00000000', null");
+            assertDateTruncPushdown(table.getName(), "c_datetime64_8", "week", "TIMESTAMP '1900-01-01 00:00:00.00000000', TIMESTAMP '2299-12-25 00:00:00.00000000', null");
+            assertDateTruncPushdown(table.getName(), "c_datetime64_8", "month", "TIMESTAMP '1900-01-01 00:00:00.00000000', TIMESTAMP '2299-12-01 00:00:00.00000000', null");
+            assertDateTruncPushdown(table.getName(), "c_datetime64_8", "quarter", "TIMESTAMP '1900-01-01 00:00:00.00000000', TIMESTAMP '2299-10-01 00:00:00.00000000', null");
+            assertDateTruncPushdown(table.getName(), "c_datetime64_8", "year", "TIMESTAMP '1900-01-01 00:00:00.00000000', TIMESTAMP '2299-01-01 00:00:00.00000000', null");
+        }
+
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_date_trunc_pushdown_with_min_max_datetime64_9_",
+                "(c_datetime64_9 DateTime64(9)) Engine = Log",
+                List.of("'2262-04-11 23:47:16.854775807'"))) {
+            assertDateTruncNotPushdown(table.getName(), "c_datetime64_9", "millisecond", "TIMESTAMP '2262-04-11 23:47:16.854000000'");
+            assertDateTruncPushdown(table.getName(), "c_datetime64_9", "second", "TIMESTAMP '2262-04-11 23:47:16.000000000'");
+            assertDateTruncPushdown(table.getName(), "c_datetime64_9", "minute", "TIMESTAMP '2262-04-11 23:47:00.000000000'");
+            assertDateTruncPushdown(table.getName(), "c_datetime64_9", "hour", "TIMESTAMP '2262-04-11 23:00:00.000000000'");
+            assertDateTruncPushdown(table.getName(), "c_datetime64_9", "day", "TIMESTAMP '2262-04-11 00:00:00.000000000'");
+            assertDateTruncPushdown(table.getName(), "c_datetime64_9", "week", "TIMESTAMP '2262-04-07 00:00:00.000000000'");
+            assertDateTruncPushdown(table.getName(), "c_datetime64_9", "month", "TIMESTAMP '2262-04-01 00:00:00.000000000'");
+            assertDateTruncPushdown(table.getName(), "c_datetime64_9", "quarter", "TIMESTAMP '2262-04-01 00:00:00.000000000'");
+            assertDateTruncPushdown(table.getName(), "c_datetime64_9", "year", "TIMESTAMP '2262-01-01 00:00:00.000000000'");
+        }
     }
 
     @Test
