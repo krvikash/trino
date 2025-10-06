@@ -31,12 +31,10 @@ import jakarta.annotation.Nullable;
 import org.apache.iceberg.MetadataTableType;
 import org.apache.iceberg.MetricsUtil.ReadableMetricsStruct;
 import org.apache.iceberg.PartitionField;
-import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.transforms.Transforms;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Type;
-import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.types.Types.NestedField;
 import org.apache.iceberg.util.StructProjection;
@@ -68,8 +66,7 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.util.Objects.requireNonNull;
 import static org.apache.iceberg.MetadataColumns.DELETE_FILE_PATH;
 import static org.apache.iceberg.MetadataColumns.DELETE_FILE_POS;
-import static org.apache.iceberg.MetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER;
-import static org.apache.iceberg.MetadataColumns.ROW_ID;
+import static org.apache.iceberg.MetadataColumns.schemaWithRowLineage;
 import static org.apache.iceberg.MetadataTableType.ALL_ENTRIES;
 import static org.apache.iceberg.MetadataTableType.ENTRIES;
 import static org.apache.iceberg.TableUtil.formatVersion;
@@ -101,12 +98,6 @@ public class EntriesTable
         List<PartitionField> partitionFields = getAllPartitionFields(icebergTable);
         partitionColumn = getPartitionColumnType(typeManager, partitionFields, icebergTable.schema());
         partitionTypes = partitionTypes(partitionFields, idToTypeMapping);
-    }
-
-    // TODO Use org.apache.iceberg.MetadataColumns#schemaWithRowLineage once Iceberg 1.10.0 is released
-    private static Schema schemaWithRowLineage(Schema schema)
-    {
-        return TypeUtil.join(schema, new Schema(ROW_ID, LAST_UPDATED_SEQUENCE_NUMBER));
     }
 
     private static List<ColumnMetadata> columns(TypeManager typeManager, Table icebergTable)
