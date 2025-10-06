@@ -42,6 +42,7 @@ import io.trino.spi.function.table.TableFunctionSplitProcessor;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.sql.tree.ExplainType;
 import io.trino.testing.AbstractTestQueryFramework;
+import io.trino.testing.MaterializedResult;
 import io.trino.testing.MaterializedRow;
 import io.trino.testing.QueryRunner;
 import org.apache.iceberg.PartitionField;
@@ -552,6 +553,34 @@ public abstract class BaseIcebergMaterializedViewTest
         assertUpdate("DROP MATERIALIZED VIEW materialized_view_window");
         assertUpdate("DROP MATERIALIZED VIEW materialized_view_union");
         assertUpdate("DROP MATERIALIZED VIEW materialized_view_subquery");
+    }
+
+    @Test
+    public void testShowStats()
+    {
+        assertUpdate("CREATE MATERIALIZED VIEW materialized_view_show_stats AS SELECT * FROM base_table1");
+
+        MaterializedResult baseTableStats = computeActual("SHOW STATS FOR (SELECT _bigint FROM base_table1)");
+        assertThat(computeActual("SHOW STATS FOR (SELECT _bigint FROM materialized_view_show_stats)"))
+                .isEqualTo(baseTableStats);
+
+        assertUpdate("REFRESH MATERIALIZED VIEW materialized_view_show_stats", 6);
+        assertThat(computeActual("SHOW STATS FOR (SELECT _bigint FROM materialized_view_show_stats)"))
+                .isEqualTo(baseTableStats);
+
+        Session partitionStatisticsEnabled = Session.builder(getSession())
+                .setCatalogSessionProperty("iceberg", "partition_statistics_collect_on_write", "true")
+                .build();
+        assertUpdate(partitionStatisticsEnabled, "CREATE TABLE base_table_with_partition_stats WITH (partitioning = ARRAY['_date']) AS SELECT * FROM base_table1", 6);
+        baseTableStats = computeActual("SHOW STATS FOR (SELECT _bigint FROM base_table_with_partition_stats)");
+
+        assertUpdate("CREATE OR REPLACE MATERIALIZED VIEW materialized_view_show_stats WITH (partitioning = ARRAY['_date']) AS SELECT * FROM base_table_with_partition_stats");
+        assertUpdate(partitionStatisticsEnabled, "REFRESH MATERIALIZED VIEW materialized_view_show_stats", 6);
+        assertThat(computeActual("SHOW STATS FOR (SELECT _bigint FROM materialized_view_show_stats)"))
+                .isEqualTo(baseTableStats);
+
+        assertUpdate("DROP MATERIALIZED VIEW materialized_view_show_stats");
+        assertUpdate("DROP TABLE base_table_with_partition_stats");
     }
 
     @Test

@@ -4720,7 +4720,30 @@ public class IcebergMetadata
         appendFiles.set(DEPENDS_ON_TABLE_FUNCTIONS, String.valueOf(hasSourceTableFunctions));
         appendFiles.set(TRINO_QUERY_START_TIME, session.getStart().toString());
         appendFiles.scanManifestsWith(icebergScanExecutor);
-        commitUpdateAndTransaction(appendFiles, session, transaction, "refresh materialized view");
+        commitUpdate(appendFiles, session, "refresh materialized view");
+
+        if (isS3Tables(icebergTable.location())) {
+            log.debug("S3 Tables does not support statistics: %s", table.name());
+        }
+        else if (!computedStatistics.isEmpty()) {
+            long snapshotId = icebergTable.currentSnapshot().snapshotId();
+            CollectedStatistics collectedStatistics = processComputedTableStatistics(icebergTable, computedStatistics);
+            StatisticsFile statisticsFile = tableStatisticsWriter.writeStatisticsFile(
+                    session,
+                    icebergTable,
+                    snapshotId,
+                    isFullRefresh ? REPLACE : INCREMENTAL_UPDATE,
+                    collectedStatistics);
+            transaction.updateStatistics()
+                    .setStatistics(statisticsFile)
+                    .commit();
+            partitionStatisticsWriter.writePartitionStats(session, icebergTable, snapshotId)
+                    .ifPresent(partitionStatisticsFile -> transaction.updatePartitionStatistics()
+                            .setPartitionStatistics(partitionStatisticsFile)
+                            .commit());
+        }
+        commitTransaction(transaction, "refresh materialized view");
+
         transaction = null;
         fromSnapshotForRefresh = Optional.empty();
         return Optional.of(new HiveWrittenPartitions(commitTasks.stream()
