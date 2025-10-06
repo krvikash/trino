@@ -200,6 +200,7 @@ public abstract class BaseIcebergConnectorSmokeTest
     public void testCatalogSetProperties()
     {
         String catalog = "catalog_set_props_" + randomNameSuffix();
+        String schema = "test_dynamic_" + randomNameSuffix();
         String createCatalogSql = getCreateCatalogSqlTemplate().formatted(catalog, format);
         try {
             assertUpdate(createCatalogSql);
@@ -218,12 +219,13 @@ public abstract class BaseIcebergConnectorSmokeTest
                        "iceberg.file-format" = '%2$s'
                     """
                             .formatted(catalog, "ORC"));
-            assertUpdate(createSchemaSql(Optional.of(catalog), "test_dynamic"));
-            assertUpdate("CREATE TABLE %s.test_dynamic.test_table as SELECT * FROM tpch.tiny.region".formatted(catalog), 5);
-            assertThat((String) computeScalar("SHOW CREATE TABLE %s.test_dynamic.test_table".formatted(catalog))).contains("format = 'ORC'");
+
+            assertUpdate(createSchemaSql(Optional.of(catalog), schema));
+            assertUpdate("CREATE TABLE %s.%s.test_table as SELECT * FROM tpch.tiny.region".formatted(catalog, schema), 5);
+            assertThat((String) computeScalar("SHOW CREATE TABLE %s.%s.test_table".formatted(catalog, schema))).contains("format = 'ORC'");
         }
         finally {
-            assertUpdate("DROP SCHEMA IF EXISTS %s.test_dynamic CASCADE".formatted(catalog));
+            assertUpdate("DROP SCHEMA IF EXISTS %s.%s CASCADE".formatted(catalog, schema));
             assertUpdate("DROP CATALOG IF EXISTS " + catalog);
         }
     }
