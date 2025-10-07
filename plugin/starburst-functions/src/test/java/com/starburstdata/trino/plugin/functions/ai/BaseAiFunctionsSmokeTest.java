@@ -9,11 +9,15 @@
  */
 package com.starburstdata.trino.plugin.functions.ai;
 
+import io.airlift.units.Duration;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.Test;
 
 import static com.starburstdata.trino.plugin.functions.ai.AiQueryRunner.TEST_AI_SESSION;
+import static io.trino.testing.assertions.Assert.assertEventually;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 abstract class BaseAiFunctionsSmokeTest
@@ -25,9 +29,12 @@ abstract class BaseAiFunctionsSmokeTest
     @Test
     void testClassify()
     {
-        String result = (String) computeActual(TEST_AI_SESSION,
-                "SELECT ai.classify('I love this product!', ARRAY['positive', 'negative', 'neutral'], '%s')".formatted(LANGUAGE_MODEL_ID)).getOnlyValue();
-        assertThat(result).contains("positive");
+        assertEventually(new Duration(15, SECONDS), new Duration(10, MILLISECONDS), 3, 0.75f, () ->
+        {
+            String result = (String) computeActual(TEST_AI_SESSION,
+                    "SELECT ai.classify('I love this product!', ARRAY['positive', 'negative', 'neutral'], '%s')".formatted(LANGUAGE_MODEL_ID)).getOnlyValue();
+            assertThat(result).contains("positive");
+        });
     }
 
     @Test

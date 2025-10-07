@@ -13,13 +13,17 @@
  */
 package io.trino.testing.assertions;
 
+import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public final class Assert
 {
+    private static final Logger log = Logger.get(Assert.class);
+
     private Assert() {}
 
     public static <E extends Exception> void assertEventually(CheckedRunnable<E> assertion)
@@ -40,9 +44,10 @@ public final class Assert
         assertEventually(timeout, retryFrequency, Integer.MAX_VALUE, 0f, assertion);
     }
 
-    public static <E extends Exception> void assertEventually(Duration timeout, Duration retryFrequency, int maxRetries, float minSuccessRate, CheckedRunnable<E> assertion)
+    public static <E extends Exception> void assertEventually(Duration timeout, Duration retryFrequency, int maxAttempts, float minSuccessRate, CheckedRunnable<E> assertion)
             throws E
     {
+        checkArgument(minSuccessRate >= 0f && minSuccessRate <= 1f, "minSuccessRate must be between 0 and 1");
         int successCount = 0;
         int attemptCount = 0;
         Throwable lastFailure = null;
@@ -55,16 +60,17 @@ public final class Assert
                 if (((float) successCount / attemptCount) >= minSuccessRate) {
                     return;
                 }
-                if (Duration.nanosSince(start).compareTo(timeout) > 0 || attemptCount > maxRetries) {
+                if (Duration.nanosSince(start).compareTo(timeout) > 0 || attemptCount > maxAttempts) {
                     throw new AssertionError(
                             String.format("Success rate %.1f%% is below the minimum required %.1f%%", ((float) successCount / attemptCount) * 100, minSuccessRate * 100),
                             lastFailure);
                 }
             }
             catch (Exception | AssertionError e) {
-                if (Duration.nanosSince(start).compareTo(timeout) > 0 || attemptCount > maxRetries) {
+                if (Duration.nanosSince(start).compareTo(timeout) > 0 || attemptCount > maxAttempts) {
                     throw e;
                 }
+                log.debug(e, "Failure on attempt %s of %s", attemptCount, assertion);
                 lastFailure = e;
             }
             try {
