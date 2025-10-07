@@ -9,23 +9,32 @@
  */
 package io.starburst.ai.client.openai;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.openai.client.OpenAIClient;
 import com.openai.core.JsonValue;
 import com.openai.errors.RateLimitException;
+import com.openai.models.FunctionDefinition;
+import com.openai.models.FunctionParameters;
 import com.openai.models.chat.completions.ChatCompletion;
 import com.openai.models.chat.completions.ChatCompletionAssistantMessageParam;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import com.openai.models.chat.completions.ChatCompletionMessage;
+import com.openai.models.chat.completions.ChatCompletionTool;
 import com.openai.models.completions.CompletionUsage;
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
+import io.airlift.json.ObjectMapperProvider;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.AbstractLanguageModelClient;
 import io.starburst.ai.client.LlmMessage;
 import io.starburst.ai.client.PromptDao;
+import io.starburst.ai.client.ToolDefinition;
+import io.starburst.ai.client.ToolUseResponse;
 import io.trino.spi.TrinoException;
 
 import java.time.Duration;
@@ -60,6 +69,8 @@ public class OpenAiLanguageModelClient
             .withBackoff(Duration.ofMillis(500), Duration.ofMinutes(2))
             .withJitter(0.25)
             .build();
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapperProvider().get();
 
     private final Optional<Float> temperature;
     private final Optional<Integer> maxTokens;
@@ -103,6 +114,35 @@ public class OpenAiLanguageModelClient
     @Override
     protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> llmMessages)
     {
+        ChatCompletion response = getChatCompletion(buildChatCompletionCreateParams(systemPrompts, llmMessages).build());
+        ChatCompletionMessage message = response.choices().stream()
+                .map(ChatCompletion.Choice::message)
+                .findFirst()
+                .orElseThrow(() -> new TrinoException(AI_CLIENT_ERROR, "No response from AI model"));
+
+        if (message.refusal().isPresent()) {
+            throw new TrinoException(AI_CLIENT_ERROR, "AI model refused to generate response: " + message.refusal());
+        }
+
+        return message.content().orElse("");
+    }
+
+    @Override
+    protected ToolUseResponse generateCompletionWithTools(
+            List<String> systemPrompts,
+            List<LlmMessage> llmMessages,
+            List<ToolDefinition<?>> tools)
+    {
+        ChatCompletionCreateParams.Builder builder = buildChatCompletionCreateParams(systemPrompts, llmMessages);
+        tools.forEach(tool -> builder.addTool(toOpenAiTool(tool)));
+
+        ChatCompletion response = getChatCompletion(builder.build());
+
+        return parseOpenAiToolResponse(response);
+    }
+
+    private ChatCompletionCreateParams.Builder buildChatCompletionCreateParams(List<String> systemPrompts, List<LlmMessage> llmMessages)
+    {
         ChatCompletionCreateParams.Builder builder = ChatCompletionCreateParams.builder()
                 .model(modelName);
         if (!isGeminiEndpoint) {
@@ -125,7 +165,11 @@ public class OpenAiLanguageModelClient
                 case ASSISTANT -> builder.addMessage(createAssistantMessage(llmMessage.content()));
             }
         });
+        return builder;
+    }
 
+    ChatCompletion getChatCompletion(ChatCompletionCreateParams params)
+    {
         Span span = tracer.spanBuilder(CHAT + " " + modelName)
                 .setAttribute(GEN_AI_OPERATION_NAME, CHAT)
                 .setAttribute(GEN_AI_SYSTEM, OPENAI)
@@ -134,10 +178,8 @@ public class OpenAiLanguageModelClient
                 .setSpanKind(SpanKind.CLIENT)
                 .startSpan();
 
-        ChatCompletion response;
         try (var _ = span.makeCurrent()) {
-            ChatCompletionCreateParams params = builder.build();
-            response = Failsafe.with(RATE_LIMIT_RETRY_POLICY).get(() -> client.chat().completions().create(params));
+            ChatCompletion response = Failsafe.with(RATE_LIMIT_RETRY_POLICY).get(() -> client.chat().completions().create(params));
 
             span.setAttribute(GEN_AI_RESPONSE_ID, response.id());
             span.setAttribute(GEN_AI_RESPONSE_MODEL, response.model());
@@ -148,15 +190,50 @@ public class OpenAiLanguageModelClient
             span.setAttribute(GEN_AI_OPENAI_RESPONSE_SYSTEM_FINGERPRINT, response.systemFingerprint().orElse(""));
             span.setAttribute(GEN_AI_USAGE_INPUT_TOKENS, response.usage().map(CompletionUsage::promptTokens).orElse(0L));
             span.setAttribute(GEN_AI_USAGE_OUTPUT_TOKENS, response.usage().map(CompletionUsage::completionTokens).orElse(0L));
+
+            return response;
         }
         catch (RuntimeException e) {
             span.setStatus(ERROR, e.getMessage());
             span.recordException(e);
-            throw new TrinoException(AI_CLIENT_ERROR, "Failed to execute AI request", e);
+            throw new TrinoException(AI_CLIENT_ERROR, "Failed to execute AI request with tools", e);
         }
         finally {
             span.end();
         }
+    }
+
+    private static ChatCompletionTool toOpenAiTool(ToolDefinition<?> toolDef)
+    {
+        try {
+            JsonNode schema = toolDef.getInputSchema();
+            FunctionParameters.Builder parametersBuilder = FunctionParameters.builder();
+            schema.properties().forEach(entry -> {
+                String key = entry.getKey();
+                JsonNode value = entry.getValue();
+                parametersBuilder.putAdditionalProperty(key, JsonValue.fromJsonNode(value));
+            });
+
+            return ChatCompletionTool.builder()
+                    .type(JsonValue.from("function"))
+                    .function(FunctionDefinition.builder()
+                            .name(toolDef.getName())
+                            .description(toolDef.getDescription())
+                            .parameters(parametersBuilder.build())
+                            //.strict(true) // Guarantees arguments will be generated that match the schema, but strict mode seems to prevent
+                            // usage of tools with optional parameters:
+                            // Caused by: com.openai.errors.BadRequestException: 400: Invalid schema for function 'search': In context=(), 'required' is required to be supplied and to be an array including every key in properties. Missing 'max_results'.
+
+                            .build())
+                    .build();
+        }
+        catch (Exception e) {
+            throw new TrinoException(AI_CLIENT_ERROR, "Failed to convert tool definition to OpenAI tool call format", e);
+        }
+    }
+
+    private ToolUseResponse parseOpenAiToolResponse(ChatCompletion response)
+    {
         ChatCompletionMessage message = response.choices().stream()
                 .map(ChatCompletion.Choice::message)
                 .findFirst()
@@ -166,7 +243,25 @@ public class OpenAiLanguageModelClient
             throw new TrinoException(AI_CLIENT_ERROR, "AI model refused to generate response: " + message.refusal());
         }
 
-        return message.content().orElse("");
+        ImmutableList.Builder<ToolUseResponse.ToolCall> toolCallBuilder = ImmutableList.builder();
+        message.toolCalls().ifPresent(toolCallList ->
+                toolCallList.forEach(toolCall -> {
+                    try {
+                        // Parse the function arguments as JSON
+                        String argumentsJson = toolCall.function().arguments();
+                        JsonNode inputNode = OBJECT_MAPPER.readTree(argumentsJson);
+
+                        toolCallBuilder.add(new ToolUseResponse.ToolCall(
+                                toolCall.id(),
+                                toolCall.function().name(),
+                                inputNode));
+                    }
+                    catch (JsonProcessingException e) {
+                        throw new TrinoException(AI_CLIENT_ERROR, "Failed to parse tool call arguments", e);
+                    }
+                }));
+
+        return new ToolUseResponse(message.content().orElse(""), toolCallBuilder.build());
     }
 
     private static ChatCompletionAssistantMessageParam createAssistantMessage(String content)

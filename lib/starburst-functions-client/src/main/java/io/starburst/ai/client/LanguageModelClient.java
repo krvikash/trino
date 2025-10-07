@@ -35,6 +35,17 @@ public interface LanguageModelClient
     // this method is used in SEP
     String generate(String systemPrompt, List<LlmMessage> messages);
 
+    /**
+     * Generates a response with tool use support.
+     * The LLM can choose to use tools, provide a text response, or both.
+
+     * @param systemPrompt System instructions for the LLM
+     * @param messages Conversation history
+     * @param tools Available tools the LLM can use
+     * @return Response containing text and/or tool calls
+     */
+    ToolUseResponse generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools);
+
     String mask(String text, List<String> labels);
 
     List<String> maskBatch(List<String> texts, List<String> labels);

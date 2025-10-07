@@ -144,6 +144,16 @@ public abstract class AbstractLanguageModelClient
     }
 
     @Override
+    public ToolUseResponse generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools)
+    {
+        List<String> systemPrompts = ImmutableList.<String>builder()
+                .addAll(topLevelSystemPrompts)
+                .add(systemPrompt)
+                .build();
+        return generateCompletionWithTools(systemPrompts, messages, tools);
+    }
+
+    @Override
     public String mask(String text, List<String> labels)
     {
         return fixedCompletion(maskModelAndPrompt, formatLabelsAndText(maskModelAndPrompt.prompt(), labels, text));
@@ -215,6 +225,11 @@ public abstract class AbstractLanguageModelClient
     protected abstract String generateCompletion(List<String> systemPrompts, String prompt);
 
     protected abstract String generateCompletion(List<String> systemPrompts, List<LlmMessage> llmMessages);
+
+    protected abstract ToolUseResponse generateCompletionWithTools(
+            List<String> systemPrompts,
+            List<LlmMessage> messages,
+            List<ToolDefinition<?>> tools);
 
     protected record ModelWithFixedPrompt(String name, List<String> systemPrompts, String prompt) {}
 

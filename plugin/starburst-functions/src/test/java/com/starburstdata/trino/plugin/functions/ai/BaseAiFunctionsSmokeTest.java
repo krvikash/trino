@@ -15,6 +15,8 @@ import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.Test;
 
 import static com.starburstdata.trino.plugin.functions.ai.AiQueryRunner.TEST_AI_SESSION;
+import static io.starburst.ai.client.VendorTestModels.EMBED_MODEL_ID;
+import static io.starburst.ai.client.VendorTestModels.LANGUAGE_MODEL_ID;
 import static io.trino.testing.assertions.Assert.assertEventually;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -23,9 +25,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 abstract class BaseAiFunctionsSmokeTest
         extends AbstractTestQueryFramework
 {
-    static final String LANGUAGE_MODEL_ID = "language_model";
-    static final String EMBED_MODEL_ID = "embed_model";
-
     @Test
     void testClassify()
     {

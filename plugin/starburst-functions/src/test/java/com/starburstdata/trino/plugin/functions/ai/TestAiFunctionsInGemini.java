@@ -13,36 +13,11 @@ import io.trino.plugin.memory.MemoryQueryRunner;
 import io.trino.testing.QueryRunner;
 
 import static com.starburstdata.trino.plugin.functions.ai.AiQueryRunner.addStarburstAiCatalog;
+import static io.starburst.ai.client.VendorTestModels.GEMINI_MODEL_PROVIDERS;
 
 class TestAiFunctionsInGemini
         extends BaseAiFunctionsSmokeTest
 {
-    private static final String GEMINI_MODEL_PROVIDERS = """
-                {
-                  "models": [
-                     {
-                        "id": "%s",
-                        "modelName": "gemini-2.0-flash",
-                        "kind": "GENERATE",
-                        "connectionInfo": {
-                            "provider": "OPENAI",
-                            "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/",
-                            "apiKey": "${ENV:GEMINI_API_KEY}"
-                        }
-                    },
-                    {
-                      "id": "%s",
-                      "modelName": "gemini-embedding-001",
-                      "kind": "EMBED",
-                      "connectionInfo": {
-                        "provider": "OPENAI",
-                        "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/",
-                        "apiKey": "${ENV:GEMINI_API_KEY}"
-                      }
-                    }
-                  ]
-                }""".formatted(LANGUAGE_MODEL_ID, EMBED_MODEL_ID);
-
     @Override
     public QueryRunner createQueryRunner()
             throws Exception
