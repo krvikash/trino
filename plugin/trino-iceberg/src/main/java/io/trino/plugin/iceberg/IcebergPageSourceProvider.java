@@ -711,7 +711,8 @@ public class IcebergPageSourceProvider
                     dataColumns,
                     dataSequenceNumber,
                     firstRowId,
-                    formatVersion);
+                    formatVersion,
+                    partitionKeys);
         };
     }
 
@@ -1314,7 +1315,8 @@ public class IcebergPageSourceProvider
             List<IcebergColumnHandle> columns,
             Long dataSequenceNumber,
             Long firstRowId,
-            int formatVersion)
+            int formatVersion,
+            Map<Integer, Optional<String>> partitionKeys)
     {
         InputFile file = new ForwardingInputFile(inputFile);
         OptionalLong fileModifiedTime = OptionalLong.empty();
@@ -1355,7 +1357,13 @@ public class IcebergPageSourceProvider
 
             int nextOrdinal = 0;
             for (IcebergColumnHandle column : columns) {
-                if (column.isPartitionColumn()) {
+                if (partitionKeys.containsKey(column.getId())) {
+                    Type trinoType = column.getType();
+                    transforms.constantValue(nativeValueToBlock(
+                            trinoType,
+                            deserializePartitionValue(trinoType, partitionKeys.get(column.getId()).orElse(null), column.getName())));
+                }
+                else if (column.isPartitionColumn()) {
                     transforms.constantValue(nativeValueToBlock(PARTITION.getType(), utf8Slice(partition)));
                 }
                 else if (column.isPathColumn()) {
