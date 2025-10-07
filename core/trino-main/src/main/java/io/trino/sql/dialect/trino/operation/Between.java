@@ -29,14 +29,13 @@ import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operationmetadata.BetweenOperationMetadata.NAME;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public final class Between
         extends TrinoOperation
 {
-    private static final String NAME = "between";
-
     private final Result result;
     private final Value input;
     private final Value min;

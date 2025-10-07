@@ -19,7 +19,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
-import io.trino.sql.dialect.trino.Attributes.AggregationStep;
+import io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.AggregationStep;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -33,26 +33,25 @@ import java.util.OptionalInt;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
-import static io.trino.sql.dialect.trino.Attributes.AGGREGATION_STEP;
-import static io.trino.sql.dialect.trino.Attributes.GLOBAL_GROUPING_SETS;
-import static io.trino.sql.dialect.trino.Attributes.GROUPING_SETS_COUNT;
-import static io.trino.sql.dialect.trino.Attributes.GROUP_ID_INDEX;
-import static io.trino.sql.dialect.trino.Attributes.INPUT_REDUCING;
-import static io.trino.sql.dialect.trino.Attributes.PRE_GROUPED_INDEXES;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.AGGREGATION_STEP;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.GLOBAL_GROUPING_SETS;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.GROUPING_SETS_COUNT;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.GROUP_ID_INDEX;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.INPUT_REDUCING;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.NAME;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.PRE_GROUPED_INDEXES;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.util.Objects.requireNonNull;
 
 public class Aggregation
         extends TrinoOperation
 {
-    private static final String NAME = "aggregation";
-
     private final Result result;
     private final Value input;
     private final Region aggregateCalls;

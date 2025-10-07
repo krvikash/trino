@@ -29,10 +29,11 @@ import java.util.Map;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
-import static io.trino.sql.dialect.trino.Attributes.CARDINALITY;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operationmetadata.ValuesOperationMetadata.CARDINALITY;
+import static io.trino.sql.dialect.trino.operationmetadata.ValuesOperationMetadata.NAME;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -40,8 +41,6 @@ import static java.util.Objects.requireNonNull;
 public final class Values
         extends TrinoOperation
 {
-    private static final String NAME = "values";
-
     private final Result result;
     private final List<Region> rows;
     private final Map<AttributeKey, Object> attributes;

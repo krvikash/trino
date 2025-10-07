@@ -19,7 +19,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
-import io.trino.sql.dialect.trino.Attributes.JoinType;
+import io.trino.sql.dialect.trino.operationmetadata.CorrelatedJoinOperationMetadata.JoinType;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -31,7 +31,6 @@ import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
-import static io.trino.sql.dialect.trino.Attributes.JOIN_TYPE;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validatePredicate;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRelationSelector;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
@@ -40,14 +39,14 @@ import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
+import static io.trino.sql.dialect.trino.operationmetadata.CorrelatedJoinOperationMetadata.JOIN_TYPE;
+import static io.trino.sql.dialect.trino.operationmetadata.CorrelatedJoinOperationMetadata.NAME;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.util.Objects.requireNonNull;
 
 public final class CorrelatedJoin
         extends TrinoOperation
 {
-    private static final String NAME = "correlated_join";
-
     private final Result result;
     private final Value input;
     // correlation as field selector. later we should model correlation through the uses graph?

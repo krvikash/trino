@@ -31,14 +31,13 @@ import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.sql.dialect.ir.IrDialect.terminalOperation;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
+import static io.trino.sql.dialect.trino.operationmetadata.QueryOperationMetadata.NAME;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.util.Objects.requireNonNull;
 
 public final class Query
         extends TrinoOperation
 {
-    private static final String NAME = "query";
-
     private final Result result;
     private final Region query;
 

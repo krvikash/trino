@@ -37,10 +37,10 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
-import static io.trino.sql.dialect.trino.Attributes.FIELD_INDEX;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION_ROW;
+import static io.trino.sql.dialect.trino.operationmetadata.FieldReferenceOperationMetadata.FIELD_INDEX;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 
 public class RewriteUtils

@@ -28,9 +28,9 @@ import java.util.Map;
 import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.trino.sql.dialect.trino.Attributes.DYNAMIC_FILTER_IDS;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operationmetadata.DynamicFilterSourceOperationMetadata.DYNAMIC_FILTER_IDS;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.concatenateFieldSelectors;
 import static io.trino.sql.planner.optimizations.ctereuse.CteReuse.getNextOperation;
 import static io.trino.sql.planner.optimizations.ctereuse.RewriteUtils.rebaseBlock;

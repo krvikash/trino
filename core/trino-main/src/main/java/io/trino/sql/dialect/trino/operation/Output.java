@@ -30,20 +30,19 @@ import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.sql.dialect.ir.IrDialect.terminalOperation;
-import static io.trino.sql.dialect.trino.Attributes.OUTPUT_NAMES;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
+import static io.trino.sql.dialect.trino.operationmetadata.OutputOperationMetadata.NAME;
+import static io.trino.sql.dialect.trino.operationmetadata.OutputOperationMetadata.OUTPUT_NAMES;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.util.Objects.requireNonNull;
 
 public final class Output
         extends TrinoOperation
 {
-    private static final String NAME = "output";
-
     private final Result result;
     private final Value input;
     private final Region fieldSelector;

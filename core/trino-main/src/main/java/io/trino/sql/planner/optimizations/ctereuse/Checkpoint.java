@@ -29,8 +29,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_SCOPE;
-import static io.trino.sql.dialect.trino.Attributes.ExchangeScope.REMOTE;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.EXCHANGE_SCOPE;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeScope.REMOTE;
 import static java.util.Objects.requireNonNull;
 
 public sealed interface Checkpoint

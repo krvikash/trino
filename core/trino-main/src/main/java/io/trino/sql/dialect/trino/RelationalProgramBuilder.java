@@ -21,17 +21,6 @@ import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
-import io.trino.sql.dialect.trino.Attributes.AggregationStep;
-import io.trino.sql.dialect.trino.Attributes.DistributionType;
-import io.trino.sql.dialect.trino.Attributes.ExchangeScope;
-import io.trino.sql.dialect.trino.Attributes.ExchangeType;
-import io.trino.sql.dialect.trino.Attributes.JoinType;
-import io.trino.sql.dialect.trino.Attributes.NullableValues;
-import io.trino.sql.dialect.trino.Attributes.SortOrderList;
-import io.trino.sql.dialect.trino.Attributes.Statistics;
-import io.trino.sql.dialect.trino.Attributes.TopNStep;
-import io.trino.sql.dialect.trino.Attributes.WindowFrameBoundType;
-import io.trino.sql.dialect.trino.Attributes.WindowFrameType;
 import io.trino.sql.dialect.trino.operation.AggregateCall;
 import io.trino.sql.dialect.trino.operation.Aggregation;
 import io.trino.sql.dialect.trino.operation.Constant;
@@ -54,6 +43,19 @@ import io.trino.sql.dialect.trino.operation.TopN;
 import io.trino.sql.dialect.trino.operation.Values;
 import io.trino.sql.dialect.trino.operation.Window;
 import io.trino.sql.dialect.trino.operation.WindowFunctionCall;
+import io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.CorrelatedJoinOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeScope;
+import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType;
+import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.NullableValues;
+import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DistributionType;
+import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.Statistics;
+import io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata.TopNStep;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
+import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameBoundType;
+import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameType;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
@@ -135,10 +137,10 @@ public class RelationalProgramBuilder
                 input.operation().result().type());
         Block.Builder aggregateBlockBuilder = new Block.Builder(Optional.of("^aggregates"), ImmutableList.of(aggregateParameter));
         ImmutableList.Builder<AggregateCall> aggregates = ImmutableList.builder();
-        AggregationStep step = AggregationStep.of(node.getStep());
+        AggregationOperationMetadata.AggregationStep step = AggregationOperationMetadata.AggregationStep.of(node.getStep());
 
         for (Map.Entry<Symbol, AggregationNode.Aggregation> entry : node.getAggregations().entrySet()) {
-            AggregateCall aggregateCall = modelAggregateCall(entry.getValue(), aggregateParameter, entry.getKey().type(), step, context, input.mapping());
+            AggregateCall aggregateCall = modelAggregateCall(entry.getValue(), aggregateParameter, entry.getKey().type(), AggregateCallOperationMetadata.AggregationStep.of(node.getStep()), context, input.mapping());
             aggregates.add(aggregateCall);
             aggregateBlockBuilder.addOperation(aggregateCall);
         }
@@ -199,7 +201,7 @@ public class RelationalProgramBuilder
             AggregationNode.Aggregation aggregation,
             Block.Parameter aggregateParameter,
             Type outputType,
-            AggregationStep step,
+            AggregateCallOperationMetadata.AggregationStep step,
             Context outerContext,
             Map<Symbol, Integer> inputMapping)
     {
@@ -302,7 +304,7 @@ public class RelationalProgramBuilder
                 correlation,
                 subquery,
                 filter,
-                JoinType.of(node.getType()),
+                CorrelatedJoinOperationMetadata.JoinType.of(node.getType()),
                 input.operation().attributes(),
                 subqueryAttributes);
 
@@ -561,7 +563,7 @@ public class RelationalProgramBuilder
                 leftOutputSelector,
                 rightOutputSelector,
                 dynamicFilterTargetSelector,
-                JoinType.of(node.getType()),
+                JoinOperationMetadata.JoinType.of(node.getType()),
                 node.isMaySkipOutputDuplicates(),
                 node.getDistributionType().map(DistributionType::of),
                 node.isSpillable(),

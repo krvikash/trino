@@ -15,7 +15,7 @@ package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.spi.TrinoException;
-import io.trino.sql.dialect.trino.Attributes.ComparisonOperator;
+import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -26,18 +26,17 @@ import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
-import static io.trino.sql.dialect.trino.Attributes.COMPARISON_OPERATOR;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.COMPARISON_OPERATOR;
+import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.NAME;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public final class Comparison
         extends TrinoOperation
 {
-    private static final String NAME = "comparison";
-
     private final Result result;
     private final Value left;
     private final Value right;

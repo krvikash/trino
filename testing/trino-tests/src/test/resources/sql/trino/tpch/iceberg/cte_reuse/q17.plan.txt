@@ -2,32 +2,32 @@ IR version = 1
 %0 = query() : () -> "boolean" ({
     ^query
         %1 = table_scan() : () -> "multiset(row(bigint,decimal(12,2)))" ()
-            {table_handle = "[test: table_handle attribute]", column_handles = "[test: column_handles attribute]", constraint = "[test: constraint attribute]", update_target = "false", use_connector_node_partitioning = "false"}
+            {table_scan:table_handle = "[test: table_handle attribute]", table_scan:column_handles = "[test: column_handles attribute]", table_scan:constraint = "[test: constraint attribute]", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false"}
         %2 = filter(%1) : ("multiset(row(bigint,decimal(12,2)))") -> "multiset(row(bigint,decimal(12,2)))" ({
             ^predicate (%3 : "row(bigint,decimal(12,2))")
                 %526 = field_reference(%3) : ("row(bigint,decimal(12,2))") -> "bigint" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %527 = constant() : () -> "varchar" ()
-                    {constant_result = "[test: constant_result attribute]"}
+                    {constant:constant_result = "[test: constant_result attribute]"}
                 %528 = constant() : () -> "varchar" ()
-                    {constant_result = "[test: constant_result attribute]"}
+                    {constant:constant_result = "[test: constant_result attribute]"}
                 %529 = constant() : () -> "boolean" ()
-                    {constant_result = "{""type"":""boolean"",""value"":false}"}
+                    {constant:constant_result = "{""type"":""boolean"",""value"":false}"}
                 %530 = constant() : () -> "integer" ()
-                    {constant_result = "{""type"":""integer"",""value"":0}"}
+                    {constant:constant_result = "{""type"":""integer"",""value"":0}"}
                 %531 = call(%526, %527, %528, %529, %530) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
-                    {resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %536 = return(%531) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             })
         %11 = project(%2) : ("multiset(row(bigint,decimal(12,2)))") -> "multiset(row(decimal(12,2),bigint,boolean))" ({
             ^assignments (%12 : "row(bigint,decimal(12,2))")
                 %13 = field_reference(%12) : ("row(bigint,decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_index = "1"}
+                    {field_reference:field_index = "1"}
                 %14 = field_reference(%12) : ("row(bigint,decimal(12,2))") -> "bigint" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %15 = constant() : () -> "boolean" ()
-                    {constant_result = "{""type"":""boolean"",""value"":true}"}
+                    {constant:constant_result = "{""type"":""boolean"",""value"":true}"}
                 %16 = row(%13, %14, %15) : ("decimal(12,2)", "bigint", "boolean") -> "row(decimal(12,2),bigint,boolean)" ()
                 %17 = return(%16) : ("row(decimal(12,2),bigint,boolean)") -> "row(decimal(12,2),bigint,boolean)" ()
                     {ir.terminal = "true"}
@@ -37,175 +37,175 @@ IR version = 1
                 %20 = aggregate_call(%19) : ("multiset(row(decimal(12,2),bigint,boolean))") -> "varbinary" ({
                     ^arguments (%21 : "row(decimal(12,2),bigint,boolean)")
                         %22 = field_reference(%21) : ("row(decimal(12,2),bigint,boolean)") -> "decimal(12,2)" ()
-                            {field_index = "0"}
+                            {field_reference:field_index = "0"}
                         %23 = row(%22) : ("decimal(12,2)") -> "row(decimal(12,2))" ()
                         %24 = return(%23) : ("row(decimal(12,2))") -> "row(decimal(12,2))" ()
                             {ir.terminal = "true"}
                     }, {
                     ^filterSelector (%25 : "row(decimal(12,2),bigint,boolean)")
                         %26 = constant() : () -> "empty row" ()
-                            {constant_result = "{""type"":""empty row""}"}
+                            {constant:constant_result = "{""type"":""empty row""}"}
                         %27 = return(%26) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     }, {
                     ^maskSelector (%28 : "row(decimal(12,2),bigint,boolean)")
                         %29 = field_reference(%28) : ("row(decimal(12,2),bigint,boolean)") -> "boolean" ()
-                            {field_index = "2"}
+                            {field_reference:field_index = "2"}
                         %30 = row(%29) : ("boolean") -> "row(boolean)" ()
                         %31 = return(%30) : ("row(boolean)") -> "row(boolean)" ()
                             {ir.terminal = "true"}
                     }, {
                     ^orderingSelector (%32 : "row(decimal(12,2),bigint,boolean)")
                         %33 = constant() : () -> "empty row" ()
-                            {constant_result = "{""type"":""empty row""}"}
+                            {constant:constant_result = "{""type"":""empty row""}"}
                         %34 = return(%33) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     })
-                    {resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""avg""},""returnType"":""decimal(12,2)"",""argumentTypes"":[""decimal(12,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""avg(decimal(p,s)):decimal(p,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{""decimal(12,2)"":""decimal(12,2)""},""functionDependencies"":[]}", distinct = "false", aggregation_step = "PARTIAL"}
+                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""avg""},""returnType"":""decimal(12,2)"",""argumentTypes"":[""decimal(12,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""avg(decimal(p,s)):decimal(p,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{""decimal(12,2)"":""decimal(12,2)""},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:aggregation_step = "PARTIAL"}
                 %35 = row(%20) : ("varbinary") -> "row(varbinary)" ()
                 %36 = return(%35) : ("row(varbinary)") -> "row(varbinary)" ()
                     {ir.terminal = "true"}
             }, {
             ^groupingKeysSelector (%37 : "row(decimal(12,2),bigint,boolean)")
                 %38 = field_reference(%37) : ("row(decimal(12,2),bigint,boolean)") -> "bigint" ()
-                    {field_index = "1"}
+                    {field_reference:field_index = "1"}
                 %39 = row(%38) : ("bigint") -> "row(bigint)" ()
                 %40 = return(%39) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {grouping_sets_count = "1", global_grouping_sets = "[]", pre_grouped_indexes = "[]", aggregation_step = "PARTIAL", input_reducing = "true"}
+            {aggregation:grouping_sets_count = "1", aggregation:global_grouping_sets = "[]", aggregation:pre_grouped_indexes = "[]", aggregation:aggregation_step = "PARTIAL", aggregation:input_reducing = "true"}
         %41 = exchange(%18) : ("multiset(row(bigint,varbinary))") -> "multiset(row(bigint,varbinary))" ({
             ^inputSelector (%42 : "row(bigint,varbinary)")
                 %43 = field_reference(%42) : ("row(bigint,varbinary)") -> "bigint" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %44 = field_reference(%42) : ("row(bigint,varbinary)") -> "varbinary" ()
-                    {field_index = "1"}
+                    {field_reference:field_index = "1"}
                 %45 = row(%43, %44) : ("bigint", "varbinary") -> "row(bigint,varbinary)" ()
                 %46 = return(%45) : ("row(bigint,varbinary)") -> "row(bigint,varbinary)" ()
                     {ir.terminal = "true"}
             }, {
             ^boundArguments (%47 : "row(bigint,varbinary)")
                 %48 = field_reference(%47) : ("row(bigint,varbinary)") -> "bigint" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %49 = row(%48) : ("bigint") -> "row(bigint)" ()
                 %50 = return(%49) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             }, {
             ^orderingSelector (%51 : "row(bigint,varbinary)")
                 %52 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %53 = return(%52) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             })
-            {exchange_type = "REPARTITION", exchange_scope = "REMOTE", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+            {exchange:exchange_type = "REPARTITION", exchange:exchange_scope = "REMOTE", exchange:partitioning_handle = "[test: partitioning_handle attribute]", exchange:nullable_values = "[test: nullable_values attribute]", exchange:replicate_nulls_and_any = "false"}
         %54 = exchange(%41) : ("multiset(row(bigint,varbinary))") -> "multiset(row(bigint,varbinary))" ({
             ^inputSelector (%55 : "row(bigint,varbinary)")
                 %56 = field_reference(%55) : ("row(bigint,varbinary)") -> "bigint" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %57 = field_reference(%55) : ("row(bigint,varbinary)") -> "varbinary" ()
-                    {field_index = "1"}
+                    {field_reference:field_index = "1"}
                 %58 = row(%56, %57) : ("bigint", "varbinary") -> "row(bigint,varbinary)" ()
                 %59 = return(%58) : ("row(bigint,varbinary)") -> "row(bigint,varbinary)" ()
                     {ir.terminal = "true"}
             }, {
             ^boundArguments (%60 : "row(bigint,varbinary)")
                 %61 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %62 = return(%61) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             }, {
             ^orderingSelector (%63 : "row(bigint,varbinary)")
                 %64 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %65 = return(%64) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             })
-            {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+            {exchange:exchange_type = "GATHER", exchange:exchange_scope = "LOCAL", exchange:partitioning_handle = "[test: partitioning_handle attribute]", exchange:nullable_values = "[test: nullable_values attribute]", exchange:replicate_nulls_and_any = "false"}
         %66 = aggregation(%54) : ("multiset(row(bigint,varbinary))") -> "multiset(row(bigint,decimal(12,2)))" ({
             ^aggregates (%67 : "multiset(row(bigint,varbinary))")
                 %68 = aggregate_call(%67) : ("multiset(row(bigint,varbinary))") -> "decimal(12,2)" ({
                     ^arguments (%69 : "row(bigint,varbinary)")
                         %70 = field_reference(%69) : ("row(bigint,varbinary)") -> "varbinary" ()
-                            {field_index = "1"}
+                            {field_reference:field_index = "1"}
                         %71 = row(%70) : ("varbinary") -> "row(varbinary)" ()
                         %72 = return(%71) : ("row(varbinary)") -> "row(varbinary)" ()
                             {ir.terminal = "true"}
                     }, {
                     ^filterSelector (%73 : "row(bigint,varbinary)")
                         %74 = constant() : () -> "empty row" ()
-                            {constant_result = "{""type"":""empty row""}"}
+                            {constant:constant_result = "{""type"":""empty row""}"}
                         %75 = return(%74) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     }, {
                     ^maskSelector (%76 : "row(bigint,varbinary)")
                         %77 = constant() : () -> "empty row" ()
-                            {constant_result = "{""type"":""empty row""}"}
+                            {constant:constant_result = "{""type"":""empty row""}"}
                         %78 = return(%77) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     }, {
                     ^orderingSelector (%79 : "row(bigint,varbinary)")
                         %80 = constant() : () -> "empty row" ()
-                            {constant_result = "{""type"":""empty row""}"}
+                            {constant:constant_result = "{""type"":""empty row""}"}
                         %81 = return(%80) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     })
-                    {resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""avg""},""returnType"":""decimal(12,2)"",""argumentTypes"":[""decimal(12,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""avg(decimal(p,s)):decimal(p,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{""decimal(12,2)"":""decimal(12,2)""},""functionDependencies"":[]}", distinct = "false", aggregation_step = "FINAL"}
+                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""avg""},""returnType"":""decimal(12,2)"",""argumentTypes"":[""decimal(12,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""avg(decimal(p,s)):decimal(p,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{""decimal(12,2)"":""decimal(12,2)""},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:aggregation_step = "FINAL"}
                 %82 = row(%68) : ("decimal(12,2)") -> "row(decimal(12,2))" ()
                 %83 = return(%82) : ("row(decimal(12,2))") -> "row(decimal(12,2))" ()
                     {ir.terminal = "true"}
             }, {
             ^groupingKeysSelector (%84 : "row(bigint,varbinary)")
                 %85 = field_reference(%84) : ("row(bigint,varbinary)") -> "bigint" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %86 = row(%85) : ("bigint") -> "row(bigint)" ()
                 %87 = return(%86) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {grouping_sets_count = "1", global_grouping_sets = "[]", pre_grouped_indexes = "[]", aggregation_step = "FINAL", input_reducing = "false"}
+            {aggregation:grouping_sets_count = "1", aggregation:global_grouping_sets = "[]", aggregation:pre_grouped_indexes = "[]", aggregation:aggregation_step = "FINAL", aggregation:input_reducing = "false"}
         %88 = table_scan() : () -> "multiset(row(bigint,decimal(12,2),decimal(12,2)))" ()
-            {table_handle = "[test: table_handle attribute]", column_handles = "[test: column_handles attribute]", constraint = "[test: constraint attribute]", update_target = "false", use_connector_node_partitioning = "false"}
+            {table_scan:table_handle = "[test: table_handle attribute]", table_scan:column_handles = "[test: column_handles attribute]", table_scan:constraint = "[test: constraint attribute]", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false"}
         %89 = filter(%88) : ("multiset(row(bigint,decimal(12,2),decimal(12,2)))") -> "multiset(row(bigint,decimal(12,2),decimal(12,2)))" ({
             ^predicate (%90 : "row(bigint,decimal(12,2),decimal(12,2))")
                 %539 = field_reference(%90) : ("row(bigint,decimal(12,2),decimal(12,2))") -> "bigint" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %540 = constant() : () -> "varchar" ()
-                    {constant_result = "[test: constant_result attribute]"}
+                    {constant:constant_result = "[test: constant_result attribute]"}
                 %541 = constant() : () -> "varchar" ()
-                    {constant_result = "[test: constant_result attribute]"}
+                    {constant:constant_result = "[test: constant_result attribute]"}
                 %542 = constant() : () -> "boolean" ()
-                    {constant_result = "{""type"":""boolean"",""value"":false}"}
+                    {constant:constant_result = "{""type"":""boolean"",""value"":false}"}
                 %543 = constant() : () -> "integer" ()
-                    {constant_result = "{""type"":""integer"",""value"":0}"}
+                    {constant:constant_result = "{""type"":""integer"",""value"":0}"}
                 %544 = call(%539, %540, %541, %542, %543) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
-                    {resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %549 = return(%544) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             })
         %98 = table_scan() : () -> "multiset(row(bigint,varchar,varchar))" ()
-            {table_handle = "[test: table_handle attribute]", column_handles = "[test: column_handles attribute]", constraint = "[test: constraint attribute]", update_target = "false", use_connector_node_partitioning = "false"}
+            {table_scan:table_handle = "[test: table_handle attribute]", table_scan:column_handles = "[test: column_handles attribute]", table_scan:constraint = "[test: constraint attribute]", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false"}
         %99 = filter(%98) : ("multiset(row(bigint,varchar,varchar))") -> "multiset(row(bigint,varchar,varchar))" ({
             ^predicate (%100 : "row(bigint,varchar,varchar)")
                 %101 = field_reference(%100) : ("row(bigint,varchar,varchar)") -> "varchar" ()
-                    {field_index = "1"}
+                    {field_reference:field_index = "1"}
                 %102 = constant() : () -> "varchar" ()
-                    {constant_result = "[test: constant_result attribute]"}
+                    {constant:constant_result = "[test: constant_result attribute]"}
                 %103 = comparison(%101, %102) : ("varchar", "varchar") -> "boolean" ()
-                    {comparison_operator = "EQUAL"}
+                    {comparison:comparison_operator = "EQUAL"}
                 %104 = field_reference(%100) : ("row(bigint,varchar,varchar)") -> "varchar" ()
-                    {field_index = "2"}
+                    {field_reference:field_index = "2"}
                 %105 = constant() : () -> "varchar" ()
-                    {constant_result = "[test: constant_result attribute]"}
+                    {constant:constant_result = "[test: constant_result attribute]"}
                 %106 = comparison(%104, %105) : ("varchar", "varchar") -> "boolean" ()
-                    {comparison_operator = "EQUAL"}
+                    {comparison:comparison_operator = "EQUAL"}
                 %107 = logical(%103, %106) : ("boolean", "boolean") -> "boolean" ()
-                    {logical_operator = "AND"}
+                    {logical:logical_operator = "AND"}
                 %108 = return(%107) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             })
         %109 = project(%99) : ("multiset(row(bigint,varchar,varchar))") -> "multiset(row(bigint))" ({
             ^assignments (%110 : "row(bigint,varchar,varchar)")
                 %111 = field_reference(%110) : ("row(bigint,varchar,varchar)") -> "bigint" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %112 = row(%111) : ("bigint") -> "row(bigint)" ()
                 %113 = return(%112) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
@@ -213,348 +213,348 @@ IR version = 1
         %114 = exchange(%109) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
             ^inputSelector (%115 : "row(bigint)")
                 %116 = field_reference(%115) : ("row(bigint)") -> "bigint" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %117 = row(%116) : ("bigint") -> "row(bigint)" ()
                 %118 = return(%117) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             }, {
             ^boundArguments (%119 : "row(bigint)")
                 %120 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %121 = return(%120) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             }, {
             ^orderingSelector (%122 : "row(bigint)")
                 %123 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %124 = return(%123) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             })
-            {exchange_type = "REPLICATE", exchange_scope = "REMOTE", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+            {exchange:exchange_type = "REPLICATE", exchange:exchange_scope = "REMOTE", exchange:partitioning_handle = "[test: partitioning_handle attribute]", exchange:nullable_values = "[test: nullable_values attribute]", exchange:replicate_nulls_and_any = "false"}
         %125 = exchange(%114) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
             ^inputSelector (%126 : "row(bigint)")
                 %127 = field_reference(%126) : ("row(bigint)") -> "bigint" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %128 = row(%127) : ("bigint") -> "row(bigint)" ()
                 %129 = return(%128) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             }, {
             ^boundArguments (%130 : "row(bigint)")
                 %131 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %132 = return(%131) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             }, {
             ^orderingSelector (%133 : "row(bigint)")
                 %134 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %135 = return(%134) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             })
-            {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+            {exchange:exchange_type = "GATHER", exchange:exchange_scope = "LOCAL", exchange:partitioning_handle = "[test: partitioning_handle attribute]", exchange:nullable_values = "[test: nullable_values attribute]", exchange:replicate_nulls_and_any = "false"}
         %136 = join(%89, %125) : ("multiset(row(bigint,decimal(12,2),decimal(12,2)))", "multiset(row(bigint))") -> "multiset(row(bigint,decimal(12,2),decimal(12,2)))" ({
             ^leftCriteriaSelector (%137 : "row(bigint,decimal(12,2),decimal(12,2))")
                 %138 = field_reference(%137) : ("row(bigint,decimal(12,2),decimal(12,2))") -> "bigint" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %139 = row(%138) : ("bigint") -> "row(bigint)" ()
                 %140 = return(%139) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             }, {
             ^rightCriteriaSelector (%141 : "row(bigint)")
                 %142 = field_reference(%141) : ("row(bigint)") -> "bigint" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %143 = row(%142) : ("bigint") -> "row(bigint)" ()
                 %144 = return(%143) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             }, {
             ^filter (%145 : "row(bigint,decimal(12,2),decimal(12,2))", %146 : "row(bigint)")
                 %147 = constant() : () -> "boolean" ()
-                    {constant_result = "{""type"":""boolean"",""value"":true}"}
+                    {constant:constant_result = "{""type"":""boolean"",""value"":true}"}
                 %148 = return(%147) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             }, {
             ^leftOutputSelector (%149 : "row(bigint,decimal(12,2),decimal(12,2))")
                 %150 = field_reference(%149) : ("row(bigint,decimal(12,2),decimal(12,2))") -> "bigint" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %151 = field_reference(%149) : ("row(bigint,decimal(12,2),decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_index = "1"}
+                    {field_reference:field_index = "1"}
                 %152 = field_reference(%149) : ("row(bigint,decimal(12,2),decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_index = "2"}
+                    {field_reference:field_index = "2"}
                 %153 = row(%150, %151, %152) : ("bigint", "decimal(12,2)", "decimal(12,2)") -> "row(bigint,decimal(12,2),decimal(12,2))" ()
                 %154 = return(%153) : ("row(bigint,decimal(12,2),decimal(12,2))") -> "row(bigint,decimal(12,2),decimal(12,2))" ()
                     {ir.terminal = "true"}
             }, {
             ^rightOutputSelector (%155 : "row(bigint)")
                 %156 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %157 = return(%156) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             }, {
             ^dynamicFilterTargetSelector (%158 : "row(bigint)")
                 %159 = field_reference(%158) : ("row(bigint)") -> "bigint" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %566 = row(%159) : ("bigint") -> "row(bigint)" ()
                 %567 = return(%566) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join_type = "INNER", may_skip_output_duplicates = "false", distribution_type = "REPLICATED", dynamic_filter_ids = "[""df_1108""]", statistics_and_cost_summary = "{""outputRowCount"":1.3416384810437508E7,""outputSizeInBytes"":3.622423898818127E8,""cpuCost"":3.335303278297731E11,""memoryCost"":3.2199378772351176E7,""networkCost"":3.2199378772351176E7}"}
+            {join:join_type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_1108""]", join:statistics_and_cost_summary = "{""outputRowCount"":1.3416384810437508E7,""outputSizeInBytes"":3.622423898818127E8,""cpuCost"":3.335303278297731E11,""memoryCost"":3.2199378772351176E7,""networkCost"":3.2199378772351176E7}"}
         %162 = exchange(%136) : ("multiset(row(bigint,decimal(12,2),decimal(12,2)))") -> "multiset(row(bigint,decimal(12,2),decimal(12,2)))" ({
             ^inputSelector (%163 : "row(bigint,decimal(12,2),decimal(12,2))")
                 %164 = field_reference(%163) : ("row(bigint,decimal(12,2),decimal(12,2))") -> "bigint" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %165 = field_reference(%163) : ("row(bigint,decimal(12,2),decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_index = "1"}
+                    {field_reference:field_index = "1"}
                 %166 = field_reference(%163) : ("row(bigint,decimal(12,2),decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_index = "2"}
+                    {field_reference:field_index = "2"}
                 %167 = row(%164, %165, %166) : ("bigint", "decimal(12,2)", "decimal(12,2)") -> "row(bigint,decimal(12,2),decimal(12,2))" ()
                 %168 = return(%167) : ("row(bigint,decimal(12,2),decimal(12,2))") -> "row(bigint,decimal(12,2),decimal(12,2))" ()
                     {ir.terminal = "true"}
             }, {
             ^boundArguments (%169 : "row(bigint,decimal(12,2),decimal(12,2))")
                 %170 = field_reference(%169) : ("row(bigint,decimal(12,2),decimal(12,2))") -> "bigint" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %171 = row(%170) : ("bigint") -> "row(bigint)" ()
                 %172 = return(%171) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             }, {
             ^orderingSelector (%173 : "row(bigint,decimal(12,2),decimal(12,2))")
                 %174 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %175 = return(%174) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             })
-            {exchange_type = "REPARTITION", exchange_scope = "REMOTE", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+            {exchange:exchange_type = "REPARTITION", exchange:exchange_scope = "REMOTE", exchange:partitioning_handle = "[test: partitioning_handle attribute]", exchange:nullable_values = "[test: nullable_values attribute]", exchange:replicate_nulls_and_any = "false"}
         %176 = exchange(%162) : ("multiset(row(bigint,decimal(12,2),decimal(12,2)))") -> "multiset(row(bigint,decimal(12,2),decimal(12,2)))" ({
             ^inputSelector (%177 : "row(bigint,decimal(12,2),decimal(12,2))")
                 %178 = field_reference(%177) : ("row(bigint,decimal(12,2),decimal(12,2))") -> "bigint" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %179 = field_reference(%177) : ("row(bigint,decimal(12,2),decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_index = "1"}
+                    {field_reference:field_index = "1"}
                 %180 = field_reference(%177) : ("row(bigint,decimal(12,2),decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_index = "2"}
+                    {field_reference:field_index = "2"}
                 %181 = row(%178, %179, %180) : ("bigint", "decimal(12,2)", "decimal(12,2)") -> "row(bigint,decimal(12,2),decimal(12,2))" ()
                 %182 = return(%181) : ("row(bigint,decimal(12,2),decimal(12,2))") -> "row(bigint,decimal(12,2),decimal(12,2))" ()
                     {ir.terminal = "true"}
             }, {
             ^boundArguments (%183 : "row(bigint,decimal(12,2),decimal(12,2))")
                 %184 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %185 = return(%184) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             }, {
             ^orderingSelector (%186 : "row(bigint,decimal(12,2),decimal(12,2))")
                 %187 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %188 = return(%187) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             })
-            {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+            {exchange:exchange_type = "GATHER", exchange:exchange_scope = "LOCAL", exchange:partitioning_handle = "[test: partitioning_handle attribute]", exchange:nullable_values = "[test: nullable_values attribute]", exchange:replicate_nulls_and_any = "false"}
         %189 = join(%66, %176) : ("multiset(row(bigint,decimal(12,2)))", "multiset(row(bigint,decimal(12,2),decimal(12,2)))") -> "multiset(row(decimal(12,2),decimal(12,2),decimal(12,2)))" ({
             ^leftCriteriaSelector (%190 : "row(bigint,decimal(12,2))")
                 %191 = field_reference(%190) : ("row(bigint,decimal(12,2))") -> "bigint" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %192 = row(%191) : ("bigint") -> "row(bigint)" ()
                 %193 = return(%192) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             }, {
             ^rightCriteriaSelector (%194 : "row(bigint,decimal(12,2),decimal(12,2))")
                 %195 = field_reference(%194) : ("row(bigint,decimal(12,2),decimal(12,2))") -> "bigint" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %196 = row(%195) : ("bigint") -> "row(bigint)" ()
                 %197 = return(%196) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             }, {
             ^filter (%198 : "row(bigint,decimal(12,2))", %199 : "row(bigint,decimal(12,2),decimal(12,2))")
                 %200 = constant() : () -> "boolean" ()
-                    {constant_result = "{""type"":""boolean"",""value"":true}"}
+                    {constant:constant_result = "{""type"":""boolean"",""value"":true}"}
                 %201 = return(%200) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             }, {
             ^leftOutputSelector (%202 : "row(bigint,decimal(12,2))")
                 %203 = field_reference(%202) : ("row(bigint,decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_index = "1"}
+                    {field_reference:field_index = "1"}
                 %204 = row(%203) : ("decimal(12,2)") -> "row(decimal(12,2))" ()
                 %205 = return(%204) : ("row(decimal(12,2))") -> "row(decimal(12,2))" ()
                     {ir.terminal = "true"}
             }, {
             ^rightOutputSelector (%206 : "row(bigint,decimal(12,2),decimal(12,2))")
                 %207 = field_reference(%206) : ("row(bigint,decimal(12,2),decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_index = "1"}
+                    {field_reference:field_index = "1"}
                 %208 = field_reference(%206) : ("row(bigint,decimal(12,2),decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_index = "2"}
+                    {field_reference:field_index = "2"}
                 %209 = row(%207, %208) : ("decimal(12,2)", "decimal(12,2)") -> "row(decimal(12,2),decimal(12,2))" ()
                 %210 = return(%209) : ("row(decimal(12,2),decimal(12,2))") -> "row(decimal(12,2),decimal(12,2))" ()
                     {ir.terminal = "true"}
             }, {
             ^dynamicFilterTargetSelector (%211 : "row(bigint,decimal(12,2),decimal(12,2))")
                 %212 = field_reference(%211) : ("row(bigint,decimal(12,2),decimal(12,2))") -> "bigint" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %568 = row(%212) : ("bigint") -> "row(bigint)" ()
                 %569 = return(%568) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
-            {join_type = "RIGHT", may_skip_output_duplicates = "false", distribution_type = "PARTITIONED", dynamic_filter_ids = "[""df_1106""]"}
+            {join:join_type = "RIGHT", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_1106""]"}
         %215 = values() : () -> "multiset(row(decimal(12,2),boolean))" ({
             ^row
                 %216 = constant() : () -> "decimal(12,2)" ()
-                    {constant_result = "{""type"":""decimal(12,2)""}"}
+                    {constant:constant_result = "{""type"":""decimal(12,2)""}"}
                 %217 = constant() : () -> "boolean" ()
-                    {constant_result = "{""type"":""boolean""}"}
+                    {constant:constant_result = "{""type"":""boolean""}"}
                 %218 = row(%216, %217) : ("decimal(12,2)", "boolean") -> "row(decimal(12,2),boolean)" ()
                 %219 = return(%218) : ("row(decimal(12,2),boolean)") -> "row(decimal(12,2),boolean)" ()
                     {ir.terminal = "true"}
             })
-            {cardinality = "1"}
+            {values:cardinality = "1"}
         %220 = aggregation(%215) : ("multiset(row(decimal(12,2),boolean))") -> "multiset(row(decimal(12,2)))" ({
             ^aggregates (%221 : "multiset(row(decimal(12,2),boolean))")
                 %222 = aggregate_call(%221) : ("multiset(row(decimal(12,2),boolean))") -> "decimal(12,2)" ({
                     ^arguments (%223 : "row(decimal(12,2),boolean)")
                         %224 = field_reference(%223) : ("row(decimal(12,2),boolean)") -> "decimal(12,2)" ()
-                            {field_index = "0"}
+                            {field_reference:field_index = "0"}
                         %225 = row(%224) : ("decimal(12,2)") -> "row(decimal(12,2))" ()
                         %226 = return(%225) : ("row(decimal(12,2))") -> "row(decimal(12,2))" ()
                             {ir.terminal = "true"}
                     }, {
                     ^filterSelector (%227 : "row(decimal(12,2),boolean)")
                         %228 = constant() : () -> "empty row" ()
-                            {constant_result = "{""type"":""empty row""}"}
+                            {constant:constant_result = "{""type"":""empty row""}"}
                         %229 = return(%228) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     }, {
                     ^maskSelector (%230 : "row(decimal(12,2),boolean)")
                         %231 = field_reference(%230) : ("row(decimal(12,2),boolean)") -> "boolean" ()
-                            {field_index = "1"}
+                            {field_reference:field_index = "1"}
                         %232 = row(%231) : ("boolean") -> "row(boolean)" ()
                         %233 = return(%232) : ("row(boolean)") -> "row(boolean)" ()
                             {ir.terminal = "true"}
                     }, {
                     ^orderingSelector (%234 : "row(decimal(12,2),boolean)")
                         %235 = constant() : () -> "empty row" ()
-                            {constant_result = "{""type"":""empty row""}"}
+                            {constant:constant_result = "{""type"":""empty row""}"}
                         %236 = return(%235) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     })
-                    {resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""avg""},""returnType"":""decimal(12,2)"",""argumentTypes"":[""decimal(12,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""avg(decimal(p,s)):decimal(p,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{""decimal(12,2)"":""decimal(12,2)""},""functionDependencies"":[]}", distinct = "false", aggregation_step = "SINGLE"}
+                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""avg""},""returnType"":""decimal(12,2)"",""argumentTypes"":[""decimal(12,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""avg(decimal(p,s)):decimal(p,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{""decimal(12,2)"":""decimal(12,2)""},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:aggregation_step = "SINGLE"}
                 %237 = row(%222) : ("decimal(12,2)") -> "row(decimal(12,2))" ()
                 %238 = return(%237) : ("row(decimal(12,2))") -> "row(decimal(12,2))" ()
                     {ir.terminal = "true"}
             }, {
             ^groupingKeysSelector (%239 : "row(decimal(12,2),boolean)")
                 %240 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %241 = return(%240) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             })
-            {grouping_sets_count = "1", global_grouping_sets = "[0]", pre_grouped_indexes = "[]", aggregation_step = "SINGLE", input_reducing = "false"}
+            {aggregation:grouping_sets_count = "1", aggregation:global_grouping_sets = "[0]", aggregation:pre_grouped_indexes = "[]", aggregation:aggregation_step = "SINGLE", aggregation:input_reducing = "false"}
         %242 = exchange(%220) : ("multiset(row(decimal(12,2)))") -> "multiset(row(decimal(12,2)))" ({
             ^inputSelector (%243 : "row(decimal(12,2))")
                 %244 = field_reference(%243) : ("row(decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %245 = row(%244) : ("decimal(12,2)") -> "row(decimal(12,2))" ()
                 %246 = return(%245) : ("row(decimal(12,2))") -> "row(decimal(12,2))" ()
                     {ir.terminal = "true"}
             }, {
             ^boundArguments (%247 : "row(decimal(12,2))")
                 %248 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %249 = return(%248) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             }, {
             ^orderingSelector (%250 : "row(decimal(12,2))")
                 %251 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %252 = return(%251) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             })
-            {exchange_type = "REPLICATE", exchange_scope = "REMOTE", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+            {exchange:exchange_type = "REPLICATE", exchange:exchange_scope = "REMOTE", exchange:partitioning_handle = "[test: partitioning_handle attribute]", exchange:nullable_values = "[test: nullable_values attribute]", exchange:replicate_nulls_and_any = "false"}
         %253 = exchange(%242) : ("multiset(row(decimal(12,2)))") -> "multiset(row(decimal(12,2)))" ({
             ^inputSelector (%254 : "row(decimal(12,2))")
                 %255 = field_reference(%254) : ("row(decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %256 = row(%255) : ("decimal(12,2)") -> "row(decimal(12,2))" ()
                 %257 = return(%256) : ("row(decimal(12,2))") -> "row(decimal(12,2))" ()
                     {ir.terminal = "true"}
             }, {
             ^boundArguments (%258 : "row(decimal(12,2))")
                 %259 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %260 = return(%259) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             }, {
             ^orderingSelector (%261 : "row(decimal(12,2))")
                 %262 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %263 = return(%262) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             })
-            {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+            {exchange:exchange_type = "GATHER", exchange:exchange_scope = "LOCAL", exchange:partitioning_handle = "[test: partitioning_handle attribute]", exchange:nullable_values = "[test: nullable_values attribute]", exchange:replicate_nulls_and_any = "false"}
         %264 = join(%189, %253) : ("multiset(row(decimal(12,2),decimal(12,2),decimal(12,2)))", "multiset(row(decimal(12,2)))") -> "multiset(row(decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2)))" ({
             ^leftCriteriaSelector (%265 : "row(decimal(12,2),decimal(12,2),decimal(12,2))")
                 %266 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %267 = return(%266) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             }, {
             ^rightCriteriaSelector (%268 : "row(decimal(12,2))")
                 %269 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %270 = return(%269) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             }, {
             ^filter (%271 : "row(decimal(12,2),decimal(12,2),decimal(12,2))", %272 : "row(decimal(12,2))")
                 %273 = constant() : () -> "boolean" ()
-                    {constant_result = "{""type"":""boolean"",""value"":true}"}
+                    {constant:constant_result = "{""type"":""boolean"",""value"":true}"}
                 %274 = return(%273) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             }, {
             ^leftOutputSelector (%275 : "row(decimal(12,2),decimal(12,2),decimal(12,2))")
                 %276 = field_reference(%275) : ("row(decimal(12,2),decimal(12,2),decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %277 = field_reference(%275) : ("row(decimal(12,2),decimal(12,2),decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_index = "1"}
+                    {field_reference:field_index = "1"}
                 %278 = field_reference(%275) : ("row(decimal(12,2),decimal(12,2),decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_index = "2"}
+                    {field_reference:field_index = "2"}
                 %279 = row(%276, %277, %278) : ("decimal(12,2)", "decimal(12,2)", "decimal(12,2)") -> "row(decimal(12,2),decimal(12,2),decimal(12,2))" ()
                 %280 = return(%279) : ("row(decimal(12,2),decimal(12,2),decimal(12,2))") -> "row(decimal(12,2),decimal(12,2),decimal(12,2))" ()
                     {ir.terminal = "true"}
             }, {
             ^rightOutputSelector (%281 : "row(decimal(12,2))")
                 %282 = field_reference(%281) : ("row(decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %283 = row(%282) : ("decimal(12,2)") -> "row(decimal(12,2))" ()
                 %284 = return(%283) : ("row(decimal(12,2))") -> "row(decimal(12,2))" ()
                     {ir.terminal = "true"}
             }, {
             ^dynamicFilterTargetSelector (%285 : "row(decimal(12,2))")
                 %286 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %287 = return(%286) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             })
-            {join_type = "INNER", may_skip_output_duplicates = "false", distribution_type = "REPLICATED", dynamic_filter_ids = "[]"}
+            {join:join_type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[]"}
         %288 = filter(%264) : ("multiset(row(decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2)))") -> "multiset(row(decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2)))" ({
             ^predicate (%289 : "row(decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2))")
                 %290 = field_reference(%289) : ("row(decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_index = "1"}
+                    {field_reference:field_index = "1"}
                 %291 = cast(%290) : ("decimal(12,2)") -> "decimal(14,3)" ()
                 %292 = field_reference(%289) : ("row(decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %293 = field_reference(%289) : ("row(decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_index = "3"}
+                    {field_reference:field_index = "3"}
                 %294 = coalesce(%292, %293) : ("decimal(12,2)", "decimal(12,2)") -> "decimal(12,2)" ()
                 %295 = constant() : () -> "decimal(1,1)" ()
-                    {constant_result = "{""type"":""decimal(1,1)"",""value"":2}"}
+                    {constant:constant_result = "{""type"":""decimal(1,1)"",""value"":2}"}
                 %296 = call(%294, %295) : ("decimal(12,2)", "decimal(1,1)") -> "decimal(14,3)" ()
-                    {resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(14,3)"",""argumentTypes"":[""decimal(12,2)"",""decimal(1,1)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min(a_precision + b_precision + 1, 38),r_scale:min(a_scale + b_scale, if(a_precision + b_precision + 1 - (a_scale + b_scale) > 32, 6, 38 - (a_precision + b_precision + 1 - (a_scale + b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(14,3)"",""argumentTypes"":[""decimal(12,2)"",""decimal(1,1)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min(a_precision + b_precision + 1, 38),r_scale:min(a_scale + b_scale, if(a_precision + b_precision + 1 - (a_scale + b_scale) > 32, 6, 38 - (a_precision + b_precision + 1 - (a_scale + b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %297 = comparison(%291, %296) : ("decimal(14,3)", "decimal(14,3)") -> "boolean" ()
-                    {comparison_operator = "LESS_THAN"}
+                    {comparison:comparison_operator = "LESS_THAN"}
                 %298 = return(%297) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             })
         %299 = project(%288) : ("multiset(row(decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2)))") -> "multiset(row(decimal(12,2)))" ({
             ^assignments (%300 : "row(decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2))")
                 %301 = field_reference(%300) : ("row(decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2))") -> "decimal(12,2)" ()
-                    {field_index = "2"}
+                    {field_reference:field_index = "2"}
                 %302 = row(%301) : ("decimal(12,2)") -> "row(decimal(12,2))" ()
                 %303 = return(%302) : ("row(decimal(12,2))") -> "row(decimal(12,2))" ()
                     {ir.terminal = "true"}
@@ -564,131 +564,131 @@ IR version = 1
                 %306 = aggregate_call(%305) : ("multiset(row(decimal(12,2)))") -> "varbinary" ({
                     ^arguments (%307 : "row(decimal(12,2))")
                         %308 = field_reference(%307) : ("row(decimal(12,2))") -> "decimal(12,2)" ()
-                            {field_index = "0"}
+                            {field_reference:field_index = "0"}
                         %309 = row(%308) : ("decimal(12,2)") -> "row(decimal(12,2))" ()
                         %310 = return(%309) : ("row(decimal(12,2))") -> "row(decimal(12,2))" ()
                             {ir.terminal = "true"}
                     }, {
                     ^filterSelector (%311 : "row(decimal(12,2))")
                         %312 = constant() : () -> "empty row" ()
-                            {constant_result = "{""type"":""empty row""}"}
+                            {constant:constant_result = "{""type"":""empty row""}"}
                         %313 = return(%312) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     }, {
                     ^maskSelector (%314 : "row(decimal(12,2))")
                         %315 = constant() : () -> "empty row" ()
-                            {constant_result = "{""type"":""empty row""}"}
+                            {constant:constant_result = "{""type"":""empty row""}"}
                         %316 = return(%315) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     }, {
                     ^orderingSelector (%317 : "row(decimal(12,2))")
                         %318 = constant() : () -> "empty row" ()
-                            {constant_result = "{""type"":""empty row""}"}
+                            {constant:constant_result = "{""type"":""empty row""}"}
                         %319 = return(%318) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     })
-                    {resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(12,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", distinct = "false", aggregation_step = "PARTIAL"}
+                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(12,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:aggregation_step = "PARTIAL"}
                 %320 = row(%306) : ("varbinary") -> "row(varbinary)" ()
                 %321 = return(%320) : ("row(varbinary)") -> "row(varbinary)" ()
                     {ir.terminal = "true"}
             }, {
             ^groupingKeysSelector (%322 : "row(decimal(12,2))")
                 %323 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %324 = return(%323) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             })
-            {grouping_sets_count = "1", global_grouping_sets = "[0]", pre_grouped_indexes = "[]", aggregation_step = "PARTIAL", input_reducing = "true"}
+            {aggregation:grouping_sets_count = "1", aggregation:global_grouping_sets = "[0]", aggregation:pre_grouped_indexes = "[]", aggregation:aggregation_step = "PARTIAL", aggregation:input_reducing = "true"}
         %325 = exchange(%304) : ("multiset(row(varbinary))") -> "multiset(row(varbinary))" ({
             ^inputSelector (%326 : "row(varbinary)")
                 %327 = field_reference(%326) : ("row(varbinary)") -> "varbinary" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %328 = row(%327) : ("varbinary") -> "row(varbinary)" ()
                 %329 = return(%328) : ("row(varbinary)") -> "row(varbinary)" ()
                     {ir.terminal = "true"}
             }, {
             ^boundArguments (%330 : "row(varbinary)")
                 %331 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %332 = return(%331) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             }, {
             ^orderingSelector (%333 : "row(varbinary)")
                 %334 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %335 = return(%334) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             })
-            {exchange_type = "GATHER", exchange_scope = "REMOTE", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+            {exchange:exchange_type = "GATHER", exchange:exchange_scope = "REMOTE", exchange:partitioning_handle = "[test: partitioning_handle attribute]", exchange:nullable_values = "[test: nullable_values attribute]", exchange:replicate_nulls_and_any = "false"}
         %336 = exchange(%325) : ("multiset(row(varbinary))") -> "multiset(row(varbinary))" ({
             ^inputSelector (%337 : "row(varbinary)")
                 %338 = field_reference(%337) : ("row(varbinary)") -> "varbinary" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %339 = row(%338) : ("varbinary") -> "row(varbinary)" ()
                 %340 = return(%339) : ("row(varbinary)") -> "row(varbinary)" ()
                     {ir.terminal = "true"}
             }, {
             ^boundArguments (%341 : "row(varbinary)")
                 %342 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %343 = return(%342) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             }, {
             ^orderingSelector (%344 : "row(varbinary)")
                 %345 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %346 = return(%345) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             })
-            {exchange_type = "GATHER", exchange_scope = "LOCAL", partitioning_handle = "[test: partitioning_handle attribute]", nullable_values = "[test: nullable_values attribute]", replicate_nulls_and_any = "false"}
+            {exchange:exchange_type = "GATHER", exchange:exchange_scope = "LOCAL", exchange:partitioning_handle = "[test: partitioning_handle attribute]", exchange:nullable_values = "[test: nullable_values attribute]", exchange:replicate_nulls_and_any = "false"}
         %347 = aggregation(%336) : ("multiset(row(varbinary))") -> "multiset(row(decimal(38,2)))" ({
             ^aggregates (%348 : "multiset(row(varbinary))")
                 %349 = aggregate_call(%348) : ("multiset(row(varbinary))") -> "decimal(38,2)" ({
                     ^arguments (%350 : "row(varbinary)")
                         %351 = field_reference(%350) : ("row(varbinary)") -> "varbinary" ()
-                            {field_index = "0"}
+                            {field_reference:field_index = "0"}
                         %352 = row(%351) : ("varbinary") -> "row(varbinary)" ()
                         %353 = return(%352) : ("row(varbinary)") -> "row(varbinary)" ()
                             {ir.terminal = "true"}
                     }, {
                     ^filterSelector (%354 : "row(varbinary)")
                         %355 = constant() : () -> "empty row" ()
-                            {constant_result = "{""type"":""empty row""}"}
+                            {constant:constant_result = "{""type"":""empty row""}"}
                         %356 = return(%355) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     }, {
                     ^maskSelector (%357 : "row(varbinary)")
                         %358 = constant() : () -> "empty row" ()
-                            {constant_result = "{""type"":""empty row""}"}
+                            {constant:constant_result = "{""type"":""empty row""}"}
                         %359 = return(%358) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     }, {
                     ^orderingSelector (%360 : "row(varbinary)")
                         %361 = constant() : () -> "empty row" ()
-                            {constant_result = "{""type"":""empty row""}"}
+                            {constant:constant_result = "{""type"":""empty row""}"}
                         %362 = return(%361) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     })
-                    {resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(12,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", distinct = "false", aggregation_step = "FINAL"}
+                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""decimal(38,2)"",""argumentTypes"":[""decimal(12,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(decimal(p,s)):decimal(38,s)"",""functionKind"":""AGGREGATE"",""deterministic"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:aggregation_step = "FINAL"}
                 %363 = row(%349) : ("decimal(38,2)") -> "row(decimal(38,2))" ()
                 %364 = return(%363) : ("row(decimal(38,2))") -> "row(decimal(38,2))" ()
                     {ir.terminal = "true"}
             }, {
             ^groupingKeysSelector (%365 : "row(varbinary)")
                 %366 = constant() : () -> "empty row" ()
-                    {constant_result = "{""type"":""empty row""}"}
+                    {constant:constant_result = "{""type"":""empty row""}"}
                 %367 = return(%366) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true"}
             })
-            {grouping_sets_count = "1", global_grouping_sets = "[0]", pre_grouped_indexes = "[]", aggregation_step = "FINAL", input_reducing = "false"}
+            {aggregation:grouping_sets_count = "1", aggregation:global_grouping_sets = "[0]", aggregation:pre_grouped_indexes = "[]", aggregation:aggregation_step = "FINAL", aggregation:input_reducing = "false"}
         %368 = project(%347) : ("multiset(row(decimal(38,2)))") -> "multiset(row(decimal(38,6)))" ({
             ^assignments (%369 : "row(decimal(38,2))")
                 %370 = field_reference(%369) : ("row(decimal(38,2))") -> "decimal(38,2)" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %371 = constant() : () -> "decimal(2,1)" ()
-                    {constant_result = "{""type"":""decimal(2,1)"",""value"":70}"}
+                    {constant:constant_result = "{""type"":""decimal(2,1)"",""value"":70}"}
                 %372 = call(%370, %371) : ("decimal(38,2)", "decimal(2,1)") -> "decimal(38,6)" ()
-                    {resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$divide""},""returnType"":""decimal(38,6)"",""argumentTypes"":[""decimal(38,2)"",""decimal(2,1)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$divide<r_precision:min(a_precision - a_scale + b_scale + max(6, a_scale + b_precision + 1), 38),r_scale:min(max(6, a_scale + b_precision + 1), if(a_precision - a_scale + b_scale + max(6, a_scale + b_precision + 1) - max(6, a_scale + b_precision + 1) > 32, 6, 38 - (a_precision - a_scale + b_scale + max(6, a_scale + b_precision + 1) - max(6, a_scale + b_precision + 1))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$divide""},""returnType"":""decimal(38,6)"",""argumentTypes"":[""decimal(38,2)"",""decimal(2,1)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$divide<r_precision:min(a_precision - a_scale + b_scale + max(6, a_scale + b_precision + 1), 38),r_scale:min(max(6, a_scale + b_precision + 1), if(a_precision - a_scale + b_scale + max(6, a_scale + b_precision + 1) - max(6, a_scale + b_precision + 1) > 32, 6, 38 - (a_precision - a_scale + b_scale + max(6, a_scale + b_precision + 1) - max(6, a_scale + b_precision + 1))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %373 = row(%372) : ("decimal(38,6)") -> "row(decimal(38,6))" ()
                 %374 = return(%373) : ("row(decimal(38,6))") -> "row(decimal(38,6))" ()
                     {ir.terminal = "true"}
@@ -696,11 +696,11 @@ IR version = 1
         %375 = output(%368) : ("multiset(row(decimal(38,6)))") -> "boolean" ({
             ^outputFieldSelector (%376 : "row(decimal(38,6))")
                 %377 = field_reference(%376) : ("row(decimal(38,6))") -> "decimal(38,6)" ()
-                    {field_index = "0"}
+                    {field_reference:field_index = "0"}
                 %378 = row(%377) : ("decimal(38,6)") -> "row(decimal(38,6))" ()
                 %379 = return(%378) : ("row(decimal(38,6))") -> "row(decimal(38,6))" ()
                     {ir.terminal = "true"}
             })
-            {output_names = "[""avg_yearly""]", ir.terminal = "true"}
+            {output:output_names = "[""avg_yearly""]", ir.terminal = "true"}
     })
     {ir.terminal = "true"}

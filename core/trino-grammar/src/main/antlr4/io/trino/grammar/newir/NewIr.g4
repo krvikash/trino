@@ -64,7 +64,7 @@ operationName
     ;
 
 attributeName
-    : (dialectName '.')? identifier
+    : (dialectName '.')? (identifier | identifier ':' identifier)
     ;
 
 type

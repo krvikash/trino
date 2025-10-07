@@ -13,6 +13,7 @@
  */
 package io.trino.sql.dialect.trino;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.airlift.json.JsonCodec;
@@ -23,74 +24,65 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
-import io.trino.sql.dialect.trino.Attributes.AttributeMetadata;
-import io.trino.sql.dialect.trino.Attributes.NullableValues;
+import io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ArrayOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.BetweenOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.BindOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.CallOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.CaseOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.CastOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.CoalesceOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.CorrelatedJoinOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.DynamicFilterSourceOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ExplainAnalyzeOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.FieldReferenceOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.FilterOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.GroupIdOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.InOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.IsNullOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.LambdaOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.NullIfOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.OutputOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ProjectOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.QueryOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ReturnOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.RowOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.SortOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.SwitchOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ValuesOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.WindowOperationMetadata;
 import io.trino.sql.planner.PartitioningHandle;
 
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
+import java.util.Set;
 
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
-import static io.trino.sql.dialect.trino.Attributes.AGGREGATION_STEP;
-import static io.trino.sql.dialect.trino.Attributes.BUCKET_TO_PARTITION;
-import static io.trino.sql.dialect.trino.Attributes.CARDINALITY;
-import static io.trino.sql.dialect.trino.Attributes.COLUMN_HANDLES;
-import static io.trino.sql.dialect.trino.Attributes.COMPARISON_OPERATOR;
-import static io.trino.sql.dialect.trino.Attributes.CONSTANT_RESULT;
-import static io.trino.sql.dialect.trino.Attributes.CONSTRAINT;
-import static io.trino.sql.dialect.trino.Attributes.DISTINCT;
-import static io.trino.sql.dialect.trino.Attributes.DISTRIBUTION_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.DYNAMIC_FILTER_IDS;
-import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_SCOPE;
-import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.FIELD_INDEX;
-import static io.trino.sql.dialect.trino.Attributes.FRAME_END_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.FRAME_START_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.FRAME_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.GLOBAL_GROUPING_SETS;
-import static io.trino.sql.dialect.trino.Attributes.GROUPING_SETS;
-import static io.trino.sql.dialect.trino.Attributes.GROUPING_SETS_COUNT;
-import static io.trino.sql.dialect.trino.Attributes.GROUP_ID_INDEX;
-import static io.trino.sql.dialect.trino.Attributes.IGNORE_NULLS;
-import static io.trino.sql.dialect.trino.Attributes.INPUT_REDUCING;
-import static io.trino.sql.dialect.trino.Attributes.JOIN_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.LIMIT;
-import static io.trino.sql.dialect.trino.Attributes.LOGICAL_OPERATOR;
-import static io.trino.sql.dialect.trino.Attributes.MAY_SKIP_OUTPUT_DUPLICATES;
-import static io.trino.sql.dialect.trino.Attributes.NULLABLE_VALUES;
-import static io.trino.sql.dialect.trino.Attributes.OUTPUT_NAMES;
-import static io.trino.sql.dialect.trino.Attributes.PARTIAL;
-import static io.trino.sql.dialect.trino.Attributes.PARTITIONING_HANDLE;
-import static io.trino.sql.dialect.trino.Attributes.PARTITION_COUNT;
-import static io.trino.sql.dialect.trino.Attributes.PRE_GROUPED_INDEXES;
-import static io.trino.sql.dialect.trino.Attributes.PRE_PARTITIONED_INDEXES;
-import static io.trino.sql.dialect.trino.Attributes.PRE_SORTED_INDEXES;
-import static io.trino.sql.dialect.trino.Attributes.PRE_SORTED_PREFIX;
-import static io.trino.sql.dialect.trino.Attributes.REPLICATE_NULLS_AND_ANY;
-import static io.trino.sql.dialect.trino.Attributes.RESOLVED_FUNCTION;
-import static io.trino.sql.dialect.trino.Attributes.RESOLVED_FUNCTION_CODEC;
-import static io.trino.sql.dialect.trino.Attributes.SORT_ORDERS;
-import static io.trino.sql.dialect.trino.Attributes.SPILLABLE;
-import static io.trino.sql.dialect.trino.Attributes.STATISTICS;
-import static io.trino.sql.dialect.trino.Attributes.STATISTICS_AND_COST_SUMMARY;
-import static io.trino.sql.dialect.trino.Attributes.STATISTICS_AND_COST_SUMMARY_CODEC;
-import static io.trino.sql.dialect.trino.Attributes.TABLE_HANDLE;
-import static io.trino.sql.dialect.trino.Attributes.TOP_N_STEP;
-import static io.trino.sql.dialect.trino.Attributes.UPDATE_TARGET;
-import static io.trino.sql.dialect.trino.Attributes.USE_CONNECTOR_NODE_PARTITIONING;
-import static io.trino.sql.dialect.trino.Attributes.VERBOSE;
 import static io.trino.sql.dialect.trino.TrinoAttributeRegistry.ConstantResult.CONSTANT_RESULT_CODEC;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static java.util.function.Function.identity;
 
 public class TrinoAttributeRegistry
 {
-    private static final Map<String, AttributeProperties<?>> STATIC_ATTRIBUTE_PROPERTIES = staticAttributeProperties();
+    private static final Map<String, TrinoAttributeMetadata<?>> STATIC_ATTRIBUTE_PROPERTIES = staticAttributeProperties();
 
     public static final TrinoAttributeRegistry TESTING_TRINO_ATTRIBUTE_REGISTRY = testingTrinoAttributeRegistry();
 
-    private final Map<String, AttributeProperties<?>> attributeProperties;
+    private final Map<String, TrinoAttributeMetadata<?>> attributeProperties;
 
     @Inject
     public TrinoAttributeRegistry(
@@ -104,14 +96,14 @@ public class TrinoAttributeRegistry
         this(buildAttributeProperties(tableHandleCodec, columnHandleCodec, tupleDomainCodec, partitioningHandleCodec, nullableValueCodec, nullableValueArrayCodec));
     }
 
-    private TrinoAttributeRegistry(Map<String, AttributeProperties<?>> attributeProperties)
+    private TrinoAttributeRegistry(Map<String, TrinoAttributeMetadata<?>> attributeProperties)
     {
         this.attributeProperties = requireNonNull(attributeProperties, "attributeProperties is null");
     }
 
-    public AttributeProperties<?> getAttributeProperties(String name)
+    public TrinoAttributeMetadata<?> getAttributeProperties(String name)
     {
-        AttributeProperties<?> properties = attributeProperties.get(name);
+        TrinoAttributeMetadata<?> properties = attributeProperties.get(name);
         if (properties == null) {
             throw new TrinoException(IR_ERROR, format("attribute %s not registered", name));
         }
@@ -119,53 +111,51 @@ public class TrinoAttributeRegistry
         return properties;
     }
 
-    private static Map<String, AttributeProperties<?>> staticAttributeProperties()
+    private static Map<String, TrinoAttributeMetadata<?>> staticAttributeProperties()
     {
-        return ImmutableMap.<String, AttributeProperties<?>>builder()
-                .put(AGGREGATION_STEP.name(), new AttributeProperties<>(AGGREGATION_STEP, Attributes.AggregationStep::parse, Attributes.AggregationStep::print))
-                .put(BUCKET_TO_PARTITION.name(), new AttributeProperties<>(BUCKET_TO_PARTITION, Attributes.IntegerList::parse, Attributes.IntegerList::print))
-                .put(CARDINALITY.name(), new AttributeProperties<>(CARDINALITY, Long::valueOf, Object::toString))
-                .put(COMPARISON_OPERATOR.name(), new AttributeProperties<>(COMPARISON_OPERATOR, Attributes.ComparisonOperator::parse, Attributes.ComparisonOperator::print))
-                .put(DISTINCT.name(), new AttributeProperties<>(DISTINCT, Boolean::valueOf, Object::toString))
-                .put(DISTRIBUTION_TYPE.name(), new AttributeProperties<>(DISTRIBUTION_TYPE, Attributes.DistributionType::parse, Attributes.DistributionType::print))
-                .put(DYNAMIC_FILTER_IDS.name(), new AttributeProperties<>(DYNAMIC_FILTER_IDS, Attributes.StringList::parse, Attributes.StringList::print))
-                .put(EXCHANGE_SCOPE.name(), new AttributeProperties<>(EXCHANGE_SCOPE, Attributes.ExchangeScope::parse, Attributes.ExchangeScope::print))
-                .put(EXCHANGE_TYPE.name(), new AttributeProperties<>(EXCHANGE_TYPE, Attributes.ExchangeType::parse, Attributes.ExchangeType::print))
-                .put(FIELD_INDEX.name(), new AttributeProperties<>(FIELD_INDEX, Integer::valueOf, Object::toString))
-                .put(FRAME_END_TYPE.name(), new AttributeProperties<>(FRAME_END_TYPE, Attributes.WindowFrameBoundType::parse, Attributes.WindowFrameBoundType::print))
-                .put(FRAME_START_TYPE.name(), new AttributeProperties<>(FRAME_START_TYPE, Attributes.WindowFrameBoundType::parse, Attributes.WindowFrameBoundType::print))
-                .put(FRAME_TYPE.name(), new AttributeProperties<>(FRAME_TYPE, Attributes.WindowFrameType::parse, Attributes.WindowFrameType::print))
-                .put(GLOBAL_GROUPING_SETS.name(), new AttributeProperties<>(GLOBAL_GROUPING_SETS, Attributes.IntegerList::parse, Attributes.IntegerList::print))
-                .put(GROUPING_SETS.name(), new AttributeProperties<>(GROUPING_SETS, Attributes.IntegerListList::parse, Attributes.IntegerListList::print))
-                .put(GROUPING_SETS_COUNT.name(), new AttributeProperties<>(GROUPING_SETS_COUNT, Integer::valueOf, Object::toString))
-                .put(GROUP_ID_INDEX.name(), new AttributeProperties<>(GROUP_ID_INDEX, Integer::valueOf, Object::toString))
-                .put(IGNORE_NULLS.name(), new AttributeProperties<>(IGNORE_NULLS, Boolean::valueOf, Object::toString))
-                .put(INPUT_REDUCING.name(), new AttributeProperties<>(INPUT_REDUCING, Boolean::valueOf, Object::toString))
-                .put(JOIN_TYPE.name(), new AttributeProperties<>(JOIN_TYPE, Attributes.JoinType::parse, Attributes.JoinType::print))
-                .put(LIMIT.name(), new AttributeProperties<>(LIMIT, Long::valueOf, Object::toString))
-                .put(LOGICAL_OPERATOR.name(), new AttributeProperties<>(LOGICAL_OPERATOR, Attributes.LogicalOperator::parse, Attributes.LogicalOperator::print))
-                .put(MAY_SKIP_OUTPUT_DUPLICATES.name(), new AttributeProperties<>(MAY_SKIP_OUTPUT_DUPLICATES, Boolean::valueOf, Object::toString))
-                .put(OUTPUT_NAMES.name(), new AttributeProperties<>(OUTPUT_NAMES, Attributes.StringList::parse, Attributes.StringList::print))
-                .put(PARTIAL.name(), new AttributeProperties<>(PARTIAL, Boolean::valueOf, Object::toString))
-                .put(PARTITION_COUNT.name(), new AttributeProperties<>(PARTITION_COUNT, Integer::valueOf, Object::toString))
-                .put(PRE_GROUPED_INDEXES.name(), new AttributeProperties<>(PRE_GROUPED_INDEXES, Attributes.IntegerList::parse, Attributes.IntegerList::print))
-                .put(PRE_PARTITIONED_INDEXES.name(), new AttributeProperties<>(PRE_PARTITIONED_INDEXES, Attributes.IntegerList::parse, Attributes.IntegerList::print))
-                .put(PRE_SORTED_INDEXES.name(), new AttributeProperties<>(PRE_SORTED_INDEXES, Attributes.IntegerList::parse, Attributes.IntegerList::print))
-                .put(PRE_SORTED_PREFIX.name(), new AttributeProperties<>(PRE_SORTED_PREFIX, Integer::valueOf, Object::toString))
-                .put(REPLICATE_NULLS_AND_ANY.name(), new AttributeProperties<>(REPLICATE_NULLS_AND_ANY, Boolean::valueOf, Object::toString))
-                .put(RESOLVED_FUNCTION.name(), new AttributeProperties<>(RESOLVED_FUNCTION, RESOLVED_FUNCTION_CODEC::fromJson, RESOLVED_FUNCTION_CODEC::toJson))
-                .put(SORT_ORDERS.name(), new AttributeProperties<>(SORT_ORDERS, Attributes.SortOrderList::parse, Attributes.SortOrderList::print))
-                .put(SPILLABLE.name(), new AttributeProperties<>(SPILLABLE, Boolean::valueOf, Object::toString))
-                .put(STATISTICS.name(), new AttributeProperties<>(STATISTICS, Attributes.Statistics::parse, Attributes.Statistics::print))
-                .put(STATISTICS_AND_COST_SUMMARY.name(), new AttributeProperties<>(STATISTICS_AND_COST_SUMMARY, STATISTICS_AND_COST_SUMMARY_CODEC::fromJson, STATISTICS_AND_COST_SUMMARY_CODEC::toJson))
-                .put(TOP_N_STEP.name(), new AttributeProperties<>(TOP_N_STEP, Attributes.TopNStep::parse, Attributes.TopNStep::print))
-                .put(UPDATE_TARGET.name(), new AttributeProperties<>(UPDATE_TARGET, Boolean::valueOf, Object::toString))
-                .put(USE_CONNECTOR_NODE_PARTITIONING.name(), new AttributeProperties<>(USE_CONNECTOR_NODE_PARTITIONING, Boolean::valueOf, Object::toString))
-                .put(VERBOSE.name(), new AttributeProperties<>(VERBOSE, Boolean::valueOf, Object::toString))
-                .buildOrThrow();
+        List<TrinoOperationMetadata> operationMetadata = ImmutableList.of(
+                new AggregateCallOperationMetadata(),
+                new AggregationOperationMetadata(),
+                new ArrayOperationMetadata(),
+                new BetweenOperationMetadata(),
+                new BindOperationMetadata(),
+                new CallOperationMetadata(),
+                new CaseOperationMetadata(),
+                new CastOperationMetadata(),
+                new CoalesceOperationMetadata(),
+                new ComparisonOperationMetadata(),
+                new CorrelatedJoinOperationMetadata(),
+                new DynamicFilterSourceOperationMetadata(),
+                new ExplainAnalyzeOperationMetadata(),
+                new FieldReferenceOperationMetadata(),
+                new FilterOperationMetadata(),
+                new GroupIdOperationMetadata(),
+                new InOperationMetadata(),
+                new IsNullOperationMetadata(),
+                new JoinOperationMetadata(),
+                new LambdaOperationMetadata(),
+                new LimitOperationMetadata(),
+                new LogicalOperationMetadata(),
+                new NullIfOperationMetadata(),
+                new OutputOperationMetadata(),
+                new ProjectOperationMetadata(),
+                new QueryOperationMetadata(),
+                new ReturnOperationMetadata(),
+                new RowOperationMetadata(),
+                new SortOperationMetadata(),
+                new SwitchOperationMetadata(),
+                new TopNOperationMetadata(),
+                new ValuesOperationMetadata(),
+                new WindowFunctionCallOperationMetadata(),
+                new WindowOperationMetadata());
+
+        return operationMetadata.stream()
+                .map(TrinoOperationMetadata::operationAttributes)
+                .flatMap(Set::stream)
+                .collect(toImmutableMap(attributeMetadata -> attributeMetadata.trinoAttributeSignature().name(), identity()));
     }
 
-    private static Map<String, AttributeProperties<?>> buildAttributeProperties(
+    private static Map<String, TrinoAttributeMetadata<?>> buildAttributeProperties(
             JsonCodec<TableHandle> tableHandleCodec,
             JsonCodec<List<ColumnHandle>> columnHandleCodec,
             JsonCodec<TupleDomain<ColumnHandle>> tupleDomainCodec,
@@ -180,104 +170,72 @@ public class TrinoAttributeRegistry
         requireNonNull(nullableValueCodec, "nullableValueCodec is null");
         requireNonNull(nullableValueArrayCodec, "nullableValueArrayCodec is null");
 
-        return ImmutableMap.<String, AttributeProperties<?>>builder()
-                .putAll(STATIC_ATTRIBUTE_PROPERTIES)
-                .put(COLUMN_HANDLES.name(), new AttributeProperties<>(COLUMN_HANDLES, columnHandleCodec::fromJson, columnHandleCodec::toJson))
-                .put(CONSTANT_RESULT.name(), new AttributeProperties<>(CONSTANT_RESULT, nullableValueCodec::fromJson, nullableValueCodec::toJson))
-                .put(CONSTRAINT.name(), new AttributeProperties<>(CONSTRAINT, tupleDomainCodec::fromJson, tupleDomainCodec::toJson))
-                .put(NULLABLE_VALUES.name(), new AttributeProperties<>(
-                        NULLABLE_VALUES,
-                        string -> new NullableValues(nullableValueArrayCodec.fromJson(string)),
-                        nullableValues -> nullableValueArrayCodec.toJson(nullableValues.nullableValues())))
-                .put(PARTITIONING_HANDLE.name(), new AttributeProperties<>(PARTITIONING_HANDLE, partitioningHandleCodec::fromJson, partitioningHandleCodec::toJson))
-                .put(TABLE_HANDLE.name(), new AttributeProperties<>(TABLE_HANDLE, tableHandleCodec::fromJson, tableHandleCodec::toJson))
-                .buildOrThrow();
-    }
+        List<TrinoOperationMetadata> operationMetadata = ImmutableList.of(
+                new ExchangeOperationMetadata(partitioningHandleCodec, nullableValueArrayCodec),
+                new TableScanOperationMetadata(tableHandleCodec, columnHandleCodec, tupleDomainCodec),
+                new ConstantOperationMetadata(nullableValueCodec));
 
-    public record AttributeProperties<T>(AttributeMetadata<T> attributeMetadata, Function<String, T> parseMethod, Function<T, String> printMethod)
-    {
-        public AttributeProperties
-        {
-            requireNonNull(attributeMetadata, "attributeMetadata is null");
-            requireNonNull(parseMethod, "parseMethod is null");
-            requireNonNull(printMethod, "printMethod is null");
-        }
+        ImmutableMap.Builder<String, TrinoAttributeMetadata<?>> builder = ImmutableMap.builder();
 
-        public T parse(String string)
-        {
-            return parseMethod.apply(string);
-        }
+        builder.putAll(STATIC_ATTRIBUTE_PROPERTIES);
 
-        @SuppressWarnings("unchecked")
-        public String print(Object attribute)
-        {
-            return printMethod.apply((T) attribute);
-        }
+        operationMetadata.stream()
+                .map(TrinoOperationMetadata::operationAttributes)
+                .flatMap(Set::stream)
+                .forEach(attributeMetadata -> builder.put(attributeMetadata.trinoAttributeSignature().name(), attributeMetadata));
+
+        return builder.buildOrThrow();
     }
 
     private static TrinoAttributeRegistry testingTrinoAttributeRegistry()
     {
-        Map<String, AttributeProperties<?>> attributeProperties = ImmutableMap.<String, AttributeProperties<?>>builder()
-                .putAll(STATIC_ATTRIBUTE_PROPERTIES)
-                .put(
-                        COLUMN_HANDLES.name(),
-                        new AttributeProperties<>(
-                                COLUMN_HANDLES,
-                                _ -> {
-                                    throw new UnsupportedOperationException("cannot parse column_handles attribute in TESTING_TRINO_ATTRIBUTE_REGISTRY");
-                                },
-                                _ -> "[test: column_handles attribute]"))
-                .put(
-                        CONSTANT_RESULT.name(),
-                        new AttributeProperties<>(
-                                CONSTANT_RESULT,
-                                _ -> {
-                                    throw new UnsupportedOperationException("cannot parse constant_result attribute in TESTING_TRINO_ATTRIBUTE_REGISTRY");
-                                },
-                                nullableValue -> {
-                                    ConstantResult constantResult = new ConstantResult(nullableValue.getType(), nullableValue.getValue());
-                                    try {
-                                        return CONSTANT_RESULT_CODEC.toJson(constantResult);
-                                    }
-                                    catch (IllegalArgumentException e) {
-                                        return "[test: constant_result attribute]";
-                                    }
-                                }))
-                .put(
-                        CONSTRAINT.name(),
-                        new AttributeProperties<>(
-                                CONSTRAINT,
-                                _ -> {
-                                    throw new UnsupportedOperationException("cannot parse constraint attribute in TESTING_TRINO_ATTRIBUTE_REGISTRY");
-                                },
-                                _ -> "[test: constraint attribute]"))
-                .put(
-                        NULLABLE_VALUES.name(),
-                        new AttributeProperties<>(
-                                NULLABLE_VALUES,
-                                _ -> {
-                                    throw new UnsupportedOperationException("cannot parse nullable_values attribute in TESTING_TRINO_ATTRIBUTE_REGISTRY");
-                                },
-                                _ -> "[test: nullable_values attribute]"))
-                .put(
-                        PARTITIONING_HANDLE.name(),
-                        new AttributeProperties<>(
-                                PARTITIONING_HANDLE,
-                                _ -> {
-                                    throw new UnsupportedOperationException("cannot parse partitioning_handle attribute in TESTING_TRINO_ATTRIBUTE_REGISTRY");
-                                },
-                                _ -> "[test: partitioning_handle attribute]"))
-                .put(
-                        TABLE_HANDLE.name(),
-                        new AttributeProperties<>(
-                                TABLE_HANDLE,
-                                _ -> {
-                                    throw new UnsupportedOperationException("cannot parse table_handle attribute in TESTING_TRINO_ATTRIBUTE_REGISTRY");
-                                },
-                                _ -> "[test: table_handle attribute]"))
-                .buildOrThrow();
+        List<TrinoOperationMetadata> operationMetadata = ImmutableList.of(
+                new ExchangeOperationMetadata(
+                        _ -> {
+                            throw new UnsupportedOperationException("cannot parse partitioning_handle attribute in TESTING_TRINO_ATTRIBUTE_REGISTRY");
+                        },
+                        _ -> "[test: partitioning_handle attribute]",
+                        _ -> {
+                            throw new UnsupportedOperationException("cannot parse nullable_values attribute in TESTING_TRINO_ATTRIBUTE_REGISTRY");
+                        },
+                        _ -> "[test: nullable_values attribute]"),
+                new TableScanOperationMetadata(
+                        _ -> {
+                            throw new UnsupportedOperationException("cannot parse table_handle attribute in TESTING_TRINO_ATTRIBUTE_REGISTRY");
+                        },
+                        _ -> "[test: table_handle attribute]",
+                        _ -> {
+                            throw new UnsupportedOperationException("cannot parse column_handles attribute in TESTING_TRINO_ATTRIBUTE_REGISTRY");
+                        },
+                        _ -> "[test: column_handles attribute]",
+                        _ -> {
+                            throw new UnsupportedOperationException("cannot parse constraint attribute in TESTING_TRINO_ATTRIBUTE_REGISTRY");
+                        },
+                        _ -> "[test: constraint attribute]"),
+                new ConstantOperationMetadata(
+                        _ -> {
+                            throw new UnsupportedOperationException("cannot parse constant_result attribute in TESTING_TRINO_ATTRIBUTE_REGISTRY");
+                        },
+                        nullableValue -> {
+                            ConstantResult constantResult = new ConstantResult(nullableValue.getType(), nullableValue.getValue());
+                            try {
+                                return CONSTANT_RESULT_CODEC.toJson(constantResult);
+                            }
+                            catch (IllegalArgumentException e) {
+                                return "[test: constant_result attribute]";
+                            }
+                        }));
 
-        return new TrinoAttributeRegistry(attributeProperties);
+        ImmutableMap.Builder<String, TrinoAttributeMetadata<?>> builder = ImmutableMap.builder();
+
+        builder.putAll(STATIC_ATTRIBUTE_PROPERTIES);
+
+        operationMetadata.stream()
+                .map(TrinoOperationMetadata::operationAttributes)
+                .flatMap(Set::stream)
+                .forEach(attributeMetadata -> builder.put(attributeMetadata.trinoAttributeSignature().name(), attributeMetadata));
+
+        return new TrinoAttributeRegistry(builder.buildOrThrow());
     }
 
     public record ConstantResult(Type type, Object value)

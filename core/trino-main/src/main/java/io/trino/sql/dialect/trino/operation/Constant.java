@@ -24,16 +24,15 @@ import io.trino.sql.newir.Value;
 import java.util.List;
 import java.util.Map;
 
-import static io.trino.sql.dialect.trino.Attributes.CONSTANT_RESULT;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
+import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.CONSTANT_RESULT;
+import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.NAME;
 import static java.util.Objects.requireNonNull;
 
 public final class Constant
         extends TrinoOperation
 {
-    private static final String NAME = "constant";
-
     private final Result result;
     private final Map<AttributeKey, Object> attributes;
 

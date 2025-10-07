@@ -24,13 +24,12 @@ import java.util.List;
 import java.util.Map;
 
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
+import static io.trino.sql.dialect.trino.operationmetadata.NullIfOperationMetadata.NAME;
 import static java.util.Objects.requireNonNull;
 
 public final class NullIf
         extends TrinoOperation
 {
-    private static final String NAME = "null_if";
-
     private final Result result;
     private final Value first;
     private final Value second;

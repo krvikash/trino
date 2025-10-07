@@ -50,6 +50,8 @@ import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
+import io.trino.sql.dialect.trino.operationmetadata.DynamicFilterSourceOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions;
@@ -95,23 +97,22 @@ import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.dialect.ir.IrDialect.IR;
 import static io.trino.sql.dialect.ir.IrDialect.TERMINAL;
-import static io.trino.sql.dialect.trino.Attributes.COLUMN_HANDLES;
-import static io.trino.sql.dialect.trino.Attributes.CONSTANT_RESULT;
-import static io.trino.sql.dialect.trino.Attributes.DISTRIBUTION_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.DYNAMIC_FILTER_IDS;
-import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_SCOPE;
-import static io.trino.sql.dialect.trino.Attributes.ExchangeScope.REMOTE;
-import static io.trino.sql.dialect.trino.Attributes.JOIN_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.MAY_SKIP_OUTPUT_DUPLICATES;
-import static io.trino.sql.dialect.trino.Attributes.SPILLABLE;
-import static io.trino.sql.dialect.trino.Attributes.STATISTICS_AND_COST_SUMMARY;
-import static io.trino.sql.dialect.trino.Attributes.TABLE_HANDLE;
-import static io.trino.sql.dialect.trino.Attributes.UPDATE_TARGET;
-import static io.trino.sql.dialect.trino.Attributes.USE_CONNECTOR_NODE_PARTITIONING;
 import static io.trino.sql.dialect.trino.ProgramBuilder.initializeNameAllocator;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.CONSTANT_RESULT;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.EXCHANGE_SCOPE;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeScope.REMOTE;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DISTRIBUTION_TYPE;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.JOIN_TYPE;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.MAY_SKIP_OUTPUT_DUPLICATES;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.SPILLABLE;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.STATISTICS_AND_COST_SUMMARY;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.COLUMN_HANDLES;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.TABLE_HANDLE;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.UPDATE_TARGET;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.USE_CONNECTOR_NODE_PARTITIONING;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.getEmptyFieldSelector;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.getPassthroughMapping;
@@ -1403,7 +1404,7 @@ public class CteReuse
      */
     private static List<EquivalentDynamicFilters> getEquivalentDynamicFilters(Join join)
     {
-        return getEquivalentDynamicFilters(DYNAMIC_FILTER_IDS.getAttribute(join.attributes()), join.dynamicFilterTargetSelector());
+        return getEquivalentDynamicFilters(JoinOperationMetadata.DYNAMIC_FILTER_IDS.getAttribute(join.attributes()), join.dynamicFilterTargetSelector());
     }
 
     /**
@@ -1414,7 +1415,7 @@ public class CteReuse
      */
     private static List<EquivalentDynamicFilters> getEquivalentDynamicFilters(DynamicFilterSource dynamicFilterSource)
     {
-        return getEquivalentDynamicFilters(DYNAMIC_FILTER_IDS.getAttribute(dynamicFilterSource.attributes()), dynamicFilterSource.dynamicFilterTargetSelector());
+        return getEquivalentDynamicFilters(DynamicFilterSourceOperationMetadata.DYNAMIC_FILTER_IDS.getAttribute(dynamicFilterSource.attributes()), dynamicFilterSource.dynamicFilterTargetSelector());
     }
 
     private static List<EquivalentDynamicFilters> getEquivalentDynamicFilters(List<String> dynamicFilterIds, Block dynamicFilterTargetSelector)
@@ -1476,7 +1477,7 @@ public class CteReuse
 
     private static Join removeDynamicFilterAssignments(Join join, Set<String> retainedDynamicFilterIds, ProgramBuilder.ValueNameAllocator nameAllocator)
     {
-        List<String> dynamicFilterIds = DYNAMIC_FILTER_IDS.getAttribute(join.attributes());
+        List<String> dynamicFilterIds = JoinOperationMetadata.DYNAMIC_FILTER_IDS.getAttribute(join.attributes());
         Block dynamicFilterTargetSelector = join.dynamicFilterTargetSelector();
 
         if (isEmptyFieldSelector(dynamicFilterTargetSelector)) {
@@ -1507,7 +1508,7 @@ public class CteReuse
 
     private static DynamicFilterSource removeDynamicFilterAssignments(DynamicFilterSource dynamicFilterSource, Set<String> retainedDynamicFilterIds, ProgramBuilder.ValueNameAllocator nameAllocator)
     {
-        List<String> dynamicFilterIds = DYNAMIC_FILTER_IDS.getAttribute(dynamicFilterSource.attributes());
+        List<String> dynamicFilterIds = DynamicFilterSourceOperationMetadata.DYNAMIC_FILTER_IDS.getAttribute(dynamicFilterSource.attributes());
         Block dynamicFilterTargetSelector = dynamicFilterSource.dynamicFilterTargetSelector();
 
         if (isEmptyFieldSelector(dynamicFilterTargetSelector)) {

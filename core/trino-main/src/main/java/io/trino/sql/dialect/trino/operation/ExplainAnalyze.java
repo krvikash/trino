@@ -29,21 +29,20 @@ import java.util.Map;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.RowType.anonymousRow;
 import static io.trino.spi.type.VarcharType.VARCHAR;
-import static io.trino.sql.dialect.trino.Attributes.VERBOSE;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
+import static io.trino.sql.dialect.trino.operationmetadata.ExplainAnalyzeOperationMetadata.NAME;
+import static io.trino.sql.dialect.trino.operationmetadata.ExplainAnalyzeOperationMetadata.VERBOSE;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.util.Objects.requireNonNull;
 
 public class ExplainAnalyze
         extends TrinoOperation
 {
-    private static final String NAME = "explain_analyze";
-
     private final Result result;
     private final Value input;
     private final Region fieldSelector;

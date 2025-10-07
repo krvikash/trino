@@ -31,13 +31,12 @@ import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operationmetadata.CoalesceOperationMetadata.NAME;
 import static java.util.Objects.requireNonNull;
 
 public final class Coalesce
         extends TrinoOperation
 {
-    private static final String NAME = "coalesce";
-
     private final Result result;
     private final List<Value> operands;
     private final Map<AttributeKey, Object> attributes;

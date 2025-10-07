@@ -15,6 +15,7 @@ package io.trino.newir;
 
 import io.trino.grammar.newir.NewIrBaseVisitor;
 import io.trino.grammar.newir.NewIrParser;
+import io.trino.grammar.newir.NewIrParser.IdentifierContext;
 import io.trino.newir.tree.AttributeNode;
 import io.trino.newir.tree.BlockNode;
 import io.trino.newir.tree.NewIrNode;
@@ -31,6 +32,7 @@ import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.lang.Integer.parseInt;
+import static java.util.stream.Collectors.joining;
 
 public class ProgramTreeBuilder
         extends NewIrBaseVisitor<NewIrNode>
@@ -122,7 +124,9 @@ public class ProgramTreeBuilder
     {
         return new AttributeNode(
                 Optional.ofNullable(context.attributeName().dialectName()).map(RuleContext::getText),
-                context.attributeName().identifier().getText(),
+                context.attributeName().identifier().stream()
+                        .map(IdentifierContext::getText)
+                        .collect(joining(":")),
                 context.STRING().getText());
     }
 }

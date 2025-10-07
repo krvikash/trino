@@ -19,13 +19,14 @@ import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.RowType;
-import io.trino.sql.dialect.trino.Attributes;
 import io.trino.sql.dialect.trino.Context;
 import io.trino.sql.dialect.trino.Context.RowField;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.ScalarProgramBuilder;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.Return;
+import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator;
+import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
 import io.trino.sql.ir.Array;
 import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Bind;
@@ -171,7 +172,7 @@ class TestToOldIrScalarRewriter
                                                         "%6",
                                                         new Result("%4", irType(BIGINT)),
                                                         new Result("%5", irType(BIGINT)),
-                                                        Attributes.ComparisonOperator.GREATER_THAN,
+                                                        ComparisonOperator.GREATER_THAN,
                                                         ImmutableList.of()),
                                                 new Return("%7", new Result("%6", irType(BOOLEAN)), ImmutableMap.of())))),
                         new io.trino.sql.dialect.trino.operation.Bind(
@@ -207,7 +208,7 @@ class TestToOldIrScalarRewriter
                                                         "%4",
                                                         new Result("%2", irType(BIGINT)),
                                                         new Result("%3", irType(BIGINT)),
-                                                        Attributes.ComparisonOperator.GREATER_THAN,
+                                                        ComparisonOperator.GREATER_THAN,
                                                         ImmutableList.of()),
                                                 new Return("%5", new Result("%4", irType(BOOLEAN)), ImmutableMap.of())))),
                         new io.trino.sql.dialect.trino.operation.Bind(
@@ -327,7 +328,7 @@ class TestToOldIrScalarRewriter
                                 "%2",
                                 new Result("%0", irType(BIGINT)),
                                 new Result("%1", irType(BIGINT)),
-                                Attributes.ComparisonOperator.GREATER_THAN,
+                                ComparisonOperator.GREATER_THAN,
                                 ImmutableList.of()),
                         new Return("%3", new Result("%2", irType(BOOLEAN)), ImmutableMap.of())));
         assertRoundtrip(comparison, rewritten);
@@ -458,13 +459,13 @@ class TestToOldIrScalarRewriter
                                                         "%4",
                                                         new Result("%2", irType(BIGINT)),
                                                         new Result("%3", irType(BIGINT)),
-                                                        Attributes.ComparisonOperator.GREATER_THAN,
+                                                        ComparisonOperator.GREATER_THAN,
                                                         ImmutableList.of()),
                                                 new FieldReference("%5", lambdaParameter, 1, ImmutableMap.of()),
                                                 new io.trino.sql.dialect.trino.operation.Logical(
                                                         "%6",
                                                         ImmutableList.of(new Result("%4", irType(BOOLEAN)), new Result("%5", irType(BOOLEAN))),
-                                                        Attributes.LogicalOperator.AND,
+                                                        LogicalOperator.AND,
                                                         ImmutableList.of()),
                                                 new Return("%7", new Result("%6", irType(BOOLEAN)), ImmutableMap.of())))),
                         new Return("%8", new Result("%0", irType(new FunctionType(ImmutableList.of(BIGINT, BOOLEAN), BOOLEAN))), ImmutableMap.of())));
@@ -492,7 +493,7 @@ class TestToOldIrScalarRewriter
                                                         "%4",
                                                         new Result("%2", irType(BIGINT)),
                                                         new Result("%3", irType(BIGINT)),
-                                                        Attributes.ComparisonOperator.GREATER_THAN,
+                                                        ComparisonOperator.GREATER_THAN,
                                                         ImmutableList.of()),
                                                 new Return("%5", new Result("%4", irType(BOOLEAN)), ImmutableMap.of())))),
                         new Return(
@@ -548,13 +549,13 @@ class TestToOldIrScalarRewriter
                                                                                 "%8",
                                                                                 new Result("%6", irType(BIGINT)),
                                                                                 new Result("%7", irType(BIGINT)),
-                                                                                Attributes.ComparisonOperator.GREATER_THAN,
+                                                                                ComparisonOperator.GREATER_THAN,
                                                                                 ImmutableList.of()),
                                                                         new FieldReference("%9", outerLambdaParameter, 1, ImmutableMap.of()),
                                                                         new io.trino.sql.dialect.trino.operation.Logical(
                                                                                 "%10",
                                                                                 ImmutableList.of(new Result("%8", irType(BOOLEAN)), new Result("%9", irType(BOOLEAN))),
-                                                                                Attributes.LogicalOperator.AND,
+                                                                                LogicalOperator.AND,
                                                                                 ImmutableList.of()),
                                                                         new Return("%11", new Result("%10", irType(BOOLEAN)), ImmutableMap.of())))),
                                                 new io.trino.sql.dialect.trino.operation.Bind(
@@ -581,7 +582,7 @@ class TestToOldIrScalarRewriter
                         new io.trino.sql.dialect.trino.operation.Logical(
                                 "%3",
                                 ImmutableList.of(new Result("%0", irType(BOOLEAN)), new Result("%1", irType(BOOLEAN)), new Result("%2", irType(BOOLEAN))),
-                                Attributes.LogicalOperator.OR,
+                                LogicalOperator.OR,
                                 ImmutableList.of()),
                         new Return("%4", new Result("%3", irType(BOOLEAN)), ImmutableMap.of())));
         assertRoundtrip(logical, rewritten);
@@ -804,7 +805,7 @@ class TestToOldIrScalarRewriter
                                 "%3",
                                 new Result("%2", irType(BIGINT)),
                                 new Result("%0", irType(BIGINT)),
-                                Attributes.ComparisonOperator.GREATER_THAN,
+                                ComparisonOperator.GREATER_THAN,
                                 ImmutableList.of()),
                         new io.trino.sql.dialect.trino.operation.Constant("%4", BIGINT, 0L),
                         new io.trino.sql.dialect.trino.operation.Row(

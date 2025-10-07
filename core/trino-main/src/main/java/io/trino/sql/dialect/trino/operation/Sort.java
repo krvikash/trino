@@ -16,7 +16,7 @@ package io.trino.sql.dialect.trino.operation;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
-import io.trino.sql.dialect.trino.Attributes.SortOrderList;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -27,21 +27,20 @@ import java.util.List;
 import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
-import static io.trino.sql.dialect.trino.Attributes.PARTIAL;
-import static io.trino.sql.dialect.trino.Attributes.SORT_ORDERS;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateNonEmptyRowSelector;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
+import static io.trino.sql.dialect.trino.operationmetadata.SortOperationMetadata.NAME;
+import static io.trino.sql.dialect.trino.operationmetadata.SortOperationMetadata.PARTIAL;
+import static io.trino.sql.dialect.trino.operationmetadata.SortOperationMetadata.SORT_ORDERS;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.util.Objects.requireNonNull;
 
 public class Sort
         extends TrinoOperation
 {
-    private static final String NAME = "sort";
-
     private final Result result;
     private final Value input;
     private final Region orderingSelector;

@@ -32,13 +32,12 @@ import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operationmetadata.InOperationMetadata.NAME;
 import static java.util.Objects.requireNonNull;
 
 public final class In
         extends TrinoOperation
 {
-    private static final String NAME = "in";
-
     private final Result result;
     private final Value input;
     private final List<Value> inputList;

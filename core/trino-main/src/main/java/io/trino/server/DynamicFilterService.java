@@ -48,6 +48,8 @@ import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Query;
+import io.trino.sql.dialect.trino.operationmetadata.DynamicFilterSourceOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Program;
@@ -106,14 +108,13 @@ import static io.trino.SystemSessionProperties.isEnableLargeDynamicFilters;
 import static io.trino.spi.connector.DynamicFilter.EMPTY;
 import static io.trino.sql.DynamicFilters.extractDynamicFilters;
 import static io.trino.sql.DynamicFilters.extractSourceSymbols;
-import static io.trino.sql.dialect.trino.Attributes.DYNAMIC_FILTER_IDS;
-import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_SCOPE;
-import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.ExchangeScope.LOCAL;
-import static io.trino.sql.dialect.trino.Attributes.ExchangeScope.REMOTE;
-import static io.trino.sql.dialect.trino.Attributes.ExchangeType.GATHER;
-import static io.trino.sql.dialect.trino.Attributes.ExchangeType.REPARTITION;
-import static io.trino.sql.dialect.trino.Attributes.ExchangeType.REPLICATE;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.EXCHANGE_SCOPE;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.EXCHANGE_TYPE;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeScope.LOCAL;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeScope.REMOTE;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType.GATHER;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType.REPARTITION;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType.REPLICATE;
 import static io.trino.sql.ir.IrUtils.extractDisjuncts;
 import static io.trino.sql.planner.DomainCoercer.applySaturatedCasts;
 import static io.trino.sql.planner.ExpressionExtractor.extractExpressions;
@@ -608,7 +609,7 @@ public class DynamicFilterService
                 .filter(Join.class::isInstance)
                 .map(Join.class::cast)
                 .filter(join -> isBuildSideReplicated(join, operations))
-                .map(join -> DYNAMIC_FILTER_IDS.getAttribute(join.attributes()))
+                .map(join -> JoinOperationMetadata.DYNAMIC_FILTER_IDS.getAttribute(join.attributes()))
                 .flatMap(List::stream)
                 .map(DynamicFilterId::new)
                 .collect(toImmutableSet());
@@ -642,7 +643,12 @@ public class DynamicFilterService
         return mainBlock.operations().stream()
                 // TODO handle SemiJoin when we support it in new IR
                 .filter(operation -> operation instanceof Join || operation instanceof DynamicFilterSource)
-                .map(operation -> DYNAMIC_FILTER_IDS.getAttribute(operation.attributes()))
+                .map(operation -> {
+                    if (operation instanceof Join) {
+                        return JoinOperationMetadata.DYNAMIC_FILTER_IDS.getAttribute(operation.attributes());
+                    }
+                    return DynamicFilterSourceOperationMetadata.DYNAMIC_FILTER_IDS.getAttribute(operation.attributes());
+                })
                 .flatMap(List::stream)
                 .map(DynamicFilterId::new)
                 .collect(toImmutableSet());

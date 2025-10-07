@@ -20,7 +20,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
-import io.trino.sql.dialect.trino.Attributes.SortOrderList;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -36,23 +36,22 @@ import java.util.stream.IntStream;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
-import static io.trino.sql.dialect.trino.Attributes.PRE_PARTITIONED_INDEXES;
-import static io.trino.sql.dialect.trino.Attributes.PRE_SORTED_PREFIX;
-import static io.trino.sql.dialect.trino.Attributes.SORT_ORDERS;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowOperationMetadata.NAME;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowOperationMetadata.PRE_PARTITIONED_INDEXES;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowOperationMetadata.PRE_SORTED_PREFIX;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowOperationMetadata.SORT_ORDERS;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.util.Objects.requireNonNull;
 
 public class Window
         extends TrinoOperation
 {
-    private static final String NAME = "window";
-
     private final Result result;
     private final Value input;
     private final Region windowFunctionCalls;

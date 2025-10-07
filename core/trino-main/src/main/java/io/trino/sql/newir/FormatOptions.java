@@ -29,6 +29,7 @@ public class FormatOptions
     public static final String INDENT = "    ";
     private static final Pattern IDENTIFIER = Pattern.compile("([a-z]|[A-Z]|_)([a-z]|[A-Z]|[0-9]|_)*");
     private static final Pattern PREFIXED_IDENTIFIER = Pattern.compile("([a-z]|[A-Z]|[0-9]|_)+");
+    private static final Pattern NAMESPACED_IDENTIFIER = Pattern.compile("([a-z]|[A-Z]|_)([a-z]|[A-Z]|[0-9]|_)*:([a-z]|[A-Z]|_)([a-z]|[A-Z]|[0-9]|_)*");
     private static final int CURRENT_VERSION = 1;
 
     private final DialectRegistry dialectRegistry;
@@ -54,6 +55,11 @@ public class FormatOptions
     public static boolean isValidPrefixedIdentifier(String identifier)
     {
         return PREFIXED_IDENTIFIER.matcher(identifier).matches();
+    }
+
+    public static boolean isValidAttributeName(String name)
+    {
+        return IDENTIFIER.matcher(name).matches() || NAMESPACED_IDENTIFIER.matcher(name).matches();
     }
 
     public PrintOptions printOptions(int version)

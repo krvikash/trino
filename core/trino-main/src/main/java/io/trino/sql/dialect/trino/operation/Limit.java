@@ -16,7 +16,7 @@ package io.trino.sql.dialect.trino.operation;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
-import io.trino.sql.dialect.trino.Attributes.SortOrderList;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -28,23 +28,22 @@ import java.util.Map;
 import java.util.Optional;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
-import static io.trino.sql.dialect.trino.Attributes.LIMIT;
-import static io.trino.sql.dialect.trino.Attributes.PARTIAL;
-import static io.trino.sql.dialect.trino.Attributes.PRE_SORTED_INDEXES;
-import static io.trino.sql.dialect.trino.Attributes.SORT_ORDERS;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
+import static io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata.LIMIT;
+import static io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata.NAME;
+import static io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata.PARTIAL;
+import static io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata.PRE_SORTED_INDEXES;
+import static io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata.SORT_ORDERS;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.util.Objects.requireNonNull;
 
 public class Limit
         extends TrinoOperation
 {
-    private static final String NAME = "limit";
-
     private final Result result;
     private final Value input;
     private final Region orderingSelector;

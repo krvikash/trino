@@ -36,6 +36,7 @@ import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
+import static io.trino.sql.dialect.trino.operationmetadata.ProjectOperationMetadata.NAME;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.isPruningAssignments;
 import static java.util.Objects.requireNonNull;
@@ -43,8 +44,6 @@ import static java.util.Objects.requireNonNull;
 public final class Project
         extends TrinoOperation
 {
-    private static final String NAME = "project";
-
     private final Result result;
     private final Value input;
     private final Region assignments;

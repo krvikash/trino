@@ -17,9 +17,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.spi.TrinoException;
-import io.trino.sql.dialect.trino.Attributes.SortOrderList;
-import io.trino.sql.dialect.trino.Attributes.WindowFrameBoundType;
-import io.trino.sql.dialect.trino.Attributes.WindowFrameType;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
+import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameBoundType;
+import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameType;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -32,14 +32,6 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
-import static io.trino.sql.dialect.trino.Attributes.DISTINCT;
-import static io.trino.sql.dialect.trino.Attributes.FRAME_END_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.FRAME_START_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.FRAME_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.IGNORE_NULLS;
-import static io.trino.sql.dialect.trino.Attributes.RESOLVED_FUNCTION;
-import static io.trino.sql.dialect.trino.Attributes.SORT_ORDERS;
-import static io.trino.sql.dialect.trino.Attributes.WindowFrameType.RANGE;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelectorReturningAtMostOneField;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
@@ -47,14 +39,21 @@ import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.DISTINCT;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.FRAME_END_TYPE;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.FRAME_START_TYPE;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.FRAME_TYPE;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.IGNORE_NULLS;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.NAME;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.RESOLVED_FUNCTION;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.SORT_ORDERS;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameType.RANGE;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.util.Objects.requireNonNull;
 
 public class WindowFunctionCall
         extends TrinoOperation
 {
-    private static final String NAME = "window_function_call";
-
     private final Result result;
     private final Value window;
     private final Region arguments;

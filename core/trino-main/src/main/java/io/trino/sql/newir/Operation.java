@@ -28,6 +28,7 @@ import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.TrinoAttributeRegistry.TESTING_TRINO_ATTRIBUTE_REGISTRY;
 import static io.trino.sql.newir.Dialect.validateDialectName;
 import static io.trino.sql.newir.FormatOptions.INDENT;
+import static io.trino.sql.newir.FormatOptions.isValidAttributeName;
 import static io.trino.sql.newir.FormatOptions.isValidIdentifier;
 import static io.trino.sql.newir.NoopTypeManager.NOOP_TYPE_MANAGER;
 import static io.trino.sql.newir.Value.validateValueName;
@@ -77,7 +78,7 @@ public abstract non-sealed class Operation
             requireNonNull(dialect, "dialect is null");
             requireNonNull(name, "name is null");
             validateDialectName(dialect);
-            if (!isValidIdentifier(name)) {
+            if (!isValidAttributeName(name)) {
                 throw new TrinoException(IR_ERROR, format("invalid attribute name: \"%s\"", name));
             }
         }

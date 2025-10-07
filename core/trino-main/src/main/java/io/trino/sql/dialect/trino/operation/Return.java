@@ -25,13 +25,12 @@ import java.util.Map;
 
 import static io.trino.sql.dialect.ir.IrDialect.terminalOperation;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
+import static io.trino.sql.dialect.trino.operationmetadata.ReturnOperationMetadata.NAME;
 import static java.util.Objects.requireNonNull;
 
 public final class Return
         extends TrinoOperation
 {
-    private static final String NAME = "return";
-
     private final Result result;
     private final Value input;
     private final Map<AttributeKey, Object> attributes;

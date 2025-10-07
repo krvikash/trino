@@ -31,14 +31,13 @@ import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowTyp
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
+import static io.trino.sql.dialect.trino.operationmetadata.FilterOperationMetadata.NAME;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.util.Objects.requireNonNull;
 
 public final class Filter
         extends TrinoOperation
 {
-    private static final String NAME = "filter";
-
     private final Result result;
     private final Value input;
     private final Region predicate;

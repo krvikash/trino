@@ -27,13 +27,12 @@ import java.util.Map;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operationmetadata.CastOperationMetadata.NAME;
 import static java.util.Objects.requireNonNull;
 
 public final class Cast
         extends TrinoOperation
 {
-    private static final String NAME = "cast";
-
     private final Result result;
     private final Value input;
     private final Map<AttributeKey, Object> attributes;

@@ -32,13 +32,12 @@ import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operationmetadata.CaseOperationMetadata.NAME;
 import static java.util.Objects.requireNonNull;
 
 public final class Case
         extends TrinoOperation
 {
-    private static final String NAME = "case";
-
     private final Result result;
     private final List<Value> when;
     private final List<Value> then;

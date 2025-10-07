@@ -32,13 +32,14 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.BigintType.BIGINT;
-import static io.trino.sql.dialect.trino.Attributes.GROUPING_SETS;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
+import static io.trino.sql.dialect.trino.operationmetadata.GroupIdOperationMetadata.GROUPING_SETS;
+import static io.trino.sql.dialect.trino.operationmetadata.GroupIdOperationMetadata.NAME;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.getSelectedFields;
 import static java.util.Objects.requireNonNull;
@@ -46,8 +47,6 @@ import static java.util.Objects.requireNonNull;
 public class GroupId
         extends TrinoOperation
 {
-    private static final String NAME = "group_id";
-
     private final Result result;
     private final Value input;
     // this is not a pass-through output fields selector. For each selected input column, an artificial output column will be computed.

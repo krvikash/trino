@@ -31,13 +31,12 @@ import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operationmetadata.SwitchOperationMetadata.NAME;
 import static java.util.Objects.requireNonNull;
 
 public final class Switch
         extends TrinoOperation
 {
-    private static final String NAME = "switch";
-
     private final Result result;
     private final Value operand;
     private final List<Value> when;

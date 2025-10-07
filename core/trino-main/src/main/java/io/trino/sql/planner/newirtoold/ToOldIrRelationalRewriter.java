@@ -23,7 +23,6 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.type.Type;
-import io.trino.sql.dialect.trino.Attributes;
 import io.trino.sql.dialect.trino.operation.AggregateCall;
 import io.trino.sql.dialect.trino.operation.Aggregation;
 import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
@@ -43,6 +42,22 @@ import io.trino.sql.dialect.trino.operation.TrinoOperationVisitor;
 import io.trino.sql.dialect.trino.operation.Values;
 import io.trino.sql.dialect.trino.operation.Window;
 import io.trino.sql.dialect.trino.operation.WindowFunctionCall;
+import io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.DynamicFilterSourceOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeScope;
+import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType;
+import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.SortOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.Statistics;
+import io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata.TopNStep;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
+import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameBoundType;
+import io.trino.sql.dialect.trino.operationmetadata.WindowOperationMetadata;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.newir.Block;
@@ -94,50 +109,48 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Streams.forEachPair;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
-import static io.trino.sql.dialect.trino.Attributes.AGGREGATION_STEP;
-import static io.trino.sql.dialect.trino.Attributes.BUCKET_COUNT;
-import static io.trino.sql.dialect.trino.Attributes.BUCKET_TO_PARTITION;
-import static io.trino.sql.dialect.trino.Attributes.CARDINALITY;
-import static io.trino.sql.dialect.trino.Attributes.COLUMN_HANDLES;
-import static io.trino.sql.dialect.trino.Attributes.CONSTRAINT;
-import static io.trino.sql.dialect.trino.Attributes.DISTINCT;
-import static io.trino.sql.dialect.trino.Attributes.DISTRIBUTION_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.DYNAMIC_FILTER_IDS;
-import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_SCOPE;
-import static io.trino.sql.dialect.trino.Attributes.EXCHANGE_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.FRAME_END_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.FRAME_START_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.FRAME_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.GLOBAL_GROUPING_SETS;
-import static io.trino.sql.dialect.trino.Attributes.GROUPING_SETS;
-import static io.trino.sql.dialect.trino.Attributes.GROUPING_SETS_COUNT;
-import static io.trino.sql.dialect.trino.Attributes.GROUP_ID_INDEX;
-import static io.trino.sql.dialect.trino.Attributes.IGNORE_NULLS;
-import static io.trino.sql.dialect.trino.Attributes.INPUT_REDUCING;
-import static io.trino.sql.dialect.trino.Attributes.JOIN_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.LIMIT;
-import static io.trino.sql.dialect.trino.Attributes.MAY_SKIP_OUTPUT_DUPLICATES;
-import static io.trino.sql.dialect.trino.Attributes.OUTPUT_NAMES;
-import static io.trino.sql.dialect.trino.Attributes.PARTIAL;
-import static io.trino.sql.dialect.trino.Attributes.PARTITIONING_HANDLE;
-import static io.trino.sql.dialect.trino.Attributes.PARTITION_COUNT;
-import static io.trino.sql.dialect.trino.Attributes.PRE_GROUPED_INDEXES;
-import static io.trino.sql.dialect.trino.Attributes.PRE_PARTITIONED_INDEXES;
-import static io.trino.sql.dialect.trino.Attributes.PRE_SORTED_INDEXES;
-import static io.trino.sql.dialect.trino.Attributes.PRE_SORTED_PREFIX;
-import static io.trino.sql.dialect.trino.Attributes.REPLICATE_NULLS_AND_ANY;
-import static io.trino.sql.dialect.trino.Attributes.RESOLVED_FUNCTION;
-import static io.trino.sql.dialect.trino.Attributes.SORT_ORDERS;
-import static io.trino.sql.dialect.trino.Attributes.SPILLABLE;
-import static io.trino.sql.dialect.trino.Attributes.STATISTICS;
-import static io.trino.sql.dialect.trino.Attributes.STATISTICS_AND_COST_SUMMARY;
-import static io.trino.sql.dialect.trino.Attributes.TABLE_HANDLE;
-import static io.trino.sql.dialect.trino.Attributes.TOP_N_STEP;
-import static io.trino.sql.dialect.trino.Attributes.UPDATE_TARGET;
-import static io.trino.sql.dialect.trino.Attributes.USE_CONNECTOR_NODE_PARTITIONING;
-import static io.trino.sql.dialect.trino.Attributes.VERBOSE;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.AGGREGATION_STEP;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.GLOBAL_GROUPING_SETS;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.GROUPING_SETS_COUNT;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.GROUP_ID_INDEX;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.INPUT_REDUCING;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.PRE_GROUPED_INDEXES;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.BUCKET_COUNT;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.BUCKET_TO_PARTITION;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.EXCHANGE_SCOPE;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.EXCHANGE_TYPE;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.PARTITIONING_HANDLE;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.PARTITION_COUNT;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.REPLICATE_NULLS_AND_ANY;
+import static io.trino.sql.dialect.trino.operationmetadata.ExplainAnalyzeOperationMetadata.VERBOSE;
+import static io.trino.sql.dialect.trino.operationmetadata.GroupIdOperationMetadata.GROUPING_SETS;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DISTRIBUTION_TYPE;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DYNAMIC_FILTER_IDS;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.JOIN_TYPE;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.MAY_SKIP_OUTPUT_DUPLICATES;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.SPILLABLE;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.STATISTICS_AND_COST_SUMMARY;
+import static io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata.PRE_SORTED_INDEXES;
+import static io.trino.sql.dialect.trino.operationmetadata.OutputOperationMetadata.OUTPUT_NAMES;
+import static io.trino.sql.dialect.trino.operationmetadata.SortOperationMetadata.PARTIAL;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.COLUMN_HANDLES;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.CONSTRAINT;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.STATISTICS;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.TABLE_HANDLE;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.UPDATE_TARGET;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.USE_CONNECTOR_NODE_PARTITIONING;
+import static io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata.LIMIT;
+import static io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata.TOP_N_STEP;
+import static io.trino.sql.dialect.trino.operationmetadata.ValuesOperationMetadata.CARDINALITY;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.DISTINCT;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.FRAME_END_TYPE;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.FRAME_START_TYPE;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.FRAME_TYPE;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.IGNORE_NULLS;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowOperationMetadata.PRE_PARTITIONED_INDEXES;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowOperationMetadata.PRE_SORTED_PREFIX;
 import static io.trino.sql.ir.Booleans.TRUE;
 import static io.trino.sql.planner.Partitioning.ArgumentBinding.constantBinding;
 import static io.trino.sql.planner.Partitioning.ArgumentBinding.expressionBinding;
@@ -224,15 +237,15 @@ public class ToOldIrRelationalRewriter
     private AggregationNode.Aggregation getAggregation(AggregateCall aggregateCall, List<Symbol> inputSymbols)
     {
         return new AggregationNode.Aggregation(
-                RESOLVED_FUNCTION.getAttribute(aggregateCall.attributes()),
+                AggregateCallOperationMetadata.RESOLVED_FUNCTION.getAttribute(aggregateCall.attributes()),
                 scalarRewriter.getExpressions(aggregateCall.argumentsBlock(), inputSymbols),
-                DISTINCT.getAttribute(aggregateCall.attributes()),
+                AggregateCallOperationMetadata.DISTINCT.getAttribute(aggregateCall.attributes()),
                 scalarRewriter.getOptionalSelectedSymbol(aggregateCall.filterSelector(), inputSymbols),
-                getOptionalOrderingScheme(SORT_ORDERS.getAttribute(aggregateCall.attributes()), aggregateCall.orderingSelector(), inputSymbols),
+                getOptionalOrderingScheme(AggregateCallOperationMetadata.SORT_ORDERS.getAttribute(aggregateCall.attributes()), aggregateCall.orderingSelector(), inputSymbols),
                 scalarRewriter.getOptionalSelectedSymbol(aggregateCall.maskSelector(), inputSymbols));
     }
 
-    private Optional<OrderingScheme> getOptionalOrderingScheme(@Nullable Attributes.SortOrderList sortOrderList, Block orderingSelector, List<Symbol> inputSymbols)
+    private Optional<OrderingScheme> getOptionalOrderingScheme(@Nullable SortOrderList sortOrderList, Block orderingSelector, List<Symbol> inputSymbols)
     {
         if (sortOrderList == null) {
             return Optional.empty();
@@ -247,7 +260,7 @@ public class ToOldIrRelationalRewriter
         return Optional.of(new OrderingScheme(orderBy, orderings.buildOrThrow()));
     }
 
-    private static AggregationNode.Step rewriteAggregationStep(Attributes.AggregationStep step)
+    private static AggregationNode.Step rewriteAggregationStep(AggregationOperationMetadata.AggregationStep step)
     {
         return switch (step) {
             case PARTIAL -> AggregationNode.Step.PARTIAL;
@@ -263,7 +276,7 @@ public class ToOldIrRelationalRewriter
         PlanNode source = getOnlyElement(sources);
 
         // build dynamic filter map
-        List<DynamicFilterId> dynamicFilterIds = DYNAMIC_FILTER_IDS.getAttribute(dynamicFilterSource.attributes()).stream()
+        List<DynamicFilterId> dynamicFilterIds = DynamicFilterSourceOperationMetadata.DYNAMIC_FILTER_IDS.getAttribute(dynamicFilterSource.attributes()).stream()
                 .map(DynamicFilterId::new)
                 .collect(toImmutableList());
         List<Symbol> dynamicFilterSymbols = scalarRewriter.getSelectedSymbols(dynamicFilterSource.dynamicFilterTargetSelector(), source.getOutputSymbols());
@@ -307,10 +320,10 @@ public class ToOldIrRelationalRewriter
                         Optional.ofNullable(PARTITION_COUNT.getAttribute(exchange.attributes()))),
                 sources,
                 inputSymbols,
-                getOptionalOrderingScheme(SORT_ORDERS.getAttribute(exchange.attributes()), exchange.orderingSelector(), outputSymbols));
+                getOptionalOrderingScheme(ExchangeOperationMetadata.SORT_ORDERS.getAttribute(exchange.attributes()), exchange.orderingSelector(), outputSymbols));
     }
 
-    private static ExchangeNode.Type rewriteExchangeType(Attributes.ExchangeType type)
+    private static ExchangeNode.Type rewriteExchangeType(ExchangeType type)
     {
         return switch (type) {
             case GATHER -> ExchangeNode.Type.GATHER;
@@ -319,7 +332,7 @@ public class ToOldIrRelationalRewriter
         };
     }
 
-    private static ExchangeNode.Scope rewriteExchangeScope(Attributes.ExchangeScope scope)
+    private static ExchangeNode.Scope rewriteExchangeScope(ExchangeScope scope)
     {
         return switch (scope) {
             case LOCAL -> ExchangeNode.Scope.LOCAL;
@@ -445,7 +458,7 @@ public class ToOldIrRelationalRewriter
                 Optional.ofNullable(STATISTICS_AND_COST_SUMMARY.getAttribute(join.attributes())));
     }
 
-    private static JoinType rewriteJoinType(Attributes.JoinType type)
+    private static JoinType rewriteJoinType(JoinOperationMetadata.JoinType type)
     {
         return switch (type) {
             case INNER -> JoinType.INNER;
@@ -455,7 +468,7 @@ public class ToOldIrRelationalRewriter
         };
     }
 
-    private static JoinNode.DistributionType rewriteJoinDistributionType(Attributes.DistributionType type)
+    private static JoinNode.DistributionType rewriteJoinDistributionType(JoinOperationMetadata.DistributionType type)
     {
         return switch (type) {
             case PARTITIONED -> JoinNode.DistributionType.PARTITIONED;
@@ -468,7 +481,7 @@ public class ToOldIrRelationalRewriter
     {
         PlanNode source = getOnlyElement(sources);
 
-        Optional<OrderingScheme> tiesResolvingScheme = getOptionalOrderingScheme(SORT_ORDERS.getAttribute(limit.attributes()), limit.orderingSelector(), source.getOutputSymbols());
+        Optional<OrderingScheme> tiesResolvingScheme = getOptionalOrderingScheme(LimitOperationMetadata.SORT_ORDERS.getAttribute(limit.attributes()), limit.orderingSelector(), source.getOutputSymbols());
 
         // build pre-sorted symbols list
         List<Integer> preSortedIndexes = PRE_SORTED_INDEXES.getAttribute(limit.attributes());
@@ -479,9 +492,9 @@ public class ToOldIrRelationalRewriter
         return new LimitNode(
                 planNodeIdAllocator.getNextId(),
                 source,
-                LIMIT.getAttribute(limit.attributes()),
+                LimitOperationMetadata.LIMIT.getAttribute(limit.attributes()),
                 tiesResolvingScheme,
-                PARTIAL.getAttribute(limit.attributes()),
+                LimitOperationMetadata.PARTIAL.getAttribute(limit.attributes()),
                 preSortedInputs);
     }
 
@@ -522,7 +535,7 @@ public class ToOldIrRelationalRewriter
         return new SortNode(
                 planNodeIdAllocator.getNextId(),
                 source,
-                getOptionalOrderingScheme(SORT_ORDERS.getAttribute(sort.attributes()), sort.orderingSelector(), source.getOutputSymbols()).orElseThrow(),
+                getOptionalOrderingScheme(SortOperationMetadata.SORT_ORDERS.getAttribute(sort.attributes()), sort.orderingSelector(), source.getOutputSymbols()).orElseThrow(),
                 PARTIAL.getAttribute(sort.attributes()));
     }
 
@@ -554,7 +567,7 @@ public class ToOldIrRelationalRewriter
         }
 
         // build statistics
-        Optional<Attributes.Statistics> statistics = Optional.ofNullable(STATISTICS.getAttribute(tableScan.attributes()));
+        Optional<Statistics> statistics = Optional.ofNullable(STATISTICS.getAttribute(tableScan.attributes()));
         Optional<PlanNodeStatsEstimate> statsEstimate = statistics.map(stats -> new PlanNodeStatsEstimate(
                 stats.outputRowCount(),
                 stats.fieldStatistics().entrySet().stream()
@@ -580,11 +593,11 @@ public class ToOldIrRelationalRewriter
                 planNodeIdAllocator.getNextId(),
                 source,
                 LIMIT.getAttribute(topN.attributes()),
-                getOptionalOrderingScheme(SORT_ORDERS.getAttribute(topN.attributes()), topN.orderingSelector(), source.getOutputSymbols()).orElseThrow(),
+                getOptionalOrderingScheme(TopNOperationMetadata.SORT_ORDERS.getAttribute(topN.attributes()), topN.orderingSelector(), source.getOutputSymbols()).orElseThrow(),
                 rewriteTopNStep(TOP_N_STEP.getAttribute(topN.attributes())));
     }
 
-    private static TopNNode.Step rewriteTopNStep(Attributes.TopNStep step)
+    private static TopNNode.Step rewriteTopNStep(TopNStep step)
     {
         return switch (step) {
             case SINGLE -> TopNNode.Step.SINGLE;
@@ -632,7 +645,7 @@ public class ToOldIrRelationalRewriter
         }
 
         List<Symbol> partitionBy = scalarRewriter.getSelectedSymbols(window.partitioningSelector(), source.getOutputSymbols());
-        Optional<OrderingScheme> orderingScheme = getOptionalOrderingScheme(SORT_ORDERS.getAttribute(window.attributes()), window.orderingSelector(), source.getOutputSymbols());
+        Optional<OrderingScheme> orderingScheme = getOptionalOrderingScheme(WindowOperationMetadata.SORT_ORDERS.getAttribute(window.attributes()), window.orderingSelector(), source.getOutputSymbols());
 
         return new WindowNode(
                 planNodeIdAllocator.getNextId(),
@@ -664,9 +677,9 @@ public class ToOldIrRelationalRewriter
     private WindowNode.Function getWindowFunction(WindowFunctionCall windowFunctionCall, List<Symbol> inputSymbols)
     {
         return new WindowNode.Function(
-                RESOLVED_FUNCTION.getAttribute(windowFunctionCall.attributes()),
+                WindowFunctionCallOperationMetadata.RESOLVED_FUNCTION.getAttribute(windowFunctionCall.attributes()),
                 scalarRewriter.getExpressions(windowFunctionCall.argumentsBlock(), inputSymbols),
-                getOptionalOrderingScheme(SORT_ORDERS.getAttribute(windowFunctionCall.attributes()), windowFunctionCall.orderingSelector(), inputSymbols),
+                getOptionalOrderingScheme(WindowFunctionCallOperationMetadata.SORT_ORDERS.getAttribute(windowFunctionCall.attributes()), windowFunctionCall.orderingSelector(), inputSymbols),
                 new WindowNode.Frame(
                         rewriteFrameType(FRAME_TYPE.getAttribute(windowFunctionCall.attributes())),
                         rewriteFrameBoundType(FRAME_START_TYPE.getAttribute(windowFunctionCall.attributes())),
@@ -679,7 +692,7 @@ public class ToOldIrRelationalRewriter
                 DISTINCT.getAttribute(windowFunctionCall.attributes()));
     }
 
-    private static WindowFrameType rewriteFrameType(Attributes.WindowFrameType type)
+    private static WindowFrameType rewriteFrameType(WindowFunctionCallOperationMetadata.WindowFrameType type)
     {
         return switch (type) {
             case RANGE -> WindowFrameType.RANGE;
@@ -688,7 +701,7 @@ public class ToOldIrRelationalRewriter
         };
     }
 
-    private static FrameBoundType rewriteFrameBoundType(Attributes.WindowFrameBoundType type)
+    private static FrameBoundType rewriteFrameBoundType(WindowFrameBoundType type)
     {
         return switch (type) {
             case UNBOUNDED_PRECEDING -> FrameBoundType.UNBOUNDED_PRECEDING;

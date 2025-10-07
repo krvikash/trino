@@ -15,7 +15,7 @@ package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.spi.TrinoException;
-import io.trino.sql.dialect.trino.Attributes.LogicalOperator;
+import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -27,17 +27,16 @@ import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
-import static io.trino.sql.dialect.trino.Attributes.LOGICAL_OPERATOR;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LOGICAL_OPERATOR;
+import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.NAME;
 import static java.util.Objects.requireNonNull;
 
 public final class Logical
         extends TrinoOperation
 {
-    private static final String NAME = "logical";
-
     private final Result result;
     private final List<Value> terms;
     private final Map<AttributeKey, Object> attributes;

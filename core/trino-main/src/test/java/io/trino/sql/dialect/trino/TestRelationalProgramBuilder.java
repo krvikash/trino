@@ -30,9 +30,6 @@ import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
-import io.trino.sql.dialect.trino.Attributes.NullableValues;
-import io.trino.sql.dialect.trino.Attributes.SortOrderList;
-import io.trino.sql.dialect.trino.Attributes.Statistics;
 import io.trino.sql.dialect.trino.ProgramBuilder.ValueNameAllocator;
 import io.trino.sql.dialect.trino.RelationalProgramBuilder.OperationAndMapping;
 import io.trino.sql.dialect.trino.operation.AggregateCall;
@@ -58,6 +55,12 @@ import io.trino.sql.dialect.trino.operation.TopN;
 import io.trino.sql.dialect.trino.operation.Values;
 import io.trino.sql.dialect.trino.operation.Window;
 import io.trino.sql.dialect.trino.operation.WindowFunctionCall;
+import io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.CorrelatedJoinOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.NullableValues;
+import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.Statistics;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
@@ -82,7 +85,6 @@ import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.FrameBoundType;
 import io.trino.sql.planner.plan.GroupIdNode;
 import io.trino.sql.planner.plan.JoinNode;
-import io.trino.sql.planner.plan.JoinType;
 import io.trino.sql.planner.plan.LimitNode;
 import io.trino.sql.planner.plan.OutputNode;
 import io.trino.sql.planner.plan.PlanNode;
@@ -115,16 +117,6 @@ import static io.trino.spi.type.RowType.rowType;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
-import static io.trino.sql.dialect.trino.Attributes.AggregationStep.SINGLE;
-import static io.trino.sql.dialect.trino.Attributes.ComparisonOperator.GREATER_THAN;
-import static io.trino.sql.dialect.trino.Attributes.DistributionType.REPLICATED;
-import static io.trino.sql.dialect.trino.Attributes.ExchangeScope.REMOTE;
-import static io.trino.sql.dialect.trino.Attributes.ExchangeType.GATHER;
-import static io.trino.sql.dialect.trino.Attributes.JoinType.LEFT;
-import static io.trino.sql.dialect.trino.Attributes.TopNStep.FINAL;
-import static io.trino.sql.dialect.trino.Attributes.WindowFrameBoundType.FOLLOWING;
-import static io.trino.sql.dialect.trino.Attributes.WindowFrameBoundType.PRECEDING;
-import static io.trino.sql.dialect.trino.Attributes.WindowFrameType.RANGE;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.deriveOutputMapping;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.mapStatistics;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
@@ -132,7 +124,17 @@ import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operation.Values.valuesWithoutFields;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.AggregationStep.SINGLE;
+import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator.GREATER_THAN;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeScope.REMOTE;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType.GATHER;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DistributionType.REPLICATED;
+import static io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata.TopNStep.FINAL;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameBoundType.FOLLOWING;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameBoundType.PRECEDING;
+import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameType.RANGE;
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
+import static io.trino.sql.planner.plan.JoinType.LEFT;
 import static java.lang.Boolean.TRUE;
 import static java.lang.Double.NaN;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -243,7 +245,7 @@ final class TestRelationalProgramBuilder
                 Optional.of(new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST))),
                 sumFunction,
                 false,
-                SINGLE);
+                AggregateCallOperationMetadata.AggregationStep.SINGLE);
 
         // collecting aggregate functions in a row
         Row aggregatesRowOperation = new Row("%28", ImmutableList.of(aggregateCallOperation.result()), ImmutableList.of(aggregateCallOperation.attributes()));
@@ -293,35 +295,35 @@ final class TestRelationalProgramBuilder
         assertThat(aggregateCallOperation.attributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
-                                new AttributeKey(TRINO, "sort_orders"),
+                                new AttributeKey(TRINO, "aggregate_call:sort_orders"),
                                 new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)))
                         .put(
-                                new AttributeKey(TRINO, "resolved_function"),
+                                new AttributeKey(TRINO, "aggregate_call:resolved_function"),
                                 sumFunction)
                         .put(
-                                new AttributeKey(TRINO, "distinct"),
+                                new AttributeKey(TRINO, "aggregate_call:distinct"),
                                 false)
                         .put(
-                                new AttributeKey(TRINO, "aggregation_step"),
-                                SINGLE)
+                                new AttributeKey(TRINO, "aggregate_call:aggregation_step"),
+                                AggregateCallOperationMetadata.AggregationStep.SINGLE)
                         .buildOrThrow());
 
         assertThat(aggregationOperation.attributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
-                                new AttributeKey(TRINO, "grouping_sets_count"),
+                                new AttributeKey(TRINO, "aggregation:grouping_sets_count"),
                                 1)
                         .put(
-                                new AttributeKey(TRINO, "global_grouping_sets"),
+                                new AttributeKey(TRINO, "aggregation:global_grouping_sets"),
                                 ImmutableList.of())
                         .put(
-                                new AttributeKey(TRINO, "pre_grouped_indexes"),
+                                new AttributeKey(TRINO, "aggregation:pre_grouped_indexes"),
                                 ImmutableList.of(0))
                         .put(
-                                new AttributeKey(TRINO, "aggregation_step"),
+                                new AttributeKey(TRINO, "aggregation:aggregation_step"),
                                 SINGLE)
                         .put(
-                                new AttributeKey(TRINO, "input_reducing"),
+                                new AttributeKey(TRINO, "aggregation:input_reducing"),
                                 true)
                         .buildOrThrow());
     }
@@ -337,7 +339,7 @@ final class TestRelationalProgramBuilder
                         ImmutableList.of(new Symbol(BOOLEAN, "c")),
                         ImmutableList.of(new io.trino.sql.ir.Row(ImmutableList.of(new Reference(BOOLEAN, "b"))))), // correlated values
                 ImmutableList.of(new Symbol(BOOLEAN, "b")),
-                JoinType.LEFT,
+                LEFT,
                 new Reference(BOOLEAN, "b"),
                 new Identifier("origin subquery - whatever"));
 
@@ -403,7 +405,7 @@ final class TestRelationalProgramBuilder
                         ImmutableList.of(
                                 fieldReferenceOperationFilter,
                                 returnOperationFilter)),
-                LEFT,
+                CorrelatedJoinOperationMetadata.JoinType.LEFT,
                 VALUES_OPERATION.attributes(),
                 returnOperationSubquery.attributes());
 
@@ -599,25 +601,25 @@ final class TestRelationalProgramBuilder
         assertThat(exchangeOperation.attributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
-                                new AttributeKey(TRINO, "exchange_type"),
+                                new AttributeKey(TRINO, "exchange:exchange_type"),
                                 GATHER)
                         .put(
-                                new AttributeKey(TRINO, "exchange_scope"),
+                                new AttributeKey(TRINO, "exchange:exchange_scope"),
                                 REMOTE)
                         .put(
-                                new AttributeKey(TRINO, "partitioning_handle"),
+                                new AttributeKey(TRINO, "exchange:partitioning_handle"),
                                 new PartitioningHandle(
                                         Optional.of(CatalogHandle.fromId("bla:normal:1")),
                                         Optional.of(TestingConnectorTransactionHandle.INSTANCE),
                                         testingPartitioningHandle))
                         .put(
-                                new AttributeKey(TRINO, "nullable_values"),
+                                new AttributeKey(TRINO, "exchange:nullable_values"),
                                 new NullableValues(new NullableValue[] {null}))
                         .put(
-                                new AttributeKey(TRINO, "replicate_nulls_and_any"),
+                                new AttributeKey(TRINO, "exchange:replicate_nulls_and_any"),
                                 false)
                         .put(
-                                new AttributeKey(TRINO, "bucket_to_partition"),
+                                new AttributeKey(TRINO, "exchange:bucket_to_partition"),
                                 ImmutableList.of(5, 6, 7))
                         .buildOrThrow());
     }
@@ -720,28 +722,28 @@ final class TestRelationalProgramBuilder
         assertThat(exchangeOperation.attributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
-                                new AttributeKey(TRINO, "exchange_type"),
+                                new AttributeKey(TRINO, "exchange:exchange_type"),
                                 GATHER)
                         .put(
-                                new AttributeKey(TRINO, "exchange_scope"),
+                                new AttributeKey(TRINO, "exchange:exchange_scope"),
                                 REMOTE)
                         .put(
-                                new AttributeKey(TRINO, "partitioning_handle"),
+                                new AttributeKey(TRINO, "exchange:partitioning_handle"),
                                 SINGLE_DISTRIBUTION)
                         .put(
-                                new AttributeKey(TRINO, "nullable_values"),
+                                new AttributeKey(TRINO, "exchange:nullable_values"),
                                 new NullableValues(new NullableValue[] {null}))
                         .put(
-                                new AttributeKey(TRINO, "replicate_nulls_and_any"),
+                                new AttributeKey(TRINO, "exchange:replicate_nulls_and_any"),
                                 false)
                         .put(
-                                new AttributeKey(TRINO, "bucket_to_partition"),
+                                new AttributeKey(TRINO, "exchange:bucket_to_partition"),
                                 ImmutableList.of(5, 6, 7))
                         .put(
-                                new AttributeKey(TRINO, "partition_count"),
+                                new AttributeKey(TRINO, "exchange:partition_count"),
                                 10)
                         .put(
-                                new AttributeKey(TRINO, "sort_orders"),
+                                new AttributeKey(TRINO, "exchange:sort_orders"),
                                 new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)))
                         .buildOrThrow());
     }
@@ -782,7 +784,7 @@ final class TestRelationalProgramBuilder
                 ImmutableMap.of(new Symbol(VARCHAR, "Query Plan"), 0));
 
         assertThat(explainAnalyzeOperation.attributes())
-                .isEqualTo(ImmutableMap.of(new AttributeKey(TRINO, "verbose"), true));
+                .isEqualTo(ImmutableMap.of(new AttributeKey(TRINO, "explain_analyze:verbose"), true));
     }
 
     @Test
@@ -916,7 +918,7 @@ final class TestRelationalProgramBuilder
 
         JoinNode joinNode = new JoinNode(
                 new PlanNodeId("join"),
-                JoinType.LEFT,
+                LEFT,
                 left,
                 right,
                 ImmutableList.of(new JoinNode.EquiJoinClause(new Symbol(BIGINT, "a"), new Symbol(BIGINT, "c"))),
@@ -1054,7 +1056,7 @@ final class TestRelationalProgramBuilder
                                 fieldReferenceOperationDynamicFilterTargetsC2,
                                 rowOperationDynamicFilterTargets,
                                 returnOperationDynamicFilterTargets)),
-                LEFT,
+                JoinOperationMetadata.JoinType.LEFT,
                 false,
                 Optional.of(REPLICATED),
                 Optional.of(true),
@@ -1075,22 +1077,22 @@ final class TestRelationalProgramBuilder
         assertThat(joinOperation.attributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
-                                new AttributeKey(TRINO, "join_type"),
-                                LEFT)
+                                new AttributeKey(TRINO, "join:join_type"),
+                                JoinOperationMetadata.JoinType.LEFT)
                         .put(
-                                new AttributeKey(TRINO, "may_skip_output_duplicates"),
+                                new AttributeKey(TRINO, "join:may_skip_output_duplicates"),
                                 false)
                         .put(
-                                new AttributeKey(TRINO, "distribution_type"),
+                                new AttributeKey(TRINO, "join:distribution_type"),
                                 REPLICATED)
                         .put(
-                                new AttributeKey(TRINO, "spillable"),
+                                new AttributeKey(TRINO, "join:spillable"),
                                 true)
                         .put(
-                                new AttributeKey(TRINO, "dynamic_filter_ids"),
+                                new AttributeKey(TRINO, "join:dynamic_filter_ids"),
                                 ImmutableList.of("first_dynamic_filter", "second_dynamic_filter"))
                         .put(
-                                new AttributeKey(TRINO, "statistics_and_cost_summary"),
+                                new AttributeKey(TRINO, "join:statistics_and_cost_summary"),
                                 statsAndCost)
                         .buildOrThrow());
     }
@@ -1132,13 +1134,13 @@ final class TestRelationalProgramBuilder
         assertThat(limitOperation.attributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
-                                new AttributeKey(TRINO, "limit"),
+                                new AttributeKey(TRINO, "limit:limit"),
                                 5L)
                         .put(
-                                new AttributeKey(TRINO, "partial"),
+                                new AttributeKey(TRINO, "limit:partial"),
                                 true)
                         .put(
-                                new AttributeKey(TRINO, "pre_sorted_indexes"),
+                                new AttributeKey(TRINO, "limit:pre_sorted_indexes"),
                                 ImmutableList.of())
                         .buildOrThrow());
     }
@@ -1188,16 +1190,16 @@ final class TestRelationalProgramBuilder
         assertThat(limitOperation.attributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
-                                new AttributeKey(TRINO, "sort_orders"),
+                                new AttributeKey(TRINO, "limit:sort_orders"),
                                 new SortOrderList(ImmutableList.of(ASC_NULLS_FIRST)))
                         .put(
-                                new AttributeKey(TRINO, "limit"),
+                                new AttributeKey(TRINO, "limit:limit"),
                                 5L)
                         .put(
-                                new AttributeKey(TRINO, "partial"),
+                                new AttributeKey(TRINO, "limit:partial"),
                                 false)
                         .put(
-                                new AttributeKey(TRINO, "pre_sorted_indexes"),
+                                new AttributeKey(TRINO, "limit:pre_sorted_indexes"),
                                 ImmutableList.of(0))
                         .buildOrThrow());
     }
@@ -1413,22 +1415,22 @@ final class TestRelationalProgramBuilder
         assertThat(tableScanOperation.attributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
-                                new AttributeKey(TRINO, "table_handle"),
+                                new AttributeKey(TRINO, "table_scan:table_handle"),
                                 new TableHandle(CatalogHandle.fromId("bla:normal:1"), testingConnectorTableHandle, TestingConnectorTransactionHandle.INSTANCE))
                         .put(
-                                new AttributeKey(TRINO, "column_handles"),
+                                new AttributeKey(TRINO, "table_scan:column_handles"),
                                 ImmutableList.of(new TestingColumnHandle("a_handle"), new TestingColumnHandle("b_handle")))
                         .put(
-                                new AttributeKey(TRINO, "constraint"),
+                                new AttributeKey(TRINO, "table_scan:constraint"),
                                 TupleDomain.withColumnDomains(ImmutableMap.of(new TestingColumnHandle("b_handle"), Domain.singleValue(BOOLEAN, true))))
                         .put(
-                                new AttributeKey(TRINO, "statistics"),
+                                new AttributeKey(TRINO, "table_scan:statistics"),
                                 new Statistics(NaN, ImmutableMap.of()))
                         .put(
-                                new AttributeKey(TRINO, "update_target"),
+                                new AttributeKey(TRINO, "table_scan:update_target"),
                                 false)
                         .put(
-                                new AttributeKey(TRINO, "use_connector_node_partitioning"),
+                                new AttributeKey(TRINO, "table_scan:use_connector_node_partitioning"),
                                 true)
                         .buildOrThrow());
     }
@@ -1720,38 +1722,38 @@ final class TestRelationalProgramBuilder
         assertThat(windowFunctionCallOperation.attributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
-                                new AttributeKey(TRINO, "resolved_function"),
+                                new AttributeKey(TRINO, "window_function_call:resolved_function"),
                                 lagFunction)
                         .put(
-                                new AttributeKey(TRINO, "sort_orders"),
+                                new AttributeKey(TRINO, "window_function_call:sort_orders"),
                                 new SortOrderList(ImmutableList.of(DESC_NULLS_LAST, ASC_NULLS_FIRST)))
                         .put(
-                                new AttributeKey(TRINO, "frame_type"),
+                                new AttributeKey(TRINO, "window_function_call:frame_type"),
                                 RANGE)
                         .put(
-                                new AttributeKey(TRINO, "frame_start_type"),
+                                new AttributeKey(TRINO, "window_function_call:frame_start_type"),
                                 PRECEDING)
                         .put(
-                                new AttributeKey(TRINO, "frame_end_type"),
+                                new AttributeKey(TRINO, "window_function_call:frame_end_type"),
                                 FOLLOWING)
                         .put(
-                                new AttributeKey(TRINO, "ignore_nulls"),
+                                new AttributeKey(TRINO, "window_function_call:ignore_nulls"),
                                 true)
                         .put(
-                                new AttributeKey(TRINO, "distinct"),
+                                new AttributeKey(TRINO, "window_function_call:distinct"),
                                 false)
                         .buildOrThrow());
 
         assertThat(windowOperation.attributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
-                                new AttributeKey(TRINO, "pre_partitioned_indexes"),
+                                new AttributeKey(TRINO, "window:pre_partitioned_indexes"),
                                 ImmutableList.of(0))
                         .put(
-                                new AttributeKey(TRINO, "sort_orders"),
+                                new AttributeKey(TRINO, "window:sort_orders"),
                                 new SortOrderList(ImmutableList.of(ASC_NULLS_LAST, DESC_NULLS_FIRST)))
                         .put(
-                                new AttributeKey(TRINO, "pre_sorted_prefix"),
+                                new AttributeKey(TRINO, "window:pre_sorted_prefix"),
                                 1)
                         .buildOrThrow());
     }

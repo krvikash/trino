@@ -18,8 +18,8 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.Type;
-import io.trino.sql.dialect.trino.Attributes.AggregationStep;
-import io.trino.sql.dialect.trino.Attributes.SortOrderList;
+import io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata.AggregationStep;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -33,13 +33,6 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
-import static io.trino.sql.dialect.trino.Attributes.AGGREGATION_STEP;
-import static io.trino.sql.dialect.trino.Attributes.AggregationStep.FINAL;
-import static io.trino.sql.dialect.trino.Attributes.AggregationStep.PARTIAL;
-import static io.trino.sql.dialect.trino.Attributes.AggregationStep.SINGLE;
-import static io.trino.sql.dialect.trino.Attributes.DISTINCT;
-import static io.trino.sql.dialect.trino.Attributes.RESOLVED_FUNCTION;
-import static io.trino.sql.dialect.trino.Attributes.SORT_ORDERS;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelectorReturningAtMostOneField;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
@@ -47,6 +40,14 @@ import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata.AGGREGATION_STEP;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata.AggregationStep.FINAL;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata.AggregationStep.PARTIAL;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata.AggregationStep.SINGLE;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata.DISTINCT;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata.NAME;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata.RESOLVED_FUNCTION;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata.SORT_ORDERS;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -54,8 +55,6 @@ import static java.util.Objects.requireNonNull;
 public class AggregateCall
         extends TrinoOperation
 {
-    private static final String NAME = "aggregate_call";
-
     private final Result result;
     private final Value group;
     private final Region arguments;

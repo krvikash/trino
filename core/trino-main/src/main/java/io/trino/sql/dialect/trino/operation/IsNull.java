@@ -26,13 +26,12 @@ import java.util.Map;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
+import static io.trino.sql.dialect.trino.operationmetadata.IsNullOperationMetadata.NAME;
 import static java.util.Objects.requireNonNull;
 
 public final class IsNull
         extends TrinoOperation
 {
-    private static final String NAME = "is_null";
-
     private final Result result;
     private final Value input;
     private final Map<AttributeKey, Object> attributes;

@@ -18,7 +18,7 @@ import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 
-import static io.trino.sql.dialect.trino.Attributes.RESOLVED_FUNCTION;
+import static io.trino.sql.dialect.trino.operationmetadata.CallOperationMetadata.RESOLVED_FUNCTION;
 
 public class DeterminismUtils
 {

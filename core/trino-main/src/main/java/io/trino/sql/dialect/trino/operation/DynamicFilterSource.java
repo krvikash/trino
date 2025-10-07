@@ -27,20 +27,19 @@ import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
-import static io.trino.sql.dialect.trino.Attributes.DYNAMIC_FILTER_IDS;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
+import static io.trino.sql.dialect.trino.operationmetadata.DynamicFilterSourceOperationMetadata.DYNAMIC_FILTER_IDS;
+import static io.trino.sql.dialect.trino.operationmetadata.DynamicFilterSourceOperationMetadata.NAME;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.util.Objects.requireNonNull;
 
 public class DynamicFilterSource
         extends TrinoOperation
 {
-    private static final String NAME = "dynamic_filter_source";
-
     private final Result result;
     private final Value input;
     private final Region dynamicFilterTargetSelector;

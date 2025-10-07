@@ -20,9 +20,10 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import io.trino.cost.PlanNodeStatsAndCostSummary;
 import io.trino.spi.type.Type;
-import io.trino.sql.dialect.trino.Attributes;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.Join;
+import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DistributionType;
+import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.JoinType;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -44,18 +45,18 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static io.trino.sql.dialect.trino.Attributes.DISTRIBUTION_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.DYNAMIC_FILTER_IDS;
-import static io.trino.sql.dialect.trino.Attributes.JOIN_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.JoinType.FULL;
-import static io.trino.sql.dialect.trino.Attributes.JoinType.LEFT;
-import static io.trino.sql.dialect.trino.Attributes.JoinType.RIGHT;
-import static io.trino.sql.dialect.trino.Attributes.MAY_SKIP_OUTPUT_DUPLICATES;
-import static io.trino.sql.dialect.trino.Attributes.SPILLABLE;
-import static io.trino.sql.dialect.trino.Attributes.STATISTICS_AND_COST_SUMMARY;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DISTRIBUTION_TYPE;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DYNAMIC_FILTER_IDS;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.JOIN_TYPE;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.JoinType.FULL;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.JoinType.LEFT;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.JoinType.RIGHT;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.MAY_SKIP_OUTPUT_DUPLICATES;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.SPILLABLE;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.STATISTICS_AND_COST_SUMMARY;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.concatenateFieldSelectors;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.getPassthroughMapping;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.getPruningAssignments;
@@ -146,7 +147,7 @@ public class JoinMerger
                 }
                 // compare TraversalContext.predicateToApply and consider the join type. The inner side predicate cannot be pulled through join, so it must be equal for all merged joins.
                 // Note: after the newGroup is split recursively, the equal predicates will be output as part of common semantics in CteReuse.outputCommonSemantics(), and the residual predicates will be true.
-                Attributes.JoinType joinType = JOIN_TYPE.getAttribute(halfRebasedJoin.attributes());
+                JoinType joinType = JOIN_TYPE.getAttribute(halfRebasedJoin.attributes());
                 if (sourceIndex == 0 &&
                         (joinType.equals(RIGHT) || joinType.equals(FULL)) &&
                         !blocksSemanticallyEquivalent(newGroup.residualStates().get(subgroupRepresentative.getKey()).traversalContext().predicateToApply(), branch.traversalContext().predicateToApply())) {
@@ -261,7 +262,7 @@ public class JoinMerger
                         }
                         // compare TraversalContext.predicateToApply and consider the join type. The inner side predicate cannot be pulled through join, so it must be equal for all merged joins.
                         // Note: after the hangingGroup is split recursively, the equal predicates will be output as part of common semantics in CteReuse.outputCommonSemantics(), and the residual predicates will be true.
-                        Attributes.JoinType joinType = JOIN_TYPE.getAttribute(rebasedJoin.attributes());
+                        JoinType joinType = JOIN_TYPE.getAttribute(rebasedJoin.attributes());
                         if (hangingBranch.nextOperation().sourceIndex() == 0 &&
                                 (joinType.equals(RIGHT) || joinType.equals(FULL)) &&
                                 !blocksSemanticallyEquivalent(hangingGroup.branches().get(subgroupRepresentative.getKey()).traversalContext().predicateToApply(), hangingBranch.traversalContext().predicateToApply())) {
@@ -377,7 +378,7 @@ public class JoinMerger
         rightBranchToCheckpoint = BranchesToCheckpointsMapping.fromBranchMappings(rightBranchToCheckpointBuilder.build());
 
         // verify that there is no unsupported TraversalContext.predicateToApply on inner side of the join
-        Attributes.JoinType joinType = JOIN_TYPE.getAttribute(leftSource.residualStates().getFirst().nextOperation().operation().attributes());
+        JoinType joinType = JOIN_TYPE.getAttribute(leftSource.residualStates().getFirst().nextOperation().operation().attributes());
         if (joinType.equals(RIGHT) || joinType.equals(FULL)) {
             checkState(
                     leftSource.residualStates().stream()
@@ -404,7 +405,7 @@ public class JoinMerger
         // get attributes for the unified Join
         boolean unifiedMaySkipOutputDuplicates = leftSource.residualStates().stream()
                 .allMatch(branch -> MAY_SKIP_OUTPUT_DUPLICATES.getAttribute(branch.nextOperation().operation().attributes()));
-        Optional<Attributes.DistributionType> unifiedDistributionType = Optional.ofNullable(DISTRIBUTION_TYPE.getAttribute(firstJoin.attributes()));
+        Optional<DistributionType> unifiedDistributionType = Optional.ofNullable(DISTRIBUTION_TYPE.getAttribute(firstJoin.attributes()));
         Optional<Boolean> unifiedSpillable = Optional.ofNullable(SPILLABLE.getAttribute(firstJoin.attributes()));
         List<String> unifiedDynamicFilterIds = leftSource.residualStates().stream()
                 .map(branch -> DYNAMIC_FILTER_IDS.getAttribute(branch.nextOperation().operation().attributes()))

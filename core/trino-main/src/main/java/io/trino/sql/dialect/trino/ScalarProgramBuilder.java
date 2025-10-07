@@ -37,6 +37,8 @@ import io.trino.sql.dialect.trino.operation.NullIf;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
 import io.trino.sql.dialect.trino.operation.Switch;
+import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator;
+import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.IrVisitor;
 import io.trino.sql.ir.Reference;
@@ -255,7 +257,7 @@ public class ScalarProgramBuilder
                 resultName,
                 left.result(),
                 right.result(),
-                Attributes.ComparisonOperator.of(node.operator()),
+                ComparisonOperator.of(node.operator()),
                 ImmutableList.of(left.attributes(), right.attributes()));
         context.block().addOperation(comparison);
         return comparison;
@@ -385,7 +387,7 @@ public class ScalarProgramBuilder
                 terms.stream()
                         .map(Operation::result)
                         .collect(toImmutableList()),
-                Attributes.LogicalOperator.of(node.operator()),
+                LogicalOperator.of(node.operator()),
                 terms.stream()
                         .map(Operation::attributes)
                         .collect(toImmutableList()));

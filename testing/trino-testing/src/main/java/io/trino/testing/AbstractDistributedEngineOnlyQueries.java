@@ -423,16 +423,16 @@ public abstract class AbstractDistributedEngineOnlyQueries
                 %0 = query() : () -> "boolean" ({
                     ^query
                         %1 = table_scan() : () -> "multiset(row(varchar(25)))" ()
-                            {table_handle = "{""catalogHandle"":""memory:normal:21a29a35ed877cb4ea566f4b08371b5a0a3c0588f07ba25bd0881def395049cd"",""connectorHandle"":{""@type"":""system:io.trino.plugin.memory.MemoryTableHandle"",""id"":2,""name"":{""schema"":""default"",""table"":""nation""}},""transaction"":[""system:io.trino.plugin.memory.MemoryTransactionHandle"",""INSTANCE""]}", column_handles = "[{""@type"":""system:io.trino.plugin.memory.MemoryColumnHandle"",""columnIndex"":1,""name"":""name"",""type"":""varchar(25)""}]", constraint = "{""columnDomains"":[]}", update_target = "false", use_connector_node_partitioning = "false"}
+                            {table_scan:table_handle = "{""catalogHandle"":""memory:normal:21a29a35ed877cb4ea566f4b08371b5a0a3c0588f07ba25bd0881def395049cd"",""connectorHandle"":{""@type"":""system:io.trino.plugin.memory.MemoryTableHandle"",""id"":2,""name"":{""schema"":""default"",""table"":""nation""}},""transaction"":[""system:io.trino.plugin.memory.MemoryTransactionHandle"",""INSTANCE""]}", table_scan:column_handles = "[{""@type"":""system:io.trino.plugin.memory.MemoryColumnHandle"",""columnIndex"":1,""name"":""name"",""type"":""varchar(25)""}]", table_scan:constraint = "{""columnDomains"":[]}", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false"}
                         %2 = output(%1) : ("multiset(row(varchar(25)))") -> "boolean" ({
                             ^outputFieldSelector (%3 : "row(varchar(25))")
                                 %4 = field_reference(%3) : ("row(varchar(25))") -> "varchar(25)" ()
-                                    {field_index = "0"}
+                                    {field_reference:field_index = "0"}
                                 %5 = row(%4) : ("varchar(25)") -> "row(varchar(25))" ()
                                 %6 = return(%5) : ("row(varchar(25))") -> "row(varchar(25))" ()
                                     {ir.terminal = "true"}
                             })
-                            {output_names = "[""name""]", ir.terminal = "true"}
+                            {output:output_names = "[""name""]", ir.terminal = "true"}
                     })
                     {ir.terminal = "true"}
                 """);

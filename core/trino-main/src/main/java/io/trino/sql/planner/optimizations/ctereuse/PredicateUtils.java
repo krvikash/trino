@@ -16,12 +16,12 @@ package io.trino.sql.planner.optimizations.ctereuse;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.predicate.NullableValue;
-import io.trino.sql.dialect.trino.Attributes;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.Logical;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
+import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -41,11 +41,11 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
-import static io.trino.sql.dialect.trino.Attributes.CONSTANT_RESULT;
-import static io.trino.sql.dialect.trino.Attributes.LOGICAL_OPERATOR;
-import static io.trino.sql.dialect.trino.Attributes.LogicalOperator.AND;
-import static io.trino.sql.dialect.trino.Attributes.LogicalOperator.OR;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.CONSTANT_RESULT;
+import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LOGICAL_OPERATOR;
+import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator.AND;
+import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator.OR;
 import static io.trino.sql.planner.optimizations.ctereuse.DeterminismUtils.isDeterministic;
 import static io.trino.sql.planner.optimizations.ctereuse.RewriteUtils.reallocateValues;
 import static io.trino.sql.planner.optimizations.ctereuse.RewriteUtils.remapParameters;
@@ -142,7 +142,7 @@ public class PredicateUtils
         return logical(blocks, OR, nameAllocator);
     }
 
-    private static Block logical(List<Block> blocks, Attributes.LogicalOperator operator, ProgramBuilder.ValueNameAllocator nameAllocator)
+    private static Block logical(List<Block> blocks, LogicalOperator operator, ProgramBuilder.ValueNameAllocator nameAllocator)
     {
         // to create a block, we need a block parameter representing the input. We cannot create a block when the input type is not known
         checkArgument(!blocks.isEmpty(), "cannot combine 0 blocks");
@@ -199,7 +199,7 @@ public class PredicateUtils
      * <p>
      * Note: this method does not flatten nested Logical operations. For flattened terms, first use the optimizeLogicalOperations() method.
      */
-    public static List<Block> extractLogicalTerms(Block block, Attributes.LogicalOperator operator, ProgramBuilder.ValueNameAllocator nameAllocator)
+    public static List<Block> extractLogicalTerms(Block block, LogicalOperator operator, ProgramBuilder.ValueNameAllocator nameAllocator)
     {
         checkArgument(trinoType(block.getReturnedType()).equals(BOOLEAN), "expected block returning boolean");
         checkArgument(block.getTerminalOperation() instanceof Return, "expected block with terminal return operation");
@@ -414,7 +414,7 @@ public class PredicateUtils
                 .collect(toImmutableList());
 
         if (operation instanceof Logical) {
-            Attributes.LogicalOperator operator = LOGICAL_OPERATOR.getAttribute(operation.attributes());
+            LogicalOperator operator = LOGICAL_OPERATOR.getAttribute(operation.attributes());
 
             // flatten logical operations
             List<Value> flattenedTerms = processedArguments.stream()
@@ -469,7 +469,7 @@ public class PredicateUtils
         }
     }
 
-    private static List<Value> optimizeTerms(List<Value> terms, Attributes.LogicalOperator operator, Map<Value, Operation> operations)
+    private static List<Value> optimizeTerms(List<Value> terms, LogicalOperator operator, Map<Value, Operation> operations)
     {
         // if a FALSE conjunct is found for AND, or a TRUE disjunct is found for OR, return it
         Optional<Operation> constantBoolean = terms.stream()

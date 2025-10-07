@@ -31,14 +31,13 @@ import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operationmetadata.BindOperationMetadata.NAME;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public final class Bind
         extends TrinoOperation
 {
-    private static final String NAME = "bind";
-
     private final Result result;
     private final List<Value> values;
     private final Value lambda;

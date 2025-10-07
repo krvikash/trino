@@ -27,18 +27,17 @@ import java.util.List;
 import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
-import static io.trino.sql.dialect.trino.Attributes.RESOLVED_FUNCTION;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operationmetadata.CallOperationMetadata.NAME;
+import static io.trino.sql.dialect.trino.operationmetadata.CallOperationMetadata.RESOLVED_FUNCTION;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public final class Call
         extends TrinoOperation
 {
-    private static final String NAME = "call";
-
     private final Result result;
     private final List<Value> arguments;
     private final Map<AttributeKey, Object> attributes;

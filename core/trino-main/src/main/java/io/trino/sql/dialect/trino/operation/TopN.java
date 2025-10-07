@@ -16,8 +16,8 @@ package io.trino.sql.dialect.trino.operation;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
-import io.trino.sql.dialect.trino.Attributes.SortOrderList;
-import io.trino.sql.dialect.trino.Attributes.TopNStep;
+import io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata.TopNStep;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -28,22 +28,21 @@ import java.util.List;
 import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
-import static io.trino.sql.dialect.trino.Attributes.LIMIT;
-import static io.trino.sql.dialect.trino.Attributes.SORT_ORDERS;
-import static io.trino.sql.dialect.trino.Attributes.TOP_N_STEP;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateNonEmptyRowSelector;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
+import static io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata.LIMIT;
+import static io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata.NAME;
+import static io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata.SORT_ORDERS;
+import static io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata.TOP_N_STEP;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.util.Objects.requireNonNull;
 
 public class TopN
         extends TrinoOperation
 {
-    private static final String NAME = "top_n";
-
     private final Result result;
     private final Value input;
     private final Region orderingSelector;

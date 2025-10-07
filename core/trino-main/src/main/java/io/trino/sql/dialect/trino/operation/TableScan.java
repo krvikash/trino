@@ -24,7 +24,7 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
-import io.trino.sql.dialect.trino.Attributes.Statistics;
+import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.Statistics;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
@@ -37,22 +37,21 @@ import java.util.Set;
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
-import static io.trino.sql.dialect.trino.Attributes.COLUMN_HANDLES;
-import static io.trino.sql.dialect.trino.Attributes.CONSTRAINT;
-import static io.trino.sql.dialect.trino.Attributes.STATISTICS;
-import static io.trino.sql.dialect.trino.Attributes.TABLE_HANDLE;
-import static io.trino.sql.dialect.trino.Attributes.UPDATE_TARGET;
-import static io.trino.sql.dialect.trino.Attributes.USE_CONNECTOR_NODE_PARTITIONING;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION_ROW;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.COLUMN_HANDLES;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.CONSTRAINT;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.NAME;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.STATISTICS;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.TABLE_HANDLE;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.UPDATE_TARGET;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.USE_CONNECTOR_NODE_PARTITIONING;
 import static java.util.Objects.requireNonNull;
 
 public class TableScan
         extends TrinoOperation
 {
-    private static final String NAME = "table_scan";
-
     private final Result result;
     private final Map<AttributeKey, Object> attributes;
 

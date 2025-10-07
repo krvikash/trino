@@ -24,6 +24,7 @@ import io.trino.sql.dialect.trino.operation.AggregateCall;
 import io.trino.sql.dialect.trino.operation.Aggregation;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.Return;
+import io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Type;
@@ -50,17 +51,14 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
-import static io.trino.sql.dialect.trino.Attributes.AGGREGATION_STEP;
-import static io.trino.sql.dialect.trino.Attributes.DISTINCT;
-import static io.trino.sql.dialect.trino.Attributes.GLOBAL_GROUPING_SETS;
-import static io.trino.sql.dialect.trino.Attributes.GROUPING_SETS_COUNT;
-import static io.trino.sql.dialect.trino.Attributes.GROUP_ID_INDEX;
-import static io.trino.sql.dialect.trino.Attributes.INPUT_REDUCING;
-import static io.trino.sql.dialect.trino.Attributes.PRE_GROUPED_INDEXES;
-import static io.trino.sql.dialect.trino.Attributes.RESOLVED_FUNCTION;
-import static io.trino.sql.dialect.trino.Attributes.SORT_ORDERS;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.AGGREGATION_STEP;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.GLOBAL_GROUPING_SETS;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.GROUPING_SETS_COUNT;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.GROUP_ID_INDEX;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.INPUT_REDUCING;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.PRE_GROUPED_INDEXES;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.composeProjectedItems;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.getPassthroughMapping;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.getSelectedFields;
@@ -331,10 +329,10 @@ public class AggregationMerger
                         rebaseBlock(aggregateCall.filterSelector(), newInputRowType, mapping, nameAllocator).orElseThrow(),
                         rebaseBlock(aggregateCall.maskSelector(), newInputRowType, mapping, nameAllocator).orElseThrow(),
                         rebaseBlock(aggregateCall.orderingSelector(), newInputRowType, mapping, nameAllocator).orElseThrow(),
-                        Optional.ofNullable(SORT_ORDERS.getAttribute(aggregateCall.attributes())),
-                        RESOLVED_FUNCTION.getAttribute(aggregateCall.attributes()),
-                        DISTINCT.getAttribute(aggregateCall.attributes()),
-                        AGGREGATION_STEP.getAttribute(aggregateCall.attributes())))
+                        Optional.ofNullable(AggregateCallOperationMetadata.SORT_ORDERS.getAttribute(aggregateCall.attributes())),
+                        AggregateCallOperationMetadata.RESOLVED_FUNCTION.getAttribute(aggregateCall.attributes()),
+                        AggregateCallOperationMetadata.DISTINCT.getAttribute(aggregateCall.attributes()),
+                        AggregateCallOperationMetadata.AGGREGATION_STEP.getAttribute(aggregateCall.attributes())))
                 .map(rebasedAggregateCall ->
                         new Block.Builder(Optional.empty(), ImmutableList.of(newParameter))
                                 .addOperation(rebasedAggregateCall)

@@ -30,13 +30,12 @@ import java.util.Map;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
+import static io.trino.sql.dialect.trino.operationmetadata.RowOperationMetadata.NAME;
 import static java.util.Objects.requireNonNull;
 
 public final class Row
         extends TrinoOperation
 {
-    private static final String NAME = "row";
-
     private final Result result;
     private final List<Value> fields;
     private final Map<AttributeKey, Object> attributes;

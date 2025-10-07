@@ -26,18 +26,17 @@ import java.util.List;
 import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
-import static io.trino.sql.dialect.trino.Attributes.FIELD_INDEX;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operationmetadata.FieldReferenceOperationMetadata.FIELD_INDEX;
+import static io.trino.sql.dialect.trino.operationmetadata.FieldReferenceOperationMetadata.NAME;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public final class FieldReference
         extends TrinoOperation
 {
-    private static final String NAME = "field_reference";
-
     private final Result result;
     private final Value base;
     private final Map<AttributeKey, Object> attributes;

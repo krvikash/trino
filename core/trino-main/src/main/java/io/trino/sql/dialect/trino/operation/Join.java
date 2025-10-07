@@ -20,8 +20,8 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
-import io.trino.sql.dialect.trino.Attributes.DistributionType;
-import io.trino.sql.dialect.trino.Attributes.JoinType;
+import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DistributionType;
+import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.JoinType;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -34,12 +34,6 @@ import java.util.Optional;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
-import static io.trino.sql.dialect.trino.Attributes.DISTRIBUTION_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.DYNAMIC_FILTER_IDS;
-import static io.trino.sql.dialect.trino.Attributes.JOIN_TYPE;
-import static io.trino.sql.dialect.trino.Attributes.MAY_SKIP_OUTPUT_DUPLICATES;
-import static io.trino.sql.dialect.trino.Attributes.SPILLABLE;
-import static io.trino.sql.dialect.trino.Attributes.STATISTICS_AND_COST_SUMMARY;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validatePredicate;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
@@ -47,14 +41,19 @@ import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DISTRIBUTION_TYPE;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DYNAMIC_FILTER_IDS;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.JOIN_TYPE;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.MAY_SKIP_OUTPUT_DUPLICATES;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.NAME;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.SPILLABLE;
+import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.STATISTICS_AND_COST_SUMMARY;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.util.Objects.requireNonNull;
 
 public final class Join
         extends TrinoOperation
 {
-    private static final String NAME = "join";
-
     private final Result result;
     private final Value left;
     private final Value right;
