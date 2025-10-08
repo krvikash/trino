@@ -14,6 +14,7 @@
 package io.trino.plugin.cassandra;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
 import io.airlift.units.Duration;
 import io.trino.sql.planner.plan.FilterNode;
@@ -37,6 +38,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 
@@ -125,6 +127,21 @@ public class TestCassandraConnectorTest
     {
         session.close();
         session = null;
+    }
+
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("cassandra.contact-points", "invalid")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        assertQueryFails(format("SHOW SCHEMAS FROM %s", catalogName),
+                ".*Failed to add contact point.*");
     }
 
     @Override

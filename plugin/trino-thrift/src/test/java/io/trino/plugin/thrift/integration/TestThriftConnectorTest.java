@@ -13,15 +13,19 @@
  */
 package io.trino.plugin.thrift.integration;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.testing.BaseConnectorTest;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+
 import static io.trino.plugin.thrift.integration.ThriftQueryRunner.startThriftServers;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.testing.QueryAssertions.assertContains;
+import static java.lang.String.format;
 
 public class TestThriftConnectorTest
         extends BaseConnectorTest
@@ -59,6 +63,21 @@ public class TestThriftConnectorTest
         ThriftQueryRunner.StartedServers servers = startThriftServers(3, false);
         servers.resources().forEach(this::closeAfterClass);
         return ThriftQueryRunner.builder(servers).build();
+    }
+
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("trino.thrift.client.addresses", "invalid:666")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        assertQueryFails(format("SHOW SCHEMAS FROM %s", catalogName),
+                "Error listing schemas.*No hosts available");
     }
 
     @Override

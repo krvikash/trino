@@ -13,8 +13,14 @@
  */
 package io.trino.plugin.redis;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.redis.util.RedisServer;
 import io.trino.testing.QueryRunner;
+
+import java.util.Map;
+
+import static java.lang.String.format;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestRedisConnectorTest
         extends BaseRedisConnectorTest
@@ -28,5 +34,20 @@ public class TestRedisConnectorTest
                 .setDataFormat("string")
                 .setInitialTables(REQUIRED_TPCH_TABLES)
                 .build();
+    }
+
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("redis.nodes", "invalid")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        assertThatThrownBy(() -> computeScalar(format("SELECT * FROM %s.tpch.nation LIMIT 1", catalogName)))
+                .hasMessage("Failed to create socket.");
     }
 }

@@ -17,9 +17,13 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.redis.util.RedisServer;
 import io.trino.testing.QueryRunner;
 
+import java.util.Map;
+
 import static io.trino.plugin.redis.util.RedisServer.LATEST_VERSION;
 import static io.trino.plugin.redis.util.RedisServer.PASSWORD;
 import static io.trino.plugin.redis.util.RedisServer.USER;
+import static java.lang.String.format;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestRedisLatestConnectorTest
         extends BaseRedisConnectorTest
@@ -34,5 +38,20 @@ public class TestRedisLatestConnectorTest
                 .setDataFormat("string")
                 .setInitialTables(REQUIRED_TPCH_TABLES)
                 .build();
+    }
+
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("redis.password", "invalid")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        assertThatThrownBy(() -> computeScalar(format("SELECT * FROM %s.tpch.nation LIMIT 1", catalogName)))
+                .hasMessage("WRONGPASS invalid username-password pair or user is disabled.");
     }
 }

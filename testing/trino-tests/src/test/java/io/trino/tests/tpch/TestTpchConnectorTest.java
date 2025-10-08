@@ -31,12 +31,14 @@ import io.trino.testing.TestingConnectorBehavior;
 import io.trino.type.TypeDeserializer;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.sql.planner.planprinter.IoPlanPrinter.FormattedMarker.Bound.EXACTLY;
 import static io.trino.testing.TestingSession.testSessionBuilder;
+import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestTpchConnectorTest
@@ -75,6 +77,24 @@ public class TestTpchConnectorTest
                  SUPPORTS_UPDATE -> false;
             default -> super.hasBehavior(connectorBehavior);
         };
+    }
+
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("tpch.column-naming", "STANDARD")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        assertTableColumnNames(format("%s.tiny.nation", catalogName),
+                "n_nationkey",
+                "n_name",
+                "n_regionkey",
+                "n_comment");
     }
 
     @Test

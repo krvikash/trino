@@ -38,6 +38,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.stream.Stream;
@@ -183,37 +184,6 @@ public class TestSingleStoreConnectorTest
     }
 
     @Test
-    void testCreateDropDynamicCatalog()
-    {
-        String catalog = "new_catalog_" + randomNameSuffix();
-        @Language("SQL")
-        String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE
-                .formatted(catalog, CONNECTOR_NAME, singleStoreServer.getPassword(), singleStoreServer.getJdbcUrl(), singleStoreServer.getUsername());
-        assertUpdate(createCatalogSql);
-        assertCatalogs(availableCatalogs(Optional.of(catalog)));
-
-        assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs(availableCatalogs(Optional.empty()));
-        // re-add the same catalog
-        assertUpdate(createCatalogSql);
-        assertCatalogs(availableCatalogs(Optional.of(catalog)));
-
-        assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs(availableCatalogs(Optional.empty()));
-    }
-
-    protected String[] availableCatalogs(Optional<String> catalog)
-    {
-        ImmutableList.Builder<String> catalogs = ImmutableList.builder();
-        catalogs.add("system")
-                .add("singlestore")
-                .add("tpch")
-                .add("mock_dynamic_listing");
-        catalog.ifPresent(catalogs::add);
-        return catalogs.build().toArray(new String[0]);
-    }
-
-    @Test
     void testCreateDropMultipleCatalogs()
     {
         String firstCatalog = "catalog1_" + randomNameSuffix();
@@ -248,57 +218,20 @@ public class TestSingleStoreConnectorTest
         }
     }
 
-    @Test
-    void testRenameCatalog()
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
     {
-        String catalog = "catalog_rename_" + randomNameSuffix();
-        try {
-            String oldCatalog = "catalog_rename_" + randomNameSuffix();
-            @Language("SQL")
-            String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE
-                    .formatted(oldCatalog, CONNECTOR_NAME, singleStoreServer.getPassword(), singleStoreServer.getJdbcUrl(), singleStoreServer.getUsername());
-            assertUpdate(createCatalogSql);
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(oldCatalog, TPCH_SCHEMA));
-
-            assertUpdate("ALTER CATALOG %s RENAME TO %s".formatted(oldCatalog, catalog));
-            assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog)).hasMessage("Catalog '%s' not found".formatted(oldCatalog));
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
-                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE
-                            .formatted(catalog, CONNECTOR_NAME, singleStoreServer.getPassword(), singleStoreServer.getJdbcUrl(), singleStoreServer.getUsername()));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, TPCH_SCHEMA));
-        }
-        finally {
-            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
-        }
+        return ImmutableMap.<String, String>builder()
+                .put("connection-password", "INVALID")
+                .buildOrThrow();
     }
 
-    @Test
-    void testCatalogSetProperties()
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
     {
-        String catalog = "catalog_set_props_" + randomNameSuffix();
-        try {
-            @Language("SQL")
-            String catalogWithIncorrectPassword = CREATE_CATALOG_SQL_TEMPLATE
-                    .formatted(catalog, CONNECTOR_NAME, "INVALID", singleStoreServer.getJdbcUrl(), singleStoreServer.getUsername());
-            assertUpdate(catalogWithIncorrectPassword);
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue()).isEqualTo(catalogWithIncorrectPassword);
-            assertThatThrownBy(() -> computeActual("SHOW TABLES FROM %s.%s".formatted(catalog, TPCH_SCHEMA)))
-                    .isInstanceOf(QueryFailedException.class)
-                    .hasMessageMatching(".*Access denied for user 'root'@'.*' \\(using password: YES\\)");
-
-            assertUpdate(
-                    """
-                    ALTER CATALOG %s SET PROPERTIES
-                      "connection-password" = '%s'
-                    """.formatted(catalog, singleStoreServer.getPassword()));
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
-                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE
-                            .formatted(catalog, CONNECTOR_NAME, singleStoreServer.getPassword(), singleStoreServer.getJdbcUrl(), singleStoreServer.getUsername()));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, TPCH_SCHEMA));
-        }
-        finally {
-            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
-        }
+        assertThatThrownBy(() -> computeActual(format("SHOW TABLES FROM %s.%s", catalogName, TPCH_SCHEMA)))
+                .isInstanceOf(QueryFailedException.class)
+                .hasMessageMatching(".*Access denied for user 'root'@'.*' \\(using password: YES\\)");
     }
 
     @Test

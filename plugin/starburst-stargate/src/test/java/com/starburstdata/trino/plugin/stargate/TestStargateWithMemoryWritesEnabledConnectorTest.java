@@ -10,6 +10,7 @@
 package com.starburstdata.trino.plugin.stargate;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.sql.TestTable;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.starburstdata.trino.plugin.stargate.StargateQueryRunner.createRemoteStarburstQueryRunnerWithMemory;
@@ -65,6 +67,21 @@ public class TestStargateWithMemoryWritesEnabledConnectorTest
             case SUPPORTS_COMMENT_ON_COLUMN -> true;
             default -> super.hasBehavior(connectorBehavior);
         };
+    }
+
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("connection-url", "jdbc:trino://invalid:8080/invalid")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        assertQueryFails(format("SHOW TABLES FROM %s.%s", catalogName, "tiny"),
+                "Error executing query: java.net.UnknownHostException: invalid.*");
     }
 
     @Test

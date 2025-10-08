@@ -138,6 +138,21 @@ public abstract class BaseOpenSearchConnectorTest
         };
     }
 
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("opensearch.host", "invalid")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        assertQueryFails(format("SHOW TABLES FROM %s.tpch", catalogName),
+                "Error listing tables for catalog .*: invalid");
+    }
+
     /**
      * This method overrides the default values used for the data provider
      * of the test {@link AbstractTestQueries#testLargeIn()} by taking

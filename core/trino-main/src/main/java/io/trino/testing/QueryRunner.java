@@ -25,6 +25,7 @@ import io.trino.server.testing.TestingTrinoServer;
 import io.trino.spi.ErrorType;
 import io.trino.spi.Plugin;
 import io.trino.spi.QueryId;
+import io.trino.spi.catalog.CatalogProperties;
 import io.trino.spi.function.FunctionBundle;
 import io.trino.split.PageSourceManager;
 import io.trino.split.SplitManager;
@@ -120,6 +121,8 @@ public interface QueryRunner
     }
 
     void createCatalog(String catalogName, String connectorName, Map<String, String> properties);
+
+    Optional<CatalogProperties> getCatalogProperties(String catalogName);
 
     Lock getExclusiveLock();
 

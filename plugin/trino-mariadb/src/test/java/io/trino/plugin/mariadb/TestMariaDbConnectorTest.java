@@ -13,8 +13,13 @@
  */
 package io.trino.plugin.mariadb;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.SqlExecutor;
+
+import java.util.Map;
+
+import static java.lang.String.format;
 
 public class TestMariaDbConnectorTest
         extends BaseMariaDbConnectorTest
@@ -33,5 +38,19 @@ public class TestMariaDbConnectorTest
     protected SqlExecutor onRemoteDatabase()
     {
         return server::execute;
+    }
+
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("connection-password", "invalid")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        assertQueryFails(format("SHOW TABLES FROM %s.%s", catalogName, "tiny"), ".*Access denied for user.*");
     }
 }

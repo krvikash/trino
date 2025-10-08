@@ -14,6 +14,7 @@
 package io.trino.plugin.ignite;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.plugin.jdbc.BaseJdbcConnectorTest;
 import io.trino.sql.planner.plan.FilterNode;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.parallel.Isolated;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.base.Strings.nullToEmpty;
@@ -102,6 +104,21 @@ public class TestIgniteConnectorTest
                  SUPPORTS_TRUNCATE -> false;
             default -> super.hasBehavior(connectorBehavior);
         };
+    }
+
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("connection-url", "jdbc:ignite:thin://invalid:1080")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        assertQueryFails(format("SHOW TABLES FROM %s.%s", catalogName, "tiny"),
+                "Failed to connect to Ignite cluster.*");
     }
 
     @Test

@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.trino.plugin.warp.dispatcher.connectors.DispatcherConnectorBase;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorAccessControl;
@@ -50,6 +51,12 @@ public class StarburstWarpConnector
     public StarburstWarpConnector(Connector warpConnector)
     {
         this.warpConnector = (DispatcherConnectorBase) requireNonNull(warpConnector);
+    }
+
+    @VisibleForTesting
+    Connector getProxiedConnector()
+    {
+        return warpConnector.getProxiedConnector();
     }
 
     @Override

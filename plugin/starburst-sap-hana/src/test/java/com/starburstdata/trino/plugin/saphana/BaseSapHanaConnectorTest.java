@@ -10,6 +10,7 @@
 package com.starburstdata.trino.plugin.saphana;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.operator.OperatorStats;
 import io.trino.plugin.jdbc.BaseJdbcConnectorTest;
@@ -21,6 +22,7 @@ import io.trino.testing.sql.TestTable;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 
@@ -76,25 +78,6 @@ public abstract class BaseSapHanaConnectorTest
     }
 
     @Test
-    void testCreateDropDynamicCatalog()
-    {
-        String catalog = "new_catalog_" + randomNameSuffix();
-        @Language("SQL")
-        String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, server.getPassword(), server.getJdbcUrl(), server.getUser());
-        assertUpdate(createCatalogSql);
-        assertCatalogs("system", "saphana", "tpch", "mock_dynamic_listing", "jmx", catalog);
-
-        assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs("system", "saphana", "tpch", "mock_dynamic_listing", "jmx");
-        // re-add the same catalog
-        assertUpdate(createCatalogSql);
-        assertCatalogs("system", "saphana", "tpch", "mock_dynamic_listing", "jmx", catalog);
-
-        assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs("system", "saphana", "tpch", "mock_dynamic_listing", "jmx");
-    }
-
-    @Test
     void testCreateDropMultipleCatalogs()
     {
         String firstCatalog = "catalog1_" + randomNameSuffix();
@@ -128,50 +111,19 @@ public abstract class BaseSapHanaConnectorTest
         }
     }
 
-    @Test
-    void testRenameCatalog()
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
     {
-        String catalog = "catalog_rename_" + randomNameSuffix();
-        try {
-            String oldCatalog = "catalog_rename_" + randomNameSuffix();
-            assertUpdate(CREATE_CATALOG_SQL_TEMPLATE.formatted(oldCatalog, CONNECTOR_NAME, server.getPassword(), server.getJdbcUrl(), server.getUser()));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(oldCatalog, TPCH_SCHEMA));
-
-            assertUpdate("ALTER CATALOG %s RENAME TO %s".formatted(oldCatalog, catalog));
-            assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog))
-                    .hasMessage("Catalog '%s' not found".formatted(oldCatalog));
-            assertThat(computeScalar("SHOW CREATE CATALOG " + catalog))
-                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, server.getPassword(), server.getJdbcUrl(), server.getUser()));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, TPCH_SCHEMA));
-        }
-        finally {
-            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
-        }
+        return ImmutableMap.<String, String>builder()
+                .put("connection-password", "INVALID")
+                .buildOrThrow();
     }
 
-    @Test
-    void testCatalogSetProperties()
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
     {
-        String catalog = "catalog_set_props_" + randomNameSuffix();
-        try {
-            @Language("SQL")
-            String catalogWithIncorrectPassword = CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, "INVALID", server.getJdbcUrl(), server.getUser());
-            assertUpdate(catalogWithIncorrectPassword);
-            assertThat(computeScalar("SHOW CREATE CATALOG " + catalog)).isEqualTo(catalogWithIncorrectPassword);
-            assertQueryFails("SHOW TABLES FROM %s.%s".formatted(catalog, TPCH_SCHEMA), ".*authentication failed");
-
-            assertUpdate(
-                    """
-                    ALTER CATALOG %s SET PROPERTIES
-                      "connection-password" = '%s'
-                    """.formatted(catalog, server.getPassword()));
-            assertThat(computeScalar("SHOW CREATE CATALOG " + catalog))
-                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, server.getPassword(), server.getJdbcUrl(), server.getUser()));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, TPCH_SCHEMA));
-        }
-        finally {
-            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
-        }
+        assertQueryFails(format("SHOW TABLES FROM %s.%s", catalogName, TPCH_SCHEMA),
+                ".*authentication failed");
     }
 
     @Test

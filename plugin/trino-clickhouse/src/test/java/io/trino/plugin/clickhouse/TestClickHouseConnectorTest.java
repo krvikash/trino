@@ -109,6 +109,21 @@ public class TestClickHouseConnectorTest
                 .build();
     }
 
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("connection-password", "INVALID")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        assertQueryFails(format("SHOW TABLES FROM %s.%s", catalogName, "tiny"),
+                "(?s).*Authentication failed: password is incorrect, or there is no user with such name.*");
+    }
+
     @Test
     public void testSampleBySqlInjection()
     {

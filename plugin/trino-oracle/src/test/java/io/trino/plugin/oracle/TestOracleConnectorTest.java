@@ -21,6 +21,8 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
+import java.util.Map;
+
 import static io.trino.plugin.oracle.TestingOracleServer.TEST_SCHEMA;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.joining;
@@ -92,5 +94,20 @@ public class TestOracleConnectorTest
                 oracleServer.execute(sql);
             }
         };
+    }
+
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("connection-password", "invalid")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        assertQueryFails(format("SHOW TABLES FROM %s.%s", catalogName, "tiny"),
+                "(?s)ORA-01017: invalid credential or not authorized; logon denied.*");
     }
 }

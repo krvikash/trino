@@ -13,6 +13,7 @@
  */
 package com.starburstdata.plugin.kdb;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.testing.BaseConnectorTest;
@@ -21,6 +22,8 @@ import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.TestingConnectorSession;
 import org.junit.jupiter.api.Test;
+
+import java.util.Map;
 
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.testing.MaterializedResult.resultBuilder;
@@ -150,6 +153,21 @@ class TestKdbConnectorTest
                 .row("shippriority", "integer", "", "")
                 .row("comment", "varchar", "", "")
                 .build();
+    }
+
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("kdb.password", "INVALID")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        assertQueryFails("SHOW TABLES FROM %s.%s".formatted(catalogName, "tpch"),
+                "KDB\\+ refused connection at localhost:\\d+ \\(KDB\\+ error: access\\)");
     }
 
     @Test

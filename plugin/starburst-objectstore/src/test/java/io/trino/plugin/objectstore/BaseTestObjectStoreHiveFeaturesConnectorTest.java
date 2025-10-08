@@ -553,6 +553,13 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
 
     @Test
     @Override
+    public void testCatalogSetProperties()
+    {
+        skipDuplicateTestCoverage("testCatalogSetProperties");
+    }
+
+    @Test
+    @Override
     public void testCharVarcharComparison()
     {
         skipDuplicateTestCoverage("testCharVarcharComparison");
@@ -668,6 +675,13 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
     public void testCountColumn()
     {
         skipDuplicateTestCoverage("testCountColumn");
+    }
+
+    @Test
+    @Override
+    public void testCreateDropDynamicCatalog()
+    {
+        skipDuplicateTestCoverage("testCreateDropDynamicCatalog");
     }
 
     @Test
@@ -1578,6 +1592,13 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
     public void testRenameColumnWithComment()
     {
         skipDuplicateTestCoverage("testRenameColumnWithComment");
+    }
+
+    @Test
+    @Override
+    public void testRenameDynamicCatalog()
+    {
+        skipDuplicateTestCoverage("testRenameDynamicCatalog");
     }
 
     @Test

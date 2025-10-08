@@ -9,6 +9,7 @@
  */
 package com.starburstdata.trino.plugin.stargate;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.sql.planner.plan.FilterNode;
 import io.trino.testing.QueryRunner;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 
@@ -71,6 +73,21 @@ public class TestStargateWithHiveConnectorTest
                  SUPPORTS_ADD_COLUMN -> false;
             default -> super.hasBehavior(connectorBehavior);
         };
+    }
+
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("connection-url", "jdbc:trino://invalid:8080/invalid")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        assertQueryFails(format("SHOW TABLES FROM %s.%s", catalogName, "tiny"),
+                "Error executing query: java.net.UnknownHostException: invalid.*");
     }
 
     @Test

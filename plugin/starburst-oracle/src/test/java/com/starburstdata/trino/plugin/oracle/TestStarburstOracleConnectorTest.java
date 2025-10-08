@@ -29,7 +29,6 @@ import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.sql.SqlExecutor;
 import io.trino.testing.sql.TestTable;
 import oracle.jdbc.OracleTypes;
-import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -66,7 +65,6 @@ import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.datatype.DataType.timestampDataType;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.abort;
 
 public class TestStarburstOracleConnectorTest
@@ -620,25 +618,6 @@ public class TestStarburstOracleConnectorTest
     }
 
     @Test
-    void testCreateDropDynamicCatalog()
-    {
-        String catalog = "new_catalog_" + randomNameSuffix();
-        @Language("SQL")
-        String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, PASSWORD, oracleServer.get().getJdbcUrl(), USER);
-        assertUpdate(createCatalogSql);
-        assertCatalogs("system", "oracle", "tpch", "mock_dynamic_listing", "jmx", catalog);
-
-        assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs("system", "oracle", "mock_dynamic_listing", "tpch", "jmx");
-        // re-add the same catalog
-        assertUpdate(createCatalogSql);
-        assertCatalogs("system", "oracle", "tpch", "mock_dynamic_listing", "jmx", catalog);
-
-        assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs("system", "oracle", "tpch", "mock_dynamic_listing", "jmx");
-    }
-
-    @Test
     void testCreateDropMultipleCatalogs()
     {
         String firstCatalog = "catalog1_" + randomNameSuffix();
@@ -663,50 +642,19 @@ public class TestStarburstOracleConnectorTest
         }
     }
 
-    @Test
-    void testRenameCatalog()
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
     {
-        String catalog = "catalog_rename_" + randomNameSuffix();
-        try {
-            String oldCatalog = "catalog_rename_" + randomNameSuffix();
-            assertUpdate(CREATE_CATALOG_SQL_TEMPLATE.formatted(oldCatalog, CONNECTOR_NAME, PASSWORD, oracleServer.get().getJdbcUrl(), USER));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(oldCatalog, USER));
-
-            assertUpdate("ALTER CATALOG %s RENAME TO %s".formatted(oldCatalog, catalog));
-            assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog))
-                    .hasMessage("Catalog '%s' not found".formatted(oldCatalog));
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
-                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, PASSWORD, oracleServer.get().getJdbcUrl(), USER));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, USER));
-        }
-        finally {
-            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
-        }
+        return ImmutableMap.<String, String>builder()
+                .put("connection-password", "INVALID")
+                .buildOrThrow();
     }
 
-    @Test
-    void testCatalogSetProperties()
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
     {
-        String catalog = "catalog_set_props_" + randomNameSuffix();
-        try {
-            @Language("SQL")
-            String catalogWithIncorrectPassword = CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, "INVALID", oracleServer.get().getJdbcUrl(), USER);
-            assertUpdate(catalogWithIncorrectPassword);
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue()).isEqualTo(catalogWithIncorrectPassword);
-            assertQueryFails("SHOW TABLES FROM %s.%s".formatted(catalog, USER), ".* Unable to start the Universal Connection Pool");
-
-            assertUpdate(
-                    """
-                    ALTER CATALOG %s SET PROPERTIES
-                      "connection-password" = '%s'
-                    """.formatted(catalog, PASSWORD));
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
-                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, PASSWORD, oracleServer.get().getJdbcUrl(), USER));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, USER));
-        }
-        finally {
-            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
-        }
+        assertQueryFails(format("SHOW TABLES FROM %s.%s", catalogName, USER),
+                ".* Unable to start the Universal Connection Pool");
     }
 
     @Override

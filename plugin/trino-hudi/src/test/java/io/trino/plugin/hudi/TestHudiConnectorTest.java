@@ -13,16 +13,23 @@
  */
 package io.trino.plugin.hudi;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.hudi.testing.TpchHudiTablesInitializer;
 import io.trino.testing.BaseConnectorTest;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+
+import static com.google.common.io.MoreFiles.deleteRecursively;
+import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static io.trino.plugin.hudi.testing.HudiTestUtils.COLUMNS_TO_HIDE;
-import static io.trino.testing.TestingNames.randomNameSuffix;
+import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestHudiConnectorTest
         extends BaseConnectorTest
@@ -31,8 +38,15 @@ public class TestHudiConnectorTest
     protected QueryRunner createQueryRunner()
             throws Exception
     {
+        Path dataDirectory = Files.createTempDirectory("catalog-dir");
+        closeAfterClass(() -> deleteRecursively(dataDirectory, ALLOW_INSECURE));
+
         return HudiQueryRunner.builder()
                 .addConnectorProperty("hudi.columns-to-hide", COLUMNS_TO_HIDE)
+                .addConnectorProperty("hive.metastore", "file")
+                // Intentionally sharing the file metastore directory between catalogs (needed for tests of dynamic catalogs)
+                .addConnectorProperty("hive.metastore.catalog.dir", dataDirectory.toString())
+                .addConnectorProperty("fs.hadoop.enabled", "true")
                 .setDataLoader(new TpchHudiTablesInitializer(REQUIRED_TPCH_TABLES))
                 .build();
     }
@@ -91,113 +105,28 @@ public class TestHudiConnectorTest
         assertQueryFails("SHOW TABLES IN hudi.sys", ".*Schema 'sys' does not exist");
     }
 
-    @Test
-    void testCreateDropDynamicCatalog()
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
     {
-        String catalog = "new_catalog_" + randomNameSuffix();
-        String createCatalogSql = "CREATE CATALOG %1$s USING hudi".formatted(catalog);
-        assertUpdate(createCatalogSql);
-        assertCatalogs("system", "hudi", "mock_dynamic_listing", "tpch", catalog);
-
-        assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs("system", "hudi", "mock_dynamic_listing", "tpch");
-        // re-add the same catalog
-        assertUpdate(createCatalogSql);
-        assertCatalogs("system", "hudi", "mock_dynamic_listing", "tpch", catalog);
-
-        assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs("system", "hudi", "mock_dynamic_listing", "tpch");
+        return ImmutableMap.<String, String>builder()
+                .put("hudi.columns-to-hide", "")
+                .buildOrThrow();
     }
 
-    @Test
-    public void testCreateMultipleCatalogs()
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
     {
-        String firstCatalog = "catalog_" + randomNameSuffix();
-        String secondCatalog = "catalog2_" + randomNameSuffix();
-        String createCatalogSql =
-                """
-                CREATE CATALOG %1$s USING hudi
-                WITH (
-                   "hudi.parquet.use-column-names" = '%2$s'
-                )""";
-        try {
-            assertUpdate(createCatalogSql.formatted(firstCatalog, "true"));
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + firstCatalog).getOnlyValue())
-                    .isEqualTo(createCatalogSql.formatted(firstCatalog, "true"));
-            assertQuerySucceeds("SHOW SCHEMAS FROM " + firstCatalog);
-
-            assertUpdate(createCatalogSql.formatted(secondCatalog, "false"));
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + secondCatalog).getOnlyValue())
-                    .isEqualTo(createCatalogSql.formatted(secondCatalog, "false"));
-            assertQuerySucceeds("SHOW SCHEMAS FROM " + secondCatalog);
-        }
-        finally {
-            assertUpdate("DROP CATALOG IF EXISTS " + firstCatalog);
-            assertUpdate("DROP CATALOG IF EXISTS " + secondCatalog);
-        }
-    }
-
-    @Test
-    public void testRenameCatalog()
-    {
-        String oldCatalog = "catalog_rename_" + randomNameSuffix();
-        String createCatalogSql =
-                """
-                CREATE CATALOG %1$s USING hudi
-                WITH (
-                   "hudi.parquet.use-column-names" = 'true'
-                )""";
-        assertUpdate(createCatalogSql.formatted(oldCatalog));
-
-        String catalog = "catalog_rename_" + randomNameSuffix();
-        assertUpdate(
-                """
-                ALTER CATALOG %s RENAME TO %s
-                """
-                        .formatted(oldCatalog, catalog));
-        assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog))
-                .hasMessage("Catalog '%s' not found".formatted(oldCatalog));
-        assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
-                .isEqualTo(createCatalogSql.formatted(catalog));
-        assertQuerySucceeds("SHOW SCHEMAS FROM " + catalog);
-
-        assertUpdate("DROP CATALOG " + catalog);
-    }
-
-    @Test
-    public void testCatalogSetProperties()
-    {
-        String catalog = "catalog_set_props_" + randomNameSuffix();
-        String createCatalogSql =
-                """
-                CREATE CATALOG %1$s USING hudi
-                WITH (
-                   "hudi.parquet.use-column-names" = '%2$s'
-                )""";
-        try {
-            assertUpdate(createCatalogSql.formatted(catalog, "true"));
-
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
-                    .isEqualTo(createCatalogSql.formatted(catalog, "true"));
-
-            assertThatThrownBy(() -> assertUpdate(
-                    """
-                    ALTER CATALOG %s SET PROPERTIES
-                       "hudi.parquet.use-column-names" = 'invalid'
-                    """
-                            .formatted(catalog))).hasMessageContaining("Invalid value 'invalid' for type boolean (property 'hudi.parquet.use-column-names')");
-            assertUpdate(
-                    """
-                    ALTER CATALOG %1$s SET PROPERTIES
-                       "hudi.parquet.use-column-names" = '%2$s'
-                    """
-                            .formatted(catalog, "false"));
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
-                    .isEqualTo(createCatalogSql.formatted(catalog, "false"));
-            assertQuerySucceeds("SHOW SCHEMAS FROM " + catalog);
-        }
-        finally {
-            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
-        }
+        assertThat(computeActual(format("SELECT * FROM %s.tests.nation", catalogName)).getColumnNames())
+                .isEqualTo(List.of(
+                        "_hoodie_commit_time",
+                        "_hoodie_commit_seqno",
+                        "_hoodie_record_key",
+                        "_hoodie_partition_path",
+                        "_hoodie_file_name",
+                        "nationkey",
+                        "name",
+                        "regionkey",
+                        "comment",
+                        "_uuid"));
     }
 }

@@ -14,6 +14,7 @@
 package io.trino.plugin.druid;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.plugin.jdbc.BaseJdbcConnectorTest;
 import io.trino.spi.connector.ConnectorSession;
@@ -38,6 +39,7 @@ import org.junit.jupiter.api.TestInstance;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
 
 import static io.trino.plugin.druid.DruidQueryRunner.copyAndIngestTpchData;
 import static io.trino.plugin.druid.DruidTpchTables.SELECT_FROM_ORDERS;
@@ -144,6 +146,21 @@ public class TestDruidConnectorTest
                 .row("shippriority", "bigint", "", "") // Druid doesn't support int type
                 .row("totalprice", "double", "", "")
                 .build();
+    }
+
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("connection-url", "jdbc:avatica:remote:url=http://INVALID:8082/druid/v2/sql/avatica/")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        assertThatThrownBy(() -> computeActual(format("SHOW SCHEMAS FROM %s", catalogName)))
+                .hasMessageContaining("java.net.UnknownHostException");
     }
 
     @Test

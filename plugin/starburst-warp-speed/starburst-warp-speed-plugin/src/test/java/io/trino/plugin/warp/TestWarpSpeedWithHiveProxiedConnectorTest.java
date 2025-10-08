@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.plugin.warp.di.WarpStubsStorageEngineModule;
@@ -38,6 +39,8 @@ import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PASS_THROUGH_DI
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
 import static io.trino.testing.QueryAssertions.copyTpchTables;
+import static io.trino.testing.TestingNames.randomNameSuffix;
+import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.abort;
@@ -60,7 +63,8 @@ public class TestWarpSpeedWithHiveProxiedConnectorTest
                 Map.of(),
                 Map.of(
                         "http-server.log.enabled", "false",
-                        USE_HTTP_SERVER_PORT, "false",
+                        USE_HTTP_SERVER_PORT, "true",
+                        "hive.security", "sql-standard",
                         "node.environment", "warp",
                         PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME,
                         PASS_THROUGH_DISPATCHER, HIVE_CONNECTOR_NAME,  // so the results would be correct
@@ -120,6 +124,16 @@ public class TestWarpSpeedWithHiveProxiedConnectorTest
 
     @Test
     @Override
+    public void testCreateSchemaWithNonLowercaseOwnerName()
+    {
+        // Override because HivePrincipal's username is case-sensitive unlike TrinoPrincipal
+        assertThatThrownBy(super::testCreateSchemaWithNonLowercaseOwnerName)
+                .hasMessageContaining("Access Denied: Cannot create schema")
+                .hasStackTraceContaining("CREATE SCHEMA");
+    }
+
+    @Test
+    @Override
     public void testShowCreateTable()
     {
         String schema = getSession().getSchema().orElseThrow();
@@ -140,6 +154,7 @@ public class TestWarpSpeedWithHiveProxiedConnectorTest
         String schemaName = getSession().getSchema().orElseThrow();
         assertThat((String) computeScalar("SHOW CREATE SCHEMA " + schemaName))
                 .matches("CREATE SCHEMA warp_speed." + schemaName + "\n" +
+                        "AUTHORIZATION USER hive\n" +
                         "WITH \\(\n" +
                         "   location = '.*'\n" +
                         "\\)");
@@ -396,5 +411,21 @@ public class TestWarpSpeedWithHiveProxiedConnectorTest
     protected OptionalInt maxTableNameLength()
     {
         return OptionalInt.of(128);
+    }
+
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("hive.security", "allow-all")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        String schemaName = "test_dynamic_schema_" + randomNameSuffix();
+
+        assertQuerySucceeds(format("CREATE SCHEMA %s.%s", catalogName, schemaName));
     }
 }

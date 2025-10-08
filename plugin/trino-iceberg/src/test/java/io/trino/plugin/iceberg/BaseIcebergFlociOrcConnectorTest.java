@@ -92,6 +92,21 @@ public abstract class BaseIcebergFlociOrcConnectorTest
     }
 
     @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("s3.aws-secret-key", "invalid")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        assertQueryFails(format("SELECT * FROM %s.tpch.nation", catalogName),
+                "Error accessing metadata file for table tpch.nation");
+    }
+
+    @Override
     protected boolean supportsIcebergFileStatistics(String typeName)
     {
         return !typeName.equalsIgnoreCase("varbinary") &&

@@ -14,6 +14,7 @@
 package io.trino.testing;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.UncheckedTimeoutException;
@@ -34,6 +35,7 @@ import io.trino.plugin.base.metrics.DistributionSnapshot;
 import io.trino.plugin.base.metrics.LongCount;
 import io.trino.server.BasicQueryInfo;
 import io.trino.spi.QueryId;
+import io.trino.spi.catalog.CatalogProperties;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.MaterializedViewFreshness;
 import io.trino.spi.metrics.Metrics;
@@ -50,6 +52,9 @@ import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TopNNode;
 import io.trino.sql.query.QueryAssertions.QueryAssert;
+import io.trino.sql.tree.Identifier;
+import io.trino.sql.tree.NodeLocation;
+import io.trino.sql.tree.StringLiteral;
 import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
 import io.trino.testing.assertions.TrinoExceptionAssert;
 import io.trino.testing.sql.TestTable;
@@ -104,6 +109,7 @@ import static io.trino.spi.connector.MaterializedViewFreshness.Freshness.FRESH;
 import static io.trino.spi.connector.MaterializedViewFreshness.Freshness.STALE;
 import static io.trino.spi.connector.MaterializedViewFreshness.Freshness.UNKNOWN;
 import static io.trino.spi.type.VarcharType.VARCHAR;
+import static io.trino.sql.ExpressionFormatter.formatExpression;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.anyTree;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.node;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.project;
@@ -188,6 +194,7 @@ import static java.lang.String.join;
 import static java.lang.Thread.currentThread;
 import static java.util.Collections.nCopies;
 import static java.util.Locale.ENGLISH;
+import static java.util.Map.Entry.comparingByKey;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newFixedThreadPool;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -3985,6 +3992,175 @@ public abstract class BaseConnectorTest
 
             assertThat(getColumnComment(table.getName(), "col")).isEqualTo("test comment");
         }
+    }
+
+    @Test
+    public void testRenameDynamicCatalog()
+    {
+        String oldCatalogName = "pre_rename_catalog_" + randomNameSuffix();
+        String newCatalogName = "post_rename_catalog_" + randomNameSuffix();
+        try {
+            String createOldCatalogSql = createCatalogLikeCurrentSql(oldCatalogName);
+            assertUpdate(createOldCatalogSql);
+
+            assertQuerySucceeds("SHOW SCHEMAS FROM " + oldCatalogName);
+            assertThat(computeScalar("SHOW CREATE CATALOG " + oldCatalogName))
+                    .isEqualTo(createOldCatalogSql);
+
+            assertUpdate(format("ALTER CATALOG %s RENAME TO %s", oldCatalogName, newCatalogName));
+
+            assertQueryFails("SHOW SCHEMAS FROM " + oldCatalogName,
+                    format("Catalog '%s' not found", oldCatalogName));
+
+            String createNewCatalogSql = createCatalogLikeCurrentSql(newCatalogName);
+            assertQuerySucceeds("SHOW SCHEMAS FROM " + newCatalogName);
+            assertThat(computeScalar("SHOW CREATE CATALOG " + newCatalogName))
+                    .isEqualTo(createNewCatalogSql);
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + oldCatalogName);
+            assertUpdate("DROP CATALOG IF EXISTS " + newCatalogName);
+        }
+    }
+
+    @Test
+    public void testCreateDropDynamicCatalog()
+    {
+        String catalogName = "create_drop_catalog_" + randomNameSuffix();
+        try {
+            assertThat(computeActual("SHOW CATALOGS").getOnlyColumnAsSet())
+                    .doesNotContain(catalogName);
+
+            String createNewCatalogSql = createCatalogLikeCurrentSql(catalogName);
+            assertUpdate(createNewCatalogSql);
+            assertThat(computeActual("SHOW CATALOGS").getOnlyColumnAsSet())
+                    .contains(catalogName);
+
+            assertUpdate("DROP CATALOG " + catalogName);
+            assertThat(computeActual("SHOW CATALOGS").getOnlyColumnAsSet())
+                    .doesNotContain(catalogName);
+
+            assertQueryFails("DROP CATALOG " + catalogName, format("Catalog '%s' not found", catalogName));
+
+            assertUpdate(createNewCatalogSql);
+            assertThat(computeActual("SHOW CATALOGS").getOnlyColumnAsSet())
+                    .contains(catalogName);
+
+            assertUpdate("DROP CATALOG " + catalogName);
+            assertThat(computeActual("SHOW CATALOGS").getOnlyColumnAsSet())
+                    .doesNotContain(catalogName);
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + catalogName);
+        }
+    }
+
+    @Test
+    public void testCatalogSetProperties()
+    {
+        CatalogProperties currentCatalogProperties = getQueryRunner()
+                .getCatalogProperties(getSession().getCatalog().orElseThrow())
+                .orElseThrow();
+        String connectorName = currentCatalogProperties.connectorName().toString();
+        Map<String, String> oldProperties = currentCatalogProperties.properties();
+        String originalCatalogName = "original_catalog_" + randomNameSuffix();
+        String updatedCatalogName = "updated_catalog_" + randomNameSuffix();
+        try {
+            String createOriginalCatalogSql = generateCreateCatalogSql(connectorName, originalCatalogName, oldProperties);
+            assertUpdate(createOriginalCatalogSql);
+            String createUpdatedCatalogSql = generateCreateCatalogSql(connectorName, updatedCatalogName, oldProperties);
+            assertUpdate(createUpdatedCatalogSql);
+
+            assertThatThrownBy(() -> assertAlteredCatalogBehavior(originalCatalogName))
+                    .isInstanceOf(AssertionError.class);
+            assertThatThrownBy(() -> assertAlteredCatalogBehavior(updatedCatalogName))
+                    .isInstanceOf(AssertionError.class);
+
+            Map<String, String> alteredProperties = getBehaviorAlteringCatalogProperties();
+            assertThat(alteredProperties)
+                    .allSatisfy((newKey, newValue) -> {
+                        if (oldProperties.containsKey(newKey)) {
+                            // Asserts that behavior altering properties actually change current properties.
+                            assertThat(oldProperties.get(newKey)).isNotEqualTo(newValue);
+                        }
+                    });
+            Map<String, String> newProperties = ImmutableMap.<String, String>builder()
+                    .putAll(oldProperties)
+                    .putAll(alteredProperties)
+                    .buildKeepingLast();
+            assertUpdate(createAlterCatalogSql(updatedCatalogName, newProperties));
+
+            assertThat(computeScalar("SHOW CREATE CATALOG " + originalCatalogName))
+                    .isEqualTo(createOriginalCatalogSql);
+            assertThatThrownBy(() -> assertAlteredCatalogBehavior(originalCatalogName))
+                    .isInstanceOf(AssertionError.class);
+            String createNewUpdatedCatalogSql = generateCreateCatalogSql(connectorName, updatedCatalogName, newProperties);
+            assertThat(computeScalar("SHOW CREATE CATALOG " + updatedCatalogName))
+                    .isEqualTo(createNewUpdatedCatalogSql);
+            assertAlteredCatalogBehavior(updatedCatalogName);
+        }
+        finally {
+            assertUpdate("DROP CATALOG IF EXISTS " + originalCatalogName);
+            assertUpdate("DROP CATALOG IF EXISTS " + updatedCatalogName);
+        }
+    }
+
+    /**
+     * Returns properties that alter behavior of a dynamic catalog.
+     * See {@link #assertAlteredCatalogBehavior}
+     */
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        throw new UnsupportedOperationException("This method should be overridden");
+    }
+
+    /**
+     * Tests the properties altered in {@link #getBehaviorAlteringCatalogProperties}.
+     */
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        throw new UnsupportedOperationException("This method should be overridden");
+    }
+
+    /**
+     * Create a new CREATE CATALOG SQL command for the {catalogName} using all the current connector settings.
+     */
+    private String createCatalogLikeCurrentSql(String catalogName)
+    {
+        CatalogProperties properties = getQueryRunner()
+                .getCatalogProperties(getSession().getCatalog().orElseThrow())
+                .orElseThrow();
+        return generateCreateCatalogSql(properties.connectorName().toString(), catalogName, properties.properties());
+    }
+
+    private String generateCreateCatalogSql(String connectorName, String catalogName, Map<String, String> properties)
+    {
+        // This method does NOT escape catalogName or connectorName if necessary (e.g if there's spaces),
+        // we'll assume every test will use identifiers that don't need escaping.
+        if (properties.isEmpty()) {
+            return formatSqlText("CREATE CATALOG %s USING %s".formatted(catalogName, connectorName));
+        }
+        String propertyBody = properties.entrySet().stream()
+                .sorted(comparingByKey())
+                .map(entry -> "%s=%s".formatted(
+                        formatExpression(new Identifier(entry.getKey())),
+                        formatExpression(new StringLiteral(new NodeLocation(1, 1), entry.getValue()))))
+                .collect(joining(","));
+
+        return formatSqlText("CREATE CATALOG %s USING %s WITH (%s)".formatted(catalogName, connectorName, propertyBody));
+    }
+
+    private static String createAlterCatalogSql(
+            String updatedCatalogName,
+            Map<String, String> newProperties)
+    {
+        return format("ALTER CATALOG %s SET PROPERTIES %s",
+                updatedCatalogName,
+                newProperties.entrySet().stream().map(entry -> {
+                    String escapedKey = entry.getKey().replaceAll("\"", "\\\"");
+                    String escapedValue = entry.getValue().replaceAll("'", "\\'");
+                    return format("\"%s\" = '%s'", escapedKey, escapedValue);
+                }).collect(joining(", ")));
     }
 
     @Test

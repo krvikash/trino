@@ -50,6 +50,7 @@ import io.trino.server.testing.TestingTrinoServer;
 import io.trino.spi.ErrorType;
 import io.trino.spi.Plugin;
 import io.trino.spi.QueryId;
+import io.trino.spi.catalog.CatalogProperties;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 import io.trino.spi.eventlistener.EventListener;
 import io.trino.spi.eventlistener.QueryCompletedEvent;
@@ -603,6 +604,12 @@ public final class DistributedQueryRunner
         long start = System.nanoTime();
         coordinators.forEach(coordinator -> coordinator.createCatalog(catalogName, connectorName, properties));
         log.debug("Created catalog %s in %s", catalogName, nanosSince(start));
+    }
+
+    @Override
+    public Optional<CatalogProperties> getCatalogProperties(String catalogName)
+    {
+        return getCoordinator().getCatalogProperties(getCoordinator().getCatalogHandle(catalogName));
     }
 
     @Override

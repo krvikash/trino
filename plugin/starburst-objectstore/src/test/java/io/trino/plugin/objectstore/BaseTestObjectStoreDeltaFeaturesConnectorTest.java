@@ -228,6 +228,13 @@ public abstract class BaseTestObjectStoreDeltaFeaturesConnectorTest
 
     @Test
     @Override
+    public void testCatalogSetProperties()
+    {
+        skipDuplicateTestCoverage("testCatalogSetProperties");
+    }
+
+    @Test
+    @Override
     public void testColumnCommentMaterializedView()
     {
         skipDuplicateTestCoverage("testColumnCommentMaterializedView");
@@ -336,6 +343,13 @@ public abstract class BaseTestObjectStoreDeltaFeaturesConnectorTest
     public void testCountColumn()
     {
         skipDuplicateTestCoverage("testCountColumn");
+    }
+
+    @Test
+    @Override
+    public void testCreateDropDynamicCatalog()
+    {
+        skipDuplicateTestCoverage("testCreateDropDynamicCatalog");
     }
 
     @Test
@@ -1253,6 +1267,13 @@ public abstract class BaseTestObjectStoreDeltaFeaturesConnectorTest
     public void testRefreshView()
     {
         skipDuplicateTestCoverage("testRefreshView");
+    }
+
+    @Test
+    @Override
+    public void testRenameDynamicCatalog()
+    {
+        skipDuplicateTestCoverage("testRenameDynamicCatalog");
     }
 
     @Test

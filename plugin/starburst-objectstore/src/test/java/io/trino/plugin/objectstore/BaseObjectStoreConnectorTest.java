@@ -191,6 +191,26 @@ public abstract class BaseObjectStoreConnectorTest
     protected abstract boolean hasBehavior(TestingConnectorBehavior connectorBehavior);
 
     @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("s3.aws-secret-key", "invalid")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        String schemaName = "notrealschema" + randomNameSuffix();
+        assertQueryFails(format(
+                "CREATE SCHEMA %s.%s WITH (location = 's3://%s/%s')",
+                catalogName,
+                schemaName,
+                bucketName,
+                schemaName), "Invalid location URI:.*");
+    }
+
+    @Override
     protected String createSchemaSql(String schemaName)
     {
         return "CREATE SCHEMA " + schemaName + " WITH (location = 's3://" + bucketName + "/" + schemaName + "')";

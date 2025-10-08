@@ -10,6 +10,7 @@
 package com.starburstdata.trino.plugin.snowflake;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Closer;
 import io.trino.Session;
 import io.trino.plugin.jdbc.BaseJdbcConnectorTest;
@@ -1636,25 +1637,6 @@ public class TestParallelSnowflakeConnectorTest
     }
 
     @Test
-    public void testCreateDropDynamicCatalog()
-    {
-        String catalog = "new_catalog_" + randomNameSuffix();
-        @Language("SQL")
-        String createCatalogSql = generateCreateCatalogSql(catalog);
-        assertUpdate(createCatalogSql);
-        assertCatalogs("system", "snowflake", "tpch", "mock_dynamic_listing", "jmx", catalog);
-
-        assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs("system", "snowflake", "mock_dynamic_listing", "tpch", "jmx");
-        // re-add the same catalog
-        assertUpdate(createCatalogSql);
-        assertCatalogs("system", "snowflake", "tpch", "mock_dynamic_listing", "jmx", catalog);
-
-        assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs("system", "snowflake", "tpch", "mock_dynamic_listing", "jmx");
-    }
-
-    @Test
     public void testCreateDropMultipleCatalogs()
     {
         String firstCatalog = "catalog1_" + randomNameSuffix();
@@ -1677,49 +1659,19 @@ public class TestParallelSnowflakeConnectorTest
         }
     }
 
-    @Test
-    public void testRenameCatalog()
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
     {
-        String catalog = "catalog_rename_" + randomNameSuffix();
-        try {
-            String oldCatalog = "catalog_rename_" + randomNameSuffix();
-            assertUpdate(generateCreateCatalogSql(oldCatalog));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(oldCatalog, TEST_SCHEMA));
-
-            assertUpdate("ALTER CATALOG %s RENAME TO %s".formatted(oldCatalog, catalog));
-            assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog))
-                    .hasMessage("Catalog '%s' not found".formatted(oldCatalog));
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
-                    .isEqualTo(generateCreateCatalogSql(catalog));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, TEST_SCHEMA));
-        }
-        finally {
-            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
-        }
+        return ImmutableMap.<String, String>builder()
+                .put("connection-url", "jdbc:snowflake://invalid_connection_url")
+                .buildOrThrow();
     }
 
-    @Test
-    public void testCatalogSetProperties()
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
     {
-        String catalog = "catalog_set_props_" + randomNameSuffix();
-        try {
-            String createCatalogSql = generateCreateCatalogSql(catalog, "jdbc:snowflake://invalid_connection_url");
-            assertUpdate(createCatalogSql);
-            assertQueryFails("SHOW TABLES FROM %s.%s".formatted(catalog, TEST_SCHEMA), "Connection string is invalid\\. Unable to parse\\.");
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
-                    .isEqualTo(createCatalogSql);
-
-            assertUpdate("""
-                    ALTER CATALOG %s SET PROPERTIES
-                      "connection-url" = '%s'
-                    """.formatted(catalog, SnowflakeServer.JDBC_URL));
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
-                    .isEqualTo(generateCreateCatalogSql(catalog));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, TEST_SCHEMA));
-        }
-        finally {
-            assertUpdate("DROP CATALOG " + catalog);
-        }
+        assertQueryFails(format("SHOW TABLES FROM %s.%s", catalogName, TEST_SCHEMA),
+                "Connection string is invalid\\. Unable to parse\\.");
     }
 
     private String generateCreateCatalogSql(String catalogName)

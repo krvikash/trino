@@ -31,6 +31,7 @@ import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.sql.TestTable;
 import io.trino.tpch.TpchTable;
 import org.intellij.lang.annotations.Language;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -102,6 +103,11 @@ public class TestMemoryConnectorTest
             default -> super.hasBehavior(connectorBehavior);
         };
     }
+
+    @Override
+    @Test
+    @Disabled("No applicable properties to test with this connector.")
+    public void testCatalogSetProperties() {}
 
     @Override
     protected TestTable createTableWithDefaultColumns()

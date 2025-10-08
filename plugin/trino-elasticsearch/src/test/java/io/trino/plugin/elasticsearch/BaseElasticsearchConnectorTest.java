@@ -42,7 +42,6 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Stream;
 
 import static com.google.common.io.Resources.getResource;
@@ -158,46 +157,6 @@ public abstract class BaseElasticsearchConnectorTest
     }
 
     @Test
-    void testCreateDropDynamicCatalog()
-            throws URISyntaxException
-    {
-        String catalog = "new_catalog_" + randomNameSuffix();
-        @Language("SQL")
-        String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE
-                .formatted(
-                        catalog,
-                        PASSWORD,
-                        USER,
-                        TPCH_SCHEMA,
-                        server.getAddress().getHost(),
-                        server.getAddress().getPort(),
-                        new File(getResource("truststore.jks").toURI()).getPath());
-        assertUpdate(createCatalogSql);
-        assertCatalogs(availableCatalogs(Optional.of(catalog)));
-
-        assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs(availableCatalogs(Optional.empty()));
-        // re-add the same catalog
-        assertUpdate(createCatalogSql);
-        assertCatalogs(availableCatalogs(Optional.of(catalog)));
-
-        assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs(availableCatalogs(Optional.empty()));
-    }
-
-    protected String[] availableCatalogs(Optional<String> catalog)
-    {
-        ImmutableList.Builder<String> catalogs = ImmutableList.builder();
-        catalogs.add("system")
-                .add("elasticsearch")
-                .add("tpch")
-                .add("mock_dynamic_listing")
-                .add("jmx");
-        catalog.ifPresent(catalogs::add);
-        return catalogs.build().toArray(new String[0]);
-    }
-
-    @Test
     void testCreateDropMultipleCatalogs()
             throws URISyntaxException
     {
@@ -254,86 +213,20 @@ public abstract class BaseElasticsearchConnectorTest
         }
     }
 
-    @Test
-    void testRenameCatalog()
-            throws URISyntaxException
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
     {
-        String catalog = "catalog_rename_" + randomNameSuffix();
-        try {
-            String oldCatalog = "catalog_rename_" + randomNameSuffix();
-            assertUpdate(CREATE_CATALOG_SQL_TEMPLATE
-                    .formatted(
-                            oldCatalog,
-                            PASSWORD,
-                            USER,
-                            TPCH_SCHEMA,
-                            server.getAddress().getHost(),
-                            server.getAddress().getPort(),
-                            new File(getResource("truststore.jks").toURI()).getPath()));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(oldCatalog, TPCH_SCHEMA));
-
-            assertUpdate("ALTER CATALOG %s RENAME TO %s".formatted(oldCatalog, catalog));
-            assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog))
-                    .hasMessage("Catalog '%s' not found".formatted(oldCatalog));
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
-                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE
-                            .formatted(
-                                    catalog,
-                                    PASSWORD,
-                                    USER,
-                                    TPCH_SCHEMA,
-                                    server.getAddress().getHost(),
-                                    server.getAddress().getPort(),
-                                    new File(getResource("truststore.jks").toURI()).getPath()));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, TPCH_SCHEMA));
-        }
-        finally {
-            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
-        }
+        return ImmutableMap.<String, String>builder()
+                .put("elasticsearch.auth.password", "INVALID")
+                .buildOrThrow();
     }
 
-    @Test
-    void testCatalogSetProperties()
-            throws URISyntaxException
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
     {
-        String catalog = "catalog_set_props_" + randomNameSuffix();
-        try {
-            @Language("SQL")
-            String catalogWithIncorrectPassword = CREATE_CATALOG_SQL_TEMPLATE
-                    .formatted(
-                            catalog,
-                            "INVALID",
-                            USER,
-                            TPCH_SCHEMA,
-                            server.getAddress().getHost(),
-                            server.getAddress().getPort(),
-                            new File(getResource("truststore.jks").toURI()).getPath());
-            assertUpdate(catalogWithIncorrectPassword);
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue()).isEqualTo(catalogWithIncorrectPassword);
-            assertThatThrownBy(() -> computeActual("SHOW TABLES FROM %s.%s".formatted(catalog, TPCH_SCHEMA)))
-                    .isInstanceOf(QueryFailedException.class)
-                    .hasMessageContaining("unable to authenticate user [%s] for REST request".formatted(USER));
-
-            assertUpdate(
-                    """
-                    ALTER CATALOG %s SET PROPERTIES
-                      "elasticsearch.auth.password" = '%s'
-                    """.formatted(catalog, PASSWORD));
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
-                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE
-                            .formatted(
-                                    catalog,
-                                    PASSWORD,
-                                    USER,
-                                    TPCH_SCHEMA,
-                                    server.getAddress().getHost(),
-                                    server.getAddress().getPort(),
-                                    new File(getResource("truststore.jks").toURI()).getPath()));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, TPCH_SCHEMA));
-        }
-        finally {
-            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
-        }
+        assertThatThrownBy(() -> computeActual("SHOW TABLES FROM %s.%s".formatted(catalogName, TPCH_SCHEMA)))
+                .isInstanceOf(QueryFailedException.class)
+                .hasMessageContaining(format("unable to authenticate user [%s] for REST request", USER));
     }
 
     @Test

@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.exasol;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.jdbc.BaseJdbcConnectorTest;
 import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.ProjectNode;
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static io.trino.plugin.exasol.TestingExasolServer.TEST_SCHEMA;
@@ -88,6 +90,21 @@ final class TestExasolConnectorTest
     {
         // Use Exasol executor because the connector does not support creating tables
         return new TestTable(exasolServer.getSqlExecutor(), TEST_SCHEMA + "." + namePrefix, tableDefinition, rowsToInsert);
+    }
+
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("connection-password", "wrong_pass")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        assertQueryFails(format("SHOW TABLES FROM %s.%s", catalogName, "tiny"),
+                "Connection exception - authentication failed.");
     }
 
     @Override

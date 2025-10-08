@@ -36,6 +36,7 @@ import io.trino.server.testing.TestingTrinoServer;
 import io.trino.spi.ErrorType;
 import io.trino.spi.Plugin;
 import io.trino.spi.block.BlockEncodingSerde;
+import io.trino.spi.catalog.CatalogProperties;
 import io.trino.spi.function.FunctionBundle;
 import io.trino.split.PageSourceManager;
 import io.trino.split.SplitManager;
@@ -297,6 +298,12 @@ public final class StandaloneQueryRunner
     public void createCatalog(String catalogName, String connectorName, Map<String, String> properties)
     {
         server.createCatalog(catalogName, connectorName, properties);
+    }
+
+    @Override
+    public Optional<CatalogProperties> getCatalogProperties(String catalogName)
+    {
+        return server.getCatalogProperties(server.getCatalogHandle(catalogName));
     }
 
     @Override

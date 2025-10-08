@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.duckdb;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.jdbc.BaseJdbcConnectorTest;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static io.trino.plugin.duckdb.TestingDuckDb.TPCH_SCHEMA;
@@ -32,6 +34,7 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.testing.MaterializedResult.resultBuilder;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_NATIVE_QUERY;
 import static io.trino.testing.TestingNames.randomNameSuffix;
+import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -77,6 +80,21 @@ final class TestDuckDbConnectorTest
 
             default -> super.hasBehavior(connectorBehavior);
         };
+    }
+
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("connection-url", "jdbc:duckdb:/invalid/notarealfile.db")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        assertQueryFails(format("SHOW TABLES FROM %s.%s", catalogName, "main"),
+                ".*IO Error: Cannot open file.*");
     }
 
     @Override

@@ -310,6 +310,41 @@ public abstract class BaseIcebergConnectorTest
         };
     }
 
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("iceberg.allowed-extra-properties", "normallynotallowed")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        String schemaName = "test_schema_without_location" + randomNameSuffix();
+        String schemaLocation = "/tmp/" + schemaName;
+        String tableName = "test_create_external" + randomNameSuffix();
+
+        try {
+            fileSystem.createDirectory(Location.of(schemaLocation));
+            assertUpdate(format("CREATE SCHEMA %s.%s WITH (location = '%s')", catalogName, schemaName, schemaLocation));
+            String createTableSql = format(
+                    """
+                    CREATE TABLE %s.%s.%s WITH (
+                        extra_properties = MAP(ARRAY['normallynotallowed'], ARRAY['foo'])
+                    ) AS SELECT 1 as c1""",
+                    catalogName,
+                    schemaName,
+                    tableName);
+            assertQuerySucceeds(createTableSql);
+            fileSystem.deleteDirectory(Location.of(schemaLocation));
+        }
+        catch (IOException exception) {
+            // Let the test fail up higher on IO exceptions.
+            throw new RuntimeException(exception);
+        }
+    }
+
     @Test
     @Override
     public void testCreateTableWithDefaultColumn()

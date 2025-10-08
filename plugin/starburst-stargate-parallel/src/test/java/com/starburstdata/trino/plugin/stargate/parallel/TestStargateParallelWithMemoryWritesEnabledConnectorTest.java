@@ -10,6 +10,7 @@
 package com.starburstdata.trino.plugin.stargate.parallel;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.starburstdata.trino.plugin.stargate.BaseStargateConnectorTest;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
@@ -20,6 +21,7 @@ import org.testcontainers.localstack.LocalStackContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.starburstdata.trino.plugin.stargate.StargateQueryRunner.stargateConnectionUrl;
@@ -82,25 +84,6 @@ public class TestStargateParallelWithMemoryWritesEnabledConnectorTest
     }
 
     @Test
-    void testCreateDropDynamicCatalog()
-    {
-        String catalog = "new_catalog_" + randomNameSuffix();
-        @Language("SQL")
-        String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, stargateConnectionUrl(remoteStarburst, REMOTE_CATALOG_NAME));
-        assertUpdate(createCatalogSql);
-        assertCatalogs("system", "tpch", catalog);
-
-        assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs("system", "tpch");
-        // re-add the same catalog
-        assertUpdate(createCatalogSql);
-        assertCatalogs("system", "tpch", catalog);
-
-        assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs("system", "tpch");
-    }
-
-    @Test
     void testCreateDropMultipleCatalogs()
     {
         String firstCatalog = "catalog1_" + randomNameSuffix();
@@ -131,52 +114,19 @@ public class TestStargateParallelWithMemoryWritesEnabledConnectorTest
         }
     }
 
-    @Test
-    void testRenameCatalog()
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
     {
-        String catalog = "catalog_rename_" + randomNameSuffix();
-        try {
-            String oldCatalog = "catalog_rename_" + randomNameSuffix();
-            @Language("SQL")
-            String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE.formatted(oldCatalog, stargateConnectionUrl(remoteStarburst, REMOTE_CATALOG_NAME));
-            assertUpdate(createCatalogSql);
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(oldCatalog, MEMORY_TPCH_SCHEMA));
-
-            assertUpdate("ALTER CATALOG %s RENAME TO %s".formatted(oldCatalog, catalog));
-            assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog)).hasMessage("Catalog '%s' not found".formatted(oldCatalog));
-            assertThat(computeScalar("SHOW CREATE CATALOG " + catalog))
-                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, stargateConnectionUrl(remoteStarburst, REMOTE_CATALOG_NAME)));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, MEMORY_TPCH_SCHEMA));
-        }
-        finally {
-            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
-        }
+        return ImmutableMap.<String, String>builder()
+                .put("connection-url", "jdbc:trino://invalid:8080/hive")
+                .buildOrThrow();
     }
 
-    @Test
-    void testCatalogSetProperties()
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
     {
-        String catalog = "catalog_set_props_" + randomNameSuffix();
-        try {
-            @Language("SQL")
-            String catalogWithIncorrectPassword = CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, "jdbc:trino://invalid:8080/hive");
-            assertUpdate(catalogWithIncorrectPassword);
-            assertThat(computeScalar("SHOW CREATE CATALOG " + catalog)).isEqualTo(catalogWithIncorrectPassword);
-            assertQueryFails("SHOW TABLES FROM %s.%s".formatted(catalog, MEMORY_TPCH_SCHEMA),
-                    "Error executing query: java.net.UnknownHostException: invalid.*");
-
-            assertUpdate(
-                    """
-                    ALTER CATALOG %s SET PROPERTIES
-                      "connection-url" = '%s'
-                    """.formatted(catalog, stargateConnectionUrl(remoteStarburst, REMOTE_CATALOG_NAME)));
-            assertThat(computeScalar("SHOW CREATE CATALOG " + catalog))
-                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, stargateConnectionUrl(remoteStarburst, REMOTE_CATALOG_NAME)));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, MEMORY_TPCH_SCHEMA));
-        }
-        finally {
-            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
-        }
+        assertQueryFails("SHOW TABLES FROM %s.%s".formatted(catalogName, MEMORY_TPCH_SCHEMA),
+                "Error executing query: java.net.UnknownHostException: invalid.*");
     }
 
     @Test

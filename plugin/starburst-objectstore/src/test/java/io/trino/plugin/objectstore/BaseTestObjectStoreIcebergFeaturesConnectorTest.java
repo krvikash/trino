@@ -419,6 +419,13 @@ public abstract class BaseTestObjectStoreIcebergFeaturesConnectorTest
 
     @Test
     @Override
+    public void testCatalogSetProperties()
+    {
+        skipDuplicateTestCoverage("testCatalogSetProperties");
+    }
+
+    @Test
+    @Override
     public void testColumnCommentMaterializedView()
     {
         skipDuplicateTestCoverage("testColumnCommentMaterializedView");
@@ -527,6 +534,13 @@ public abstract class BaseTestObjectStoreIcebergFeaturesConnectorTest
     public void testCountColumn()
     {
         skipDuplicateTestCoverage("testCountColumn");
+    }
+
+    @Test
+    @Override
+    public void testCreateDropDynamicCatalog()
+    {
+        skipDuplicateTestCoverage("testCreateDropDynamicCatalog");
     }
 
     @Test
@@ -1465,6 +1479,13 @@ public abstract class BaseTestObjectStoreIcebergFeaturesConnectorTest
     public void testRenameColumnWithComment()
     {
         skipDuplicateTestCoverage("testRenameColumnWithComment");
+    }
+
+    @Test
+    @Override
+    public void testRenameDynamicCatalog()
+    {
+        skipDuplicateTestCoverage("testRenameDynamicCatalog");
     }
 
     @Test

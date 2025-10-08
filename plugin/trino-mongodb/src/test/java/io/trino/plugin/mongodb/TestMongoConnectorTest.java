@@ -168,25 +168,6 @@ public class TestMongoConnectorTest
     }
 
     @Test
-    void testCreateDropDynamicCatalog()
-    {
-        String catalog = "new_catalog_" + randomNameSuffix();
-        @Language("SQL")
-        String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, server.getConnectionString());
-        assertUpdate(createCatalogSql);
-        assertCatalogs("system", "mongodb", "tpch", "mock_dynamic_listing", catalog);
-
-        assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs("system", "mongodb", "tpch", "mock_dynamic_listing");
-        // re-add the same catalog
-        assertUpdate(createCatalogSql);
-        assertCatalogs("system", "mongodb", "tpch", "mock_dynamic_listing", catalog);
-
-        assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs("system", "mongodb", "tpch", "mock_dynamic_listing");
-    }
-
-    @Test
     void testCreateDropMultipleCatalogs()
     {
         String firstCatalog = "catalog1_" + randomNameSuffix();
@@ -217,53 +198,20 @@ public class TestMongoConnectorTest
         }
     }
 
-    @Test
-    void testRenameCatalog()
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
     {
-        String catalog = "catalog_rename_" + randomNameSuffix();
-        try {
-            String oldCatalog = "catalog_rename_" + randomNameSuffix();
-            assertUpdate(CREATE_CATALOG_SQL_TEMPLATE.formatted(oldCatalog, server.getConnectionString()));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(oldCatalog, TPCH_SCHEMA));
-
-            assertUpdate("ALTER CATALOG %s RENAME TO %s".formatted(oldCatalog, catalog));
-            assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog))
-                    .hasMessage("Catalog '%s' not found".formatted(oldCatalog));
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
-                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, server.getConnectionString()));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, TPCH_SCHEMA));
-        }
-        finally {
-            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
-        }
+        return ImmutableMap.<String, String>builder()
+                .put("mongodb.connection-url", "mongodb://host:1234")
+                .buildOrThrow();
     }
 
-    @Test
-    void testCatalogSetProperties()
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
     {
-        String catalog = "catalog_set_props_" + randomNameSuffix();
-        try {
-            @Language("SQL")
-            String createInvalidCatalogSql = CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, "mongodb://host:1234");
-            assertUpdate(createInvalidCatalogSql);
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
-                    .isEqualTo(createInvalidCatalogSql);
-            assertThatThrownBy(() -> computeActual("SHOW TABLES FROM %s.%s".formatted(catalog, TPCH_SCHEMA)))
-                    .isInstanceOf(QueryFailedException.class)
-                    .hasMessageContaining("Timed out while waiting for a server");
-
-            assertUpdate(
-                    """
-                    ALTER CATALOG %s SET PROPERTIES
-                      "mongodb.connection-url" = '%s'
-                    """.formatted(catalog, server.getConnectionString()));
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
-                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, server.getConnectionString()));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, TPCH_SCHEMA));
-        }
-        finally {
-            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
-        }
+        assertThatThrownBy(() -> computeActual("SHOW TABLES FROM %s.%s".formatted(catalogName, TPCH_SCHEMA)))
+                .isInstanceOf(QueryFailedException.class)
+                .hasMessageContaining("Timed out while waiting for a server");
     }
 
     @Test

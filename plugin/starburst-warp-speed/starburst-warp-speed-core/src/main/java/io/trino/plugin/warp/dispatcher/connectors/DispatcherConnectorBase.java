@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.dispatcher.connectors;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.log.Logger;
@@ -73,6 +74,12 @@ public abstract class DispatcherConnectorBase
         this.lifeCycleManager = requireNonNull(lifeCycleManager);
         this.connectorTaskExecutor = requireNonNull(connectorTaskExecutor);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
+    }
+
+    @VisibleForTesting
+    public Connector getProxiedConnector()
+    {
+        return proxiedConnector;
     }
 
     @Override

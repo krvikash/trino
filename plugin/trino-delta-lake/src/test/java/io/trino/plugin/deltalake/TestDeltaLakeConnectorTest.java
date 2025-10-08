@@ -177,6 +177,26 @@ public class TestDeltaLakeConnectorTest
     }
 
     @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("s3.aws-secret-key", "invalid")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        String schemaName = "notrealschema" + randomNameSuffix();
+        assertQueryFails(format(
+                "CREATE SCHEMA %s.%s WITH (location = 's3://%s/%s')",
+                catalogName,
+                schemaName,
+                bucketName,
+                schemaName), "Invalid location URI:.*");
+    }
+
+    @Override
     protected String errorMessageForInsertIntoNotNullColumn(String columnName)
     {
         return "NULL value not allowed for NOT NULL column: " + columnName;

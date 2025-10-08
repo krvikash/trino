@@ -110,25 +110,6 @@ public class TestSynapseConnectorTest
     }
 
     @Test
-    void testCreateDropDynamicCatalog()
-    {
-        String catalog = "new_catalog_" + randomNameSuffix();
-        @Language("SQL")
-        String createCatalogSql = CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, PASSWORD, JDBC_URL, USERNAME);
-        assertUpdate(createCatalogSql);
-        assertCatalogs("system", "sqlserver", "tpch", "mock_dynamic_listing", "jmx", catalog);
-
-        assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs("system", "sqlserver", "tpch", "mock_dynamic_listing", "jmx");
-        // re-add the same catalog
-        assertUpdate(createCatalogSql);
-        assertCatalogs("system", "sqlserver", "tpch", "mock_dynamic_listing", "jmx", catalog);
-
-        assertUpdate("DROP CATALOG " + catalog);
-        assertCatalogs("system", "sqlserver", "tpch", "mock_dynamic_listing", "jmx");
-    }
-
-    @Test
     void testCreateDropMultipleCatalogs()
     {
         String firstCatalog = "catalog1_" + randomNameSuffix();
@@ -161,50 +142,19 @@ public class TestSynapseConnectorTest
         }
     }
 
-    @Test
-    void testRenameCatalog()
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
     {
-        String catalog = "catalog_rename_" + randomNameSuffix();
-        try {
-            String oldCatalog = "catalog_rename_" + randomNameSuffix();
-            assertUpdate(CREATE_CATALOG_SQL_TEMPLATE.formatted(oldCatalog, CONNECTOR_NAME, PASSWORD, JDBC_URL, USERNAME));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(oldCatalog, TEST_SCHEMA));
-
-            assertUpdate("ALTER CATALOG %s RENAME TO %s".formatted(oldCatalog, catalog));
-            assertThatThrownBy(() -> computeActual("DROP CATALOG " + oldCatalog))
-                    .hasMessage("Catalog '%s' not found".formatted(oldCatalog));
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
-                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, PASSWORD, JDBC_URL, USERNAME));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, TEST_SCHEMA));
-        }
-        finally {
-            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
-        }
+        return ImmutableMap.<String, String>builder()
+                .put("connection-password", "INVALID")
+                .buildOrThrow();
     }
 
-    @Test
-    void testCatalogSetProperties()
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
     {
-        String catalog = "catalog_set_props_" + randomNameSuffix();
-        try {
-            @Language("SQL")
-            String catalogWithIncorrectPassword = CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, "INVALID", JDBC_URL, USERNAME);
-            assertUpdate(catalogWithIncorrectPassword);
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue()).isEqualTo(catalogWithIncorrectPassword);
-            assertQueryFails("SHOW TABLES FROM %s.%s".formatted(catalog, TEST_SCHEMA), "Login failed for user '%s'. ClientConnectionId:.*".formatted(USERNAME));
-
-            assertUpdate(
-                    """
-                    ALTER CATALOG %s SET PROPERTIES
-                      "connection-password" = '%s'
-                    """.formatted(catalog, PASSWORD));
-            assertThat((String) computeActual("SHOW CREATE CATALOG " + catalog).getOnlyValue())
-                    .isEqualTo(CREATE_CATALOG_SQL_TEMPLATE.formatted(catalog, CONNECTOR_NAME, PASSWORD, JDBC_URL, USERNAME));
-            assertQuerySucceeds("SHOW TABLES FROM %s.%s".formatted(catalog, TEST_SCHEMA));
-        }
-        finally {
-            assertUpdate("DROP CATALOG IF EXISTS " + catalog);
-        }
+        assertQueryFails(format("SHOW TABLES FROM %s.%s", catalogName, TEST_SCHEMA),
+                "Login failed for user '%s'. ClientConnectionId:.*".formatted(USERNAME));
     }
 
     @Test

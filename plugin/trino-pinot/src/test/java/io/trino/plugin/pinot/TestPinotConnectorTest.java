@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.pinot;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.testing.BaseConnectorTest;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
@@ -21,9 +22,12 @@ import io.trino.testing.kafka.TestingKafka;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+
 import static io.trino.plugin.pinot.TestingPinotCluster.PINOT_LATEST_IMAGE_NAME;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.testing.MaterializedResult.resultBuilder;
+import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestPinotConnectorTest
@@ -70,6 +74,21 @@ public class TestPinotConnectorTest
                  SUPPORTS_UPDATE -> false;
             default -> super.hasBehavior(connectorBehavior);
         };
+    }
+
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("pinot.controller-urls", "invalid")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        assertQueryFails(format("SHOW TABLES FROM %s.default", catalogName),
+                "(?s).*Failed communicating with server.*");
     }
 
     @Override // Override because updated_at_seconds column exists

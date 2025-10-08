@@ -132,6 +132,21 @@ public class TestLakehouseConnectorTest
     }
 
     @Override
+    @Test
+    @Disabled("Not supporting for dynamic catalogs effort, deprecating for object store connector.")
+    public void testRenameDynamicCatalog() {}
+
+    @Override
+    @Test
+    @Disabled("Not supporting for dynamic catalogs effort, deprecating for object store connector.")
+    public void testCreateDropDynamicCatalog() {}
+
+    @Override
+    @Test
+    @Disabled("Not supporting for dynamic catalogs effort, deprecating for object store connector.")
+    public void testCatalogSetProperties() {}
+
+    @Override
     protected OptionalInt maxSchemaNameLength()
     {
         return OptionalInt.of(128);

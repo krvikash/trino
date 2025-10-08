@@ -20,6 +20,7 @@ import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.sql.JdbcSqlExecutor;
 import io.trino.testing.sql.TestTable;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
@@ -84,6 +85,21 @@ public class TestJdbcConnectorTest
             default -> super.hasBehavior(connectorBehavior);
         };
     }
+
+    @Override
+    @Test
+    @Disabled("Not customer facing for dynamic catalogs effort.")
+    public void testRenameDynamicCatalog() {}
+
+    @Override
+    @Test
+    @Disabled("Not customer facing for dynamic catalogs effort.")
+    public void testCreateDropDynamicCatalog() {}
+
+    @Override
+    @Test
+    @Disabled("Not customer facing for dynamic catalogs effort.")
+    public void testCatalogSetProperties() {}
 
     @Test
     @Override

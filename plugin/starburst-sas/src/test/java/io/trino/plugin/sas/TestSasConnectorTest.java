@@ -13,13 +13,17 @@
  */
 package io.trino.plugin.sas;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.testing.BaseConnectorTest;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.util.Map;
 
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.testing.MaterializedResult.resultBuilder;
@@ -76,6 +80,28 @@ public class TestSasConnectorTest
                  SUPPORTS_UPDATE -> false;
             default -> super.hasBehavior(connectorBehavior);
         };
+    }
+
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        try {
+            // An empty directory passes LocalFileSystem's existence check but has no schema subdirectories,
+            // so the connector discovers no tables
+            return ImmutableMap.of("sas.data-directory", Files.createTempDirectory("sas-empty-data-directory-").toUri().toString());
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        // When data-directory is empty the connector discovers no schemas or tables
+        assertQueryFails(
+                "SELECT * FROM %s.%s.orders".formatted(catalogName, SasQueryRunner.TPCH_SCHEMA),
+                ".*Schema '%s' does not exist.*".formatted(SasQueryRunner.TPCH_SCHEMA));
     }
 
     @Override

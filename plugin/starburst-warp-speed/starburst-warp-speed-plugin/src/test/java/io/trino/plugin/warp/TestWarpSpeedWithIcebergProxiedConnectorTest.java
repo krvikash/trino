@@ -13,8 +13,13 @@
  */
 package io.trino.plugin.warp;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
+import io.trino.filesystem.Location;
+import io.trino.filesystem.TrinoFileSystem;
+import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.metadata.InternalFunctionBundle;
+import io.trino.plugin.iceberg.IcebergConnector;
 import io.trino.plugin.iceberg.IcebergFileFormat;
 import io.trino.plugin.iceberg.IcebergPlugin;
 import io.trino.plugin.tpch.TpchPlugin;
@@ -28,6 +33,7 @@ import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -43,6 +49,7 @@ import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.testing.MaterializedResult.resultBuilder;
 import static io.trino.testing.QueryAssertions.copyTpchTables;
+import static io.trino.testing.TestingConnectorSession.SESSION;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -133,10 +140,10 @@ public class TestWarpSpeedWithIcebergProxiedConnectorTest
         String schemaName = getSession().getSchema().orElseThrow();
         assertThat((String) computeScalar("SHOW CREATE SCHEMA " + schemaName))
                 .matches(format("CREATE SCHEMA %s.%s\\s+", CATALOG_NAME, schemaName) +
-                        "AUTHORIZATION USER user\\s+" +
-                        "WITH \\(\n" +
-                        "\\s+location = '.*'\n" +
-                        "\\)");
+                        format("AUTHORIZATION USER %s\\s+" +
+                                "WITH \\(\n" +
+                                "\\s+location = '.*'\n" +
+                                "\\)", getSession().getIdentity().getUser()));
     }
 
     @Test
@@ -485,5 +492,42 @@ public class TestWarpSpeedWithIcebergProxiedConnectorTest
                 .setCatalogSessionProperty(getSession().getCatalog().orElseThrow(), "parquet_small_file_threshold", "0B")
                 .setCatalogSessionProperty(getSession().getCatalog().orElseThrow(), "orc_tiny_stripe_threshold", "0B")
                 .build();
+    }
+
+    @Override
+    protected Map<String, String> getBehaviorAlteringCatalogProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("iceberg.allowed-extra-properties", "normallynotallowed")
+                .buildOrThrow();
+    }
+
+    @Override
+    protected void assertAlteredCatalogBehavior(String catalogName)
+    {
+        String schemaName = "test_schema_without_location" + randomNameSuffix();
+        String schemaLocation = "/tmp/" + schemaName;
+        String tableName = "test_create_external" + randomNameSuffix();
+        TrinoFileSystem fileSystem = ((IcebergConnector) ((StarburstWarpConnector) getDistributedQueryRunner().getCoordinator().getConnector(CATALOG_NAME)).getProxiedConnector())
+                .getInjector().getInstance(TrinoFileSystemFactory.class).create(SESSION);
+
+        try {
+            fileSystem.createDirectory(Location.of(schemaLocation));
+            assertUpdate(format("CREATE SCHEMA %s.%s WITH (location = '%s')", catalogName, schemaName, schemaLocation));
+            String createTableSql = format(
+                    """
+                    CREATE TABLE %s.%s.%s WITH (
+                        extra_properties = MAP(ARRAY['normallynotallowed'], ARRAY['foo'])
+                    ) AS SELECT 1 as c1""",
+                    catalogName,
+                    schemaName,
+                    tableName);
+            assertQuerySucceeds(createTableSql);
+            fileSystem.deleteDirectory(Location.of(schemaLocation));
+        }
+        catch (IOException exception) {
+            // Let the test fail up higher on IO exceptions.
+            throw new RuntimeException(exception);
+        }
     }
 }
