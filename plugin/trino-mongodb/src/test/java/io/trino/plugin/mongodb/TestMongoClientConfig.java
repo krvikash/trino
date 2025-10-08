@@ -18,6 +18,7 @@ import io.airlift.units.Duration;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.Set;
 
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
@@ -32,6 +33,7 @@ public class TestMongoClientConfig
     {
         assertRecordedDefaults(recordDefaults(MongoClientConfig.class)
                 .setConnectionUrl(null)
+                .setSchemaDatabase(null)
                 .setSchemaCollection("_schema")
                 .setCaseInsensitiveNameMatching(false)
                 .setMinConnectionsPerHost(0)
@@ -96,6 +98,6 @@ public class TestMongoClientConfig
                 .setAllowLocalScheduling(true)
                 .setDynamicFilteringWaitTimeout(new Duration(2, MILLISECONDS));
 
-        assertFullMapping(properties, expected);
+        assertFullMapping(properties, expected, Set.of("mongodb.schema-database"));
     }
 }
