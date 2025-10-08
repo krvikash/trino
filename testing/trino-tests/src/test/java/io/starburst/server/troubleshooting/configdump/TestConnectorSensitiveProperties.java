@@ -9,6 +9,7 @@
  */
 package io.starburst.server.troubleshooting.configdump;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import io.airlift.configuration.Config;
@@ -87,7 +88,7 @@ public class TestConnectorSensitiveProperties
             throws IOException
     {
         Map<String, Set<String>> sensitiveProperties = new HashMap<>();
-        List<Plugin> plugins = PluginLoader.loadPlugins(pluginsDir.toFile());
+        List<Plugin> plugins = PluginLoader.loadPlugins(ImmutableList.of(pluginsDir.toFile()));
         for (Plugin plugin : plugins) {
             for (ConnectorFactory connectorFactory : plugin.getConnectorFactories()) {
                 String connectorName = connectorFactory.getName();
