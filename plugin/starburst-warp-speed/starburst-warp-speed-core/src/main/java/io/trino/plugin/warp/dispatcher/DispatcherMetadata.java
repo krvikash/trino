@@ -85,6 +85,7 @@ import io.trino.spi.function.FunctionMetadata;
 import io.trino.spi.function.LanguageFunction;
 import io.trino.spi.function.SchemaFunctionName;
 import io.trino.spi.function.table.ConnectorTableFunctionHandle;
+import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.security.GrantInfo;
 import io.trino.spi.security.Privilege;
@@ -222,6 +223,12 @@ public class DispatcherMetadata
     public Optional<Object> getInfo(ConnectorSession session, ConnectorTableHandle table)
     {
         return proxiedConnectorMetadata.getInfo(session, ((DispatcherTableHandle) table).getProxyConnectorTableHandle());
+    }
+
+    @Override
+    public Metrics getMetrics(ConnectorSession session)
+    {
+        return proxiedConnectorMetadata.getMetrics(session);
     }
 
     @Override

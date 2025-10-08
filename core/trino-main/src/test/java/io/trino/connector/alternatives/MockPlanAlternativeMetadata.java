@@ -85,6 +85,7 @@ import io.trino.spi.function.FunctionMetadata;
 import io.trino.spi.function.LanguageFunction;
 import io.trino.spi.function.SchemaFunctionName;
 import io.trino.spi.function.table.ConnectorTableFunctionHandle;
+import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.EquatableValueSet;
 import io.trino.spi.predicate.SortedRangeSet;
@@ -221,6 +222,12 @@ public class MockPlanAlternativeMetadata
     public Optional<Object> getInfo(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         return delegate.getInfo(session, getDelegate(tableHandle));
+    }
+
+    @Override
+    public Metrics getMetrics(ConnectorSession session)
+    {
+        return delegate.getMetrics(session);
     }
 
     @Override

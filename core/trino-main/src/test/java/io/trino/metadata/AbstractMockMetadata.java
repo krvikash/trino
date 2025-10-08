@@ -74,6 +74,7 @@ import io.trino.spi.function.FunctionNullability;
 import io.trino.spi.function.LanguageFunction;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.function.Signature;
+import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.security.FunctionAuthorization;
 import io.trino.spi.security.GrantInfo;
@@ -204,6 +205,12 @@ public abstract class AbstractMockMetadata
 
     @Override
     public Optional<Object> getInfo(Session session, TableHandle handle)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Metrics getMetrics(Session session, String catalogName)
     {
         throw new UnsupportedOperationException();
     }
@@ -583,6 +590,12 @@ public abstract class AbstractMockMetadata
 
     @Override
     public List<CatalogInfo> listCatalogs(Session session)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public List<CatalogInfo> listActiveCatalogs(Session session)
     {
         throw new UnsupportedOperationException();
     }
