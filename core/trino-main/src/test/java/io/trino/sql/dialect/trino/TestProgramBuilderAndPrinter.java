@@ -59,8 +59,8 @@ import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
-import static io.trino.sql.dialect.trino.TestingFormatOptions.TESTING_PRINT_OPTIONS;
 import static io.trino.sql.ir.Logical.Operator.AND;
+import static io.trino.sql.newir.FormatOptions.TESTING_PRINT_OPTIONS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestProgramBuilderAndPrinter

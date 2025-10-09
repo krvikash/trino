@@ -18,19 +18,19 @@ import io.trino.spi.TrinoException;
 import io.trino.sql.newir.Operation.AttributeKey;
 
 import java.util.Optional;
-import java.util.regex.Pattern;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
+import static io.trino.sql.newir.DialectRegistry.TESTING_DIALECT_REGISTRY;
 import static java.util.Objects.requireNonNull;
 
 public class FormatOptions
 {
     public static final String INDENT = "    ";
-    private static final Pattern IDENTIFIER = Pattern.compile("([a-z]|[A-Z]|_)([a-z]|[A-Z]|[0-9]|_)*");
-    private static final Pattern PREFIXED_IDENTIFIER = Pattern.compile("([a-z]|[A-Z]|[0-9]|_)+");
-    private static final Pattern NAMESPACED_IDENTIFIER = Pattern.compile("([a-z]|[A-Z]|_)([a-z]|[A-Z]|[0-9]|_)*:([a-z]|[A-Z]|_)([a-z]|[A-Z]|[0-9]|_)*");
     private static final int CURRENT_VERSION = 1;
+
+    public static final FormatOptions TESTING_FORMAT_OPTIONS = new FormatOptions(TESTING_DIALECT_REGISTRY);
+    public static final PrintOptions TESTING_PRINT_OPTIONS = TESTING_FORMAT_OPTIONS.printOptions();
 
     private final DialectRegistry dialectRegistry;
 
@@ -45,21 +45,6 @@ public class FormatOptions
         if (version != 1) {
             throw new TrinoException(IR_ERROR, "invalid format version: " + version);
         }
-    }
-
-    public static boolean isValidIdentifier(String identifier)
-    {
-        return IDENTIFIER.matcher(identifier).matches();
-    }
-
-    public static boolean isValidPrefixedIdentifier(String identifier)
-    {
-        return PREFIXED_IDENTIFIER.matcher(identifier).matches();
-    }
-
-    public static boolean isValidAttributeName(String name)
-    {
-        return IDENTIFIER.matcher(name).matches() || NAMESPACED_IDENTIFIER.matcher(name).matches();
     }
 
     public PrintOptions printOptions(int version)

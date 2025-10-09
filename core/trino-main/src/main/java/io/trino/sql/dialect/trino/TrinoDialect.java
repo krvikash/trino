@@ -13,49 +13,223 @@
  */
 package io.trino.sql.dialect.trino;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
+import io.airlift.json.JsonCodec;
+import io.airlift.json.JsonCodecFactory;
+import io.trino.metadata.TableHandle;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.predicate.NullableValue;
+import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.TypeId;
 import io.trino.spi.type.TypeManager;
+import io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ArrayOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.BetweenOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.BindOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.CallOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.CaseOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.CastOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.CoalesceOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.CorrelatedJoinOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.DynamicFilterSourceOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ExplainAnalyzeOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.FieldReferenceOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.FilterOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.GroupIdOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.InOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.IsNullOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.LambdaOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.NullIfOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.OutputOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ProjectOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.QueryOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ReturnOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.RowOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.SortOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.SwitchOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ValuesOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.WindowOperationMetadata;
 import io.trino.sql.newir.Dialect;
 import io.trino.sql.newir.Type;
+import io.trino.sql.planner.PartitioningHandle;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
+import static io.trino.sql.dialect.trino.TrinoDialect.ConstantResult.CONSTANT_RESULT_CODEC;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static java.util.function.Function.identity;
 
 public class TrinoDialect
         extends Dialect
 {
     // dialect name
     public static final String TRINO = "trino";
+    private static final Set<TrinoOperationMetadata> STATIC_OPERATIONS = staticOperations();
+    public static final TrinoDialect TESTING_TRINO_DIALECT = new TrinoDialect();
 
+    private final Map<String, TrinoOperationMetadata> operations;
+    private final Map<String, TrinoAttributeMetadata<?>> attributes;
     private final Function<String, io.trino.spi.type.Type> typeDeserializer;
-    private final TrinoAttributeRegistry attributeRegistry;
 
     @Inject
-    public TrinoDialect(TypeManager typeManager, TrinoAttributeRegistry trinoAttributeRegistry)
+    public TrinoDialect(
+            TypeManager typeManager,
+            JsonCodec<NullableValue> nullableValueCodec,
+            JsonCodec<PartitioningHandle> partitioningHandleCodec,
+            JsonCodec<NullableValue[]> nullableValueArrayCodec,
+            JsonCodec<TableHandle> tableHandleCodec,
+            JsonCodec<List<ColumnHandle>> columnHandleCodec,
+            JsonCodec<TupleDomain<ColumnHandle>> tupleDomainCodec)
     {
         super(TRINO);
         requireNonNull(typeManager, "typeManager is null");
-        requireNonNull(trinoAttributeRegistry, "trinoAttributeRegistry is null");
+        requireNonNull(nullableValueCodec, "nullableValueCodec is null");
+        requireNonNull(partitioningHandleCodec, "partitioningHandleCodec is null");
+        requireNonNull(nullableValueArrayCodec, "nullableValueArrayCodec is null");
+        requireNonNull(tableHandleCodec, "tableHandleCodec is null");
+        requireNonNull(columnHandleCodec, "columnHandleCodec is null");
+        requireNonNull(tupleDomainCodec, "tupleDomainCodec is null");
 
         this.typeDeserializer = serializedType -> typeManager.getType(TypeId.of(serializedType));
-        this.attributeRegistry = trinoAttributeRegistry;
+
+        List<TrinoOperationMetadata> operationMetadata = ImmutableList.of(
+                new ConstantOperationMetadata(nullableValueCodec),
+                new ExchangeOperationMetadata(partitioningHandleCodec, nullableValueArrayCodec),
+                new TableScanOperationMetadata(tableHandleCodec, columnHandleCodec, tupleDomainCodec));
+
+        ImmutableMap.Builder<String, TrinoOperationMetadata> operationsBuilder = ImmutableMap.builder();
+        STATIC_OPERATIONS.forEach(operation -> operationsBuilder.put(operation.name(), operation));
+        operationMetadata.forEach(operation -> operationsBuilder.put(operation.name(), operation));
+        this.operations = operationsBuilder.buildOrThrow();
+
+        this.attributes = this.operations.values().stream()
+                .peek(TrinoDialect::validateInternalNamespacedAttributes)
+                .map(TrinoOperationMetadata::operationAttributes)
+                .flatMap(Set::stream)
+                .collect(toImmutableMap(attribute -> attribute.trinoAttributeSignature().name(), identity()));
+    }
+
+    private TrinoDialect()
+    {
+        super(TRINO);
+
+        this.typeDeserializer = serializedType -> {
+            throw new UnsupportedOperationException("cannot parse type " + serializedType);
+        };
+
+        List<TrinoOperationMetadata> operationMetadata = ImmutableList.of(
+                new ConstantOperationMetadata(
+                        _ -> {
+                            throw new UnsupportedOperationException("cannot parse constant:constant_result attribute");
+                        },
+                        nullableValue -> {
+                            ConstantResult constantResult = new ConstantResult(nullableValue.getType(), nullableValue.getValue());
+                            try {
+                                return CONSTANT_RESULT_CODEC.toJson(constantResult);
+                            }
+                            catch (IllegalArgumentException e) {
+                                return "[test: constant_result attribute]";
+                            }
+                        }),
+                new ExchangeOperationMetadata(
+                        _ -> {
+                            throw new UnsupportedOperationException("cannot parse exchange:partitioning_handle attribute");
+                        },
+                        _ -> "[test: partitioning_handle attribute]",
+                        _ -> {
+                            throw new UnsupportedOperationException("cannot parse exchange:nullable_values attribute");
+                        },
+                        _ -> "[test: nullable_values attribute]"),
+                new TableScanOperationMetadata(
+                        _ -> {
+                            throw new UnsupportedOperationException("cannot parse table_scan:table_handle attribute");
+                        },
+                        _ -> "[test: table_handle attribute]",
+                        _ -> {
+                            throw new UnsupportedOperationException("cannot parse table_scan:column_handles attribute");
+                        },
+                        _ -> "[test: column_handles attribute]",
+                        _ -> {
+                            throw new UnsupportedOperationException("cannot parse table_scan:constraint attribute");
+                        },
+                        _ -> "[test: constraint attribute]"));
+
+        ImmutableMap.Builder<String, TrinoOperationMetadata> operationsBuilder = ImmutableMap.builder();
+        STATIC_OPERATIONS.forEach(operation -> operationsBuilder.put(operation.name(), operation));
+        operationMetadata.forEach(operation -> operationsBuilder.put(operation.name(), operation));
+        this.operations = operationsBuilder.buildOrThrow();
+
+        this.attributes = this.operations.values().stream()
+                .peek(TrinoDialect::validateInternalNamespacedAttributes)
+                .map(TrinoOperationMetadata::operationAttributes)
+                .flatMap(Set::stream)
+                .collect(toImmutableMap(attribute -> attribute.trinoAttributeSignature().name(), identity()));
+    }
+
+    public record ConstantResult(io.trino.spi.type.Type type, Object value)
+    {
+        public static final JsonCodec<ConstantResult> CONSTANT_RESULT_CODEC = new JsonCodecFactory().jsonCodec(ConstantResult.class);
+
+        public ConstantResult
+        {
+            requireNonNull(type, "type is null");
+        }
+    }
+
+    private static void validateInternalNamespacedAttributes(TrinoOperationMetadata operation)
+    {
+        String operationName = operation.name();
+        for (TrinoAttributeMetadata<?> attribute : operation.operationAttributes()) {
+            String attributeName = attribute.trinoAttributeSignature().name();
+            if (!attributeName.startsWith(operationName + ":")) {
+                throw new TrinoException(IR_ERROR, format("the name of a proper operation attribute: %s must be namespaced with the operation name: %s", attributeName, operationName));
+            }
+            if (attribute.trinoAttributeSignature().external()) {
+                throw new TrinoException(IR_ERROR, format("proper operation attribute: %s cannot be external", attributeName));
+            }
+        }
     }
 
     @Override
     public String formatAttribute(String name, Object attribute)
     {
-        return attributeRegistry.getAttributeProperties(name).print(attribute);
+        TrinoAttributeMetadata<?> attributeMetadata = attributes.get(name);
+        if (attributeMetadata == null) {
+            throw new TrinoException(IR_ERROR, format("attribute %s not registered", name));
+        }
+        return attributeMetadata.print(attribute);
     }
 
     @Override
     public Object parseAttribute(String name, String attribute)
     {
-        return attributeRegistry.getAttributeProperties(name).parse(attribute);
+        TrinoAttributeMetadata<?> attributeMetadata = attributes.get(name);
+        if (attributeMetadata == null) {
+            throw new TrinoException(IR_ERROR, format("attribute %s not registered", name));
+        }
+        return attributeMetadata.parse(attribute);
     }
 
     @Override
@@ -68,6 +242,45 @@ public class TrinoDialect
     public Type parseType(String type)
     {
         return irType(typeDeserializer.apply(type));
+    }
+
+    private static Set<TrinoOperationMetadata> staticOperations()
+    {
+        return ImmutableSet.of(
+                new AggregateCallOperationMetadata(),
+                new AggregationOperationMetadata(),
+                new ArrayOperationMetadata(),
+                new BetweenOperationMetadata(),
+                new BindOperationMetadata(),
+                new CallOperationMetadata(),
+                new CaseOperationMetadata(),
+                new CastOperationMetadata(),
+                new CoalesceOperationMetadata(),
+                new ComparisonOperationMetadata(),
+                new CorrelatedJoinOperationMetadata(),
+                new DynamicFilterSourceOperationMetadata(),
+                new ExplainAnalyzeOperationMetadata(),
+                new FieldReferenceOperationMetadata(),
+                new FilterOperationMetadata(),
+                new GroupIdOperationMetadata(),
+                new InOperationMetadata(),
+                new IsNullOperationMetadata(),
+                new JoinOperationMetadata(),
+                new LambdaOperationMetadata(),
+                new LimitOperationMetadata(),
+                new LogicalOperationMetadata(),
+                new NullIfOperationMetadata(),
+                new OutputOperationMetadata(),
+                new ProjectOperationMetadata(),
+                new QueryOperationMetadata(),
+                new ReturnOperationMetadata(),
+                new RowOperationMetadata(),
+                new SortOperationMetadata(),
+                new SwitchOperationMetadata(),
+                new TopNOperationMetadata(),
+                new ValuesOperationMetadata(),
+                new WindowFunctionCallOperationMetadata(),
+                new WindowOperationMetadata());
     }
 
     public static io.trino.spi.type.Type trinoType(Type type)

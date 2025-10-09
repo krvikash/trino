@@ -23,12 +23,15 @@ import java.util.Map;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.ir.IrDialect.IR;
 import static io.trino.sql.dialect.ir.IrDialect.IR_DIALECT;
+import static io.trino.sql.dialect.trino.TrinoDialect.TESTING_TRINO_DIALECT;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public class DialectRegistry
 {
+    public static final DialectRegistry TESTING_DIALECT_REGISTRY = new DialectRegistry(TESTING_TRINO_DIALECT);
+
     private final Map<String, Dialect> dialectMap;
 
     @Inject

@@ -25,7 +25,5 @@ public interface TrinoOperationMetadata
      * In the future, we might not consider these attributes for propagation.
      */
     Set<TrinoAttributeMetadata<?>> operationAttributes();
-    // TODO after calling operationAttributes(), check that all returned attributes are not 'external' / check namespacing
     // TODO rename operation attributes because they are namespaced (e.g. JOIN_TYPE -> TYPE)
-    // TODO update error message so that it does not refer to TESING_TRINO_ATTRIBUTE_REGISTRY
 }

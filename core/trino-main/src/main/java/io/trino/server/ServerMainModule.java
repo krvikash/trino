@@ -136,7 +136,6 @@ import io.trino.sql.PlannerContext;
 import io.trino.sql.SqlEnvironmentConfig;
 import io.trino.sql.analyzer.SessionTimeProvider;
 import io.trino.sql.analyzer.StatementAnalyzerFactory;
-import io.trino.sql.dialect.trino.TrinoAttributeRegistry;
 import io.trino.sql.dialect.trino.TrinoDialect;
 import io.trino.sql.gen.ExpressionCompiler;
 import io.trino.sql.gen.JoinCompiler;
@@ -419,7 +418,6 @@ public class ServerMainModule
         jsonCodecBinder(binder).bindJsonCodec(PartitioningHandle.class);
         jsonCodecBinder(binder).bindJsonCodec(NullableValue.class);
         jsonCodecBinder(binder).bindJsonCodec(new TypeLiteral<NullableValue[]>() {});
-        binder.bind(TrinoAttributeRegistry.class).in(Scopes.SINGLETON);
         binder.bind(TrinoDialect.class).in(Scopes.SINGLETON);
         binder.bind(DialectRegistry.class).in(Scopes.SINGLETON);
         binder.bind(FormatOptions.class).in(Scopes.SINGLETON);

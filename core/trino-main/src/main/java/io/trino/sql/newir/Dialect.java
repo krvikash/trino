@@ -16,7 +16,7 @@ package io.trino.sql.newir;
 import io.trino.spi.TrinoException;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
-import static io.trino.sql.newir.FormatOptions.isValidIdentifier;
+import static io.trino.sql.newir.FormatValidation.isValidIdentifier;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 

@@ -17,7 +17,7 @@ import com.google.errorprone.annotations.Immutable;
 import io.trino.spi.TrinoException;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
-import static io.trino.sql.newir.FormatOptions.isValidPrefixedIdentifier;
+import static io.trino.sql.newir.FormatValidation.isValidPrefixedIdentifier;
 import static java.lang.String.format;
 
 @Immutable

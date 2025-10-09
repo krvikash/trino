@@ -15,7 +15,6 @@ package io.trino.sql.newir;
 
 import com.google.common.collect.ImmutableSet;
 import io.trino.spi.TrinoException;
-import io.trino.sql.dialect.trino.TrinoDialect;
 import io.trino.sql.newir.Block.Parameter;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 
@@ -25,12 +24,11 @@ import java.util.Objects;
 import java.util.Set;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
-import static io.trino.sql.dialect.trino.TrinoAttributeRegistry.TESTING_TRINO_ATTRIBUTE_REGISTRY;
 import static io.trino.sql.newir.Dialect.validateDialectName;
 import static io.trino.sql.newir.FormatOptions.INDENT;
-import static io.trino.sql.newir.FormatOptions.isValidAttributeName;
-import static io.trino.sql.newir.FormatOptions.isValidIdentifier;
-import static io.trino.sql.newir.NoopTypeManager.NOOP_TYPE_MANAGER;
+import static io.trino.sql.newir.FormatOptions.TESTING_PRINT_OPTIONS;
+import static io.trino.sql.newir.FormatValidation.isValidAttributeName;
+import static io.trino.sql.newir.FormatValidation.isValidIdentifier;
 import static io.trino.sql.newir.Value.validateValueName;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -208,6 +206,6 @@ public abstract non-sealed class Operation
     @Override
     public String toString()
     {
-        return print(0, new FormatOptions(new DialectRegistry(new TrinoDialect(NOOP_TYPE_MANAGER, TESTING_TRINO_ATTRIBUTE_REGISTRY))).printOptions());
+        return print(0, TESTING_PRINT_OPTIONS);
     }
 }
