@@ -88,7 +88,7 @@ public class TestConnectorSensitiveProperties
             throws IOException
     {
         Map<String, Set<String>> sensitiveProperties = new HashMap<>();
-        List<Plugin> plugins = PluginLoader.loadPlugins(ImmutableList.of(pluginsDir.toFile()));
+        List<Plugin> plugins = PluginLoader.loadPlugins(ImmutableList.of(pluginsDir));
         for (Plugin plugin : plugins) {
             for (ConnectorFactory connectorFactory : plugin.getConnectorFactories()) {
                 String connectorName = connectorFactory.getName();
