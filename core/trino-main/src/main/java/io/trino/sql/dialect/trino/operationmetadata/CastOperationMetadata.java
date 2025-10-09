@@ -23,6 +23,12 @@ public class CastOperationMetadata
     public static final String NAME = "cast";
 
     @Override
+    public String name()
+    {
+        return NAME;
+    }
+
+    @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of();

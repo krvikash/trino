@@ -17,6 +17,8 @@ import java.util.Set;
 
 public interface TrinoOperationMetadata
 {
+    String name();
+
     /**
      * Attributes that are necessary for the operation because they determine its semantics.
      * These attributes are operation-specific and should only be meaningful in the context of the operation.

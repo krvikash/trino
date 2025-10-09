@@ -23,6 +23,12 @@ public class IsNullOperationMetadata
     public static final String NAME = "is_null";
 
     @Override
+    public String name()
+    {
+        return NAME;
+    }
+
+    @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of();

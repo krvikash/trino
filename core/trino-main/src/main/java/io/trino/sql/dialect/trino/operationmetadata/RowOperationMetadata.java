@@ -23,6 +23,12 @@ public class RowOperationMetadata
     public static final String NAME = "row";
 
     @Override
+    public String name()
+    {
+        return NAME;
+    }
+
+    @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of();

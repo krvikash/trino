@@ -23,6 +23,12 @@ public class LambdaOperationMetadata
     public static final String NAME = "lambda";
 
     @Override
+    public String name()
+    {
+        return NAME;
+    }
+
+    @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of();

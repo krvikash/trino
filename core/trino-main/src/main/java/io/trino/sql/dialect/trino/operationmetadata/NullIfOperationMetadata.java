@@ -23,6 +23,12 @@ public class NullIfOperationMetadata
     public static final String NAME = "null_if";
 
     @Override
+    public String name()
+    {
+        return NAME;
+    }
+
+    @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of();

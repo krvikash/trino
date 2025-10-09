@@ -30,6 +30,12 @@ public class ValuesOperationMetadata
     public static final TrinoAttributeSignature<Long> CARDINALITY = CARDINALITY_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
     @Override
+    public String name()
+    {
+        return NAME;
+    }
+
+    @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of(CARDINALITY_ATTRIBUTE_METADATA);

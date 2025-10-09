@@ -23,6 +23,12 @@ public class BindOperationMetadata
     public static final String NAME = "bind";
 
     @Override
+    public String name()
+    {
+        return NAME;
+    }
+
+    @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of();

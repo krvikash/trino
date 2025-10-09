@@ -38,6 +38,12 @@ public class WindowOperationMetadata
     public static final TrinoAttributeSignature<Integer> PRE_SORTED_PREFIX = PRE_SORTED_PREFIX_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
     @Override
+    public String name()
+    {
+        return NAME;
+    }
+
+    @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of(

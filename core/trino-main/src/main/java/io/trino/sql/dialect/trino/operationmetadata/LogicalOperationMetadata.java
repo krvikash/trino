@@ -31,6 +31,12 @@ public class LogicalOperationMetadata
     public static final TrinoAttributeSignature<LogicalOperator> LOGICAL_OPERATOR = LOGICAL_OPERATOR_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
     @Override
+    public String name()
+    {
+        return NAME;
+    }
+
+    @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of(LOGICAL_OPERATOR_ATTRIBUTE_METADATA);

@@ -31,6 +31,12 @@ public class OutputOperationMetadata
     public static final TrinoAttributeSignature<List<String>> OUTPUT_NAMES = OUTPUT_NAMES_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
     @Override
+    public String name()
+    {
+        return NAME;
+    }
+
+    @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         // note: Output operation also has the ir.terminal attribute, but it is not operation-specific.

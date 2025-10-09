@@ -23,6 +23,12 @@ public class ReturnOperationMetadata
     public static final String NAME = "return";
 
     @Override
+    public String name()
+    {
+        return NAME;
+    }
+
+    @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         // note: Return operation has the ir.terminal attribute, but it is not operation-specific.

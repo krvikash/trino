@@ -23,6 +23,12 @@ public class QueryOperationMetadata
     public static final String NAME = "query";
 
     @Override
+    public String name()
+    {
+        return NAME;
+    }
+
+    @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         // note: Query operation has the ir.terminal attribute, but it is not operation-specific.

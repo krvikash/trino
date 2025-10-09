@@ -47,6 +47,12 @@ public class JoinOperationMetadata
     public static final TrinoAttributeSignature<PlanNodeStatsAndCostSummary> STATISTICS_AND_COST_SUMMARY = STATISTICS_AND_COST_SUMMARY_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
     @Override
+    public String name()
+    {
+        return NAME;
+    }
+
+    @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of(

@@ -23,6 +23,12 @@ public class CaseOperationMetadata
     public static final String NAME = "case";
 
     @Override
+    public String name()
+    {
+        return NAME;
+    }
+
+    @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of();

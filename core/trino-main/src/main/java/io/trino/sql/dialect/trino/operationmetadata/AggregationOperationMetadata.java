@@ -45,6 +45,12 @@ public class AggregationOperationMetadata
     public static final TrinoAttributeSignature<Boolean> INPUT_REDUCING = INPUT_REDUCING_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
     @Override
+    public String name()
+    {
+        return NAME;
+    }
+
+    @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of(

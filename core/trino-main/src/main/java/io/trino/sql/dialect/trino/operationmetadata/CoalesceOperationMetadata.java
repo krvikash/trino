@@ -23,6 +23,12 @@ public class CoalesceOperationMetadata
     public static final String NAME = "coalesce";
 
     @Override
+    public String name()
+    {
+        return NAME;
+    }
+
+    @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of();

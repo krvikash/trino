@@ -30,6 +30,12 @@ public class FieldReferenceOperationMetadata
     public static final TrinoAttributeSignature<Integer> FIELD_INDEX = FIELD_INDEX_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
     @Override
+    public String name()
+    {
+        return NAME;
+    }
+
+    @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of(FIELD_INDEX_ATTRIBUTE_METADATA);

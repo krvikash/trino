@@ -30,6 +30,12 @@ public class ExplainAnalyzeOperationMetadata
     public static final TrinoAttributeSignature<Boolean> VERBOSE = VERBOSE_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
     @Override
+    public String name()
+    {
+        return NAME;
+    }
+
+    @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of(VERBOSE_ATTRIBUTE_METADATA);

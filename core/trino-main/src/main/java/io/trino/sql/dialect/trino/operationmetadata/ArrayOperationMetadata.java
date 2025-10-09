@@ -23,6 +23,12 @@ public class ArrayOperationMetadata
     public static final String NAME = "array";
 
     @Override
+    public String name()
+    {
+        return NAME;
+    }
+
+    @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of();
