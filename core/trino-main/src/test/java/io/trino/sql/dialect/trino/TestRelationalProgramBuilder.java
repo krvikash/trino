@@ -304,7 +304,7 @@ final class TestRelationalProgramBuilder
                                 new AttributeKey(TRINO, "aggregate_call:distinct"),
                                 false)
                         .put(
-                                new AttributeKey(TRINO, "aggregate_call:aggregation_step"),
+                                new AttributeKey(TRINO, "aggregate_call:step"),
                                 AggregateCallOperationMetadata.AggregationStep.SINGLE)
                         .buildOrThrow());
 
@@ -320,7 +320,7 @@ final class TestRelationalProgramBuilder
                                 new AttributeKey(TRINO, "aggregation:pre_grouped_indexes"),
                                 ImmutableList.of(0))
                         .put(
-                                new AttributeKey(TRINO, "aggregation:aggregation_step"),
+                                new AttributeKey(TRINO, "aggregation:step"),
                                 SINGLE)
                         .put(
                                 new AttributeKey(TRINO, "aggregation:input_reducing"),
@@ -601,10 +601,10 @@ final class TestRelationalProgramBuilder
         assertThat(exchangeOperation.attributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
-                                new AttributeKey(TRINO, "exchange:exchange_type"),
+                                new AttributeKey(TRINO, "exchange:type"),
                                 GATHER)
                         .put(
-                                new AttributeKey(TRINO, "exchange:exchange_scope"),
+                                new AttributeKey(TRINO, "exchange:scope"),
                                 REMOTE)
                         .put(
                                 new AttributeKey(TRINO, "exchange:partitioning_handle"),
@@ -722,10 +722,10 @@ final class TestRelationalProgramBuilder
         assertThat(exchangeOperation.attributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
-                                new AttributeKey(TRINO, "exchange:exchange_type"),
+                                new AttributeKey(TRINO, "exchange:type"),
                                 GATHER)
                         .put(
-                                new AttributeKey(TRINO, "exchange:exchange_scope"),
+                                new AttributeKey(TRINO, "exchange:scope"),
                                 REMOTE)
                         .put(
                                 new AttributeKey(TRINO, "exchange:partitioning_handle"),
@@ -1077,7 +1077,7 @@ final class TestRelationalProgramBuilder
         assertThat(joinOperation.attributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
-                                new AttributeKey(TRINO, "join:join_type"),
+                                new AttributeKey(TRINO, "join:type"),
                                 JoinOperationMetadata.JoinType.LEFT)
                         .put(
                                 new AttributeKey(TRINO, "join:may_skip_output_duplicates"),
@@ -1134,7 +1134,7 @@ final class TestRelationalProgramBuilder
         assertThat(limitOperation.attributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
-                                new AttributeKey(TRINO, "limit:limit"),
+                                new AttributeKey(TRINO, "limit:count"),
                                 5L)
                         .put(
                                 new AttributeKey(TRINO, "limit:partial"),
@@ -1193,7 +1193,7 @@ final class TestRelationalProgramBuilder
                                 new AttributeKey(TRINO, "limit:sort_orders"),
                                 new SortOrderList(ImmutableList.of(ASC_NULLS_FIRST)))
                         .put(
-                                new AttributeKey(TRINO, "limit:limit"),
+                                new AttributeKey(TRINO, "limit:count"),
                                 5L)
                         .put(
                                 new AttributeKey(TRINO, "limit:partial"),

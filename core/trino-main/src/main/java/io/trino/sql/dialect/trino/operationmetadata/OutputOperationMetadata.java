@@ -26,9 +26,9 @@ public class OutputOperationMetadata
 {
     public static final String NAME = "output";
 
-    private static final TrinoAttributeMetadata<List<String>> OUTPUT_NAMES_ATTRIBUTE_METADATA = internalStringListAttributeMetadata(NAME, "output_names");
+    private static final TrinoAttributeMetadata<List<String>> COLUMN_NAMES_ATTRIBUTE_METADATA = internalStringListAttributeMetadata(NAME, "column_names");
 
-    public static final TrinoAttributeSignature<List<String>> OUTPUT_NAMES = OUTPUT_NAMES_ATTRIBUTE_METADATA.trinoAttributeSignature();
+    public static final TrinoAttributeSignature<List<String>> COLUMN_NAMES = COLUMN_NAMES_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
     @Override
     public String name()
@@ -40,6 +40,6 @@ public class OutputOperationMetadata
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         // note: Output operation also has the ir.terminal attribute, but it is not operation-specific.
-        return ImmutableSet.of(OUTPUT_NAMES_ATTRIBUTE_METADATA);
+        return ImmutableSet.of(COLUMN_NAMES_ATTRIBUTE_METADATA);
     }
 }

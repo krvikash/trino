@@ -31,12 +31,12 @@ public class LimitOperationMetadata
     public static final String NAME = "limit";
 
     private static final TrinoAttributeMetadata<SortOrderList> SORT_ORDERS_ATTRIBUTE_METADATA = internalSortOrderListAttributeMetadata(NAME, "sort_orders");
-    private static final TrinoAttributeMetadata<Long> LIMIT_ATTRIBUTE_METADATA = internalLongAttributeMetadata(NAME, "limit");
+    private static final TrinoAttributeMetadata<Long> COUNT_ATTRIBUTE_METADATA = internalLongAttributeMetadata(NAME, "count");
     private static final TrinoAttributeMetadata<Boolean> PARTIAL_ATTRIBUTE_METADATA = internalBooleanAttributeMetadata(NAME, "partial");
     private static final TrinoAttributeMetadata<List<Integer>> PRE_SORTED_INDEXES_ATTRIBUTE_METADATA = internalIntegerListAttributeMetadata(NAME, "pre_sorted_indexes");
 
     public static final TrinoAttributeSignature<SortOrderList> SORT_ORDERS = SORT_ORDERS_ATTRIBUTE_METADATA.trinoAttributeSignature();
-    public static final TrinoAttributeSignature<Long> LIMIT = LIMIT_ATTRIBUTE_METADATA.trinoAttributeSignature();
+    public static final TrinoAttributeSignature<Long> COUNT = COUNT_ATTRIBUTE_METADATA.trinoAttributeSignature();
     public static final TrinoAttributeSignature<Boolean> PARTIAL = PARTIAL_ATTRIBUTE_METADATA.trinoAttributeSignature();
     public static final TrinoAttributeSignature<List<Integer>> PRE_SORTED_INDEXES = PRE_SORTED_INDEXES_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
@@ -51,7 +51,7 @@ public class LimitOperationMetadata
     {
         return ImmutableSet.of(
                 SORT_ORDERS_ATTRIBUTE_METADATA,
-                LIMIT_ATTRIBUTE_METADATA,
+                COUNT_ATTRIBUTE_METADATA,
                 PARTIAL_ATTRIBUTE_METADATA,
                 PRE_SORTED_INDEXES_ATTRIBUTE_METADATA);
     }

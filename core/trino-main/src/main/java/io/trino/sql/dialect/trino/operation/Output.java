@@ -35,8 +35,8 @@ import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
+import static io.trino.sql.dialect.trino.operationmetadata.OutputOperationMetadata.COLUMN_NAMES;
 import static io.trino.sql.dialect.trino.operationmetadata.OutputOperationMetadata.NAME;
-import static io.trino.sql.dialect.trino.operationmetadata.OutputOperationMetadata.OUTPUT_NAMES;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.util.Objects.requireNonNull;
 
@@ -75,7 +75,7 @@ public final class Output
         this.fieldSelector = singleBlockRegion(fieldSelector);
 
         ImmutableMap.Builder<AttributeKey, Object> attributesBuilder = ImmutableMap.builder();
-        OUTPUT_NAMES.putAttribute(attributesBuilder, outputNames);
+        COLUMN_NAMES.putAttribute(attributesBuilder, outputNames);
         terminalOperation(attributesBuilder);
 
         this.attributes = attributesBuilder.buildOrThrow();
@@ -119,7 +119,7 @@ public final class Output
                 result.name(),
                 newArgument,
                 fieldSelector.getOnlyBlock(),
-                OUTPUT_NAMES.getAttribute(attributes));
+                COLUMN_NAMES.getAttribute(attributes));
     }
 
     public Block outputFieldSelector()

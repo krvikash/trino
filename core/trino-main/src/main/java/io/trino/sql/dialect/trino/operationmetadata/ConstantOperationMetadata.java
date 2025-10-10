@@ -30,9 +30,9 @@ public class ConstantOperationMetadata
 {
     public static final String NAME = "constant";
 
-    public static final TrinoAttributeSignature<NullableValue> CONSTANT_RESULT = new TrinoAttributeSignature<>(prefixedName(NAME, "constant_result"), false);
+    public static final TrinoAttributeSignature<NullableValue> CONSTANT_VALUE = new TrinoAttributeSignature<>(prefixedName(NAME, "value"), false);
 
-    private final TrinoAttributeMetadata<NullableValue> constantResultTrinoAttributeMetadata;
+    private final TrinoAttributeMetadata<NullableValue> constantValueTrinoAttributeMetadata;
 
     public ConstantOperationMetadata(JsonCodec<NullableValue> nullableValueCodec)
     {
@@ -45,7 +45,7 @@ public class ConstantOperationMetadata
         requireNonNull(nullableValueParseMethod, "nullableValueParseMethod is null");
         requireNonNull(nullableValuePrintMethod, "nullableValuePrintMethod is null");
 
-        this.constantResultTrinoAttributeMetadata = new TrinoAttributeMetadata<>(CONSTANT_RESULT, nullableValueParseMethod, nullableValuePrintMethod);
+        this.constantValueTrinoAttributeMetadata = new TrinoAttributeMetadata<>(CONSTANT_VALUE, nullableValueParseMethod, nullableValuePrintMethod);
     }
 
     @Override
@@ -57,6 +57,6 @@ public class ConstantOperationMetadata
     @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
-        return ImmutableSet.of(constantResultTrinoAttributeMetadata);
+        return ImmutableSet.of(constantValueTrinoAttributeMetadata);
     }
 }

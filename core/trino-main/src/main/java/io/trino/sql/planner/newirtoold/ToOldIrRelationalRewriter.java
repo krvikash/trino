@@ -133,7 +133,7 @@ import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata
 import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.SPILLABLE;
 import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.STATISTICS_AND_COST_SUMMARY;
 import static io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata.PRE_SORTED_INDEXES;
-import static io.trino.sql.dialect.trino.operationmetadata.OutputOperationMetadata.OUTPUT_NAMES;
+import static io.trino.sql.dialect.trino.operationmetadata.OutputOperationMetadata.COLUMN_NAMES;
 import static io.trino.sql.dialect.trino.operationmetadata.SortOperationMetadata.PARTIAL;
 import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.COLUMN_HANDLES;
 import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.CONSTRAINT;
@@ -492,7 +492,7 @@ public class ToOldIrRelationalRewriter
         return new LimitNode(
                 planNodeIdAllocator.getNextId(),
                 source,
-                LimitOperationMetadata.LIMIT.getAttribute(limit.attributes()),
+                LimitOperationMetadata.COUNT.getAttribute(limit.attributes()),
                 tiesResolvingScheme,
                 LimitOperationMetadata.PARTIAL.getAttribute(limit.attributes()),
                 preSortedInputs);
@@ -506,7 +506,7 @@ public class ToOldIrRelationalRewriter
         return new OutputNode(
                 planNodeIdAllocator.getNextId(),
                 source,
-                OUTPUT_NAMES.getAttribute(output.attributes()),
+                COLUMN_NAMES.getAttribute(output.attributes()),
                 scalarRewriter.getSelectedSymbols(output.outputFieldSelector(), source.getOutputSymbols()));
     }
 

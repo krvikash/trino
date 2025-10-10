@@ -48,7 +48,7 @@ import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION_ROW;
-import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.CONSTANT_RESULT;
+import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.CONSTANT_VALUE;
 import static io.trino.sql.dialect.trino.operationmetadata.FieldReferenceOperationMetadata.FIELD_INDEX;
 import static io.trino.sql.planner.optimizations.ctereuse.FieldMapping.EMPTY;
 import static io.trino.sql.planner.optimizations.ctereuse.PredicateUtils.layoutOperations;
@@ -133,7 +133,7 @@ public class AssignmentsUtils
                 block.operations().get(0) instanceof Constant constantOperation &&
                 block.operations().get(1) instanceof Return returnOperation &&
                 returnOperation.argument().equals(constantOperation.result()) &&
-                CONSTANT_RESULT.getAttribute(constantOperation.attributes()).equals(NullableValue.asNull(EMPTY_ROW));
+                CONSTANT_VALUE.getAttribute(constantOperation.attributes()).equals(NullableValue.asNull(EMPTY_ROW));
     }
 
     public static boolean isEmptyRelationalComputation(Block block)
@@ -149,7 +149,7 @@ public class AssignmentsUtils
                 block.operations().get(0) instanceof Constant constantOperation &&
                 block.operations().get(1) instanceof Return returnOperation &&
                 returnOperation.argument().equals(constantOperation.result()) &&
-                CONSTANT_RESULT.getAttribute(constantOperation.attributes()).equals(NullableValue.asNull(EMPTY_ROW));
+                CONSTANT_VALUE.getAttribute(constantOperation.attributes()).equals(NullableValue.asNull(EMPTY_ROW));
     }
 
     /**

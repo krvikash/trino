@@ -34,7 +34,7 @@ public class AggregationOperationMetadata
     private static final TrinoAttributeMetadata<List<Integer>> GLOBAL_GROUPING_SETS_ATTRIBUTE_METADATA = internalIntegerListAttributeMetadata(NAME, "global_grouping_sets");
     private static final TrinoAttributeMetadata<Integer> GROUP_ID_INDEX_ATTRIBUTE_METADATA = internalIntegerAttributeMetadata(NAME, "group_id_index");
     private static final TrinoAttributeMetadata<List<Integer>> PRE_GROUPED_INDEXES_ATTRIBUTE_METADATA = internalIntegerListAttributeMetadata(NAME, "pre_grouped_indexes");
-    private static final TrinoAttributeMetadata<AggregationStep> AGGREGATION_STEP_ATTRIBUTE_METADATA = internalEnumAttributeMetadata(NAME, "aggregation_step", AggregationStep.class);
+    private static final TrinoAttributeMetadata<AggregationStep> AGGREGATION_STEP_ATTRIBUTE_METADATA = internalEnumAttributeMetadata(NAME, "step", AggregationStep.class);
     private static final TrinoAttributeMetadata<Boolean> INPUT_REDUCING_ATTRIBUTE_METADATA = internalBooleanAttributeMetadata(NAME, "input_reducing");
 
     public static final TrinoAttributeSignature<Integer> GROUPING_SETS_COUNT = GROUPING_SETS_COUNT_ATTRIBUTE_METADATA.trinoAttributeSignature();

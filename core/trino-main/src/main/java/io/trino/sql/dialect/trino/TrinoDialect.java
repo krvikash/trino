@@ -76,7 +76,13 @@ import java.util.function.Function;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
-import static io.trino.sql.dialect.trino.TrinoDialect.ConstantResult.CONSTANT_RESULT_CODEC;
+import static io.trino.sql.dialect.trino.TrinoDialect.ConstantValue.CONSTANT_VALUE_CODEC;
+import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.CONSTANT_VALUE;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.NULLABLE_VALUES;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.PARTITIONING_HANDLE;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.COLUMN_HANDLES;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.CONSTRAINT;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.TABLE_HANDLE;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
@@ -142,39 +148,39 @@ public class TrinoDialect
         List<TrinoOperationMetadata> operationMetadata = ImmutableList.of(
                 new ConstantOperationMetadata(
                         _ -> {
-                            throw new UnsupportedOperationException("cannot parse constant:constant_result attribute");
+                            throw new UnsupportedOperationException(format("cannot parse %s attribute", CONSTANT_VALUE.name()));
                         },
                         nullableValue -> {
-                            ConstantResult constantResult = new ConstantResult(nullableValue.getType(), nullableValue.getValue());
+                            ConstantValue constantValue = new ConstantValue(nullableValue.getType(), nullableValue.getValue());
                             try {
-                                return CONSTANT_RESULT_CODEC.toJson(constantResult);
+                                return CONSTANT_VALUE_CODEC.toJson(constantValue);
                             }
                             catch (IllegalArgumentException e) {
-                                return "[test: constant_result attribute]";
+                                return format("[test: %s attribute]", CONSTANT_VALUE.name());
                             }
                         }),
                 new ExchangeOperationMetadata(
                         _ -> {
-                            throw new UnsupportedOperationException("cannot parse exchange:partitioning_handle attribute");
+                            throw new UnsupportedOperationException(format("cannot parse %s attribute", PARTITIONING_HANDLE.name()));
                         },
-                        _ -> "[test: partitioning_handle attribute]",
+                        _ -> format("[test: %s attribute]", PARTITIONING_HANDLE.name()),
                         _ -> {
-                            throw new UnsupportedOperationException("cannot parse exchange:nullable_values attribute");
+                            throw new UnsupportedOperationException(format("cannot parse %s attribute", NULLABLE_VALUES.name()));
                         },
-                        _ -> "[test: nullable_values attribute]"),
+                        _ -> format("[test: %s attribute]", NULLABLE_VALUES.name())),
                 new TableScanOperationMetadata(
                         _ -> {
-                            throw new UnsupportedOperationException("cannot parse table_scan:table_handle attribute");
+                            throw new UnsupportedOperationException(format("cannot parse %s attribute", TABLE_HANDLE.name()));
                         },
-                        _ -> "[test: table_handle attribute]",
+                        _ -> format("[test: %s attribute]", TABLE_HANDLE.name()),
                         _ -> {
-                            throw new UnsupportedOperationException("cannot parse table_scan:column_handles attribute");
+                            throw new UnsupportedOperationException(format("cannot parse %s attribute", COLUMN_HANDLES.name()));
                         },
-                        _ -> "[test: column_handles attribute]",
+                        _ -> format("[test: %s attribute]", COLUMN_HANDLES.name()),
                         _ -> {
-                            throw new UnsupportedOperationException("cannot parse table_scan:constraint attribute");
+                            throw new UnsupportedOperationException(format("cannot parse %s attribute", CONSTRAINT.name()));
                         },
-                        _ -> "[test: constraint attribute]"));
+                        _ -> format("[test: %s attribute]", CONSTRAINT.name())));
 
         ImmutableMap.Builder<String, TrinoOperationMetadata> operationsBuilder = ImmutableMap.builder();
         STATIC_OPERATIONS.forEach(operation -> operationsBuilder.put(operation.name(), operation));
@@ -188,11 +194,11 @@ public class TrinoDialect
                 .collect(toImmutableMap(attribute -> attribute.trinoAttributeSignature().name(), identity()));
     }
 
-    public record ConstantResult(io.trino.spi.type.Type type, Object value)
+    public record ConstantValue(io.trino.spi.type.Type type, Object value)
     {
-        public static final JsonCodec<ConstantResult> CONSTANT_RESULT_CODEC = new JsonCodecFactory().jsonCodec(ConstantResult.class);
+        public static final JsonCodec<ConstantValue> CONSTANT_VALUE_CODEC = new JsonCodecFactory().jsonCodec(ConstantValue.class);
 
-        public ConstantResult
+        public ConstantValue
         {
             requireNonNull(type, "type is null");
         }

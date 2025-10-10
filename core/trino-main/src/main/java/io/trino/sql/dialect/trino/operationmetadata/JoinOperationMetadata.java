@@ -32,7 +32,7 @@ public class JoinOperationMetadata
 {
     public static final String NAME = "join";
 
-    private static final TrinoAttributeMetadata<JoinType> JOIN_TYPE_ATTRIBUTE_METADATA = internalEnumAttributeMetadata(NAME, "join_type", JoinType.class);
+    private static final TrinoAttributeMetadata<JoinType> JOIN_TYPE_ATTRIBUTE_METADATA = internalEnumAttributeMetadata(NAME, "type", JoinType.class);
     private static final TrinoAttributeMetadata<Boolean> MAY_SKIP_OUTPUT_DUPLICATES_ATTRIBUTE_METADATA = internalBooleanAttributeMetadata(NAME, "may_skip_output_duplicates");
     private static final TrinoAttributeMetadata<DistributionType> DISTRIBUTION_TYPE_ATTRIBUTE_METADATA = internalEnumAttributeMetadata(NAME, "distribution_type", DistributionType.class);
     private static final TrinoAttributeMetadata<Boolean> SPILLABLE_ATTRIBUTE_METADATA = internalBooleanAttributeMetadata(NAME, "spillable");

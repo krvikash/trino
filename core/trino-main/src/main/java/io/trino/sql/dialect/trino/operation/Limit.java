@@ -33,7 +33,7 @@ import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowTyp
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
-import static io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata.LIMIT;
+import static io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata.COUNT;
 import static io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata.NAME;
 import static io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata.PARTIAL;
 import static io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata.PRE_SORTED_INDEXES;
@@ -95,7 +95,7 @@ public class Limit
 
         ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
         sortOrders.ifPresent(orders -> SORT_ORDERS.putAttribute(attributes, orders));
-        LIMIT.putAttribute(attributes, count);
+        COUNT.putAttribute(attributes, count);
         PARTIAL.putAttribute(attributes, partial);
         PRE_SORTED_INDEXES.putAttribute(attributes, preSortedIndexes);
 
@@ -142,7 +142,7 @@ public class Limit
                 newArgument,
                 orderingSelector.getOnlyBlock(),
                 Optional.ofNullable(SORT_ORDERS.getAttribute(attributes)),
-                LIMIT.getAttribute(attributes),
+                COUNT.getAttribute(attributes),
                 PARTIAL.getAttribute(attributes),
                 PRE_SORTED_INDEXES.getAttribute(attributes),
                 ImmutableMap.of());

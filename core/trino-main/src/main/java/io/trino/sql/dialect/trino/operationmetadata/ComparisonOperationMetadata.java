@@ -26,7 +26,7 @@ public class ComparisonOperationMetadata
 {
     public static final String NAME = "comparison";
 
-    private static final TrinoAttributeMetadata<ComparisonOperator> COMPARISON_OPERATOR_ATTRIBUTE_METADATA = internalEnumAttributeMetadata(NAME, "comparison_operator", ComparisonOperator.class);
+    private static final TrinoAttributeMetadata<ComparisonOperator> COMPARISON_OPERATOR_ATTRIBUTE_METADATA = internalEnumAttributeMetadata(NAME, "operator", ComparisonOperator.class);
 
     public static final TrinoAttributeSignature<ComparisonOperator> COMPARISON_OPERATOR = COMPARISON_OPERATOR_ATTRIBUTE_METADATA.trinoAttributeSignature();
 

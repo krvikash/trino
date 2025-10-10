@@ -25,7 +25,7 @@ public class CorrelatedJoinOperationMetadata
 {
     public static final String NAME = "correlated_join";
 
-    private static final TrinoAttributeMetadata<JoinType> JOIN_TYPE_ATTRIBUTE_METADATA = internalEnumAttributeMetadata(NAME, "join_type", JoinType.class);
+    private static final TrinoAttributeMetadata<JoinType> JOIN_TYPE_ATTRIBUTE_METADATA = internalEnumAttributeMetadata(NAME, "type", JoinType.class);
 
     public static final TrinoAttributeSignature<JoinType> JOIN_TYPE = JOIN_TYPE_ATTRIBUTE_METADATA.trinoAttributeSignature();
 

@@ -101,7 +101,7 @@ import static io.trino.sql.dialect.trino.ProgramBuilder.initializeNameAllocator;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
-import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.CONSTANT_RESULT;
+import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.CONSTANT_VALUE;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.EXCHANGE_SCOPE;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeScope.REMOTE;
 import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DISTRIBUTION_TYPE;
@@ -1455,7 +1455,7 @@ public class CteReuse
                         Value idArgument = operation.arguments().get(2);
                         Operation idOperation = operations.get(idArgument);
                         checkArgument(idOperation instanceof Constant, "expected dynamic filter id to be constant");
-                        NullableValue idAttribute = CONSTANT_RESULT.getAttribute(idOperation.attributes());
+                        NullableValue idAttribute = CONSTANT_VALUE.getAttribute(idOperation.attributes());
                         checkArgument(idAttribute.getType().equals(VARCHAR), "expected dynamic filter id to be of varchar type");
                         String id = ((Slice) idAttribute.getValue()).toStringUtf8();
                         // find the equivalence group of the id, and get the group representative

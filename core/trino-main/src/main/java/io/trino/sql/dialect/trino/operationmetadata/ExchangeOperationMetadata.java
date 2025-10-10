@@ -40,8 +40,8 @@ public class ExchangeOperationMetadata
 {
     public static final String NAME = "exchange";
 
-    private static final TrinoAttributeMetadata<ExchangeType> EXCHANGE_TYPE_ATTRIBUTE_METADATA = internalEnumAttributeMetadata(NAME, "exchange_type", ExchangeType.class);
-    private static final TrinoAttributeMetadata<ExchangeScope> EXCHANGE_SCOPE_ATTRIBUTE_METADATA = internalEnumAttributeMetadata(NAME, "exchange_scope", ExchangeScope.class);
+    private static final TrinoAttributeMetadata<ExchangeType> EXCHANGE_TYPE_ATTRIBUTE_METADATA = internalEnumAttributeMetadata(NAME, "type", ExchangeType.class);
+    private static final TrinoAttributeMetadata<ExchangeScope> EXCHANGE_SCOPE_ATTRIBUTE_METADATA = internalEnumAttributeMetadata(NAME, "scope", ExchangeScope.class);
     private static final TrinoAttributeMetadata<Boolean> REPLICATE_NULLS_AND_ANY_ATTRIBUTE_METADATA = internalBooleanAttributeMetadata(NAME, "replicate_nulls_and_any");
     private static final TrinoAttributeMetadata<List<Integer>> BUCKET_TO_PARTITION_ATTRIBUTE_METADATA = internalIntegerListAttributeMetadata(NAME, "bucket_to_partition");
     private static final TrinoAttributeMetadata<Integer> PARTITION_COUNT_ATTRIBUTE_METADATA = internalIntegerAttributeMetadata(NAME, "partition_count");

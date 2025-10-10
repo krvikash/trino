@@ -26,7 +26,7 @@ public class LogicalOperationMetadata
 {
     public static final String NAME = "logical";
 
-    private static final TrinoAttributeMetadata<LogicalOperator> LOGICAL_OPERATOR_ATTRIBUTE_METADATA = internalEnumAttributeMetadata(NAME, "logical_operator", LogicalOperator.class);
+    private static final TrinoAttributeMetadata<LogicalOperator> LOGICAL_OPERATOR_ATTRIBUTE_METADATA = internalEnumAttributeMetadata(NAME, "operator", LogicalOperator.class);
 
     public static final TrinoAttributeSignature<LogicalOperator> LOGICAL_OPERATOR = LOGICAL_OPERATOR_ATTRIBUTE_METADATA.trinoAttributeSignature();
 

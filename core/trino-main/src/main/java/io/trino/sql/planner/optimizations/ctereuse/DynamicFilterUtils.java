@@ -33,7 +33,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static io.trino.metadata.GlobalFunctionCatalog.builtinFunctionName;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.dialect.trino.operationmetadata.CallOperationMetadata.RESOLVED_FUNCTION;
-import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.CONSTANT_RESULT;
+import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.CONSTANT_VALUE;
 import static io.trino.sql.planner.optimizations.ctereuse.PredicateUtils.conjunction;
 import static io.trino.sql.planner.optimizations.ctereuse.PredicateUtils.extractConjuncts;
 import static io.trino.sql.planner.optimizations.ctereuse.PredicateUtils.optimizeLogicalOperations;
@@ -150,7 +150,7 @@ public class DynamicFilterUtils
         checkArgument(isDynamicFilter(block), "expected dynamic filter");
 
         Constant idOperation = (Constant) block.operations().get(block.operations().size() - 5);
-        NullableValue idAttribute = CONSTANT_RESULT.getAttribute(idOperation.attributes());
+        NullableValue idAttribute = CONSTANT_VALUE.getAttribute(idOperation.attributes());
         checkArgument(idAttribute.getType().equals(VARCHAR), "expected dynamic filter id to be of varchar type");
         return ((Slice) idAttribute.getValue()).toStringUtf8();
     }

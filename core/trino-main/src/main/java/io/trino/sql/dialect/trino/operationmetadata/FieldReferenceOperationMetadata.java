@@ -25,7 +25,7 @@ public class FieldReferenceOperationMetadata
 {
     public static final String NAME = "field_reference";
 
-    private static final TrinoAttributeMetadata<Integer> FIELD_INDEX_ATTRIBUTE_METADATA = internalIntegerAttributeMetadata(NAME, "field_index");
+    private static final TrinoAttributeMetadata<Integer> FIELD_INDEX_ATTRIBUTE_METADATA = internalIntegerAttributeMetadata(NAME, "index");
 
     public static final TrinoAttributeSignature<Integer> FIELD_INDEX = FIELD_INDEX_ATTRIBUTE_METADATA.trinoAttributeSignature();
 

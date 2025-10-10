@@ -31,7 +31,7 @@ public class TopNOperationMetadata
 
     private static final TrinoAttributeMetadata<SortOrderList> SORT_ORDERS_ATTRIBUTE_METADATA = internalSortOrderListAttributeMetadata(NAME, "sort_orders");
     private static final TrinoAttributeMetadata<Long> LIMIT_ATTRIBUTE_METADATA = internalLongAttributeMetadata(NAME, "limit");
-    private static final TrinoAttributeMetadata<TopNStep> TOP_N_STEP_ATTRIBUTE_METADATA = internalEnumAttributeMetadata(NAME, "top_n_step", TopNStep.class);
+    private static final TrinoAttributeMetadata<TopNStep> TOP_N_STEP_ATTRIBUTE_METADATA = internalEnumAttributeMetadata(NAME, "step", TopNStep.class);
 
     public static final TrinoAttributeSignature<SortOrderList> SORT_ORDERS = SORT_ORDERS_ATTRIBUTE_METADATA.trinoAttributeSignature();
     public static final TrinoAttributeSignature<Long> LIMIT = LIMIT_ATTRIBUTE_METADATA.trinoAttributeSignature();

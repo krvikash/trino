@@ -427,12 +427,12 @@ public abstract class AbstractDistributedEngineOnlyQueries
                         %2 = output(%1) : ("multiset(row(varchar(25)))") -> "boolean" ({
                             ^outputFieldSelector (%3 : "row(varchar(25))")
                                 %4 = field_reference(%3) : ("row(varchar(25))") -> "varchar(25)" ()
-                                    {field_reference:field_index = "0"}
+                                    {field_reference:index = "0"}
                                 %5 = row(%4) : ("varchar(25)") -> "row(varchar(25))" ()
                                 %6 = return(%5) : ("row(varchar(25))") -> "row(varchar(25))" ()
                                     {ir.terminal = "true"}
                             })
-                            {output:output_names = "[""name""]", ir.terminal = "true"}
+                            {output:column_names = "[""name""]", ir.terminal = "true"}
                     })
                     {ir.terminal = "true"}
                 """);

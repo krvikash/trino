@@ -26,7 +26,7 @@ import java.util.Map;
 
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
-import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.CONSTANT_RESULT;
+import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.CONSTANT_VALUE;
 import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.NAME;
 import static java.util.Objects.requireNonNull;
 
@@ -43,7 +43,7 @@ public final class Constant
 
         this.result = new Result(resultName, irType(type));
 
-        this.attributes = CONSTANT_RESULT.asMap(new NullableValue(type, value));
+        this.attributes = CONSTANT_VALUE.asMap(new NullableValue(type, value));
     }
 
     @Override
@@ -79,8 +79,8 @@ public final class Constant
     @Override
     public Operation withResultName(String newName)
     {
-        NullableValue constantResult = CONSTANT_RESULT.getAttribute(attributes);
-        return new Constant(newName, constantResult.getType(), constantResult.getValue());
+        NullableValue constantValue = CONSTANT_VALUE.getAttribute(attributes);
+        return new Constant(newName, constantValue.getType(), constantValue.getValue());
     }
 
     @Override

@@ -64,7 +64,7 @@ import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operationmetadata.CallOperationMetadata.RESOLVED_FUNCTION;
 import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.COMPARISON_OPERATOR;
-import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.CONSTANT_RESULT;
+import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.CONSTANT_VALUE;
 import static io.trino.sql.dialect.trino.operationmetadata.FieldReferenceOperationMetadata.FIELD_INDEX;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LOGICAL_OPERATOR;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.isEmptyFieldSelector;
@@ -284,7 +284,7 @@ public class ToOldIrScalarRewriter
         @Override
         public Expression visitConstant(Constant operation, Context context)
         {
-            return new io.trino.sql.ir.Constant(trinoType(operation.result().type()), CONSTANT_RESULT.getAttribute(operation.attributes()).getValue());
+            return new io.trino.sql.ir.Constant(trinoType(operation.result().type()), CONSTANT_VALUE.getAttribute(operation.attributes()).getValue());
         }
 
         @Override
