@@ -21,7 +21,6 @@ import dev.failsafe.event.ExecutionAttemptedEvent;
 import dev.failsafe.event.ExecutionCompletedEvent;
 import dev.failsafe.function.CheckedSupplier;
 import io.airlift.log.Logger;
-import io.airlift.stats.TimeStat;
 import io.trino.plugin.elasticsearch.ElasticsearchConfig;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -52,13 +51,13 @@ public class BackpressureRestClient
 
     private final RestClient delegate;
     private final RetryPolicy<Response> retryPolicy;
-    private final TimeStat backpressureStats;
+    private final ElasticsearchClientStats elasticsearchClientStats;
     private final ThreadLocal<Stopwatch> stopwatch = ThreadLocal.withInitial(Stopwatch::createUnstarted);
 
-    public BackpressureRestClient(RestClient delegate, ElasticsearchConfig config, TimeStat backpressureStats)
+    public BackpressureRestClient(RestClient delegate, ElasticsearchConfig config, ElasticsearchClientStats elasticsearchClientStats)
     {
         this.delegate = requireNonNull(delegate, "restClient is null");
-        this.backpressureStats = requireNonNull(backpressureStats, "backpressureStats is null");
+        this.elasticsearchClientStats = requireNonNull(elasticsearchClientStats, "elasticsearchClientStats is null");
         retryPolicy = RetryPolicy.<Response>builder()
                 .withMaxAttempts(-1)
                 .withMaxDuration(Duration.ofMillis(config.getMaxRetryTime().toMillis()))
@@ -133,7 +132,7 @@ public class BackpressureRestClient
             long delayMillis = stopwatch.get().elapsed(MILLISECONDS);
             log.debug("Adding %s milliseconds to backpressure stats", delayMillis);
             stopwatch.get().reset();
-            backpressureStats.add(delayMillis, MILLISECONDS);
+            elasticsearchClientStats.getBackpressureStats().add(delayMillis, MILLISECONDS);
         }
     }
 

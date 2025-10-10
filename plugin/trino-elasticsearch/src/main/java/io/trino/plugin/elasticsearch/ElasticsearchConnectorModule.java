@@ -21,6 +21,7 @@ import io.trino.plugin.elasticsearch.client.AwsSecurityRestClientConfigurator;
 import io.trino.plugin.elasticsearch.client.BasicSecurityRestClientConfigurator;
 import io.trino.plugin.elasticsearch.client.ElasticRestClientConfigurator;
 import io.trino.plugin.elasticsearch.client.ElasticsearchClient;
+import io.trino.plugin.elasticsearch.client.ElasticsearchClientStats;
 import io.trino.plugin.elasticsearch.ptf.RawQuery;
 import io.trino.plugin.elasticsearch.substitution.ElasticsearchSubstitutionMetadata;
 import io.trino.spi.function.table.ConnectorTableFunction;
@@ -46,7 +47,10 @@ public class ElasticsearchConnectorModule
         binder.bind(ElasticsearchClient.class).in(Scopes.SINGLETON);
         binder.bind(NodesSystemTable.class).in(Scopes.SINGLETON);
 
-        newExporter(binder).export(ElasticsearchClient.class).withGeneratedName();
+        binder.bind(ElasticsearchClientStats.class).in(Scopes.SINGLETON);
+
+        // To be backward compatible.
+        newExporter(binder).export(ElasticsearchClientStats.class).as(objectNameGenerator -> objectNameGenerator.generatedNameOf(ElasticsearchClient.class));
 
         configBinder(binder).bindConfig(ElasticsearchConfig.class);
 
