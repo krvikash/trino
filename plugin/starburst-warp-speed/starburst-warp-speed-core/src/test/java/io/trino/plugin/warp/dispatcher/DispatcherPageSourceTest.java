@@ -824,7 +824,7 @@ public class DispatcherPageSourceTest
         Page page = buildLongPage(values);
         Block block = page.getBlock(0);
         for (int i = 0; i < values.length; i++) {
-            ((Type) io.trino.spi.type.BigintType.BIGINT).appendTo(block, i, warpBlockBuilder);
+            warpBlockBuilder.append(block.getUnderlyingValueBlock(), block.getUnderlyingValuePosition(i));
         }
         warpPageBuilder.declarePositions(values.length);
         return warpPageBuilder.build();

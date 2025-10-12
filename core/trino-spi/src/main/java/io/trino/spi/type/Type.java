@@ -196,9 +196,13 @@ public interface Type
     void writeObject(PreSizedBlockBuilder blockBuilder, Object value);
 
     /**
-     * Append the value at {@code position} in {@code block} to {@code blockBuilder}.
+     * @deprecated Use {@link BlockBuilder#append}
      */
-    void appendTo(Block block, int position, BlockBuilder blockBuilder);
+    @Deprecated(forRemoval = true)
+    default void appendTo(Block block, int position, BlockBuilder blockBuilder)
+    {
+        blockBuilder.append(block.getUnderlyingValueBlock(), block.getUnderlyingValuePosition(position));
+    }
 
     /**
      * Return the range of possible values for this type, if available.

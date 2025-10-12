@@ -117,12 +117,6 @@ public final class UnknownType
     }
 
     @Override
-    public void appendTo(Block block, int position, BlockBuilder blockBuilder)
-    {
-        blockBuilder.appendNull();
-    }
-
-    @Override
     public boolean getBoolean(Block block, int position)
     {
         // Ideally, this function should never be invoked for the unknown type.

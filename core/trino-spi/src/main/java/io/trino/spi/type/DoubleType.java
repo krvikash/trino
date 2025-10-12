@@ -98,19 +98,6 @@ public final class DoubleType
     }
 
     @Override
-    public void appendTo(Block block, int position, BlockBuilder blockBuilder)
-    {
-        if (block.isNull(position)) {
-            blockBuilder.appendNull();
-        }
-        else {
-            LongArrayBlock valueBlock = (LongArrayBlock) block.getUnderlyingValueBlock();
-            int valuePosition = block.getUnderlyingValuePosition(position);
-            ((LongArrayBlockBuilder) blockBuilder).writeLong(valueBlock.getLong(valuePosition));
-        }
-    }
-
-    @Override
     public double getDouble(Block block, int position)
     {
         return read((LongArrayBlock) block.getUnderlyingValueBlock(), block.getUnderlyingValuePosition(position));
