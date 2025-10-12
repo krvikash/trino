@@ -378,8 +378,8 @@ public class TestHivePageSourceProvider
             }
             else {
                 int lastDereference = dereferences.getLast();
-
-                finalType.appendTo(currentData.getRawFieldBlock(lastDereference), currentData.getRawIndex(), builder);
+                Block fieldBlock = currentData.getRawFieldBlock(lastDereference);
+                builder.append(fieldBlock.getUnderlyingValueBlock(), fieldBlock.getUnderlyingValuePosition(currentData.getRawIndex()));
             }
         }
 
