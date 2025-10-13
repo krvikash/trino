@@ -44,7 +44,7 @@ public class TestingUtils
                         "modelName": "gpt-4o-mini",
                         "kind": "GENERATE",
                         "maxTokens": 8192,
-                        "temperature": 0.1,
+                        "temperature": 0.0,
                         "connectionInfo": {
                             "provider": "OPENAI",
                             "endpoint": "https://api.openai.com/v1",
@@ -56,7 +56,7 @@ public class TestingUtils
                         "modelName": "gpt-4o-mini",
                         "kind": "GENERATE",
                         "maxTokens": 8192,
-                        "temperature": 0.1,
+                        "temperature": 0.0,
                         "connectionInfo": {
                             "provider": "OPENAI",
                             "endpoint": "https://api.openai.com/v1",
@@ -69,7 +69,7 @@ public class TestingUtils
                         "modelName": "us.meta.llama3-3-70b-instruct-v1:0",
                         "kind": "GENERATE",
                         "maxTokens": 8192,
-                        "temperature": 0.1,
+                        "temperature": 0.0,
                         "connectionInfo": {
                             "provider": "AWS_BEDROCK",
                             "awsAccessKey": "${ENV:AWS_ACCESS_KEY_ID}",
@@ -82,7 +82,7 @@ public class TestingUtils
                         "modelName": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
                         "kind": "GENERATE",
                         "maxTokens": 8192,
-                        "temperature": 0.1,
+                        "temperature": 0.0,
                         "connectionInfo": {
                             "provider": "AWS_BEDROCK",
                             "awsAccessKey": "${ENV:AWS_ACCESS_KEY_ID}",

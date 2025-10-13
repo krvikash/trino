@@ -51,6 +51,7 @@ public class VendorTestModels
                         "id": "%s",
                         "modelName": "gemini-2.0-flash",
                         "kind": "GENERATE",
+                        "temperature": 0.0,
                         "connectionInfo": {
                             "provider": "OPENAI",
                             "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/",
