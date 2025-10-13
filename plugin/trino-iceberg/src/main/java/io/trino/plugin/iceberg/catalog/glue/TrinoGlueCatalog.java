@@ -98,6 +98,7 @@ import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
@@ -169,6 +170,7 @@ public class TrinoGlueCatalog
     private static final Logger LOG = Logger.get(TrinoGlueCatalog.class);
 
     private static final int PER_QUERY_CACHES_SIZE = 1000;
+    private static final Pattern METADATA_PATTERN = Pattern.compile("/metadata/[^/]*$");
 
     private final String trinoVersion;
     private final boolean cacheTableMetadata;
@@ -735,7 +737,7 @@ public class TrinoGlueCatalog
         if (metadataLocation == null) {
             throw new TrinoException(ICEBERG_INVALID_METADATA, format("Table %s is missing [%s] property", schemaTableName, METADATA_LOCATION_PROP));
         }
-        String tableLocation = metadataLocation.replaceFirst("/metadata/[^/]*$", "");
+        String tableLocation = METADATA_PATTERN.matcher(metadataLocation).replaceFirst("");
         deleteTableDirectory(fileSystemFactory.create(session), schemaTableName, tableLocation);
         invalidateTableCache(schemaTableName);
     }
