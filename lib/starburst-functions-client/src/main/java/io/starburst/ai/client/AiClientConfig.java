@@ -26,6 +26,9 @@ public class AiClientConfig
     private Duration clientCacheRefreshInterval = new Duration(1, TimeUnit.SECONDS);
     private Duration clientCacheTtl = new Duration(1, TimeUnit.HOURS);
     private int batchParallelism = 4;
+    private Duration awsSocketTimeout = new Duration(3, TimeUnit.MINUTES);
+    private Duration awsApiTimeout = new Duration(5, TimeUnit.MINUTES);
+    private int awsMaxRetries = 10;
 
     @NotNull
     public StorageType getStorageType()
@@ -95,6 +98,46 @@ public class AiClientConfig
     public AiClientConfig setBatchParallelism(int batchParallelism)
     {
         this.batchParallelism = batchParallelism;
+        return this;
+    }
+
+    public Duration getAwsSocketTimeout()
+    {
+        return awsSocketTimeout;
+    }
+
+    @Config("ai.client.aws-socket-timeout")
+    @ConfigDescription("Http socket timeout for AI client requests")
+    public AiClientConfig setAwsSocketTimeout(Duration awsSocketTimeout)
+    {
+        this.awsSocketTimeout = awsSocketTimeout;
+        return this;
+    }
+
+    @Min(0)
+    public int getAwsMaxRetries()
+    {
+        return awsMaxRetries;
+    }
+
+    @Config("ai.client.aws-max-retries")
+    @ConfigDescription("Maximum number of retries for AI client requests")
+    public AiClientConfig setAwsMaxRetries(int awsMaxRetries)
+    {
+        this.awsMaxRetries = awsMaxRetries;
+        return this;
+    }
+
+    public Duration getAwsApiTimeout()
+    {
+        return awsApiTimeout;
+    }
+
+    @Config("ai.client.aws-api-timeout")
+    @ConfigDescription("Max duration of a single request to AWS Bedrock (including retries)")
+    public AiClientConfig setAwsApiTimeout(Duration awsApiTimeout)
+    {
+        this.awsApiTimeout = awsApiTimeout;
         return this;
     }
 

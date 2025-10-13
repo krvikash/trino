@@ -11,6 +11,7 @@ package io.starburst.ai.client.bedrock;
 
 import com.google.inject.Inject;
 import io.airlift.configuration.secrets.SecretsResolver;
+import io.airlift.log.Logger;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.AiClientConfig;
 import io.starburst.ai.client.EmbeddingModelClient;
@@ -29,6 +30,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.retry.RetryPolicy;
 import software.amazon.awssdk.core.retry.conditions.RetryCondition;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClientBuilder;
@@ -52,10 +54,14 @@ import static java.util.Objects.requireNonNull;
 public class AwsBedrockClientFactory
         implements ModelClientFactory<AwsBedrockConnectionInfo>
 {
+    private static final Logger log = Logger.get(AwsBedrockClientFactory.class);
     private final Map<String, AwsEmbeddingCodec.Factory> awsEmbeddingCodecFactories;
     private final SecretsResolver secretsResolver;
     private final Executor executor;
     private final int batchParallelism;
+    private final io.airlift.units.Duration socketTimeout;
+    private final io.airlift.units.Duration apiTimeout;
+    private final int maxRetries;
 
     @Inject
     public AwsBedrockClientFactory(Map<String, AwsEmbeddingCodec.Factory> awsEmbeddingCodecFactories, SecretsResolver secretsResolver, AiClientConfig config, @ForAiClient Executor executor)
@@ -64,6 +70,9 @@ public class AwsBedrockClientFactory
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
         this.executor = requireNonNull(executor, "executor is null");
         batchParallelism = config.getBatchParallelism();
+        socketTimeout = config.getAwsSocketTimeout();
+        apiTimeout = config.getAwsApiTimeout();
+        maxRetries = config.getAwsMaxRetries();
     }
 
     @Override
@@ -113,6 +122,7 @@ public class AwsBedrockClientFactory
 
         RetryCondition customRetryCondition = (context) -> {
             Throwable exception = context.exception();
+            log.warn(exception, "Exception in Bedrock client, checking if should retry");
             // Retry on default retryable conditions
             // Note: this method is deprecated but there is currently no replacement in the RetryStrategy api
             if (RetryCondition.defaultRetryCondition().shouldRetry(context)) {
@@ -138,16 +148,23 @@ public class AwsBedrockClientFactory
 
         ClientOverrideConfiguration.Builder clientOverrideConfigurationBuilder = ClientOverrideConfiguration.builder()
                 .retryPolicy(RetryPolicy.builder()
-                        .numRetries(10)
+                        .numRetries(maxRetries)
                         .retryCondition(customRetryCondition)
-                        .build());
+                        .build())
+                .apiCallTimeout(apiTimeout.toJavaTime());
         if (!connectionInfo.additionalHeaders().isEmpty()) {
             AwsBedrockConnectionInfo resolvedConnectionInfo = resolveBedrockSecrets(connectionInfo, secretsResolver);
             resolvedConnectionInfo.additionalHeaders().forEach(clientOverrideConfigurationBuilder::putHeader);
             clientBuilder.overrideConfiguration(clientOverrideConfigurationBuilder.build());
         }
 
-        return clientBuilder.overrideConfiguration(clientOverrideConfigurationBuilder.build()).build();
+        ApacheHttpClient.Builder httpClientBuilder = ApacheHttpClient.builder()
+                .socketTimeout(socketTimeout.toJavaTime());
+
+        return clientBuilder
+                .httpClientBuilder(httpClientBuilder)
+                .overrideConfiguration(clientOverrideConfigurationBuilder.build())
+                .build();
     }
 
     private AwsCredentialsProvider getCredentialsProvider(AwsBedrockConnectionInfo connectionInfo)
