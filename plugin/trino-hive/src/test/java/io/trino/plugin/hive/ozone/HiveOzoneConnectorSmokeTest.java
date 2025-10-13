@@ -15,6 +15,8 @@ package io.trino.plugin.hive.ozone;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import io.airlift.log.Level;
+import io.airlift.log.Logging;
 import io.trino.Session;
 import io.trino.filesystem.Location;
 import io.trino.metastore.Database;
@@ -61,6 +63,8 @@ final class HiveOzoneConnectorSmokeTest
     protected QueryRunner createQueryRunner()
             throws Exception
     {
+        Logging.initialize().setLevel("org.apache.hadoop.fs", Level.DEBUG);
+
         HiveHadoop hiveHadoop = hiveOzoneDataLake.getHiveHadoop();
         hiveHadoop.executeInContainer("hdfs", "dfs", "-mkdir", "-p", "/%s/%s".formatted(volumeName, bucketName));
         // File metastore is used, because, to create a database, the very same location has to be routable from metastore and SEP
