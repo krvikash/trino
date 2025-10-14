@@ -17,7 +17,6 @@
     <properties>
         <!-- Nessie version (compatible with Iceberg release) must be bumped along with Iceberg version bump to avoid compatibility issues -->
         <dep.nessie.version>0.105.2</dep.nessie.version>
-        <dep.cron-utils.version>9.2.0</dep.cron-utils.version>
     </properties>
 
     <dependencyManagement>
@@ -34,7 +33,7 @@
         <dependency>
             <groupId>com.cronutils</groupId>
             <artifactId>cron-utils</artifactId>
-            <version>${dep.cron-utils.version}</version>
+            <version>9.2.0</version>
         </dependency>
 
         <dependency>
