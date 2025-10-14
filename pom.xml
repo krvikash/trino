@@ -1050,6 +1050,12 @@
 
             <dependency>
                 <groupId>io.starburst.stargate.buffer</groupId>
+                <artifactId>starburst-buffer-data-client</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.starburst.stargate.buffer</groupId>
                 <artifactId>starburst-buffer-data-server</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -1063,12 +1069,6 @@
             <dependency>
                 <groupId>io.starburst.stargate.buffer</groupId>
                 <artifactId>starburst-buffer-discovery-server</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>io.starburst.stargate.buffer</groupId>
-                <artifactId>starburst-buffer-exchange</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

@@ -85,10 +85,6 @@
             <groupId>io.starburst.stargate.buffer</groupId>
             <artifactId>starburst-buffer-discovery-server</artifactId>
         </dependency>
-        <dependency>
-            <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>starburst-buffer-exchange</artifactId>
-        </dependency>
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>

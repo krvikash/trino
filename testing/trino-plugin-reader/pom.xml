@@ -49,6 +49,10 @@
                      java.lang.SecurityException: Invalid signature file digest for Manifest main attributes -->
                 <exclusion>
                     <groupId>io.starburst.stargate.buffer</groupId>
+                    <artifactId>starburst-buffer-data-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.starburst.stargate.buffer</groupId>
                     <artifactId>starburst-buffer-data-server</artifactId>
                 </exclusion>
                 <exclusion>

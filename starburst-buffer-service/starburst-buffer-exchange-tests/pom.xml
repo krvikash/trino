@@ -162,12 +162,6 @@
 
         <dependency>
             <groupId>io.starburst.stargate.buffer</groupId>
-            <artifactId>starburst-buffer-exchange</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>io.starburst.stargate.buffer</groupId>
             <artifactId>starburst-buffer-mocking</artifactId>
             <scope>test</scope>
         </dependency>

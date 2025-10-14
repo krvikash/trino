@@ -22,7 +22,6 @@
         <module>starburst-buffer-data-server</module>
         <module>starburst-buffer-discovery-client</module>
         <module>starburst-buffer-discovery-server</module>
-        <module>starburst-buffer-exchange</module>
         <module>starburst-buffer-exchange-tests</module>
         <module>starburst-buffer-mocking</module>
         <module>starburst-buffer-status</module>
@@ -76,11 +75,6 @@
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>starburst-buffer-discovery-server</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>starburst-buffer-exchange</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
