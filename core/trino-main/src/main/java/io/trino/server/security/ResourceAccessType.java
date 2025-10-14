@@ -23,8 +23,8 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Optional;
 
+import static io.trino.server.security.ResourceSecurity.AccessType.INTERNAL_ONLY;
 import static io.trino.server.security.ResourceSecurity.AccessType.MANAGEMENT_READ;
-import static io.trino.server.security.ResourceSecurity.AccessType.PUBLIC;
 
 public class ResourceAccessType
 {
@@ -62,7 +62,7 @@ public class ResourceAccessType
 
         if (resourceInfo.getResourceMethod().getDeclaringClass().getPackageName().startsWith("io.starburst.stargate.buffer")) {
             // hack - allow access for Buffer service uris
-            return PUBLIC;
+            return INTERNAL_ONLY;
         }
 
         return MANAGEMENT_READ;
