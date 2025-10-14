@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import io.airlift.bytecode.BytecodeBlock;
 import io.airlift.bytecode.ClassDefinition;
+import io.airlift.bytecode.FieldDefinition;
 import io.airlift.bytecode.MethodDefinition;
 import io.airlift.bytecode.Parameter;
 import io.airlift.bytecode.Scope;
@@ -31,13 +32,18 @@ import io.trino.cache.CacheStatsMBean;
 import io.trino.cache.NonEvictableLoadingCache;
 import io.trino.operator.PageWithPositionComparator;
 import io.trino.operator.PagesIndex;
+import io.trino.operator.PagesIndexAppender;
 import io.trino.operator.PagesIndexComparator;
 import io.trino.operator.PagesIndexOrdering;
+import io.trino.operator.SimplePageIndexAppender;
 import io.trino.operator.SimplePageWithPositionComparator;
 import io.trino.operator.SimplePagesIndexComparator;
 import io.trino.operator.SyntheticAddress;
 import io.trino.spi.Page;
+import io.trino.spi.PageBuilder;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.ValueBlock;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
@@ -47,11 +53,13 @@ import org.weakref.jmx.Managed;
 import org.weakref.jmx.Nested;
 
 import java.lang.invoke.MethodHandle;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.airlift.bytecode.Access.FINAL;
+import static io.airlift.bytecode.Access.PRIVATE;
 import static io.airlift.bytecode.Access.PUBLIC;
 import static io.airlift.bytecode.Access.a;
 import static io.airlift.bytecode.Parameter.arg;
@@ -84,6 +92,12 @@ public class OrderingCompiler
                     .maximumSize(1000),
             CacheLoader.from(key -> internalCompilePageWithPositionComparator(key.getSortTypes(), key.getSortChannels(), key.getSortOrders())));
 
+    private final NonEvictableLoadingCache<PageAppenderCacheKey, Class<? extends PagesIndexAppender>> pagesIndexAppender = buildNonEvictableCache(
+            CacheBuilder.newBuilder()
+                    .recordStats()
+                    .maximumSize(1000),
+            CacheLoader.from(key -> internalCompilePageIndexAppender(key.sortTypes())));
+
     private final TypeOperators typeOperators;
 
     @Inject
@@ -104,6 +118,21 @@ public class OrderingCompiler
     public CacheStatsMBean getPageWithPositionsComparatorsStats()
     {
         return new CacheStatsMBean(pageWithPositionComparators);
+    }
+
+    public PagesIndexAppender compilePagesIndexAppender(List<Type> types, ObjectArrayList<Block>[] channels)
+    {
+        requireNonNull(types, "types is null");
+        requireNonNull(channels, "channels is null");
+
+        try {
+            Class<? extends PagesIndexAppender> pagesIndexAppenderClass = pagesIndexAppender.getUnchecked(new PageAppenderCacheKey(types));
+            return pagesIndexAppenderClass.getConstructor(Object[].class).newInstance((Object) channels);
+        }
+        catch (Throwable e) {
+            log.error(e, "Error compiling appender for types %s", types);
+            return new SimplePageIndexAppender(channels);
+        }
     }
 
     public PagesIndexOrdering compilePagesIndexOrdering(List<Type> sortTypes, List<Integer> sortChannels, List<SortOrder> sortOrders)
@@ -355,6 +384,85 @@ public class OrderingCompiler
                 .retInt();
     }
 
+    private Class<? extends PagesIndexAppender> internalCompilePageIndexAppender(List<Type> types)
+    {
+        CallSiteBinder callSiteBinder = new CallSiteBinder();
+
+        ClassDefinition classDefinition = new ClassDefinition(
+                a(PUBLIC, FINAL),
+                makeClassName("PagesIndexAppender"),
+                type(Object.class),
+                type(PagesIndexAppender.class));
+
+        Parameter channels = arg("channels", type(Object[].class));
+        MethodDefinition constructorDefinition = classDefinition.declareConstructor(a(PUBLIC), channels);
+
+        Variable thisVariable = constructorDefinition.getThis();
+
+        BytecodeBlock constructor = constructorDefinition
+                .getBody()
+                .comment("super();")
+                .append(thisVariable)
+                .invokeConstructor(Object.class);
+
+        List<FieldDefinition> channelFields = new ArrayList<>();
+        for (int i = 0; i < types.size(); i++) {
+            FieldDefinition channelField = classDefinition.declareField(a(PRIVATE, FINAL), "channel_" + i, type(List.class, Block.class));
+            channelFields.add(channelField);
+        }
+
+        constructor.comment("Set channel fields");
+        //  this.channel_0 = (ObjectArrayList)channels[0];
+        //  ...
+        //  this.channel_n = (ObjectArrayList)channels[n];
+        for (int index = 0; index < channelFields.size(); index++) {
+            BytecodeExpression channel = channels.getElement(constantInt(index))
+                    .cast(type(ObjectArrayList.class, Block.class));
+            constructor.append(thisVariable.setField(channelFields.get(index), channel));
+        }
+        constructor.ret();
+
+        generateAppendMethod(classDefinition, channelFields);
+
+        return defineClass(classDefinition, PagesIndexAppender.class, callSiteBinder.getBindings(), getClass().getClassLoader());
+    }
+
+    private static void generateAppendMethod(ClassDefinition classDefinition, List<FieldDefinition> channelFields)
+    {
+        Parameter blockIndex = arg("blockIndex", int.class);
+        Parameter blockPosition = arg("blockPosition", int.class);
+        Parameter pageBuilder = arg("pageBuilder", PageBuilder.class);
+        MethodDefinition appendMethod = classDefinition.declareMethod(a(PUBLIC), "append", type(void.class), blockIndex, blockPosition, pageBuilder);
+
+        Variable thisVariable = appendMethod.getThis();
+        BytecodeBlock appendBody = appendMethod.getBody();
+
+        //  Block block = (Block)this.channel_0.get(blockIndex);
+        //  pageBuilder.getBlockBuilder(0).append(block.getUnderlyingValueBlock(), block.getUnderlyingValuePosition(blockPosition));
+        //  ...
+        //  block = (Block)this.channel_n.get(blockIndex);
+        //  pageBuilder.getBlockBuilder(n).append(block.getUnderlyingValueBlock(), block.getUnderlyingValuePosition(blockPosition));
+        Variable block = appendMethod.getScope().declareVariable(Block.class, "block");
+        for (int channel = 0; channel < channelFields.size(); channel++) {
+            appendBody
+                    .comment("Block block = (Block)this.channel_(%s).get(blockIndex);", channel)
+                    .append(block.set(thisVariable.getField(channelFields.get(channel))
+                            .invoke("get", Object.class, blockIndex)
+                            .cast(Block.class)));
+
+            BytecodeExpression blockBuilderExpression = pageBuilder
+                    .invoke("getBlockBuilder", BlockBuilder.class, constantInt(channel));
+            appendBody
+                    .comment("pageBuilder.getBlockBuilder(%s).append(block.getUnderlyingValueBlock(), block.getUnderlyingValuePosition(blockPosition));", channel)
+                    .append(blockBuilderExpression.invoke(
+                            "append",
+                            void.class,
+                            block.invoke("getUnderlyingValueBlock", ValueBlock.class),
+                            block.invoke("getUnderlyingValuePosition", int.class, blockPosition)));
+        }
+        appendBody.ret();
+    }
+
     private static final class PagesIndexComparatorCacheKey
     {
         private final List<Type> sortTypes;
@@ -406,4 +514,6 @@ public class OrderingCompiler
                     Objects.equals(this.sortOrders, other.sortOrders);
         }
     }
+
+    private record PageAppenderCacheKey(List<Type> sortTypes) {}
 }

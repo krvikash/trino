@@ -306,26 +306,6 @@ public class PagesIndex
         elements[b] = temp;
     }
 
-    private int buildPage(int position, int endPosition, PageBuilder pageBuilder)
-    {
-        while (!pageBuilder.isFull() && position < endPosition) {
-            long pageAddress = valueAddresses.getLong(position);
-            int blockIndex = decodeSliceIndex(pageAddress);
-            int blockPosition = decodePosition(pageAddress);
-
-            // append the row
-            pageBuilder.declarePosition();
-            for (int channel = 0; channel < channels.length; channel++) {
-                Block block = channels[channel].get(blockIndex);
-                pageBuilder.getBlockBuilder(channel).append(block.getUnderlyingValueBlock(), block.getUnderlyingValuePosition(blockPosition));
-            }
-
-            position++;
-        }
-
-        return position;
-    }
-
     public void appendTo(int channel, int position, BlockBuilder output)
     {
         long pageAddress = valueAddresses.getLong(position);
@@ -606,6 +586,7 @@ public class PagesIndex
 
     private Iterator<Page> getSortedPagesFromRange(int start, int end)
     {
+        PagesIndexAppender appender = orderingCompiler.compilePagesIndexAppender(types, channels);
         return new AbstractIterator<>()
         {
             private final int startingModificationCount = modificationCount;
@@ -615,7 +596,7 @@ public class PagesIndex
             @Override
             public Page computeNext()
             {
-                currentPosition = buildPage(currentPosition, end, pageBuilder);
+                currentPosition = buildPage(currentPosition, end, pageBuilder, appender);
                 if (pageBuilder.isEmpty()) {
                     if (startingModificationCount != modificationCount) {
                         throw new ConcurrentModificationException("PagesIndex mutated during iteration: %s != %s".formatted(startingModificationCount, modificationCount));
@@ -625,6 +606,22 @@ public class PagesIndex
                 Page page = pageBuilder.build();
                 pageBuilder.reset();
                 return page;
+            }
+
+            private int buildPage(int position, int endPosition, PageBuilder pageBuilder, PagesIndexAppender appender)
+            {
+                while (!pageBuilder.isFull() && position < endPosition) {
+                    long pageAddress = valueAddresses.getLong(position);
+                    int blockIndex = decodeSliceIndex(pageAddress);
+                    int blockPosition = decodePosition(pageAddress);
+
+                    // append the row
+                    pageBuilder.declarePosition();
+                    appender.append(blockIndex, blockPosition, pageBuilder);
+                    position++;
+                }
+
+                return position;
             }
         };
     }
