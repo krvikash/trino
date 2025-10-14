@@ -1685,7 +1685,8 @@ jobs:
           SNOWFLAKE_DATABASE: ${{ vars.SNOWFLAKE_DATABASE }}
           SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
           SNOWFLAKE_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
-        if: matrix.modules == 'plugin/trino-snowflake' && contains(matrix.profile, 'cloud-tests') && (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || env.SNOWFLAKE_URL != '')
+        # Disabled temporarily until Snowflake account is migrated
+        if: false && matrix.modules == 'plugin/trino-snowflake' && contains(matrix.profile, 'cloud-tests') && (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || env.SNOWFLAKE_URL != '')
         run: |
           $MAVEN test ${MAVEN_TEST} -pl :trino-snowflake -Pcloud-tests \
             -Dsnowflake.test.server.url="${SNOWFLAKE_URL}" \
