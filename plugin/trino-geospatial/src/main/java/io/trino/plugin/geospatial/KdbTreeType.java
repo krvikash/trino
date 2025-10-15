@@ -14,12 +14,15 @@
 package io.trino.plugin.geospatial;
 
 import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
 import io.trino.geospatial.KdbTree;
 import io.trino.geospatial.KdbTreeUtils;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.block.VariableWidthBlockBuilder;
+import io.trino.spi.block.VariableWidthPreSizedBlockBuilder;
 import io.trino.spi.function.BlockIndex;
 import io.trino.spi.function.BlockPosition;
 import io.trino.spi.function.FlatFixed;
@@ -75,6 +78,13 @@ public final class KdbTreeType
     {
         byte[] jsonBytes = KdbTreeUtils.toJsonBytes(((KdbTree) value));
         ((VariableWidthBlockBuilder) blockBuilder).writeEntry(jsonBytes, 0, jsonBytes.length);
+    }
+
+    @Override
+    public void writeObject(PreSizedBlockBuilder blockBuilder, Object value)
+    {
+        byte[] jsonBytes = KdbTreeUtils.toJsonBytes(((KdbTree) value));
+        ((VariableWidthPreSizedBlockBuilder) blockBuilder).writeEntry(Slices.wrappedBuffer(jsonBytes));
     }
 
     @Override

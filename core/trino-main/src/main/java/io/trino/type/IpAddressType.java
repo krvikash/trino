@@ -22,7 +22,9 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
 import io.trino.spi.block.Int128ArrayBlock;
 import io.trino.spi.block.Int128ArrayBlockBuilder;
+import io.trino.spi.block.Int128ArrayPreSizedBlockBuilder;
 import io.trino.spi.block.PageBuilderStatus;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.function.BlockIndex;
 import io.trino.spi.function.BlockPosition;
 import io.trino.spi.function.FlatFixed;
@@ -95,6 +97,12 @@ public class IpAddressType
     }
 
     @Override
+    public PreSizedBlockBuilder createPreSizedBlockBuilder(int positionCount)
+    {
+        return new Int128ArrayPreSizedBlockBuilder(positionCount);
+    }
+
+    @Override
     public boolean isComparable()
     {
         return true;
@@ -160,6 +168,14 @@ public class IpAddressType
         ((Int128ArrayBlockBuilder) blockBuilder).writeInt128(
                 value.getLong(offset),
                 value.getLong(offset + SIZE_OF_LONG));
+    }
+
+    @Override
+    public void writeSlice(PreSizedBlockBuilder blockBuilder, Slice value)
+    {
+        ((Int128ArrayPreSizedBlockBuilder) blockBuilder).writeInt128(
+                value.getLong(0),
+                value.getLong(SIZE_OF_LONG));
     }
 
     @Override

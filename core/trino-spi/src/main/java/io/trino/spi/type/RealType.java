@@ -17,6 +17,8 @@ import io.airlift.slice.XxHash64;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.IntArrayPreSizedBlockBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.function.FlatFixed;
 import io.trino.spi.function.FlatFixedOffset;
 import io.trino.spi.function.FlatVariableOffset;
@@ -90,6 +92,19 @@ public final class RealType
             throw new TrinoException(GENERIC_INTERNAL_ERROR, format("Value (%sb) is not a valid single-precision float", Long.toBinaryString(value)));
         }
         writeInt(blockBuilder, floatValue);
+    }
+
+    @Override
+    public void writeLong(PreSizedBlockBuilder blockBuilder, long value)
+    {
+        int floatValue;
+        try {
+            floatValue = toIntExact(value);
+        }
+        catch (ArithmeticException e) {
+            throw new TrinoException(GENERIC_INTERNAL_ERROR, format("Value (%sb) is not a valid single-precision float", Long.toBinaryString(value)));
+        }
+        ((IntArrayPreSizedBlockBuilder) blockBuilder).writeInt(floatValue);
     }
 
     public void writeFloat(BlockBuilder blockBuilder, float value)

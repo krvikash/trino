@@ -18,7 +18,9 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
 import io.trino.spi.block.ByteArrayBlock;
 import io.trino.spi.block.ByteArrayBlockBuilder;
+import io.trino.spi.block.ByteArrayPreSizedBlockBuilder;
 import io.trino.spi.block.PageBuilderStatus;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.function.FlatFixed;
 import io.trino.spi.function.FlatFixedOffset;
 import io.trino.spi.function.FlatVariableOffset;
@@ -83,6 +85,12 @@ public final class UnknownType
     }
 
     @Override
+    public PreSizedBlockBuilder createPreSizedBlockBuilder(int positionCount)
+    {
+        return new ByteArrayPreSizedBlockBuilder(positionCount);
+    }
+
+    @Override
     public boolean isComparable()
     {
         return true;
@@ -126,6 +134,16 @@ public final class UnknownType
     @Deprecated
     @Override
     public void writeBoolean(BlockBuilder blockBuilder, boolean value)
+    {
+        // Ideally, this function should never be invoked for the unknown type.
+        // However, some logic (e.g. AbstractMinMaxBy) relies on writing a default value before the null check.
+        checkArgument(!value);
+        blockBuilder.appendNull();
+    }
+
+    @Deprecated
+    @Override
+    public void writeBoolean(PreSizedBlockBuilder blockBuilder, boolean value)
     {
         // Ideally, this function should never be invoked for the unknown type.
         // However, some logic (e.g. AbstractMinMaxBy) relies on writing a default value before the null check.

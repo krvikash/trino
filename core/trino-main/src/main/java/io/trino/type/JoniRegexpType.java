@@ -16,8 +16,10 @@ package io.trino.type;
 import io.airlift.slice.Slice;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.block.VariableWidthBlockBuilder;
+import io.trino.spi.block.VariableWidthPreSizedBlockBuilder;
 import io.trino.spi.type.AbstractVariableWidthType;
 import io.trino.spi.type.TypeSignature;
 
@@ -63,5 +65,12 @@ public class JoniRegexpType
     {
         Slice pattern = ((JoniRegexp) value).pattern();
         ((VariableWidthBlockBuilder) blockBuilder).writeEntry(pattern);
+    }
+
+    @Override
+    public void writeObject(PreSizedBlockBuilder blockBuilder, Object value)
+    {
+        Slice pattern = ((JoniRegexp) value).pattern();
+        ((VariableWidthPreSizedBlockBuilder) blockBuilder).writeEntry(pattern);
     }
 }

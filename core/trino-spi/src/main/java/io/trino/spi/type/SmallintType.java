@@ -19,8 +19,10 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
 import io.trino.spi.block.PageBuilderStatus;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.ShortArrayBlock;
 import io.trino.spi.block.ShortArrayBlockBuilder;
+import io.trino.spi.block.ShortArrayPreSizedBlockBuilder;
 import io.trino.spi.function.BlockIndex;
 import io.trino.spi.function.BlockPosition;
 import io.trino.spi.function.FlatFixed;
@@ -87,6 +89,12 @@ public final class SmallintType
     public BlockBuilder createFixedSizeBlockBuilder(int positionCount)
     {
         return new ShortArrayBlockBuilder(null, positionCount);
+    }
+
+    @Override
+    public PreSizedBlockBuilder createPreSizedBlockBuilder(int positionCount)
+    {
+        return new ShortArrayPreSizedBlockBuilder(positionCount);
     }
 
     @Override
@@ -178,6 +186,13 @@ public final class SmallintType
     {
         checkValueValid(value);
         writeShort(blockBuilder, (short) value);
+    }
+
+    @Override
+    public void writeLong(PreSizedBlockBuilder blockBuilder, long value)
+    {
+        checkValueValid(value);
+        ((ShortArrayPreSizedBlockBuilder) blockBuilder).writeShort((short) value);
     }
 
     public void writeShort(BlockBuilder blockBuilder, short value)

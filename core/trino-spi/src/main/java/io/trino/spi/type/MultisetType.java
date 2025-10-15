@@ -17,6 +17,7 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
 import io.trino.spi.block.MapBlock;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.SqlMap;
 
 import static io.trino.spi.type.StandardTypes.MULTISET;
@@ -52,6 +53,12 @@ public class MultisetType
 
     @Override
     public BlockBuilder createBlockBuilder(BlockBuilderStatus blockBuilderStatus, int expectedEntries)
+    {
+        throw new UnsupportedOperationException(getClass().getName());
+    }
+
+    @Override
+    public PreSizedBlockBuilder createPreSizedBlockBuilder(int positionCount)
     {
         throw new UnsupportedOperationException(getClass().getName());
     }

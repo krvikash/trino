@@ -17,8 +17,10 @@ import io.airlift.slice.Slice;
 import io.airlift.slice.XxHash64;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.block.VariableWidthBlockBuilder;
+import io.trino.spi.block.VariableWidthPreSizedBlockBuilder;
 import io.trino.spi.function.IsNull;
 import io.trino.spi.function.ScalarOperator;
 import io.trino.spi.type.AbstractVariableWidthType;
@@ -92,6 +94,16 @@ public class GeometryType
             return;
         }
         ((VariableWidthBlockBuilder) blockBuilder).writeEntry(value, offset, length);
+    }
+
+    @Override
+    public void writeSlice(PreSizedBlockBuilder blockBuilder, Slice value)
+    {
+        if (value == null) {
+            blockBuilder.appendNull();
+            return;
+        }
+        ((VariableWidthPreSizedBlockBuilder) blockBuilder).writeEntry(value);
     }
 
     @Override

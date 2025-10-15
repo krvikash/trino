@@ -19,7 +19,9 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
 import io.trino.spi.block.Int128ArrayBlock;
 import io.trino.spi.block.Int128ArrayBlockBuilder;
+import io.trino.spi.block.Int128ArrayPreSizedBlockBuilder;
 import io.trino.spi.block.PageBuilderStatus;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.function.BlockIndex;
 import io.trino.spi.function.BlockPosition;
 import io.trino.spi.function.FlatFixed;
@@ -89,6 +91,12 @@ final class LongDecimalType
     }
 
     @Override
+    public PreSizedBlockBuilder createPreSizedBlockBuilder(int positionCount)
+    {
+        return new Int128ArrayPreSizedBlockBuilder(positionCount);
+    }
+
+    @Override
     public Object getObjectValue(Block block, int position)
     {
         if (block.isNull(position)) {
@@ -117,6 +125,13 @@ final class LongDecimalType
     {
         Int128 decimal = (Int128) value;
         ((Int128ArrayBlockBuilder) blockBuilder).writeInt128(decimal.getHigh(), decimal.getLow());
+    }
+
+    @Override
+    public void writeObject(PreSizedBlockBuilder blockBuilder, Object value)
+    {
+        Int128 decimal = (Int128) value;
+        ((Int128ArrayPreSizedBlockBuilder) blockBuilder).writeInt128(decimal.getHigh(), decimal.getLow());
     }
 
     @Override

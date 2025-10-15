@@ -17,6 +17,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import io.airlift.slice.Slice;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 
 import static io.trino.spi.type.HyperLogLogType.HYPER_LOG_LOG;
 
@@ -47,6 +48,12 @@ public class P4HyperLogLogType
     public void writeSlice(BlockBuilder blockBuilder, Slice value, int offset, int length)
     {
         HYPER_LOG_LOG.writeSlice(blockBuilder, value, offset, length);
+    }
+
+    @Override
+    public void writeSlice(PreSizedBlockBuilder blockBuilder, Slice value)
+    {
+        HYPER_LOG_LOG.writeSlice(blockBuilder, value);
     }
 
     @Override

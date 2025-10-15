@@ -19,7 +19,9 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
 import io.trino.spi.block.Fixed12Block;
 import io.trino.spi.block.Fixed12BlockBuilder;
+import io.trino.spi.block.Fixed12PreSizedBlockBuilder;
 import io.trino.spi.block.PageBuilderStatus;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.function.BlockIndex;
 import io.trino.spi.function.BlockPosition;
 import io.trino.spi.function.FlatFixed;
@@ -107,6 +109,12 @@ final class LongTimestampType
     }
 
     @Override
+    public PreSizedBlockBuilder createPreSizedBlockBuilder(int positionCount)
+    {
+        return new Fixed12PreSizedBlockBuilder(positionCount);
+    }
+
+    @Override
     public void appendTo(Block block, int position, BlockBuilder blockBuilder)
     {
         if (block.isNull(position)) {
@@ -132,6 +140,13 @@ final class LongTimestampType
     {
         LongTimestamp timestamp = (LongTimestamp) value;
         write(blockBuilder, timestamp.getEpochMicros(), timestamp.getPicosOfMicro());
+    }
+
+    @Override
+    public void writeObject(PreSizedBlockBuilder blockBuilder, Object value)
+    {
+        LongTimestamp timestamp = (LongTimestamp) value;
+        ((Fixed12PreSizedBlockBuilder) blockBuilder).writeFixed12(timestamp.getEpochMicros(), timestamp.getPicosOfMicro());
     }
 
     private static void write(BlockBuilder blockBuilder, long epochMicros, int fraction)

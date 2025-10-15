@@ -17,8 +17,10 @@ import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.block.VariableWidthBlockBuilder;
+import io.trino.spi.block.VariableWidthPreSizedBlockBuilder;
 import io.trino.spi.type.AbstractVariableWidthType;
 import io.trino.spi.type.TypeSignature;
 
@@ -91,14 +93,27 @@ public class LikePatternType
     @Override
     public void writeObject(BlockBuilder blockBuilder, Object value)
     {
+        Slice slice = slicePattern(value);
+        ((VariableWidthBlockBuilder) blockBuilder).writeEntry(slice);
+    }
+
+    @Override
+    public void writeObject(PreSizedBlockBuilder blockBuilder, Object value)
+    {
+        Slice slice = slicePattern(value);
+        ((VariableWidthPreSizedBlockBuilder) blockBuilder).writeEntry(slice);
+    }
+
+    private static Slice slicePattern(Object value)
+    {
         LikePattern likePattern = (LikePattern) value;
         Slice pattern = utf8Slice(likePattern.getPattern());
 
         Slice slice = Slices.allocate(
                 Integer.BYTES +
-                pattern.length() +
-                Byte.BYTES +
-                (likePattern.getEscape().isPresent() ? Integer.BYTES : 0));
+                        pattern.length() +
+                        Byte.BYTES +
+                        (likePattern.getEscape().isPresent() ? Integer.BYTES : 0));
 
         // layout is: <pattern_length> <pattern> <hasEscape> <escape>?
         slice.setInt(0, pattern.length());
@@ -110,7 +125,6 @@ public class LikePatternType
             slice.setByte(4 + pattern.length(), (byte) 1);
             slice.setInt(4 + pattern.length() + 1, likePattern.getEscape().get());
         }
-
-        ((VariableWidthBlockBuilder) blockBuilder).writeEntry(slice);
+        return slice;
     }
 }

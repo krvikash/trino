@@ -16,8 +16,10 @@ package io.trino.spi.type;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
+import io.trino.spi.block.DefaultPreSizedBlockBuilder;
 import io.trino.spi.block.MapBlock;
 import io.trino.spi.block.MapBlockBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.SqlMap;
 import io.trino.spi.function.InvocationConvention;
 import io.trino.spi.function.OperatorMethodHandle;
@@ -267,6 +269,12 @@ public class MapType
         return createBlockBuilder(blockBuilderStatus, expectedEntries, EXPECTED_BYTES_PER_ENTRY);
     }
 
+    @Override
+    public PreSizedBlockBuilder createPreSizedBlockBuilder(int positionCount)
+    {
+        return new DefaultPreSizedBlockBuilder(createBlockBuilder(null, positionCount));
+    }
+
     public Type getKeyType()
     {
         return keyType;
@@ -337,6 +345,12 @@ public class MapType
                 valueType.appendTo(rawValueBlock, rawOffset + i, valueBuilder);
             }
         });
+    }
+
+    @Override
+    public void writeObject(PreSizedBlockBuilder blockBuilder, Object value)
+    {
+        writeObject(((DefaultPreSizedBlockBuilder) blockBuilder).getBlockBuilder(), value);
     }
 
     // FLAT MEMORY LAYOUT

@@ -19,8 +19,10 @@ import io.airlift.slice.Slices;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.block.VariableWidthBlockBuilder;
+import io.trino.spi.block.VariableWidthPreSizedBlockBuilder;
 import io.trino.spi.function.ScalarOperator;
 
 import java.util.Optional;
@@ -191,6 +193,15 @@ public final class CharType
             throw new IllegalArgumentException("Slice representing Char should not have trailing spaces");
         }
         ((VariableWidthBlockBuilder) blockBuilder).writeEntry(value, offset, length);
+    }
+
+    @Override
+    public void writeSlice(PreSizedBlockBuilder blockBuilder, Slice value)
+    {
+        if (value.length() > 0 && value.getByte(value.length() - 1) == ' ') {
+            throw new IllegalArgumentException("Slice representing Char should not have trailing spaces");
+        }
+        ((VariableWidthPreSizedBlockBuilder) blockBuilder).writeEntry(value);
     }
 
     @Override

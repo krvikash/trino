@@ -22,8 +22,10 @@ import io.airlift.slice.Slices;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockEncodingSerde;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.TestingBlockEncodingSerde;
 import io.trino.spi.block.ValueBlock;
+import io.trino.spi.type.AbstractType;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.LongTimestamp;
 import io.trino.spi.type.LongTimestampWithTimeZone;
@@ -38,6 +40,7 @@ import io.trino.type.BlockTypeOperators.BlockPositionXxHash64;
 import org.junit.jupiter.api.Test;
 
 import java.lang.invoke.MethodHandle;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -250,6 +253,72 @@ public abstract class AbstractTestType
             assertThat(variableSize).isEqualTo(variableLengths[i]);
         }
         assertFlat(newFixed, 73, newVariable, 101);
+    }
+
+    @Test
+    void testPreSizedBlockBuilderImplemented()
+    {
+        Class<?> typeClass = type.getClass();
+        // Check if createPreSizedBlockBuilder is overridden
+        boolean hasCreatePreSizedBlockBuilder = false;
+        try {
+            Method createPreSizedMethod = typeClass.getDeclaredMethod("createPreSizedBlockBuilder", int.class);
+            // If we found the method declared in this class (not inherited), it's overridden
+            hasCreatePreSizedBlockBuilder = createPreSizedMethod.getDeclaringClass().equals(typeClass);
+        }
+        catch (NoSuchMethodException e) {
+            // Method not declared in this class, check if it's declared in any superclass other than Type interface
+            try {
+                Method method = typeClass.getMethod("createPreSizedBlockBuilder", int.class);
+                // Check if it's declared in a class between this type and AbstractType
+                Class<?> declaringClass = method.getDeclaringClass();
+                hasCreatePreSizedBlockBuilder = !declaringClass.equals(Type.class) &&
+                        !declaringClass.equals(AbstractType.class) &&
+                        declaringClass.isAssignableFrom(typeClass);
+            }
+            catch (NoSuchMethodException ex) {
+                // Should not happen as Type interface declares this method
+            }
+        }
+
+        if (hasCreatePreSizedBlockBuilder) {
+            // Now verify that at least one write* method with FixedSizeBlockBuilder is implemented
+            boolean hasWriteMethod = false;
+
+            // Check all write methods: writeBoolean, writeLong, writeDouble, writeSlice, writeObject
+            String[] writeMethods = {"writeBoolean", "writeLong", "writeDouble", "writeSlice", "writeObject"};
+            Class<?>[][] parameterTypes = {
+                    {PreSizedBlockBuilder.class, boolean.class},
+                    {PreSizedBlockBuilder.class, long.class},
+                    {PreSizedBlockBuilder.class, double.class},
+                    {PreSizedBlockBuilder.class, Slice.class},
+                    {PreSizedBlockBuilder.class, Object.class}
+            };
+
+            for (int i = 0; i < writeMethods.length; i++) {
+                try {
+                    Method writeMethod = typeClass.getMethod(writeMethods[i], parameterTypes[i]);
+                    Class<?> declaringClass = writeMethod.getDeclaringClass();
+
+                    // Check if the method is overridden in this type class or any of its superclasses
+                    // (but not in AbstractType itself, as that throws UnsupportedOperationException)
+                    if (!declaringClass.equals(AbstractType.class) && !declaringClass.equals(Type.class)) {
+                        // Found an implemented write method
+                        hasWriteMethod = true;
+                        break;
+                    }
+                }
+                catch (NoSuchMethodException e) {
+                    // This write method doesn't exist, continue
+                }
+            }
+
+            if (!hasWriteMethod) {
+                throw new AssertionError(String.format(
+                        "%s implements createPreSizedBlockBuilder but does not implement any write* method with FixedSizeBlockBuilder parameter",
+                        typeClass.getName()));
+            }
+        }
     }
 
     private void assertFlat(byte[] fixed, int fixedOffset, byte[] variable, int variableOffset)

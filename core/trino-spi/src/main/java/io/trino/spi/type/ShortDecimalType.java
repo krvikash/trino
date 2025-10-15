@@ -19,7 +19,9 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
 import io.trino.spi.block.LongArrayBlock;
 import io.trino.spi.block.LongArrayBlockBuilder;
+import io.trino.spi.block.LongArrayPreSizedBlockBuilder;
 import io.trino.spi.block.PageBuilderStatus;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.function.BlockIndex;
 import io.trino.spi.function.BlockPosition;
 import io.trino.spi.function.FlatFixed;
@@ -118,6 +120,12 @@ final class ShortDecimalType
     }
 
     @Override
+    public PreSizedBlockBuilder createPreSizedBlockBuilder(int positionCount)
+    {
+        return new LongArrayPreSizedBlockBuilder(positionCount);
+    }
+
+    @Override
     public Object getObjectValue(Block block, int position)
     {
         if (block.isNull(position)) {
@@ -147,6 +155,12 @@ final class ShortDecimalType
     public void writeLong(BlockBuilder blockBuilder, long value)
     {
         ((LongArrayBlockBuilder) blockBuilder).writeLong(value);
+    }
+
+    @Override
+    public void writeLong(PreSizedBlockBuilder blockBuilder, long value)
+    {
+        ((LongArrayPreSizedBlockBuilder) blockBuilder).writeLong(value);
     }
 
     @Override

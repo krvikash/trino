@@ -18,6 +18,8 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
+import io.trino.spi.block.DefaultPreSizedBlockBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.RowBlock;
 import io.trino.spi.block.RowBlockBuilder;
 import io.trino.spi.block.SqlRow;
@@ -210,6 +212,12 @@ public class RowType
     }
 
     @Override
+    public PreSizedBlockBuilder createPreSizedBlockBuilder(int positionCount)
+    {
+        return new DefaultPreSizedBlockBuilder(createBlockBuilder(null, positionCount));
+    }
+
+    @Override
     public String getDisplayName()
     {
         // Convert to standard sql name
@@ -276,6 +284,12 @@ public class RowType
                 fields.get(i).getType().appendTo(sqlRow.getRawFieldBlock(i), rawIndex, fieldBuilders.get(i));
             }
         });
+    }
+
+    @Override
+    public void writeObject(PreSizedBlockBuilder blockBuilder, Object value)
+    {
+        writeObject(((DefaultPreSizedBlockBuilder) blockBuilder).getBlockBuilder(), value);
     }
 
     @Override

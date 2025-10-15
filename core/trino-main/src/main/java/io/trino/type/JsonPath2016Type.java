@@ -24,8 +24,10 @@ import io.trino.server.SliceSerialization;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockEncodingSerde;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.block.VariableWidthBlockBuilder;
+import io.trino.spi.block.VariableWidthPreSizedBlockBuilder;
 import io.trino.spi.type.AbstractVariableWidthType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeSignature;
@@ -75,6 +77,14 @@ public class JsonPath2016Type
         String json = jsonPathCodec.toJson((IrJsonPath) value);
         Slice bytes = utf8Slice(json);
         ((VariableWidthBlockBuilder) blockBuilder).writeEntry(bytes);
+    }
+
+    @Override
+    public void writeObject(PreSizedBlockBuilder blockBuilder, Object value)
+    {
+        String json = jsonPathCodec.toJson((IrJsonPath) value);
+        Slice bytes = utf8Slice(json);
+        ((VariableWidthPreSizedBlockBuilder) blockBuilder).writeEntry(bytes);
     }
 
     private static JsonCodec<IrJsonPath> getCodec(TypeDeserializer typeDeserializer, BlockEncodingSerde blockEncodingSerde)

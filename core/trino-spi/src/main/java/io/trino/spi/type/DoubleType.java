@@ -19,7 +19,9 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
 import io.trino.spi.block.LongArrayBlock;
 import io.trino.spi.block.LongArrayBlockBuilder;
+import io.trino.spi.block.LongArrayPreSizedBlockBuilder;
 import io.trino.spi.block.PageBuilderStatus;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.function.BlockIndex;
 import io.trino.spi.function.BlockPosition;
 import io.trino.spi.function.FlatFixed;
@@ -121,6 +123,12 @@ public final class DoubleType
     }
 
     @Override
+    public void writeDouble(PreSizedBlockBuilder blockBuilder, double value)
+    {
+        ((LongArrayPreSizedBlockBuilder) blockBuilder).writeLong(doubleToLongBits(value));
+    }
+
+    @Override
     public BlockBuilder createBlockBuilder(BlockBuilderStatus blockBuilderStatus, int expectedEntries)
     {
         int maxBlockSizeInBytes;
@@ -139,6 +147,12 @@ public final class DoubleType
     public BlockBuilder createFixedSizeBlockBuilder(int positionCount)
     {
         return new LongArrayBlockBuilder(null, positionCount);
+    }
+
+    @Override
+    public PreSizedBlockBuilder createPreSizedBlockBuilder(int positionCount)
+    {
+        return new LongArrayPreSizedBlockBuilder(positionCount);
     }
 
     @Override

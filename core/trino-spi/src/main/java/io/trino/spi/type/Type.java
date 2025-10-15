@@ -18,6 +18,7 @@ import io.airlift.slice.Slice;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.ValueBlock;
 import io.trino.spi.connector.ConnectorSession;
 
@@ -104,6 +105,8 @@ public interface Type
      */
     BlockBuilder createBlockBuilder(BlockBuilderStatus blockBuilderStatus, int expectedEntries);
 
+    PreSizedBlockBuilder createPreSizedBlockBuilder(int positionCount);
+
     /**
      * Creates a block containing as single  null values.
      */
@@ -157,20 +160,28 @@ public interface Type
      */
     void writeBoolean(BlockBuilder blockBuilder, boolean value);
 
+    void writeBoolean(PreSizedBlockBuilder blockBuilder, boolean value);
+
     /**
      * Writes the long value into the {@code BlockBuilder}.
      */
     void writeLong(BlockBuilder blockBuilder, long value);
+
+    void writeLong(PreSizedBlockBuilder blockBuilder, long value);
 
     /**
      * Writes the double value into the {@code BlockBuilder}.
      */
     void writeDouble(BlockBuilder blockBuilder, double value);
 
+    void writeDouble(PreSizedBlockBuilder blockBuilder, double value);
+
     /**
      * Writes the Slice value into the {@code BlockBuilder}.
      */
     void writeSlice(BlockBuilder blockBuilder, Slice value);
+
+    void writeSlice(PreSizedBlockBuilder blockBuilder, Slice value);
 
     /**
      * Writes the Slice value into the {@code BlockBuilder}.
@@ -181,6 +192,8 @@ public interface Type
      * Writes the Object value into the {@code BlockBuilder}.
      */
     void writeObject(BlockBuilder blockBuilder, Object value);
+
+    void writeObject(PreSizedBlockBuilder blockBuilder, Object value);
 
     /**
      * Append the value at {@code position} in {@code block} to {@code blockBuilder}.

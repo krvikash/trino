@@ -16,6 +16,7 @@ package io.trino.spi.type;
 import io.airlift.slice.Slice;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.ValueBlock;
 
 import java.util.List;
@@ -89,6 +90,12 @@ public abstract class AbstractType
     }
 
     @Override
+    public void writeBoolean(PreSizedBlockBuilder blockBuilder, boolean value)
+    {
+        throw new UnsupportedOperationException(getClass().getName());
+    }
+
+    @Override
     public long getLong(Block block, int position)
     {
         throw new UnsupportedOperationException(getClass().getName());
@@ -96,6 +103,12 @@ public abstract class AbstractType
 
     @Override
     public void writeLong(BlockBuilder blockBuilder, long value)
+    {
+        throw new UnsupportedOperationException(getClass().getName());
+    }
+
+    @Override
+    public void writeLong(PreSizedBlockBuilder blockBuilder, long value)
     {
         throw new UnsupportedOperationException(getClass().getName());
     }
@@ -113,6 +126,12 @@ public abstract class AbstractType
     }
 
     @Override
+    public void writeDouble(PreSizedBlockBuilder blockBuilder, double value)
+    {
+        throw new UnsupportedOperationException(getClass().getName());
+    }
+
+    @Override
     public Slice getSlice(Block block, int position)
     {
         throw new UnsupportedOperationException(getClass().getName());
@@ -120,6 +139,12 @@ public abstract class AbstractType
 
     @Override
     public void writeSlice(BlockBuilder blockBuilder, Slice value)
+    {
+        throw new UnsupportedOperationException(getClass().getName());
+    }
+
+    @Override
+    public void writeSlice(PreSizedBlockBuilder blockBuilder, Slice value)
     {
         throw new UnsupportedOperationException(getClass().getName());
     }
@@ -138,6 +163,12 @@ public abstract class AbstractType
 
     @Override
     public void writeObject(BlockBuilder blockBuilder, Object value)
+    {
+        writeSlice(blockBuilder, (Slice) value);
+    }
+
+    @Override
+    public void writeObject(PreSizedBlockBuilder blockBuilder, Object value)
     {
         writeSlice(blockBuilder, (Slice) value);
     }

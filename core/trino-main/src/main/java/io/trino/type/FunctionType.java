@@ -19,6 +19,7 @@ import io.airlift.slice.Slice;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.ValueBlock;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeSignature;
@@ -170,6 +171,36 @@ public class FunctionType
     }
 
     @Override
+    public void writeBoolean(PreSizedBlockBuilder blockBuilder, boolean value)
+    {
+        throw new UnsupportedOperationException(getClass().getName());
+    }
+
+    @Override
+    public void writeLong(PreSizedBlockBuilder blockBuilder, long value)
+    {
+        throw new UnsupportedOperationException(getClass().getName());
+    }
+
+    @Override
+    public void writeDouble(PreSizedBlockBuilder blockBuilder, double value)
+    {
+        throw new UnsupportedOperationException(getClass().getName());
+    }
+
+    @Override
+    public void writeSlice(PreSizedBlockBuilder blockBuilder, Slice value)
+    {
+        throw new UnsupportedOperationException(getClass().getName());
+    }
+
+    @Override
+    public void writeObject(PreSizedBlockBuilder blockBuilder, Object value)
+    {
+        throw new UnsupportedOperationException(getClass().getName());
+    }
+
+    @Override
     public Object getObject(Block block, int position)
     {
         throw new UnsupportedOperationException(getClass().getName());
@@ -201,6 +232,12 @@ public class FunctionType
 
     @Override
     public BlockBuilder createBlockBuilder(BlockBuilderStatus blockBuilderStatus, int expectedEntries)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public PreSizedBlockBuilder createPreSizedBlockBuilder(int positionCount)
     {
         throw new UnsupportedOperationException();
     }

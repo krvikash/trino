@@ -19,7 +19,9 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
 import io.trino.spi.block.LongArrayBlock;
 import io.trino.spi.block.LongArrayBlockBuilder;
+import io.trino.spi.block.LongArrayPreSizedBlockBuilder;
 import io.trino.spi.block.PageBuilderStatus;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.function.BlockIndex;
 import io.trino.spi.function.BlockPosition;
 import io.trino.spi.function.FlatFixed;
@@ -92,6 +94,12 @@ public abstract class AbstractLongType
     }
 
     @Override
+    public final void writeLong(PreSizedBlockBuilder blockBuilder, long value)
+    {
+        ((LongArrayPreSizedBlockBuilder) blockBuilder).writeLong(value);
+    }
+
+    @Override
     public final void appendTo(Block block, int position, BlockBuilder blockBuilder)
     {
         if (block.isNull(position)) {
@@ -127,6 +135,12 @@ public abstract class AbstractLongType
     public final BlockBuilder createFixedSizeBlockBuilder(int positionCount)
     {
         return new LongArrayBlockBuilder(null, positionCount);
+    }
+
+    @Override
+    public final PreSizedBlockBuilder createPreSizedBlockBuilder(int positionCount)
+    {
+        return new LongArrayPreSizedBlockBuilder(positionCount);
     }
 
     public static long hash(long value)

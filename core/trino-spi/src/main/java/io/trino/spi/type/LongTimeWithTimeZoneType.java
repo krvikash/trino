@@ -19,7 +19,9 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
 import io.trino.spi.block.Fixed12Block;
 import io.trino.spi.block.Fixed12BlockBuilder;
+import io.trino.spi.block.Fixed12PreSizedBlockBuilder;
 import io.trino.spi.block.PageBuilderStatus;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.function.BlockIndex;
 import io.trino.spi.function.BlockPosition;
 import io.trino.spi.function.FlatFixed;
@@ -95,6 +97,12 @@ final class LongTimeWithTimeZoneType
     }
 
     @Override
+    public PreSizedBlockBuilder createPreSizedBlockBuilder(int positionCount)
+    {
+        return new Fixed12PreSizedBlockBuilder(positionCount);
+    }
+
+    @Override
     public void appendTo(Block block, int position, BlockBuilder blockBuilder)
     {
         if (block.isNull(position)) {
@@ -120,6 +128,13 @@ final class LongTimeWithTimeZoneType
     {
         LongTimeWithTimeZone timestamp = (LongTimeWithTimeZone) value;
         write(blockBuilder, timestamp.getPicoseconds(), timestamp.getOffsetMinutes());
+    }
+
+    @Override
+    public void writeObject(PreSizedBlockBuilder blockBuilder, Object value)
+    {
+        LongTimeWithTimeZone timestamp = (LongTimeWithTimeZone) value;
+        ((Fixed12PreSizedBlockBuilder) blockBuilder).writeFixed12(timestamp.getPicoseconds(), timestamp.getOffsetMinutes());
     }
 
     private static void write(BlockBuilder blockBuilder, long picoseconds, int offsetMinutes)

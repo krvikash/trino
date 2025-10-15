@@ -16,8 +16,10 @@ package io.trino.plugin.ml.type;
 import io.airlift.slice.Slice;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.block.VariableWidthBlockBuilder;
+import io.trino.spi.block.VariableWidthPreSizedBlockBuilder;
 import io.trino.spi.type.AbstractVariableWidthType;
 import io.trino.spi.type.TypeSignature;
 
@@ -60,6 +62,12 @@ public class ModelType
     public void writeSlice(BlockBuilder blockBuilder, Slice value, int offset, int length)
     {
         ((VariableWidthBlockBuilder) blockBuilder).writeEntry(value, offset, length);
+    }
+
+    @Override
+    public void writeSlice(PreSizedBlockBuilder blockBuilder, Slice value)
+    {
+        ((VariableWidthPreSizedBlockBuilder) blockBuilder).writeEntry(value);
     }
 
     @Override

@@ -21,8 +21,10 @@ import io.trino.operator.scalar.json.JsonInputConversionException;
 import io.trino.operator.scalar.json.JsonOutputConversionException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.block.VariableWidthBlockBuilder;
+import io.trino.spi.block.VariableWidthPreSizedBlockBuilder;
 import io.trino.spi.type.AbstractVariableWidthType;
 import io.trino.spi.type.StandardTypes;
 import io.trino.spi.type.TypeSignature;
@@ -71,6 +73,19 @@ public class Json2016Type
     @Override
     public void writeObject(BlockBuilder blockBuilder, Object value)
     {
+        Slice bytes = sliceJson(value);
+        ((VariableWidthBlockBuilder) blockBuilder).writeEntry(bytes);
+    }
+
+    @Override
+    public void writeObject(PreSizedBlockBuilder blockBuilder, Object value)
+    {
+        Slice bytes = sliceJson(value);
+        ((VariableWidthPreSizedBlockBuilder) blockBuilder).writeEntry(bytes);
+    }
+
+    private static Slice sliceJson(Object value)
+    {
         String json;
         if (value == JSON_ERROR) {
             json = JSON_ERROR.toString();
@@ -83,7 +98,6 @@ public class Json2016Type
                 throw new JsonOutputConversionException(e);
             }
         }
-        Slice bytes = utf8Slice(json);
-        ((VariableWidthBlockBuilder) blockBuilder).writeEntry(bytes);
+        return utf8Slice(json);
     }
 }

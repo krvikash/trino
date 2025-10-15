@@ -19,7 +19,9 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
 import io.trino.spi.block.ByteArrayBlock;
 import io.trino.spi.block.ByteArrayBlockBuilder;
+import io.trino.spi.block.ByteArrayPreSizedBlockBuilder;
 import io.trino.spi.block.PageBuilderStatus;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.function.BlockIndex;
 import io.trino.spi.function.BlockPosition;
 import io.trino.spi.function.FlatFixed;
@@ -100,6 +102,12 @@ public final class BooleanType
     }
 
     @Override
+    public PreSizedBlockBuilder createPreSizedBlockBuilder(int positionCount)
+    {
+        return new ByteArrayPreSizedBlockBuilder(positionCount);
+    }
+
+    @Override
     public boolean isComparable()
     {
         return true;
@@ -148,6 +156,12 @@ public final class BooleanType
     public void writeBoolean(BlockBuilder blockBuilder, boolean value)
     {
         ((ByteArrayBlockBuilder) blockBuilder).writeByte((byte) (value ? 1 : 0));
+    }
+
+    @Override
+    public void writeBoolean(PreSizedBlockBuilder blockBuilder, boolean value)
+    {
+        ((ByteArrayPreSizedBlockBuilder) blockBuilder).writeByte((byte) (value ? 1 : 0));
     }
 
     @Override

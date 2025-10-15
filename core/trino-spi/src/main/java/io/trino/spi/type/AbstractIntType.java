@@ -20,7 +20,9 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
 import io.trino.spi.block.IntArrayBlock;
 import io.trino.spi.block.IntArrayBlockBuilder;
+import io.trino.spi.block.IntArrayPreSizedBlockBuilder;
 import io.trino.spi.block.PageBuilderStatus;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.function.BlockIndex;
 import io.trino.spi.function.BlockPosition;
 import io.trino.spi.function.FlatFixed;
@@ -99,6 +101,13 @@ public abstract class AbstractIntType
         writeInt(blockBuilder, (int) value);
     }
 
+    @Override
+    public void writeLong(PreSizedBlockBuilder blockBuilder, long value)
+    {
+        checkValueValid(value);
+        ((IntArrayPreSizedBlockBuilder) blockBuilder).writeInt((int) value);
+    }
+
     public BlockBuilder writeInt(BlockBuilder blockBuilder, int value)
     {
         return ((IntArrayBlockBuilder) blockBuilder).writeInt(value);
@@ -150,6 +159,12 @@ public abstract class AbstractIntType
     public final BlockBuilder createFixedSizeBlockBuilder(int positionCount)
     {
         return new IntArrayBlockBuilder(null, positionCount);
+    }
+
+    @Override
+    public final PreSizedBlockBuilder createPreSizedBlockBuilder(int positionCount)
+    {
+        return new IntArrayPreSizedBlockBuilder(positionCount);
     }
 
     @ScalarOperator(READ_VALUE)

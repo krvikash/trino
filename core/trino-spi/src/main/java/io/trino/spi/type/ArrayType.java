@@ -18,7 +18,9 @@ import io.trino.spi.block.ArrayBlockBuilder;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
+import io.trino.spi.block.DefaultPreSizedBlockBuilder;
 import io.trino.spi.block.DictionaryBlock;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.ValueBlock;
 import io.trino.spi.function.InvocationConvention;
@@ -272,6 +274,12 @@ public class ArrayType
         });
     }
 
+    @Override
+    public void writeObject(PreSizedBlockBuilder blockBuilder, Object value)
+    {
+        writeObject(((DefaultPreSizedBlockBuilder) blockBuilder).getBlockBuilder(), value);
+    }
+
     // FLAT MEMORY LAYOUT
     //
     // All data of the array is stored in the variable width section. Within the variable width section,
@@ -337,6 +345,12 @@ public class ArrayType
     public ArrayBlockBuilder createBlockBuilder(BlockBuilderStatus blockBuilderStatus, int expectedEntries)
     {
         return createBlockBuilder(blockBuilderStatus, expectedEntries, 100);
+    }
+
+    @Override
+    public PreSizedBlockBuilder createPreSizedBlockBuilder(int positionCount)
+    {
+        return new DefaultPreSizedBlockBuilder(createBlockBuilder(null, positionCount));
     }
 
     @Override

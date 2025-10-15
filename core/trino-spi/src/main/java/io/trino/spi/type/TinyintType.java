@@ -20,7 +20,9 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
 import io.trino.spi.block.ByteArrayBlock;
 import io.trino.spi.block.ByteArrayBlockBuilder;
+import io.trino.spi.block.ByteArrayPreSizedBlockBuilder;
 import io.trino.spi.block.PageBuilderStatus;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.function.BlockIndex;
 import io.trino.spi.function.BlockPosition;
 import io.trino.spi.function.FlatFixed;
@@ -83,6 +85,12 @@ public final class TinyintType
     public BlockBuilder createFixedSizeBlockBuilder(int positionCount)
     {
         return new ByteArrayBlockBuilder(null, positionCount);
+    }
+
+    @Override
+    public PreSizedBlockBuilder createPreSizedBlockBuilder(int positionCount)
+    {
+        return new ByteArrayPreSizedBlockBuilder(positionCount);
     }
 
     @Override
@@ -174,6 +182,13 @@ public final class TinyintType
     {
         checkValueValid(value);
         writeByte(blockBuilder, (byte) value);
+    }
+
+    @Override
+    public void writeLong(PreSizedBlockBuilder blockBuilder, long value)
+    {
+        checkValueValid(value);
+        ((ByteArrayPreSizedBlockBuilder) blockBuilder).writeByte((byte) value);
     }
 
     public void writeByte(BlockBuilder blockBuilder, byte value)
