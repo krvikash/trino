@@ -15,7 +15,9 @@ import io.trino.spi.Plugin;
 import io.trino.spi.connector.ConnectorFactory;
 import io.trino.testing.TestingConnectorContext;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -24,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TestStargateParallelPlugin
 {
     @Test
-    public void testCreateConnector()
+    public void testCreateConnector(@TempDir Path tempStorePath)
     {
         Plugin plugin = new StargateParallelPlugin();
         List<ConnectorFactory> connectorFactories = ImmutableList.copyOf(plugin.getConnectorFactories());
@@ -36,6 +38,7 @@ class TestStargateParallelPlugin
                 "connection-url", "jdbc:trino://localhost:8080/test",
                 "connection-user", "presto",
                 "ssl.enabled", "true",
+                "ssl.truststore.path", "/dev/null",
                 "ssl.truststore.password", "password");
 
         factory.create("test", properties, new TestingConnectorContext())

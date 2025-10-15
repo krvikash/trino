@@ -58,6 +58,11 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>trino-client</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-jdbc</artifactId>
         </dependency>
 

@@ -21,11 +21,8 @@ import io.trino.plugin.jdbc.DriverConnectionFactory;
 import io.trino.plugin.jdbc.credential.CredentialProvider;
 import io.trino.plugin.jdbc.credential.CredentialProviderModule;
 
-import java.io.File;
-import java.util.Optional;
-import java.util.Properties;
-
 import static com.starburstdata.trino.plugin.stargate.StargateConfig.PASSWORD;
+import static com.starburstdata.trino.plugin.stargate.TrinoUriFactory.sslConnectionProperties;
 import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 
@@ -63,27 +60,9 @@ public class StargateAuthenticationModule
                 StargateSslConfig sslConfig,
                 CredentialProvider credentialProvider)
         {
-            Properties properties = new Properties();
-            if (connectorConfig.isSslEnabled()) {
-                setSslProperties(properties, sslConfig);
-            }
-
             return DriverConnectionFactory.builder(new TrinoDriver(), config.getConnectionUrl(), credentialProvider)
-                    .setConnectionProperties(properties)
+                    .setConnectionProperties(sslConnectionProperties(connectorConfig, sslConfig))
                     .build();
         }
-    }
-
-    private static void setSslProperties(Properties properties, StargateSslConfig sslConfig)
-    {
-        properties.setProperty("SSL", "true");
-        setOptionalProperty(properties, "SSLTrustStorePath", sslConfig.getTruststoreFile().map(File::getAbsolutePath));
-        setOptionalProperty(properties, "SSLTrustStorePassword", sslConfig.getTruststorePassword());
-        setOptionalProperty(properties, "SSLTrustStoreType", sslConfig.getTruststoreType());
-    }
-
-    private static void setOptionalProperty(Properties properties, String propertyKey, Optional<String> maybeValue)
-    {
-        maybeValue.ifPresent(value -> properties.setProperty(propertyKey, value));
     }
 }

@@ -17,11 +17,9 @@ import io.trino.plugin.jdbc.BaseJdbcConfig;
 import io.trino.plugin.jdbc.credential.CredentialConfig;
 
 import java.util.Optional;
-import java.util.Properties;
 
+import static com.starburstdata.trino.plugin.stargate.TrinoUriFactory.authProperties;
 import static io.trino.client.StatementClientFactory.newStatementClient;
-import static io.trino.client.uri.PropertyName.PASSWORD;
-import static io.trino.client.uri.PropertyName.USER;
 import static java.util.Objects.requireNonNull;
 
 public class StargateClientFactory
@@ -36,16 +34,6 @@ public class StargateClientFactory
     {
         this.encoding = requireNonNull(parallelConfig, "parallelConfig is null").getEncoding();
         this.trinoUri = TrinoUri.create(config.getConnectionUrl().replaceFirst("jdbc:", ""), authProperties(credentialConfig));
-    }
-
-    private static Properties authProperties(CredentialConfig credentialConfig)
-    {
-        Properties properties = new Properties();
-        credentialConfig.getConnectionUser()
-                .ifPresent(value -> properties.put(USER.toString(), value));
-        credentialConfig.getConnectionPassword()
-                .ifPresent(value -> properties.put(PASSWORD.toString(), value));
-        return properties;
     }
 
     public StatementClient createFactory(String query)
