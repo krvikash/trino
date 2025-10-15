@@ -14,9 +14,10 @@
 package io.trino.operator.project;
 
 import io.trino.spi.block.Block;
-import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SourcePage;
+import io.trino.spi.type.Type;
 import io.trino.sql.gen.PageProjectionWork;
 import io.trino.sql.relational.RowExpression;
 
@@ -33,8 +34,7 @@ public class GeneratedPageProjection
     private final boolean isDeterministic;
     private final InputChannels inputChannels;
     private final MethodHandle pageProjectionWorkFactory;
-
-    private BlockBuilder blockBuilder;
+    private final Type type;
 
     public GeneratedPageProjection(RowExpression projection, boolean isDeterministic, InputChannels inputChannels, MethodHandle pageProjectionWorkFactory)
     {
@@ -42,7 +42,7 @@ public class GeneratedPageProjection
         this.isDeterministic = isDeterministic;
         this.inputChannels = requireNonNull(inputChannels, "inputChannels is null");
         this.pageProjectionWorkFactory = requireNonNull(pageProjectionWorkFactory, "pageProjectionWorkFactory is null");
-        this.blockBuilder = projection.type().createBlockBuilder(null, 1);
+        this.type = projection.type();
     }
 
     @Override
@@ -60,7 +60,7 @@ public class GeneratedPageProjection
     @Override
     public Block project(ConnectorSession session, SourcePage page, SelectedPositions selectedPositions)
     {
-        blockBuilder = blockBuilder.newBlockBuilderLike(selectedPositions.size(), null);
+        PreSizedBlockBuilder blockBuilder = type.createPreSizedBlockBuilder(selectedPositions.size());
         try {
             return ((PageProjectionWork) pageProjectionWorkFactory.invoke(blockBuilder, session, page, selectedPositions)).process();
         }

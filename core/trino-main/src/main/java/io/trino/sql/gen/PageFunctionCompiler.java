@@ -50,7 +50,7 @@ import io.trino.operator.project.ScalarProjectionOverBatchFunctions;
 import io.trino.operator.project.SelectedPositions;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
-import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.function.BatchFunctionImplementation;
@@ -260,7 +260,7 @@ public class PageFunctionCompiler
             throw new TrinoException(COMPILER_ERROR, e);
         }
 
-        MethodHandle pageProjectionConstructor = constructorMethodHandle(pageProjectionWorkClass, BlockBuilder.class, ConnectorSession.class, SourcePage.class, SelectedPositions.class);
+        MethodHandle pageProjectionConstructor = constructorMethodHandle(pageProjectionWorkClass, PreSizedBlockBuilder.class, ConnectorSession.class, SourcePage.class, SelectedPositions.class);
         return () -> new GeneratedPageProjection(
                 rewrittenExpression,
                 isExpressionDeterministic,
@@ -288,7 +288,7 @@ public class PageFunctionCompiler
         CachedInstanceBinder cachedInstanceBinder = new CachedInstanceBinder(classDefinition, callSiteBinder);
         RowExpressionGenerationContext context = new RowExpressionGenerationContext(rowExpressionMaxMethodsPerClass, classDefinition, cachedInstanceBinder, requiredChunkFields);
 
-        FieldDefinition blockBuilderField = classDefinition.declareField(a(PRIVATE), "blockBuilder", BlockBuilder.class);
+        FieldDefinition blockBuilderField = classDefinition.declareField(a(PRIVATE), "blockBuilder", PreSizedBlockBuilder.class);
         FieldDefinition sessionField = classDefinition.declareField(a(PRIVATE), "session", ConnectorSession.class);
         FieldDefinition selectedPositionsField = classDefinition.declareField(a(PRIVATE), "selectedPositions", SelectedPositions.class);
 
@@ -300,7 +300,7 @@ public class PageFunctionCompiler
         generateEvaluateMethod(classDefinition, context, callSiteBinder, cachedInstanceBinder, compiledLambdaMap, projection, blockBuilderField);
 
         // constructor
-        Parameter blockBuilder = arg("blockBuilder", BlockBuilder.class);
+        Parameter blockBuilder = arg("blockBuilder", PreSizedBlockBuilder.class);
         Parameter session = arg("session", ConnectorSession.class);
         Parameter page = arg("page", SourcePage.class);
         Parameter selectedPositions = arg("selectedPositions", SelectedPositions.class);

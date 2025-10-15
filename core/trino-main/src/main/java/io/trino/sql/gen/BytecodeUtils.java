@@ -26,7 +26,7 @@ import io.airlift.bytecode.instruction.LabelNode;
 import io.airlift.slice.Slice;
 import io.trino.metadata.FunctionManager;
 import io.trino.metadata.ResolvedFunction;
-import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.function.BoundSignature;
 import io.trino.spi.function.FunctionNullability;
@@ -471,7 +471,7 @@ public final class BytecodeUtils
         // Unfortunately, because of the assumptions made by try_cast, we can't get around it yet.
         // TODO: clean up once try_cast is fixed
         Variable tempValue = scope.getOrCreateTempVariable(valueJavaType);
-        Variable tempOutput = scope.getOrCreateTempVariable(BlockBuilder.class);
+        Variable tempOutput = scope.getOrCreateTempVariable(PreSizedBlockBuilder.class);
         BytecodeBlock block = new BytecodeBlock()
                 .comment("if (wasNull)")
                 .append(new IfStatement()
@@ -479,8 +479,7 @@ public final class BytecodeUtils
                         .ifTrue(new BytecodeBlock()
                                 .comment("output.appendNull();")
                                 .pop(valueJavaType)
-                                .invokeInterface(BlockBuilder.class, "appendNull", BlockBuilder.class)
-                                .pop())
+                                .invokeInterface(PreSizedBlockBuilder.class, "appendNull", void.class))
                         .ifFalse(new BytecodeBlock()
                                 .comment("%s.%s(output, %s)", type.getTypeSignature(), methodName, valueJavaType.getSimpleName())
                                 .putVariable(tempValue)
@@ -488,7 +487,7 @@ public final class BytecodeUtils
                                 .append(loadConstant(callSiteBinder.bind(type, Type.class)))
                                 .getVariable(tempOutput)
                                 .getVariable(tempValue)
-                                .invokeInterface(Type.class, methodName, void.class, BlockBuilder.class, valueJavaType)));
+                                .invokeInterface(Type.class, methodName, void.class, PreSizedBlockBuilder.class, valueJavaType)));
         scope.releaseTempVariableForReuse(tempOutput);
         scope.releaseTempVariableForReuse(tempValue);
         return block;
