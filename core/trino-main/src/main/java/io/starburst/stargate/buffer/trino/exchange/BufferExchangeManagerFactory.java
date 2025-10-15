@@ -48,7 +48,7 @@ public class BufferExchangeManagerFactory
     private BufferExchangeManagerFactory(String name, Optional<ApiFactory> apiFactory)
     {
         this.name = requireNonNull(name, "name is null");
-        this.apiFactory = apiFactory;
+        this.apiFactory = requireNonNull(apiFactory, "apiFactory is null");
     }
 
     @Override
