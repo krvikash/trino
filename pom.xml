@@ -208,6 +208,7 @@
 
         <!-- starburst specific configuration -->
         <starburst-license.header-file>${air.main.basedir}/.mvn/license/starburst-header.txt</starburst-license.header-file>
+        <apache-license.header-file>${air.main.basedir}/.mvn/license/apache-header.txt</apache-license.header-file>
 
         <air.repository.public.id>starburst-domain-maven-public</air.repository.public.id>
         <air.repository.public.name>Starburstdata Maven Public</air.repository.public.name>
