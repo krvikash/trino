@@ -32,6 +32,8 @@ import io.airlift.stats.JmxGcMonitor;
 import io.airlift.stats.PauseMeter;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
+import io.starburst.stargate.buffer.trino.exchange.BufferExchangeManagerFactory;
+import io.starburst.stargate.buffer.trino.exchange.BufferExchangeManagerFactoryRegistrar;
 import io.trino.FeaturesConfig;
 import io.trino.SystemSessionProperties;
 import io.trino.SystemSessionPropertiesProvider;
@@ -498,6 +500,10 @@ public class ServerMainModule
         // Added for RuleStatsSystemTable
         // TODO: remove this when system tables are bound separately for coordinator and worker
         newOptionalBinder(binder, RuleStatsRecorder.class);
+
+        // Buffer service exchange
+        binder.bind(BufferExchangeManagerFactory.class).toProvider(BufferExchangeManagerFactory::forRealBufferService).in(Scopes.SINGLETON);
+        binder.bind(BufferExchangeManagerFactoryRegistrar.class).in(Scopes.SINGLETON);
 
         // cleanup
         closingBinder(binder).registerExecutor(Key.get(ScheduledExecutorService.class, ForExchange.class));

@@ -20,7 +20,6 @@ import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.log.Level;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
-import io.starburst.stargate.buffer.trino.exchange.BufferExchangePlugin;
 import io.trino.plugin.exchange.filesystem.FileSystemExchangePlugin;
 import io.trino.plugin.hive.containers.Hive3MinioDataLake;
 import io.trino.plugin.hive.containers.HiveHadoop;
@@ -666,7 +665,6 @@ public final class IcebergQueryRunner
                     .setInitialTables(TpchTable.getTables())
                     .addExtraProperties(extraProperties.buildOrThrow())
                     .setAdditionalSetup(runner -> {
-                        runner.installPlugin(new BufferExchangePlugin());
                         runner.loadExchangeManager("buffer",
                                 ImmutableMap.of(
                                         "exchange.use-embedded-buffer-service", "true",

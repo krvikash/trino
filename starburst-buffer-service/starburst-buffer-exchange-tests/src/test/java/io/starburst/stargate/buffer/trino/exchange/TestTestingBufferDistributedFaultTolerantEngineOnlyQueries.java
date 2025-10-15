@@ -79,7 +79,6 @@ public class TestTestingBufferDistributedFaultTolerantEngineOnlyQueries
         DistributedQueryRunner queryRunner = MemoryQueryRunner.builder()
                 .setExtraProperties(extraProperties)
                 .setAdditionalSetup(runner -> {
-                    runner.installPlugin(new BufferExchangePlugin());
                     runner.loadExchangeManager("buffer", exchangeManagerProperties);
                 })
                 .setInitialTables(REQUIRED_TPCH_TABLES)

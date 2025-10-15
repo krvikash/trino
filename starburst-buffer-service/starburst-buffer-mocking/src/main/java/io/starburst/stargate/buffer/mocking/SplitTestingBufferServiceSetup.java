@@ -13,7 +13,6 @@ package io.starburst.stargate.buffer.mocking;
 
 import com.google.common.collect.ImmutableMap;
 import io.starburst.stargate.buffer.testing.TestingBufferService;
-import io.starburst.stargate.buffer.trino.exchange.BufferExchangePlugin;
 import io.trino.plugin.memory.MemoryQueryRunner;
 import io.trino.tpch.TpchTable;
 
@@ -81,7 +80,6 @@ public class SplitTestingBufferServiceSetup
                     .setExtraProperties(properties)
                     .setWorkerCount(0)
                     .setAdditionalSetup(runner -> {
-                        runner.installPlugin(new BufferExchangePlugin());
                         runner.loadExchangeManager("buffer", exchangeManagerProperties);
                     })
                     .setInitialTables(TpchTable.getTables())

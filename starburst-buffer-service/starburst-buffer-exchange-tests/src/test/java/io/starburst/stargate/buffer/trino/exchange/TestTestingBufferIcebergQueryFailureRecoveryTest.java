@@ -67,7 +67,6 @@ public class TestTestingBufferIcebergQueryFailureRecoveryTest
                 .setCoordinatorProperties(coordinatorProperties)
                 .setExtraProperties(configProperties)
                 .setAdditionalSetup(runner -> {
-                    runner.installPlugin(new BufferExchangePlugin());
                     runner.loadExchangeManager("buffer", exchangeManagerProperties);
                 })
                 .setAdditionalModule(failureInjectionModule)
