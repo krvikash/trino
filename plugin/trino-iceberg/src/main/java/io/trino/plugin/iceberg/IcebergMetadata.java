@@ -4149,6 +4149,9 @@ public class IcebergMetadata
 
     private static List<ManifestFile> loadAllManifestsFromSnapshot(Table icebergTable, Snapshot snapshot)
     {
+        if (snapshot == null) {
+            return ImmutableList.of();
+        }
         try {
             return snapshot.allManifests(icebergTable.io());
         }
