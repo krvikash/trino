@@ -82,6 +82,7 @@ public class BenchmarkColumnarFilter
     @Param({
             "BETWEEN",
             "LESS_THAN",
+            "NOT_EQUAL",
             "IS_NULL",
             "IS_NOT_NULL",
     })
@@ -133,6 +134,18 @@ public class BenchmarkColumnarFilter
                                 BOOLEAN,
                                 ImmutableList.of(field(0, type)),
                                 ImmutableList.of()));
+            }
+        },
+        NOT_EQUAL {
+            @Override
+            RowExpression getExpression(Type type)
+            {
+                return call(
+                        FUNCTION_RESOLUTION.resolveFunction("$not", fromTypes(BOOLEAN)),
+                        call(
+                                FUNCTION_RESOLUTION.resolveOperator(OperatorType.EQUAL, ImmutableList.of(type, type)),
+                                field(0, type),
+                                constant(CONSTANT, type)));
             }
         }
         /**/;
