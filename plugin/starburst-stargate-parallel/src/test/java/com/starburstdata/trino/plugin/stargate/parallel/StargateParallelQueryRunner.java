@@ -25,7 +25,7 @@ import io.trino.spooling.filesystem.FileSystemSpoolingPlugin;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.tpch.TpchTable;
 import org.testcontainers.containers.JdbcDatabaseContainer;
-import org.testcontainers.containers.localstack.LocalStackContainer;
+import org.testcontainers.localstack.LocalStackContainer;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -90,7 +90,7 @@ public final class StargateParallelQueryRunner
                     "fs.location", "s3://" + bucketName + "/",
                     "fs.segment.encryption", "false", // Encryption doesn't work with the direct-access yet
                     "fs.segment.pruning.enabled", "true", // We don't need pruning in tests
-                    "s3.endpoint", localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString(),
+                    "s3.endpoint", localstack.withServices("s3").getEndpoint().toString(),
                     "s3.region", localstack.getRegion(),
                     "s3.aws-access-key", localstack.getAccessKey(),
                     "s3.aws-secret-key", localstack.getSecretKey()));
@@ -256,7 +256,7 @@ public final class StargateParallelQueryRunner
     private static S3Client createS3Client(LocalStackContainer localstack)
     {
         return S3Client.builder()
-                .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3))
+                .endpointOverride(localstack.withServices("s3").getEndpoint())
                 .region(Region.of(localstack.getRegion()))
                 .credentialsProvider(StaticCredentialsProvider.create(
                         AwsBasicCredentials.create(localstack.getAccessKey(), localstack.getSecretKey())))
