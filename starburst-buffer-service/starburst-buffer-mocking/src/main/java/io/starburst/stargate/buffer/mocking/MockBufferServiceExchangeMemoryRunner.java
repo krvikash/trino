@@ -36,7 +36,7 @@ public final class MockBufferServiceExchangeMemoryRunner
                 .setAdditionalSetup(runner -> {
                     runner.installPlugin(new MockBufferExchangePlugin(mockBufferService));
                     runner.loadExchangeManager(
-                            "buffer",
+                            "mockbuffer",
                             ImmutableMap.<String, String>builder()
                                     .put("exchange.buffer-discovery.uri", "http://dummy") // required
                                     .put("exchange.source-handle-target-chunks-count", "4") // smaller handles make more sense for test env when we do not have too much data

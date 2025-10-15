@@ -56,7 +56,7 @@ public class TestMockBufferDistributedFaultTolerantEngineOnlyQueries
                 .setExtraProperties(extraProperties)
                 .setAdditionalSetup(runner -> {
                     runner.installPlugin(new MockBufferExchangePlugin(mockBufferService));
-                    runner.loadExchangeManager("buffer", exchangeManagerProperties);
+                    runner.loadExchangeManager("mockbuffer", exchangeManagerProperties);
                 })
                 .setInitialTables(REQUIRED_TPCH_TABLES)
                 .build();

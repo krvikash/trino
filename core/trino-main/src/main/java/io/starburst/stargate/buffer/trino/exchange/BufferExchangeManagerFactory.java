@@ -31,28 +31,30 @@ import static java.util.Objects.requireNonNull;
 public class BufferExchangeManagerFactory
         implements ExchangeManagerFactory
 {
+    private final String name;
     private final Optional<ApiFactory> apiFactory;
 
     public static BufferExchangeManagerFactory forRealBufferService()
     {
-        return new BufferExchangeManagerFactory(Optional.empty());
+        return new BufferExchangeManagerFactory("buffer", Optional.empty());
     }
 
     @VisibleForTesting
-    public static BufferExchangeManagerFactory withApiFactory(ApiFactory apiFactory)
+    public static BufferExchangeManagerFactory withApiFactory(String name, ApiFactory apiFactory)
     {
-        return new BufferExchangeManagerFactory(Optional.of(apiFactory));
+        return new BufferExchangeManagerFactory(name, Optional.of(apiFactory));
     }
 
-    private BufferExchangeManagerFactory(Optional<ApiFactory> apiFactory)
+    private BufferExchangeManagerFactory(String name, Optional<ApiFactory> apiFactory)
     {
+        this.name = requireNonNull(name, "name is null");
         this.apiFactory = apiFactory;
     }
 
     @Override
     public String getName()
     {
-        return "buffer";
+        return name;
     }
 
     @Override

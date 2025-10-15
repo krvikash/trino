@@ -33,7 +33,7 @@ public class MockBufferExchangePlugin
     @Override
     public Iterable<ExchangeManagerFactory> getExchangeManagerFactories()
     {
-        return ImmutableList.of(BufferExchangeManagerFactory.withApiFactory(new ApiFactory()
+        return ImmutableList.of(BufferExchangeManagerFactory.withApiFactory("mockbuffer", new ApiFactory()
         {
             @Override
             public DiscoveryApi createDiscoveryApi()

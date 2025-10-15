@@ -159,7 +159,7 @@ public class TestBufferExchangeSpecialCases
                     .setExtraProperties(extraProperties)
                     .setAdditionalSetup(runner -> {
                         runner.installPlugin(new MockBufferExchangePlugin(mockBufferService));
-                        runner.loadExchangeManager("buffer", exchangeManagerProperties);
+                        runner.loadExchangeManager("mockbuffer", exchangeManagerProperties);
                     })
                     .setInitialTables(Set.of())
                     .build();
