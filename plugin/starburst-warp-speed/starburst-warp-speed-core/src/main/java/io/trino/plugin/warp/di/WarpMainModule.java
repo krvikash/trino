@@ -17,13 +17,10 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.EventBus;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
-import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import io.airlift.json.ObjectMapperProvider;
 import io.airlift.slice.Slice;
 import io.opentelemetry.api.OpenTelemetry;
-import io.trino.plugin.hive.util.BlockJsonSerde;
-import io.trino.plugin.hive.util.HiveBlockEncodingSerde;
 import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
@@ -58,7 +55,6 @@ import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.util.json.SliceSerializer;
 import io.trino.plugin.warp.util.json.WarpColumnJsonKeyDeserializer;
 import io.trino.plugin.warp.warmup.WarmupRuleService;
-import io.trino.spi.block.Block;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import io.trino.type.TypeDeserializer;
@@ -67,7 +63,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
-import static io.airlift.json.JsonBinder.jsonBinder;
 import static io.trino.plugin.warp.di.WarpBaseModule.isSingle;
 import static java.util.Objects.requireNonNull;
 
@@ -120,11 +115,6 @@ public class WarpMainModule
     private void configureCommon(Binder binder)
     {
         binder.bind(EventBus.class).asEagerSingleton();
-
-        // bind block serializers for the purpose of TupleDomain serde
-        binder.bind(HiveBlockEncodingSerde.class).in(Scopes.SINGLETON);
-        jsonBinder(binder).addSerializerBinding(Block.class).to(BlockJsonSerde.Serializer.class);
-        jsonBinder(binder).addDeserializerBinding(Block.class).to(BlockJsonSerde.Deserializer.class);
 
         binder.bind(FlowsSequencer.class);
         binder.bind(MetricsManager.class);

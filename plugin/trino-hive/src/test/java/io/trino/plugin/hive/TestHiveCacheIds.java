@@ -33,10 +33,10 @@ import io.trino.plugin.hive.fs.TransactionScopeCachingDirectoryListerFactory;
 import io.trino.plugin.hive.metastore.HiveCacheTableId;
 import io.trino.plugin.hive.metastore.UnimplementedHiveMetastore;
 import io.trino.plugin.hive.security.SqlStandardAccessControlMetadata;
-import io.trino.plugin.hive.util.HiveBlockEncodingSerde;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.TestingBlockEncodingSerde;
 import io.trino.spi.block.TestingBlockJsonSerde;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
@@ -341,9 +341,9 @@ public class TestHiveCacheIds
         TypeDeserializer typeDeserializer = new TypeDeserializer(new TestingTypeManager());
         objectMapperProvider.setJsonDeserializers(
                 ImmutableMap.of(
-                        Block.class, new TestingBlockJsonSerde.Deserializer(new HiveBlockEncodingSerde()),
+                        Block.class, new TestingBlockJsonSerde.Deserializer(new TestingBlockEncodingSerde()),
                         Type.class, typeDeserializer));
-        objectMapperProvider.setJsonSerializers(ImmutableMap.of(Block.class, new TestingBlockJsonSerde.Serializer(new HiveBlockEncodingSerde())));
+        objectMapperProvider.setJsonSerializers(ImmutableMap.of(Block.class, new TestingBlockJsonSerde.Serializer(new TestingBlockEncodingSerde())));
         return new JsonCodecFactory(objectMapperProvider).jsonCodec(clazz);
     }
 }

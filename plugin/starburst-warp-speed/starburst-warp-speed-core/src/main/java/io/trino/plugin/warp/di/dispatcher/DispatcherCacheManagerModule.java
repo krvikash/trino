@@ -17,13 +17,10 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.EventBus;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
-import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import com.google.inject.matcher.Matchers;
 import io.airlift.json.ObjectMapperProvider;
 import io.airlift.slice.Slice;
-import io.trino.plugin.hive.util.BlockJsonSerde;
-import io.trino.plugin.hive.util.HiveBlockEncodingSerde;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.cloudvendors.CloudVendorModule;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
@@ -96,13 +93,11 @@ import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
 import io.trino.plugin.warp.util.json.SliceSerializer;
 import io.trino.plugin.warp.util.json.WarpColumnJsonKeyDeserializer;
 import io.trino.spi.NodeManager;
-import io.trino.spi.block.Block;
 
 import java.util.Map;
 import java.util.Optional;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
-import static io.airlift.json.JsonBinder.jsonBinder;
 import static io.trino.plugin.warp.di.WarpBaseModule.isSingle;
 
 /**
@@ -148,11 +143,6 @@ public class DispatcherCacheManagerModule
 
         binder.bind(SharedConfig.class).toInstance(warpCacheMgrConnectorContext.getWarpPluginSharedInstances().sharedConfig());
         binder.bind(NativeConfig.class).toInstance(warpCacheMgrConnectorContext.getWarpPluginSharedInstances().nativeConfig());
-
-        // bind block serializers for the purpose of TupleDomain serde
-        binder.bind(HiveBlockEncodingSerde.class).in(Scopes.SINGLETON);
-        jsonBinder(binder).addSerializerBinding(Block.class).to(BlockJsonSerde.Serializer.class);
-        jsonBinder(binder).addDeserializerBinding(Block.class).to(BlockJsonSerde.Deserializer.class);
 
         binder.bind(ExceptionThrower.class).toInstance(warpCacheMgrConnectorContext.getWarpPluginSharedInstances().exceptionThrower());
         binder.bind(NativeStorageStateHandler.class);

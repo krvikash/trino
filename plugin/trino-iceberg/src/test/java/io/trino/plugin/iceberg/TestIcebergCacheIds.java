@@ -24,13 +24,13 @@ import io.trino.plugin.base.TypeDeserializer;
 import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.hive.metastore.file.FileHiveMetastoreConfig;
 import io.trino.plugin.hive.metastore.file.FileHiveMetastoreFactory;
-import io.trino.plugin.hive.util.HiveBlockEncodingSerde;
 import io.trino.plugin.iceberg.catalog.file.FileMetastoreTableOperationsProvider;
 import io.trino.plugin.iceberg.catalog.hms.TrinoHiveCatalogFactory;
 import io.trino.plugin.iceberg.delete.DeleteFile;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.TestingBlockEncodingSerde;
 import io.trino.spi.block.TestingBlockJsonSerde;
 import io.trino.spi.cache.CacheTableId;
 import io.trino.spi.catalog.CatalogName;
@@ -486,9 +486,9 @@ public class TestIcebergCacheIds
         TypeDeserializer typeDeserializer = new TypeDeserializer(new TestingTypeManager());
         objectMapperProvider.setJsonDeserializers(
                 ImmutableMap.of(
-                        Block.class, new TestingBlockJsonSerde.Deserializer(new HiveBlockEncodingSerde()),
+                        Block.class, new TestingBlockJsonSerde.Deserializer(new TestingBlockEncodingSerde()),
                         Type.class, typeDeserializer));
-        objectMapperProvider.setJsonSerializers(ImmutableMap.of(Block.class, new TestingBlockJsonSerde.Serializer(new HiveBlockEncodingSerde())));
+        objectMapperProvider.setJsonSerializers(ImmutableMap.of(Block.class, new TestingBlockJsonSerde.Serializer(new TestingBlockEncodingSerde())));
         return new JsonCodecFactory(objectMapperProvider).jsonCodec(clazz);
     }
 }
