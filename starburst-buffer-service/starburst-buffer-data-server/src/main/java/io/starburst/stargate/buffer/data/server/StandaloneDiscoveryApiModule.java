@@ -9,23 +9,26 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
-import com.google.inject.AbstractModule;
+import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Provides;
+import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.http.client.HttpClient;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import io.starburst.stargate.buffer.discovery.client.ForBufferDiscoveryClient;
 import io.starburst.stargate.buffer.discovery.client.HttpDiscoveryClient;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 
 public class StandaloneDiscoveryApiModule
-        extends AbstractModule
+        extends AbstractConfigurationAwareModule
 {
     @Override
-    protected void configure()
+    protected void setup(Binder binder)
     {
-        configBinder(binder()).bindConfig(DiscoveryApiConfig.class);
+        httpClientBinder(binder).bindHttpClient("buffer-discovery.http", ForBufferDiscoveryClient.class);
+        configBinder(binder).bindConfig(DiscoveryApiConfig.class);
     }
 
     @Inject

@@ -502,7 +502,8 @@ public class ServerMainModule
         newOptionalBinder(binder, RuleStatsRecorder.class);
 
         // Buffer service exchange
-        binder.bind(BufferExchangeManagerFactory.class).toProvider(BufferExchangeManagerFactory::forRealBufferService).in(Scopes.SINGLETON);
+        binder.bind(BufferExchangeManagerFactory.InternalCommunicationDependencies.class).in(Scopes.SINGLETON);
+        binder.bind(BufferExchangeManagerFactory.class).toProvider(BufferExchangeManagerFactory.RealBufferExchangeManagerFactoryProvider.class).in(Scopes.SINGLETON);
         binder.bind(BufferExchangeManagerFactoryRegistrar.class).in(Scopes.SINGLETON);
 
         // cleanup

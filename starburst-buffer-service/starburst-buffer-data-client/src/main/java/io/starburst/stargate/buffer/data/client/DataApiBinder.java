@@ -16,9 +16,7 @@ import com.google.inject.Module;
 import com.google.inject.Scopes;
 import io.airlift.configuration.ConditionalModule;
 import io.airlift.configuration.ConfigDefaults;
-import io.airlift.http.client.HttpClientBinder;
 import io.airlift.http.client.HttpClientConfig;
-import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.azure.AzureBlobSpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.local.LocalSpooledChunkReader;
@@ -33,21 +31,17 @@ import software.amazon.awssdk.services.s3.S3AsyncClient;
 import java.util.function.Consumer;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
-import static io.airlift.units.DataSize.Unit.MEGABYTE;
-import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType.AZURE;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType.GCS;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType.LOCAL;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType.NONE;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType.S3;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class DataApiBinder
 {
     private final Binder binder;
     private final Consumer<Module> moduleInstall;
-    private final HttpClientBinder httpClientBinder;
 
     public static DataApiBinder dataApiBinder(Binder binder, Consumer<Module> moduleInstall)
     {
@@ -58,7 +52,6 @@ public class DataApiBinder
     {
         this.binder = binder;
         this.moduleInstall = moduleInstall;
-        this.httpClientBinder = HttpClientBinder.httpClientBinder(binder);
     }
 
     @CanIgnoreReturnValue
@@ -73,10 +66,6 @@ public class DataApiBinder
 
     private void bindCommon(String dataApiName, Consumer<Module> moduleInstall)
     {
-        httpClientBinder.bindHttpClient(dataApiName, ForBufferDataClient.class)
-                .withConfigDefaults(config -> config
-                        .setMaxContentLength(DataSize.of(64, MEGABYTE)) // should equal to chunk.max-size
-                        .setIdleTimeout(succinctDuration(30, SECONDS)));
         configBinder(binder).bindConfig(DataApiConfig.class, dataApiName);
 
         moduleInstall.accept(ConditionalModule.conditionalModule(

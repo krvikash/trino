@@ -30,6 +30,7 @@ import java.util.Set;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.starburst.stargate.buffer.data.server.DataServerApplicationModules.getDataServerApplicationModules;
+import static io.trino.server.InternalCommunicationHttpClientModule.internalHttpClientModule;
 import static io.trino.server.buffer.EmbeddedBufferServiceConfig.EMBEDDED_BUFFER_SERVICE_CONFIG_PREFIX;
 
 public class EmbeddedBufferServiceDataModule
@@ -40,6 +41,9 @@ public class EmbeddedBufferServiceDataModule
     {
         install(getDataServerApplicationModules(EMBEDDED_BUFFER_SERVICE_CONFIG_PREFIX, true));
         configBinder(binder).bindConfigDefaults(DataServerConfig.class, config -> config.setTraceResourceReportingEnabled(false));
+
+        // discovery client http config with internal communication
+        install(internalHttpClientModule("buffer-discovery.http", ForBufferDiscoveryClient.class).build());
     }
 
     @Inject
