@@ -438,6 +438,7 @@ public class TestDeltaLakeWriteDatabricksCompatibility
     }
 
     // the variant type requires databricks 15.3 and above
+    // TODO: add group for testing databricks 16.4 version
     @Test(groups = {DELTA_LAKE_DATABRICKS_154, PROFILE_SPECIFIC_TESTS})
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     public void testVariantType()
@@ -445,7 +446,7 @@ public class TestDeltaLakeWriteDatabricksCompatibility
         String tableName = "test_variant_type_" + randomNameSuffix();
 
         onTrino().executeQuery("CREATE TABLE delta.default." + tableName + "(a INT, v JSON) " +
-                               "WITH (location = 's3://" + bucketName + "/databricks-compatibility-test-" + tableName + "', variant_type_preview_enabled = true)");
+                               "WITH (location = 's3://" + bucketName + "/databricks-compatibility-test-" + tableName + "')");
 
         List<QueryAssert.Row> expectedRows = List.of(
                 QueryAssert.Row.row(1, "{\"key\":\"value\"}"),

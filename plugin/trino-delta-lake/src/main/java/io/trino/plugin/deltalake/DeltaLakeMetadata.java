@@ -268,7 +268,6 @@ import static io.trino.plugin.deltalake.DeltaLakeTableProperties.getDeletionVect
 import static io.trino.plugin.deltalake.DeltaLakeTableProperties.getInCommitTimestampEnabled;
 import static io.trino.plugin.deltalake.DeltaLakeTableProperties.getLocation;
 import static io.trino.plugin.deltalake.DeltaLakeTableProperties.getPartitionedBy;
-import static io.trino.plugin.deltalake.DeltaLakeTableProperties.getVariantTypePreviewEnabled;
 import static io.trino.plugin.deltalake.metastore.DeltaLakeTableMetadataScheduler.containsSchemaString;
 import static io.trino.plugin.deltalake.metastore.DeltaLakeTableMetadataScheduler.getLastTransactionVersion;
 import static io.trino.plugin.deltalake.metastore.DeltaLakeTableMetadataScheduler.isSameTransactionVersion;
@@ -3415,7 +3414,7 @@ public class DeltaLakeMetadata
                 getColumnMappingMode(properties),
                 getDeletionVectorsEnabled(properties),
                 getInCommitTimestampEnabled(properties),
-                getVariantTypePreviewEnabled(properties),
+                false, // we don't support create table with `variantType-preview` feature
                 containsVariantType);
     }
 

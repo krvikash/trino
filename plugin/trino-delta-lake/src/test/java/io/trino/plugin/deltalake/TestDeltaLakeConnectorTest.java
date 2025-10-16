@@ -347,28 +347,6 @@ public class TestDeltaLakeConnectorTest
     }
 
     @Test
-    void testUpdateVariantTypePreview()
-    {
-        try (TestTable table = newTrinoTable("test_variant", "(variant JSON) with (variant_type_preview_enabled = true)")) {
-            assertQueryReturnsEmptyResult("TABLE " + table.getName());
-            assertThat(query("TABLE \"" + table.getName() + "$properties\""))
-                    .skippingTypesCheck()
-                    .matches("VALUES " +
-                             "('delta.enableDeletionVectors', 'false')," +
-                             "('delta.minReaderVersion', '3')," +
-                             "('delta.minWriterVersion', '7')," +
-                             "('delta.feature.variantType-preview', 'supported')");
-        }
-
-        // update variantType-preview not allowed
-        try (TestTable table = newTrinoTable("test_variant", "(id int)")) {
-            assertThat(query("ALTER TABLE " + table.getName() + " SET PROPERTIES variant_type_preview_enabled = true"))
-                    .failure()
-                    .hasMessage("The following properties cannot be updated: variant_type_preview_enabled");
-        }
-    }
-
-    @Test
     void testVariantShowStats()
     {
         try (TestTable table = newTrinoTable("test_variant", "(variant JSON)", List.of("JSON '{\"id\":1}'", "JSON '{\"id\":2}'"))) {
