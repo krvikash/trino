@@ -67,6 +67,8 @@ import static java.math.RoundingMode.HALF_EVEN;
 import static java.math.RoundingMode.HALF_UP;
 import static java.math.RoundingMode.UNNECESSARY;
 import static java.time.ZoneOffset.UTC;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
@@ -685,7 +687,12 @@ public abstract class AbstractTestOracleTypeMapping
                 .execute(getQueryRunner(), session, trinoCreateAsSelect(session, "test_date"))
                 .execute(getQueryRunner(), session, trinoCreateAsSelect("test_date"))
                 .execute(getQueryRunner(), session, trinoCreateAndInsert(session, "test_date"))
-                .execute(getQueryRunner(), session, trinoCreateAndInsert("test_date"));
+                .execute(getQueryRunner(), session, trinoCreateAndInsert("test_date"))
+                .execute(getQueryRunner(), withAllowUnsafeTimestampRead(session), oracleCreateAndInsert("test_date"))
+                .execute(getQueryRunner(), withAllowUnsafeTimestampRead(session), trinoCreateAsSelect(withAllowUnsafeTimestampRead(session), "test_date"))
+                .execute(getQueryRunner(), withAllowUnsafeTimestampRead(session), trinoCreateAsSelect(withAllowUnsafeTimestampRead(getSession()), "test_date"))
+                .execute(getQueryRunner(), withAllowUnsafeTimestampRead(session), trinoCreateAndInsert(withAllowUnsafeTimestampRead(session), "test_date"))
+                .execute(getQueryRunner(), withAllowUnsafeTimestampRead(session), trinoCreateAndInsert(withAllowUnsafeTimestampRead(getSession()), "test_date"));
     }
 
     @Test
@@ -695,6 +702,7 @@ public abstract class AbstractTestOracleTypeMapping
         try (TestTable table = newTrinoTable("test_julian_dt", "(ts date)")) {
             assertUpdate(format("INSERT INTO %s VALUES (DATE '1582-10-05')", table.getName()), 1);
             assertQuery("SELECT * FROM " + table.getName(), "VALUES TIMESTAMP '1582-10-15 00:00:00'");
+            assertQuery(withAllowUnsafeTimestampRead(getSession()), "SELECT * FROM " + table.getName(), "VALUES TIMESTAMP '1582-10-15 00:00:00'");
         }
     }
 
@@ -768,7 +776,10 @@ public abstract class AbstractTestOracleTypeMapping
                 .addRoundTrip("timestamp", "TIMESTAMP '9999-12-31 00:00:00.000'", TIMESTAMP_MILLIS, "TIMESTAMP '9999-12-31 00:00:00.000'")
                 .execute(getQueryRunner(), session, trinoCreateAsSelect(session, "test_timestamp"))
                 .execute(getQueryRunner(), session, trinoCreateAsSelect("test_timestamp"))
-                .execute(getQueryRunner(), session, trinoCreateAndInsert(session, "test_timestamp"));
+                .execute(getQueryRunner(), session, trinoCreateAndInsert(session, "test_timestamp"))
+                .execute(getQueryRunner(), withAllowUnsafeTimestampRead(session), trinoCreateAsSelect(withAllowUnsafeTimestampRead(session), "test_timestamp"))
+                .execute(getQueryRunner(), withAllowUnsafeTimestampRead(session), trinoCreateAsSelect(withAllowUnsafeTimestampRead(getSession()), "test_timestamp"))
+                .execute(getQueryRunner(), withAllowUnsafeTimestampRead(session), trinoCreateAndInsert(withAllowUnsafeTimestampRead(session), "test_timestamp"));
     }
 
     @Test
@@ -813,7 +824,11 @@ public abstract class AbstractTestOracleTypeMapping
                 .execute(getQueryRunner(), session, oracleCreateAndInsert("test_timestamp_nano"))
                 .execute(getQueryRunner(), session, trinoCreateAsSelect(session, "test_timestamp_nano"))
                 .execute(getQueryRunner(), session, trinoCreateAsSelect("test_timestamp_nano"))
-                .execute(getQueryRunner(), session, trinoCreateAndInsert(session, "test_timestamp_nano"));
+                .execute(getQueryRunner(), session, trinoCreateAndInsert(session, "test_timestamp_nano"))
+                .execute(getQueryRunner(), withAllowUnsafeTimestampRead(session), oracleCreateAndInsert("test_timestamp_nano"))
+                .execute(getQueryRunner(), withAllowUnsafeTimestampRead(session), trinoCreateAsSelect(withAllowUnsafeTimestampRead(session), "test_timestamp_nano"))
+                .execute(getQueryRunner(), withAllowUnsafeTimestampRead(session), trinoCreateAsSelect(withAllowUnsafeTimestampRead(getSession()), "test_timestamp_nano"))
+                .execute(getQueryRunner(), withAllowUnsafeTimestampRead(session), trinoCreateAndInsert(withAllowUnsafeTimestampRead(session), "test_timestamp_nano"));;
     }
 
     @Test
@@ -916,6 +931,10 @@ public abstract class AbstractTestOracleTypeMapping
         tests.execute(getQueryRunner(), session, trinoCreateAsSelect("test_timestamp"));
         tests.execute(getQueryRunner(), session, trinoCreateAndInsert(session, "test_timestamp"));
         tests.execute(getQueryRunner(), session, trinoCreateAndInsert("test_timestamp"));
+        tests.execute(getQueryRunner(), withAllowUnsafeTimestampRead(session), trinoCreateAsSelect(session, "test_timestamp"));
+        tests.execute(getQueryRunner(), withAllowUnsafeTimestampRead(session), trinoCreateAsSelect("test_timestamp"));
+        tests.execute(getQueryRunner(), withAllowUnsafeTimestampRead(session), trinoCreateAndInsert(session, "test_timestamp"));
+        tests.execute(getQueryRunner(), withAllowUnsafeTimestampRead(session), trinoCreateAndInsert("test_timestamp"));
     }
 
     @Test
@@ -953,7 +972,8 @@ public abstract class AbstractTestOracleTypeMapping
                 .addRoundTrip("TIMESTAMP(9)", "TIMESTAMP '2020-09-27 12:34:56.999'", createTimestampType(9), "TIMESTAMP '2020-09-27 12:34:56.999000000'")
                 .addRoundTrip("TIMESTAMP(9)", "TIMESTAMP '2020-09-27 12:34:56.1234567'", createTimestampType(9), "TIMESTAMP '2020-09-27 12:34:56.123456700'")
 
-                .execute(getQueryRunner(), oracleCreateAndInsert("test_ts_oracle"));
+                .execute(getQueryRunner(), oracleCreateAndInsert("test_ts_oracle"))
+                .execute(getQueryRunner(), withAllowUnsafeTimestampRead(getSession()), oracleCreateAndInsert("test_ts_oracle"));
     }
 
     @Test
@@ -963,6 +983,7 @@ public abstract class AbstractTestOracleTypeMapping
         try (TestTable table = newTrinoTable("test_julian_ts", "(ts date)")) {
             assertUpdate(format("INSERT INTO %s VALUES (timestamp '1582-10-05')", table.getName()), 1);
             assertQuery("SELECT * FROM " + table.getName(), "VALUES TIMESTAMP '1582-10-15 00:00:00'");
+            assertQuery(withAllowUnsafeTimestampRead(getSession()), "SELECT * FROM " + table.getName(), "VALUES TIMESTAMP '1582-10-15 00:00:00'");
         }
     }
 
@@ -1047,7 +1068,9 @@ public abstract class AbstractTestOracleTypeMapping
                 .addRoundTrip("timestamp with time zone", timestampWithTimeZoneDataType(3).toLiteral(timeGapInKathmandu.atZone(vilnius)),
                         TIMESTAMP_TZ_MILLIS, timestampWithTimeZoneDataType(3).toLiteral(timeGapInKathmandu.atZone(vilnius)))
                 .execute(getQueryRunner(), trinoCreateAsSelect("timestamp_tz"))
-                .execute(getQueryRunner(), trinoCreateAndInsert("timestamp_tz"));
+                .execute(getQueryRunner(), trinoCreateAndInsert("timestamp_tz"))
+                .execute(getQueryRunner(), withAllowUnsafeTimestampRead(getSession()), trinoCreateAsSelect("timestamp_tz"))
+                .execute(getQueryRunner(), withAllowUnsafeTimestampRead(getSession()), trinoCreateAndInsert("timestamp_tz"));
     }
 
     @Test
@@ -1057,7 +1080,8 @@ public abstract class AbstractTestOracleTypeMapping
         DataTypeTest.create()
                 .addRoundTrip(oracleTimestamp3TimeZoneDataType(), timeDoubledInJvmZone.atZone(jvmZone))
                 .addRoundTrip(oracleTimestamp3TimeZoneDataType(), timeDoubledInVilnius.atZone(vilnius))
-                .execute(getQueryRunner(), oracleCreateAndInsert("timestamp_tz"));
+                .execute(getQueryRunner(), oracleCreateAndInsert("timestamp_tz"))
+                .execute(getQueryRunner(), withAllowUnsafeTimestampRead(getSession()), oracleCreateAndInsert("timestamp_tz"));
 
         SqlDataTypeTest.create()
                 .addRoundTrip("TIMESTAMP(3) WITH TIME ZONE", "from_tz(TIMESTAMP '1970-01-01 00:00:00.000000000', 'UTC')",
@@ -1104,7 +1128,283 @@ public abstract class AbstractTestOracleTypeMapping
                         TIMESTAMP_TZ_MILLIS, timestampWithTimeZoneDataType(3).toLiteral(timeGapInVilnius.atZone(kathmandu)))
                 .addRoundTrip("TIMESTAMP(3) WITH TIME ZONE", oracleTimestamp3TimeZoneDataType().toLiteral(timeGapInKathmandu.atZone(vilnius)),
                         TIMESTAMP_TZ_MILLIS, timestampWithTimeZoneDataType(3).toLiteral(timeGapInKathmandu.atZone(vilnius)))
-                .execute(getQueryRunner(), oracleCreateAndInsert("timestamp_tz"));
+                .execute(getQueryRunner(), oracleCreateAndInsert("timestamp_tz"))
+                .execute(getQueryRunner(), withAllowUnsafeTimestampRead(getSession()), oracleCreateAndInsert("timestamp_tz"));
+    }
+
+    private Session withAllowUnsafeTimestampRead(Session session)
+    {
+        return Session.builder(session)
+                .setCatalogSessionProperty(session.getCatalog().orElseThrow(), "allow_unsafe_timestamp_read", "true")
+                .build();
+    }
+
+    @Test
+    void testTimestampWithInvalidInternalByte()
+    {
+        try (TestTable table = new TestTable(onRemoteDatabase(), "test_date", "(ts date)")) {
+            // Manually update the internal bytes of the timestamp to be invalid
+            onRemoteDatabase().execute(buildRawDateInsertQuery("7870041E000000", table.getName()));
+
+            assertThatThrownBy(() -> computeActual("SELECT ts FROM " + table.getName()))
+                    .hasMessageContaining("Failed to read TIMESTAMP column at index 1 using getObject." +
+                            " Try setting the 'oracle.allow-unsafe-timestamp-read' configuration property or the 'allow_unsafe_timestamp_read' session property to true.")
+                    .hasStackTraceContaining("Invalid value for HourOfDay (valid values 0 - 23): -1");
+        }
+
+        try (TestTable table = new TestTable(onRemoteDatabase(), "test_timestamp", "(ts timestamp(9))")) {
+            // Manually update the internal bytes of the timestamp to be invalid
+            onRemoteDatabase().execute(buildRawTimestampInsertQuery("7870041E0101003B9AC9FF", table.getName()));
+
+            assertThatThrownBy(() -> computeActual("SELECT ts FROM " + table.getName()))
+                    .hasMessageContaining("Failed to read TIMESTAMP column at index 1 using getObject." +
+                            " Try setting the 'oracle.allow-unsafe-timestamp-read' configuration property or the 'allow_unsafe_timestamp_read' session property to true.")
+                    .hasStackTraceContaining("Invalid value for SecondOfMinute (valid values 0 - 59): -1");
+        }
+    }
+
+    @Test
+    void testTrinoReadsDateHavingInvalidInternalByte()
+    {
+        // Oracle’s DATE datatype always occupies 7 bytes, representing:
+        //
+        // | Byte | Meaning             | Formula                 |
+        // | ---- | ------------------- | ----------------------- |
+        // | 1    | Century             | `century = byte1 - 100` |
+        // | 2    | Year within century | `year = byte2 - 100`    |
+        // | 3    | Month               | `month = byte3`         |
+        // | 4    | Day                 | `day = byte4`           |
+        // | 5    | Hour                | `hour = byte5 - 1`      |
+        // | 6    | Minute              | `minute = byte6 - 1`    |
+        // | 7    | Second              | `second = byte7 - 1`    |
+
+        // AD
+        // Invalid second component (-1 sec)
+        assertRawDate("7870041E010100", "2012-04-29 23:59:59");
+        // Invalid minute component (-1 min, -1 sec)
+        assertRawDate("7870041E010000", "2012-04-29 23:58:59");
+        // Invalid hour component (-1 hour, -1 min, -1 sec)
+        assertRawDate("7870041E000000", "2012-04-29 22:58:59");
+        // Invalid day component (0 day, -1 hour, -1 min, -1 sec)
+        assertRawDate("78700400000000", "2012-03-30 22:58:59");
+        // Invalid month component (0 month, 0 day, -1 hour, -1 min, -1 sec)
+        assertRawDate("78700000000000", "2011-11-29 22:58:59");
+        // Invalid year component (-100 year, 0 month, 0 day, -1 hour, -1 min, -1 sec)
+        assertRawDate("78000000000000", "1899-11-29 22:58:59");
+
+        // Invalid second component (61 sec)
+        assertRawDate("7870041E01013E", "2012-04-30 00:01:01");
+        // Invalid minute component (61 min, 61 sec)
+        assertRawDate("7870041E013E3E", "2012-04-30 01:02:01");
+        // Invalid hour component (25 hour, 61 min, 61 sec)
+        assertRawDate("7870041E1A3E3E", "2012-05-01 02:02:01");
+        // Invalid day component (32 day, 25 hour, 61 min, 61 sec)
+        assertRawDate("787004201A3E3E", "2012-05-03 02:02:01");
+        // Invalid day component (13 month, 32 day, 25 hour, 61 min, 61 sec)
+        assertRawDate("78700D201A3E3E", "2013-02-02 02:02:01");
+
+        // BC
+        // Invalid second component (-1 sec)
+        assertRawDate("64630101010100", "-0002-12-31 23:59:59");
+        // Invalid minute component (-1 min, -1 sec)
+        assertRawDate("64630101010000", "-0002-12-31 23:58:59");
+        // Invalid hour component (-1 hour, -1 min, -1 sec)
+        assertRawDate("64630101000000", "-0002-12-31 22:58:59");
+        // Invalid day component (0 day, -1 hour, -1 min, -1 sec)
+        assertRawDate("64630100000000", "-0002-12-30 22:58:59");
+        // Invalid month component (0 month, 0 day, -1 hour, -1 min, -1 sec)
+        assertRawDate("64630000000000", "-0002-11-29 22:58:59");
+        // Invalid year component (-100 year, 0 month, 0 day, -1 hour, -1 min, -1 sec)
+        assertRawDate("64000000000000", "-0101-11-29 22:58:59");
+
+        // overflow tests
+        // Invalid second component (61 sec)
+        assertRawDate("6463010101013E", "-0001-01-01 00:01:01");
+        // Invalid minute component (61 min, 61 sec)
+        assertRawDate("64630101013E3E", "-0001-01-01 01:02:01");
+        // Invalid hour component (25 hour, 61 min, 61 sec)
+        assertRawDate("646301011A3E3E", "-0001-01-02 02:02:01");
+        // Invalid day component (32 day, 25 hour, 61 min, 61 sec)
+        assertRawDate("646301201A3E3E", "-0001-02-02 02:02:01");
+        // Invalid day component (13 month, 32 day, 25 hour, 61 min, 61 sec)
+        assertRawDate("64630D201A3E3E", "0001-02-02 02:02:01");
+        // Invalid day component (61 month, 32 day, 25 hour, 61 min, 61 sec)
+        assertRawDate("64633D201A3E3E", "0005-02-02 02:02:01");
+
+        // AD -> BC via second underflow
+        // 64650101010101 (0001-01-01 00:00:00) -> -1 second -> 64650101010100 (-0001-12-31 23:59:59)
+        assertRawDate("64650101010100", "-0001-12-31 23:59:59");
+
+        // BC -> AD via second overflow
+        // 64630C1F183C3C (-0001-12-31 23:59:59) -> +1 second -> 64630C1F183C3D (-0001-12-31 23:59:59)
+        assertRawDate("64630C1F183C3D", "0001-01-01 00:00:00");
+
+        // Min value via second underflow
+        // 35580101010101 (-4712-01-01 00:00:00) -> -1 second -> 35580101010100 (-4712-12-31 23:59:59)
+        assertRawDateSelectFailed("35580101010100", "Timestamp year out of range: -4713, allowed year range: -4712 to 9999");
+
+        // Max value via second overflow
+        // 35580101010101 (9999-12-31 23:59:59) -> +1 second -> C7C70C1F183C3D (10000-01-01 00:00:00)
+        assertRawDateSelectFailed("C7C70C1F183C3D", "Timestamp year out of range: 10000, allowed year range: -4712 to 9999");
+
+        // Min bytes
+        assertRawDateSelectFailed("00000000000000", ".*Timestamp year out of range: 15499, allowed year range: -4712 to 9999.*");
+        // Max bytes
+        assertRawDateSelectFailed("FFFFFFFFFFFFFF", ".*Timestamp year out of range: -9924, allowed year range: -4712 to 9999.*");
+    }
+
+    private void assertRawDate(String hexBytes, String expectedTimestampLiteral)
+    {
+        Session session = Session.builder(getSession())
+                .setCatalogSessionProperty(getSession().getCatalog().orElseThrow(), "allow_unsafe_timestamp_read", "true")
+                .build();
+        try (TestTable table = new TestTable(onRemoteDatabase(), "test_date", "(ts date)")) {
+            // Manually update the internal bytes of the timestamp to be invalid
+            onRemoteDatabase().execute(buildRawDateInsertQuery(hexBytes, table.getName()));
+
+            // trino
+            assertThat(query(session, "SELECT ts FROM " + table.getName()))
+                    .matches("VALUES TIMESTAMP '" + expectedTimestampLiteral + "'");
+            // oracle using query function
+            assertThat(query(session, "SELECT * FROM TABLE(system.query(query => 'SELECT ts FROM %s'))".formatted(table.getName())))
+                    .matches("VALUES TIMESTAMP '" + expectedTimestampLiteral + "'");
+
+            // Since internal bytes are invalid, predicates do not work as expected (https://starburstdata.atlassian.net/browse/DOC-9036)
+            assertThat(query(session, "SELECT ts FROM %s WHERE ts = TIMESTAMP '%s'".formatted(table.getName(), expectedTimestampLiteral)))
+                    .returnsEmptyResult();
+        }
+    }
+
+    private void assertRawDateSelectFailed(String hexBytes, String expectedErrorMessage)
+    {
+        Session session = Session.builder(getSession())
+                .setCatalogSessionProperty(getSession().getCatalog().orElseThrow(), "allow_unsafe_timestamp_read", "true")
+                .build();
+        try (TestTable table = new TestTable(onRemoteDatabase(), "test_date", "(ts date)")) {
+            // Manually update the internal bytes of the timestamp to be invalid
+            onRemoteDatabase().execute(buildRawDateInsertQuery(hexBytes, table.getName()));
+
+            assertQueryFails(session, "SELECT ts FROM " + table.getName(), expectedErrorMessage);
+        }
+    }
+
+    private static String buildRawDateInsertQuery(String hexByte, String tableName)
+    {
+        return """
+                DECLARE
+                  raw_date RAW(7) := HEXTORAW('%s');
+                  c_date DATE;
+                BEGIN
+                  -- Unsafe conversion of RAW to DATE using low-level cast
+                  DBMS_STATS.CONVERT_RAW_VALUE(raw_date, c_date);
+                  INSERT INTO %s VALUES (c_date);
+                END;""".formatted(hexByte, tableName);
+    }
+
+    @Test
+    void testTrinoReadsTimestampHavingInvalidInternalByte()
+    {
+        // Oracle’s TIMESTAMP datatype always occupies 11 bytes, representing:
+        //
+        // | Byte | Meaning             | Formula                 |
+        // | ---- | ------------------- | ----------------------- |
+        // | 1    | Century             | `century = byte1 - 100` |
+        // | 2    | Year within century | `year = byte2 - 100`    |
+        // | 3    | Month               | `month = byte3`         |
+        // | 4    | Day                 | `day = byte4`           |
+        // | 5    | Hour                | `hour = byte5 - 1`      |
+        // | 6    | Minute              | `minute = byte6 - 1`    |
+        // | 7    | Second              | `second = byte7 - 1`    |
+        // | 8–11 | Fractional seconds  |  4-byte integer         |
+
+        // AD
+        // Invalid second component (-1 sec)
+        assertRawTimestamp("7870041E0101003B9AC9FF", "2012-04-29 23:59:59.999999999");
+        // Invalid minute component (-1 min, -1 sec)
+        assertRawTimestamp("7870041E0100003B9AC9FF", "2012-04-29 23:58:59.999999999");
+        // Invalid hour component (-1 hour, -1 min, -1 sec)
+        assertRawTimestamp("7870041E0000003B9AC9FF", "2012-04-29 22:58:59.999999999");
+        // Invalid day component (0 day, -1 hour, -1 min, -1 sec)
+        assertRawTimestamp("787004000000003B9AC9FF", "2012-03-30 22:58:59.999999999");
+        // Invalid month component (0 month, 0 day, -1 hour, -1 min, -1 sec)
+        assertRawTimestamp("787000000000003B9AC9FF", "2011-11-29 22:58:59.999999999");
+        // Invalid year component (-100 year, 0 month, 0 day, -1 hour, -1 min, -1 sec)
+        assertRawTimestamp("780000000000003B9AC9FF", "1899-11-29 22:58:59.999999999");
+        // Invalid century component (0 century, -100 year, 0 month, 0 day, -1 hour, -1 min, -1 sec)
+        assertRawTimestampSelectFailed("000000000000003B9AC9FF", ".*Timestamp year out of range: 15499, allowed year range: -4712 to 9999.*");
+
+        // BC
+        // Invalid second component (-1 sec)
+        assertRawTimestamp("646301010101003B9AC9FF", "-0002-12-31 23:59:59.999999999");
+        // Invalid minute component (-1 min, -1 sec)
+        assertRawTimestamp("646301010100003B9AC9FF", "-0002-12-31 23:58:59.999999999");
+        // Invalid hour component (-1 hour, -1 min, -1 sec)
+        assertRawTimestamp("646301010000003B9AC9FF", "-0002-12-31 22:58:59.999999999");
+        // Invalid day component (0 day, -1 hour, -1 min, -1 sec)
+        assertRawTimestamp("646301000000003B9AC9FF", "-0002-12-30 22:58:59.999999999");
+        // Invalid month component (0 month, 0 day, -1 hour, -1 min, -1 sec)
+        assertRawTimestamp("646300000000003B9AC9FF", "-0002-11-29 22:58:59.999999999");
+        // Invalid year component (-100 year, 0 month, 0 day, -1 hour, -1 min, -1 sec)
+        assertRawTimestamp("640000000000003B9AC9FF", "-0101-11-29 22:58:59.999999999");
+
+        // Min bytes
+        assertRawTimestampSelectFailed("0000000000000000000000", ".*Timestamp year out of range: 15499, allowed year range: -4712 to 9999.*");
+        // Max bytes
+        assertRawTimestampSelectFailed("FFFFFFFFFFFFFF3B9AC9FF", ".*Timestamp year out of range: -9924, allowed year range: -4712 to 9999.*");
+    }
+
+    private void assertRawTimestamp(String hexBytes, String expectedTimestampLiteral)
+    {
+        Session session = Session.builder(getSession())
+                .setCatalogSessionProperty(getSession().getCatalog().orElseThrow(), "allow_unsafe_timestamp_read", "true")
+                .build();
+        try (TestTable table = new TestTable(onRemoteDatabase(), "test_timestamp", "(ts timestamp(9))")) {
+            // Manually update the internal bytes of the timestamp to be invalid
+            onRemoteDatabase().execute(buildRawTimestampInsertQuery(hexBytes, table.getName()));
+
+            // trino
+            assertThat(query(session, "SELECT ts FROM " + table.getName()))
+                    .matches("VALUES TIMESTAMP '" + expectedTimestampLiteral + "'");
+            // oracle using query function
+            assertThat(query(session, "SELECT * FROM TABLE(system.query(query => 'SELECT ts FROM %s'))".formatted(table.getName())))
+                    .matches("VALUES TIMESTAMP '" + expectedTimestampLiteral + "'");
+
+            // Since internal bytes are invalid, predicates do not work as expected (https://starburstdata.atlassian.net/browse/DOC-9036)
+            assertThat(query(session, "SELECT ts FROM %s WHERE ts = TIMESTAMP '%s'".formatted(table.getName(), expectedTimestampLiteral)))
+                    .returnsEmptyResult();
+            assertThat(query(session, "SELECT ts FROM %s WHERE ts > TIMESTAMP '%s'".formatted(table.getName(), expectedTimestampLiteral)))
+                    .matches("VALUES TIMESTAMP '" + expectedTimestampLiteral + "'");
+        }
+    }
+
+    private void assertRawTimestampSelectFailed(String hexBytes, String expectedErrorMessage)
+    {
+        Session session = Session.builder(getSession())
+                .setCatalogSessionProperty(getSession().getCatalog().orElseThrow(), "allow_unsafe_timestamp_read", "true")
+                .build();
+        try (TestTable table = new TestTable(onRemoteDatabase(), "test_timestamp", "(ts TIMESTAMP(9))")) {
+            // Manually update the internal bytes of the timestamp to be invalid
+            onRemoteDatabase().execute(buildRawTimestampInsertQuery(hexBytes, table.getName()));
+
+            assertQueryFails(session, "SELECT ts FROM " + table.getName(), expectedErrorMessage);
+        }
+    }
+
+    private static String buildRawTimestampInsertQuery(String hexByte, String tableName)
+    {
+        return """
+                DECLARE
+                    raw_timestamp RAW(11) := HEXTORAW('%s');
+                    base_date DATE;
+                    fractional_part NUMBER;
+                BEGIN
+                    DBMS_STATS.CONVERT_RAW_VALUE(SUBSTR(raw_timestamp, 1, 14), base_date); -- First 7 bytes as DATE
+                    fractional_part := UTL_RAW.CAST_TO_BINARY_INTEGER(HEXTORAW(SUBSTR(raw_timestamp, 15, 8))) / 1e9; -- last 4 bytes as fractional seconds
+
+                    INSERT INTO %s
+                    SELECT CAST(base_date AS TIMESTAMP(9)) + NUMTODSINTERVAL(fractional_part, 'SECOND')
+                    FROM dual;
+                END;""".formatted(hexByte, tableName);
     }
 
     /* Unsupported type tests */

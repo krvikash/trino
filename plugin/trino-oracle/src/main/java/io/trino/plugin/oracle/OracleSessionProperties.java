@@ -23,6 +23,7 @@ import java.math.RoundingMode;
 import java.util.List;
 import java.util.Optional;
 
+import static io.trino.spi.session.PropertyMetadata.booleanProperty;
 import static io.trino.spi.session.PropertyMetadata.enumProperty;
 import static io.trino.spi.session.PropertyMetadata.integerProperty;
 
@@ -31,6 +32,7 @@ public final class OracleSessionProperties
 {
     public static final String NUMBER_ROUNDING_MODE = "number_rounding_mode";
     public static final String NUMBER_DEFAULT_SCALE = "number_default_scale";
+    public static final String ALLOW_UNSAFE_TIMESTAMP_READ = "allow_unsafe_timestamp_read";
 
     private final List<PropertyMetadata<?>> sessionProperties;
 
@@ -49,6 +51,11 @@ public final class OracleSessionProperties
                         "Default scale for Oracle Number data type",
                         config.getDefaultNumberScale().orElse(null),
                         false))
+                .add(booleanProperty(
+                        ALLOW_UNSAFE_TIMESTAMP_READ,
+                        "Allows reading Oracle TIMESTAMP values with invalid internal bytes. It may produce inaccurate results when used in operations or predicates",
+                        config.isAllowUnsafeTimestampRead(),
+                        false))
                 .build();
     }
 
@@ -66,5 +73,10 @@ public final class OracleSessionProperties
     public static Optional<Integer> getNumberDefaultScale(ConnectorSession session)
     {
         return Optional.ofNullable(session.getProperty(NUMBER_DEFAULT_SCALE, Integer.class));
+    }
+
+    public static boolean isAllowUnsafeTimestampRead(ConnectorSession session)
+    {
+        return session.getProperty(ALLOW_UNSAFE_TIMESTAMP_READ, Boolean.class);
     }
 }

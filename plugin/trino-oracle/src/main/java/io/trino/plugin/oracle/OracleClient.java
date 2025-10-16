@@ -75,6 +75,7 @@ import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import oracle.jdbc.OraclePreparedStatement;
 import oracle.jdbc.OracleTypes;
+import oracle.sql.TIMESTAMP;
 
 import java.math.RoundingMode;
 import java.sql.Connection;
@@ -83,8 +84,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.time.DateTimeException;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -131,6 +135,7 @@ import static io.trino.plugin.jdbc.TypeHandlingJdbcSessionProperties.getUnsuppor
 import static io.trino.plugin.jdbc.UnsupportedTypeHandling.CONVERT_TO_VARCHAR;
 import static io.trino.plugin.oracle.OracleSessionProperties.getNumberDefaultScale;
 import static io.trino.plugin.oracle.OracleSessionProperties.getNumberRoundingMode;
+import static io.trino.plugin.oracle.OracleSessionProperties.isAllowUnsafeTimestampRead;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -164,6 +169,7 @@ import static java.lang.String.format;
 import static java.lang.String.join;
 import static java.util.Locale.ENGLISH;
 import static java.util.concurrent.TimeUnit.DAYS;
+import static oracle.sql.TIMESTAMP.getNanos;
 
 public class OracleClient
         extends BaseJdbcClient
@@ -172,6 +178,9 @@ public class OracleClient
 
     private static final int MAX_ORACLE_TIMESTAMP_PRECISION = 9;
     private static final int MAX_BYTES_PER_CHAR = 4;
+
+    private static final int DATE_INTERNAL_BYTE_SIZE = 7;
+    private static final int TIMESTAMP_INTERNAL_BYTE_SIZE = 11;
 
     private static final int ORACLE_VARCHAR2_MAX_BYTES = 4000;
     public static final int ORACLE_VARCHAR2_MAX_CHARS = ORACLE_VARCHAR2_MAX_BYTES / MAX_BYTES_PER_CHAR;
@@ -475,7 +484,7 @@ public class OracleClient
         if (jdbcTypeName.equalsIgnoreCase("date")) {
             return Optional.of(ColumnMapping.longMapping(
                     TIMESTAMP_SECONDS,
-                    oracleTimestampReadFunction(TIMESTAMP_SECONDS),
+                    oracleTimestampReadFunction(TIMESTAMP_SECONDS, isAllowUnsafeTimestampRead(session)),
                     trinoTimestampToOracleDateWriteFunction(),
                     FULL_PUSHDOWN));
         }
@@ -578,7 +587,7 @@ public class OracleClient
 
             case OracleTypes.TIMESTAMP:
                 int timestampPrecision = typeHandle.requiredDecimalDigits();
-                return Optional.of(oracleTimestampColumnMapping(createTimestampType(timestampPrecision)));
+                return Optional.of(oracleTimestampColumnMapping(createTimestampType(timestampPrecision), isAllowUnsafeTimestampRead(session)));
             case OracleTypes.TIMESTAMPTZ:
                 return Optional.of(oracleTimestampWithTimeZoneColumnMapping());
         }
@@ -588,18 +597,18 @@ public class OracleClient
         return Optional.empty();
     }
 
-    private static ColumnMapping oracleTimestampColumnMapping(TimestampType timestampType)
+    private static ColumnMapping oracleTimestampColumnMapping(TimestampType timestampType, boolean isAllowUnsafeTimestampRead)
     {
         if (timestampType.isShort()) {
             return ColumnMapping.longMapping(
                     timestampType,
-                    oracleTimestampReadFunction(timestampType),
+                    oracleTimestampReadFunction(timestampType, isAllowUnsafeTimestampRead),
                     oracleTimestampWriteFunction(timestampType),
                     FULL_PUSHDOWN);
         }
         return ColumnMapping.objectMapping(
                 timestampType,
-                oracleLongTimestampReadFunction(timestampType),
+                oracleLongTimestampReadFunction(timestampType, isAllowUnsafeTimestampRead),
                 oracleLongTimestampWriteFunction(timestampType),
                 FULL_PUSHDOWN);
     }
@@ -778,31 +787,103 @@ public class OracleClient
         return format("TO_TIMESTAMP(?, 'SYYYY-MM-DD HH24:MI:SS.FF%d')", precision);
     }
 
-    private static LongReadFunction oracleTimestampReadFunction(TimestampType timestampType)
+    private static LongReadFunction oracleTimestampReadFunction(TimestampType timestampType, boolean isAllowUnsafeTimestampRead)
     {
         return (resultSet, columnIndex) -> {
-            LocalDateTime timestamp = resultSet.getObject(columnIndex, LocalDateTime.class);
-            // Adjust years when the value is B.C. dates because Oracle returns +1 year unless converting to string in their server side
-            if (timestamp.getYear() <= 0) {
-                timestamp = timestamp.minusYears(1);
-            }
+            LocalDateTime timestamp = toLocalDateTime(resultSet, columnIndex, isAllowUnsafeTimestampRead);
             return toTrinoTimestamp(timestampType, timestamp);
         };
     }
 
-    private static ObjectReadFunction oracleLongTimestampReadFunction(TimestampType timestampType)
+    private static ObjectReadFunction oracleLongTimestampReadFunction(TimestampType timestampType, boolean isAllowUnsafeTimestampRead)
     {
         verifyLongTimestampPrecision(timestampType);
         return ObjectReadFunction.of(
                 LongTimestamp.class,
                 (resultSet, columnIndex) -> {
-                    LocalDateTime timestamp = resultSet.getObject(columnIndex, LocalDateTime.class);
-                    // Adjust years when the value is B.C. dates because Oracle returns +1 year unless converting to string in their server side
-                    if (timestamp.getYear() <= 0) {
-                        timestamp = timestamp.minusYears(1);
-                    }
+                    LocalDateTime timestamp = toLocalDateTime(resultSet, columnIndex, isAllowUnsafeTimestampRead);
                     return toLongTrinoTimestamp(timestampType, timestamp);
                 });
+    }
+
+    private static LocalDateTime toLocalDateTime(ResultSet resultSet, int columnIndex, boolean isAllowUnsafeTimestampRead)
+            throws SQLException
+    {
+        if (!isAllowUnsafeTimestampRead) {
+            LocalDateTime timestamp;
+            try {
+                timestamp = resultSet.getObject(columnIndex, LocalDateTime.class);
+            }
+            catch (SQLException exception) {
+                // https://docs.oracle.com/en/error-help/db/ora-17132
+                if (exception.getErrorCode() == 17132 && exception.getCause() instanceof DateTimeException) {
+                    throw new SQLException("Failed to read TIMESTAMP column at index %d using getObject.".formatted(columnIndex) +
+                            " Try setting the 'oracle.allow-unsafe-timestamp-read' configuration property or" +
+                            " the 'allow_unsafe_timestamp_read' session property to true.", exception);
+                }
+                throw exception;
+            }
+            // Adjust years when the value is B.C. dates because Oracle returns +1 year unless converting to string in their server side
+            if (timestamp.getYear() <= 0) {
+                timestamp = timestamp.minusYears(1);
+            }
+            return timestamp;
+        }
+        return toLocalDateTime(resultSet, columnIndex);
+    }
+
+    /*
+     * We explored multiple approaches to read TIMESTAMP values:
+     * 1. Using getObject(columnIndex, LocalDateTime.class) throws an exception when the internal bytes of the timestamp are invalid.
+     * 2. Using getString(columnIndex) returns a formatted timestamp string but loses the B.C. (era) information for years ≤ 0.
+     * 3. Using getTimestamp(columnIndex), but it also doesn’t handle negative years correctly.
+     *
+     * To handle both cases, we used getBytes(columnIndex) to retrieve the raw bytes,
+     * construct the TIMESTAMP object manually, and safely extract the LocalDateTime
+     * while preserving all information, including B.C. era and invalid byte handling.
+     */
+    private static LocalDateTime toLocalDateTime(ResultSet resultSet, int columnIndex)
+            throws SQLException
+    {
+        byte[] timestampBytes = resultSet.getBytes(columnIndex);
+        if (timestampBytes == null) {
+            return null;
+        }
+        if (timestampBytes.length != DATE_INTERNAL_BYTE_SIZE && timestampBytes.length != TIMESTAMP_INTERNAL_BYTE_SIZE) {
+            throw new TrinoException(NOT_SUPPORTED,
+                    "Unexpected Oracle TIMESTAMP length: " + timestampBytes.length);
+        }
+        TIMESTAMP timestamp = new TIMESTAMP(timestampBytes);
+        // Getting LocalDateTime from TIMESTAMP will throw exception when any byte is invalid
+        LocalDate localDate = timestamp.dateValue().toLocalDate();
+        LocalTime localTime = timestamp.timeValue().toLocalTime();
+
+        int year = localDate.getYear();
+        if (isBcEra(timestamp)) {
+            // Adjust years when the value is B.C. dates because Converting java.sql.Date to java.time.LocalDate loses the negative year info
+            year = -year;
+        }
+        if (year < -4712 || year > 9999) {
+            // https://docs.oracle.com/en/error-help/db/ora-01841/
+            throw new TrinoException(NOT_SUPPORTED, "Timestamp year out of range: " + year + ", allowed year range: -4712 to 9999");
+        }
+        localDate = LocalDate.of(year, localDate.getMonthValue(), localDate.getDayOfMonth());
+
+        int nanos = 0;
+        if (timestampBytes.length == TIMESTAMP_INTERNAL_BYTE_SIZE) {
+            // Converting java.sql.Time to java.time.LocalTime loses nanoseconds precision, so we need to extract it from bytes
+            nanos = getNanos(timestampBytes, DATE_INTERNAL_BYTE_SIZE);
+        }
+        localTime = localTime.plusNanos(nanos);
+
+        return LocalDateTime.of(localDate, localTime);
+    }
+
+    private static boolean isBcEra(TIMESTAMP timestamp)
+            throws SQLException
+    {
+        return timestamp.dateValue()
+                .before(java.sql.Date.valueOf(LocalDate.of(1, 1, 1)));
     }
 
     private static void verifyLongTimestampPrecision(TimestampType timestampType)

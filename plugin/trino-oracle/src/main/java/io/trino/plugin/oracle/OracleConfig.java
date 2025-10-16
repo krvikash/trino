@@ -39,6 +39,7 @@ public class OracleConfig
     private int connectionPoolMaxSize = 30;
     private Duration inactiveConnectionTimeout = new Duration(20, MINUTES);
     private Integer fetchSize;
+    private boolean allowUnsafeTimestampRead;
 
     public boolean isSynonymsEnabled()
     {
@@ -159,5 +160,18 @@ public class OracleConfig
     public boolean isPoolSizedProperly()
     {
         return getConnectionPoolMaxSize() >= getConnectionPoolMinSize();
+    }
+
+    public boolean isAllowUnsafeTimestampRead()
+    {
+        return allowUnsafeTimestampRead;
+    }
+
+    @Config("oracle.allow-unsafe-timestamp-read")
+    @ConfigDescription("Allows reading Oracle TIMESTAMP values with invalid internal bytes. It may produce inaccurate results when used in operations or predicates")
+    public OracleConfig setAllowUnsafeTimestampRead(boolean allowUnsafeTimestampRead)
+    {
+        this.allowUnsafeTimestampRead = allowUnsafeTimestampRead;
+        return this;
     }
 }
