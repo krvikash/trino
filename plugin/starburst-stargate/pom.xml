@@ -324,6 +324,20 @@
         <pluginManagement>
             <plugins>
                 <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <configuration>
+                        <rules>
+                            <bannedDependencies>
+                                <includes combine.children="append">
+                                    <!-- Legacy HDFS file system uses AWS S3 SDK v1 -->
+                                    <include>com.amazonaws:*:*</include>
+                                </includes>
+                            </bannedDependencies>
+                        </rules>
+                    </configuration>
+                </plugin>
+                <plugin>
                     <groupId>com.mycila</groupId>
                     <artifactId>license-maven-plugin</artifactId>
                     <configuration>
