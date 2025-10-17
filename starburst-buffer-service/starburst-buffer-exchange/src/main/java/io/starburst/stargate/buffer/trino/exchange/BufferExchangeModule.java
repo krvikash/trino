@@ -21,6 +21,7 @@ import io.airlift.json.JsonBinder;
 import io.airlift.tracing.SpanSerialization;
 import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
+import io.starburst.stargate.buffer.discovery.client.ForBufferDiscoveryClient;
 import io.starburst.stargate.buffer.discovery.client.HttpDiscoveryClient;
 import io.trino.spi.CoordinatorLocator;
 import io.trino.spi.TrinoException;

@@ -7,7 +7,7 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package io.starburst.stargate.buffer.trino.exchange;
+package io.starburst.stargate.buffer.discovery.client;
 
 import com.google.inject.BindingAnnotation;
 

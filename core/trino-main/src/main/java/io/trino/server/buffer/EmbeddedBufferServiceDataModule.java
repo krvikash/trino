@@ -19,8 +19,8 @@ import com.google.inject.Provides;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.http.client.HttpClient;
 import io.starburst.stargate.buffer.data.server.DataServerConfig;
-import io.starburst.stargate.buffer.data.server.ForBufferDiscoveryClient;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
+import io.starburst.stargate.buffer.discovery.client.ForBufferDiscoveryClient;
 import io.starburst.stargate.buffer.discovery.client.HttpDiscoveryClient;
 import io.trino.node.InternalCoordinatorLocator;
 

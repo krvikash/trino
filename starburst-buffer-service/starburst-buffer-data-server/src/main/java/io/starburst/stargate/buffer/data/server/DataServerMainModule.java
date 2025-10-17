@@ -27,6 +27,7 @@ import io.starburst.stargate.buffer.data.execution.SpooledChunksByExchange;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
 import io.starburst.stargate.buffer.data.spooling.MergedFileNameGenerator;
+import io.starburst.stargate.buffer.discovery.client.ForBufferDiscoveryClient;
 import io.starburst.stargate.buffer.status.StatusProvider;
 
 import java.security.SecureRandom;

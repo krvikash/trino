@@ -14,6 +14,7 @@ import com.google.inject.Inject;
 import com.google.inject.Provides;
 import io.airlift.http.client.HttpClient;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
+import io.starburst.stargate.buffer.discovery.client.ForBufferDiscoveryClient;
 import io.starburst.stargate.buffer.discovery.client.HttpDiscoveryClient;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
