@@ -121,14 +121,14 @@ public class TestManagedKubernetesLicenseProvider
         LicenseProvider licenseProvider = new ManagedKubernetesLicenseProvider(TestingURLRequester.builder()
                 .withDownloadResponse("/license", licenseCheckoutSuccessJson)
                 .build());
-        assertThat(licenseProvider.getLicense()).contains(License.unsignedAllFeatures("200442618260", LicenseType.AWS_EKS, LocalDateTime.MAX));
+        assertThat(licenseProvider.getLicense()).contains(License.unsigned("200442618260", LicenseType.AWS_EKS, LocalDateTime.MAX));
         assertThat(licenseProvider.getLicense().orElseThrow().getHash()).isEmpty();
 
         // Verify cashing - no external services will be called as license was previously created (verification that throws exception will not be called.
         licenseProvider = new ManagedKubernetesLicenseProvider(TestingURLRequester.builder()
                 .withDownloadResponse("/license", licenseCheckoutFailureJson)
                 .build());
-        assertThat(licenseProvider.getLicense()).contains(License.unsignedAllFeatures("200442618260", LicenseType.AWS_EKS, LocalDateTime.MAX));
+        assertThat(licenseProvider.getLicense()).contains(License.unsigned("200442618260", LicenseType.AWS_EKS, LocalDateTime.MAX));
         assertThat(licenseProvider.getLicense().orElseThrow().getHash()).isEmpty();
     }
 

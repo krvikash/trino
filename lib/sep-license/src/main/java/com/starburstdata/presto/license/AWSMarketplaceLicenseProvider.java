@@ -88,7 +88,7 @@ class AWSMarketplaceLicenseProvider
             identityVerifier.verify(identityJson, base64Signature);
             AWSIdentityDocument identityDocument = AWS_IDENTITY_DOCUMENT_JSON_CODEC.fromJson(identityJson);
             if (!Sets.intersection(identityDocument.getMarketplaceProductCodes(), marketplaceProductCodes).isEmpty()) {
-                return Optional.of(License.unsignedAllFeatures(identityDocument.getAccountId(), LicenseType.AWS, LocalDateTime.MAX));
+                return Optional.of(License.unsigned(identityDocument.getAccountId(), LicenseType.AWS, LocalDateTime.MAX));
             }
             log.info("Did not find Starburst Enterprise AWS Marketplace license");
             return Optional.empty();

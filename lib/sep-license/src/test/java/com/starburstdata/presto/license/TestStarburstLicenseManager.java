@@ -41,7 +41,7 @@ public class TestStarburstLicenseManager
 
     private static Optional<License> getWildcardLicense()
     {
-        return Optional.of(License.unsignedAllFeatures("testing", LicenseType.UNKNOWN, LocalDateTime.parse("2000-01-01T00:00:00")));
+        return Optional.of(License.unsigned("testing", LicenseType.UNKNOWN, LocalDateTime.parse("2000-01-01T00:00:00")));
     }
 
     private static Optional<License> getExplicitLicense(StarburstFeature feature)

@@ -40,7 +40,7 @@ public class License
         return new License(owner, type, expiry, features, "");
     }
 
-    public static License unsignedAllFeatures(String owner, LicenseType type, LocalDateTime expiry)
+    public static License unsigned(String owner, LicenseType type, LocalDateTime expiry)
     {
         return new License(owner, type, expiry, ImmutableSortedSet.of(), "");
     }

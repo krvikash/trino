@@ -164,7 +164,7 @@ class ManagedKubernetesLicenseProvider
             return Optional.empty();
         }
         log.info("%s License successfully initialized", PROVIDER_NAME);
-        setManagedKubernetesLicense(License.unsignedAllFeatures(identity, cloudUsed.getLicenseType(), LocalDateTime.MAX));
+        setManagedKubernetesLicense(License.unsigned(identity, cloudUsed.getLicenseType(), LocalDateTime.MAX));
         return Optional.of(managedKubernetesLicense);
     }
 }

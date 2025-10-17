@@ -143,7 +143,7 @@ public class TestAWSMarketplaceLicenseProvider
                 (identity, base64Signature) -> {},
                 ImmutableSet.of("yh32yzm07ctyg8b4gpsk127n"),
                 defaultTestRequester);
-        assertThat(licenseProvider.getLicense()).contains(License.unsignedAllFeatures("200442618260", LicenseType.AWS, LocalDateTime.MAX));
+        assertThat(licenseProvider.getLicense()).contains(License.unsigned("200442618260", LicenseType.AWS, LocalDateTime.MAX));
         assertThat(licenseProvider.getLicense().orElseThrow().getHash()).isEmpty();
         assertThat(licenseProvider.getFileHandle()).isEmpty();
     }
@@ -159,7 +159,7 @@ public class TestAWSMarketplaceLicenseProvider
                         .withDownloadResponse(METADATA_SERVICE_INSTANCE_IDENTITY_BASE_PATH + "document", identityStarburstAlluxioJson)
                         .withDownloadResponse(METADATA_SERVICE_INSTANCE_IDENTITY_BASE_PATH + "signature", signature)
                         .build());
-        assertThat(licenseProvider.getLicense()).contains(License.unsignedAllFeatures("200442618260", LicenseType.AWS, LocalDateTime.MAX));
+        assertThat(licenseProvider.getLicense()).contains(License.unsigned("200442618260", LicenseType.AWS, LocalDateTime.MAX));
         assertThat(licenseProvider.getFileHandle()).isEmpty();
     }
 }
