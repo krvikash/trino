@@ -53,13 +53,11 @@ public class TestVByteEncoding
 
     private static int testIntRoundTrip(int[] input, int offset, int count)
     {
-        VByteEncoder encoder = VByteEncoder.create();
-        VByteDecoder decoder = VByteDecoder.create();
         byte[] encoded = new byte[VByteUtils.maxIntsEncodedLength(count)];
-        int encodedLength = encoder.encodeInts(input, offset, count, encoded, 0, encoded.length);
+        int encodedLength = VByteEncoder.encodeInts(input, offset, count, encoded, 0, encoded.length);
 
         int[] decoded = new int[count];
-        int decodedLength = decoder.decodeInts(encoded, 0, encodedLength, count, decoded, 0);
+        int decodedLength = VByteDecoder.decodeInts(encoded, 0, encodedLength, count, decoded, 0);
 
         assertThat(encodedLength).isEqualTo(decodedLength);
         assertThat(decoded).containsExactly(copyOfRange(input, offset, offset + count));
@@ -103,13 +101,11 @@ public class TestVByteEncoding
 
     private static int testLongRoundTrip(long[] input, int offset, int count)
     {
-        VByteEncoder encoder = VByteEncoder.create();
-        VByteDecoder decoder = VByteDecoder.create();
         byte[] encoded = new byte[VByteUtils.maxLongsEncodedLength(count)];
-        int encodedLength = encoder.encodeLongs(input, offset, count, encoded, 0, encoded.length);
+        int encodedLength = VByteEncoder.encodeLongs(input, offset, count, encoded, 0, encoded.length);
 
         long[] decoded = new long[count];
-        int decodedLength = decoder.decodeLongs(encoded, 0, encodedLength, count, decoded, 0);
+        int decodedLength = VByteDecoder.decodeLongs(encoded, 0, encodedLength, count, decoded, 0);
 
         assertThat(encodedLength).isEqualTo(decodedLength);
         assertThat(decoded).containsExactly(copyOfRange(input, offset, offset + count));

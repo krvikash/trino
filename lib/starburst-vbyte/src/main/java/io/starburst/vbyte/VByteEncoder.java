@@ -9,21 +9,21 @@
  */
 package io.starburst.vbyte;
 
-public sealed interface VByteEncoder
-        permits VByteNativeEncoder
-{
-    static VByteEncoder create()
-    {
-        VByteNative.verifyEnabled();
-        return new VByteNativeEncoder();
-    }
+import java.lang.foreign.MemorySegment;
 
-    default int maxIntsEncodedLength(int inputIntsCount)
+import static io.starburst.vbyte.VByteNative.SIZE_OF_INT;
+import static io.starburst.vbyte.VByteNative.SIZE_OF_LONG;
+
+public final class VByteEncoder
+{
+    private VByteEncoder() {}
+
+    public static int maxIntsEncodedLength(int inputIntsCount)
     {
         return VByteUtils.maxIntsEncodedLength(inputIntsCount);
     }
 
-    default int maxLongsEncodedLength(int inputLongsCount)
+    public static int maxLongsEncodedLength(int inputLongsCount)
     {
         return VByteUtils.maxLongsEncodedLength(inputLongsCount);
     }
@@ -33,12 +33,22 @@ public sealed interface VByteEncoder
      *
      * @return number of bytes written to the output
      */
-    int encodeLongs(long[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength);
+    public static int encodeInts(int[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
+    {
+        MemorySegment inputSegment = MemorySegment.ofArray(input).asSlice((long) inputOffset * SIZE_OF_INT, (long) inputLength * SIZE_OF_INT);
+        MemorySegment outputSegment = MemorySegment.ofArray(output).asSlice(outputOffset, maxOutputLength);
+        return VByteNative.encode(inputSegment, inputLength, outputSegment);
+    }
 
     /**
      * Encode array o integers using vbyte encoding.
      *
      * @return number of bytes written to the output
      */
-    int encodeInts(int[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength);
+    public static int encodeLongs(long[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
+    {
+        MemorySegment inputSegment = MemorySegment.ofArray(input).asSlice((long) inputOffset * SIZE_OF_LONG, (long) inputLength * SIZE_OF_LONG);
+        MemorySegment outputSegment = MemorySegment.ofArray(output).asSlice(outputOffset, maxOutputLength);
+        return VByteNative.encode(inputSegment, inputLength * 2, outputSegment);
+    }
 }

@@ -22,40 +22,40 @@ public final class VByteUtils
 {
     private VByteUtils() {}
 
-    public static void vByteEncodeLongs(VByteEncoder vByteEncoder, SliceOutput sliceOutput, long[] values, int valuesOffset, int valuesCount)
+    public static void vByteEncodeLongs(SliceOutput sliceOutput, long[] values, int valuesOffset, int valuesCount)
     {
-        byte[] vbyteEncodedValues = new byte[vByteEncoder.maxLongsEncodedLength(valuesCount)];
-        int vbyteEncodedValuesSize = vByteEncoder.encodeLongs(values, valuesOffset, valuesCount, vbyteEncodedValues, 0, vbyteEncodedValues.length);
+        byte[] vbyteEncodedValues = new byte[VByteEncoder.maxLongsEncodedLength(valuesCount)];
+        int vbyteEncodedValuesSize = VByteEncoder.encodeLongs(values, valuesOffset, valuesCount, vbyteEncodedValues, 0, vbyteEncodedValues.length);
         sliceOutput.writeInt(vbyteEncodedValuesSize);
         sliceOutput.write(vbyteEncodedValues, 0, vbyteEncodedValuesSize);
     }
 
-    public static void vByteDecodeLongs(VByteDecoder vByteDecoder, SliceInput sliceInput, int valuesCount, long[] values)
+    public static void vByteDecodeLongs(SliceInput sliceInput, int valuesCount, long[] values)
     {
         int vbyteEncodedValuesSize = sliceInput.readInt();
         byte[] vbyteEncodedValues = new byte[vbyteEncodedValuesSize];
         sliceInput.read(vbyteEncodedValues);
-        vByteDecoder.decodeLongs(vbyteEncodedValues, 0, vbyteEncodedValues.length, valuesCount, values, 0);
+        VByteDecoder.decodeLongs(vbyteEncodedValues, 0, vbyteEncodedValues.length, valuesCount, values, 0);
     }
 
-    public static void vByteEncodeInts(VByteEncoder vByteEncoder, SliceOutput sliceOutput, int[] values, int valuesOffset, int valuesCount)
+    public static void vByteEncodeInts(SliceOutput sliceOutput, int[] values, int valuesOffset, int valuesCount)
     {
-        byte[] vbyteEncodedValues = new byte[vByteEncoder.maxLongsEncodedLength(valuesCount)];
-        int vbyteEncodedValuesSize = vByteEncoder.encodeInts(values, valuesOffset, valuesCount, vbyteEncodedValues, 0, vbyteEncodedValues.length);
+        byte[] vbyteEncodedValues = new byte[VByteEncoder.maxLongsEncodedLength(valuesCount)];
+        int vbyteEncodedValuesSize = VByteEncoder.encodeInts(values, valuesOffset, valuesCount, vbyteEncodedValues, 0, vbyteEncodedValues.length);
         sliceOutput.writeInt(vbyteEncodedValuesSize);
         sliceOutput.write(vbyteEncodedValues, 0, vbyteEncodedValuesSize);
     }
 
-    public static void vByteDecodeInts(VByteDecoder vByteDecoder, SliceInput sliceInput, int valuesCount, int[] values)
+    public static void vByteDecodeInts(SliceInput sliceInput, int valuesCount, int[] values)
     {
-        vByteDecodeInts(vByteDecoder, sliceInput, valuesCount, values, 0);
+        vByteDecodeInts(sliceInput, valuesCount, values, 0);
     }
 
-    public static void vByteDecodeInts(VByteDecoder vByteDecoder, SliceInput sliceInput, int valuesCount, int[] values, int valuesOffset)
+    public static void vByteDecodeInts(SliceInput sliceInput, int valuesCount, int[] values, int valuesOffset)
     {
         int vByteEncodedValuesSize = sliceInput.readInt();
         byte[] vByteEncodedValues = new byte[vByteEncodedValuesSize];
         sliceInput.read(vByteEncodedValues);
-        vByteDecoder.decodeInts(vByteEncodedValues, 0, vByteEncodedValues.length, valuesCount, values, valuesOffset);
+        VByteDecoder.decodeInts(vByteEncodedValues, 0, vByteEncodedValues.length, valuesCount, values, valuesOffset);
     }
 }

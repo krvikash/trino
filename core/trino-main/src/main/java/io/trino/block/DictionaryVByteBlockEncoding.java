@@ -15,8 +15,6 @@ package io.trino.block;
 
 import io.airlift.slice.SliceInput;
 import io.airlift.slice.SliceOutput;
-import io.starburst.vbyte.VByteDecoder;
-import io.starburst.vbyte.VByteEncoder;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockEncoding;
 import io.trino.spi.block.BlockEncodingSerde;
@@ -31,9 +29,6 @@ public class DictionaryVByteBlockEncoding
         implements BlockEncoding
 {
     public static final String NAME = "DICTIONARY_VB";
-
-    private final VByteEncoder vByteEncoder = VByteEncoder.create();
-    private final VByteDecoder vByteDecoder = VByteDecoder.create();
 
     @Override
     public String getName()
@@ -66,7 +61,7 @@ public class DictionaryVByteBlockEncoding
         blockEncodingSerde.writeBlock(sliceOutput, dictionary);
 
         // ids
-        vByteEncodeInts(vByteEncoder, sliceOutput, dictionaryBlock.getRawIds(), dictionaryBlock.getRawIdsOffset(), dictionaryBlock.getPositionCount());
+        vByteEncodeInts(sliceOutput, dictionaryBlock.getRawIds(), dictionaryBlock.getRawIdsOffset(), dictionaryBlock.getPositionCount());
     }
 
     @Override
@@ -80,7 +75,7 @@ public class DictionaryVByteBlockEncoding
 
         // ids
         int[] ids = new int[positionCount];
-        vByteDecodeInts(vByteDecoder, sliceInput, positionCount, ids);
+        vByteDecodeInts(sliceInput, positionCount, ids);
 
         // flatten the dictionary
         return dictionaryBlock.copyPositions(ids, 0, ids.length);

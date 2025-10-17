@@ -53,13 +53,6 @@ public final class VByteNative
         return LINKAGE_ERROR;
     }
 
-    public static void verifyEnabled()
-    {
-        if (LINKAGE_ERROR.isPresent()) {
-            throw new IllegalStateException("VByte native library is not enabled", LINKAGE_ERROR.get());
-        }
-    }
-
     public static int encode(MemorySegment input, int inputLength, MemorySegment output)
     {
         checkArgument(output.byteSize() >= maxIntsEncodedLength(inputLength), "Output buffer is too small");

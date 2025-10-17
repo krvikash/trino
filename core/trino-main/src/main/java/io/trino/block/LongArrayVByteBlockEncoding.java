@@ -15,8 +15,6 @@ package io.trino.block;
 
 import io.airlift.slice.SliceInput;
 import io.airlift.slice.SliceOutput;
-import io.starburst.vbyte.VByteDecoder;
-import io.starburst.vbyte.VByteEncoder;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockEncoding;
 import io.trino.spi.block.BlockEncodingSerde;
@@ -36,9 +34,6 @@ public class LongArrayVByteBlockEncoding
         implements BlockEncoding
 {
     public static final String NAME = "LONG_ARRAY_VB";
-
-    private final VByteEncoder vByteEncoder = VByteEncoder.create();
-    private final VByteDecoder vByteDecoder = VByteDecoder.create();
 
     @Override
     public String getName()
@@ -62,7 +57,7 @@ public class LongArrayVByteBlockEncoding
         encodeNullsAsBits(sliceOutput, getRawValueIsNull(longArrayBlock), longArrayBlock.getRawValuesOffset(), positionCount);
 
         if (!longArrayBlock.mayHaveNull()) {
-            vByteEncodeLongs(vByteEncoder, sliceOutput, longArrayBlock.getRawValues(), longArrayBlock.getRawValuesOffset(), longArrayBlock.getPositionCount());
+            vByteEncodeLongs(sliceOutput, longArrayBlock.getRawValues(), longArrayBlock.getRawValuesOffset(), longArrayBlock.getPositionCount());
         }
         else {
             long[] valuesWithoutNull = new long[positionCount];
@@ -75,7 +70,7 @@ public class LongArrayVByteBlockEncoding
             }
 
             sliceOutput.writeInt(nonNullPositionCount);
-            vByteEncodeLongs(vByteEncoder, sliceOutput, valuesWithoutNull, 0, nonNullPositionCount);
+            vByteEncodeLongs(sliceOutput, valuesWithoutNull, 0, nonNullPositionCount);
         }
     }
 
@@ -88,13 +83,13 @@ public class LongArrayVByteBlockEncoding
         long[] values = new long[positionCount];
 
         if (valueIsNullPacked == null) {
-            vByteDecodeLongs(vByteDecoder, sliceInput, positionCount, values);
+            vByteDecodeLongs(sliceInput, positionCount, values);
             return new LongArrayBlock(positionCount, Optional.empty(), values);
         }
         boolean[] valueIsNull = decodeNullBits(valueIsNullPacked, positionCount);
 
         int nonNullPositionCount = sliceInput.readInt();
-        vByteDecodeLongs(vByteDecoder, sliceInput, nonNullPositionCount, values);
+        vByteDecodeLongs(sliceInput, nonNullPositionCount, values);
 
         int position = nonNullPositionCount - 1;
 

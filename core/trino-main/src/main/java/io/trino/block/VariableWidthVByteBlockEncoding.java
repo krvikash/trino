@@ -17,8 +17,6 @@ import io.airlift.slice.Slice;
 import io.airlift.slice.SliceInput;
 import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
-import io.starburst.vbyte.VByteDecoder;
-import io.starburst.vbyte.VByteEncoder;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockEncoding;
 import io.trino.spi.block.BlockEncodingSerde;
@@ -38,9 +36,6 @@ public class VariableWidthVByteBlockEncoding
         implements BlockEncoding
 {
     public static final String NAME = "VARIABLE_WIDTH_VB";
-
-    private final VByteEncoder vByteEncoder = VByteEncoder.create();
-    private final VByteDecoder vByteDecoder = VByteDecoder.create();
 
     @Override
     public String getName()
@@ -75,7 +70,7 @@ public class VariableWidthVByteBlockEncoding
         }
 
         sliceOutput.appendInt(nonNullsCount);
-        vByteEncodeInts(vByteEncoder, sliceOutput, lengths, 0, nonNullsCount);
+        vByteEncodeInts(sliceOutput, lengths, 0, nonNullsCount);
         encodeNullsAsBits(sliceOutput, getRawValueIsNull(variableWidthBlock), getRawArrayBase(variableWidthBlock), positionCount);
 
         sliceOutput
@@ -97,7 +92,7 @@ public class VariableWidthVByteBlockEncoding
         // Read the lengths array into the end of the offsets array, since nonNullsCount <= positionCount
         int lengthIndex = offsets.length - nonNullsCount;
 
-        vByteDecodeInts(vByteDecoder, sliceInput, nonNullsCount, offsets, lengthIndex);
+        vByteDecodeInts(sliceInput, nonNullsCount, offsets, lengthIndex);
 
         boolean[] valueIsNull = decodeNullBits(sliceInput, positionCount).orElse(null);
         // Transform lengths back to offsets

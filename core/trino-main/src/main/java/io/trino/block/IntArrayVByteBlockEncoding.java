@@ -15,8 +15,6 @@ package io.trino.block;
 
 import io.airlift.slice.SliceInput;
 import io.airlift.slice.SliceOutput;
-import io.starburst.vbyte.VByteDecoder;
-import io.starburst.vbyte.VByteEncoder;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockEncoding;
 import io.trino.spi.block.BlockEncodingSerde;
@@ -36,9 +34,6 @@ public class IntArrayVByteBlockEncoding
         implements BlockEncoding
 {
     public static final String NAME = "INT_ARRAY_VB";
-
-    private final VByteEncoder vByteEncoder = VByteEncoder.create();
-    private final VByteDecoder vByteDecoder = VByteDecoder.create();
 
     @Override
     public String getName()
@@ -62,7 +57,7 @@ public class IntArrayVByteBlockEncoding
         encodeNullsAsBits(sliceOutput, getRawValueIsNull(intArrayBlock), intArrayBlock.getRawValuesOffset(), positionCount);
 
         if (!intArrayBlock.mayHaveNull()) {
-            vByteEncodeInts(vByteEncoder, sliceOutput, intArrayBlock.getRawValues(), intArrayBlock.getRawValuesOffset(), intArrayBlock.getPositionCount());
+            vByteEncodeInts(sliceOutput, intArrayBlock.getRawValues(), intArrayBlock.getRawValuesOffset(), intArrayBlock.getPositionCount());
         }
         else {
             int[] valuesWithoutNull = new int[positionCount];
@@ -76,7 +71,7 @@ public class IntArrayVByteBlockEncoding
 
             sliceOutput.writeInt(nonNullPositionCount);
 
-            vByteEncodeInts(vByteEncoder, sliceOutput, valuesWithoutNull, 0, nonNullPositionCount);
+            vByteEncodeInts(sliceOutput, valuesWithoutNull, 0, nonNullPositionCount);
         }
     }
 
@@ -89,13 +84,13 @@ public class IntArrayVByteBlockEncoding
         int[] values = new int[positionCount];
 
         if (valueIsNullPacked == null) {
-            vByteDecodeInts(vByteDecoder, sliceInput, positionCount, values);
+            vByteDecodeInts(sliceInput, positionCount, values);
             return new IntArrayBlock(positionCount, Optional.empty(), values);
         }
         boolean[] valueIsNull = decodeNullBits(valueIsNullPacked, positionCount);
 
         int nonNullPositionCount = sliceInput.readInt();
-        vByteDecodeInts(vByteDecoder, sliceInput, nonNullPositionCount, values);
+        vByteDecodeInts(sliceInput, nonNullPositionCount, values);
 
         int position = nonNullPositionCount - 1;
 
