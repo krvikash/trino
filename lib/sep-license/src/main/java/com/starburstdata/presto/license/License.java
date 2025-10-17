@@ -25,8 +25,6 @@ import static java.util.Objects.requireNonNull;
 @JsonPropertyOrder(alphabetic = true)
 public class License
 {
-    static final String ALL_FEATURES_WILDCARD = "*";
-
     private final String owner;
     private LicenseType type;
     private Optional<String> hash = Optional.empty();
@@ -44,7 +42,7 @@ public class License
 
     public static License unsignedAllFeatures(String owner, LicenseType type, LocalDateTime expiry)
     {
-        return new License(owner, type, expiry, ImmutableSortedSet.of(ALL_FEATURES_WILDCARD), "");
+        return new License(owner, type, expiry, ImmutableSortedSet.of(), "");
     }
 
     @JsonCreator
