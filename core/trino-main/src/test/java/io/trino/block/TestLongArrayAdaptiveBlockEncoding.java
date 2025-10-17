@@ -43,9 +43,7 @@ class TestLongArrayAdaptiveBlockEncoding
     protected BlockEncodingSerde createBlockEncodingSerde()
     {
         BlockEncodingManager blockEncodingManager = new BlockEncodingManager(new FeaturesConfig());
-        assertThat(blockEncodingManager.getBlockEncodingByBlockClassAndType(LongArrayBlock.class, Optional.of(getType())))
-                .isInstanceOf(LongArrayAdaptiveBlockEncoding.class);
-        assertThat(blockEncodingManager.getBlockEncodingByBlockClassAndType(LongArrayBlock.class, Optional.empty()))
+        assertThat(blockEncodingManager.getBlockEncodingByBlockClass(LongArrayBlock.class))
                 .isInstanceOf(LongArrayAdaptiveBlockEncoding.class);
         return new InternalBlockEncodingSerde(blockEncodingManager, TESTING_TYPE_MANAGER);
     }
@@ -174,7 +172,7 @@ class TestLongArrayAdaptiveBlockEncoding
     {
         BlockEncodingSerde serde = createBlockEncodingSerde();
         DynamicSliceOutput sliceOutput = new DynamicSliceOutput(0);
-        serde.writeBlock(sliceOutput, block, Optional.of(getType()));
+        serde.writeBlock(sliceOutput, block);
         Block actualBlock = serde.readBlock(sliceOutput.slice().getInput());
         assertBlockEquals(getType(), actualBlock, block);
         return sliceOutput.size();
@@ -183,7 +181,7 @@ class TestLongArrayAdaptiveBlockEncoding
     private int encodeAndGetSize(BlockEncodingSerde serde, Block block)
     {
         DynamicSliceOutput sliceOutput = new DynamicSliceOutput(0);
-        serde.writeBlock(sliceOutput, block, Optional.of(getType()));
+        serde.writeBlock(sliceOutput, block);
         return sliceOutput.size();
     }
 

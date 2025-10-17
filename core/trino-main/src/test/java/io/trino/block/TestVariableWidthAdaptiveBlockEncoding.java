@@ -25,7 +25,6 @@ import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.type.Type;
 import org.junit.jupiter.api.Test;
 
-import java.util.Optional;
 import java.util.Random;
 
 import static io.trino.spi.block.BlockTestUtils.assertBlockEquals;
@@ -40,9 +39,7 @@ class TestVariableWidthAdaptiveBlockEncoding
     protected BlockEncodingSerde createBlockEncodingSerde()
     {
         BlockEncodingManager blockEncodingManager = new BlockEncodingManager(new FeaturesConfig());
-        assertThat(blockEncodingManager.getBlockEncodingByBlockClassAndType(VariableWidthBlock.class, Optional.of(getType())))
-                .isInstanceOf(VariableWidthAdaptiveBlockEncoding.class);
-        assertThat(blockEncodingManager.getBlockEncodingByBlockClassAndType(VariableWidthBlock.class, Optional.empty()))
+        assertThat(blockEncodingManager.getBlockEncodingByBlockClass(VariableWidthBlock.class))
                 .isInstanceOf(VariableWidthAdaptiveBlockEncoding.class);
         return new InternalBlockEncodingSerde(blockEncodingManager, TESTING_TYPE_MANAGER);
     }

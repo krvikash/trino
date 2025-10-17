@@ -119,7 +119,7 @@ public final class HiveBlockEncodingSerde
     }
 
     @Override
-    public void writeBlock(SliceOutput output, Block block, Optional<Type> dataType)
+    public void writeBlock(SliceOutput output, Block block)
     {
         while (true) {
             // look up the encoding factory

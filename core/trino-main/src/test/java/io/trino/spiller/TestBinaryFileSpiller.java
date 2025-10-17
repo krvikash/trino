@@ -155,7 +155,7 @@ public class TestBinaryFileSpiller
         assertThat(memoryContext.getBytes()).isEqualTo(0);
         for (List<Page> spill : spills) {
             spilledBytes += spill.stream()
-                    .mapToLong(page -> serializer.serialize(page, types).length())
+                    .mapToLong(page -> serializer.serialize(page).length())
                     .sum();
             spiller.spill(spill.iterator()).get();
         }

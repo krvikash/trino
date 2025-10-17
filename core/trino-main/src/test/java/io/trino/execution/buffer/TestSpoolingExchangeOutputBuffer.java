@@ -314,7 +314,7 @@ public class TestSpoolingExchangeOutputBuffer
         blockBuilder.writeEntry(valueSlice);
         Page page = pageBuilder.build();
         PageSerializer serializer = createTestingPagesSerdeFactory().createSerializer(Optional.empty());
-        return serializer.serialize(page, types);
+        return serializer.serialize(page);
     }
 
     private static class TestingExchangeSink

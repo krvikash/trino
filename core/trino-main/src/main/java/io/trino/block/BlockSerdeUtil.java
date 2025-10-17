@@ -18,9 +18,6 @@ import io.airlift.slice.SliceInput;
 import io.airlift.slice.SliceOutput;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockEncodingSerde;
-import io.trino.spi.type.Type;
-
-import java.util.Optional;
 
 public final class BlockSerdeUtil
 {
@@ -38,16 +35,6 @@ public final class BlockSerdeUtil
 
     public static void writeBlock(BlockEncodingSerde blockEncodingSerde, SliceOutput output, Block block)
     {
-        writeBlock(blockEncodingSerde, output, block, Optional.empty());
-    }
-
-    public static void writeBlock(BlockEncodingSerde blockEncodingSerde, SliceOutput output, Block block, Type type)
-    {
-        writeBlock(blockEncodingSerde, output, block, Optional.of(type));
-    }
-
-    public static void writeBlock(BlockEncodingSerde blockEncodingSerde, SliceOutput output, Block block, Optional<Type> type)
-    {
-        blockEncodingSerde.writeBlock(output, block, type);
+        blockEncodingSerde.writeBlock(output, block);
     }
 }

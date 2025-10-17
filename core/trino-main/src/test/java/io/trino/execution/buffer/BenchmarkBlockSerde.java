@@ -58,7 +58,6 @@ import static io.trino.execution.buffer.PagesSerdeUtil.readPages;
 import static io.trino.execution.buffer.PagesSerdeUtil.writePages;
 import static io.trino.execution.buffer.TestingPagesSerdes.createTestingPagesSerdeFactory;
 import static io.trino.jmh.Benchmarks.benchmark;
-import static io.trino.plugin.tpch.TpchTables.getTableColumns;
 import static io.trino.plugin.tpch.TpchTables.getTablePages;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.DecimalType.createDecimalType;
@@ -195,7 +194,7 @@ public class BenchmarkBlockSerde
     private static List<Slice> serializePages(BenchmarkData data)
     {
         return data.getPages().stream()
-                .map(page -> data.getSerializer().serialize(page, data.getTypes()))
+                .map(page -> data.getSerializer().serialize(page))
                 .collect(toImmutableList());
     }
 
@@ -230,9 +229,9 @@ public class BenchmarkBlockSerde
 
             List<Page> pages = pagesBuilder.build();
             DynamicSliceOutput sliceOutput = new DynamicSliceOutput(0);
-            writePages(serializer, new OutputStreamSliceOutput(sliceOutput), ImmutableList.of(type), pages.iterator());
+            writePages(serializer, new OutputStreamSliceOutput(sliceOutput), pages.iterator());
 
-            setup(sliceOutput.slice(), serializer, deserializer, pages, ImmutableList.of(type));
+            setup(sliceOutput.slice(), serializer, deserializer, pages);
         }
 
         private void writeValue(Type type, Object value, BlockBuilder blockBuilder)
@@ -290,9 +289,8 @@ public class BenchmarkBlockSerde
         private PageSerializer serializer;
         private PageDeserializer deserializer;
         private List<Page> pages;
-        private List<Type> types;
 
-        public void setup(Slice dataSource, PageSerializer serializer, PageDeserializer deserializer, List<Page> pages, List<Type> types)
+        public void setup(Slice dataSource, PageSerializer serializer, PageDeserializer deserializer, List<Page> pages)
         {
             this.dataSource = dataSource;
             this.serializer = serializer;
@@ -303,11 +301,6 @@ public class BenchmarkBlockSerde
         public List<Page> getPages()
         {
             return pages;
-        }
-
-        public List<Type> getTypes()
-        {
-            return types;
         }
 
         public PageSerializer getSerializer()
@@ -414,11 +407,10 @@ public class BenchmarkBlockSerde
             PageSerializer serializer = serdeFactory.createSerializer(Optional.empty());
             PageDeserializer deserializer = serdeFactory.createDeserializer(Optional.empty());
 
-            List<Type> types = getTableColumns("lineitem", DecimalTypeMapping.DOUBLE);
             List<Page> pages = ImmutableList.copyOf(getTablePages("lineitem", 0.1, DecimalTypeMapping.DOUBLE));
             DynamicSliceOutput sliceOutput = new DynamicSliceOutput(0);
-            writePages(serializer, new OutputStreamSliceOutput(sliceOutput), types, pages.listIterator());
-            setup(sliceOutput.slice(), serializer, deserializer, pages, types);
+            writePages(serializer, new OutputStreamSliceOutput(sliceOutput), pages.listIterator());
+            setup(sliceOutput.slice(), serializer, deserializer, pages);
         }
     }
 

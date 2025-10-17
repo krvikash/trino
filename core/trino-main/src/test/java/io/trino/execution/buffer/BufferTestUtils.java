@@ -22,7 +22,6 @@ import io.trino.block.BlockAssertions;
 import io.trino.execution.buffer.PipelinedOutputBuffers.OutputBufferId;
 import io.trino.operator.PageAssertions;
 import io.trino.spi.Page;
-import io.trino.spi.type.BigintType;
 import io.trino.spi.type.Type;
 
 import java.util.List;
@@ -40,8 +39,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public final class BufferTestUtils
 {
-    public static final ImmutableList<Type> TYPES = ImmutableList.of(BigintType.BIGINT);
-
     private BufferTestUtils() {}
 
     // Tests using this class rely on the assumption that the retained size of a serialized page depends only on the number of positions.
@@ -85,7 +82,7 @@ public final class BufferTestUtils
         ImmutableList.Builder<Slice> builder = ImmutableList.builderWithExpectedSize(pages.size());
         PageSerializer serializer = PAGES_SERDE_FACTORY.createSerializer(Optional.empty());
         for (Page p : pages) {
-            builder.add(serializer.serialize(p, TYPES));
+            builder.add(serializer.serialize(p));
         }
         return new BufferResult(
                 bufferId,
@@ -102,7 +99,7 @@ public final class BufferTestUtils
 
     static Slice serializePage(Page page)
     {
-        return PAGES_SERDE_FACTORY.createSerializer(Optional.empty()).serialize(page, TYPES);
+        return PAGES_SERDE_FACTORY.createSerializer(Optional.empty()).serialize(page);
     }
 
     static DataSize sizeOfPages(int count)

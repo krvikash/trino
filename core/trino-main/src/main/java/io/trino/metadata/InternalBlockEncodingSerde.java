@@ -25,7 +25,6 @@ import io.trino.spi.type.TypeManager;
 import org.assertj.core.util.VisibleForTesting;
 
 import java.util.Optional;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static io.airlift.slice.SizeOf.SIZE_OF_INT;
@@ -36,17 +35,17 @@ public final class InternalBlockEncodingSerde
         implements BlockEncodingSerde
 {
     private final Function<String, BlockEncoding> nameToEncoding; // for deserialization
-    private final BiFunction<Class<? extends Block>, Optional<Type>, BlockEncoding> blockToEncoding; // for serialization
+    private final Function<Class<? extends Block>, BlockEncoding> blockToEncoding; // for serialization
     private final Function<TypeId, Type> types;
 
     @Inject
     public InternalBlockEncodingSerde(BlockEncodingManager blockEncodingManager, TypeManager typeManager)
     {
-        this(blockEncodingManager::getBlockEncodingByName, blockEncodingManager::getBlockEncodingByBlockClassAndType, typeManager::getType);
+        this(blockEncodingManager::getBlockEncodingByName, blockEncodingManager::getBlockEncodingByBlockClass, typeManager::getType);
     }
 
     @VisibleForTesting
-    InternalBlockEncodingSerde(Function<String, BlockEncoding> nameToEncoding, BiFunction<Class<? extends Block>, Optional<Type>, BlockEncoding> blockToEncoding, Function<TypeId, Type> types)
+    InternalBlockEncodingSerde(Function<String, BlockEncoding> nameToEncoding, Function<Class<? extends Block>, BlockEncoding> blockToEncoding, Function<TypeId, Type> types)
     {
         this.nameToEncoding = requireNonNull(nameToEncoding, "nameToEncoding is null");
         this.blockToEncoding = requireNonNull(blockToEncoding, "blockToEncoding is null");
@@ -67,11 +66,11 @@ public final class InternalBlockEncodingSerde
     }
 
     @Override
-    public void writeBlock(SliceOutput output, Block block, Optional<Type> dataType)
+    public void writeBlock(SliceOutput output, Block block)
     {
         while (true) {
             // look up the BlockEncoding
-            BlockEncoding blockEncoding = blockToEncoding.apply(block.getClass(), dataType);
+            BlockEncoding blockEncoding = blockToEncoding.apply(block.getClass());
 
             // see if a replacement block should be written instead
             Optional<Block> replacementBlock = blockEncoding.replacementBlockForWrite(block);
@@ -94,7 +93,7 @@ public final class InternalBlockEncodingSerde
     public long estimatedWriteSize(Block block)
     {
         while (true) {
-            BlockEncoding blockEncoding = blockToEncoding.apply(block.getClass(), Optional.empty());
+            BlockEncoding blockEncoding = blockToEncoding.apply(block.getClass());
             // see if a replacement block should be written instead
             Optional<Block> replacementBlock = blockEncoding.replacementBlockForWrite(block);
             if (replacementBlock.isPresent()) {

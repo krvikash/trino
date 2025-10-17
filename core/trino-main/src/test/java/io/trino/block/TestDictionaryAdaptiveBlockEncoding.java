@@ -28,7 +28,6 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 
 import java.util.Arrays;
-import java.util.Optional;
 
 import static io.trino.spi.block.BlockTestUtils.assertBlockEquals;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -49,9 +48,7 @@ public class TestDictionaryAdaptiveBlockEncoding
     public void setup()
     {
         BlockEncodingManager blockEncodingManager = new BlockEncodingManager(new FeaturesConfig());
-        assertThat(blockEncodingManager.getBlockEncodingByBlockClassAndType(DictionaryBlock.class, Optional.empty()))
-                .isInstanceOf(DictionaryAdaptiveBlockEncoding.class);
-        assertThat(blockEncodingManager.getBlockEncodingByBlockClassAndType(DictionaryBlock.class, Optional.of(VARCHAR)))
+        assertThat(blockEncodingManager.getBlockEncodingByBlockClass(DictionaryBlock.class))
                 .isInstanceOf(DictionaryAdaptiveBlockEncoding.class);
         blockEncodingSerde = new InternalBlockEncodingSerde(blockEncodingManager, TESTING_TYPE_MANAGER);
     }

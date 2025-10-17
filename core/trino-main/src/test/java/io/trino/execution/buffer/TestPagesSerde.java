@@ -29,7 +29,6 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockEncodingSerde;
 import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.type.Type;
-import io.trino.spi.type.VarbinaryType;
 import io.trino.tpch.LineItem;
 import io.trino.tpch.LineItemGenerator;
 import org.junit.jupiter.api.AfterAll;
@@ -151,7 +150,7 @@ public class TestPagesSerde
             PageDeserializer deserializer = pagesSerdeFactory.createDeserializer(encryptionKey);
 
             for (Page page : pages) {
-                Slice serialized = serializer.serialize(page, types);
+                Slice serialized = serializer.serialize(page);
                 Page deserialized = deserializer.deserialize(serialized);
                 assertPageEquals(types, deserialized, page);
             }
@@ -235,7 +234,7 @@ public class TestPagesSerde
         PageSerializer serializer = serdeFactory.createSerializer(Optional.empty());
         PageDeserializer deserializer = serdeFactory.createDeserializer(Optional.empty());
         DynamicSliceOutput sliceOutput = new DynamicSliceOutput(1024);
-        writePages(serializer, sliceOutput, types, expectedPage);
+        writePages(serializer, sliceOutput, expectedPage);
         Slice slice = sliceOutput.slice();
 
         Iterator<Page> pageIterator = readPages(deserializer, slice.getInput());
@@ -277,7 +276,7 @@ public class TestPagesSerde
             PageDeserializer deserializer = pagesSerdeFactory.createDeserializer(encryptionKey);
 
             Page page = createTestPage(numberOfEntries);
-            Slice serialized = serializer.serialize(page, ImmutableList.of(VarbinaryType.VARBINARY));
+            Slice serialized = serializer.serialize(page);
             Page deserialized = deserializer.deserialize(serialized);
             assertThat(deserialized.getChannelCount()).isEqualTo(1);
 
@@ -318,7 +317,7 @@ public class TestPagesSerde
         }
 
         @Override
-        public void writeBlock(SliceOutput output, Block block, Optional<Type> dataType)
+        public void writeBlock(SliceOutput output, Block block)
         {
             VariableWidthBlock variableWidthBlock = (VariableWidthBlock) block;
             Slice slice = variableWidthBlock.getSlice(0);

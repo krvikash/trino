@@ -87,13 +87,13 @@ public class TestMergeOperator
 
     private LoadingCache<TaskId, TestingTaskBuffer> taskBuffers;
 
-    public void setUp(List<Type> types)
+    public void setUp()
     {
         executor = newSingleThreadScheduledExecutor(daemonThreadsNamed("test-merge-operator-%s"));
         serdeFactory = createTestingPagesSerdeFactory(LZ4);
 
         taskBuffers = buildNonEvictableCache(CacheBuilder.newBuilder(), CacheLoader.from(TestingTaskBuffer::new));
-        httpClient = new TestingHttpClient(new TestingExchangeHttpClientHandler(taskBuffers, serdeFactory, types), executor);
+        httpClient = new TestingHttpClient(new TestingExchangeHttpClientHandler(taskBuffers, serdeFactory), executor);
         exchangeClientFactory = new DirectExchangeClientFactory(
                 new NodeInfo("test"),
                 new FeaturesConfig(),
@@ -127,7 +127,7 @@ public class TestMergeOperator
             throws Exception
     {
         List<Type> types = ImmutableList.of(BIGINT, BIGINT);
-        setUp(types);
+        setUp();
 
         MergeOperator operator = createMergeOperator(types, ImmutableList.of(1), ImmutableList.of(0, 1), ImmutableList.of(ASC_NULLS_FIRST, ASC_NULLS_FIRST));
         assertThat(operator.isFinished()).isFalse();
@@ -174,7 +174,7 @@ public class TestMergeOperator
             throws Exception
     {
         List<Type> types = ImmutableList.of(BIGINT, INTEGER);
-        setUp(types);
+        setUp();
 
         MergeOperator operator = createMergeOperator(types, ImmutableList.of(1, 0), ImmutableList.of(1, 0), ImmutableList.of(DESC_NULLS_FIRST, ASC_NULLS_FIRST));
         operator.addSplit(createRemoteSplit(TASK_1_ID));
@@ -225,7 +225,7 @@ public class TestMergeOperator
             throws Exception
     {
         List<Type> types = ImmutableList.of(BIGINT, BIGINT, BIGINT);
-        setUp(types);
+        setUp();
 
         MergeOperator operator = createMergeOperator(types, ImmutableList.of(0, 1, 2), ImmutableList.of(0), ImmutableList.of(ASC_NULLS_FIRST));
         operator.addSplit(createRemoteSplit(TASK_1_ID));

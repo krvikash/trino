@@ -75,7 +75,6 @@ import static io.trino.execution.buffer.PagesSerdeUtil.getSerializedPagePosition
 import static io.trino.execution.buffer.PipelinedOutputBuffers.BufferType.PARTITIONED;
 import static io.trino.execution.buffer.TestingPagesSerdes.createTestingPagesSerdeFactory;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
-import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.testing.TestingHandles.TEST_CATALOG_HANDLE;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
@@ -119,7 +118,6 @@ public class TestSqlTaskExecution
                     1,
                     TABLE_SCAN_NODE_ID,
                     outputBuffer,
-                    ImmutableList.of(BIGINT),
                     Function.identity(),
                     createTestingPagesSerdeFactory());
             LocalExecutionPlan localExecutionPlan = new LocalExecutionPlan(

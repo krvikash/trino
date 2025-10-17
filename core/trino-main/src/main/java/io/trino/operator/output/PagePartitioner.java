@@ -13,7 +13,6 @@
  */
 package io.trino.operator.output;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Ints;
 import io.airlift.slice.Slice;
 import io.airlift.units.DataSize;
@@ -61,7 +60,6 @@ public class PagePartitioner
     private final LocalMemoryContext memoryContext;
     @Nullable
     private final Block[] partitionConstantBlocks; // when null, no constants are present. Only non-null elements are constants
-    private final List<Type> sourceTypes;
     private final PageSerializer serializer;
     private final PositionsAppenderPageBuilder[] positionsAppenders;
     private final boolean replicatesAnyRow;
@@ -103,7 +101,6 @@ public class PagePartitioner
         this.replicatesAnyRow = replicatesAnyRow;
         this.nullChannel = nullChannel.orElse(-1);
         this.outputBuffer = requireNonNull(outputBuffer, "outputBuffer is null");
-        this.sourceTypes = ImmutableList.copyOf(sourceTypes);
         this.serializer = serdeFactory.createSerializer(exchangeEncryptionKey.map(Ciphers::deserializeAesEncryptionKey));
         this.partitionProcessRleAndDictionaryBlocks = partitionProcessRleAndDictionaryBlocks;
 
@@ -476,7 +473,7 @@ public class PagePartitioner
 
     private void enqueuePage(Page pagePartition, int partition)
     {
-        outputBuffer.enqueue(partition, splitAndSerializePage(pagePartition, serializer, sourceTypes));
+        outputBuffer.enqueue(partition, splitAndSerializePage(pagePartition, serializer));
     }
 
     private void updateMemoryUsage()

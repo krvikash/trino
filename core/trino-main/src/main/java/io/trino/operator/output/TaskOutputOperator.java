@@ -13,7 +13,6 @@
  */
 package io.trino.operator.output;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.execution.buffer.OutputBuffer;
 import io.trino.execution.buffer.PageSerializer;
@@ -51,7 +50,7 @@ public class TaskOutputOperator
         @Override
         public OperatorFactory createOutputOperator(int operatorId, PlanNodeId planNodeId, List<Type> types, Function<Page, Page> pagePreprocessor, PagesSerdeFactory serdeFactory)
         {
-            return new TaskOutputOperatorFactory(operatorId, planNodeId, outputBuffer, types, pagePreprocessor, serdeFactory);
+            return new TaskOutputOperatorFactory(operatorId, planNodeId, outputBuffer, pagePreprocessor, serdeFactory);
         }
     }
 
@@ -61,16 +60,14 @@ public class TaskOutputOperator
         private final int operatorId;
         private final PlanNodeId planNodeId;
         private final OutputBuffer outputBuffer;
-        private final List<Type> types;
         private final Function<Page, Page> pagePreprocessor;
         private final PagesSerdeFactory serdeFactory;
 
-        public TaskOutputOperatorFactory(int operatorId, PlanNodeId planNodeId, OutputBuffer outputBuffer, List<Type> types, Function<Page, Page> pagePreprocessor, PagesSerdeFactory serdeFactory)
+        public TaskOutputOperatorFactory(int operatorId, PlanNodeId planNodeId, OutputBuffer outputBuffer, Function<Page, Page> pagePreprocessor, PagesSerdeFactory serdeFactory)
         {
             this.operatorId = operatorId;
             this.planNodeId = requireNonNull(planNodeId, "planNodeId is null");
             this.outputBuffer = requireNonNull(outputBuffer, "outputBuffer is null");
-            this.types = ImmutableList.copyOf(types);
             this.pagePreprocessor = requireNonNull(pagePreprocessor, "pagePreprocessor is null");
             this.serdeFactory = requireNonNull(serdeFactory, "serdeFactory is null");
         }
@@ -79,7 +76,7 @@ public class TaskOutputOperator
         public Operator createOperator(DriverContext driverContext)
         {
             OperatorContext operatorContext = driverContext.addOperatorContext(operatorId, planNodeId, TaskOutputOperator.class.getSimpleName());
-            return new TaskOutputOperator(operatorContext, outputBuffer, types, pagePreprocessor, serdeFactory);
+            return new TaskOutputOperator(operatorContext, outputBuffer, pagePreprocessor, serdeFactory);
         }
 
         @Override
@@ -88,23 +85,21 @@ public class TaskOutputOperator
         @Override
         public OperatorFactory duplicate()
         {
-            return new TaskOutputOperatorFactory(operatorId, planNodeId, outputBuffer, types, pagePreprocessor, serdeFactory);
+            return new TaskOutputOperatorFactory(operatorId, planNodeId, outputBuffer, pagePreprocessor, serdeFactory);
         }
     }
 
     private final OperatorContext operatorContext;
     private final OutputBuffer outputBuffer;
-    private final List<Type> types;
     private final Function<Page, Page> pagePreprocessor;
     private final PageSerializer serializer;
     private ListenableFuture<Void> isBlocked = NOT_BLOCKED;
     private boolean finished;
 
-    public TaskOutputOperator(OperatorContext operatorContext, OutputBuffer outputBuffer, List<Type> types, Function<Page, Page> pagePreprocessor, PagesSerdeFactory serdeFactory)
+    public TaskOutputOperator(OperatorContext operatorContext, OutputBuffer outputBuffer, Function<Page, Page> pagePreprocessor, PagesSerdeFactory serdeFactory)
     {
         this.operatorContext = requireNonNull(operatorContext, "operatorContext is null");
         this.outputBuffer = requireNonNull(outputBuffer, "outputBuffer is null");
-        this.types = ImmutableList.copyOf(types);
         this.pagePreprocessor = requireNonNull(pagePreprocessor, "pagePreprocessor is null");
         this.serializer = serdeFactory.createSerializer(operatorContext.getSession().getExchangeEncryptionKey().map(Ciphers::deserializeAesEncryptionKey));
 
@@ -161,7 +156,7 @@ public class TaskOutputOperator
 
         page = pagePreprocessor.apply(page);
 
-        outputBuffer.enqueue(splitAndSerializePage(page, serializer, types));
+        outputBuffer.enqueue(splitAndSerializePage(page, serializer));
         operatorContext.recordOutput(page.getSizeInBytes(), page.getPositionCount());
         updateMetrics();
     }

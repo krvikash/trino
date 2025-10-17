@@ -16,7 +16,6 @@ package io.trino.operator;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
 import io.airlift.http.client.HttpStatus;
 import io.airlift.http.client.Request;
@@ -31,7 +30,6 @@ import io.trino.execution.buffer.PageSerializer;
 import io.trino.execution.buffer.PagesSerdeFactory;
 import io.trino.server.InternalHeaders;
 import io.trino.spi.Page;
-import io.trino.spi.type.BigintType;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -195,7 +193,7 @@ public class MockExchangeRequestProcessor
         public synchronized void addPage(Page page)
         {
             checkState(!completed.get(), "Location %s is complete", location);
-            serializedPages.add(serializer.serialize(page, ImmutableList.of(BigintType.BIGINT)));
+            serializedPages.add(serializer.serialize(page));
         }
 
         public void setFailed(RuntimeException t)

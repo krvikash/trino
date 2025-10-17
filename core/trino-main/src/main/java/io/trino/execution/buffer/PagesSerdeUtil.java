@@ -23,7 +23,6 @@ import io.trino.execution.buffer.PageCodecMarker.MarkerSet;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockEncodingSerde;
-import io.trino.spi.type.Type;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -31,7 +30,6 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
@@ -64,20 +62,9 @@ public final class PagesSerdeUtil
 
     static void writeRawPage(Page page, SliceOutput output, BlockEncodingSerde serde)
     {
-        writeRawPage(page, Optional.empty(), output, serde);
-    }
-
-    static void writeRawPage(Page page, List<? extends Type> types, SliceOutput output, BlockEncodingSerde serde)
-    {
-        writeRawPage(page, Optional.of(types), output, serde);
-    }
-
-    static void writeRawPage(Page page, Optional<List<? extends Type>> types, SliceOutput output, BlockEncodingSerde serde)
-    {
         output.writeInt(page.getChannelCount());
         for (int channel = 0; channel < page.getChannelCount(); channel++) {
-            int finalChannel = channel;
-            writeBlock(serde, output, page.getBlock(channel), types.map(typesList -> typesList.get(finalChannel)));
+            writeBlock(serde, output, page.getBlock(channel));
         }
     }
 
@@ -106,17 +93,17 @@ public final class PagesSerdeUtil
         return checksum;
     }
 
-    public static long writePages(PageSerializer serializer, SliceOutput sliceOutput, List<? extends Type> types, Page... pages)
+    public static long writePages(PageSerializer serializer, SliceOutput sliceOutput, Page... pages)
     {
-        return writePages(serializer, sliceOutput, types, asList(pages).iterator());
+        return writePages(serializer, sliceOutput, asList(pages).iterator());
     }
 
-    public static long writePages(PageSerializer serializer, SliceOutput sliceOutput, List<? extends Type> types, Iterator<Page> pages)
+    public static long writePages(PageSerializer serializer, SliceOutput sliceOutput, Iterator<Page> pages)
     {
         long size = 0;
         while (pages.hasNext()) {
             Page page = pages.next();
-            sliceOutput.writeBytes(serializer.serialize(page, types));
+            sliceOutput.writeBytes(serializer.serialize(page));
             size += page.getSizeInBytes();
         }
         return size;

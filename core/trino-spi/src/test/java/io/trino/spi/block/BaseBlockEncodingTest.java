@@ -18,7 +18,6 @@ import io.trino.spi.type.Type;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
-import java.util.Optional;
 import java.util.Random;
 import java.util.stream.Stream;
 
@@ -137,7 +136,7 @@ public abstract class BaseBlockEncodingTest<T>
 
         Block expectedBlock = expectedBlockBuilder.build();
         DynamicSliceOutput sliceOutput = new DynamicSliceOutput(1024);
-        blockEncodingSerde.writeBlock(sliceOutput, expectedBlock, Optional.of(getType()));
+        blockEncodingSerde.writeBlock(sliceOutput, expectedBlock);
         Block actualBlock = blockEncodingSerde.readBlock(sliceOutput.slice().getInput());
         assertBlockEquals(getType(), actualBlock, expectedBlock);
     }

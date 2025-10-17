@@ -20,7 +20,6 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.ValueBlock;
-import io.trino.spi.type.Type;
 
 import java.util.List;
 
@@ -32,12 +31,12 @@ public final class PageSplitterUtil
 
     private PageSplitterUtil() {}
 
-    public static List<Slice> splitAndSerializePage(Page page, PageSerializer serializer, List<Type> types)
+    public static List<Slice> splitAndSerializePage(Page page, PageSerializer serializer)
     {
         List<Page> inputPages = splitPage(page, PAGE_SPLIT_THRESHOLD_IN_BYTES);
         ImmutableList.Builder<Slice> serializedPages = ImmutableList.builderWithExpectedSize(inputPages.size());
         for (Page inputPage : inputPages) {
-            serializedPages.add(serializer.serialize(inputPage, types));
+            serializedPages.add(serializer.serialize(inputPage));
         }
         return serializedPages.build();
     }
