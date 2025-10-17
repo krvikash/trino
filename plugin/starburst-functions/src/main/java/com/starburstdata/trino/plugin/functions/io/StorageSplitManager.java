@@ -96,6 +96,7 @@ public class StorageSplitManager
                             .buildOrThrow(),
                     ImmutableList.of(),
                     TupleDomain.all(),
+                    Constraint.alwaysTrue(),
                     () -> true,
                     ImmutableMap.of(),
                     Optional.empty(),
