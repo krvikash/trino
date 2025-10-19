@@ -428,9 +428,9 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
-    public TableStatisticsMetadata getStatisticsCollectionMetadataForWrite(ConnectorSession session, ConnectorTableMetadata tableMetadata)
+    public TableStatisticsMetadata getStatisticsCollectionMetadataForWrite(ConnectorSession session, ConnectorTableMetadata tableMetadata, boolean tableReplace)
     {
-        return delegate.getStatisticsCollectionMetadataForWrite(session, tableMetadata);
+        return delegate.getStatisticsCollectionMetadataForWrite(session, tableMetadata, tableReplace);
     }
 
     @Override

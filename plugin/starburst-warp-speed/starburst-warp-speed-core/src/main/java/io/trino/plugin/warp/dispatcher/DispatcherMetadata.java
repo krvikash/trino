@@ -457,9 +457,9 @@ public class DispatcherMetadata
     }
 
     @Override
-    public TableStatisticsMetadata getStatisticsCollectionMetadataForWrite(ConnectorSession session, ConnectorTableMetadata tableMetadata)
+    public TableStatisticsMetadata getStatisticsCollectionMetadataForWrite(ConnectorSession session, ConnectorTableMetadata tableMetadata, boolean tableReplace)
     {
-        return proxiedConnectorMetadata.getStatisticsCollectionMetadataForWrite(session, tableMetadata);
+        return proxiedConnectorMetadata.getStatisticsCollectionMetadataForWrite(session, tableMetadata, tableReplace);
     }
 
     @Override
