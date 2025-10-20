@@ -213,8 +213,7 @@ public class TestBackgroundHiveSplitLoader
         HiveSplitSource hiveSplitSource = hiveSplitSource(backgroundHiveSplitLoader);
         backgroundHiveSplitLoader.start(hiveSplitSource);
         List<String> paths = drain(hiveSplitSource);
-        assertThat(paths).hasSize(1);
-        assertThat(paths.get(0)).isEqualTo(LOCATION.toString());
+        assertThat(paths).containsExactly(LOCATION.toString());
     }
 
     @Test
@@ -250,8 +249,7 @@ public class TestBackgroundHiveSplitLoader
         HiveSplitSource hiveSplitSource = hiveSplitSource(backgroundHiveSplitLoader);
         backgroundHiveSplitLoader.start(hiveSplitSource);
         List<String> paths = drain(hiveSplitSource);
-        assertThat(paths).hasSize(1);
-        assertThat(paths.get(0)).isEqualTo(LOCATION.toString());
+        assertThat(paths).containsExactly(LOCATION.toString());
     }
 
     @Test
@@ -277,8 +275,7 @@ public class TestBackgroundHiveSplitLoader
         HiveSplitSource hiveSplitSource = hiveSplitSource(backgroundHiveSplitLoader);
         backgroundHiveSplitLoader.start(hiveSplitSource);
         List<String> paths = drain(hiveSplitSource);
-        assertThat(paths).hasSize(1);
-        assertThat(paths.get(0)).isEqualTo(LOCATION.toString());
+        assertThat(paths).containsExactly(LOCATION.toString());
     }
 
     @Test
