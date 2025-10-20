@@ -26,6 +26,7 @@ import jakarta.ws.rs.core.MultivaluedMap;
 import java.util.Optional;
 
 import static com.google.common.base.Strings.emptyToNull;
+import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.net.HttpHeaders.AUTHORIZATION;
 import static io.trino.client.ProtocolHeaders.TRINO_HEADERS;
 import static io.trino.client.ProtocolHeaders.detectProtocol;
@@ -58,7 +59,7 @@ public class InsecureAuthenticator
     public Identity authenticate(HttpServletRequest request)
             throws AuthenticationException
     {
-        Optional<BasicAuthCredentials> basicAuthCredentials = extractBasicAuthCredentials(request.getHeader(AUTHORIZATION));
+        Optional<BasicAuthCredentials> basicAuthCredentials = extractBasicAuthCredentials(nullToEmpty(request.getHeader(AUTHORIZATION)));
         MultivaluedMap<String, String> headers = extractRequestHeaders(request);
         return authenticate(basicAuthCredentials, headers);
     }
