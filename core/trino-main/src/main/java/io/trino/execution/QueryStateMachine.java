@@ -92,6 +92,7 @@ import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.units.DataSize.succinctBytes;
 import static io.trino.SystemSessionProperties.getRetryPolicy;
+import static io.trino.SystemSessionProperties.isReuseCommonSubqueriesEnabled;
 import static io.trino.SystemSessionProperties.isSpoolingEnabled;
 import static io.trino.SystemSessionProperties.isSpoolingUnsupportedWarningEnabled;
 import static io.trino.execution.BasicStageStats.EMPTY_STAGE_STATS;
@@ -315,8 +316,9 @@ public class QueryStateMachine
             session = session.beginTransactionId(transactionId, transactionManager, accessControl);
         }
 
-        if (getRetryPolicy(session) == TASK && faultTolerantExecutionExchangeEncryptionEnabled) {
-            // encryption is mandatory for fault tolerant execution as it relies on an external storage to store intermediate data generated during an exchange
+        boolean externaEchangesInUse = getRetryPolicy(session) == TASK || isReuseCommonSubqueriesEnabled(session);
+        if (externaEchangesInUse && faultTolerantExecutionExchangeEncryptionEnabled) {
+            // encryption is mandatory for fault tolerant execution with CTE-reuse as those rely on an external storage to store intermediate data generated during an exchange
             session = session.withExchangeEncryption(serializeAesEncryptionKey(createRandomAesEncryptionKey()));
         }
 
