@@ -122,6 +122,7 @@ import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
@@ -149,6 +150,7 @@ public class MockConnector
 
     private final List<PropertyMetadata<?>> sessionProperties;
     private final Function<ConnectorMetadata, ConnectorMetadata> metadataWrapper;
+    private final Consumer<ConnectorSession> cleanupQuery;
     private final Function<ConnectorSession, List<String>> listSchemaNames;
     private final BiFunction<ConnectorSession, String, List<String>> listTables;
     private final Optional<BiFunction<ConnectorSession, SchemaTablePrefix, Iterator<TableColumnsMetadata>>> streamTableColumns;
@@ -206,6 +208,7 @@ public class MockConnector
     MockConnector(
             List<PropertyMetadata<?>> sessionProperties,
             Function<ConnectorMetadata, ConnectorMetadata> metadataWrapper,
+            Consumer<ConnectorSession> cleanupQuery,
             Function<ConnectorSession, List<String>> listSchemaNames,
             BiFunction<ConnectorSession, String, List<String>> listTables,
             Optional<BiFunction<ConnectorSession, SchemaTablePrefix, Iterator<TableColumnsMetadata>>> streamTableColumns,
@@ -262,6 +265,7 @@ public class MockConnector
     {
         this.sessionProperties = ImmutableList.copyOf(requireNonNull(sessionProperties, "sessionProperties is null"));
         this.metadataWrapper = requireNonNull(metadataWrapper, "metadataWrapper is null");
+        this.cleanupQuery = requireNonNull(cleanupQuery, "cleanupQuery is null");
         this.listSchemaNames = requireNonNull(listSchemaNames, "listSchemaNames is null");
         this.listTables = requireNonNull(listTables, "listTables is null");
         this.streamTableColumns = requireNonNull(streamTableColumns, "streamTableColumns is null");
@@ -1035,6 +1039,12 @@ public class MockConnector
         private MockConnectorAccessControl getMockAccessControl()
         {
             return (MockConnectorAccessControl) getAccessControl();
+        }
+
+        @Override
+        public void cleanupQuery(ConnectorSession session)
+        {
+            cleanupQuery.accept(session);
         }
     }
 
