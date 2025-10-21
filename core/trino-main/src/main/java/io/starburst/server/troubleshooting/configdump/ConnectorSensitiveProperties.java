@@ -266,6 +266,7 @@ public final class ConnectorSensitiveProperties
             .put("elasticsearch",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
+                            "client-authentication-header",
                             "elasticsearch.auth.password",
                             "elasticsearch.aws.secret-key",
                             "elasticsearch.tls.keystore-password",
