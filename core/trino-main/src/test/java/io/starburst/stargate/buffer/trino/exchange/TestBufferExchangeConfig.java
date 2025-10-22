@@ -24,11 +24,13 @@ import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.Duration.succinctDuration;
+import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.LOCAL_PRIORITY;
 import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.PINNING_MULTI;
 import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.PINNING_SINGLE;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class TestBufferExchangeConfig
 {
@@ -256,5 +258,31 @@ class TestBufferExchangeConfig
                 .setDataClientAddDataPagesCircuitBreakerDelay(succinctDuration(31, SECONDS));
 
         assertFullMapping(properties, expected, ImmutableSet.of("exchange.buffer-discovery.uri"));
+    }
+
+    @Test
+    public void testDefaultMappingMode()
+    {
+        BufferExchangeConfig config = new BufferExchangeConfig();
+
+        assertThat(config.getPartitionNodeMappingMode()).isEqualTo(PINNING_MULTI);
+        config.setUseEmbeddedBufferService(false);
+        assertThat(config.getPartitionNodeMappingMode()).isEqualTo(PINNING_MULTI);
+        config.setUseEmbeddedBufferService(true);
+        assertThat(config.getPartitionNodeMappingMode()).isEqualTo(LOCAL_PRIORITY);
+    }
+
+    @Test
+    public void testExplicitMappingMode()
+    {
+        BufferExchangeConfig config = new BufferExchangeConfig();
+
+        config.setPartitionNodeMappingMode(PINNING_SINGLE);
+
+        assertThat(config.getPartitionNodeMappingMode()).isEqualTo(PINNING_SINGLE);
+        config.setUseEmbeddedBufferService(false);
+        assertThat(config.getPartitionNodeMappingMode()).isEqualTo(PINNING_SINGLE);
+        config.setUseEmbeddedBufferService(true);
+        assertThat(config.getPartitionNodeMappingMode()).isEqualTo(PINNING_SINGLE);
     }
 }

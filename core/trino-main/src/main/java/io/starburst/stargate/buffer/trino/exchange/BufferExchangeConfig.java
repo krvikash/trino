@@ -19,9 +19,11 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 import java.net.URI;
+import java.util.Optional;
 
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.Duration.succinctDuration;
+import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.LOCAL_PRIORITY;
 import static io.starburst.stargate.buffer.trino.exchange.PartitionNodeMappingMode.PINNING_MULTI;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -47,7 +49,7 @@ public class BufferExchangeConfig
     private int sinkTargetWrittenPartitionsCount = 16;
     private Duration sinkMinTimeBetweenWriterScaleUps = succinctDuration(5.0, SECONDS);
     private double sinkMaxWritersScaleUpGrowthFactor = 2.0;
-    private PartitionNodeMappingMode partitionNodeMappingMode = PINNING_MULTI;
+    private Optional<PartitionNodeMappingMode> partitionNodeMappingMode = Optional.empty();
     private int minBaseBufferNodesPerPartition = 2;
     private int maxBaseBufferNodesPerPartition = 32;
     private double bonusBufferNodesPerPartitionMultiplier = 4.0;
@@ -306,13 +308,18 @@ public class BufferExchangeConfig
     @ConfigDescription("How are the output partitions of Trino tasks mapped to buffer service nodes")
     public BufferExchangeConfig setPartitionNodeMappingMode(PartitionNodeMappingMode partitionNodeMappingMode)
     {
-        this.partitionNodeMappingMode = partitionNodeMappingMode;
+        this.partitionNodeMappingMode = Optional.of(partitionNodeMappingMode);
         return this;
     }
 
     public PartitionNodeMappingMode getPartitionNodeMappingMode()
     {
-        return partitionNodeMappingMode;
+        return partitionNodeMappingMode.orElseGet(() -> {
+            if (useEmbeddedBufferService) {
+                return LOCAL_PRIORITY;
+            }
+            return PINNING_MULTI;
+        });
     }
 
     @Min(1)
