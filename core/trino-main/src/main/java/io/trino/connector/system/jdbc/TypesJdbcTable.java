@@ -15,6 +15,7 @@ package io.trino.connector.system.jdbc;
 
 import com.google.inject.Inject;
 import io.trino.metadata.TypeRegistry;
+import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.ConnectorTransactionHandle;
@@ -23,6 +24,8 @@ import io.trino.spi.connector.InMemoryRecordSet.Builder;
 import io.trino.spi.connector.RecordCursor;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.statistics.Estimate;
+import io.trino.spi.statistics.TableStatistics;
 import io.trino.spi.type.ParametricType;
 import io.trino.spi.type.Type;
 
@@ -136,5 +139,13 @@ public class TypesJdbcTable
                 null,
                 null,
                 null);
+    }
+
+    @Override
+    public TableStatistics getTableStatistics(ConnectorSession connectorSession, TupleDomain<ColumnHandle> constraint)
+    {
+        return TableStatistics.builder()
+                .setRowCount(Estimate.of(typeRegistry.getTypes().size() + typeRegistry.getParametricTypes().size()))
+                .build();
     }
 }

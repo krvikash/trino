@@ -13,6 +13,7 @@
  */
 package io.trino.connector.system.jdbc;
 
+import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.ConnectorTransactionHandle;
@@ -20,6 +21,8 @@ import io.trino.spi.connector.InMemoryRecordSet;
 import io.trino.spi.connector.RecordCursor;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.statistics.Estimate;
+import io.trino.spi.statistics.TableStatistics;
 
 import static io.trino.metadata.MetadataUtil.TableMetadataBuilder.tableMetadataBuilder;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -48,5 +51,13 @@ public class SuperTypeJdbcTable
     public RecordCursor cursor(ConnectorTransactionHandle transactionHandle, ConnectorSession session, TupleDomain<Integer> constraint)
     {
         return InMemoryRecordSet.builder(METADATA).build().cursor();
+    }
+
+    @Override
+    public TableStatistics getTableStatistics(ConnectorSession connectorSession, TupleDomain<ColumnHandle> constraint)
+    {
+        return TableStatistics.builder()
+                .setRowCount(Estimate.zero())
+                .build();
     }
 }
