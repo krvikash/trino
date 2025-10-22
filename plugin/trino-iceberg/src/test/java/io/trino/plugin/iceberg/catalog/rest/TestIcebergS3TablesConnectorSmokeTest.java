@@ -327,4 +327,9 @@ final class TestIcebergS3TablesConnectorSmokeTest
     public void testSelectInformationSchemaTables()
     {
     }
+
+    @Test
+    @Override
+    @Disabled // TODO https://github.com/trinodb/trino/issues/25129 Fix flaky test
+    public void testIcebergTablesSystemTable() {}
 }
