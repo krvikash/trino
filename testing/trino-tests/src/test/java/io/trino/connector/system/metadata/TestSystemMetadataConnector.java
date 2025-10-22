@@ -439,6 +439,13 @@ public class TestSystemMetadataConnector
                 .isEqualTo(4); // 1 coordinator + 3 worker
     }
 
+    @Test
+    public void testNonExistentTable()
+    {
+        assertThat(query("SELECT * FROM system.metadata.non_existent_table"))
+                .failure().hasMessage("ConnectorMetadata getTableHandle() is not implemented");
+    }
+
     private void assertMetadataCalls(@Language("SQL") String actualSql, @Language("SQL") String expectedSql, Multiset<String> expectedMetadataCallsCount)
     {
         Multiset<String> actualMetadataCallsCount = countingMockConnector.runTracing(() -> {
