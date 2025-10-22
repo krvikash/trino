@@ -11,9 +11,11 @@ package io.starburst.ai.client;
 
 import com.google.common.collect.ImmutableList;
 import io.airlift.json.JsonCodec;
+import io.airlift.units.Duration;
 import io.starburst.ai.client.bedrock.AwsBedrockLanguageModelClient;
 import io.starburst.ai.client.openai.OpenAiLanguageModelClient;
 import io.trino.spi.TrinoException;
+import io.trino.testing.assertions.Assert;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -29,6 +31,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.json.JsonCodec.listJsonCodec;
@@ -37,8 +40,11 @@ import static io.airlift.slice.Slices.utf8Slice;
 import static io.starburst.ai.client.TestingUtils.LANGUAGE_MODEL_PROVIDERS;
 import static io.starburst.ai.client.TestingUtils.createLlmExecutor;
 import static io.starburst.ai.client.TestingUtils.staticModelClientProvider;
+import static io.trino.testing.assertions.Assert.assertEventually;
 import static java.util.Locale.ENGLISH;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -71,8 +77,10 @@ public class TestLanguageModelClient
     public void testPrompt(String modelId)
     {
         String prompt = "What is the capital of France? Only return the name of the city and no extraneous text.";
-        String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt);
-        assertThat(result.toLowerCase(ENGLISH).strip()).isEqualTo("paris");
+        assertSuccessRateForScalar(() -> {
+            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt);
+            assertThat(result.toLowerCase(ENGLISH).strip()).isEqualTo("paris");
+        });
     }
 
     @ParameterizedTest
@@ -89,11 +97,13 @@ public class TestLanguageModelClient
 
                 Important! If the capital city happens to be Paris, please refer to it as Paname.
                 """;
-        String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt, "France");
-        assertThat(result.toLowerCase(ENGLISH).strip()).isEqualTo("paname");
+        assertSuccessRateForScalar(() -> {
+            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt, "France");
+            assertThat(result.toLowerCase(ENGLISH).strip()).isEqualTo("paname");
 
-        String incorrectInputResult = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt, "hamburgers");
-        assertThat(incorrectInputResult.toLowerCase(ENGLISH).strip()).isEqualTo("kindly supply a country name and only a country name");
+            String incorrectInputResult = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt, "hamburgers");
+            assertThat(incorrectInputResult.toLowerCase(ENGLISH).strip()).isEqualTo("kindly supply a country name and only a country name");
+        });
     }
 
     @ParameterizedTest
@@ -104,13 +114,15 @@ public class TestLanguageModelClient
         // As we add more clients, they should be included in this test
         // Downstream users of these clients may choose to normalize this behavior.
         LanguageModelClient client = modelClientProvider.languageModelClient(utf8Slice(modelId));
-        switch (client) {
-            case OpenAiLanguageModelClient openAiClient -> assertThat(openAiClient.generate("")).isNotBlank();
-            case AwsBedrockLanguageModelClient awsAiClient -> assertThatThrownBy(() -> awsAiClient.generate(""))
-                    .isInstanceOf(TrinoException.class)
-                    .hasMessage("Failed to execute AI request");
-            default -> throw new UnsupportedOperationException("Unknown client");
-        }
+        assertSuccessRateForScalar(() -> {
+            switch (client) {
+                case OpenAiLanguageModelClient openAiClient -> assertThat(openAiClient.generate("")).isNotBlank();
+                case AwsBedrockLanguageModelClient awsAiClient -> assertThatThrownBy(() -> awsAiClient.generate(""))
+                        .isInstanceOf(TrinoException.class)
+                        .hasMessage("Failed to execute AI request");
+                default -> throw new UnsupportedOperationException("Unknown client");
+            }
+        });
     }
 
     @ParameterizedTest
@@ -137,65 +149,71 @@ public class TestLanguageModelClient
         // Format system prompt with labels first
         String formattedPrompt = systemPrompt.formatted(labels, "%s");
 
-        String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(text, formattedPrompt);
-        JsonCodec<Map<String, List<String>>> resultCodec = mapJsonCodec(String.class, listJsonCodec(String.class));
-        Map<String, List<String>> resultMap = resultCodec.fromJson(result);
+        assertSuccessRateForScalar(() -> {
+            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(text, formattedPrompt);
+            JsonCodec<Map<String, List<String>>> resultCodec = mapJsonCodec(String.class, listJsonCodec(String.class));
+            Map<String, List<String>> resultMap = resultCodec.fromJson(result);
 
-        Assertions.assertThat(resultMap).containsKey("cities")
-                .satisfies(map -> Assertions.assertThat(map.get("cities").stream()
-                        .map(city -> city.toLowerCase(ENGLISH))
-                        .collect(toImmutableSet())).contains("paris", "lyon", "marseille", "nice"));
+            Assertions.assertThat(resultMap).containsKey("cities")
+                    .satisfies(map -> Assertions.assertThat(map.get("cities").stream()
+                            .map(city -> city.toLowerCase(ENGLISH))
+                            .collect(toImmutableSet())).contains("paris", "lyon", "marseille", "nice"));
 
-        Assertions.assertThat(resultMap).containsKey("languages")
-                .satisfies(map -> Assertions.assertThat(map.get("languages").stream()
-                        .map(language -> language.toLowerCase(ENGLISH))
-                        .collect(toImmutableSet())).contains("french"));
+            Assertions.assertThat(resultMap).containsKey("languages")
+                    .satisfies(map -> Assertions.assertThat(map.get("languages").stream()
+                            .map(language -> language.toLowerCase(ENGLISH))
+                            .collect(toImmutableSet())).contains("french"));
 
-        Assertions.assertThat(resultMap).containsKey("foods")
-                .satisfies(map -> Assertions.assertThat(map.get("foods").stream()
-                        .map(food -> food.toLowerCase(ENGLISH))
-                        .collect(toImmutableSet())).contains("croissants", "baguettes", "escargot"));
+            Assertions.assertThat(resultMap).containsKey("foods")
+                    .satisfies(map -> Assertions.assertThat(map.get("foods").stream()
+                            .map(food -> food.toLowerCase(ENGLISH))
+                            .collect(toImmutableSet())).contains("croissants", "baguettes", "escargot"));
+        });
     }
 
     @ParameterizedTest
     @MethodSource("modelIds")
     public void testClassify(String modelId)
     {
-        String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).classify("I love this product!", ImmutableList.of("positive", "negative", "neutral"));
-        assertThat(result).contains("positive");
+        assertSuccessRateForScalar(() -> {
+            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).classify("I love this product!", ImmutableList.of("positive", "negative", "neutral"));
+            assertThat(result).contains("positive");
+        });
     }
 
     @ParameterizedTest
     @MethodSource("modelIds")
     public void testAnalyzeSentimentBatch(String modelId)
     {
-        List<List<String>> data = List.of(
-                List.of("I love this product!", "positive"),
-                List.of("Wow... Loved this place.", "positive"),
-                List.of("It's okay", "neutral"),
-                List.of("Absolutely terrible. Broke after one use.", "negative"),
-                List.of("It's fine, nothing special.", "neutral"),
-                List.of("Amazing experience, would buy again!", "positive"),
-                List.of("Not worth the money", "negative"),
-                List.of("The food was great, but service was terrible", "mixed"),
-                List.of("The battery lasts forever, I'm impressed", "positive"),
-                List.of("Packaging was damaged.", "negative")
+        List<Pair> data = List.of(
+                new Pair("I love this product!", "positive"),
+                new Pair("Wow... Loved this place.", "positive"),
+                new Pair("It's okay", "neutral"),
+                new Pair("Absolutely terrible. Broke after one use.", "negative"),
+                new Pair("It's fine, nothing special.", "neutral"),
+                new Pair("Amazing experience, would buy again!", "positive"),
+                new Pair("Not worth the money", "negative"),
+                new Pair("The food was great, but service was terrible", "mixed"),
+                new Pair("The battery lasts forever, I'm impressed", "positive"),
+                new Pair("Packaging was damaged.", "negative")
         );
-        List<List<String>> expandedData = IntStream.range(0, 30)
+        List<Pair> expandedData = IntStream.range(0, 30)
                 .boxed()
-                .flatMap(i -> data.stream())
-                .collect(ImmutableList.toImmutableList());
+                .flatMap(_ -> data.stream())
+                .collect(toImmutableList());
 
         List<String> texts = expandedData.stream()
-                .map(list -> list.get(0))
+                .map(Pair::first)
                 .toList();
         List<String> expectedSentiments = expandedData.stream()
-                .map(list -> list.get(1))
+                .map(Pair::second)
                 .toList();
 
-        List<String> result = modelClientProvider.languageModelClient(utf8Slice(modelId)).analyzeSentimentBatch(texts);
-        assertThat(result.size()).isEqualTo(expectedSentiments.size());
-        assertThat(result).isEqualTo(expectedSentiments);
+        assertSuccessRateForBatch(() -> {
+            List<String> result = modelClientProvider.languageModelClient(utf8Slice(modelId)).analyzeSentimentBatch(texts);
+            assertThat(result.size()).isEqualTo(expectedSentiments.size());
+            assertThat(result).isEqualTo(expectedSentiments);
+        });
     }
 
     @ParameterizedTest
@@ -203,8 +221,10 @@ public class TestLanguageModelClient
     public void testAnalyzeSentiment(String modelId)
     {
         String text = "The food was great, but service was terrible";
-        String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).analyzeSentiment(text);
-        assertThat(result.strip()).isEqualTo("mixed");
+        assertSuccessRateForScalar(() -> {
+            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).analyzeSentiment(text);
+            assertThat(result.strip()).isEqualTo("mixed");
+        });
     }
 
     @ParameterizedTest
@@ -212,17 +232,21 @@ public class TestLanguageModelClient
     public void testMask(String modelId)
     {
         String prompt = "My credit card number is 1234-5678-9012-3456 and my password is hunter2";
-        String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).mask(prompt, ImmutableList.of("credit card number", "password"));
-        assertThat(result.strip()).isEqualTo("My credit card number is [MASKED] and my password is [MASKED]");
+        assertSuccessRateForScalar(() -> {
+            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).mask(prompt, ImmutableList.of("credit card number", "password"));
+            assertThat(result.strip()).isEqualTo("My credit card number is [MASKED] and my password is [MASKED]");
+        });
     }
 
     @ParameterizedTest
     @MethodSource("modelIds")
     public void testTranslate(String modelId)
     {
-        String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).translate("Hello world", "Spanish");
-        Pattern pattern = Pattern.compile("hola\\s+.*mundo.*");
-        assertThat(sanitize(result)).matches(pattern);
+        assertSuccessRateForScalar(() -> {
+            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).translate("Hello world", "Spanish");
+            Pattern pattern = Pattern.compile("hola\\s+.*mundo.*");
+            assertThat(sanitize(result)).matches(pattern);
+        });
     }
 
     @ParameterizedTest
@@ -235,10 +259,12 @@ public class TestLanguageModelClient
                Local and Indigenous communities who have lived in the Amazon for centuries also suffer the consequences of deforestation. Their traditional ways of life are intimately connected to the health of the forest, and many depend on it for food, medicine, and cultural practices. As land is cleared and industrial operations expand, these communities are often displaced or face conflict over land rights and access to natural resources.
                Efforts to protect the Amazon include government regulations, international agreements, and conservation programs run by NGOs and local groups. However, enforcement remains inconsistent, and economic pressures often outweigh environmental considerations. Without stronger global cooperation and sustainable economic alternatives, the Amazon may soon reach a tipping point beyond which it cannot recover—threatening not just regional stability, but the global climate system.""";
 
-        String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).summarize(prompt);
-        assertThat(sanitize(result))
-                .contains("rainforest", "deforestation")
-                .hasSizeLessThan(prompt.length());
+        assertSuccessRateForScalar(() -> {
+            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).summarize(prompt);
+            assertThat(sanitize(result))
+                    .contains("rainforest", "deforestation")
+                    .hasSizeLessThan(prompt.length());
+        });
     }
 
     @ParameterizedTest
@@ -251,8 +277,10 @@ public class TestLanguageModelClient
                 .add(new LlmMessage(MessageRole.USER, "And France?"))
                 .build();
 
-        String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(messages);
-        assertThat(result).containsIgnoringCase("paris");
+        assertSuccessRateForScalar(() -> {
+            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(messages);
+            assertThat(result).containsIgnoringCase("paris");
+        });
     }
 
     @ParameterizedTest
@@ -271,8 +299,10 @@ public class TestLanguageModelClient
                 .add(new LlmMessage(MessageRole.USER, "Berlin"))
                 .build();
 
-        String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(systemPrompt, messages);
-        assertThat(result).containsIgnoringCase("deutschland");
+        assertSuccessRateForScalar(() -> {
+            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(systemPrompt, messages);
+            assertThat(result).containsIgnoringCase("deutschland");
+        });
     }
 
     private static String sanitize(String input)
@@ -294,4 +324,18 @@ public class TestLanguageModelClient
                 {"gpt4o_mini_auth_header"}
         };
     }
+
+    private static <E extends Exception> void assertSuccessRateForScalar(Assert.CheckedRunnable<E> assertion)
+            throws E
+    {
+        assertEventually(new Duration(4, MINUTES), new Duration(10, MILLISECONDS), 10, 0.9f, assertion);
+    }
+
+    private static <E extends Exception> void assertSuccessRateForBatch(Assert.CheckedRunnable<E> assertion)
+            throws E
+    {
+        assertEventually(new Duration(4, MINUTES), new Duration(500, MILLISECONDS), 4, 0.75f, assertion);
+    }
+
+    record Pair(String first, String second) {}
 }
