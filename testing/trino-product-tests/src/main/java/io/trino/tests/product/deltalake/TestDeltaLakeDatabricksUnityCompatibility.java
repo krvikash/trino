@@ -51,7 +51,7 @@ public class TestDeltaLakeDatabricksUnityCompatibility
     {
         unityCatalogName = requireEnv("DATABRICKS_UNITY_CATALOG_NAME");
         externalLocationPath = requireEnv("DATABRICKS_UNITY_EXTERNAL_LOCATION");
-        onTrino().executeQuery(format("CREATE SCHEMA delta.%s", schemaName));
+        onDelta().executeQuery(format("CREATE SCHEMA %s.%s", unityCatalogName, schemaName));
     }
 
     @AfterMethodWithContext
