@@ -19,9 +19,9 @@ import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import io.airlift.configuration.ConfigurationFactory;
 import io.airlift.log.Logger;
-import io.opentelemetry.api.OpenTelemetry;
 import io.trino.filesystem.s3.S3FileSystemConfig;
 import io.trino.filesystem.s3.S3FileSystemFactory;
+import io.trino.plugin.base.ConnectorContextModule;
 import io.trino.spi.connector.ConnectorContext;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -69,7 +69,7 @@ public class S3CloudStorageModule
 
         configBinder(binder).bindConfig(S3FileSystemConfig.class);
 
-        binder.bind(OpenTelemetry.class).toInstance(context.getOpenTelemetry());
+        binder.install(new ConnectorContextModule(context));
         binder.bind(S3FileSystemFactory.class);
 
         binder.bind(S3CloudStorage.class).annotatedWith(annotation).to(S3CloudStorage.class);

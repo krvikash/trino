@@ -17,9 +17,8 @@ import com.google.inject.Injector;
 import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.log.Logger;
-import io.opentelemetry.api.OpenTelemetry;
-import io.opentelemetry.api.trace.Tracer;
 import io.trino.plugin.base.CatalogNameModule;
+import io.trino.plugin.base.ConnectorContextModule;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.warp.di.CacheManagerModule;
 import io.trino.plugin.warp.di.WarpBaseModule;
@@ -32,6 +31,7 @@ import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.spi.cache.CacheManager;
 import io.trino.spi.cache.CacheManagerContext;
+import io.trino.testing.TestingConnectorContext;
 import org.weakref.jmx.guice.MBeanModule;
 
 import java.util.ArrayList;
@@ -67,9 +67,8 @@ public class InternalDispatcherCacheManagerFactory
                         config,
                         warpCacheMgrConnectorContext),
                 new CacheManagerModule(context, !isWorker),
+                new ConnectorContextModule(new TestingConnectorContext()),
                 binder -> {
-                    binder.bind(Tracer.class).toInstance(OpenTelemetry.noop().getTracer("InternalDispatcherCacheManagerFactory"));
-                    binder.bind(OpenTelemetry.class).toInstance(OpenTelemetry.noop());
                     if (warpCacheMgrConnectorContext.getCurrentNode().isCoordinator()) {
                         binder.bind(CoordinatorNodeManager.class);
                         binder.bind(CoordinatorInitializedEventHandler.class);

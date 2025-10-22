@@ -15,18 +15,15 @@ import com.starburstdata.trino.plugin.stargate.EnableWrites;
 import com.starburstdata.trino.plugin.stargate.StargateMetadataFactory;
 import com.starburstdata.trino.plugin.stargate.StargateModule;
 import io.airlift.bootstrap.Bootstrap;
+import io.trino.plugin.base.ConnectorContextModule;
 import io.trino.plugin.jdbc.ExtraCredentialsBasedIdentityCacheMappingModule;
 import io.trino.plugin.jdbc.JdbcConnector;
 import io.trino.plugin.jdbc.JdbcMetadataFactory;
 import io.trino.plugin.jdbc.JdbcModule;
-import io.trino.spi.Node;
-import io.trino.spi.NodeManager;
-import io.trino.spi.VersionEmbedder;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
-import io.trino.spi.type.TypeManager;
 
 import java.util.Map;
 
@@ -59,11 +56,7 @@ public class StargateParallelConnectorFactory
         checkStrictSpiVersionMatch(context, this);
 
         Bootstrap app = new Bootstrap(
-                binder -> binder.bind(TypeManager.class).toInstance(context.getTypeManager()),
-                binder -> binder.bind(NodeManager.class).toInstance(context.getNodeManager()),
-                binder -> binder.bind(Node.class).toInstance(context.getCurrentNode()),
-                binder -> binder.bind(VersionEmbedder.class).toInstance(context.getVersionEmbedder()),
-                binder -> binder.bind(VersionEmbedder.class).toInstance(context.getVersionEmbedder()),
+                new ConnectorContextModule(context),
                 binder -> binder.bind(CatalogName.class).toInstance(new CatalogName(catalogName)),
                 binder -> binder.bind(Boolean.class).annotatedWith(EnableWrites.class).toInstance(enableWrites),
                 binder -> binder.install(new ExtraCredentialsBasedIdentityCacheMappingModule()),
