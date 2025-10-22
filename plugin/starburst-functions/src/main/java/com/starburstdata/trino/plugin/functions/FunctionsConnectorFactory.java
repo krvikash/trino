@@ -17,7 +17,6 @@ import com.starburstdata.trino.plugin.functions.io.StorageModule;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.json.JsonModule;
 import io.trino.plugin.base.ConnectorContextModule;
-import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
@@ -59,10 +58,7 @@ public class FunctionsConnectorFactory
                 new JsonModule(),
                 new StorageModule(context.getTypeManager()),
                 new ResolvingFileSystemModule(context.getOpenTelemetry()),
-                new ConnectorContextModule(context),
-                binder -> {
-                    binder.bind(CatalogName.class).toInstance(new CatalogName(catalogName));
-                },
+                new ConnectorContextModule(catalogName, context),
                 module);
 
         Injector injector = app

@@ -27,7 +27,6 @@ import io.trino.plugin.base.jmx.ConnectorObjectNameGeneratorModule;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.hive.HiveConfig;
 import io.trino.plugin.iceberg.catalog.IcebergCatalogModule;
-import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.classloader.ThreadContextClassLoader;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
@@ -78,10 +77,9 @@ public class IcebergConnectorFactory
                     new MBeanServerModule(),
                     new AiClientModule(context.getModelConnectionSpecsLoader()),
                     new IcebergFileSystemModule(catalogName, context),
-                    new ConnectorContextModule(context),
+                    new ConnectorContextModule(catalogName, context),
                     binder -> {
                         binder.bind(ClassLoader.class).toInstance(IcebergConnectorFactory.class.getClassLoader());
-                        binder.bind(CatalogName.class).toInstance(new CatalogName(catalogName));
                     },
                     module);
 

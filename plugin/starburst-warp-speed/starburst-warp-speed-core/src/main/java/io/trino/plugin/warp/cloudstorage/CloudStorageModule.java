@@ -83,14 +83,14 @@ public class CloudStorageModule
 
                     switch (storeType) {
                         case S3 -> {
-                            binder1.install(new S3CloudStorageModule(context, configFactory, annotation));
+                            binder1.install(new S3CloudStorageModule(catalogName, context, configFactory, annotation));
                             Key<S3CloudStorage> s3CloudStorageKey = Key.get(S3CloudStorage.class, annotation);
                             cloudStorageMap.addBinding("s3").to(s3CloudStorageKey);
                             cloudStorageMap.addBinding("s3a").to(s3CloudStorageKey);
                             cloudStorageMap.addBinding("s3n").to(s3CloudStorageKey);
                         }
                         case AZURE -> {
-                            binder1.install(new AzureCloudStorageModule(context, configFactory, annotation));
+                            binder1.install(new AzureCloudStorageModule(catalogName, context, configFactory, annotation));
                             Key<AzureCloudStorage> azureCloudStorageKey = Key.get(AzureCloudStorage.class, annotation);
                             cloudStorageMap.addBinding("abfs").to(azureCloudStorageKey);
                             cloudStorageMap.addBinding("abfss").to(azureCloudStorageKey);

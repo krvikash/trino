@@ -49,14 +49,18 @@ public class S3CloudStorageModule
 {
     private static final Logger logger = Logger.get(S3CloudStorageModule.class);
 
+    private final String catalogName;
     private final ConnectorContext context;
     private final ConfigurationFactory configFactory;
     private final Class<? extends Annotation> annotation;
 
-    public S3CloudStorageModule(ConnectorContext context,
-                                ConfigurationFactory configFactory,
-                                Class<? extends Annotation> annotation)
+    public S3CloudStorageModule(
+            String catalogName,
+            ConnectorContext context,
+            ConfigurationFactory configFactory,
+            Class<? extends Annotation> annotation)
     {
+        this.catalogName = requireNonNull(catalogName, "catalogName is null");
         this.context = requireNonNull(context, "context is null");
         this.configFactory = requireNonNull(configFactory, "configFactory is null");
         this.annotation = requireNonNull(annotation, "annotation is null");
@@ -69,7 +73,7 @@ public class S3CloudStorageModule
 
         configBinder(binder).bindConfig(S3FileSystemConfig.class);
 
-        binder.install(new ConnectorContextModule(context));
+        binder.install(new ConnectorContextModule(catalogName, context));
         binder.bind(S3FileSystemFactory.class);
 
         binder.bind(S3CloudStorage.class).annotatedWith(annotation).to(S3CloudStorage.class);

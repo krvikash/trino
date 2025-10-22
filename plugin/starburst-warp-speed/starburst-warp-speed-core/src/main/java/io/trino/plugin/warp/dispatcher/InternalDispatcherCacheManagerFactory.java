@@ -17,7 +17,6 @@ import com.google.inject.Injector;
 import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.log.Logger;
-import io.trino.plugin.base.CatalogNameModule;
 import io.trino.plugin.base.ConnectorContextModule;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.warp.di.CacheManagerModule;
@@ -61,13 +60,12 @@ public class InternalDispatcherCacheManagerFactory
         List<Module> modules = new ArrayList<>(asList(
                 new MBeanServerModule(),
                 new MBeanModule(),
-                new CatalogNameModule(cacheManagerName),
                 new DispatcherCacheManagerModule(
                         cacheManagerName,
                         config,
                         warpCacheMgrConnectorContext),
                 new CacheManagerModule(context, !isWorker),
-                new ConnectorContextModule(new TestingConnectorContext()),
+                new ConnectorContextModule(cacheManagerName, new TestingConnectorContext()),
                 binder -> {
                     if (warpCacheMgrConnectorContext.getCurrentNode().isCoordinator()) {
                         binder.bind(CoordinatorNodeManager.class);

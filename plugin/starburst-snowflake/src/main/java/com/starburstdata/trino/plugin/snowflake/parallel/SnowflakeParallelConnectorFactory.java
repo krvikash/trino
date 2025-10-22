@@ -13,7 +13,6 @@ import com.google.inject.Injector;
 import io.airlift.bootstrap.Bootstrap;
 import io.trino.plugin.base.ConnectorContextModule;
 import io.trino.plugin.jdbc.JdbcModule;
-import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
@@ -46,8 +45,7 @@ public class SnowflakeParallelConnectorFactory
         checkStrictSpiVersionMatch(context, this);
 
         Bootstrap app = new Bootstrap(
-                new ConnectorContextModule(context),
-                binder -> binder.bind(CatalogName.class).toInstance(new CatalogName(catalogName)),
+                new ConnectorContextModule(catalogName, context),
                 new JdbcModule(),
                 new SnowflakeJdbcOverrideModule(),
                 new SnowflakeParallelModule());

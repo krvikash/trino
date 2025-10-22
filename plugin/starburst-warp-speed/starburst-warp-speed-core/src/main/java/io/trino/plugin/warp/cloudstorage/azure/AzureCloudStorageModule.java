@@ -43,14 +43,18 @@ import static java.util.Objects.requireNonNull;
 public class AzureCloudStorageModule
         implements Module
 {
+    private final String catalogName;
     private final ConnectorContext context;
     private final ConfigurationFactory configFactory;
     private final Class<? extends Annotation> annotation;
 
-    public AzureCloudStorageModule(ConnectorContext context,
+    public AzureCloudStorageModule(
+            String catalogName,
+            ConnectorContext context,
             ConfigurationFactory configFactory,
             Class<? extends Annotation> annotation)
     {
+        this.catalogName = requireNonNull(catalogName, "catalogName is null");
         this.context = requireNonNull(context, "context is null");
         this.configFactory = requireNonNull(configFactory, "configFactory is null");
         this.annotation = requireNonNull(annotation, "annotation is null");
@@ -63,7 +67,7 @@ public class AzureCloudStorageModule
 
         configBinder(binder).bindConfig(AzureFileSystemConfig.class);
 
-        binder.install(new ConnectorContextModule(context));
+        binder.install(new ConnectorContextModule(catalogName, context));
         binder.bind(AzureFileSystemFactory.class);
 
         AzureFileSystemConfig config = configFactory.build(AzureFileSystemConfig.class);

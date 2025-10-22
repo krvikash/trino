@@ -55,7 +55,7 @@ public class S3CloudStorageTest
 
         S3FileSystemFactory fileSystemFactory = new S3FileSystemFactory(OpenTelemetry.noop(), config, new S3FileSystemStats());
 
-        S3CloudStorageModule module = new S3CloudStorageModule(new TestingConnectorContext(), new ConfigurationFactory(Map.of()), ForWarp.class);
+        S3CloudStorageModule module = new S3CloudStorageModule("test", new TestingConnectorContext(), new ConfigurationFactory(Map.of()), ForWarp.class);
 
         cloudStorage = module.provideS3CloudStorage(fileSystemFactory, config);
     }
