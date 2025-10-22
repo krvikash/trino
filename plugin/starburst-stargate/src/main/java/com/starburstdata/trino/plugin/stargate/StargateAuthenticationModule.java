@@ -21,10 +21,13 @@ import io.trino.plugin.jdbc.DriverConnectionFactory;
 import io.trino.plugin.jdbc.credential.CredentialProvider;
 import io.trino.plugin.jdbc.credential.CredentialProviderModule;
 
+import java.util.Properties;
+
 import static com.starburstdata.trino.plugin.stargate.StargateConfig.PASSWORD;
 import static com.starburstdata.trino.plugin.stargate.TrinoUriFactory.sslConnectionProperties;
 import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.trino.client.uri.PropertyName.ENCODING;
 
 public class StargateAuthenticationModule
         extends AbstractConfigurationAwareModule
@@ -58,10 +61,18 @@ public class StargateAuthenticationModule
                 BaseJdbcConfig config,
                 StargateConfig connectorConfig,
                 StargateSslConfig sslConfig,
-                CredentialProvider credentialProvider)
+                CredentialProvider credentialProvider,
+                @AllowForSpoolingProtocol boolean withSpooling)
         {
+            Properties connectionProperties = new Properties();
+            connectionProperties.putAll(sslConnectionProperties(connectorConfig, sslConfig));
+
+            if (!withSpooling) {
+                connectionProperties.put(ENCODING.toString(), ""); // Always negotiate direct protocol
+            }
+
             return DriverConnectionFactory.builder(new TrinoDriver(), config.getConnectionUrl(), credentialProvider)
-                    .setConnectionProperties(sslConnectionProperties(connectorConfig, sslConfig))
+                    .setConnectionProperties(connectionProperties)
                     .build();
         }
     }

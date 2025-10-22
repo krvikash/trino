@@ -53,6 +53,10 @@ public class StargateModule
         configBinder(binder).bindConfig(JdbcStatisticsConfig.class);
         configBinder(binder).bindConfig(StargateJdbcConfig.class);
 
+        newOptionalBinder(binder, Key.get(Boolean.class, AllowForSpoolingProtocol.class))
+                .setDefault()
+                .toInstance(Boolean.FALSE);
+
         install(conditionalModule(
                 StargateConfig.class,
                 StargateConfig::isSslEnabled,
