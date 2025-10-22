@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.openai.client.OpenAIClient;
 import com.openai.core.JsonValue;
+import com.openai.errors.InternalServerException;
 import com.openai.errors.RateLimitException;
 import com.openai.models.FunctionDefinition;
 import com.openai.models.FunctionParameters;
@@ -274,6 +275,6 @@ public class OpenAiLanguageModelClient
 
     private static boolean isRetryable(Throwable t)
     {
-        return t instanceof RateLimitException;
+        return t instanceof RateLimitException || t instanceof InternalServerException;
     }
 }
