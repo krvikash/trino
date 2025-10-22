@@ -297,9 +297,7 @@ final class TestIcebergS3TablesConnectorSmokeTest
     @Test
     @Override
     @Disabled // TODO: remove once https://starburstdata.atlassian.net/browse/CONNECT-557 is fixed
-    public void testSelectInformationSchemaTables()
-    {
-    }
+    public void testSelectInformationSchemaTables() {}
 
     @Test
     @Override
