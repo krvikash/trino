@@ -34,6 +34,7 @@ import io.trino.plugin.hive.metastore.HiveCacheTableId;
 import io.trino.plugin.hive.metastore.UnimplementedHiveMetastore;
 import io.trino.plugin.hive.security.SqlStandardAccessControlMetadata;
 import io.trino.plugin.hive.util.HiveBlockEncodingSerde;
+import io.trino.spi.NodeVersion;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.TestingBlockJsonSerde;
