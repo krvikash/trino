@@ -14,6 +14,7 @@
 package io.trino.spi.connector;
 
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.statistics.TableStatistics;
 
 import java.util.Optional;
 import java.util.Set;
@@ -99,5 +100,10 @@ public interface SystemTable
     default Optional<ConnectorSplitSource> splitSource(ConnectorSession connectorSession, TupleDomain<ColumnHandle> constraint)
     {
         return Optional.empty();
+    }
+
+    default TableStatistics getTableStatistics(ConnectorSession session, TupleDomain<ColumnHandle> constraint)
+    {
+        return TableStatistics.empty();
     }
 }

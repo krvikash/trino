@@ -31,6 +31,7 @@ import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.connector.SystemColumnHandle;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.statistics.TableStatistics;
 
 import java.util.List;
 import java.util.Map;
@@ -174,6 +175,13 @@ public class SystemTablesMetadata
         }
         table = new SystemTableHandle(table.schemaName(), table.tableName(), newDomain);
         return Optional.of(new ConstraintApplicationResult<>(table, constraint.getSummary(), constraint.getExpression(), false));
+    }
+
+    @Override
+    public TableStatistics getTableStatistics(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        SystemTableHandle systemTableHandle = (SystemTableHandle) tableHandle;
+        return checkAndGetTable(session, tableHandle).getTableStatistics(session, systemTableHandle.constraint());
     }
 
     private Constraint effectiveConstraint(TupleDomain<ColumnHandle> oldDomain, Constraint newConstraint, TupleDomain<ColumnHandle> effectiveDomain)
