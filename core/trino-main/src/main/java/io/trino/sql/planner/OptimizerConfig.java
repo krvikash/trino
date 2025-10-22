@@ -71,6 +71,7 @@ public class OptimizerConfig
     private Duration iterativeOptimizerTimeout = new Duration(3, MINUTES); // by default let optimizer wait a long time in case it retrieves some data from ConnectorMetadata
 
     private boolean optimizeMetadataQueries;
+    private long approximateRowCountForMetadataQueries = 10_000;
     private boolean pushTableWriteThroughUnion = true;
     private boolean dictionaryAggregation;
     private MarkDistinctStrategy markDistinctStrategy;
@@ -507,6 +508,19 @@ public class OptimizerConfig
     public OptimizerConfig setOptimizeMetadataQueries(boolean optimizeMetadataQueries)
     {
         this.optimizeMetadataQueries = optimizeMetadataQueries;
+        return this;
+    }
+
+    @Min(1)
+    public long getApproximateRowCountForMetadataQueries()
+    {
+        return approximateRowCountForMetadataQueries;
+    }
+
+    @Config("optimizer.approximate-row-count-metadata-queries")
+    public OptimizerConfig setApproximateRowCountForMetadataQueries(long approximateRowCountForMetadataQueries)
+    {
+        this.approximateRowCountForMetadataQueries = approximateRowCountForMetadataQueries;
         return this;
     }
 

@@ -38,6 +38,8 @@ import io.trino.spi.connector.SystemColumnHandle;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.statistics.Estimate;
+import io.trino.spi.statistics.TableStatistics;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
@@ -47,6 +49,7 @@ import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
+import io.trino.sql.planner.OptimizerConfig;
 
 import java.sql.DatabaseMetaData;
 import java.sql.Types;
@@ -131,12 +134,14 @@ public class ColumnJdbcTable
 
     private final Metadata metadata;
     private final AccessControl accessControl;
+    private final long approximateRowCount;
 
     @Inject
-    public ColumnJdbcTable(Metadata metadata, AccessControl accessControl)
+    public ColumnJdbcTable(Metadata metadata, AccessControl accessControl, OptimizerConfig config)
     {
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
+        this.approximateRowCount = config.getApproximateRowCountForMetadataQueries();
     }
 
     @Override
@@ -555,5 +560,13 @@ public class ColumnJdbcTable
                     .map(Slices::utf8Slice)
                     .collect(toImmutableList()));
         });
+    }
+
+    @Override
+    public TableStatistics getTableStatistics(ConnectorSession connectorSession, TupleDomain<ColumnHandle> constraint)
+    {
+        return TableStatistics.builder()
+                .setRowCount(Estimate.of(approximateRowCount))
+                .build();
     }
 }

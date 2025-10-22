@@ -38,6 +38,9 @@ import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SystemColumnHandle;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.statistics.Estimate;
+import io.trino.spi.statistics.TableStatistics;
+import io.trino.sql.planner.OptimizerConfig;
 
 import java.util.List;
 import java.util.Optional;
@@ -77,13 +80,15 @@ public class TableJdbcTable
     private final Metadata metadata;
     private final AccessControl accessControl;
     private final InternalNode currentNode;
+    private final long approximateRowCount;
 
     @Inject
-    public TableJdbcTable(Metadata metadata, AccessControl accessControl, InternalNode currentNode)
+    public TableJdbcTable(Metadata metadata, AccessControl accessControl, InternalNode currentNode, OptimizerConfig config)
     {
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
         this.currentNode = requireNonNull(currentNode, "currentNode is null");
+        this.approximateRowCount = config.getApproximateRowCountForMetadataQueries();
     }
 
     @Override
@@ -148,6 +153,14 @@ public class TableJdbcTable
                 .map(catalog -> new SystemSplit(address, constraint, Optional.of(catalog)))
                 .collect(toImmutableList());
         return Optional.of(new FixedSplitSource(splits));
+    }
+
+    @Override
+    public TableStatistics getTableStatistics(ConnectorSession connectorSession, TupleDomain<ColumnHandle> constraint)
+    {
+        return TableStatistics.builder()
+                .setRowCount(Estimate.of(approximateRowCount))
+                .build();
     }
 
     private static Object[] tableRow(String catalog, SchemaTableName name, String type)

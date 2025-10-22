@@ -53,7 +53,7 @@ public class TestSystemMetadataConnector
         closeAfterClass(() -> countingMockConnector = null);
         Session session = testSessionBuilder().build();
         QueryRunner queryRunner = DistributedQueryRunner.builder(session)
-                .setWorkerCount(0)
+                .setWorkerCount(3)
                 .addCoordinatorProperty("optimizer.experimental-max-prefetched-information-schema-prefixes", Integer.toString(MAX_PREFIXES_COUNT))
                 .build();
         try {
@@ -405,6 +405,38 @@ public class TestSystemMetadataConnector
         assertQueryFails(
                 "SELECT * FROM system.metadata.materialized_views",
                 "Error listing materialized views for catalog broken_catalog: Catalog is broken");
+    }
+
+    @Test
+    public void testStatisticsForCatalogJdbcTable()
+    {
+        assertQuery(
+                "SHOW STATS FOR system.jdbc.catalogs",
+                "VALUES ('table_cat', null, null, null, null, null, null), (null, null, null, null, 10000.0, null, null)");
+    }
+
+    @Test
+    public void testReducedWorkerCountForMetadataQueries()
+    {
+        Session session = Session.builder(getSession())
+                .setSystemProperty("min_hash_partition_count", "1")
+                .build();
+
+        QueryRunner.MaterializedResultWithPlan resultWithQueryId = getDistributedQueryRunner().executeWithPlan(session, "SELECT TABLE_CAT FROM system.jdbc.catalogs order by TABLE_CAT");
+
+        // Stage 1 corresponds to Sort operator
+        assertThat(getDistributedQueryRunner().getCoordinator().getQueryManager().getFullQueryInfo(resultWithQueryId.queryId()).getStages().get().getStages().get(1).getStageStats().getTotalTasks())
+                .isEqualTo(1);
+
+        session = Session.builder(getSession())
+                .setSystemProperty("min_hash_partition_count", "1")
+                .setSystemProperty("min_input_rows_per_task", "100")
+                .build();
+
+        resultWithQueryId = getDistributedQueryRunner().executeWithPlan(session, "SELECT TABLE_CAT FROM system.jdbc.catalogs order by TABLE_CAT");
+
+        assertThat(getDistributedQueryRunner().getCoordinator().getQueryManager().getFullQueryInfo(resultWithQueryId.queryId()).getStages().get().getStages().get(1).getStageStats().getTotalTasks())
+                .isEqualTo(4); // 1 coordinator + 3 worker
     }
 
     private void assertMetadataCalls(@Language("SQL") String actualSql, @Language("SQL") String expectedSql, Multiset<String> expectedMetadataCallsCount)
