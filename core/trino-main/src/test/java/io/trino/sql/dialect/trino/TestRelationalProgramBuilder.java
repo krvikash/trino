@@ -407,8 +407,7 @@ final class TestRelationalProgramBuilder
                                 fieldReferenceOperationFilter,
                                 returnOperationFilter)),
                 CorrelatedJoinOperationMetadata.JoinType.LEFT,
-                VALUES_OPERATION.attributes(),
-                returnOperationSubquery.attributes());
+                VALUES_OPERATION.attributes());
 
         assertProgram(
                 correlatedJoinNode,

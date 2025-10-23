@@ -63,8 +63,7 @@ public final class CorrelatedJoin
             Block subquery,
             Block filter,
             JoinType joinType,
-            Map<AttributeKey, Object> sourceAttributes,
-            Map<AttributeKey, Object> subqueryAttributes)
+            Map<AttributeKey, Object> sourceAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -74,7 +73,6 @@ public final class CorrelatedJoin
         requireNonNull(filter, "filter is null");
         requireNonNull(joinType, "joinType is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
-        requireNonNull(subqueryAttributes, "subqueryAttributes is null");
 
         if (!IS_RELATION.test(trinoType(input.type())) || !IS_RELATION.test(trinoType(subquery.getReturnedType()))) {
             throw new TrinoException(IR_ERROR, "input and subquery of CorrelatedJoin must be of relation type");
@@ -103,7 +101,7 @@ public final class CorrelatedJoin
         validatePredicate(filter, relationRowType(trinoType(input.type())), relationRowType(trinoType(subquery.getReturnedType())), "invalid filter for CorrelatedJoin operation");
         this.filter = singleBlockRegion(filter);
 
-        // TODO also derive attributes from source and subquery attributes
+        // TODO derive attributes
         this.attributes = JOIN_TYPE.asMap(joinType);
     }
 
@@ -148,7 +146,6 @@ public final class CorrelatedJoin
                 subquery.getOnlyBlock(),
                 filter.getOnlyBlock(),
                 JOIN_TYPE.getAttribute(attributes),
-                ImmutableMap.of(),
                 ImmutableMap.of());
     }
 

@@ -58,7 +58,6 @@ import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationM
 import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameType;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
-import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.planner.OrderingScheme;
 import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.plan.AggregationNode;
@@ -280,7 +279,6 @@ public class RelationalProgramBuilder
                 new Context(subqueryBuilder, composedMapping(context, argumentMapping(subqueryParameter, input.mapping()))));
         addReturnOperation(subqueryBuilder);
         Map<Symbol, Integer> subqueryMapping = deriveOutputMapping(relationRowType(trinoType(subqueryBuilder.recentOperation().result().type())), node.getSubquery().getOutputSymbols());
-        Map<AttributeKey, Object> subqueryAttributes = subqueryBuilder.recentOperation().attributes();
         Block subquery = subqueryBuilder.build();
 
         // model filter as a lambda
@@ -306,8 +304,7 @@ public class RelationalProgramBuilder
                 subquery,
                 filter,
                 CorrelatedJoinOperationMetadata.JoinType.of(node.getType()),
-                input.operation().attributes(),
-                subqueryAttributes);
+                input.operation().attributes());
 
         Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(correlatedJoin.result().type())), node.getOutputSymbols());
         context.block().addOperation(correlatedJoin);
