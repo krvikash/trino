@@ -25,5 +25,4 @@ public interface TrinoOperationMetadata
      * In the future, we might not consider these attributes for propagation.
      */
     Set<TrinoAttributeMetadata<?>> operationAttributes();
-    // TODO rename operation attributes because they are namespaced (e.g. JOIN_TYPE -> TYPE)
 }
