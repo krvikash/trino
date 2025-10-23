@@ -17,6 +17,7 @@ import com.openai.client.OpenAIClient;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.log.Logger;
+import io.airlift.units.Duration;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.AiClientConfig;
 import io.starburst.ai.client.EmbeddingModelClient;
@@ -54,6 +55,8 @@ public class OpenAiClientFactory
     private final SecretsResolver secretsResolver;
     private final Executor executor;
     private final int batchParallelism;
+    private final int maxRetries;
+    private final Duration timeout;
 
     @Inject
     public OpenAiClientFactory(SecretsResolver secretsResolver, AiClientConfig config, @ForAiClient Executor executor)
@@ -61,6 +64,8 @@ public class OpenAiClientFactory
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
         this.executor = requireNonNull(executor, "executor is null");
         batchParallelism = config.getBatchParallelism();
+        maxRetries = config.getOpenAiMaxRetries();
+        timeout = config.getOpenAiTimeout();
     }
 
     @Override
@@ -106,6 +111,8 @@ public class OpenAiClientFactory
     private OpenAIClient createOpenAiClient(OpenAiConnectionInfo connectionInfo, Optional<AzureOpenAiConnectionInfo> azureOpenAiConnectionInfo)
     {
         OpenAIOkHttpClient.Builder builder = OpenAIOkHttpClient.builder();
+        builder.maxRetries(maxRetries);
+        builder.timeout(timeout.toJavaTime());
         azureOpenAiConnectionInfo.ifPresent(info -> {
             if (info.isCustomAzureOpenAiDeployment()) {
                 builder.putQueryParam(AZURE_OPENAI_API_VERSION_QUERY_PARAM, info.apiVersion());

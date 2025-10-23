@@ -12,6 +12,7 @@ package io.starburst.ai.client.bedrock;
 import com.google.inject.Inject;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.log.Logger;
+import io.airlift.units.Duration;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.AiClientConfig;
 import io.starburst.ai.client.EmbeddingModelClient;
@@ -59,8 +60,8 @@ public class AwsBedrockClientFactory
     private final SecretsResolver secretsResolver;
     private final Executor executor;
     private final int batchParallelism;
-    private final io.airlift.units.Duration socketTimeout;
-    private final io.airlift.units.Duration apiTimeout;
+    private final Duration socketTimeout;
+    private final Duration apiTimeout;
     private final int maxRetries;
 
     @Inject
@@ -70,9 +71,9 @@ public class AwsBedrockClientFactory
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
         this.executor = requireNonNull(executor, "executor is null");
         batchParallelism = config.getBatchParallelism();
-        socketTimeout = config.getAwsSocketTimeout();
-        apiTimeout = config.getAwsApiTimeout();
-        maxRetries = config.getAwsMaxRetries();
+        socketTimeout = config.getBedrockSocketTimeout();
+        apiTimeout = config.getBedrockApiTimeout();
+        maxRetries = config.getBedrockMaxRetries();
     }
 
     @Override

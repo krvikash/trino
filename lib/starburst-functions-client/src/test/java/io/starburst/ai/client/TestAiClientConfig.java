@@ -32,9 +32,11 @@ public class TestAiClientConfig
                 .setClientCacheTtl(new Duration(1, TimeUnit.HOURS))
                 .setClientCacheRefreshEnabled(false)
                 .setBatchParallelism(4)
-                .setAwsApiTimeout(new Duration(5, TimeUnit.MINUTES))
-                .setAwsSocketTimeout(new Duration(3, TimeUnit.MINUTES))
-                .setAwsMaxRetries(10));
+                .setBedrockApiTimeout(new Duration(5, TimeUnit.MINUTES))
+                .setBedrockSocketTimeout(new Duration(3, TimeUnit.MINUTES))
+                .setBedrockMaxRetries(10)
+                .setOpenAiTimeout(new Duration(3, TimeUnit.MINUTES))
+                .setOpenAiMaxRetries(2));
     }
 
     @Test
@@ -46,9 +48,11 @@ public class TestAiClientConfig
                 .put("ai.client.cache.ttl", "30m")
                 .put("ai.client.cache.refresh.enabled", "true")
                 .put("ai.client.batch.parallelism", "8")
-                .put("ai.client.aws-api-timeout", "10m")
-                .put("ai.client.aws-socket-timeout", "10s")
-                .put("ai.client.aws-max-retries", "15")
+                .put("ai.client.bedrock-api-timeout", "10m")
+                .put("ai.client.bedrock-socket-timeout", "10s")
+                .put("ai.client.bedrock-max-retries", "15")
+                .put("ai.client.openai-timeout", "4m")
+                .put("ai.client.openai-max-retries", "5")
                 .buildOrThrow();
         AiClientConfig expected = new AiClientConfig()
                 .setStorageType(StorageType.FILE)
@@ -56,9 +60,11 @@ public class TestAiClientConfig
                 .setClientCacheTtl(new Duration(30, TimeUnit.MINUTES))
                 .setClientCacheRefreshEnabled(true)
                 .setBatchParallelism(8)
-                .setAwsApiTimeout(new Duration(10, TimeUnit.MINUTES))
-                .setAwsSocketTimeout(new Duration(10, TimeUnit.SECONDS))
-                .setAwsMaxRetries(15);
+                .setBedrockApiTimeout(new Duration(10, TimeUnit.MINUTES))
+                .setBedrockSocketTimeout(new Duration(10, TimeUnit.SECONDS))
+                .setBedrockMaxRetries(15)
+                .setOpenAiMaxRetries(5)
+                .setOpenAiTimeout(new Duration(4, TimeUnit.MINUTES));
 
         assertFullMapping(properties, expected);
     }

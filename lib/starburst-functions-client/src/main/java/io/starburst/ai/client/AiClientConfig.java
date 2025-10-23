@@ -26,9 +26,11 @@ public class AiClientConfig
     private Duration clientCacheRefreshInterval = new Duration(1, TimeUnit.SECONDS);
     private Duration clientCacheTtl = new Duration(1, TimeUnit.HOURS);
     private int batchParallelism = 4;
-    private Duration awsSocketTimeout = new Duration(3, TimeUnit.MINUTES);
-    private Duration awsApiTimeout = new Duration(5, TimeUnit.MINUTES);
-    private int awsMaxRetries = 10;
+    private Duration bedrockSocketTimeout = new Duration(3, TimeUnit.MINUTES);
+    private Duration bedrockApiTimeout = new Duration(5, TimeUnit.MINUTES);
+    private int bedrockMaxRetries = 10;
+    private int openAiMaxRetries = 2; // Default retries for OpenAI SDK
+    private Duration openAiTimeout = new Duration(3, TimeUnit.MINUTES);
 
     @NotNull
     public StorageType getStorageType()
@@ -101,43 +103,70 @@ public class AiClientConfig
         return this;
     }
 
-    public Duration getAwsSocketTimeout()
+    public Duration getBedrockSocketTimeout()
     {
-        return awsSocketTimeout;
+        return bedrockSocketTimeout;
     }
 
-    @Config("ai.client.aws-socket-timeout")
+    @Config("ai.client.bedrock-socket-timeout")
     @ConfigDescription("Http socket timeout for AI client requests")
-    public AiClientConfig setAwsSocketTimeout(Duration awsSocketTimeout)
+    public AiClientConfig setBedrockSocketTimeout(Duration bedrockSocketTimeout)
     {
-        this.awsSocketTimeout = awsSocketTimeout;
+        this.bedrockSocketTimeout = bedrockSocketTimeout;
         return this;
     }
 
     @Min(0)
-    public int getAwsMaxRetries()
+    public int getBedrockMaxRetries()
     {
-        return awsMaxRetries;
+        return bedrockMaxRetries;
     }
 
-    @Config("ai.client.aws-max-retries")
+    @Config("ai.client.bedrock-max-retries")
     @ConfigDescription("Maximum number of retries for AI client requests")
-    public AiClientConfig setAwsMaxRetries(int awsMaxRetries)
+    public AiClientConfig setBedrockMaxRetries(int bedrockMaxRetries)
     {
-        this.awsMaxRetries = awsMaxRetries;
+        this.bedrockMaxRetries = bedrockMaxRetries;
         return this;
     }
 
-    public Duration getAwsApiTimeout()
+    public Duration getBedrockApiTimeout()
     {
-        return awsApiTimeout;
+        return bedrockApiTimeout;
     }
 
-    @Config("ai.client.aws-api-timeout")
+    @Config("ai.client.bedrock-api-timeout")
     @ConfigDescription("Max duration of a single request to AWS Bedrock (including retries)")
-    public AiClientConfig setAwsApiTimeout(Duration awsApiTimeout)
+    public AiClientConfig setBedrockApiTimeout(Duration bedrockApiTimeout)
     {
-        this.awsApiTimeout = awsApiTimeout;
+        this.bedrockApiTimeout = bedrockApiTimeout;
+        return this;
+    }
+
+    @Min(0)
+    public int getOpenAiMaxRetries()
+    {
+        return openAiMaxRetries;
+    }
+
+    @Config("ai.client.openai-max-retries")
+    @ConfigDescription("Maximum number of retries for OpenAI client requests")
+    public AiClientConfig setOpenAiMaxRetries(int openAiMaxRetries)
+    {
+        this.openAiMaxRetries = openAiMaxRetries;
+        return this;
+    }
+
+    public Duration getOpenAiTimeout()
+    {
+        return openAiTimeout;
+    }
+
+    @Config("ai.client.openai-timeout")
+    @ConfigDescription("Max duration of a single request to OpenAI (including retries)")
+    public AiClientConfig setOpenAiTimeout(Duration openAiTimeout)
+    {
+        this.openAiTimeout = openAiTimeout;
         return this;
     }
 
