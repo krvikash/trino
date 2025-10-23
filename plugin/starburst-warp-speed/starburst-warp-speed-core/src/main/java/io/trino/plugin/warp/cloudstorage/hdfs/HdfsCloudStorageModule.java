@@ -20,8 +20,6 @@ import com.google.inject.Key;
 import com.google.inject.Module;
 import io.airlift.bootstrap.LifeCycleModule;
 import io.airlift.configuration.ConfigurationFactory;
-import io.opentelemetry.api.OpenTelemetry;
-import io.opentelemetry.api.trace.Tracer;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.manager.FileSystemModule;
 import io.trino.spi.connector.ConnectorContext;
@@ -65,13 +63,10 @@ public class HdfsCloudStorageModule
         Injector injector = Guice.createInjector(
                 binder1 -> {
                     binder1.bind(ConfigurationFactory.class).toInstance(configFactory);
-                    OpenTelemetry openTelemetry = context.getOpenTelemetry();
-                    binder1.bind(OpenTelemetry.class).toInstance(openTelemetry);
-                    binder1.bind(Tracer.class).toInstance(openTelemetry.getTracer("warp.cloud-vendor"));
 
                     binder1.install(new LifeCycleModule("HdfsCloudStorageModule"));
 
-                    FileSystemModule fileSystemModule = new FileSystemModule(catalogName, context.getNodeManager(), context.getCurrentNode().isCoordinator(), openTelemetry, false);
+                    FileSystemModule fileSystemModule = new FileSystemModule(catalogName, context, false);
                     fileSystemModule.setConfigurationFactory(configFactory);
                     binder1.install(fileSystemModule);
                 });

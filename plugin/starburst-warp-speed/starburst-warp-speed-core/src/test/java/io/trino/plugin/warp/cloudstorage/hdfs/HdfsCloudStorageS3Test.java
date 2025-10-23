@@ -19,12 +19,10 @@ import com.google.inject.Injector;
 import com.google.inject.Module;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.configuration.ConfigurationFactory;
-import io.opentelemetry.api.OpenTelemetry;
-import io.opentelemetry.api.trace.Tracer;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.manager.FileSystemModule;
 import io.trino.plugin.warp.cloudstorage.CloudStorageAbstractTest;
-import io.trino.spi.NodeManager;
+import io.trino.testing.TestingConnectorContext;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -89,8 +87,6 @@ public class HdfsCloudStorageS3Test
         public void configure(Binder binder)
         {
             String catalogName = "catalogName";
-            NodeManager nodeManager = Mockito.mock(NodeManager.class);
-            OpenTelemetry openTelemetry = OpenTelemetry.noop();
 
             Map<String, String> properties = new HashMap<>();
             properties.put("hive.s3.iam-role", IAM_ROLE);
@@ -99,12 +95,9 @@ public class HdfsCloudStorageS3Test
             ConfigurationFactory configFactory = new ConfigurationFactory(properties);
             binder.bind(ConfigurationFactory.class).toInstance(configFactory);
 
-            FileSystemModule fileSystemModule = new FileSystemModule(catalogName, nodeManager, true, openTelemetry, false);
+            FileSystemModule fileSystemModule = new FileSystemModule(catalogName, new TestingConnectorContext(), false);
             fileSystemModule.setConfigurationFactory(configFactory);
             binder.install(fileSystemModule);
-
-            Tracer tracer = openTelemetry.getTracer("warp.cloud-vendor");
-            binder.bind(Tracer.class).toInstance(tracer);
 
             LifeCycleManager lifeCycleManager = Mockito.mock(LifeCycleManager.class);
             binder.bind(LifeCycleManager.class).toInstance(lifeCycleManager);

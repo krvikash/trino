@@ -117,23 +117,19 @@ public class IcebergConnectorFactory
             extends AbstractConfigurationAwareModule
     {
         private final String catalogName;
-        private final NodeManager nodeManager;
-        private final OpenTelemetry openTelemetry;
-        private final boolean isCoordinator;
+        private final ConnectorContext context;
 
         public IcebergFileSystemModule(String catalogName, ConnectorContext context)
         {
             this.catalogName = requireNonNull(catalogName, "catalogName is null");
-            this.nodeManager = context.getNodeManager();
-            this.openTelemetry = context.getOpenTelemetry();
-            this.isCoordinator = context.getCurrentNode().isCoordinator();
+            this.context = requireNonNull(context, "context is null");
         }
 
         @Override
         protected void setup(Binder binder)
         {
             boolean metadataCacheEnabled = buildConfigObject(IcebergConfig.class).isMetadataCacheEnabled();
-            install(new FileSystemModule(catalogName, nodeManager, isCoordinator, openTelemetry, metadataCacheEnabled));
+            install(new FileSystemModule(catalogName, context, metadataCacheEnabled));
         }
     }
 }
