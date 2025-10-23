@@ -52,6 +52,7 @@ public class HiveProxiedConnectorInitializer
                     context,
                     moduleInstance,
                     Optional.empty(),
+                    false,
                     Optional.empty());
         }
         catch (Exception e) {

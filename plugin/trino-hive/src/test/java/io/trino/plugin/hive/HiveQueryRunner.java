@@ -49,6 +49,7 @@ import java.util.function.Function;
 
 import static io.airlift.log.Level.WARN;
 import static io.airlift.units.Duration.nanosSince;
+import static io.trino.plugin.hive.HiveTestUtils.SESSION;
 import static io.trino.plugin.hive.TestingHiveUtils.getConnectorService;
 import static io.trino.plugin.tpch.ColumnNaming.SIMPLIFIED;
 import static io.trino.plugin.tpch.DecimalTypeMapping.DOUBLE;
@@ -104,6 +105,7 @@ public final class HiveQueryRunner
         private List<TpchTable<?>> initialTables = ImmutableList.of();
         private Optional<String> initialSchemasLocationBase = Optional.empty();
         private Optional<Function<DistributedQueryRunner, HiveMetastore>> metastore = Optional.empty();
+        private boolean metastoreImpersonationEnabled;
         private boolean tpcdsCatalogEnabled;
         private boolean tpchBucketedCatalogEnabled;
         private boolean createTpchSchemas = true;
@@ -162,6 +164,13 @@ public final class HiveQueryRunner
         public SELF setMetastore(Function<DistributedQueryRunner, HiveMetastore> metastore)
         {
             this.metastore = Optional.of(metastore);
+            return self();
+        }
+
+        @CanIgnoreReturnValue
+        public SELF setMetastoreImpersonationEnabled(boolean metastoreImpersonationEnabled)
+        {
+            this.metastoreImpersonationEnabled = metastoreImpersonationEnabled;
             return self();
         }
 
@@ -252,8 +261,8 @@ public final class HiveQueryRunner
                     hiveProperties.put("fs.hadoop.enabled", "true");
                 }
 
-                queryRunner.installPlugin(new TestingHivePlugin(dataDir, metastore, decryptionKeyRetriever));
-                queryRunner.installPlugin(new MockPlanAlternativePlugin(new TestingHivePlugin(dataDir, metastore, decryptionKeyRetriever)));
+                queryRunner.installPlugin(new TestingHivePlugin(dataDir, metastore, metastoreImpersonationEnabled, decryptionKeyRetriever));
+                queryRunner.installPlugin(new MockPlanAlternativePlugin(new TestingHivePlugin(dataDir, metastore, metastoreImpersonationEnabled, decryptionKeyRetriever)));
 
                 Map<String, String> hiveProperties = new HashMap<>();
                 if (!skipTimezoneSetup) {
@@ -299,7 +308,7 @@ public final class HiveQueryRunner
         private void populateData(QueryRunner queryRunner)
         {
             HiveMetastore metastore = getConnectorService(queryRunner, HiveMetastoreFactory.class)
-                    .createMetastore(Optional.empty());
+                    .createMetastore(Optional.of(SESSION.getIdentity()));
             if (metastore.getDatabase(TPCH_SCHEMA).isEmpty()) {
                 metastore.createDatabase(createDatabaseMetastoreObject(TPCH_SCHEMA, initialSchemasLocationBase));
                 copyTpchTables(queryRunner, "tpch", TINY_SCHEMA_NAME, initialTables);
