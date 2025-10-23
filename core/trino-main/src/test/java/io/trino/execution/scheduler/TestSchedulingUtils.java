@@ -292,6 +292,94 @@ public class TestSchedulingUtils
         assertThat(SchedulingUtils.canStream(parentSubPlan, bSubPlan)).isFalse();
     }
 
+    @Test
+    public void testCanStreamUnionWithRepeats()
+    {
+        /*
+                  parent(union)
+                   /   \     \
+     -------------------------------------- stage boundary
+                  a     a     b
+         */
+        SubPlan aSubPlan = valuesSubPlan("a");
+        RemoteSourceNode remoteSourceA1 = remoteSource("a");
+        RemoteSourceNode remoteSourceA2 = remoteSource("a");
+
+        SubPlan bSubPlan = valuesSubPlan("b");
+        RemoteSourceNode remoteSourceB = remoteSource("b");
+
+        SubPlan parentSubPlan = createSubPlan(
+                "parent",
+                union("union", ImmutableList.of(remoteSourceA1, remoteSourceA2, remoteSourceB)),
+                ImmutableList.of(aSubPlan, bSubPlan));
+
+        assertThat(SchedulingUtils.canStream(parentSubPlan, aSubPlan)).isTrue();
+        assertThat(SchedulingUtils.canStream(parentSubPlan, bSubPlan)).isTrue();
+    }
+
+    @Test
+    public void testCanStreamUnionOverJoinsWithRepeatsSameStructure()
+    {
+        /*
+                  parent(union)
+                   /        \
+                  join       join
+                 /   \      /   \
+     -------------------------------------- stage boundary
+                a     b     a    b
+        */
+
+        SubPlan aSubPlan = valuesSubPlan("a");
+        RemoteSourceNode remoteSourceA1 = remoteSource("a");
+        RemoteSourceNode remoteSourceA2 = remoteSource("a");
+
+        SubPlan bSubPlan = valuesSubPlan("b");
+        RemoteSourceNode remoteSourceB1 = remoteSource("b");
+        RemoteSourceNode remoteSourceB2 = remoteSource("b");
+
+        SubPlan parentSubPlan = createSubPlan(
+                "parent",
+                union("union", ImmutableList.of(
+                        join("join1", remoteSourceA1, remoteSourceB1),
+                        join("join2", remoteSourceA2, remoteSourceB2))),
+                ImmutableList.of(aSubPlan, bSubPlan));
+
+        assertThat(SchedulingUtils.canStream(parentSubPlan, aSubPlan)).isTrue();
+        assertThat(SchedulingUtils.canStream(parentSubPlan, bSubPlan)).isFalse();
+    }
+
+    @Test
+    public void testCanStreamUnionOverJoinsWithRepeatsReversedStructure()
+    {
+        /*
+                  parent(union)
+                   /        \
+                  join       join
+                 /   \      /   \
+     -------------------------------------- stage boundary
+                a     b     b   a
+        */
+
+        SubPlan aSubPlan = valuesSubPlan("a");
+        RemoteSourceNode remoteSourceA1 = remoteSource("a");
+        RemoteSourceNode remoteSourceA2 = remoteSource("a");
+
+        SubPlan bSubPlan = valuesSubPlan("b");
+        RemoteSourceNode remoteSourceB1 = remoteSource("b");
+        RemoteSourceNode remoteSourceB2 = remoteSource("b");
+
+        SubPlan parentSubPlan = createSubPlan(
+                "parent",
+                union("union", ImmutableList.of(
+                        join("join1", remoteSourceA1, remoteSourceB1),
+                        join("join2", remoteSourceB2, remoteSourceA2))),
+                ImmutableList.of(aSubPlan, bSubPlan));
+
+        assertThat(SchedulingUtils.canStream(parentSubPlan, aSubPlan)).isTrue();
+        // b is on probe side in one of the joins
+        assertThat(SchedulingUtils.canStream(parentSubPlan, bSubPlan)).isTrue();
+    }
+
     private static RemoteSourceNode remoteSource(String fragmentId)
     {
         return remoteSource(ImmutableList.of(fragmentId));

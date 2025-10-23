@@ -29,7 +29,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Optional;
 
-import static com.google.common.collect.MoreCollectors.onlyElement;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 
 public final class SchedulingUtils
 {
@@ -41,9 +41,15 @@ public final class SchedulingUtils
         PlanFragmentId sourceFragmentId = source.getFragment().getId();
 
         PlanNode root = plan.getFragment().getRoot();
-        RemoteSourceNode sourceNode = plan.getFragment().getRemoteSourceNodes().stream().filter(node -> node.getSourceFragmentIds().contains(sourceFragmentId)).collect(onlyElement());
-        List<PlanNode> pathToSource = findPath(root, sourceNode).orElseThrow(() -> new RuntimeException("Could not find path from %s to %s in %s".formatted(root, sourceNode, plan.getFragment())));
 
+        // there can be more than one path from remote-source to fragment root; check if at least one is "streaming"
+        List<RemoteSourceNode> sourceNodes = plan.getFragment().getRemoteSourceNodes().stream().filter(node -> node.getSourceFragmentIds().contains(sourceFragmentId)).collect(toImmutableList());
+        return sourceNodes.stream().anyMatch(sourceNode -> canStream(plan, sourceNode, root));
+    }
+
+    private static boolean canStream(SubPlan plan, RemoteSourceNode sourceNode, PlanNode root)
+    {
+        List<PlanNode> pathToSource = findPath(root, sourceNode).orElseThrow(() -> new RuntimeException("Could not find path from %s to %s in %s".formatted(root, sourceNode, plan.getFragment())));
         for (int pos = 0; pos < pathToSource.size() - 1; ++pos) {
             PlanNode node = pathToSource.get(pos);
 
