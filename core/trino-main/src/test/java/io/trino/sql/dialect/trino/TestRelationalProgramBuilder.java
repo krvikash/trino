@@ -117,6 +117,7 @@ import static io.trino.spi.type.RowType.rowType;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
+import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUTES;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.deriveOutputMapping;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.mapStatistics;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
@@ -179,7 +180,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter argumentsParameter = new Block.Parameter(
                 "%12",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationArgument = new FieldReference("%13", argumentsParameter, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperationArgument = new FieldReference("%13", argumentsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationArgument = new Row("%14", ImmutableList.of(fieldReferenceOperationArgument.result()), ImmutableList.of(fieldReferenceOperationArgument.attributes()));
         Return returnOperationArgument = new Return("%15", rowOperationArgument.result(), rowOperationArgument.attributes());
 
@@ -187,7 +188,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter filterParameter = new Block.Parameter(
                 "%16",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationFilter = new FieldReference("%17", filterParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperationFilter = new FieldReference("%17", filterParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationFilter = new Row("%18", ImmutableList.of(fieldReferenceOperationFilter.result()), ImmutableList.of(fieldReferenceOperationFilter.attributes()));
         Return returnOperationFilter = new Return("%19", rowOperationFilter.result(), rowOperationFilter.attributes());
 
@@ -202,8 +203,8 @@ final class TestRelationalProgramBuilder
         Block.Parameter orderingParameter = new Block.Parameter(
                 "%23",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationOrderingA = new FieldReference("%24", orderingParameter, 0, ImmutableMap.of());
-        FieldReference fieldReferenceOperationOrderingB = new FieldReference("%25", orderingParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperationOrderingA = new FieldReference("%24", orderingParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperationOrderingB = new FieldReference("%25", orderingParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationOrdering = new Row(
                 "%26",
                 ImmutableList.of(fieldReferenceOperationOrderingA.result(), fieldReferenceOperationOrderingB.result()),
@@ -255,7 +256,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter groupingKeysParameter = new Block.Parameter(
                 "%30",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationGroupingKeys = new FieldReference("%31", groupingKeysParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperationGroupingKeys = new FieldReference("%31", groupingKeysParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationGroupingKeys = new Row("%32", ImmutableList.of(fieldReferenceOperationGroupingKeys.result()), ImmutableList.of(fieldReferenceOperationGroupingKeys.attributes()));
         Return returnOperationGroupingKeys = new Return("%33", rowOperationGroupingKeys.result(), rowOperationGroupingKeys.attributes());
 
@@ -347,7 +348,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter correlationParameter = new Block.Parameter(
                 "%10",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationCorrelation = new FieldReference("%11", correlationParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperationCorrelation = new FieldReference("%11", correlationParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationCorrelation = new Row("%12", ImmutableList.of(fieldReferenceOperationCorrelation.result()), ImmutableList.of(fieldReferenceOperationCorrelation.attributes()));
         Return returnOperationCorrelation = new Return("%13", rowOperationCorrelation.result(), rowOperationCorrelation.attributes());
 
@@ -355,7 +356,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter subqueryParameter = new Block.Parameter(
                 "%14",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationSubquery = new FieldReference("%16", subqueryParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperationSubquery = new FieldReference("%16", subqueryParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationSubquery = new Row("%17", ImmutableList.of(fieldReferenceOperationSubquery.result()), ImmutableList.of(fieldReferenceOperationSubquery.attributes()));
         Return returnOperationSubqueryRow = new Return("%18", rowOperationSubquery.result(), rowOperationSubquery.attributes());
         Values valuesOperationSubquery = new Values(
@@ -380,7 +381,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter secondFilterParameter = new Block.Parameter(
                 "%21",
                 irType(anonymousRow(BOOLEAN)));
-        FieldReference fieldReferenceOperationFilter = new FieldReference("%22", firstFilterParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperationFilter = new FieldReference("%22", firstFilterParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Return returnOperationFilter = new Return("%23", fieldReferenceOperationFilter.result(), fieldReferenceOperationFilter.attributes());
 
         CorrelatedJoin correlatedJoinOperation = new CorrelatedJoin(
@@ -433,8 +434,8 @@ final class TestRelationalProgramBuilder
         Block.Parameter dynamicFilterTargetsParameter = new Block.Parameter(
                 "%10",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationB = new FieldReference("%11", dynamicFilterTargetsParameter, 1, ImmutableMap.of());
-        FieldReference fieldReferenceOperationA = new FieldReference("%12", dynamicFilterTargetsParameter, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperationB = new FieldReference("%11", dynamicFilterTargetsParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperationA = new FieldReference("%12", dynamicFilterTargetsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperation = new Row(
                 "%13",
                 ImmutableList.of(fieldReferenceOperationB.result(), fieldReferenceOperationA.result()),
@@ -507,8 +508,8 @@ final class TestRelationalProgramBuilder
         Block.Parameter leftInputsParameter = new Block.Parameter(
                 "%11",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationLeftInputsA = new FieldReference("%12", leftInputsParameter, 0, ImmutableMap.of());
-        FieldReference fieldReferenceOperationLeftInputsB = new FieldReference("%13", leftInputsParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperationLeftInputsA = new FieldReference("%12", leftInputsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperationLeftInputsB = new FieldReference("%13", leftInputsParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationLeftInputs = new Row(
                 "%14",
                 ImmutableList.of(fieldReferenceOperationLeftInputsA.result(), fieldReferenceOperationLeftInputsB.result()),
@@ -518,8 +519,8 @@ final class TestRelationalProgramBuilder
         Block.Parameter rightInputsParameter = new Block.Parameter(
                 "%16",
                 rightRowType);
-        FieldReference fieldReferenceOperationRightInputsD = new FieldReference("%17", rightInputsParameter, 1, ImmutableMap.of());
-        FieldReference fieldReferenceOperationRightInputsE = new FieldReference("%18", rightInputsParameter, 2, ImmutableMap.of());
+        FieldReference fieldReferenceOperationRightInputsD = new FieldReference("%17", rightInputsParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperationRightInputsE = new FieldReference("%18", rightInputsParameter, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationRightInputs = new Row(
                 "%19",
                 ImmutableList.of(fieldReferenceOperationRightInputsD.result(), fieldReferenceOperationRightInputsE.result()),
@@ -532,7 +533,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter boundArgumentsParameter = new Block.Parameter(
                 "%21",
                 irType(exchangeOutputRowType));
-        FieldReference fieldReferenceOperationF = new FieldReference("%22", boundArgumentsParameter, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperationF = new FieldReference("%22", boundArgumentsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationBoundArguments = new Row("%23", ImmutableList.of(fieldReferenceOperationF.result()), ImmutableList.of(fieldReferenceOperationF.attributes()));
         Return returnOperationBoundArguments = new Return("%24", rowOperationBoundArguments.result(), rowOperationBoundArguments.attributes());
 
@@ -648,8 +649,8 @@ final class TestRelationalProgramBuilder
         Block.Parameter inputsParameter = new Block.Parameter(
                 "%10",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationInputsA = new FieldReference("%11", inputsParameter, 0, ImmutableMap.of());
-        FieldReference fieldReferenceOperationInputsB = new FieldReference("%12", inputsParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperationInputsA = new FieldReference("%11", inputsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperationInputsB = new FieldReference("%12", inputsParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationInputs = new Row(
                 "%13",
                 ImmutableList.of(fieldReferenceOperationInputsA.result(), fieldReferenceOperationInputsB.result()),
@@ -662,7 +663,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter boundArgumentsParameter = new Block.Parameter(
                 "%15",
                 irType(exchangeOutputRowType));
-        FieldReference fieldReferenceOperationF = new FieldReference("%16", boundArgumentsParameter, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperationF = new FieldReference("%16", boundArgumentsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationBoundArguments = new Row("%17", ImmutableList.of(fieldReferenceOperationF.result()), ImmutableList.of(fieldReferenceOperationF.attributes()));
         Return returnOperationBoundArguments = new Return("%18", rowOperationBoundArguments.result(), rowOperationBoundArguments.attributes());
 
@@ -670,7 +671,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter orderByParameter = new Block.Parameter(
                 "%19",
                 irType(exchangeOutputRowType));
-        FieldReference fieldReferenceOperationOrderBy = new FieldReference("%20", orderByParameter, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperationOrderBy = new FieldReference("%20", orderByParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationOrderBy = new Row("%21", ImmutableList.of(fieldReferenceOperationOrderBy.result()), ImmutableList.of(fieldReferenceOperationOrderBy.attributes()));
         Return returnOperationOrderBy = new Return("%22", rowOperationOrderBy.result(), rowOperationOrderBy.attributes());
 
@@ -761,7 +762,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter fieldSelectorParameter = new Block.Parameter(
                 "%10",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperation = new FieldReference("%11", fieldSelectorParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperation = new FieldReference("%11", fieldSelectorParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperation = new Row("%12", ImmutableList.of(fieldReferenceOperation.result()), ImmutableList.of(fieldReferenceOperation.attributes()));
         Return returnOperation = new Return("%13", rowOperation.result(), rowOperation.attributes());
         ExplainAnalyze explainAnalyzeOperation = new ExplainAnalyze(
@@ -801,7 +802,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter predicateParameter = new Block.Parameter(
                 "%10",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperation = new FieldReference("%11", predicateParameter, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperation = new FieldReference("%11", predicateParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant constantOperation = new Constant("%12", BIGINT, 5L);
         Comparison comparisonOperation = new Comparison(
                 "%13",
@@ -854,9 +855,9 @@ final class TestRelationalProgramBuilder
         Block.Parameter groupingColumnsSelectorParameter = new Block.Parameter(
                 "%10",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceA = new FieldReference("%11", groupingColumnsSelectorParameter, 0, ImmutableMap.of());
-        FieldReference fieldReferenceB = new FieldReference("%12", groupingColumnsSelectorParameter, 1, ImmutableMap.of());
-        FieldReference fieldReferenceBAnother = new FieldReference("%13", groupingColumnsSelectorParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceA = new FieldReference("%11", groupingColumnsSelectorParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceB = new FieldReference("%12", groupingColumnsSelectorParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceBAnother = new FieldReference("%13", groupingColumnsSelectorParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationGroupingColumns = new Row(
                 "%14",
                 ImmutableList.of(fieldReferenceA.result(), fieldReferenceB.result(), fieldReferenceBAnother.result()),
@@ -867,7 +868,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter aggregationArgumentsSelectorParameter = new Block.Parameter(
                 "%16",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceAAnother = new FieldReference("%17", aggregationArgumentsSelectorParameter, 0, ImmutableMap.of());
+        FieldReference fieldReferenceAAnother = new FieldReference("%17", aggregationArgumentsSelectorParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationAggregationArguments = new Row("%18", ImmutableList.of(fieldReferenceAAnother.result()), ImmutableList.of(fieldReferenceAAnother.attributes()));
         Return returnOperationAggregationArguments = new Return("%19", rowOperationAggregationArguments.result(), rowOperationAggregationArguments.attributes());
 
@@ -954,7 +955,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter leftCriteriaParameter = new Block.Parameter(
                 "%14",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationLeftCriteria = new FieldReference("%15", leftCriteriaParameter, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperationLeftCriteria = new FieldReference("%15", leftCriteriaParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationLeftCriteria = new Row("%16", ImmutableList.of(fieldReferenceOperationLeftCriteria.result()), ImmutableList.of(fieldReferenceOperationLeftCriteria.attributes()));
         Return returnOperationLeftCriteria = new Return("%17", rowOperationLeftCriteria.result(), rowOperationLeftCriteria.attributes());
 
@@ -962,7 +963,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter rightCriteriaParameter = new Block.Parameter(
                 "%18",
                 rightRowType);
-        FieldReference fieldReferenceOperationRightCriteria = new FieldReference("%19", rightCriteriaParameter, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperationRightCriteria = new FieldReference("%19", rightCriteriaParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationRightCriteria = new Row("%20", ImmutableList.of(fieldReferenceOperationRightCriteria.result()), ImmutableList.of(fieldReferenceOperationRightCriteria.attributes()));
         Return returnOperationRightCriteria = new Return("%21", rowOperationRightCriteria.result(), rowOperationRightCriteria.attributes());
 
@@ -981,8 +982,8 @@ final class TestRelationalProgramBuilder
         Block.Parameter leftOutputsParameter = new Block.Parameter(
                 "%26",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationLeftOutputsA = new FieldReference("%27", leftOutputsParameter, 0, ImmutableMap.of());
-        FieldReference fieldReferenceOperationLeftOutputsB = new FieldReference("%28", leftOutputsParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperationLeftOutputsA = new FieldReference("%27", leftOutputsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperationLeftOutputsB = new FieldReference("%28", leftOutputsParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationLeftOutputs = new Row(
                 "%29",
                 ImmutableList.of(fieldReferenceOperationLeftOutputsA.result(), fieldReferenceOperationLeftOutputsB.result()),
@@ -993,7 +994,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter rightOutputsParameter = new Block.Parameter(
                 "%31",
                 rightRowType);
-        FieldReference fieldReferenceOperationRightOutputsC = new FieldReference("%32", rightOutputsParameter, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperationRightOutputsC = new FieldReference("%32", rightOutputsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationRightOutputs = new Row("%33", ImmutableList.of(fieldReferenceOperationRightOutputsC.result()), ImmutableList.of(fieldReferenceOperationRightOutputsC.attributes()));
         Return returnOperationRightOutputs = new Return("%34", rowOperationRightOutputs.result(), rowOperationRightOutputs.attributes());
 
@@ -1001,8 +1002,8 @@ final class TestRelationalProgramBuilder
         Block.Parameter dynamicFilterTargetsParameter = new Block.Parameter(
                 "%35",
                 rightRowType);
-        FieldReference fieldReferenceOperationDynamicFilterTargetsC1 = new FieldReference("%36", dynamicFilterTargetsParameter, 0, ImmutableMap.of());
-        FieldReference fieldReferenceOperationDynamicFilterTargetsC2 = new FieldReference("%37", dynamicFilterTargetsParameter, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperationDynamicFilterTargetsC1 = new FieldReference("%36", dynamicFilterTargetsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperationDynamicFilterTargetsC2 = new FieldReference("%37", dynamicFilterTargetsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationDynamicFilterTargets = new Row(
                 "%38",
                 ImmutableList.of(fieldReferenceOperationDynamicFilterTargetsC1.result(), fieldReferenceOperationDynamicFilterTargetsC2.result()),
@@ -1159,7 +1160,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter orderingParameter = new Block.Parameter(
                 "%10",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationOrderingB = new FieldReference("%11", orderingParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperationOrderingB = new FieldReference("%11", orderingParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationOrdering = new Row("%12", ImmutableList.of(fieldReferenceOperationOrderingB.result()), ImmutableList.of(fieldReferenceOperationOrderingB.attributes()));
         Return returnOperationOrdering = new Return("%13", rowOperationOrdering.result(), rowOperationOrdering.attributes());
 
@@ -1216,8 +1217,8 @@ final class TestRelationalProgramBuilder
         Block.Parameter fieldReferenceParameter = new Block.Parameter(
                 "%10",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationB = new FieldReference("%11", fieldReferenceParameter, 1, ImmutableMap.of());
-        FieldReference fieldReferenceOperationA = new FieldReference("%12", fieldReferenceParameter, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperationB = new FieldReference("%11", fieldReferenceParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperationA = new FieldReference("%12", fieldReferenceParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperation = new Row(
                 "%13",
                 ImmutableList.of(fieldReferenceOperationB.result(), fieldReferenceOperationA.result()),
@@ -1235,7 +1236,8 @@ final class TestRelationalProgramBuilder
                                 fieldReferenceOperationA,
                                 rowOperation,
                                 returnOperation)),
-                ImmutableList.of("col_b", "col_a"));
+                ImmutableList.of("col_b", "col_a"),
+                VALUES_OPERATION.attributes());
 
         RelationalProgramBuilder relationalProgramBuilder = new RelationalProgramBuilder(new ValueNameAllocator());
         Block.Builder blockBuilder = new Block.Builder(Optional.empty(), ImmutableList.of());
@@ -1266,8 +1268,8 @@ final class TestRelationalProgramBuilder
         Block.Parameter assignmentsParameter = new Block.Parameter(
                 "%10",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationB = new FieldReference("%11", assignmentsParameter, 1, ImmutableMap.of());
-        FieldReference fieldReferenceOperationA = new FieldReference("%12", assignmentsParameter, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperationB = new FieldReference("%11", assignmentsParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperationA = new FieldReference("%12", assignmentsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant constantOperation = new Constant("%13", BIGINT, 5L);
         Comparison comparisonOperation = new Comparison(
                 "%14",
@@ -1350,7 +1352,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter orderingParameter = new Block.Parameter(
                 "%10",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationOrderingB = new FieldReference("%11", orderingParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperationOrderingB = new FieldReference("%11", orderingParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationOrdering = new Row("%12", ImmutableList.of(fieldReferenceOperationOrderingB.result()), ImmutableList.of(fieldReferenceOperationOrderingB.attributes()));
         Return returnOperationOrdering = new Return("%13", rowOperationOrdering.result(), rowOperationOrdering.attributes());
 
@@ -1448,7 +1450,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter orderingParameter = new Block.Parameter(
                 "%10",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationOrderingB = new FieldReference("%11", orderingParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperationOrderingB = new FieldReference("%11", orderingParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationOrdering = new Row("%12", ImmutableList.of(fieldReferenceOperationOrderingB.result()), ImmutableList.of(fieldReferenceOperationOrderingB.attributes()));
         Return returnOperationOrdering = new Return("%13", rowOperationOrdering.result(), rowOperationOrdering.attributes());
 
@@ -1553,7 +1555,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter argumentsParameter = new Block.Parameter(
                 "%12",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationArgument = new FieldReference("%13", argumentsParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperationArgument = new FieldReference("%13", argumentsParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant constantOperationArgument = new Constant("%14", BIGINT, 5L);
         Row rowOperationArgument = new Row(
                 "%15",
@@ -1565,8 +1567,8 @@ final class TestRelationalProgramBuilder
         Block.Parameter functionOrderingParameter = new Block.Parameter(
                 "%17",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationFunctionOrderingA = new FieldReference("%18", functionOrderingParameter, 0, ImmutableMap.of());
-        FieldReference fieldReferenceOperationFunctionOrderingB = new FieldReference("%19", functionOrderingParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperationFunctionOrderingA = new FieldReference("%18", functionOrderingParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperationFunctionOrderingB = new FieldReference("%19", functionOrderingParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationFunctionOrdering = new Row(
                 "%20",
                 ImmutableList.of(fieldReferenceOperationFunctionOrderingA.result(), fieldReferenceOperationFunctionOrderingB.result()),
@@ -1591,7 +1593,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter frameEndFieldParameter = new Block.Parameter(
                 "%28",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationFrameEnd = new FieldReference("%29", frameEndFieldParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperationFrameEnd = new FieldReference("%29", frameEndFieldParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationFrameEnd = new Row("%30", ImmutableList.of(fieldReferenceOperationFrameEnd.result()), ImmutableList.of(fieldReferenceOperationFrameEnd.attributes()));
         Return returnOperationFrameEnd = new Return("%31", rowOperationFrameEnd.result(), rowOperationFrameEnd.attributes());
 
@@ -1599,7 +1601,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter sortKeyCoercedForFrameEndComparisonParameter = new Block.Parameter(
                 "%32",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationSortKeyEnd = new FieldReference("%33", sortKeyCoercedForFrameEndComparisonParameter, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperationSortKeyEnd = new FieldReference("%33", sortKeyCoercedForFrameEndComparisonParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationSortKeyEnd = new Row("%34", ImmutableList.of(fieldReferenceOperationSortKeyEnd.result()), ImmutableList.of(fieldReferenceOperationSortKeyEnd.attributes()));
         Return returnOperationSortKeyEnd = new Return("%35", rowOperationSortKeyEnd.result(), rowOperationSortKeyEnd.attributes());
 
@@ -1664,7 +1666,7 @@ final class TestRelationalProgramBuilder
         Block.Parameter partitioningSelectorParameter = new Block.Parameter(
                 "%38",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationPartitioning = new FieldReference("%39", partitioningSelectorParameter, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperationPartitioning = new FieldReference("%39", partitioningSelectorParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationPartitioning = new Row("%40", ImmutableList.of(fieldReferenceOperationPartitioning.result()), ImmutableList.of(fieldReferenceOperationPartitioning.attributes()));
         Return returnOperationPartitioning = new Return("%41", rowOperationPartitioning.result(), rowOperationPartitioning.attributes());
 
@@ -1672,8 +1674,8 @@ final class TestRelationalProgramBuilder
         Block.Parameter orderingParameter = new Block.Parameter(
                 "%42",
                 VALUES_OPERATION_ROW_TYPE);
-        FieldReference fieldReferenceOperationOrderingB = new FieldReference("%43", orderingParameter, 1, ImmutableMap.of());
-        FieldReference fieldReferenceOperationOrderingA = new FieldReference("%44", orderingParameter, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperationOrderingB = new FieldReference("%43", orderingParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperationOrderingA = new FieldReference("%44", orderingParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperationOrdering = new Row(
                 "%45",
                 ImmutableList.of(fieldReferenceOperationOrderingB.result(), fieldReferenceOperationOrderingA.result()),
@@ -1840,8 +1842,8 @@ final class TestRelationalProgramBuilder
                                 ImmutableList.of(new Symbol(BIGINT, "X")),
                                 ImmutableList.of(new Symbol(BOOLEAN, "Z"))));
 
-        FieldReference fieldReferenceOperationX = new FieldReference("%0", secondParameter, 0, ImmutableMap.of());
-        FieldReference fieldReferenceOperationZ = new FieldReference("%1", thirdParameter, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperationX = new FieldReference("%0", secondParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperationZ = new FieldReference("%1", thirdParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperation = new Row(
                 "%2",
                 ImmutableList.of(fieldReferenceOperationX.result(), fieldReferenceOperationZ.result()),

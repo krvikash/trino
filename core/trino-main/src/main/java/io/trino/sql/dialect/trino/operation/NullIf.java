@@ -15,6 +15,7 @@ package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import io.trino.spi.TrinoException;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -23,8 +24,10 @@ import io.trino.sql.newir.Value;
 import java.util.List;
 import java.util.Map;
 
+import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.operationmetadata.NullIfOperationMetadata.NAME;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public final class NullIf
@@ -49,6 +52,10 @@ public final class NullIf
         this.first = first;
 
         this.second = second;
+
+        if (sourceAttributes.size() != 2) {
+            throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: 2", sourceAttributes.size()));
+        }
 
         // TODO derive attributes from source attributes
         this.attributes = ImmutableMap.of();
@@ -92,13 +99,13 @@ public final class NullIf
                 result.name(),
                 index == 0 ? newArgument : first,
                 index == 1 ? newArgument : second,
-                ImmutableList.of());
+                emptySourceAttributes(2));
     }
 
     @Override
     public Operation withResultName(String newName)
     {
-        return new NullIf(newName, first, second, ImmutableList.of());
+        return new NullIf(newName, first, second, emptySourceAttributes(2));
     }
 
     @Override

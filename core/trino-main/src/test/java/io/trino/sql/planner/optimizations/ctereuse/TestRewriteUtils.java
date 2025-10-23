@@ -37,6 +37,7 @@ import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.spi.type.RowType.anonymousRow;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
+import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUTES;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.planner.optimizations.ctereuse.RewriteUtils.extractReferencedFields;
 import static io.trino.sql.planner.optimizations.ctereuse.RewriteUtils.reallocateValues;
@@ -74,7 +75,7 @@ class TestRewriteUtils
     @Test
     public void testRebaseBlockWithFieldReferences()
     {
-        FieldReference fieldReferenceOperation = new FieldReference("%0", PARAMETER, 2, ImmutableMap.of());
+        FieldReference fieldReferenceOperation = new FieldReference("%0", PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Return returnOperation = new Return("%1", fieldReferenceOperation.result(), fieldReferenceOperation.attributes());
         Block blockWithFieldReference = new Block(
                 Optional.of("^block_with_field_reference"),
@@ -84,7 +85,7 @@ class TestRewriteUtils
         // rebase block from type (BIGINT, BOOLEAN, VARCHAR) onto type (VARCHAR, BIGINT), with mapping 2 -> 0 (the VARCHAR field) and 0 -> 1 (the BIGINT field)
         Block.Parameter newParameter = new Block.Parameter("%100", irType(anonymousRow(VARCHAR, BIGINT)));
         // remap field reference so that is uses the new parameter and the remapped field index. The operation result remains the same (%0)
-        FieldReference newFieldReferenceOperation = new FieldReference("%0", newParameter, 0, ImmutableMap.of());
+        FieldReference newFieldReferenceOperation = new FieldReference("%0", newParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         assertThat(rebaseBlock(blockWithFieldReference, anonymousRow(VARCHAR, BIGINT), new FieldMapping(ImmutableMap.of(2, 0, 0, 1)), new ProgramBuilder.ValueNameAllocator(100)))
                 .isEqualTo(Optional.of(new Block(
                         Optional.of("^block_with_field_reference"),
@@ -95,7 +96,7 @@ class TestRewriteUtils
     @Test
     public void testRebaseBlockWithNestedFieldReference()
     {
-        FieldReference nestedFieldReference = new FieldReference("%1", PARAMETER, 2, ImmutableMap.of());
+        FieldReference nestedFieldReference = new FieldReference("%1", PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Return nestedReturn = new Return("%2", nestedFieldReference.result(), nestedFieldReference.attributes());
         Lambda lambdaOperation = new Lambda(
                 "%0",
@@ -114,7 +115,7 @@ class TestRewriteUtils
         // rebase block from type (BIGINT, BOOLEAN, VARCHAR) onto type (VARCHAR, BIGINT), with mapping 2 -> 0 (the VARCHAR field) and 0 -> 1 (the BIGINT field)
         Block.Parameter newParameter = new Block.Parameter("%100", irType(anonymousRow(VARCHAR, BIGINT)));
         // remap nested field reference so that it uses the new parameter and the remapped field index. The operation result remains the same (%1)
-        FieldReference newNestedFieldReference = new FieldReference("%1", newParameter, 0, ImmutableMap.of());
+        FieldReference newNestedFieldReference = new FieldReference("%1", newParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Lambda newLambdaOperation = new Lambda(
                 "%0",
                 new Block(
@@ -133,7 +134,7 @@ class TestRewriteUtils
     @Test
     public void testIdentityMapping()
     {
-        FieldReference fieldReferenceOperation = new FieldReference("%0", PARAMETER, 2, ImmutableMap.of());
+        FieldReference fieldReferenceOperation = new FieldReference("%0", PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Return returnOperation = new Return("%1", fieldReferenceOperation.result(), fieldReferenceOperation.attributes());
         Block blockWithFieldReference = new Block(
                 Optional.of("^block_with_field_reference"),
@@ -150,7 +151,7 @@ class TestRewriteUtils
     public void testNonIdentityMapping()
     {
         Block.Parameter parameter = new Block.Parameter("%parameter", irType(anonymousRow(BIGINT, BOOLEAN, BIGINT)));
-        FieldReference fieldReferenceOperation = new FieldReference("%0", parameter, 2, ImmutableMap.of());
+        FieldReference fieldReferenceOperation = new FieldReference("%0", parameter, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Return returnOperation = new Return("%1", fieldReferenceOperation.result(), fieldReferenceOperation.attributes());
         Block blockWithFieldReference = new Block(
                 Optional.of("^block_with_field_reference"),
@@ -160,7 +161,7 @@ class TestRewriteUtils
         // rebase block from type (BIGINT, BOOLEAN, BIGINT) onto the same type, with mapping 2 -> 0, 0 -> 2, 1-> 1
         Block.Parameter newParameter = new Block.Parameter("%100", irType(anonymousRow(BIGINT, BOOLEAN, BIGINT)));
         // remap field reference so that is uses the new parameter and the remapped field index. The operation result remains the same (%0)
-        FieldReference newFieldReferenceOperation = new FieldReference("%0", newParameter, 0, ImmutableMap.of());
+        FieldReference newFieldReferenceOperation = new FieldReference("%0", newParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         assertThat(rebaseBlock(blockWithFieldReference, anonymousRow(BIGINT, BOOLEAN, BIGINT), new FieldMapping(ImmutableMap.of(2, 0, 0, 2, 1, 1)), new ProgramBuilder.ValueNameAllocator(100)))
                 .isEqualTo(Optional.of(new Block(
                         Optional.of("^block_with_field_reference"),
@@ -171,7 +172,7 @@ class TestRewriteUtils
     @Test
     public void testRebaseOntoBroaderType()
     {
-        FieldReference fieldReferenceOperation = new FieldReference("%0", PARAMETER, 2, ImmutableMap.of());
+        FieldReference fieldReferenceOperation = new FieldReference("%0", PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Return returnOperation = new Return("%1", fieldReferenceOperation.result(), fieldReferenceOperation.attributes());
         Block blockWithFieldReference = new Block(
                 Optional.of("^block_with_field_reference"),
@@ -181,7 +182,7 @@ class TestRewriteUtils
         // rebase block from type (BIGINT, BOOLEAN, VARCHAR) onto type (VARCHAR, BIGINT, SMALLINT, DOUBLE), with mapping 2 -> 0 (the VARCHAR field) and 0 -> 1 (the BIGINT field)
         Block.Parameter newParameter = new Block.Parameter("%100", irType(anonymousRow(VARCHAR, BIGINT, SMALLINT, DOUBLE)));
         // remap field reference so that is uses the new parameter and the remapped field index. The operation result remains the same (%0)
-        FieldReference newFieldReferenceOperation = new FieldReference("%0", newParameter, 0, ImmutableMap.of());
+        FieldReference newFieldReferenceOperation = new FieldReference("%0", newParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         assertThat(rebaseBlock(blockWithFieldReference, anonymousRow(VARCHAR, BIGINT, SMALLINT, DOUBLE), new FieldMapping(ImmutableMap.of(2, 0, 0, 1)), new ProgramBuilder.ValueNameAllocator(100)))
                 .isEqualTo(Optional.of(new Block(
                         Optional.of("^block_with_field_reference"),
@@ -192,7 +193,7 @@ class TestRewriteUtils
     @Test
     public void testFailedRebase()
     {
-        FieldReference fieldReferenceOperation = new FieldReference("%0", PARAMETER, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperation = new FieldReference("%0", PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Return returnOperation = new Return("%1", fieldReferenceOperation.result(), fieldReferenceOperation.attributes());
         Block blockWithFieldReference = new Block(
                 Optional.of("^block_with_field_reference"),
@@ -208,7 +209,7 @@ class TestRewriteUtils
     @Test
     public void testFailedRebaseOnNestedLevel()
     {
-        FieldReference nestedFieldReference = new FieldReference("%1", PARAMETER, 1, ImmutableMap.of());
+        FieldReference nestedFieldReference = new FieldReference("%1", PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Return nestedReturn = new Return("%2", nestedFieldReference.result(), nestedFieldReference.attributes());
         Lambda lambdaOperation = new Lambda(
                 "%0",
@@ -348,7 +349,7 @@ class TestRewriteUtils
     @Test
     public void testExtractReferencedFields()
     {
-        FieldReference nestedFieldReference = new FieldReference("%1", PARAMETER, 2, ImmutableMap.of());
+        FieldReference nestedFieldReference = new FieldReference("%1", PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Return nestedReturn = new Return("%2", nestedFieldReference.result(), nestedFieldReference.attributes());
         Lambda lambdaOperation = new Lambda(
                 "%0",
@@ -358,7 +359,7 @@ class TestRewriteUtils
                         ImmutableList.of(
                                 nestedFieldReference,
                                 nestedReturn)));
-        FieldReference fieldReference = new FieldReference("%3", PARAMETER, 1, ImmutableMap.of());
+        FieldReference fieldReference = new FieldReference("%3", PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Return returnOperation = new Return("%4", lambdaOperation.result(), lambdaOperation.attributes());
 
         // references field 1 at the top level, and field 2 in the lambda
@@ -406,8 +407,8 @@ class TestRewriteUtils
     public void testRemapParameters()
     {
         Block.Parameter lambdaParameter = new Block.Parameter("%lambda_parameter", irType(anonymousRow(BOOLEAN)));
-        FieldReference nestedFieldReference = new FieldReference("%1", PARAMETER, 2, ImmutableMap.of());
-        FieldReference lambdaParameterReference = new FieldReference("%2", lambdaParameter, 0, ImmutableMap.of());
+        FieldReference nestedFieldReference = new FieldReference("%1", PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference lambdaParameterReference = new FieldReference("%2", lambdaParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Return nestedReturn = new Return("%3", nestedFieldReference.result(), nestedFieldReference.attributes());
         Lambda lambdaOperation = new Lambda(
                 "%0",
@@ -418,8 +419,8 @@ class TestRewriteUtils
                                 nestedFieldReference,
                                 lambdaParameterReference,
                                 nestedReturn)));
-        FieldReference topLevelFieldReference = new FieldReference("%4", PARAMETER, 1, ImmutableMap.of());
-        FieldReference outerFieldReference = new FieldReference("%5", ANOTHER_PARAMETER, 1, ImmutableMap.of());
+        FieldReference topLevelFieldReference = new FieldReference("%4", PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference outerFieldReference = new FieldReference("%5", ANOTHER_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Return returnOperation = new Return("%6", lambdaOperation.result(), lambdaOperation.attributes());
 
         // this block references two fields from PARAMETER: field 1 at the top level, and field 2 in the lambda
@@ -431,8 +432,8 @@ class TestRewriteUtils
 
         Block.Parameter newParameter = new Block.Parameter("%100", irType(anonymousRow(BIGINT, BOOLEAN, VARCHAR)));
         // when remapping block parameters, only references to the block parameters are remapped. References to the lambda parameters as well as correlated references are not remapped
-        FieldReference newNestedFieldReference = new FieldReference("%1", newParameter, 2, ImmutableMap.of());
-        FieldReference newTopLevelFieldReference = new FieldReference("%4", newParameter, 1, ImmutableMap.of());
+        FieldReference newNestedFieldReference = new FieldReference("%1", newParameter, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference newTopLevelFieldReference = new FieldReference("%4", newParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         assertThat(remapParameters(block, ImmutableList.of(newParameter)))
                 .isEqualTo(new Block(
                         Optional.of("^block"),
@@ -502,8 +503,8 @@ class TestRewriteUtils
     @Test
     public void testReallocateValues()
     {
-        FieldReference fieldReference = new FieldReference("%0", PARAMETER, 2, ImmutableMap.of());
-        FieldReference outerFieldReference = new FieldReference("%1", ANOTHER_PARAMETER, 1, ImmutableMap.of());
+        FieldReference fieldReference = new FieldReference("%0", PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference outerFieldReference = new FieldReference("%1", ANOTHER_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperation = new Row("%2", ImmutableList.of(fieldReference.result(), outerFieldReference.result()), ImmutableList.of(fieldReference.attributes(), outerFieldReference.attributes()));
         Return returnOperation = new Return("%3", rowOperation.result(), rowOperation.attributes());
         Block block = new Block(
@@ -511,8 +512,8 @@ class TestRewriteUtils
                 ImmutableList.of(PARAMETER),
                 ImmutableList.of(fieldReference, outerFieldReference, rowOperation, returnOperation));
 
-        FieldReference reallocatedFieldReference = new FieldReference("%100", PARAMETER, 2, ImmutableMap.of());
-        FieldReference reallocatedOuterFieldReference = new FieldReference("%101", ANOTHER_PARAMETER, 1, ImmutableMap.of());
+        FieldReference reallocatedFieldReference = new FieldReference("%100", PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference reallocatedOuterFieldReference = new FieldReference("%101", ANOTHER_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row reallocatedRowOperation = new Row("%102", ImmutableList.of(reallocatedFieldReference.result(), reallocatedOuterFieldReference.result()), ImmutableList.of(reallocatedFieldReference.attributes(), reallocatedOuterFieldReference.attributes()));
         Return reallocatedReturnOperation = new Return("%103", reallocatedRowOperation.result(), reallocatedRowOperation.attributes());
         assertThat(reallocateValues(block, new ProgramBuilder.ValueNameAllocator(100)))
@@ -526,8 +527,8 @@ class TestRewriteUtils
     public void testReallocateNestedValues()
     {
         Block.Parameter lambdaParameter = new Block.Parameter("%lambda_parameter", irType(anonymousRow(BOOLEAN)));
-        FieldReference nestedFieldReference = new FieldReference("%1", PARAMETER, 2, ImmutableMap.of());
-        FieldReference lambdaParameterReference = new FieldReference("%2", lambdaParameter, 0, ImmutableMap.of());
+        FieldReference nestedFieldReference = new FieldReference("%1", PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference lambdaParameterReference = new FieldReference("%2", lambdaParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Return nestedReturn = new Return("%3", nestedFieldReference.result(), nestedFieldReference.attributes());
         Lambda lambdaOperation = new Lambda(
                 "%0",
@@ -538,8 +539,8 @@ class TestRewriteUtils
                                 nestedFieldReference,
                                 lambdaParameterReference,
                                 nestedReturn)));
-        FieldReference topLevelFieldReference = new FieldReference("%4", PARAMETER, 1, ImmutableMap.of());
-        FieldReference outerFieldReference = new FieldReference("%5", ANOTHER_PARAMETER, 1, ImmutableMap.of());
+        FieldReference topLevelFieldReference = new FieldReference("%4", PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference outerFieldReference = new FieldReference("%5", ANOTHER_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowOperation = new Row(
                 "%6",
                 ImmutableList.of(topLevelFieldReference.result(), outerFieldReference.result()),
@@ -551,8 +552,8 @@ class TestRewriteUtils
                 ImmutableList.of(PARAMETER),
                 ImmutableList.of(lambdaOperation, topLevelFieldReference, outerFieldReference, rowOperation, returnOperation));
 
-        FieldReference reallocatedNestedFieldReference = new FieldReference("%101", PARAMETER, 2, ImmutableMap.of());
-        FieldReference reallocatedLambdaParameterReference = new FieldReference("%102", lambdaParameter, 0, ImmutableMap.of());
+        FieldReference reallocatedNestedFieldReference = new FieldReference("%101", PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference reallocatedLambdaParameterReference = new FieldReference("%102", lambdaParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Return reallocatedNestedReturn = new Return("%103", reallocatedNestedFieldReference.result(), reallocatedNestedFieldReference.attributes());
         Lambda reallocatedLambdaOperation = new Lambda(
                 "%100",
@@ -563,8 +564,8 @@ class TestRewriteUtils
                                 reallocatedNestedFieldReference,
                                 reallocatedLambdaParameterReference,
                                 reallocatedNestedReturn)));
-        FieldReference reallocatedTopLevelFieldReference = new FieldReference("%104", PARAMETER, 1, ImmutableMap.of());
-        FieldReference reallocatedOuterFieldReference = new FieldReference("%105", ANOTHER_PARAMETER, 1, ImmutableMap.of());
+        FieldReference reallocatedTopLevelFieldReference = new FieldReference("%104", PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference reallocatedOuterFieldReference = new FieldReference("%105", ANOTHER_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row reallocatedRowOperation = new Row(
                 "%106",
                 ImmutableList.of(reallocatedTopLevelFieldReference.result(), reallocatedOuterFieldReference.result()),
@@ -619,7 +620,7 @@ class TestRewriteUtils
     @Test
     public void testRemapNestedValues()
     {
-        FieldReference nestedFieldReference = new FieldReference("%1", PARAMETER, 2, ImmutableMap.of());
+        FieldReference nestedFieldReference = new FieldReference("%1", PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Return nestedReturn = new Return("%2", nestedFieldReference.result(), nestedFieldReference.attributes());
         Lambda lambdaOperation = new Lambda(
                 "%0",
@@ -641,7 +642,7 @@ class TestRewriteUtils
                                 ImmutableList.of(new Block.Parameter("%lambda_parameter", irType(anonymousRow(BOOLEAN)))),
                                 ImmutableList.of(
                                         // the nested field reference remains as-is, but it becomes dead code (not referenced in the Return operation)
-                                        new FieldReference("%1", PARAMETER, 2, ImmutableMap.of()),
+                                        new FieldReference("%1", PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES),
                                         // the Return operation now returns the new result. Note that the attributes of the Return operation are preserved
                                         new Return("%2", newResult, nestedFieldReference.attributes())))));
     }

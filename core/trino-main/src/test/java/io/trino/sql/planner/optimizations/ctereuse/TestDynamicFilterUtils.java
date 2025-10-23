@@ -14,7 +14,6 @@
 package io.trino.sql.planner.optimizations.ctereuse;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.spi.type.Type;
@@ -39,6 +38,7 @@ import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RowType.anonymousRow;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
+import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUTES;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator.AND;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator.OR;
@@ -79,7 +79,7 @@ class TestDynamicFilterUtils
     @Test
     public void testIsDynamicFilterFunction()
     {
-        FieldReference fieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
+        FieldReference fieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant comparisonOperator = new Constant("%1", VARCHAR, utf8Slice(">"));
         Constant dynamicFilterId = new Constant("%2", VARCHAR, utf8Slice("df_0"));
         Constant nullAllowed = new Constant("%3", BOOLEAN, false);
@@ -138,7 +138,7 @@ class TestDynamicFilterUtils
     private static Block getRemappedDynamicFiltersConjunction()
     {
         // first dynamic filter
-        FieldReference field1 = new FieldReference("%102", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
+        FieldReference field1 = new FieldReference("%102", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant comparisonOperator1 = new Constant("%103", VARCHAR, utf8Slice(">"));
         Constant dynamicFilterId1 = new Constant("%104", VARCHAR, utf8Slice("df_0"));
         Constant nullAllowed1 = new Constant("%105", BOOLEAN, false);
@@ -150,7 +150,7 @@ class TestDynamicFilterUtils
                 ImmutableList.of(field1.attributes(), comparisonOperator1.attributes(), dynamicFilterId1.attributes(), nullAllowed1.attributes(), timeout1.attributes()));
 
         // second dynamic filter
-        FieldReference field2 = new FieldReference("%109", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
+        FieldReference field2 = new FieldReference("%109", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant comparisonOperator2 = new Constant("%110", VARCHAR, utf8Slice("<="));
         Constant dynamicFilterId2 = new Constant("%111", VARCHAR, utf8Slice("df_1"));
         Constant nullAllowed2 = new Constant("%112", BOOLEAN, true);
@@ -187,7 +187,7 @@ class TestDynamicFilterUtils
     // the dynamic conjunct from DYNAMIC_AND_STATIC_FILTERS_CONJUNCTION, but with the return value remapped due to `PredicateUtils.extractLogicalTerms()`
     private static Block getRemappedDynamicFilterConjunct()
     {
-        FieldReference fieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
+        FieldReference fieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant comparisonOperator = new Constant("%1", VARCHAR, utf8Slice(">"));
         Constant dynamicFilterId = new Constant("%2", VARCHAR, utf8Slice("df_0"));
         Constant nullAllowed = new Constant("%3", BOOLEAN, false);
@@ -208,7 +208,7 @@ class TestDynamicFilterUtils
     // the static conjunct from DYNAMIC_AND_STATIC_FILTERS_CONJUNCTION, but with the return value remapped due to `PredicateUtils.extractLogicalTerms()`
     private static Block getRemappedStaticFilterConjunct()
     {
-        FieldReference fieldReference = new FieldReference("%6", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
+        FieldReference fieldReference = new FieldReference("%6", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Return returnOperation = new Return("%101", fieldReference.result(), fieldReference.attributes());
 
         return new Block(
@@ -254,7 +254,7 @@ class TestDynamicFilterUtils
     private static Block getMinimalDynamicFilterConjunct()
     {
         // dynamic filter
-        FieldReference fieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
+        FieldReference fieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant comparisonOperator = new Constant("%1", VARCHAR, utf8Slice(">"));
         Constant dynamicFilterId = new Constant("%2", VARCHAR, utf8Slice("df_0"));
         Constant nullAllowed = new Constant("%3", BOOLEAN, false);
@@ -266,7 +266,7 @@ class TestDynamicFilterUtils
                 ImmutableList.of(fieldReference.attributes(), comparisonOperator.attributes(), dynamicFilterId.attributes(), nullAllowed.attributes(), timeout.attributes()));
 
         // static disjunct
-        FieldReference fieldReference1 = new FieldReference("%6", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
+        FieldReference fieldReference1 = new FieldReference("%6", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Logical disjunction = new Logical("%7", ImmutableList.of(dynamicFilterCall.result(), fieldReference1.result()), OR, ImmutableList.of(dynamicFilterCall.attributes(), fieldReference1.attributes()));
 
         Return returnOperation = new Return("%100", disjunction.result(), disjunction.attributes());
@@ -280,7 +280,7 @@ class TestDynamicFilterUtils
     // the maximal static conjunct from DYNAMIC_FILTER_DISJUNCTION, but with the return value remapped due to `PredicateUtils.extractLogicalTerms()`
     private static Block getMaximalStaticFilterConjunct()
     {
-        FieldReference fieldReference = new FieldReference("%8", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
+        FieldReference fieldReference = new FieldReference("%8", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Return returnOperation = new Return("%101", fieldReference.result(), fieldReference.attributes());
 
         return new Block(
@@ -291,7 +291,7 @@ class TestDynamicFilterUtils
 
     private static Block getSingleDynamicFilter()
     {
-        FieldReference field = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
+        FieldReference field = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant comparisonOperator = new Constant("%1", VARCHAR, utf8Slice(">"));
         Constant dynamicFilterId = new Constant("%2", VARCHAR, utf8Slice("df_0"));
         Constant nullAllowed = new Constant("%3", BOOLEAN, false);
@@ -312,7 +312,7 @@ class TestDynamicFilterUtils
     private static Block getDynamicFiltersConjunction()
     {
         // first dynamic filter
-        FieldReference field1 = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
+        FieldReference field1 = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant comparisonOperator1 = new Constant("%1", VARCHAR, utf8Slice(">"));
         Constant dynamicFilterId1 = new Constant("%2", VARCHAR, utf8Slice("df_0"));
         Constant nullAllowed1 = new Constant("%3", BOOLEAN, false);
@@ -324,7 +324,7 @@ class TestDynamicFilterUtils
                 ImmutableList.of(field1.attributes(), comparisonOperator1.attributes(), dynamicFilterId1.attributes(), nullAllowed1.attributes(), timeout1.attributes()));
 
         // second dynamic filter
-        FieldReference field2 = new FieldReference("%6", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
+        FieldReference field2 = new FieldReference("%6", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant comparisonOperator2 = new Constant("%7", VARCHAR, utf8Slice("<="));
         Constant dynamicFilterId2 = new Constant("%8", VARCHAR, utf8Slice("df_1"));
         Constant nullAllowed2 = new Constant("%8", BOOLEAN, true);
@@ -361,7 +361,7 @@ class TestDynamicFilterUtils
     private static Block getDynamicAndStaticFiltersConjunction()
     {
         // dynamic filter
-        FieldReference fieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
+        FieldReference fieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant comparisonOperator = new Constant("%1", VARCHAR, utf8Slice(">"));
         Constant dynamicFilterId = new Constant("%2", VARCHAR, utf8Slice("df_0"));
         Constant nullAllowed = new Constant("%3", BOOLEAN, false);
@@ -373,7 +373,7 @@ class TestDynamicFilterUtils
                 ImmutableList.of(fieldReference.attributes(), comparisonOperator.attributes(), dynamicFilterId.attributes(), nullAllowed.attributes(), timeout.attributes()));
 
         // static conjunct
-        FieldReference fieldReference1 = new FieldReference("%6", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
+        FieldReference fieldReference1 = new FieldReference("%6", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
 
         Logical conjunction = new Logical("%7", ImmutableList.of(dynamicFilterCall.result(), fieldReference1.result()), AND, ImmutableList.of(dynamicFilterCall.attributes(), fieldReference1.attributes()));
         Return returnOperation = new Return("%13", conjunction.result(), conjunction.attributes());
@@ -386,7 +386,7 @@ class TestDynamicFilterUtils
 
     private static Block getNestedDynamicFilter()
     {
-        FieldReference field = new FieldReference("%1", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
+        FieldReference field = new FieldReference("%1", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant comparisonOperator = new Constant("%2", VARCHAR, utf8Slice(">"));
         Constant dynamicFilterId = new Constant("%3", VARCHAR, utf8Slice("df_0"));
         Constant nullAllowed = new Constant("%4", BOOLEAN, false);
@@ -416,7 +416,7 @@ class TestDynamicFilterUtils
     private static Block getDynamicFilterDisjunction()
     {
         // dynamic filter
-        FieldReference fieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
+        FieldReference fieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant comparisonOperator = new Constant("%1", VARCHAR, utf8Slice(">"));
         Constant dynamicFilterId = new Constant("%2", VARCHAR, utf8Slice("df_0"));
         Constant nullAllowed = new Constant("%3", BOOLEAN, false);
@@ -428,11 +428,11 @@ class TestDynamicFilterUtils
                 ImmutableList.of(fieldReference.attributes(), comparisonOperator.attributes(), dynamicFilterId.attributes(), nullAllowed.attributes(), timeout.attributes()));
 
         // static disjunct
-        FieldReference fieldReference1 = new FieldReference("%6", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
+        FieldReference fieldReference1 = new FieldReference("%6", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Logical disjunction = new Logical("%7", ImmutableList.of(dynamicFilterCall.result(), fieldReference1.result()), OR, ImmutableList.of(dynamicFilterCall.attributes(), fieldReference1.attributes()));
 
         // another static conjunct
-        FieldReference fieldReference2 = new FieldReference("%8", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
+        FieldReference fieldReference2 = new FieldReference("%8", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Logical conjunction = new Logical("%9", ImmutableList.of(disjunction.result(), fieldReference2.result()), AND, ImmutableList.of(dynamicFilterCall.attributes(), fieldReference1.attributes()));
 
         Return returnOperation = new Return("%10", conjunction.result(), conjunction.attributes());
@@ -445,7 +445,7 @@ class TestDynamicFilterUtils
 
     private static Block getStaticFilter()
     {
-        FieldReference field = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
+        FieldReference field = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Return returnOperation = new Return("%1", field.result(), field.attributes());
 
         return new Block(

@@ -59,6 +59,7 @@ import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.spi.type.RowType.anonymousRow;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
+import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUTES;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator.GREATER_THAN;
@@ -149,9 +150,9 @@ final class TestScalarProgramBuilder
                                 new io.trino.sql.ir.Reference(BIGINT, "x"),
                                 new io.trino.sql.ir.Constant(BIGINT, 0L))));
 
-        FieldReference fieldReferenceOperationA = new FieldReference("%0", INPUT_ROW_PARAMETER, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperationA = new FieldReference("%0", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Block.Parameter lambdaArgument = new Block.Parameter("%2", irType(anonymousRow(BIGINT)));
-        FieldReference fieldReferenceOperationX = new FieldReference("%3", lambdaArgument, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperationX = new FieldReference("%3", lambdaArgument, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant constantOperation = new Constant("%4", BIGINT, 0L);
         Comparison comparisonOperation = new Comparison(
                 "%5",
@@ -466,7 +467,7 @@ final class TestScalarProgramBuilder
                         new io.trino.sql.ir.Constant(BIGINT, 0L)));
 
         Block.Parameter lambdaArgument = new Block.Parameter("%1", irType(anonymousRow(BIGINT)));
-        FieldReference fieldReferenceOperationX = new FieldReference("%2", lambdaArgument, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperationX = new FieldReference("%2", lambdaArgument, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant constantOperation = new Constant("%3", BIGINT, 0L);
         Comparison comparisonOperation = new Comparison(
                 "%4",
@@ -507,10 +508,10 @@ final class TestScalarProgramBuilder
                                         new io.trino.sql.ir.Reference(BIGINT, "y"))))); // lambda argument
 
         Block.Parameter lambdaArgument = new Block.Parameter("%1", irType(anonymousRow(BOOLEAN, BIGINT)));
-        FieldReference fieldReferenceOperationB = new FieldReference("%2", INPUT_ROW_PARAMETER, 1, ImmutableMap.of());
-        FieldReference fieldReferenceOperationX = new FieldReference("%3", lambdaArgument, 0, ImmutableMap.of());
-        FieldReference fieldReferenceOperationA = new FieldReference("%4", INPUT_ROW_PARAMETER, 0, ImmutableMap.of());
-        FieldReference fieldReferenceOperationY = new FieldReference("%5", lambdaArgument, 1, ImmutableMap.of());
+        FieldReference fieldReferenceOperationB = new FieldReference("%2", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperationX = new FieldReference("%3", lambdaArgument, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperationA = new FieldReference("%4", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fieldReferenceOperationY = new FieldReference("%5", lambdaArgument, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Comparison comparisonOperation = new Comparison(
                 "%6",
                 fieldReferenceOperationA.result(),
@@ -550,7 +551,7 @@ final class TestScalarProgramBuilder
                 new io.trino.sql.ir.Reference(BOOLEAN, "x"));
 
         Block.Parameter lambdaArgument = new Block.Parameter("%1", irType(anonymousRow(BOOLEAN, BOOLEAN)));
-        FieldReference fieldReferenceOperation = new FieldReference("%2", lambdaArgument, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperation = new FieldReference("%2", lambdaArgument, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Return returnOperation = new Return("%3", fieldReferenceOperation.result(), fieldReferenceOperation.attributes());
         Lambda lambdaOperation = new Lambda(
                 "%0",
@@ -622,7 +623,7 @@ final class TestScalarProgramBuilder
     {
         io.trino.sql.ir.Reference referenceExpression = new io.trino.sql.ir.Reference(BIGINT, "a");
 
-        FieldReference fieldReferenceOperation = new FieldReference("%0", INPUT_ROW_PARAMETER, 0, ImmutableMap.of());
+        FieldReference fieldReferenceOperation = new FieldReference("%0", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
 
         assertProgram(referenceExpression, ImmutableList.of(fieldReferenceOperation), BIGINT);
     }

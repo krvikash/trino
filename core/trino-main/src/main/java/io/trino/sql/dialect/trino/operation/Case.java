@@ -33,6 +33,7 @@ import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operationmetadata.CaseOperationMetadata.NAME;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public final class Case
@@ -87,6 +88,11 @@ public final class Case
         this.then = ImmutableList.copyOf(then);
 
         this.defaultValue = defaultValue;
+
+        // validate source attributes count -- one entry per each argument: when-list, then-list, defaultValue
+        if (sourceAttributes.size() != when.size() + then.size() + 1) {
+            throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), when.size() + then.size() + 1));
+        }
 
         // TODO
         this.attributes = ImmutableMap.of();
@@ -143,13 +149,13 @@ public final class Case
                 newWhen,
                 newThen,
                 index == when.size() + then.size() ? newArgument : defaultValue,
-                ImmutableList.of());
+                emptySourceAttributes(when.size() + then.size() + 1));
     }
 
     @Override
     public Operation withResultName(String newName)
     {
-        return new Case(newName, when, then, defaultValue, ImmutableList.of());
+        return new Case(newName, when, then, defaultValue, emptySourceAttributes(when.size() + then.size() + 1));
     }
 
     @Override

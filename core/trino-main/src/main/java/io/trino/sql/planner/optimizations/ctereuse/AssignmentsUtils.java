@@ -44,10 +44,12 @@ import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
+import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUTES;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION_ROW;
+import static io.trino.sql.dialect.trino.operation.TrinoOperation.emptySourceAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.CONSTANT_VALUE;
 import static io.trino.sql.dialect.trino.operationmetadata.FieldReferenceOperationMetadata.FIELD_INDEX;
 import static io.trino.sql.planner.optimizations.ctereuse.FieldMapping.EMPTY;
@@ -327,7 +329,7 @@ public class AssignmentsUtils
         ImmutableList.Builder<Operation> fieldReferencesBuilder = ImmutableList.builder();
         for (int i = 0; i < type.getTypeParameters().size(); i++) {
             if (!fieldsToPrune.contains(i)) {
-                FieldReference fieldReference = new FieldReference(nameAllocator.newName(), parameter, i, ImmutableMap.of());
+                FieldReference fieldReference = new FieldReference(nameAllocator.newName(), parameter, i, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
                 assignments.addOperation(fieldReference);
                 fieldReferencesBuilder.add(fieldReference);
             }
@@ -365,7 +367,7 @@ public class AssignmentsUtils
         // mapping is reordering and not identity => type is a RowType, and not EMPTY_ROW
         ImmutableList.Builder<Operation> fieldReferencesBuilder = ImmutableList.builder();
         for (int i = 0; i < type.getTypeParameters().size(); i++) {
-            FieldReference fieldReference = new FieldReference(nameAllocator.newName(), parameter, fieldMapping.get(i), ImmutableMap.of());
+            FieldReference fieldReference = new FieldReference(nameAllocator.newName(), parameter, fieldMapping.get(i), DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
             assignments.addOperation(fieldReference);
             fieldReferencesBuilder.add(fieldReference);
         }
@@ -422,7 +424,7 @@ public class AssignmentsUtils
 
         ImmutableList.Builder<Operation> fieldReferencesBuilder = ImmutableList.builder();
         for (int i = 0; i < type.getTypeParameters().size(); i++) {
-            FieldReference fieldReference = new FieldReference(nameAllocator.newName(), parameter, i, ImmutableMap.of());
+            FieldReference fieldReference = new FieldReference(nameAllocator.newName(), parameter, i, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
             inputSelector.addOperation(fieldReference);
             fieldReferencesBuilder.add(fieldReference);
         }
@@ -595,7 +597,7 @@ public class AssignmentsUtils
                 }
             }
         }
-        Row rowConstructor = new Row(nameAllocator.newName(), items.build(), ImmutableList.of()); // TODO pass source attributes when we remove ValueMap
+        Row rowConstructor = new Row(nameAllocator.newName(), items.build(), emptySourceAttributes(items.build().size())); // TODO pass source attributes when we remove ValueMap
         result.addOperation(rowConstructor);
         Return returnOperation = new Return(nameAllocator.newName(), rowConstructor.result(), rowConstructor.attributes());
         result.addOperation(returnOperation);

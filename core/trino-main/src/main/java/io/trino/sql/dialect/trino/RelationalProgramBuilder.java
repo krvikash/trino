@@ -95,6 +95,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
+import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUTES;
 import static io.trino.sql.dialect.trino.Context.argumentMapping;
 import static io.trino.sql.dialect.trino.Context.composedMapping;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.OperationAndMapping;
@@ -614,7 +615,7 @@ public class RelationalProgramBuilder
         // model output fields selection as a lambda (Block)
         Block fieldSelectorBlock = fieldSelectorBlock("^outputFieldSelector", relationRowType(trinoType(input.operation().result().type())), input.mapping(), node.getOutputSymbols());
 
-        Output output = new Output(resultName, input.operation().result(), fieldSelectorBlock, node.getColumnNames());
+        Output output = new Output(resultName, input.operation().result(), fieldSelectorBlock, node.getColumnNames(), input.operation().attributes());
         context.block().addOperation(output);
         return new OperationAndMapping(output, ImmutableMap.of()); // unlike OutputNode, the Output operation returns Void, not a relation
     }
@@ -1019,7 +1020,7 @@ public class RelationalProgramBuilder
             List<Symbol> symbols = selectedSymbolsLists.get(i);
             for (Symbol symbol : symbols) {
                 String value = nameAllocator.newName();
-                FieldReference fieldReference = new FieldReference(value, parameter, symbolMapping.get(symbol), ImmutableMap.of()); // TODO pass appropriate row-specific input attributes through lambda arguments
+                FieldReference fieldReference = new FieldReference(value, parameter, symbolMapping.get(symbol), DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
                 selectorBlock.addOperation(fieldReference);
                 selections.add(fieldReference);
             }

@@ -56,6 +56,7 @@ import java.util.Optional;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
+import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUTES;
 import static io.trino.sql.dialect.trino.Context.argumentMapping;
 import static io.trino.sql.dialect.trino.Context.composedMapping;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
@@ -419,7 +420,8 @@ public class ScalarProgramBuilder
             throw new TrinoException(IR_ERROR, "no mapping for symbol " + node.name());
         }
         String resultName = nameAllocator.newName();
-        FieldReference fieldReference = new FieldReference(resultName, rowField.row(), rowField.field(), ImmutableMap.of()); // TODO pass attributes through correlation / block argument
+        // the referenced row is a Block Parameter so we use default attributes
+        FieldReference fieldReference = new FieldReference(resultName, rowField.row(), rowField.field(), DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         context.block().addOperation(fieldReference);
         return fieldReference;
     }

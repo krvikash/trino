@@ -15,6 +15,7 @@ package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import io.trino.spi.TrinoException;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.TrinoDialect;
@@ -28,9 +29,11 @@ import java.util.List;
 import java.util.Map;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.operationmetadata.RowOperationMetadata.NAME;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public final class Row
@@ -57,6 +60,10 @@ public final class Row
         this.result = new Result(resultName, irType(resultType));
 
         this.fields = ImmutableList.copyOf(fields);
+
+        if (sourceAttributes.size() != fields.size()) {
+            throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), fields.size()));
+        }
 
         // TODO derive attributes from source attributes
         this.attributes = ImmutableMap.of();
@@ -101,13 +108,13 @@ public final class Row
         return new Row(
                 result.name(),
                 newFields,
-                ImmutableList.of());
+                emptySourceAttributes(fields.size()));
     }
 
     @Override
     public Operation withResultName(String newName)
     {
-        return new Row(newName, fields, ImmutableList.of());
+        return new Row(newName, fields, emptySourceAttributes(fields.size()));
     }
 
     @Override

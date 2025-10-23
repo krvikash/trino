@@ -14,7 +14,6 @@
 package io.trino.sql.planner.optimizations.ctereuse;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.FieldReference;
@@ -30,6 +29,7 @@ import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.RowType.anonymousRow;
 import static io.trino.spi.type.VarcharType.VARCHAR;
+import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUTES;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.planner.optimizations.ctereuse.PredicateUtils.falsePredicate;
 import static io.trino.sql.planner.optimizations.ctereuse.PredicateUtils.truePredicate;
@@ -93,7 +93,7 @@ class TestStructuralEquivalenceUtils
     public void testOperations()
     {
         Block.Parameter firstParameter = new Block.Parameter("%first_parameter", irType(anonymousRow(BIGINT, BOOLEAN)));
-        FieldReference firstFieldReference = new FieldReference("%first_field_1", firstParameter, 1, ImmutableMap.of());
+        FieldReference firstFieldReference = new FieldReference("%first_field_1", firstParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant firstConstant = new Constant("%first_constant", BOOLEAN, true);
         Row firstRow = new Row("%first_row", ImmutableList.of(firstFieldReference.result(), firstConstant.result()), ImmutableList.of(firstFieldReference.attributes(), firstConstant.attributes()));
         Return firstReturn = new Return("%first_return", firstRow.result(), firstRow.attributes());
@@ -104,7 +104,7 @@ class TestStructuralEquivalenceUtils
                 ImmutableList.of(firstFieldReference, firstConstant, firstRow, firstReturn));
 
         Block.Parameter secondParameter = new Block.Parameter("%second_parameter", irType(anonymousRow(BIGINT, BOOLEAN)));
-        FieldReference secondFieldReference = new FieldReference("%second_field_1", secondParameter, 1, ImmutableMap.of());
+        FieldReference secondFieldReference = new FieldReference("%second_field_1", secondParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant secondConstant = new Constant("%second_constant", BOOLEAN, true);
         Row secondRow = new Row("%second_row", ImmutableList.of(secondFieldReference.result(), secondConstant.result()), ImmutableList.of(secondFieldReference.attributes(), secondConstant.attributes()));
         Return secondReturn = new Return("%second_return", secondRow.result(), secondRow.attributes());
@@ -156,7 +156,7 @@ class TestStructuralEquivalenceUtils
         Block.Parameter outerParameter = new Block.Parameter("%outer_parameter", irType(anonymousRow(VARCHAR, BOOLEAN)));
 
         Block.Parameter firstBlockParameter = new Block.Parameter("%first_block_parameter", irType(anonymousRow(BIGINT)));
-        FieldReference firstOuterParameterReference = new FieldReference("%first_outer_parameter_reference", outerParameter, 1, ImmutableMap.of());
+        FieldReference firstOuterParameterReference = new FieldReference("%first_outer_parameter_reference", outerParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row firstRow = new Row(
                 "%first_row",
                 ImmutableList.of(firstOuterParameterReference.result()),
@@ -169,7 +169,7 @@ class TestStructuralEquivalenceUtils
                 ImmutableList.of(firstOuterParameterReference, firstRow, firstReturn));
 
         Block.Parameter secondBlockParameter = new Block.Parameter("%second_block_parameter", irType(anonymousRow(BIGINT)));
-        FieldReference secondOuterParameterReference = new FieldReference("%second_outer_parameter_reference", outerParameter, 1, ImmutableMap.of());
+        FieldReference secondOuterParameterReference = new FieldReference("%second_outer_parameter_reference", outerParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row secondRow = new Row(
                 "%second_row",
                 ImmutableList.of(secondOuterParameterReference.result()),
@@ -186,7 +186,7 @@ class TestStructuralEquivalenceUtils
 
         // compare blocks with different correlated references: change the correlated reference in second block so that it references a different outer parameter
         Block.Parameter anotherOuterParameter = new Block.Parameter("%another_outer_parameter", irType(anonymousRow(VARCHAR, BOOLEAN)));
-        secondOuterParameterReference = new FieldReference("%second_outer_parameter_reference", anotherOuterParameter, 1, ImmutableMap.of());
+        secondOuterParameterReference = new FieldReference("%second_outer_parameter_reference", anotherOuterParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         secondRow = new Row(
                 "%second_row",
                 ImmutableList.of(secondOuterParameterReference.result()),
@@ -209,9 +209,9 @@ class TestStructuralEquivalenceUtils
         Block.Parameter firstBlockParameter = new Block.Parameter("%first_block_parameter", irType(anonymousRow(BIGINT, BOOLEAN)));
         Block.Parameter firstLambdaParameter = new Block.Parameter("%first_lambda_parameter", irType(anonymousRow(BOOLEAN)));
 
-        FieldReference firstBlockParameterReference = new FieldReference("%first_block_parameter_reference", firstBlockParameter, 1, ImmutableMap.of());
-        FieldReference firstLambdaParameterReference = new FieldReference("%first_lambda_parameter_reference", firstLambdaParameter, 0, ImmutableMap.of());
-        FieldReference firstOuterParameterReference = new FieldReference("%first_outer_parameter_reference", outerParameter, 2, ImmutableMap.of());
+        FieldReference firstBlockParameterReference = new FieldReference("%first_block_parameter_reference", firstBlockParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference firstLambdaParameterReference = new FieldReference("%first_lambda_parameter_reference", firstLambdaParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference firstOuterParameterReference = new FieldReference("%first_outer_parameter_reference", outerParameter, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row firstNestedRow = new Row(
                 "%first_nested_row",
                 ImmutableList.of(firstBlockParameterReference.result(), firstLambdaParameterReference.result(), firstOuterParameterReference.result()),
@@ -238,9 +238,9 @@ class TestStructuralEquivalenceUtils
         Block.Parameter secondBlockParameter = new Block.Parameter("%second_block_parameter", irType(anonymousRow(BIGINT, BOOLEAN)));
         Block.Parameter secondLambdaParameter = new Block.Parameter("%second_lambda_parameter", irType(anonymousRow(BOOLEAN)));
 
-        FieldReference secondBlockParameterReference = new FieldReference("%second_block_parameter_reference", secondBlockParameter, 1, ImmutableMap.of());
-        FieldReference secondLambdaParameterReference = new FieldReference("%second_lambda_parameter_reference", secondLambdaParameter, 0, ImmutableMap.of());
-        FieldReference secondOuterParameterReference = new FieldReference("%second_outer_parameter_reference", outerParameter, 2, ImmutableMap.of());
+        FieldReference secondBlockParameterReference = new FieldReference("%second_block_parameter_reference", secondBlockParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondLambdaParameterReference = new FieldReference("%second_lambda_parameter_reference", secondLambdaParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondOuterParameterReference = new FieldReference("%second_outer_parameter_reference", outerParameter, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row secondNestedRow = new Row(
                 "%second_nested_row",
                 ImmutableList.of(secondBlockParameterReference.result(), secondLambdaParameterReference.result(), secondOuterParameterReference.result()),
@@ -272,8 +272,8 @@ class TestStructuralEquivalenceUtils
     public void testValueNameClashes()
     {
         Block.Parameter firstParameter = new Block.Parameter("%0", irType(anonymousRow(BIGINT, BOOLEAN)));
-        FieldReference firstFieldReference = new FieldReference("%1", firstParameter, 1, ImmutableMap.of());
-        FieldReference anotherFirstFieldReference = new FieldReference("%2", firstParameter, 0, ImmutableMap.of());
+        FieldReference firstFieldReference = new FieldReference("%1", firstParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference anotherFirstFieldReference = new FieldReference("%2", firstParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant firstConstant = new Constant("%3", BOOLEAN, true);
         Row firstRow = new Row("%4", ImmutableList.of(firstFieldReference.result(), anotherFirstFieldReference.result(), firstConstant.result()), ImmutableList.of(firstFieldReference.attributes(), anotherFirstFieldReference.attributes(), firstConstant.attributes()));
         Return firstReturn = new Return("%5", firstRow.result(), firstRow.attributes());
@@ -287,8 +287,8 @@ class TestStructuralEquivalenceUtils
         assertThat(blocksStructurallyEquivalent(firstBlock, firstBlock)).isTrue();
 
         Block.Parameter secondParameter = new Block.Parameter("%1", irType(anonymousRow(BIGINT, BOOLEAN)));
-        FieldReference secondFieldReference = new FieldReference("%0", secondParameter, 1, ImmutableMap.of());
-        FieldReference anotherSecondFieldReference = new FieldReference("%3", secondParameter, 0, ImmutableMap.of());
+        FieldReference secondFieldReference = new FieldReference("%0", secondParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference anotherSecondFieldReference = new FieldReference("%3", secondParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant secondConstant = new Constant("%2", BOOLEAN, true);
         Row secondRow = new Row("%5", ImmutableList.of(secondFieldReference.result(), anotherSecondFieldReference.result(), secondConstant.result()), ImmutableList.of(secondFieldReference.attributes(), anotherSecondFieldReference.attributes(), secondConstant.attributes()));
         Return secondReturn = new Return("%4", secondRow.result(), secondRow.attributes());

@@ -24,6 +24,8 @@ import java.util.Arrays;
 import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
+import static io.trino.sql.dialect.ir.IrDialect.Repeatability.DETERMINISTIC;
+import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.lang.Boolean.parseBoolean;
 import static java.lang.String.format;
@@ -49,6 +51,12 @@ public class IrDialect
 
     // whether the operation has side effects
     public static final String HAS_SIDE_EFFECTS = "has_side_effects";
+
+    public static final Map<AttributeKey, Object> DEFAULT_BLOCK_PARAMETER_ATTRIBUTES = ImmutableMap.<AttributeKey, Object>builder()
+            .put(new AttributeKey(IR, REPEATABILITY), DETERMINISTIC)
+            .put(new AttributeKey(IR, SAFE), TRUE)
+            .put(new AttributeKey(IR, HAS_SIDE_EFFECTS), FALSE)
+            .buildOrThrow();
 
     private IrDialect()
     {

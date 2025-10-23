@@ -33,6 +33,7 @@ import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operationmetadata.InOperationMetadata.NAME;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public final class In
@@ -64,6 +65,10 @@ public final class In
         this.input = input;
 
         this.inputList = ImmutableList.copyOf(inputList);
+
+        if (sourceAttributes.size() != 1 + inputList.size()) {
+            throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), 1 + inputList.size()));
+        }
 
         // TODO
         this.attributes = ImmutableMap.of();
@@ -114,13 +119,13 @@ public final class In
                 result.name(),
                 index == 0 ? newArgument : input,
                 newInputList,
-                ImmutableList.of());
+                emptySourceAttributes(1 + inputList.size()));
     }
 
     @Override
     public Operation withResultName(String newName)
     {
-        return new In(newName, input, inputList, ImmutableList.of());
+        return new In(newName, input, inputList, emptySourceAttributes(1 + inputList.size()));
     }
 
     @Override

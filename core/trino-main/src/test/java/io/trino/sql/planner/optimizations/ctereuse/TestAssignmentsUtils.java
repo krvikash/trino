@@ -37,6 +37,7 @@ import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.spi.type.RowType.anonymousRow;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
+import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUTES;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION_ROW;
@@ -521,7 +522,7 @@ class TestAssignmentsUtils
         Parameter relationRowParameter = new Parameter("%0", irType(RELATION_ROW_TYPE));
 
         // prune some fields
-        FieldReference field1Reference = new FieldReference("%1", relationRowParameter, 1, ImmutableMap.of());
+        FieldReference field1Reference = new FieldReference("%1", relationRowParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row field1Row = new Row("%2", ImmutableList.of(field1Reference.result()), ImmutableList.of(field1Reference.attributes()));
         Return field1Return = new Return("%3", field1Row.result(), field1Row.attributes());
         assertThat(getPruningAssignments("^result", RELATION_ROW_TYPE, ImmutableSet.of(0, 2), new ProgramBuilder.ValueNameAllocator()))
@@ -540,9 +541,9 @@ class TestAssignmentsUtils
                         ImmutableList.of(emptyRow, emptyReturn)));
 
         // prune no fields
-        FieldReference firstFieldReference = new FieldReference("%1", relationRowParameter, 0, ImmutableMap.of());
-        FieldReference secondFieldReference = new FieldReference("%2", relationRowParameter, 1, ImmutableMap.of());
-        FieldReference thirdFieldReference = new FieldReference("%3", relationRowParameter, 2, ImmutableMap.of());
+        FieldReference firstFieldReference = new FieldReference("%1", relationRowParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondFieldReference = new FieldReference("%2", relationRowParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference thirdFieldReference = new FieldReference("%3", relationRowParameter, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row allFieldsRow = new Row(
                 "%4",
                 ImmutableList.of(firstFieldReference.result(), secondFieldReference.result(), thirdFieldReference.result()),
@@ -579,9 +580,9 @@ class TestAssignmentsUtils
     public void testGetReorderingAssignments()
     {
         Parameter relationRowParameter = new Parameter("%0", irType(RELATION_ROW_TYPE));
-        FieldReference firstFieldReference = new FieldReference("%1", relationRowParameter, 0, ImmutableMap.of());
-        FieldReference thirdFieldReference = new FieldReference("%2", relationRowParameter, 2, ImmutableMap.of());
-        FieldReference secondFieldReference = new FieldReference("%3", relationRowParameter, 1, ImmutableMap.of());
+        FieldReference firstFieldReference = new FieldReference("%1", relationRowParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference thirdFieldReference = new FieldReference("%2", relationRowParameter, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondFieldReference = new FieldReference("%3", relationRowParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowConstructor = new Row(
                 "%4",
                 ImmutableList.of(firstFieldReference.result(), thirdFieldReference.result(), secondFieldReference.result()),
@@ -675,9 +676,9 @@ class TestAssignmentsUtils
     {
         // non-empty input
         Parameter relationRowParameter = new Parameter("%0", irType(RELATION_ROW_TYPE));
-        FieldReference firstFieldReference = new FieldReference("%1", relationRowParameter, 0, ImmutableMap.of());
-        FieldReference secondFieldReference = new FieldReference("%2", relationRowParameter, 1, ImmutableMap.of());
-        FieldReference thirdFieldReference = new FieldReference("%3", relationRowParameter, 2, ImmutableMap.of());
+        FieldReference firstFieldReference = new FieldReference("%1", relationRowParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondFieldReference = new FieldReference("%2", relationRowParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference thirdFieldReference = new FieldReference("%3", relationRowParameter, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row allFieldsRow = new Row(
                 "%4",
                 ImmutableList.of(firstFieldReference.result(), secondFieldReference.result(), thirdFieldReference.result()),
@@ -709,11 +710,11 @@ class TestAssignmentsUtils
     {
         // concatenate two non-empty field selectors
         // the operations results in both blocks block are re-allocated with the provided ValueNameAllocator to avoid collisions
-        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
-        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 0, ImmutableMap.of());
-        FieldReference thirdFieldReference = new FieldReference("%4", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
-        FieldReference fourthFieldReference = new FieldReference("%5", RELATION_ROW_PARAMETER, 0, ImmutableMap.of());
-        FieldReference fifthFieldReference = new FieldReference("%6", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
+        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference thirdFieldReference = new FieldReference("%4", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fourthFieldReference = new FieldReference("%5", RELATION_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fifthFieldReference = new FieldReference("%6", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowConstructor = new Row(
                 "%9",
                 ImmutableList.of(firstFieldReference.result(), secondFieldReference.result(), thirdFieldReference.result(), fourthFieldReference.result(), fifthFieldReference.result()),
@@ -731,8 +732,8 @@ class TestAssignmentsUtils
                 .isEqualTo(EMPTY_FIELD_SELECTOR);
 
         // concatenate an empty and a non-empty field selector
-        FieldReference first = new FieldReference("%0", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
-        FieldReference second = new FieldReference("%1", RELATION_ROW_PARAMETER, 0, ImmutableMap.of());
+        FieldReference first = new FieldReference("%0", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference second = new FieldReference("%1", RELATION_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row row = new Row(
                 "%4",
                 ImmutableList.of(first.result(), second.result()),
@@ -796,9 +797,9 @@ class TestAssignmentsUtils
     public void testGetProjectedItems()
     {
         // select f2, f0 > 5, f3 from outer parameter
-        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 0, ImmutableMap.of());
-        FieldReference thirdFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
-        FieldReference outerFieldReference = new FieldReference("%2", OUTER_RELATION_ROW_PARAMETER, 3, ImmutableMap.of());
+        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference thirdFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference outerFieldReference = new FieldReference("%2", OUTER_RELATION_ROW_PARAMETER, 3, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant constant = new Constant("%3", BIGINT, 5L);
         Comparison comparison = new Comparison("%4", firstFieldReference.result(), constant.result(), GREATER_THAN, ImmutableList.of(firstFieldReference.attributes(), constant.attributes()));
         Row rowConstructor = new Row(
@@ -854,7 +855,7 @@ class TestAssignmentsUtils
         // first item: %firstParameter > 5
         Parameter firstParameter = new Block.Parameter("%firstParameter", irType(BIGINT));
         Constant firstConstant = new Constant("%0", BIGINT, 5L);
-        Comparison firstComparison = new Comparison("%1", firstParameter, firstConstant.result(), GREATER_THAN, ImmutableList.of());
+        Comparison firstComparison = new Comparison("%1", firstParameter, firstConstant.result(), GREATER_THAN, ImmutableList.of(ImmutableMap.of(), firstConstant.attributes()));
         Return firstReturnOperation = new Return("%2", firstComparison.result(), firstComparison.attributes());
         Block firstItem = new Block(
                 Optional.of("^firstBlock"),
@@ -864,7 +865,7 @@ class TestAssignmentsUtils
         // second item: 10 < %secondParameter
         Parameter secondParameter = new Block.Parameter("%secondParameter", irType(BIGINT));
         Constant secondConstant = new Constant("%0", BIGINT, 10L);
-        Comparison secondComparison = new Comparison("%1", secondConstant.result(), secondParameter, LESS_THAN, ImmutableList.of());
+        Comparison secondComparison = new Comparison("%1", secondConstant.result(), secondParameter, LESS_THAN, ImmutableList.of(secondConstant.attributes(), ImmutableMap.of()));
         Return secondReturnOperation = new Return("%2", secondComparison.result(), secondComparison.attributes());
         Block secondItem = new Block(
                 Optional.of("^secondBlock"),
@@ -874,10 +875,10 @@ class TestAssignmentsUtils
         // create the composed block
         // all values are remapped to avoid collisions
         Constant remappedFirstConstant = new Constant("%100", BIGINT, 5L);
-        Comparison remappedFirstComparison = new Comparison("%101", firstParameter, remappedFirstConstant.result(), GREATER_THAN, ImmutableList.of());
+        Comparison remappedFirstComparison = new Comparison("%101", firstParameter, remappedFirstConstant.result(), GREATER_THAN, ImmutableList.of(ImmutableMap.of(), remappedFirstConstant.attributes()));
         Constant remappedSecondConstant = new Constant("%103", BIGINT, 10L);
         // %secondParameter is remapped to %firstParameter
-        Comparison remappedSecondComparison = new Comparison("%104", remappedSecondConstant.result(), firstParameter, LESS_THAN, ImmutableList.of());
+        Comparison remappedSecondComparison = new Comparison("%104", remappedSecondConstant.result(), firstParameter, LESS_THAN, ImmutableList.of(remappedSecondConstant.attributes(), ImmutableMap.of()));
         // collect items in a row
         Row rowConstructor = new Row(
                 "%106",
@@ -893,11 +894,11 @@ class TestAssignmentsUtils
 
         // compose the same item three times
         Constant remappedFirstConstant1 = new Constant("%100", BIGINT, 5L);
-        Comparison remappedFirstComparison1 = new Comparison("%101", firstParameter, remappedFirstConstant1.result(), GREATER_THAN, ImmutableList.of());
+        Comparison remappedFirstComparison1 = new Comparison("%101", firstParameter, remappedFirstConstant1.result(), GREATER_THAN, ImmutableList.of(ImmutableMap.of(), remappedFirstConstant1.attributes()));
         Constant remappedFirstConstant2 = new Constant("%103", BIGINT, 5L);
-        Comparison remappedFirstComparison2 = new Comparison("%104", firstParameter, remappedFirstConstant2.result(), GREATER_THAN, ImmutableList.of());
+        Comparison remappedFirstComparison2 = new Comparison("%104", firstParameter, remappedFirstConstant2.result(), GREATER_THAN, ImmutableList.of(ImmutableMap.of(), remappedFirstConstant2.attributes()));
         Constant remappedFirstConstant3 = new Constant("%106", BIGINT, 5L);
-        Comparison remappedFirstComparison3 = new Comparison("%107", firstParameter, remappedFirstConstant3.result(), GREATER_THAN, ImmutableList.of());
+        Comparison remappedFirstComparison3 = new Comparison("%107", firstParameter, remappedFirstConstant3.result(), GREATER_THAN, ImmutableList.of(ImmutableMap.of(), remappedFirstConstant3.attributes()));
         Row row = new Row(
                 "%109",
                 ImmutableList.of(
@@ -918,14 +919,14 @@ class TestAssignmentsUtils
 
         // compose assignments blocks
         // note: it isn't a concatenation. The result is a row including the component rows: ROW(ROW(f2, f0), ROW(true, f0))
-        FieldReference firstFieldReferenceRemapped = new FieldReference("%100", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
-        FieldReference secondFieldReferenceRemapped = new FieldReference("%101", RELATION_ROW_PARAMETER, 0, ImmutableMap.of());
+        FieldReference firstFieldReferenceRemapped = new FieldReference("%100", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondFieldReferenceRemapped = new FieldReference("%101", RELATION_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row firstRowConstructorRemapped = new Row(
                 "%102",
                 ImmutableList.of(firstFieldReferenceRemapped.result(), secondFieldReferenceRemapped.result()),
                 ImmutableList.of(firstFieldReferenceRemapped.attributes(), secondFieldReferenceRemapped.attributes()));
         Constant constantTrueRemapped = new Constant("%104", BOOLEAN, true);
-        FieldReference fieldReferenceRemapped = new FieldReference("%105", RELATION_ROW_PARAMETER, 0, ImmutableMap.of());
+        FieldReference fieldReferenceRemapped = new FieldReference("%105", RELATION_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row secondRowConstructorRemapped = new Row(
                 "%106",
                 ImmutableList.of(constantTrueRemapped.result(), fieldReferenceRemapped.result()),
@@ -956,8 +957,8 @@ class TestAssignmentsUtils
     private static Block getFieldSelectorWithoutDuplicates()
     {
         // select f2:VARCHAR, f0:BIGINT
-        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
-        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 0, ImmutableMap.of());
+        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowConstructor = new Row(
                 "%2",
                 ImmutableList.of(firstFieldReference.result(), secondFieldReference.result()),
@@ -973,9 +974,9 @@ class TestAssignmentsUtils
     private static Block getFieldSelectorWithDuplicates()
     {
         // select f2:VARCHAR, f0:BIGINT, f2:VARCHAR
-        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
-        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 0, ImmutableMap.of());
-        FieldReference thirdFieldReference = new FieldReference("%2", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
+        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference thirdFieldReference = new FieldReference("%2", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowConstructor = new Row(
                 "%3",
                 ImmutableList.of(firstFieldReference.result(), secondFieldReference.result(), thirdFieldReference.result()),
@@ -991,9 +992,9 @@ class TestAssignmentsUtils
     private static Block getFieldSelectorWithDeadCode()
     {
         // select f2:VARCHAR, f0:BIGINT. Includes unused selection of f1:BOOLEAN
-        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
-        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
-        FieldReference thirdFieldReference = new FieldReference("%2", RELATION_ROW_PARAMETER, 0, ImmutableMap.of());
+        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference thirdFieldReference = new FieldReference("%2", RELATION_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowConstructor = new Row(
                 "%3",
                 ImmutableList.of(firstFieldReference.result(), thirdFieldReference.result()),
@@ -1009,8 +1010,8 @@ class TestAssignmentsUtils
     private static Block getFieldSelectorWithOuterReference()
     {
         // select f2:VARCHAR, and a field f3:SMALLINT from outer parameter
-        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
-        FieldReference secondFieldReferenceOuter = new FieldReference("%1", OUTER_RELATION_ROW_PARAMETER, 3, ImmutableMap.of());
+        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondFieldReferenceOuter = new FieldReference("%1", OUTER_RELATION_ROW_PARAMETER, 3, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowConstructor = new Row(
                 "%2",
                 ImmutableList.of(firstFieldReference.result(), secondFieldReferenceOuter.result()),
@@ -1026,9 +1027,9 @@ class TestAssignmentsUtils
     private static Block getFieldSelectorFullPassthrough()
     {
         // select f0:BIGINT, f1:BOOLEAN, f2:VARCHAR
-        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 0, ImmutableMap.of());
-        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
-        FieldReference thirdFieldReference = new FieldReference("%2", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
+        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference thirdFieldReference = new FieldReference("%2", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowConstructor = new Row(
                 "%3",
                 ImmutableList.of(firstFieldReference.result(), secondFieldReference.result(), thirdFieldReference.result()),
@@ -1044,10 +1045,10 @@ class TestAssignmentsUtils
     private static Block getFieldSelectorFullPassthroughWithDuplicates()
     {
         // select f0:BIGINT, f1:BOOLEAN, f2:VARCHAR, f1:BOOLEAN
-        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 0, ImmutableMap.of());
-        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
-        FieldReference thirdFieldReference = new FieldReference("%2", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
-        FieldReference fourthFieldReference = new FieldReference("%3", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
+        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference thirdFieldReference = new FieldReference("%2", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fourthFieldReference = new FieldReference("%3", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowConstructor = new Row(
                 "%4",
                 ImmutableList.of(firstFieldReference.result(), secondFieldReference.result(), thirdFieldReference.result(), fourthFieldReference.result()),
@@ -1063,10 +1064,10 @@ class TestAssignmentsUtils
     private static Block getFieldSelectorFullPassthroughWithDeadCode()
     {
         // select f0:BIGINT, f1:BOOLEAN, f2:VARCHAR. Includes unused selection of f1:BOOLEAN
-        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 0, ImmutableMap.of());
-        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
-        FieldReference thirdFieldReference = new FieldReference("%2", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
-        FieldReference fourthFieldReference = new FieldReference("%3", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
+        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference thirdFieldReference = new FieldReference("%2", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fourthFieldReference = new FieldReference("%3", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowConstructor = new Row(
                 "%4",
                 ImmutableList.of(firstFieldReference.result(), secondFieldReference.result(), thirdFieldReference.result()),
@@ -1082,10 +1083,10 @@ class TestAssignmentsUtils
     private static Block getFieldSelectorFullPassthroughWithOuterReference()
     {
         // select f0:BIGINT, f1:BOOLEAN, f2:VARCHAR. Includes unused selection of f3:SMALLINT from outer parameter
-        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 0, ImmutableMap.of());
-        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
-        FieldReference thirdFieldReference = new FieldReference("%2", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
-        FieldReference fourthFieldReference = new FieldReference("%3", OUTER_RELATION_ROW_PARAMETER, 3, ImmutableMap.of());
+        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference thirdFieldReference = new FieldReference("%2", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fourthFieldReference = new FieldReference("%3", OUTER_RELATION_ROW_PARAMETER, 3, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowConstructor = new Row(
                 "%4",
                 ImmutableList.of(firstFieldReference.result(), secondFieldReference.result(), thirdFieldReference.result(), fourthFieldReference.result()),
@@ -1101,8 +1102,8 @@ class TestAssignmentsUtils
     private static Block getFieldSelectorFullPassthroughPrefix()
     {
         // select f0:BIGINT, f1:BOOLEAN (the first two of the three fields)
-        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 0, ImmutableMap.of());
-        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
+        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowConstructor = new Row(
                 "%2",
                 ImmutableList.of(firstFieldReference.result(), secondFieldReference.result()),
@@ -1118,9 +1119,9 @@ class TestAssignmentsUtils
     private static Block getFieldSelectorReordering()
     {
         // select f1:BOOLEAN, f2:VARCHAR, f0:BIGINT
-        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
-        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
-        FieldReference thirdFieldReference = new FieldReference("%2", RELATION_ROW_PARAMETER, 0, ImmutableMap.of());
+        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference thirdFieldReference = new FieldReference("%2", RELATION_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowConstructor = new Row(
                 "%3",
                 ImmutableList.of(firstFieldReference.result(), secondFieldReference.result(), thirdFieldReference.result()),
@@ -1136,10 +1137,10 @@ class TestAssignmentsUtils
     private static Block getFieldSelectorReorderingWithDuplicates()
     {
         // select f1:BOOLEAN, f2:VARCHAR, f0:BIGINT, f2:VARCHAR
-        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
-        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
-        FieldReference thirdFieldReference = new FieldReference("%2", RELATION_ROW_PARAMETER, 0, ImmutableMap.of());
-        FieldReference fourthFieldReference = new FieldReference("%3", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
+        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference thirdFieldReference = new FieldReference("%2", RELATION_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fourthFieldReference = new FieldReference("%3", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowConstructor = new Row(
                 "%4",
                 ImmutableList.of(firstFieldReference.result(), secondFieldReference.result(), thirdFieldReference.result(), fourthFieldReference.result()),
@@ -1155,10 +1156,10 @@ class TestAssignmentsUtils
     private static Block getFieldSelectorReorderingWithDeadCode()
     {
         // select f1:BOOLEAN, f2:VARCHAR, f0:BIGINT. Includes unused selection of f2:VARCHAR
-        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
-        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
-        FieldReference thirdFieldReference = new FieldReference("%2", RELATION_ROW_PARAMETER, 0, ImmutableMap.of());
-        FieldReference fourthFieldReference = new FieldReference("%3", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
+        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference thirdFieldReference = new FieldReference("%2", RELATION_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fourthFieldReference = new FieldReference("%3", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowConstructor = new Row(
                 "%4",
                 ImmutableList.of(firstFieldReference.result(), secondFieldReference.result(), thirdFieldReference.result()),
@@ -1174,10 +1175,10 @@ class TestAssignmentsUtils
     private static Block getFieldSelectorReorderingWithOuterReference()
     {
         // select f1:BOOLEAN, f2:VARCHAR, f0:BIGINT.  Includes selection of f3:SMALLINT from outer parameter
-        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
-        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
-        FieldReference thirdFieldReference = new FieldReference("%2", RELATION_ROW_PARAMETER, 0, ImmutableMap.of());
-        FieldReference fourthFieldReference = new FieldReference("%3", OUTER_RELATION_ROW_PARAMETER, 3, ImmutableMap.of());
+        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondFieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference thirdFieldReference = new FieldReference("%2", RELATION_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference fourthFieldReference = new FieldReference("%3", OUTER_RELATION_ROW_PARAMETER, 3, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowConstructor = new Row(
                 "%4",
                 ImmutableList.of(firstFieldReference.result(), secondFieldReference.result(), thirdFieldReference.result(), fourthFieldReference.result()),
@@ -1204,7 +1205,7 @@ class TestAssignmentsUtils
     private static Block getEmptyFieldSelectorWithDeadCode()
     {
         // includes unused selection of f2:VARCHAR
-        FieldReference fieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 2, ImmutableMap.of());
+        FieldReference fieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Constant emptyRow = new Constant("%1", EMPTY_ROW, null);
         Return returnOperation = new Return("%2", emptyRow.result(), emptyRow.attributes());
 
@@ -1229,7 +1230,7 @@ class TestAssignmentsUtils
     {
         // select constant true, f0:BIGINT
         Constant constantTrue = new Constant("%0", BOOLEAN, true);
-        FieldReference fieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 0, ImmutableMap.of());
+        FieldReference fieldReference = new FieldReference("%1", RELATION_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowConstructor = new Row(
                 "%2",
                 ImmutableList.of(constantTrue.result(), fieldReference.result()),
@@ -1245,7 +1246,7 @@ class TestAssignmentsUtils
     private static Block getPrimitiveValueSelector()
     {
         // return f0:BIGINT, not wrapped in a row
-        FieldReference fieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 0, ImmutableMap.of());
+        FieldReference fieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Return returnOperation = new Return("%1", fieldReference.result(), fieldReference.attributes());
 
         return new Block(
@@ -1317,8 +1318,8 @@ class TestAssignmentsUtils
     private static Block getMultipleParametersBlock()
     {
         // select f1:BOOLEAN, from the first parameter and f3:SMALLINT from the second parameter
-        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, ImmutableMap.of());
-        FieldReference secondFieldReference = new FieldReference("%1", OUTER_RELATION_ROW_PARAMETER, 3, ImmutableMap.of());
+        FieldReference firstFieldReference = new FieldReference("%0", RELATION_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondFieldReference = new FieldReference("%1", OUTER_RELATION_ROW_PARAMETER, 3, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         Row rowConstructor = new Row(
                 "%2",
                 ImmutableList.of(firstFieldReference.result(), secondFieldReference.result()),

@@ -32,6 +32,7 @@ import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operationmetadata.SwitchOperationMetadata.NAME;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public final class Switch
@@ -92,6 +93,11 @@ public final class Switch
 
         this.defaultValue = defaultValue;
 
+        // validate source attributes count -- one entry per each argument: operand, when-list, then-list, defaultValue
+        if (sourceAttributes.size() != 1 + when.size() + then.size() + 1) {
+            throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), 1 + when.size() + then.size() + 1));
+        }
+
         // TODO
         this.attributes = ImmutableMap.of();
     }
@@ -149,13 +155,13 @@ public final class Switch
                 newWhen,
                 newThen,
                 index == 1 + when.size() + then.size() ? newArgument : defaultValue,
-                ImmutableList.of());
+                emptySourceAttributes(1 + when.size() + then.size() + 1));
     }
 
     @Override
     public Operation withResultName(String newName)
     {
-        return new Switch(newName, operand, when, then, defaultValue, ImmutableList.of());
+        return new Switch(newName, operand, when, then, defaultValue, emptySourceAttributes(1 + when.size() + then.size() + 1));
     }
 
     @Override

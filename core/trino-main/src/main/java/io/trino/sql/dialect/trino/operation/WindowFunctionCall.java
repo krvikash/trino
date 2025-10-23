@@ -80,7 +80,7 @@ public class WindowFunctionCall
             WindowFrameBoundType frameEndType,
             boolean ignoreNulls,
             boolean distinct)
-    // TODO pass input attributes
+    // we don't pass input attributes because the argument is always a Block Parameter
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");

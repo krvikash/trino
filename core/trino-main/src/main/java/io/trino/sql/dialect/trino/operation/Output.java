@@ -48,7 +48,7 @@ public final class Output
     private final Region fieldSelector;
     private final Map<AttributeKey, Object> attributes;
 
-    public Output(String resultName, Value input, Block fieldSelector, List<String> outputNames)
+    public Output(String resultName, Value input, Block fieldSelector, List<String> outputNames, Map<AttributeKey, Object> sourceAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -119,7 +119,8 @@ public final class Output
                 result.name(),
                 newArgument,
                 fieldSelector.getOnlyBlock(),
-                COLUMN_NAMES.getAttribute(attributes));
+                COLUMN_NAMES.getAttribute(attributes),
+                ImmutableMap.of());
     }
 
     public Block outputFieldSelector()

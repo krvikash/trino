@@ -61,6 +61,10 @@ public final class Comparison
 
         this.right = right;
 
+        if (sourceAttributes.size() != 2) {
+            throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: 2", sourceAttributes.size()));
+        }
+
         // TODO also derive attributes from source attributes
         this.attributes = COMPARISON_OPERATOR.asMap(comparisonOperator);
     }
@@ -104,13 +108,13 @@ public final class Comparison
                 index == 0 ? newArgument : left,
                 index == 1 ? newArgument : right,
                 COMPARISON_OPERATOR.getAttribute(attributes),
-                ImmutableList.of());
+                emptySourceAttributes(2));
     }
 
     @Override
     public Operation withResultName(String newName)
     {
-        return new Comparison(newName, left, right, COMPARISON_OPERATOR.getAttribute(attributes), ImmutableList.of());
+        return new Comparison(newName, left, right, COMPARISON_OPERATOR.getAttribute(attributes), emptySourceAttributes(2));
     }
 
     @Override

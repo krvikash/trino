@@ -34,6 +34,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.RowType.anonymousRow;
+import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUTES;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator.AND;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator.OR;
@@ -640,7 +641,7 @@ public class TestPredicateUtils
         checkArgument(fields.length > 0);
 
         if (fields.length == 1) {
-            FieldReference fieldReference = new FieldReference("%field_" + fields[0], ROW_PARAMETER, fields[0], ImmutableMap.of());
+            FieldReference fieldReference = new FieldReference("%field_" + fields[0], ROW_PARAMETER, fields[0], DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
             Return returnOperation = new Return("%return", fieldReference.result(), fieldReference.attributes());
             return new Block(
                     Optional.of("^field_" + fields[0]),
@@ -650,7 +651,7 @@ public class TestPredicateUtils
 
         List<Operation> fieldReferences = Arrays.stream(fields)
                 .boxed()
-                .map(field -> new FieldReference("%field_" + field, ROW_PARAMETER, field, ImmutableMap.of()))
+                .map(field -> new FieldReference("%field_" + field, ROW_PARAMETER, field, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES))
                 .collect(toImmutableList());
         Logical conjunctionOperation = new Logical(
                 "%conjunction",

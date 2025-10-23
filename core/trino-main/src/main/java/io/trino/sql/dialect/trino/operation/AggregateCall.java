@@ -80,7 +80,7 @@ public class AggregateCall
             ResolvedFunction function,
             boolean distinct,
             AggregationStep step) // needed to verify argument count and validate output type
-    // TODO pass input attributes
+    // we don't pass input attributes because the argument is always a Block Parameter
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");

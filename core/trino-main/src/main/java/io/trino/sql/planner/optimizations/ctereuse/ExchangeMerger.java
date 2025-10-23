@@ -47,6 +47,7 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Multimaps.toMultimap;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operation.TrinoOperation.emptySourceAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.BUCKET_COUNT;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.BUCKET_TO_PARTITION;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.EXCHANGE_SCOPE;
@@ -136,7 +137,7 @@ public class ExchangeMerger
                             Optional.ofNullable(PARTITION_COUNT.getAttribute(exchange.attributes())),
                             Optional.ofNullable(BUCKET_COUNT.getAttribute(exchange.attributes())),
                             Optional.ofNullable(SORT_ORDERS.getAttribute(exchange.attributes())),
-                            ImmutableList.of());
+                            emptySourceAttributes(1));
                     subgroupRepresentatives.put(i, rebasedRepresentative);
                 }
             }
@@ -197,7 +198,7 @@ public class ExchangeMerger
                 Optional.ofNullable(PARTITION_COUNT.getAttribute(exchange.attributes())),
                 Optional.ofNullable(BUCKET_COUNT.getAttribute(exchange.attributes())),
                 Optional.ofNullable(SORT_ORDERS.getAttribute(exchange.attributes())),
-                ImmutableList.of());
+                emptySourceAttributes(1));
         newOperations.put(mergedExchange.result(), mergedExchange);
 
         return new UnifiedStatesAndCheckpointMapping(
@@ -366,7 +367,7 @@ public class ExchangeMerger
                             Optional.ofNullable(PARTITION_COUNT.getAttribute(exchange.attributes())),
                             Optional.ofNullable(BUCKET_COUNT.getAttribute(exchange.attributes())),
                             Optional.ofNullable(SORT_ORDERS.getAttribute(exchange.attributes())),
-                            ImmutableList.of());
+                            emptySourceAttributes(unifiedSources.size()));
                     subgroupRepresentatives.put(i, rebasedRepresentative);
                 }
             }
@@ -488,7 +489,7 @@ public class ExchangeMerger
                 Optional.ofNullable(PARTITION_COUNT.getAttribute(arbitraryExchange.attributes())),
                 Optional.ofNullable(BUCKET_COUNT.getAttribute(arbitraryExchange.attributes())),
                 Optional.ofNullable(SORT_ORDERS.getAttribute(arbitraryExchange.attributes())),
-                ImmutableList.of());
+                emptySourceAttributes(arguments.length));
         newOperations.put(mergedExchange.result(), mergedExchange);
 
         // for each component exchange, find all sources of this exchange in the current group and in hanging groups.

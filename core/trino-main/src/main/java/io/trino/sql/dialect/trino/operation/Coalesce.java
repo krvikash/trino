@@ -32,6 +32,7 @@ import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operationmetadata.CoalesceOperationMetadata.NAME;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public final class Coalesce
@@ -63,6 +64,10 @@ public final class Coalesce
         this.result = new Result(resultName, irType(resultType));
 
         this.operands = ImmutableList.copyOf(operands);
+
+        if (sourceAttributes.size() != operands.size()) {
+            throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), operands.size()));
+        }
 
         // TODO
         this.attributes = ImmutableMap.of();
@@ -107,13 +112,13 @@ public final class Coalesce
         return new Coalesce(
                 result.name(),
                 newOperands,
-                ImmutableList.of());
+                emptySourceAttributes(operands.size()));
     }
 
     @Override
     public Operation withResultName(String newName)
     {
-        return new Coalesce(newName, operands, ImmutableList.of());
+        return new Coalesce(newName, operands, emptySourceAttributes(operands.size()));
     }
 
     @Override

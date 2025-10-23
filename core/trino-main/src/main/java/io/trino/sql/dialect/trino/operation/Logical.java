@@ -32,6 +32,7 @@ import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LOGICAL_OPERATOR;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.NAME;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public final class Logical
@@ -61,6 +62,10 @@ public final class Logical
                     }
                 });
         this.terms = ImmutableList.copyOf(terms);
+
+        if (sourceAttributes.size() != terms.size()) {
+            throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), terms.size()));
+        }
 
         // TODO also derive attributes from source attributes
         this.attributes = LOGICAL_OPERATOR.asMap(logicalOperator);
@@ -106,13 +111,13 @@ public final class Logical
                 result.name(),
                 newTerms,
                 LOGICAL_OPERATOR.getAttribute(attributes),
-                ImmutableList.of());
+                emptySourceAttributes(terms.size()));
     }
 
     @Override
     public Operation withResultName(String newName)
     {
-        return new Logical(newName, terms, LOGICAL_OPERATOR.getAttribute(attributes), ImmutableList.of());
+        return new Logical(newName, terms, LOGICAL_OPERATOR.getAttribute(attributes), emptySourceAttributes(terms.size()));
     }
 
     @Override

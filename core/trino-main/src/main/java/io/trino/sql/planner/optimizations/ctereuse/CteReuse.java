@@ -101,6 +101,7 @@ import static io.trino.sql.dialect.trino.ProgramBuilder.initializeNameAllocator;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operation.TrinoOperation.emptySourceAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.CONSTANT_VALUE;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.EXCHANGE_SCOPE;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeScope.REMOTE;
@@ -1546,7 +1547,7 @@ public class CteReuse
                     nameAllocator);
         }
         else {
-            Row newRow = new Row(nameAllocator.newName(), newSelectedFields, ImmutableList.of());
+            Row newRow = new Row(nameAllocator.newName(), newSelectedFields, emptySourceAttributes(newSelectedFields.size()));
             Return newReturn = new Return(nameAllocator.newName(), newRow.result(), newRow.attributes());
             newDynamicFilterTargetSelector = layoutOperations(
                     dynamicFilterTargetSelector,

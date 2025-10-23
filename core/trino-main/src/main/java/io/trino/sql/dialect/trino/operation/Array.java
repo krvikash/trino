@@ -60,6 +60,10 @@ public final class Array
                 });
         this.elements = ImmutableList.copyOf(elements);
 
+        if (sourceAttributes.size() != elements.size()) {
+            throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), elements.size()));
+        }
+
         // TODO derive attributes from source attributes
         this.attributes = ImmutableMap.of();
     }
@@ -104,13 +108,13 @@ public final class Array
                 result.name(),
                 ((ArrayType) trinoType(result.type())).getElementType(),
                 newArguments,
-                ImmutableList.of());
+                emptySourceAttributes(elements.size()));
     }
 
     @Override
     public Operation withResultName(String newName)
     {
-        return new Array(newName, ((ArrayType) trinoType(result.type())).getElementType(), elements, ImmutableList.of());
+        return new Array(newName, ((ArrayType) trinoType(result.type())).getElementType(), elements, emptySourceAttributes(elements.size()));
     }
 
     @Override

@@ -65,6 +65,10 @@ public final class Call
 
         this.arguments = ImmutableList.copyOf(arguments);
 
+        if (sourceAttributes.size() != arguments.size()) {
+            throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), arguments.size()));
+        }
+
         // TODO: derive attributes from source attributes; derive attributes from ResolvedFunction
         this.attributes = RESOLVED_FUNCTION.asMap(function);
     }
@@ -109,13 +113,13 @@ public final class Call
                 result.name(),
                 newArguments,
                 RESOLVED_FUNCTION.getAttribute(attributes),
-                ImmutableList.of());
+                emptySourceAttributes(arguments.size()));
     }
 
     @Override
     public Operation withResultName(String newName)
     {
-        return new Call(newName, arguments, RESOLVED_FUNCTION.getAttribute(attributes), ImmutableList.of());
+        return new Call(newName, arguments, RESOLVED_FUNCTION.getAttribute(attributes), emptySourceAttributes(arguments.size()));
     }
 
     @Override

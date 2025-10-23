@@ -62,6 +62,7 @@ import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMeta
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static io.trino.sql.planner.SystemPartitioningHandle.FIXED_PASSTHROUGH_DISTRIBUTION;
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public class Exchange
@@ -176,6 +177,10 @@ public class Exchange
             }
         }
 
+        if (sourceAttributes.size() != inputs.size()) {
+            throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), inputs.size()));
+        }
+
         ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
         EXCHANGE_TYPE.putAttribute(attributes, type);
         EXCHANGE_SCOPE.putAttribute(attributes, scope);
@@ -248,7 +253,7 @@ public class Exchange
                 Optional.ofNullable(PARTITION_COUNT.getAttribute(attributes)),
                 Optional.ofNullable(BUCKET_COUNT.getAttribute(attributes)),
                 Optional.ofNullable(SORT_ORDERS.getAttribute(attributes)),
-                ImmutableList.of());
+                emptySourceAttributes(inputs.size()));
     }
 
     public List<Block> inputFieldSelectors()

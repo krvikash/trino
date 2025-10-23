@@ -42,6 +42,7 @@ import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operation.TrinoOperation.emptySourceAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.CONSTANT_VALUE;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LOGICAL_OPERATOR;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator.AND;
@@ -174,7 +175,7 @@ public class PredicateUtils
                 }
             }
         }
-        Logical logical = new Logical(nameAllocator.newName(), terms.build(), operator, ImmutableList.of()); // TODO pass source attributes when we remove ValueMap
+        Logical logical = new Logical(nameAllocator.newName(), terms.build(), operator, emptySourceAttributes(terms.build().size())); // TODO pass source attributes when we remove ValueMap
         result.addOperation(logical);
         Return returnOperation = new Return(nameAllocator.newName(), logical.result(), logical.attributes());
         result.addOperation(returnOperation);
@@ -452,7 +453,7 @@ public class PredicateUtils
             }
 
             // two or more terms remained. Create a new logical operation. Reuse the original operation result to avoid downstream rewrite
-            Operation newLogical = new Logical(operation.result().name(), optimizedTerms, operator, ImmutableList.of()); // TODO pass source attributes
+            Operation newLogical = new Logical(operation.result().name(), optimizedTerms, operator, emptySourceAttributes(optimizedTerms.size())); // TODO pass source attributes
             processedOperations.put(newLogical.result(), newLogical);
             return newLogical.result();
         }

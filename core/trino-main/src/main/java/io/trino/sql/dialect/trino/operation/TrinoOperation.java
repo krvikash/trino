@@ -13,13 +13,16 @@
  */
 package io.trino.sql.dialect.trino.operation;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
+import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Collections.nCopies;
 
 public abstract class TrinoOperation
         extends Operation
@@ -65,6 +68,11 @@ public abstract class TrinoOperation
     public Operation withResultName(String newName)
     {
         throw new UnsupportedOperationException(name() + " does not support result name substitution");
+    }
+
+    public static List<Map<AttributeKey, Object>> emptySourceAttributes(int sourceCount)
+    {
+        return nCopies(sourceCount, ImmutableMap.of());
     }
 
     public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)

@@ -64,6 +64,10 @@ public final class Between
         this.min = min;
         this.max = max;
 
+        if (sourceAttributes.size() != 3) {
+            throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: 3", sourceAttributes.size()));
+        }
+
         // TODO derive attributes
         this.attributes = ImmutableMap.of();
     }
@@ -107,13 +111,13 @@ public final class Between
                 index == 0 ? newArgument : input,
                 index == 1 ? newArgument : min,
                 index == 2 ? newArgument : max,
-                ImmutableList.of());
+                emptySourceAttributes(3));
     }
 
     @Override
     public Operation withResultName(String newName)
     {
-        return new Between(newName, input, min, max, ImmutableList.of());
+        return new Between(newName, input, min, max, emptySourceAttributes(3));
     }
 
     @Override

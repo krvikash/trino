@@ -68,6 +68,11 @@ public final class Bind
 
         this.lambda = lambda;
 
+        // validate source attributes count -- one entry per each argument: values-list, and lambda
+        if (sourceAttributes.size() != values.size() + 1) {
+            throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), values.size() + 1));
+        }
+
         // TODO
         this.attributes = ImmutableMap.of();
     }
@@ -117,13 +122,13 @@ public final class Bind
                 result.name(),
                 newValues,
                 index == values.size() ? newArgument : lambda,
-                ImmutableList.of());
+                emptySourceAttributes(values.size() + 1));
     }
 
     @Override
     public Operation withResultName(String newName)
     {
-        return new Bind(newName, values, lambda, ImmutableList.of());
+        return new Bind(newName, values, lambda, emptySourceAttributes(values.size() + 1));
     }
 
     @Override
