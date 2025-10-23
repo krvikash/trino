@@ -108,6 +108,12 @@ public final class Filter
                 ImmutableMap.of());
     }
 
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return ImmutableMap.of();
+    }
+
     public Value argument()
     {
         return input;

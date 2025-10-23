@@ -30,6 +30,8 @@ public class OutputOperationMetadata
 
     public static final TrinoAttributeSignature<List<String>> COLUMN_NAMES = COLUMN_NAMES_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(COLUMN_NAMES);
+
     @Override
     public String name()
     {

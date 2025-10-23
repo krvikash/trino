@@ -16,6 +16,7 @@ package io.trino.sql.dialect.trino.operation;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
+import io.trino.sql.dialect.trino.operationmetadata.DynamicFilterSourceOperationMetadata;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -113,6 +114,12 @@ public class DynamicFilterSource
                 dynamicFilterTargetSelector.getOnlyBlock(),
                 DYNAMIC_FILTER_IDS.getAttribute(attributes),
                 ImmutableMap.of());
+    }
+
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return filterAttributes(DynamicFilterSourceOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     public Value argument()

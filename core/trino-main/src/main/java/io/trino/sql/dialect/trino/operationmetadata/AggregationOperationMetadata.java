@@ -44,6 +44,14 @@ public class AggregationOperationMetadata
     public static final TrinoAttributeSignature<AggregationStep> AGGREGATION_STEP = AGGREGATION_STEP_ATTRIBUTE_METADATA.trinoAttributeSignature();
     public static final TrinoAttributeSignature<Boolean> INPUT_REDUCING = INPUT_REDUCING_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(
+            GROUPING_SETS_COUNT,
+            GLOBAL_GROUPING_SETS,
+            GROUP_ID_INDEX,
+            PRE_GROUPED_INDEXES,
+            AGGREGATION_STEP,
+            INPUT_REDUCING);
+
     @Override
     public String name()
     {

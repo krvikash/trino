@@ -30,6 +30,8 @@ public class DynamicFilterSourceOperationMetadata
 
     public static final TrinoAttributeSignature<List<String>> DYNAMIC_FILTER_IDS = DYNAMIC_FILTER_IDS_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(DYNAMIC_FILTER_IDS);
+
     @Override
     public String name()
     {

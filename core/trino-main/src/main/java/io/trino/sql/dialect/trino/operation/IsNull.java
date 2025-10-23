@@ -97,6 +97,12 @@ public final class IsNull
         return new IsNull(newName, input, ImmutableMap.of());
     }
 
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return ImmutableMap.of();
+    }
+
     public Value argument()
     {
         return input;

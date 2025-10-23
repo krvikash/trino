@@ -30,6 +30,8 @@ public class CallOperationMetadata
 
     public static final TrinoAttributeSignature<ResolvedFunction> RESOLVED_FUNCTION = RESOLVED_FUNCTION_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(RESOLVED_FUNCTION);
+
     @Override
     public String name()
     {

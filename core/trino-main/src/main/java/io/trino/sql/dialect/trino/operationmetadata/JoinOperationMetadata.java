@@ -46,6 +46,14 @@ public class JoinOperationMetadata
     public static final TrinoAttributeSignature<List<String>> DYNAMIC_FILTER_IDS = DYNAMIC_FILTER_IDS_ATTRIBUTE_METADATA.trinoAttributeSignature();
     public static final TrinoAttributeSignature<PlanNodeStatsAndCostSummary> STATISTICS_AND_COST_SUMMARY = STATISTICS_AND_COST_SUMMARY_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(
+            JOIN_TYPE,
+            MAY_SKIP_OUTPUT_DUPLICATES,
+            DISTRIBUTION_TYPE,
+            SPILLABLE,
+            DYNAMIC_FILTER_IDS,
+            STATISTICS_AND_COST_SUMMARY);
+
     @Override
     public String name()
     {

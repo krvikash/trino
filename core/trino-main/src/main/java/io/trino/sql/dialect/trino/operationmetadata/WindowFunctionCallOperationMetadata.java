@@ -47,6 +47,15 @@ public class WindowFunctionCallOperationMetadata
     public static final TrinoAttributeSignature<Boolean> IGNORE_NULLS = IGNORE_NULLS_ATTRIBUTE_METADATA.trinoAttributeSignature();
     public static final TrinoAttributeSignature<Boolean> DISTINCT = DISTINCT_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(
+            RESOLVED_FUNCTION,
+            SORT_ORDERS,
+            FRAME_TYPE,
+            FRAME_START_TYPE,
+            FRAME_END_TYPE,
+            IGNORE_NULLS,
+            DISTINCT);
+
     @Override
     public String name()
     {

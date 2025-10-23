@@ -32,6 +32,8 @@ public class ConstantOperationMetadata
 
     public static final TrinoAttributeSignature<NullableValue> CONSTANT_VALUE = new TrinoAttributeSignature<>(prefixedName(NAME, "value"), false);
 
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(CONSTANT_VALUE);
+
     private final TrinoAttributeMetadata<NullableValue> constantValueTrinoAttributeMetadata;
 
     public ConstantOperationMetadata(JsonCodec<NullableValue> nullableValueCodec)

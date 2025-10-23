@@ -19,6 +19,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
+import io.trino.sql.dialect.trino.operationmetadata.GroupIdOperationMetadata;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -149,6 +150,12 @@ public class GroupId
                 aggregationArgumentsSelector.getOnlyBlock(),
                 GROUPING_SETS.getAttribute(attributes),
                 ImmutableMap.of());
+    }
+
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return filterAttributes(GroupIdOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     public Block groupingColumnsSelector()

@@ -547,7 +547,7 @@ public class PredicateUtils
                 blocksSemanticallyEquivalent(
                         leftOperation.regions().stream().map(Region::getOnlyBlock).collect(toImmutableList()),
                         rightOperation.regions().stream().map(Region::getOnlyBlock).collect(toImmutableList())) &&
-                leftOperation.attributes().equals(rightOperation.attributes());
+                ((TrinoOperation) leftOperation).operationAttributes().equals(((TrinoOperation) rightOperation).operationAttributes());
     }
 
     public static void layoutOperations(Value rootResult, Block.Builder block, Map<Value, Operation> operations)

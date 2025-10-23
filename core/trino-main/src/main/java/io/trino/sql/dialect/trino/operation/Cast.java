@@ -100,6 +100,12 @@ public final class Cast
         return new Cast(newName, input, trinoType(result.type()), ImmutableMap.of());
     }
 
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return ImmutableMap.of();
+    }
+
     public Value argument()
     {
         return input;

@@ -108,7 +108,7 @@ public class ExchangeMerger
                 // find a matching Exchange subgroup. A matching exchange has equal attributes and semantically equivalent regions
                 boolean foundMatchingSubgroup = false;
                 for (Map.Entry<Integer, Exchange> subgroupRepresentative : subgroupRepresentatives.entrySet()) {
-                    if (subgroupRepresentative.getValue().attributes().equals(exchange.attributes()) &&
+                    if (subgroupRepresentative.getValue().operationAttributes().equals(exchange.operationAttributes()) &&
                             blocksSemanticallyEquivalent(
                                     subgroupRepresentative.getValue().regions().stream()
                                             .map(Region::getOnlyBlock)
@@ -336,7 +336,7 @@ public class ExchangeMerger
                     // - semantically equivalent input field selectors for each source
                     // - semantically equivalent partitioningBoundArguments, partitioningHashSelector, and orderingSelector
                     // Note: these blocks do not need rebasing. They are based on exchange output type, and the output type stays the same after merging
-                    if (subgroupRepresentative.getValue().attributes().equals(exchange.attributes()) &&
+                    if (subgroupRepresentative.getValue().operationAttributes().equals(exchange.operationAttributes()) &&
                             blocksSemanticallyEquivalent(subgroupRepresentative.getValue().inputFieldSelectors(), rebasedInputFieldSelectors) &&
                             blocksSemanticallyEquivalent(subgroupRepresentative.getValue().partitioningBoundArguments(), exchange.partitioningBoundArguments()) &&
                             blocksSemanticallyEquivalent(subgroupRepresentative.getValue().orderingSelector(), exchange.orderingSelector())) {

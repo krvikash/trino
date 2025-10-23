@@ -19,6 +19,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
+import io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata.AggregationStep;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
@@ -178,6 +179,12 @@ public class Aggregation
                 AGGREGATION_STEP.getAttribute(attributes),
                 INPUT_REDUCING.getAttribute(attributes),
                 ImmutableMap.of());
+    }
+
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return filterAttributes(AggregationOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     public Block aggregateCalls()

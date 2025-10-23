@@ -37,6 +37,8 @@ public class WindowOperationMetadata
     public static final TrinoAttributeSignature<SortOrderList> SORT_ORDERS = SORT_ORDERS_ATTRIBUTE_METADATA.trinoAttributeSignature();
     public static final TrinoAttributeSignature<Integer> PRE_SORTED_PREFIX = PRE_SORTED_PREFIX_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(PRE_PARTITIONED_INDEXES, SORT_ORDERS, PRE_SORTED_PREFIX);
+
     @Override
     public String name()
     {

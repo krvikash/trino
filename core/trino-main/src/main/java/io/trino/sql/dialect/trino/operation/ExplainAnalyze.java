@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
+import io.trino.sql.dialect.trino.operationmetadata.ExplainAnalyzeOperationMetadata;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -109,6 +110,12 @@ public class ExplainAnalyze
                 fieldSelector.getOnlyBlock(),
                 VERBOSE.getAttribute(attributes),
                 ImmutableMap.of());
+    }
+
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return filterAttributes(ExplainAnalyzeOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     public Block fieldSelector()

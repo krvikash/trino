@@ -21,6 +21,7 @@ import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
+import io.trino.sql.dialect.trino.operationmetadata.WindowOperationMetadata;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -182,6 +183,12 @@ public class Window
                 Optional.ofNullable(SORT_ORDERS.getAttribute(attributes)),
                 PRE_SORTED_PREFIX.getAttribute(attributes),
                 ImmutableMap.of());
+    }
+
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return filterAttributes(WindowOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     public Block windowFunctionCalls()

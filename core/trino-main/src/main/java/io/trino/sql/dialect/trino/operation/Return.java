@@ -95,6 +95,12 @@ public final class Return
         return new Return(newName, input, ImmutableMap.of());
     }
 
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return ImmutableMap.of();
+    }
+
     public Value argument()
     {
         return input;

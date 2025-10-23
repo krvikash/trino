@@ -118,7 +118,7 @@ public class AggregationMerger
                 // find a matching Aggregation subgroup
                 boolean foundMatchingSubgroup = false;
                 for (Map.Entry<Integer, AggregationAndPredicate> subgroupRepresentative : subgroupRepresentatives.entrySet()) {
-                    if (subgroupRepresentative.getValue().aggregation().attributes().equals(aggregation.attributes()) &&
+                    if (subgroupRepresentative.getValue().aggregation().operationAttributes().equals(aggregation.operationAttributes()) &&
                             blocksSemanticallyEquivalent(subgroupRepresentative.getValue().aggregation().groupingKeysSelector(), rebasedGroupingKeysSelector) &&
                             blocksSemanticallyEquivalent(subgroupRepresentative.getValue().nonGroupingPredicateToApply(), nonGroupingPredicateToApply)) {
                         aggregationSubgroups[i] = subgroupRepresentative.getKey();

@@ -29,6 +29,8 @@ public class CorrelatedJoinOperationMetadata
 
     public static final TrinoAttributeSignature<JoinType> JOIN_TYPE = JOIN_TYPE_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(JOIN_TYPE);
+
     @Override
     public String name()
     {

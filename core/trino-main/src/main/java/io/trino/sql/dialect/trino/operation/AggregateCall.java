@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.Type;
+import io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata.AggregationStep;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.newir.Block;
@@ -255,6 +256,12 @@ public class AggregateCall
                 RESOLVED_FUNCTION.getAttribute(attributes),
                 DISTINCT.getAttribute(attributes),
                 AGGREGATION_STEP.getAttribute(attributes));
+    }
+
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return filterAttributes(AggregateCallOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     public Block argumentsBlock()

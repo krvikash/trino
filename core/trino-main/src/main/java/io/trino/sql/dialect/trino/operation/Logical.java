@@ -15,6 +15,7 @@ package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.spi.TrinoException;
+import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -118,6 +119,12 @@ public final class Logical
     public Operation withResultName(String newName)
     {
         return new Logical(newName, terms, LOGICAL_OPERATOR.getAttribute(attributes), emptySourceAttributes(terms.size()));
+    }
+
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return filterAttributes(LogicalOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     @Override

@@ -18,6 +18,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
+import io.trino.sql.dialect.trino.operationmetadata.ValuesOperationMetadata;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Region;
@@ -131,6 +132,12 @@ public final class Values
     public String prettyPrint(int indentLevel, PrintOptions printOptions)
     {
         return "pretty values";
+    }
+
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return filterAttributes(ValuesOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     public List<Block> rows()

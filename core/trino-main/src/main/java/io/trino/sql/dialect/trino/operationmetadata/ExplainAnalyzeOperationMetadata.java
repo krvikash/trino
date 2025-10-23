@@ -29,6 +29,8 @@ public class ExplainAnalyzeOperationMetadata
 
     public static final TrinoAttributeSignature<Boolean> VERBOSE = VERBOSE_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(VERBOSE);
+
     @Override
     public String name()
     {

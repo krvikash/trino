@@ -51,6 +51,14 @@ public class TableScanOperationMetadata
     public static final TrinoAttributeSignature<List<ColumnHandle>> COLUMN_HANDLES = new TrinoAttributeSignature<>(prefixedName(NAME, "column_handles"), false);
     public static final TrinoAttributeSignature<TupleDomain<ColumnHandle>> CONSTRAINT = new TrinoAttributeSignature<>(prefixedName(NAME, "constraint"), false);
 
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(
+            STATISTICS,
+            UPDATE_TARGET,
+            USE_CONNECTOR_NODE_PARTITIONING,
+            TABLE_HANDLE,
+            COLUMN_HANDLES,
+            CONSTRAINT);
+
     private final TrinoAttributeMetadata<TableHandle> tableHandleTrinoAttributeMetadata;
     private final TrinoAttributeMetadata<List<ColumnHandle>> columnHandlesTrinoAttributeMetadata;
     private final TrinoAttributeMetadata<TupleDomain<ColumnHandle>> constraintTrinoAttributeMetadata;

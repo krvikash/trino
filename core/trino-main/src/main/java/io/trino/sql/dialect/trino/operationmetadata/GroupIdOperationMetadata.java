@@ -30,6 +30,8 @@ public class GroupIdOperationMetadata
 
     public static final TrinoAttributeSignature<List<List<Integer>>> GROUPING_SETS = GROUPING_SETS_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(GROUPING_SETS);
+
     @Override
     public String name()
     {

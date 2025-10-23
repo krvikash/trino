@@ -19,6 +19,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
+import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeScope;
 import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType;
 import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.NullableValues;
@@ -254,6 +255,12 @@ public class Exchange
                 Optional.ofNullable(BUCKET_COUNT.getAttribute(attributes)),
                 Optional.ofNullable(SORT_ORDERS.getAttribute(attributes)),
                 emptySourceAttributes(inputs.size()));
+    }
+
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return filterAttributes(ExchangeOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     public List<Block> inputFieldSelectors()

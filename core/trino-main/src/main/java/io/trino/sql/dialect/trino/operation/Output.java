@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.RowType;
+import io.trino.sql.dialect.trino.operationmetadata.OutputOperationMetadata;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -121,6 +122,12 @@ public final class Output
                 fieldSelector.getOnlyBlock(),
                 COLUMN_NAMES.getAttribute(attributes),
                 ImmutableMap.of());
+    }
+
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return filterAttributes(OutputOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     public Block outputFieldSelector()

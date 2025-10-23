@@ -16,6 +16,7 @@ package io.trino.sql.dialect.trino.operation;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
+import io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata.TopNStep;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.newir.Block;
@@ -122,6 +123,12 @@ public class TopN
                 LIMIT.getAttribute(attributes),
                 TOP_N_STEP.getAttribute(attributes),
                 ImmutableMap.of());
+    }
+
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return filterAttributes(TopNOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     public Block orderingSelector()

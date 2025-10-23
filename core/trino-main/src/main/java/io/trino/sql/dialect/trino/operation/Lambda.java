@@ -110,6 +110,12 @@ public final class Lambda
         return new Lambda(newName, lambda.getOnlyBlock());
     }
 
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return ImmutableMap.of();
+    }
+
     public Block lambdaBody()
     {
         return lambda.getOnlyBlock();

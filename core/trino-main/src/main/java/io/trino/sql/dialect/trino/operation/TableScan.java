@@ -24,6 +24,7 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
+import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.Statistics;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Region;
@@ -144,6 +145,12 @@ public class TableScan
     public String prettyPrint(int indentLevel, PrintOptions printOptions)
     {
         return "pretty table scan";
+    }
+
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return filterAttributes(TableScanOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     @Override

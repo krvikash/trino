@@ -16,6 +16,7 @@ package io.trino.sql.dialect.trino.operation;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
+import io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
@@ -146,6 +147,12 @@ public class Limit
                 PARTIAL.getAttribute(attributes),
                 PRE_SORTED_INDEXES.getAttribute(attributes),
                 ImmutableMap.of());
+    }
+
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return filterAttributes(LimitOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     public boolean isWithTies()

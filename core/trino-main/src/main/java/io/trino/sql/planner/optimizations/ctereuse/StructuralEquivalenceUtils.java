@@ -13,6 +13,7 @@
  */
 package io.trino.sql.planner.optimizations.ctereuse;
 
+import io.trino.sql.dialect.trino.operation.TrinoOperation;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -93,7 +94,7 @@ public class StructuralEquivalenceUtils
                         leftOperation.regions().stream().map(Region::getOnlyBlock).collect(toImmutableList()),
                         rightOperation.regions().stream().map(Region::getOnlyBlock).collect(toImmutableList()),
                         equivalenceMapping) &&
-                leftOperation.attributes().equals(rightOperation.attributes());
+                ((TrinoOperation) leftOperation).operationAttributes().equals(((TrinoOperation) rightOperation).operationAttributes());
     }
 
     private static List<Value> mapped(List<Value> values, Map<Value, Value> mapping)

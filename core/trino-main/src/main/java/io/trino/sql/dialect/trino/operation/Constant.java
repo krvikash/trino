@@ -16,6 +16,7 @@ package io.trino.sql.dialect.trino.operation;
 import com.google.common.collect.ImmutableList;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.type.Type;
+import io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -81,6 +82,12 @@ public final class Constant
     {
         NullableValue constantValue = CONSTANT_VALUE.getAttribute(attributes);
         return new Constant(newName, constantValue.getType(), constantValue.getValue());
+    }
+
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return filterAttributes(ConstantOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     @Override

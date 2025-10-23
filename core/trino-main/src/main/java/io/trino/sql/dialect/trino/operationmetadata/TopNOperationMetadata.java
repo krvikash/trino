@@ -37,6 +37,8 @@ public class TopNOperationMetadata
     public static final TrinoAttributeSignature<Long> LIMIT = LIMIT_ATTRIBUTE_METADATA.trinoAttributeSignature();
     public static final TrinoAttributeSignature<TopNStep> TOP_N_STEP = TOP_N_STEP_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(SORT_ORDERS, LIMIT, TOP_N_STEP);
+
     @Override
     public String name()
     {

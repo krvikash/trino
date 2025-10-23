@@ -40,6 +40,8 @@ public class LimitOperationMetadata
     public static final TrinoAttributeSignature<Boolean> PARTIAL = PARTIAL_ATTRIBUTE_METADATA.trinoAttributeSignature();
     public static final TrinoAttributeSignature<List<Integer>> PRE_SORTED_INDEXES = PRE_SORTED_INDEXES_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(SORT_ORDERS, COUNT, PARTIAL, PRE_SORTED_INDEXES);
+
     @Override
     public String name()
     {

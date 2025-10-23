@@ -30,6 +30,8 @@ public class ComparisonOperationMetadata
 
     public static final TrinoAttributeSignature<ComparisonOperator> COMPARISON_OPERATOR = COMPARISON_OPERATOR_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(COMPARISON_OPERATOR);
+
     @Override
     public String name()
     {

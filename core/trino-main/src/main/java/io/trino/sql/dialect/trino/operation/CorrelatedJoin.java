@@ -19,6 +19,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
+import io.trino.sql.dialect.trino.operationmetadata.CorrelatedJoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.CorrelatedJoinOperationMetadata.JoinType;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
@@ -147,6 +148,12 @@ public final class CorrelatedJoin
                 filter.getOnlyBlock(),
                 JOIN_TYPE.getAttribute(attributes),
                 ImmutableMap.of());
+    }
+
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return filterAttributes(CorrelatedJoinOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     @Override

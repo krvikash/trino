@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.spi.TrinoException;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
+import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameBoundType;
 import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameType;
 import io.trino.sql.newir.Block;
@@ -243,6 +244,12 @@ public class WindowFunctionCall
                 FRAME_END_TYPE.getAttribute(attributes),
                 IGNORE_NULLS.getAttribute(attributes),
                 DISTINCT.getAttribute(attributes));
+    }
+
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return filterAttributes(WindowFunctionCallOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     public Block argumentsBlock()

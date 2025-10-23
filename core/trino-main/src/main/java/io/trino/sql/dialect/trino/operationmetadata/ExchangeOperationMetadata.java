@@ -58,6 +58,17 @@ public class ExchangeOperationMetadata
     public static final TrinoAttributeSignature<PartitioningHandle> PARTITIONING_HANDLE = new TrinoAttributeSignature<>(prefixedName(NAME, "partitioning_handle"), false);
     public static final TrinoAttributeSignature<NullableValues> NULLABLE_VALUES = new TrinoAttributeSignature<>(prefixedName(NAME, "nullable_values"), false);
 
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(
+            EXCHANGE_TYPE,
+            EXCHANGE_SCOPE,
+            REPLICATE_NULLS_AND_ANY,
+            BUCKET_TO_PARTITION,
+            PARTITION_COUNT,
+            BUCKET_COUNT,
+            SORT_ORDERS,
+            PARTITIONING_HANDLE,
+            NULLABLE_VALUES);
+
     private final TrinoAttributeMetadata<PartitioningHandle> partitioningHandleTrinoAttributeMetadata;
     private final TrinoAttributeMetadata<NullableValues> nullableValuesTrinoAttributeMetadata;
 

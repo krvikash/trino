@@ -14,14 +14,19 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static java.util.Collections.nCopies;
 
 public abstract class TrinoOperation
@@ -68,6 +73,24 @@ public abstract class TrinoOperation
     public Operation withResultName(String newName)
     {
         throw new UnsupportedOperationException(name() + " does not support result name substitution");
+    }
+
+    /**
+     * Returns the attributes that are necessary for the operation because they determine its semantics.
+     * Does not return the derived attributes.
+     */
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        throw new UnsupportedOperationException("operationAttributes() not implemented for " + name());
+    }
+
+    Map<AttributeKey, Object> filterAttributes(Set<TrinoAttributeSignature<?>> retained)
+    {
+        Set<AttributeKey> retainedKeys = retained.stream()
+                .map(TrinoAttributeSignature::name)
+                .map(name -> new AttributeKey(TRINO, name))
+                .collect(toImmutableSet());
+        return Maps.filterKeys(attributes(), retainedKeys::contains);
     }
 
     public static List<Map<AttributeKey, Object>> emptySourceAttributes(int sourceCount)

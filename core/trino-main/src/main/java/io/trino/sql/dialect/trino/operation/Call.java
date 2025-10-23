@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.Type;
+import io.trino.sql.dialect.trino.operationmetadata.CallOperationMetadata;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -120,6 +121,12 @@ public final class Call
     public Operation withResultName(String newName)
     {
         return new Call(newName, arguments, RESOLVED_FUNCTION.getAttribute(attributes), emptySourceAttributes(arguments.size()));
+    }
+
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return filterAttributes(CallOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     @Override

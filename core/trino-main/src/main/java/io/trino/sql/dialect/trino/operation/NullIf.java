@@ -109,6 +109,12 @@ public final class NullIf
     }
 
     @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return ImmutableMap.of();
+    }
+
+    @Override
     public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
     {
         return visitor.visitNullIf(this, context);

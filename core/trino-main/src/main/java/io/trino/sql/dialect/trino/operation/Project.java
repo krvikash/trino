@@ -118,6 +118,12 @@ public final class Project
                 ImmutableMap.of());
     }
 
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return ImmutableMap.of();
+    }
+
     public Block assignments()
     {
         return assignments.getOnlyBlock();

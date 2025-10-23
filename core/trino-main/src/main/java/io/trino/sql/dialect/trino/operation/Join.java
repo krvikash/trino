@@ -20,6 +20,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
+import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DistributionType;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.JoinType;
 import io.trino.sql.newir.Block;
@@ -211,6 +212,12 @@ public final class Join
                 Optional.ofNullable(STATISTICS_AND_COST_SUMMARY.getAttribute(attributes)),
                 ImmutableMap.of(),
                 ImmutableMap.of());
+    }
+
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return filterAttributes(JoinOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     public Value left()

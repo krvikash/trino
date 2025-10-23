@@ -41,6 +41,8 @@ public class AggregateCallOperationMetadata
     public static final TrinoAttributeSignature<Boolean> DISTINCT = DISTINCT_ATTRIBUTE_METADATA.trinoAttributeSignature();
     public static final TrinoAttributeSignature<AggregationStep> AGGREGATION_STEP = AGGREGATION_STEP_ATTRIBUTE_METADATA.trinoAttributeSignature();
 
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(SORT_ORDERS, RESOLVED_FUNCTION, DISTINCT, AGGREGATION_STEP);
+
     @Override
     public String name()
     {

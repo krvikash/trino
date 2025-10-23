@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.RowType;
+import io.trino.sql.dialect.trino.operationmetadata.FieldReferenceOperationMetadata;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -110,6 +111,12 @@ public final class FieldReference
     public Operation withResultName(String newName)
     {
         return new FieldReference(newName, base, FIELD_INDEX.getAttribute(attributes), ImmutableMap.of());
+    }
+
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return filterAttributes(FieldReferenceOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     public Value base()

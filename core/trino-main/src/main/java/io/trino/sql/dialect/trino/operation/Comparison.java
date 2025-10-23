@@ -15,6 +15,7 @@ package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.spi.TrinoException;
+import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -115,6 +116,12 @@ public final class Comparison
     public Operation withResultName(String newName)
     {
         return new Comparison(newName, left, right, COMPARISON_OPERATOR.getAttribute(attributes), emptySourceAttributes(2));
+    }
+
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return filterAttributes(ComparisonOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     @Override

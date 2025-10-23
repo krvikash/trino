@@ -14,6 +14,7 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
@@ -92,6 +93,12 @@ public final class Query
         return new Query(
                 result.name(),
                 getOnlyElement(newRegions).getOnlyBlock());
+    }
+
+    @Override
+    public Map<AttributeKey, Object> operationAttributes()
+    {
+        return ImmutableMap.of();
     }
 
     public Block query()
