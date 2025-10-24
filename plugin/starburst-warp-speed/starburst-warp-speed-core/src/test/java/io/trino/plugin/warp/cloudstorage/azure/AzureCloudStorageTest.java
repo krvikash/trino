@@ -21,7 +21,7 @@ import io.trino.filesystem.azure.AzureFileSystemConfig;
 import io.trino.filesystem.azure.AzureFileSystemFactory;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.cloudstorage.CloudStorageAbstractTest;
-import io.trino.spi.connector.ConnectorContext;
+import io.trino.testing.TestingConnectorContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 
@@ -70,10 +70,5 @@ public class AzureCloudStorageTest
     protected String getNotExistBucket()
     {
         return "abfss://%s@%s.dfs.core.windows.net/not-exist".formatted(ABFS_CONTAINER, ABFS_ACCOUNT);
-    }
-
-    static class TestingConnectorContext
-            implements ConnectorContext
-    {
     }
 }

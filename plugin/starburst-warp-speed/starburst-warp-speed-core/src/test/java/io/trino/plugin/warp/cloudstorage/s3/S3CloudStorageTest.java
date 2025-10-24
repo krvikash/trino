@@ -21,7 +21,7 @@ import io.trino.filesystem.s3.S3FileSystemFactory;
 import io.trino.filesystem.s3.S3FileSystemStats;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.cloudstorage.CloudStorageAbstractTest;
-import io.trino.spi.connector.ConnectorContext;
+import io.trino.testing.TestingConnectorContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 
@@ -76,10 +76,5 @@ public class S3CloudStorageTest
     protected String getNotExistBucket()
     {
         return "s3://" + BUCKET_NAME + "-not-exist/";
-    }
-
-    static class TestingConnectorContext
-            implements ConnectorContext
-    {
     }
 }
