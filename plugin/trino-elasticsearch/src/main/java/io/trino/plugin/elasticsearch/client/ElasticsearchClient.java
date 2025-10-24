@@ -30,6 +30,7 @@ import io.airlift.units.Duration;
 import io.trino.plugin.elasticsearch.AwsSecurityConfig;
 import io.trino.plugin.elasticsearch.ElasticsearchConfig;
 import io.trino.plugin.elasticsearch.PasswordConfig;
+import io.trino.plugin.elasticsearch.client.mappings.MergingMappingException;
 import io.trino.spi.TrinoException;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -90,6 +91,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.json.JsonCodec.jsonCodec;
@@ -99,6 +101,7 @@ import static io.trino.plugin.elasticsearch.ElasticsearchErrorCode.ELASTICSEARCH
 import static io.trino.plugin.elasticsearch.ElasticsearchErrorCode.ELASTICSEARCH_INVALID_RESPONSE;
 import static io.trino.plugin.elasticsearch.ElasticsearchErrorCode.ELASTICSEARCH_QUERY_FAILURE;
 import static io.trino.plugin.elasticsearch.ElasticsearchErrorCode.ELASTICSEARCH_SSL_INITIALIZATION_FAILURE;
+import static io.trino.plugin.elasticsearch.client.mappings.MappingsUtil.union;
 import static java.lang.StrictMath.toIntExact;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -450,36 +453,42 @@ public class ElasticsearchClient
 
         return doRequest(path, body -> {
             try {
-                JsonNode mappings = OBJECT_MAPPER.readTree(body)
-                        .elements().next()
-                        .get("mappings");
+                JsonNode jsonNode = OBJECT_MAPPER.readTree(body);
+                List<JsonNode> allMappings = jsonNode.valueStream()
+                        .filter(node -> node.has("mappings"))
+                        .map(node -> node.get("mappings"))
+                        .collect(toImmutableList());
 
-                if (!mappings.elements().hasNext()) {
+                List<JsonNode> allProperties = allMappings.stream()
+                        .filter(node -> node.has("properties"))
+                        .map(node -> node.get("properties"))
+                        .collect(toImmutableList());
+
+                if (allProperties.isEmpty()) {
                     return new IndexMetadata(new IndexMetadata.ObjectType(ImmutableList.of()));
                 }
-                if (!mappings.has("properties")) {
-                    // Older versions of ElasticSearch supported multiple "type" mappings
-                    // for a given index. Newer versions support only one and don't
-                    // expose it in the document. Here we skip it if it's present.
-                    mappings = mappings.elements().next();
 
-                    if (!mappings.has("properties")) {
-                        return new IndexMetadata(new IndexMetadata.ObjectType(ImmutableList.of()));
+                ImmutableList.Builder<JsonNode> allMetaProperties = ImmutableList.builder();
+                for (JsonNode mappings : allMappings) {
+                    JsonNode metaNode = nullSafeNode(mappings, "_meta");
+                    JsonNode trino = nullSafeNode(metaNode, "trino");
+                    if (trino.isNull()) {
+                        //stay backwards compatible with _meta.presto namespace for meta properties for some releases
+                        trino = nullSafeNode(metaNode, "presto");
+                    }
+                    if (!trino.isNull() && trino.isObject()) {
+                        allMetaProperties.add(trino);
                     }
                 }
 
-                JsonNode metaNode = nullSafeNode(mappings, "_meta");
+                // When using wildcards, multiple indices can be returned.
+                // We need to merge the properties of all indices.
+                JsonNode properties = union(allProperties);
+                JsonNode metaProperties = union(allMetaProperties.build());
 
-                JsonNode metaProperties = nullSafeNode(metaNode, "trino");
-
-                //stay backwards compatible with _meta.presto namespace for meta properties for some releases
-                if (metaProperties.isNull()) {
-                    metaProperties = nullSafeNode(metaNode, "presto");
-                }
-
-                return new IndexMetadata(parseType(mappings.get("properties"), metaProperties));
+                return new IndexMetadata(parseType(properties, metaProperties));
             }
-            catch (IOException e) {
+            catch (IOException | MergingMappingException e) {
                 throw new TrinoException(ELASTICSEARCH_INVALID_RESPONSE, e);
             }
         });
