@@ -21,15 +21,15 @@ public final class DataServerApplicationModules
 
     public static Module getDataServerApplicationModule()
     {
-        return getDataServerApplicationModule(Optional.empty(), true);
+        return getDataServerApplicationModule(Optional.empty(), true, false);
     }
 
     public static Module getDataServerApplicationModules(String configPrefix, boolean trinoCollocated)
     {
-        return getDataServerApplicationModule(Optional.of(configPrefix), !trinoCollocated);
+        return getDataServerApplicationModule(Optional.of(configPrefix), !trinoCollocated, trinoCollocated);
     }
 
-    private static Module getDataServerApplicationModule(Optional<String> configPrefix, boolean bindStandaloneDiscoveryApiModule)
+    private static Module getDataServerApplicationModule(Optional<String> configPrefix, boolean bindStandaloneDiscoveryApiModule, boolean useStaticMemoryConfig)
     {
         return new AbstractConfigurationAwareModule() {
             @Override
@@ -37,6 +37,7 @@ public final class DataServerApplicationModules
             {
                 DataServerMainModule.Builder dataServerMainModule = DataServerMainModule.builder();
                 configPrefix.ifPresent(dataServerMainModule::withConfigPrefix);
+                dataServerMainModule = dataServerMainModule.withUseStaticMemoryConfig(useStaticMemoryConfig);
 
                 install(dataServerMainModule.build());
                 install(new SpoolingStorageModule(configPrefix));

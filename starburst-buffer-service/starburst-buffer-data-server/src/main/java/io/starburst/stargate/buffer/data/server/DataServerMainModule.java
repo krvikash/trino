@@ -28,6 +28,7 @@ import io.starburst.stargate.buffer.data.memory.FullHeapMemoryConfig;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
 import io.starburst.stargate.buffer.data.memory.MemoryConfig;
+import io.starburst.stargate.buffer.data.memory.StaticMemoryConfig;
 import io.starburst.stargate.buffer.data.spooling.MergedFileNameGenerator;
 import io.starburst.stargate.buffer.status.StatusProvider;
 
@@ -59,13 +60,15 @@ public class DataServerMainModule
     private final boolean discoveryBroadcastEnabled;
     private final Ticker ticker;
     private final Optional<String> configPrefix;
+    private final boolean useStaticMemoryConfig;
 
-    private DataServerMainModule(long bufferNodeId, boolean discoveryBroadcastEnabled, Ticker ticker, Optional<String> configPrefix)
+    private DataServerMainModule(long bufferNodeId, boolean discoveryBroadcastEnabled, Ticker ticker, boolean useStaticMemoryConfig, Optional<String> configPrefix)
     {
         this.bufferNodeId = bufferNodeId;
         this.discoveryBroadcastEnabled = discoveryBroadcastEnabled;
         this.ticker = requireNonNull(ticker, "ticker is null");
         this.configPrefix = requireNonNull(configPrefix, "configPrefix is null");
+        this.useStaticMemoryConfig = useStaticMemoryConfig;
     }
 
     @Override
@@ -75,8 +78,14 @@ public class DataServerMainModule
         jsonCodecBinder(binder).bindJsonCodec(Span.class);
 
         configBinder(binder).bindConfig(ChunkManagerConfig.class, configPrefix.orElse(null));
-        configBinder(binder).bindConfig(FullHeapMemoryConfig.class, configPrefix.orElse(null));
-        binder.bind(MemoryConfig.class).to(FullHeapMemoryConfig.class).in(SINGLETON);
+        if (useStaticMemoryConfig) {
+            configBinder(binder).bindConfig(StaticMemoryConfig.class, configPrefix.orElse(null));
+            binder.bind(MemoryConfig.class).to(StaticMemoryConfig.class).in(SINGLETON);
+        }
+        else {
+            configBinder(binder).bindConfig(FullHeapMemoryConfig.class, configPrefix.orElse(null));
+            binder.bind(MemoryConfig.class).to(FullHeapMemoryConfig.class).in(SINGLETON);
+        }
         configBinder(binder).bindConfig(MemoryAllocatorConfig.class, configPrefix.orElse(null));
         configBinder(binder).bindConfig(DataServerConfig.class, configPrefix.orElse(null));
         jaxrsBinder(binder).bind(DataResource.class);
@@ -131,6 +140,7 @@ public class DataServerMainModule
         private boolean discoveryBroadcastEnabled = true;
         private Ticker ticker = Ticker.systemTicker();
         private Optional<String> configPrefix = Optional.empty();
+        private boolean useStaticMemoryConfig;
 
         @VisibleForTesting
         public Builder withDiscoveryBroadcast(boolean discoveryBroadcastEnabled)
@@ -152,6 +162,12 @@ public class DataServerMainModule
             return this;
         }
 
+        public Builder withUseStaticMemoryConfig(boolean useStaticMemoryConfig)
+        {
+            this.useStaticMemoryConfig = useStaticMemoryConfig;
+            return this;
+        }
+
         public Builder withConfigPrefix(String configPrefix)
         {
             requireNonNull(configPrefix, "configPrefix is null");
@@ -165,6 +181,7 @@ public class DataServerMainModule
                     bufferNodeId.orElse(new SecureRandom().nextLong()),
                     discoveryBroadcastEnabled,
                     ticker,
+                    useStaticMemoryConfig,
                     configPrefix);
         }
     }
