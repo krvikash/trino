@@ -11,17 +11,27 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
+import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
-import com.google.inject.Provider;
+import com.google.inject.Provides;
+import com.google.inject.Scopes;
+import com.google.inject.Singleton;
 import io.airlift.bootstrap.Bootstrap;
+import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.json.JsonModule;
 import io.airlift.node.NodeInfo;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
+import io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType;
+import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
+import io.starburst.stargate.buffer.data.spooling.azure.AzureBlobClientConfig;
+import io.starburst.stargate.buffer.data.spooling.s3.S3ClientConfig;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.base.jmx.PrefixObjectNameGeneratorModule;
 import io.trino.server.InternalCommunicationConfig;
+import io.trino.server.ServerConfig;
+import io.trino.server.buffer.EmbeddedBufferServiceConfig;
 import io.trino.server.security.SecurityConfig;
 import io.trino.spi.CoordinatorLocator;
 import io.trino.spi.exchange.ExchangeManager;
@@ -29,10 +39,12 @@ import io.trino.spi.exchange.ExchangeManagerContext;
 import io.trino.spi.exchange.ExchangeManagerFactory;
 import org.weakref.jmx.guice.MBeanModule;
 
+import java.net.URI;
 import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.base.Verify.verify;
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.starburst.stargate.buffer.trino.exchange.BufferExchangeConfig.USE_EMBEDDED_BUFFER_SERVICE_CONFIG_PROPERTY;
 import static java.util.Objects.requireNonNull;
 
@@ -42,42 +54,75 @@ public class BufferExchangeManagerFactory
     private final String name;
     private final Optional<ApiFactory> apiFactory;
     private final Optional<InternalCommunicationDependencies> internalCommunicationDependencies;
+    private final Optional<EmbeddedBufferServiceConfigs> embeddedDataServerConfigs;
 
-    public static class RealBufferExchangeManagerFactoryProvider
-            implements Provider<BufferExchangeManagerFactory>
+    public static class RealBufferExchangeManagerFactoryModule
+            extends AbstractConfigurationAwareModule
     {
-        private final InternalCommunicationDependencies internalCommunicationDependencies;
-
-        @Inject
-        public RealBufferExchangeManagerFactoryProvider(InternalCommunicationDependencies internalCommunicationDependencies)
+        @Override
+        protected void setup(Binder binder)
         {
-            this.internalCommunicationDependencies = requireNonNull(internalCommunicationDependencies, "internalCommunicationConfig is null");
+            binder.bind(BufferExchangeManagerFactory.InternalCommunicationDependencies.class).in(Scopes.SINGLETON);
+            binder.bind(BufferExchangeManagerFactoryRegistrar.class).in(Scopes.SINGLETON);
+
+            newOptionalBinder(binder, ChunkManagerConfig.class);
+            newOptionalBinder(binder, S3ClientConfig.class);
+            newOptionalBinder(binder, AzureBlobClientConfig.class);
         }
 
-        @Override
-        public BufferExchangeManagerFactory get()
+        @Provides
+        @Singleton
+        BufferExchangeManagerFactory getBufferExchangeManagerFactory(
+                InternalCommunicationDependencies internalCommunicationDependencies,
+                Optional<EmbeddedBufferServiceConfigs> embeddedDataServerConfigs)
         {
-            return new BufferExchangeManagerFactory("buffer", Optional.empty(), Optional.of(internalCommunicationDependencies));
+            return new BufferExchangeManagerFactory("buffer", Optional.empty(), Optional.of(internalCommunicationDependencies), embeddedDataServerConfigs);
+        }
+
+        @Provides
+        @Singleton
+        public Optional<EmbeddedBufferServiceConfigs> getEmbeddedBufferServiceConfigs(
+                ServerConfig serverConfig,
+                EmbeddedBufferServiceConfig embeddedBufferServiceConfig,
+                Optional<ChunkManagerConfig> dataServerConfig,
+                Optional<S3ClientConfig> s3ClientConfig,
+                Optional<AzureBlobClientConfig> azureBlobClientConfig)
+        {
+            if (embeddedBufferServiceConfig.isEmbeddedBufferServiceEnabled()) {
+                verify(dataServerConfig.isPresent() || serverConfig.isCoordinator(), "DataServerConfig must be bound on worker node if embeddedBufferServiceConfig is enabled");
+
+                if (dataServerConfig.isEmpty()) {
+                    // coordinator
+                    return Optional.empty();
+                }
+                return Optional.of(new EmbeddedBufferServiceConfigs(dataServerConfig.orElseThrow(), s3ClientConfig, azureBlobClientConfig));
+            }
+            return Optional.empty();
         }
     }
 
     @VisibleForTesting
     public static BufferExchangeManagerFactory forRealBufferService()
     {
-        return new BufferExchangeManagerFactory("buffer", Optional.empty(), Optional.empty());
+        return new BufferExchangeManagerFactory("buffer", Optional.empty(), Optional.empty(), Optional.empty());
     }
 
     @VisibleForTesting
     public static BufferExchangeManagerFactory withApiFactory(String name, ApiFactory apiFactory)
     {
-        return new BufferExchangeManagerFactory(name, Optional.of(apiFactory), Optional.empty());
+        return new BufferExchangeManagerFactory(name, Optional.of(apiFactory), Optional.empty(), Optional.empty());
     }
 
-    private BufferExchangeManagerFactory(String name, Optional<ApiFactory> apiFactory, Optional<InternalCommunicationDependencies> internalCommunicationDependencies)
+    private BufferExchangeManagerFactory(
+            String name,
+            Optional<ApiFactory> apiFactory,
+            Optional<InternalCommunicationDependencies> internalCommunicationDependencies,
+            Optional<EmbeddedBufferServiceConfigs> embeddedDataServerConfigs)
     {
         this.name = requireNonNull(name, "name is null");
         this.apiFactory = requireNonNull(apiFactory, "apiFactory is null");
         this.internalCommunicationDependencies = requireNonNull(internalCommunicationDependencies, "internalCommunicationDependencies is null");
+        this.embeddedDataServerConfigs = requireNonNull(embeddedDataServerConfigs, "embeddedDataServerConfigs is null");
     }
 
     @Override
@@ -134,9 +179,68 @@ public class BufferExchangeManagerFactory
             });
         }
 
+        embeddedDataServerConfigs.ifPresent(configs -> {
+            URI spoolingDirectory = configs.chunkManagerConfig().getSpoolingDirectory();
+            String scheme = spoolingDirectory.getScheme();
+            SpoolingStorageType spoolingStorageType = switch (scheme) {
+                case null -> SpoolingStorageType.LOCAL;
+                case "file" -> SpoolingStorageType.LOCAL;
+                case "gs" -> SpoolingStorageType.GCS;
+                case "s3" -> SpoolingStorageType.S3;
+                case "abfs" -> SpoolingStorageType.AZURE;
+                default -> throw new IllegalArgumentException("Cannot determine spooling storage type of embedded buffer service: " + scheme);
+            };
+
+            extendedConfig.put("exchange.buffer-data.spooling-storage-type", spoolingStorageType.name());
+
+            if (spoolingStorageType == SpoolingStorageType.S3 || spoolingStorageType == SpoolingStorageType.GCS) {
+                S3ClientConfig s3ClientConfig = configs.s3ClientConfig()
+                        .orElseThrow(() -> new IllegalArgumentException("S3ClientConfig not set for embedded buffer service with storage type: " + spoolingStorageType));
+                if (s3ClientConfig.getS3AwsAccessKey() != null) {
+                    extendedConfig.put("exchange.buffer-data.spooling.s3.aws-access-key", s3ClientConfig.getS3AwsAccessKey());
+                }
+                if (s3ClientConfig.getS3AwsSecretKey() != null) {
+                    extendedConfig.put("exchange.buffer-data.spooling.s3.aws-secret-key", s3ClientConfig.getS3AwsSecretKey());
+                }
+                if (s3ClientConfig.getRegion().isPresent()) {
+                    extendedConfig.put("exchange.buffer-data.spooling.s3.region", s3ClientConfig.getRegion().orElseThrow().id());
+                }
+                if (s3ClientConfig.getS3Endpoint().isPresent()) {
+                    extendedConfig.put("exchange.buffer-data.spooling.s3.endpoint", s3ClientConfig.getS3Endpoint().orElseThrow());
+                }
+                extendedConfig.put("exchange.buffer-data.spooling.s3.retry-mode", s3ClientConfig.getRetryMode().name());
+                extendedConfig.put("exchange.buffer-data.spooling.s3.max-error-retries", String.valueOf(s3ClientConfig.getMaxErrorRetries()));
+            }
+
+            if (spoolingStorageType == SpoolingStorageType.AZURE) {
+                AzureBlobClientConfig azureBlobClientConfig = configs.azureBlobClientConfig()
+                        .orElseThrow(() -> new IllegalArgumentException("AzureBlobClientConfig not set for embedded buffer service with storage type: " + spoolingStorageType));
+
+                if (azureBlobClientConfig.getConnectionString() != null) {
+                    extendedConfig.put("exchange.buffer-data.spooling.azure.connection-string", azureBlobClientConfig.getConnectionString());
+                }
+                if (azureBlobClientConfig.getRetryPolicyType() != null) {
+                    extendedConfig.put("exchange.buffer-data.spooling.azure.retry-policy", azureBlobClientConfig.getRetryPolicyType().name());
+                }
+                if (azureBlobClientConfig.getMaxTries() != null) {
+                    extendedConfig.put("exchange.buffer-data.spooling.azure.max-tries", String.valueOf(azureBlobClientConfig.getMaxTries()));
+                }
+                extendedConfig.put("exchange.buffer-data.spooling.azure.try-timeout", azureBlobClientConfig.getTryTimeout().toString());
+                if (azureBlobClientConfig.getRetryDelay() != null) {
+                    extendedConfig.put("exchange.buffer-data.spooling.azure.retry-delay", azureBlobClientConfig.getRetryDelay().toString());
+                }
+                if (azureBlobClientConfig.getMaxRetryDelay() != null) {
+                    extendedConfig.put("exchange.buffer-data.spooling.azure.max-retry-delay", azureBlobClientConfig.getMaxRetryDelay().toString());
+                }
+            }
+        });
+
+        // explicit properties take precedence
+        extendedConfig.putAll(config);
+
         Injector injector = app
                 .doNotInitializeLogging()
-                .setRequiredConfigurationProperties(extendedConfig.buildOrThrow())
+                .setRequiredConfigurationProperties(extendedConfig.buildKeepingLast())
                 .initialize();
 
         return injector.getInstance(BufferExchangeManager.class);
@@ -169,6 +273,18 @@ public class BufferExchangeManagerFactory
         public SecurityConfig getSecurityConfig()
         {
             return securityConfig;
+        }
+    }
+
+    public record EmbeddedBufferServiceConfigs(ChunkManagerConfig chunkManagerConfig,
+                                        Optional<S3ClientConfig> s3ClientConfig,
+                                        Optional<AzureBlobClientConfig> azureBlobClientConfig)
+    {
+        public EmbeddedBufferServiceConfigs
+        {
+            requireNonNull(chunkManagerConfig, "chunkManagerConfig is null");
+            requireNonNull(s3ClientConfig, "s3ClientConfig is null");
+            requireNonNull(azureBlobClientConfig, "azureBlobClientConfig is null");
         }
     }
 }
