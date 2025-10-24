@@ -11,29 +11,12 @@ package io.starburst.stargate.buffer.data.memory;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
-import io.airlift.units.DataSize;
-import jakarta.validation.constraints.NotNull;
 
 public class MemoryAllocatorConfig
 {
-    private DataSize heapHeadroom = HeapSizeParser.DEFAULT.parse("16%");
     private double allocationRatioLowWatermark = 0.75;
     private double allocationRatioHighWatermark = 0.9;
     private double chunkSlicePoolingFraction = 0.8;
-
-    @NotNull
-    public DataSize getHeapHeadroom()
-    {
-        return heapHeadroom;
-    }
-
-    @Config("memory.heap-headroom")
-    @ConfigDescription("The amount of heap memory to set aside as headroom/buffer (e.g., for untracked allocations)")
-    public MemoryAllocatorConfig setHeapHeadroom(String heapHeadroom)
-    {
-        this.heapHeadroom = HeapSizeParser.DEFAULT.parse(heapHeadroom);
-        return this;
-    }
 
     public double getAllocationRatioLowWatermark()
     {

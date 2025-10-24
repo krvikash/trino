@@ -10,9 +10,11 @@
 package io.starburst.stargate.buffer.data.execution;
 
 import com.google.common.collect.ImmutableList;
+import io.airlift.units.DataSize;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
+import io.starburst.stargate.buffer.data.memory.TestingMemoryConfig;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
@@ -24,6 +26,7 @@ import java.util.concurrent.Executors;
 
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.slice.Slices.utf8Slice;
+import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.verifyChunkData;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -36,7 +39,11 @@ public class TestChunk
     @Test
     public void testHappyPath()
     {
-        MemoryAllocator memoryAllocator = new MemoryAllocator(new MemoryAllocatorConfig(), new ChunkManagerConfig(), new DataServerStats());
+        MemoryAllocator memoryAllocator = new MemoryAllocator(
+                new TestingMemoryConfig(DataSize.of(64, MEGABYTE)),
+                new MemoryAllocatorConfig(),
+                new ChunkManagerConfig(),
+                new DataServerStats());
         Chunk chunk = new Chunk(
                 0L,
                 "exchange-id",

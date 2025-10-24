@@ -36,7 +36,7 @@ public class MemoryAllocator
 {
     private static final Logger log = Logger.get(MemoryAllocator.class);
 
-    private final long maxBytes;
+    private final long chunksMemory;
     private final long lowWatermark;
     private final long highWatermark;
     private final long chunkSlicePoolingLimit;
@@ -54,35 +54,40 @@ public class MemoryAllocator
 
     @Inject
     public MemoryAllocator(
+            MemoryConfig memoryConfig,
             MemoryAllocatorConfig memoryAllocatorConfig,
             ChunkManagerConfig chunkManagerConfig,
             DataServerStats dataServerStats)
     {
-        long heapHeadroom = memoryAllocatorConfig.getHeapHeadroom().toBytes();
+        long baseMemory = memoryConfig.getBaseMemory().toBytes();
+        chunksMemory = memoryConfig.getChunksMemory().toBytes();
+
+        // sanity check
         long heapSize = Runtime.getRuntime().maxMemory();
-        checkArgument(heapHeadroom < heapSize, "Heap headroom %s should be less than available heap size %s", heapHeadroom, heapSize);
-        this.maxBytes = heapSize - heapHeadroom;
+        checkArgument(baseMemory <= heapSize, "Total memory %s should be less than or equalt to heap size %s", baseMemory, heapSize);
+        checkArgument(chunksMemory <= baseMemory, "Chunks memory %s should be less or equal to total memory %s", chunksMemory, baseMemory);
+
         double lowWatermarkRatio = memoryAllocatorConfig.getAllocationRatioLowWatermark();
         double highWatermarkRatio = memoryAllocatorConfig.getAllocationRatioHighWatermark();
         checkArgument(0.0 <= lowWatermarkRatio && lowWatermarkRatio <= 1.0, "lowWatermarkRatio expected to be in range [0.0, 1.0], but is %s", lowWatermarkRatio);
         checkArgument(0.0 <= highWatermarkRatio && highWatermarkRatio <= 1.0, "highWatermarkRatio expected to be in range [0.0, 1.0], but is %s", highWatermarkRatio);
         checkArgument(lowWatermarkRatio <= highWatermarkRatio, "lowWatermarkRatio %s should be no larger than highWatermarkRatio %s", lowWatermarkRatio, highWatermarkRatio);
-        this.lowWatermark = (long) (maxBytes * lowWatermarkRatio);
-        this.highWatermark = (long) (maxBytes * highWatermarkRatio);
+        this.lowWatermark = (long) (chunksMemory * lowWatermarkRatio);
+        this.highWatermark = (long) (chunksMemory * highWatermarkRatio);
         double chunkSlicePoolingFraction = memoryAllocatorConfig.getChunkSlicePoolingFraction();
         checkArgument(0.0 <= chunkSlicePoolingFraction && chunkSlicePoolingFraction < 1.0,
                 "chunkSlicePoolingFraction expected to be in range [0.0, 1.0), but is %s", chunkSlicePoolingFraction);
-        this.chunkSlicePoolingLimit = (long) (maxBytes * chunkSlicePoolingFraction);
+        this.chunkSlicePoolingLimit = (long) (chunksMemory * chunkSlicePoolingFraction);
         this.chunkSliceSizeInBytes = toIntExact(chunkManagerConfig.getChunkSliceSize().toBytes());
         this.chunkSlicePool = new ArrayDeque<>(toIntExact(chunkSlicePoolingLimit / chunkSliceSizeInBytes));
         this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
-        dataServerStats.updateTotalMemoryInBytes(maxBytes);
+        dataServerStats.updateTotalMemoryInBytes(chunksMemory);
         dataServerStats.updateFreeMemoryInBytes(getFreeMemory());
 
-        log.info("Initializing MemoryAllocator; heapSize=%s, heapHeadroom=%s, maxBytes=%s, lowWatermark=%s, highWatermark=%s, chunkSlicePoolingLimit=%s",
+        log.info("Initializing MemoryAllocator; heapSize=%s, baseMemory=%s, chunksMemory=%s, lowWatermark=%s, highWatermark=%s, chunkSlicePoolingLimit=%s",
                 DataSize.ofBytes(heapSize),
-                DataSize.ofBytes(heapHeadroom),
-                DataSize.ofBytes(maxBytes),
+                DataSize.ofBytes(baseMemory),
+                DataSize.ofBytes(chunksMemory),
                 DataSize.ofBytes(lowWatermark),
                 DataSize.ofBytes(highWatermark),
                 DataSize.ofBytes(chunkSlicePoolingLimit));
@@ -123,17 +128,17 @@ public class MemoryAllocator
 
     public long getTotalMemory()
     {
-        return maxBytes;
+        return chunksMemory;
     }
 
     public synchronized double getAllocationPercentage()
     {
-        return 100.0 * allocatedBytes / maxBytes;
+        return 100.0 * allocatedBytes / chunksMemory;
     }
 
     public synchronized long getFreeMemory()
     {
-        return maxBytes - allocatedBytes;
+        return chunksMemory - allocatedBytes;
     }
 
     public synchronized boolean belowHighWatermark()
@@ -166,7 +171,7 @@ public class MemoryAllocator
     @GuardedBy("this")
     private boolean hasEnoughSpace(int bytes)
     {
-        long availableBytes = maxBytes - allocatedBytes;
+        long availableBytes = chunksMemory - allocatedBytes;
         return availableBytes >= bytes;
     }
 

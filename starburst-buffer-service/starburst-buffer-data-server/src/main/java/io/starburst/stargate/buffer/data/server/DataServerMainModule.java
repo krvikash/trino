@@ -24,8 +24,10 @@ import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManager.ForChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.execution.SpooledChunksByExchange;
+import io.starburst.stargate.buffer.data.memory.FullHeapMemoryConfig;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
+import io.starburst.stargate.buffer.data.memory.MemoryConfig;
 import io.starburst.stargate.buffer.data.spooling.MergedFileNameGenerator;
 import io.starburst.stargate.buffer.status.StatusProvider;
 
@@ -73,6 +75,8 @@ public class DataServerMainModule
         jsonCodecBinder(binder).bindJsonCodec(Span.class);
 
         configBinder(binder).bindConfig(ChunkManagerConfig.class, configPrefix.orElse(null));
+        configBinder(binder).bindConfig(FullHeapMemoryConfig.class, configPrefix.orElse(null));
+        binder.bind(MemoryConfig.class).to(FullHeapMemoryConfig.class).in(SINGLETON);
         configBinder(binder).bindConfig(MemoryAllocatorConfig.class, configPrefix.orElse(null));
         configBinder(binder).bindConfig(DataServerConfig.class, configPrefix.orElse(null));
         jaxrsBinder(binder).bind(DataResource.class);

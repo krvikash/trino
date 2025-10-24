@@ -42,7 +42,8 @@ public class TestMemoryAllocator
     {
         long maxBytes = 100L;
         MemoryAllocator memoryAllocator = new MemoryAllocator(
-                new MemoryAllocatorConfig().setHeapHeadroom(DataSize.succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes).toBytesValueString()),
+                new TestingMemoryConfig(DataSize.ofBytes(maxBytes)),
+                new MemoryAllocatorConfig(),
                 new ChunkManagerConfig(),
                 new DataServerStats());
         assertThat((Object) memoryAllocator.getFreeMemory()).isEqualTo(100L);
@@ -92,8 +93,8 @@ public class TestMemoryAllocator
         long maxBytes = DataSize.of(1000, KILOBYTE).toBytes();
         DataSize chunkSliceSize = DataSize.of(1, KILOBYTE);
         MemoryAllocator memoryAllocator = new MemoryAllocator(
+                new TestingMemoryConfig(DataSize.ofBytes(maxBytes)),
                 new MemoryAllocatorConfig()
-                        .setHeapHeadroom(DataSize.succinctBytes(Runtime.getRuntime().maxMemory() - maxBytes).toBytesValueString())
                         .setChunkSlicePoolingFraction(0.8),
                 new ChunkManagerConfig().setChunkSliceSize(chunkSliceSize),
                 new DataServerStats());
@@ -123,7 +124,11 @@ public class TestMemoryAllocator
     @Test
     public void testReferenceCount()
     {
-        MemoryAllocator memoryAllocator = new MemoryAllocator(new MemoryAllocatorConfig(), new ChunkManagerConfig(), new DataServerStats());
+        MemoryAllocator memoryAllocator = new MemoryAllocator(
+                new TestingMemoryConfig(DataSize.of(64, MEGABYTE)),
+                new MemoryAllocatorConfig(),
+                new ChunkManagerConfig(),
+                new DataServerStats());
         DataPage dataPage = new DataPage(0, 0, utf8Slice("dummy"));
         int chunkTargetSizeInBytes = toIntExact(DataSize.of(16, MEGABYTE).toBytes());
         int chunkSliceSizeInBytes = toIntExact(DataSize.of(128, KILOBYTE).toBytes());
