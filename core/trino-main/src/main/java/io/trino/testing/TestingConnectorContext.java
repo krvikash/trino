@@ -37,14 +37,39 @@ import io.trino.util.EmbedVersion;
 import static io.trino.spi.connector.MetadataProvider.NOOP_METADATA_PROVIDER;
 import static io.trino.spi.connector.ai.ModelConnectionSpecsLoader.EMPTY_LOADER;
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
+import static java.util.Objects.requireNonNull;
 
 public final class TestingConnectorContext
         implements ConnectorContext
 {
-    private final NodeManager nodeManager = TestingNodeManager.create();
-    private final VersionEmbedder versionEmbedder = new EmbedVersion(NodeVersion.UNKNOWN);
-    private final PageSorter pageSorter = new PagesIndexPageSorter(new PagesIndex.TestingFactory(false));
-    private final PageIndexerFactory pageIndexerFactory = new GroupByHashPageIndexerFactory(new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())));
+    private static final TestingConnectorContext DEFAULT_CONTEXT = builder().build();
+
+    public static Builder builder()
+    {
+        return new Builder();
+    }
+
+    private final NodeManager nodeManager;
+    private final VersionEmbedder versionEmbedder;
+    private final PageSorter pageSorter;
+    private final PageIndexerFactory pageIndexerFactory;
+
+    public TestingConnectorContext()
+    {
+        this(
+                DEFAULT_CONTEXT.getNodeManager(),
+                DEFAULT_CONTEXT.getVersionEmbedder(),
+                DEFAULT_CONTEXT.getPageSorter(),
+                DEFAULT_CONTEXT.getPageIndexerFactory());
+    }
+
+    private TestingConnectorContext(NodeManager nodeManager, VersionEmbedder versionEmbedder, PageSorter pageSorter, PageIndexerFactory pageIndexerFactory)
+    {
+        this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
+        this.versionEmbedder = requireNonNull(versionEmbedder, "versionEmbedder is null");
+        this.pageSorter = requireNonNull(pageSorter, "pageSorter is null");
+        this.pageIndexerFactory = requireNonNull(pageIndexerFactory, "pageIndexerFactory is null");
+    }
 
     @Override
     public OpenTelemetry getOpenTelemetry()
@@ -104,5 +129,50 @@ public final class TestingConnectorContext
     public PageIndexerFactory getPageIndexerFactory()
     {
         return pageIndexerFactory;
+    }
+
+    public static final class Builder
+    {
+        private NodeManager nodeManager = TestingNodeManager.create();
+        private VersionEmbedder versionEmbedder = new EmbedVersion(NodeVersion.UNKNOWN);
+        private PageSorter pageSorter = new PagesIndexPageSorter(new PagesIndex.TestingFactory(false));
+        private PageIndexerFactory pageIndexerFactory = new GroupByHashPageIndexerFactory(new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())));
+
+        private Builder()
+        {
+        }
+
+        public Builder withNodeManager(NodeManager nodeManager)
+        {
+            this.nodeManager = nodeManager;
+            return this;
+        }
+
+        public Builder withVersionEmbedder(VersionEmbedder versionEmbedder)
+        {
+            this.versionEmbedder = versionEmbedder;
+            return this;
+        }
+
+        public Builder withPageSorter(PageSorter pageSorter)
+        {
+            this.pageSorter = pageSorter;
+            return this;
+        }
+
+        public Builder withPageIndexerFactory(PageIndexerFactory pageIndexerFactory)
+        {
+            this.pageIndexerFactory = pageIndexerFactory;
+            return this;
+        }
+
+        public TestingConnectorContext build()
+        {
+            return new TestingConnectorContext(
+                    nodeManager,
+                    versionEmbedder,
+                    pageSorter,
+                    pageIndexerFactory);
+        }
     }
 }
