@@ -19,7 +19,6 @@ import io.trino.execution.StageInfo;
 import io.trino.execution.StagesInfo;
 import io.trino.execution.TaskInfo;
 import io.trino.execution.TaskStatus;
-import io.trino.metadata.InternalNodeManager;
 import io.trino.spi.QueryId;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.TestingTrinoClient;
@@ -144,7 +143,7 @@ class TroubleshootingTestHelper
 
     private static boolean isNotCoordinator(DistributedQueryRunner queryRunner, String nodeId)
     {
-        String coordinatorId = queryRunner.getCoordinator().getInstance(Key.get(InternalNodeManager.class)).getCurrentNode().getNodeIdentifier();
+        String coordinatorId = queryRunner.getCoordinator().getCurrentNode().getNodeIdentifier();
         return !nodeId.equalsIgnoreCase(coordinatorId);
     }
 }

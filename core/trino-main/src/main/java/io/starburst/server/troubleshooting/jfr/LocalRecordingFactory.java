@@ -13,7 +13,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
-import io.trino.metadata.InternalNodeManager;
+import io.trino.node.InternalNode;
 import io.trino.spi.QueryId;
 import jakarta.annotation.PreDestroy;
 import jdk.jfr.Configuration;
@@ -68,9 +68,9 @@ public final class LocalRecordingFactory
     private final Supplier<Path> fallbackTemporaryPath = memoize(LocalRecordingFactory::generateTemporaryPath);
 
     @Inject
-    public LocalRecordingFactory(InternalNodeManager internalNodeManager, FlightRecorderConfig config)
+    public LocalRecordingFactory(InternalNode currentNode, FlightRecorderConfig config)
     {
-        this.nodeId = requireNonNull(internalNodeManager, "internalNodeManager is null").getCurrentNode().getNodeIdentifier();
+        this.nodeId = requireNonNull(currentNode, "currentNode is null").getNodeIdentifier();
         this.destination = requireNonNull(config, "config is null").getTemporaryDirectory();
         this.maxRecordingSize = config.getMaxRecordingSize();
     }

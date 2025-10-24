@@ -14,8 +14,8 @@ import com.google.inject.Inject;
 import io.starburst.server.troubleshooting.DownloadResult;
 import io.starburst.server.troubleshooting.TroubleshootingContext;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
-import io.trino.metadata.InternalNode;
-import io.trino.metadata.InternalNodeManager;
+import io.trino.node.InternalNode;
+import io.trino.node.InternalNodeManager;
 
 import java.io.InputStream;
 import java.util.Map;
@@ -28,13 +28,15 @@ public class ConfigDumpProvider
         implements TroubleshootingProvider
 {
     private final ConfigDumper configDumper;
+    private final InternalNode currentNode;
     private final InternalNodeManager nodeManager;
     private final RemoteConfigDumpClient remoteConfigDumpClient;
 
     @Inject
-    public ConfigDumpProvider(ConfigDumper configDumper, InternalNodeManager nodeManager, RemoteConfigDumpClient remoteConfigDumpClient)
+    public ConfigDumpProvider(ConfigDumper configDumper, InternalNode currentNode, InternalNodeManager nodeManager, RemoteConfigDumpClient remoteConfigDumpClient)
     {
         this.configDumper = requireNonNull(configDumper, "configDumper is null");
+        this.currentNode = requireNonNull(currentNode, "currentNode is null");
         this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
         this.remoteConfigDumpClient = requireNonNull(remoteConfigDumpClient, "remoteConfigDumpClient is null");
     }
@@ -60,10 +62,10 @@ public class ConfigDumpProvider
     private Optional<InternalNode> selectWorkerNode(Set<String> allProcessingNodes)
     {
         return nodeManager.getAllNodes()
-                .getActiveNodes()
+                .activeNodes()
                 .stream()
                 .filter(node -> allProcessingNodes.contains(node.getNodeIdentifier()))
-                .filter(node -> !node.equals(nodeManager.getCurrentNode()))
+                .filter(node -> !node.equals(currentNode))
                 .findFirst();
     }
 }

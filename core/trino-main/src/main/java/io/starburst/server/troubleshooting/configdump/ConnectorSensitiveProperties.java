@@ -47,6 +47,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -64,8 +65,9 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("bigquery",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -74,6 +76,7 @@ public final class ConnectorSensitiveProperties
                             "bigquery.rpc-proxy.password",
                             "bigquery.rpc-proxy.truststore-password",
                             "cache-service.password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -90,8 +93,9 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("blackhole",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -118,6 +122,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -135,8 +140,9 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("cosmosdb",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -152,6 +158,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -169,8 +176,9 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("delta_lake",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -244,6 +252,7 @@ public final class ConnectorSensitiveProperties
                             "connection-password",
                             "dynamodb.aws-access-key",
                             "dynamodb.aws-secret-key",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -261,8 +270,9 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("elasticsearch",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -287,6 +297,8 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
                             "web-ui.shared-secret"))
             .put("exasol",
                     ImmutableSet.of(
@@ -320,6 +332,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -337,13 +350,15 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("greenplum",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -361,8 +376,9 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("gsheets",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -473,6 +489,7 @@ public final class ConnectorSensitiveProperties
                             "azure.oauth.secret",
                             "azure.user-assigned-managed-identity.client-id",
                             "azure.user-assigned-managed-identity.resource-id",
+                            "gcp.credentials-key",
                             "gcs.json-key",
                             "hive.azure.abfs-access-key",
                             "hive.azure.abfs-storage-account",
@@ -507,12 +524,12 @@ public final class ConnectorSensitiveProperties
                             "insights.jdbc.aws.session-token",
                             "insights.jdbc.password",
                             "internal-communication.shared-secret",
+                            "io.credentials-key",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "s3.aws-secret-key",
                             "s3.http-proxy.password",
-                            "s3.sse.customer-key",
-                            "gcp.credentials-key"))
+                            "s3.sse.customer-key"))
             .put("ignite",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -565,6 +582,7 @@ public final class ConnectorSensitiveProperties
             .put("kudu",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -581,8 +599,9 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("lakehouse",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -621,6 +640,7 @@ public final class ConnectorSensitiveProperties
                             "iceberg.rest-catalog.oauth2.credential",
                             "iceberg.rest-catalog.oauth2.token",
                             "iceberg.snowflake-catalog.password",
+                            "io.credentials-key",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "s3.aws-secret-key",
@@ -650,6 +670,7 @@ public final class ConnectorSensitiveProperties
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -668,8 +689,9 @@ public final class ConnectorSensitiveProperties
                             "maxcompute.access.id",
                             "maxcompute.access.key",
                             "protocol.spooling.shared-secret-key",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("memory",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -684,6 +706,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -701,8 +724,9 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("mongodb",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -725,6 +749,7 @@ public final class ConnectorSensitiveProperties
                             "aws.session-token",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -742,8 +767,9 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("neo4j",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -760,6 +786,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -777,8 +804,9 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("opensearch",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -797,6 +825,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -810,12 +839,13 @@ public final class ConnectorSensitiveProperties
                             "internal-communication.https.keystore.key",
                             "internal-communication.https.truststore.key",
                             "internal-communication.shared-secret",
-                            "protocol.spooling.shared-secret-key",
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "protocol.spooling.shared-secret-key",
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("pinot",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -837,6 +867,8 @@ public final class ConnectorSensitiveProperties
                             "aws.session-token",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
+                            "gcp.user-name",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -854,9 +886,9 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key",
-                            "gcp.user-name"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("prometheus",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -885,6 +917,7 @@ public final class ConnectorSensitiveProperties
                             "aws.session-token",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -905,13 +938,15 @@ public final class ConnectorSensitiveProperties
                             "s3.aws-secret-key",
                             "s3.http-proxy.password",
                             "s3.sse.customer-key",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("salesforce",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -932,13 +967,15 @@ public final class ConnectorSensitiveProperties
                             "salesforce.oauth.pkcs12-password",
                             "salesforce.password",
                             "salesforce.security-token",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("sap_hana",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -956,8 +993,9 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("sep_ai",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -992,12 +1030,15 @@ public final class ConnectorSensitiveProperties
                             "s3.aws-secret-key",
                             "s3.http-proxy.password",
                             "s3.sse.customer-key",
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
                             "web-ui.shared-secret"))
             .put("singlestore",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -1015,13 +1056,15 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("snowflake_jdbc",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -1039,17 +1082,19 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
+                            "snowflake.client-secret",
                             "snowflake.connection-private-key",
                             "snowflake.connection-private-key.passphrase",
-                            "snowflake.client-secret",
                             "snowflake.proxy.password",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("snowflake_parallel",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -1067,17 +1112,19 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
+                            "snowflake.client-secret",
                             "snowflake.connection-private-key",
                             "snowflake.connection-private-key.passphrase",
-                            "snowflake.client-secret",
                             "snowflake.proxy.password",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("splunk",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -1096,13 +1143,15 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
                             "splunk.password",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("sqlserver",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -1120,9 +1169,10 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
                             "sqlserver.tls.truststore-password",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "web-ui.shared-secret"))
             .put("starburst_functions",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -1152,6 +1202,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -1169,9 +1220,10 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
                             "ssl.truststore.password",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "web-ui.shared-secret"))
             .put("stargate_parallel",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -1195,6 +1247,8 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
                             "ssl.truststore.password",
                             "web-ui.shared-secret"))
             .put("synapse",
@@ -1202,6 +1256,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -1219,13 +1274,15 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("teradata",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -1243,14 +1300,16 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
                             "teradata-direct.https.keystore.password",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "web-ui.shared-secret"))
             .put("teradata_direct",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -1268,14 +1327,16 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
                             "teradata-direct.https.keystore.password",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "web-ui.shared-secret"))
             .put("teradata_parallel_direct",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -1293,9 +1354,10 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
                             "teradata-direct.https.keystore.password",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "web-ui.shared-secret"))
             .put("tpcds",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -1328,6 +1390,7 @@ public final class ConnectorSensitiveProperties
                             "auth-to-local.ldap.bind-password",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "http-client.http-proxy.password",
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
@@ -1345,8 +1408,9 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "protocol.spooling.shared-secret-key",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .put("warp_speed",
                     ImmutableSet.of(
                             "auth-to-local.ldap.bind-password",
@@ -1358,6 +1422,7 @@ public final class ConnectorSensitiveProperties
                             "azure.user-assigned-managed-identity.resource-id",
                             "cache-service.password",
                             "connection-password",
+                            "gcp.credentials-key",
                             "gcs.json-key",
                             "hive.azure.abfs-access-key",
                             "hive.azure.abfs-storage-account",
@@ -1400,6 +1465,7 @@ public final class ConnectorSensitiveProperties
                             "internal-communication.https.keystore.key",
                             "internal-communication.https.truststore.key",
                             "internal-communication.shared-secret",
+                            "io.credentials-key",
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
@@ -1407,8 +1473,9 @@ public final class ConnectorSensitiveProperties
                             "s3.aws-secret-key",
                             "s3.http-proxy.password",
                             "s3.sse.customer-key",
-                            "web-ui.shared-secret",
-                            "gcp.credentials-key"))
+                            "spooling.gcs.json-key",
+                            "spooling.s3.aws-secret-key",
+                            "web-ui.shared-secret"))
             .buildOrThrow();
 
     private ConnectorSensitiveProperties() {}

@@ -13,10 +13,10 @@ import com.google.inject.Key;
 import com.starburstdata.presto.plugin.ai.StarburstAiPlugin;
 import com.starburstdata.presto.server.StarburstServerExtensionsModule;
 import io.starburst.server.troubleshooting.TroubleshootingTestHelper.Unzipped;
-import io.airlift.discovery.client.ServiceDescriptor;
-import io.airlift.discovery.client.testing.InMemoryDiscoveryClient;
 import io.trino.Session;
 import io.trino.connector.ConnectorServicesProvider;
+import io.trino.node.AnnounceNodeInventory;
+import io.trino.node.InternalNodeManager;
 import io.trino.plugin.geospatial.GeoPlugin;
 import io.trino.plugin.postgresql.PostgreSqlPlugin;
 import io.trino.plugin.tpch.TpchPlugin;
@@ -31,7 +31,6 @@ import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -138,11 +137,8 @@ public class TestQueryTroubleshootingForStaticCatalogs
     }
 
     private static void joinCluster(TestingTrinoServer coordinator, TestingTrinoServer worker)
-            throws ExecutionException, InterruptedException
     {
-        InMemoryDiscoveryClient workerDiscoveryClient = worker.getInstance(Key.get(InMemoryDiscoveryClient.class));
-        ServiceDescriptor coordinatorDescriptor = workerDiscoveryClient.getServices("trino").get().getServiceDescriptors().getFirst();
-        InMemoryDiscoveryClient coordinatorDiscoveryClient = coordinator.getInstance(Key.get(InMemoryDiscoveryClient.class));
-        coordinatorDiscoveryClient.addDiscoveredService(coordinatorDescriptor);
+        coordinator.getInstance(Key.get(AnnounceNodeInventory.class)).announce(worker.getBaseUrl());
+        coordinator.getInstance(Key.get(InternalNodeManager.class)).refreshNodes(true);
     }
 }

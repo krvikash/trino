@@ -12,13 +12,12 @@ package io.starburst.server.troubleshooting.jfr;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableSet;
 import io.starburst.server.troubleshooting.jfr.FlightRecorderHttpClient.WorkerNodesProvider;
-import io.airlift.discovery.client.ServiceDescriptor;
-import io.airlift.discovery.client.testing.StaticServiceSelector;
 import io.airlift.http.client.HttpStatus;
 import io.airlift.http.client.testing.TestingHttpClient;
 import io.airlift.http.client.testing.TestingResponse;
 import io.trino.client.NodeVersion;
-import io.trino.server.InternalCommunicationConfig;
+import io.trino.node.InternalNode;
+import io.trino.node.TestingInternalNodeManager;
 import io.trino.spi.QueryId;
 import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
@@ -30,7 +29,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static io.airlift.discovery.client.ServiceDescriptor.serviceDescriptor;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 @ExtendWith(SoftAssertionsExtension.class)
@@ -43,8 +41,8 @@ final class TestFlightRecorderHttpClient
         ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
         try {
             int badNodePort = 2;
-            ServiceDescriptor badNode = worker("bad node", URI.create("http://localhost:" + badNodePort));
-            WorkerNodesProvider workerNodesProvider = new WorkerNodesProvider(new StaticServiceSelector(badNode));
+            InternalNode badNode = worker("bad node", URI.create("http://localhost:" + badNodePort));
+            WorkerNodesProvider workerNodesProvider = new WorkerNodesProvider(TestingInternalNodeManager.createDefault(badNode));
             TestingHttpClient.Processor processor = request -> {
                 if (request.getUri().getPort() == badNodePort) {
                     return new TestingResponse(HttpStatus.fromStatusCode(500), ArrayListMultimap.create(), new byte[] {});
@@ -54,10 +52,9 @@ final class TestFlightRecorderHttpClient
             FlightRecorderHttpClient.Factory factory = new FlightRecorderHttpClient.Factory(
                     new TestingHttpClient(processor, executor),
                     scheduledExecutor,
-                    workerNodesProvider,
-                    new InternalCommunicationConfig().setHttpsRequired(false));
+                    workerNodesProvider);
             FlightRecorderHttpClient client = factory.create(new QueryId("query"));
-            ImmutableSet<String> nodeIds = ImmutableSet.of(badNode.getNodeId());
+            ImmutableSet<String> nodeIds = ImmutableSet.of(badNode.getNodeIdentifier());
 
             softly.assertThatThrownBy(() -> client.start(nodeIds))
                     .isInstanceOf(RuntimeException.class)
@@ -82,34 +79,32 @@ final class TestFlightRecorderHttpClient
     void testNonExistentWorker(SoftAssertions softly)
     {
         try (ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor()) {
-            ServiceDescriptor node = worker("good node", URI.create("http://localhost:1"));
-            WorkerNodesProvider workerNodesProvider = new WorkerNodesProvider(new StaticServiceSelector(node));
+            InternalNode node = worker("good node", URI.create("http://localhost:1"));
+            WorkerNodesProvider workerNodesProvider = new WorkerNodesProvider(TestingInternalNodeManager.createDefault(node));
             TestingHttpClient.Processor processor = _ -> new TestingResponse(HttpStatus.fromStatusCode(200), ArrayListMultimap.create(), "OK".getBytes(UTF_8));
             FlightRecorderHttpClient.Factory factory = new FlightRecorderHttpClient.Factory(
                     new TestingHttpClient(processor),
                     scheduledExecutor,
-                    workerNodesProvider,
-                    new InternalCommunicationConfig().setHttpsRequired(false));
+                    workerNodesProvider);
             FlightRecorderHttpClient client = factory.create(new QueryId("query"));
 
-            softly.assertThatCode(() -> client.start(ImmutableSet.of(node.getNodeId(), "non-existent-node")))
+            softly.assertThatCode(() -> client.start(ImmutableSet.of(node.getNodeIdentifier(), "non-existent-node")))
                     .doesNotThrowAnyException();
-            softly.assertThatCode(() -> client.remove(ImmutableSet.of(node.getNodeId(), "non-existent-node")))
+            softly.assertThatCode(() -> client.remove(ImmutableSet.of(node.getNodeIdentifier(), "non-existent-node")))
                     .doesNotThrowAnyException();
-            softly.assertThatCode(() -> client.finish(ImmutableSet.of(node.getNodeId(), "non-existent-node")))
+            softly.assertThatCode(() -> client.finish(ImmutableSet.of(node.getNodeIdentifier(), "non-existent-node")))
                     .doesNotThrowAnyException();
-            softly.assertThatCode(() -> client.getInputStreams(ImmutableSet.of(node.getNodeId(), "non-existent-node")))
+            softly.assertThatCode(() -> client.getInputStreams(ImmutableSet.of(node.getNodeIdentifier(), "non-existent-node")))
                     .doesNotThrowAnyException();
         }
     }
 
-    private static ServiceDescriptor worker(String nodeId, URI internalUri)
+    private static InternalNode worker(String nodeId, URI internalUri)
     {
-        return serviceDescriptor("trino")
-                .setNodeId(nodeId)
-                .addProperty("http", internalUri.toString())
-                .addProperty("node_version", NodeVersion.UNKNOWN.getVersion())
-                .addProperty("coordinator", Boolean.FALSE.toString())
-                .build();
+        return new InternalNode(
+                nodeId,
+                internalUri,
+                NodeVersion.UNKNOWN,
+                false);
     }
 }

@@ -24,9 +24,9 @@ import io.trino.execution.StagesInfo;
 import io.trino.execution.StateMachine;
 import io.trino.execution.TaskInfo;
 import io.trino.execution.TaskStatus;
-import io.trino.metadata.InternalNode;
-import io.trino.metadata.InternalNodeManager;
 import io.trino.metadata.SessionPropertyManager;
+import io.trino.node.InternalNode;
+import io.trino.node.InternalNodeManager;
 import io.trino.spi.QueryId;
 
 import java.io.InputStream;

@@ -17,15 +17,15 @@ import dev.failsafe.Failsafe;
 import dev.failsafe.FailsafeExecutor;
 import dev.failsafe.RetryPolicy;
 import io.airlift.discovery.client.ServiceDescriptor;
-import io.airlift.discovery.client.ServiceSelector;
-import io.airlift.discovery.client.ServiceType;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.Response;
 import io.airlift.http.client.ResponseHandler;
 import io.airlift.http.client.ResponseHandlerUtils;
 import io.airlift.log.Logger;
-import io.trino.server.InternalCommunicationConfig;
+import io.trino.node.AllNodes;
+import io.trino.node.InternalNode;
+import io.trino.node.InternalNodeManager;
 import io.trino.spi.QueryId;
 
 import java.io.ByteArrayInputStream;
@@ -39,6 +39,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
@@ -55,6 +56,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.temporal.ChronoUnit.MILLIS;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static java.util.Objects.requireNonNull;
+import static java.util.function.Predicate.not;
 
 class FlightRecorderHttpClient
 {
@@ -65,14 +67,12 @@ class FlightRecorderHttpClient
     private final WorkerNodesProvider workerNodesProvider;
     private final FailsafeExecutor<Object> failsafeExecutor;
     private final ScheduledExecutorService executorService;
-    private final boolean httpsRequired;
 
     private FlightRecorderHttpClient(
             QueryId queryId,
             HttpClient client,
             ScheduledExecutorService executorService,
-            WorkerNodesProvider workerNodesProvider,
-            boolean httpsRequired)
+            WorkerNodesProvider workerNodesProvider)
     {
         this.queryId = requireNonNull(queryId, "queryId is null");
         this.client = requireNonNull(client, "client is null");
@@ -86,7 +86,6 @@ class FlightRecorderHttpClient
                 .handleIf(FlightRecorderHttpClient::requestCanBeRetried)
                 .build())
             .with(executorService);
-        this.httpsRequired = httpsRequired;
     }
 
     public void start(Set<String> nodeIds)
@@ -180,8 +179,8 @@ class FlightRecorderHttpClient
     private <R> HttpResponses<R> parallelExecute(Set<String> nodeIds, Function<URI, Request> requestFactory, ResponseHandler<R, ?> handler)
     {
         ImmutableMap<String, CompletableFuture<R>> nodeIdToFutureMap = workerNodesProvider.getWorkerNodes().stream()
-                .filter(worker -> nodeIds.contains(worker.getNodeId()))
-                .collect(toImmutableMap(ServiceDescriptor::getNodeId, worker -> callOnNode(getWorkerNodeURI(worker), requestFactory, handler)));
+                .filter(worker -> nodeIds.contains(worker.getNodeIdentifier()))
+                .collect(toImmutableMap(InternalNode::getNodeIdentifier, worker -> callOnNode(worker.getInternalUri(), requestFactory, handler)));
         ImmutableMap.Builder<String, R> responses = ImmutableMap.builder();
         ImmutableMap.Builder<String, Throwable> exceptions = ImmutableMap.builder();
         for (Map.Entry<String, CompletableFuture<R>> nodeIdToFuture : nodeIdToFutureMap.entrySet()) {
@@ -201,11 +200,6 @@ class FlightRecorderHttpClient
             }
         }
         return new HttpResponses<>(responses.buildOrThrow(), exceptions.buildKeepingLast());
-    }
-
-    private URI getWorkerNodeURI(ServiceDescriptor descriptor)
-    {
-        return URI.create(descriptor.getProperties().get(httpsRequired ? "https" : "http"));
     }
 
     private <R> CompletableFuture<R> callOnNode(URI nodeUri, Function<URI, Request> requestFactory, ResponseHandler<R, ?> handler)
@@ -329,48 +323,47 @@ class FlightRecorderHttpClient
         private final HttpClient client;
         private final ScheduledExecutorService executorService;
         private final WorkerNodesProvider workerNodesProvider;
-        private final boolean httpsRequired;
 
         @Inject
         public Factory(
                 @ForTroubleshooting HttpClient client,
                 @ForTroubleshooting ScheduledExecutorService executorService,
-                WorkerNodesProvider workerNodesProvider,
-                InternalCommunicationConfig internalCommunicationConfig)
+                WorkerNodesProvider workerNodesProvider)
         {
             this.client = requireNonNull(client, "client is null");
             this.executorService = requireNonNull(executorService, "executorService is null");
             this.workerNodesProvider = requireNonNull(workerNodesProvider, "workerNodesProvider is null");
-            this.httpsRequired = requireNonNull(internalCommunicationConfig, "internalCommunicationConfig is null").isHttpsRequired();
         }
 
         public FlightRecorderHttpClient create(QueryId queryId)
         {
-            return new FlightRecorderHttpClient(queryId, client, executorService, workerNodesProvider, httpsRequired);
+            return new FlightRecorderHttpClient(queryId, client, executorService, workerNodesProvider);
         }
     }
 
     public static class WorkerNodesProvider
     {
-        private final ServiceSelector selector;
+        private final InternalNodeManager internalNodeManager;
 
         @Inject
-        public WorkerNodesProvider(@ServiceType("trino") ServiceSelector selector)
+        public WorkerNodesProvider(InternalNodeManager internalNodeManager)
         {
-            this.selector = requireNonNull(selector, "selector is null");
+            this.internalNodeManager = requireNonNull(internalNodeManager, "internalNodeManager is null");
         }
 
-        public List<ServiceDescriptor> getWorkerNodes()
+        public List<InternalNode> getWorkerNodes()
         {
-            return selector.selectAllServices().stream()
-                    .filter(WorkerNodesProvider::isWorker)
+            AllNodes allNodes = internalNodeManager.getAllNodes();
+            return Stream.of(allNodes.activeNodes(), allNodes.inactiveNodes(), allNodes.drainingNodes(), allNodes.drainedNodes(), allNodes.shuttingDownNodes())
+                    .flatMap(Set::stream)
+                    .filter(not(InternalNode::isCoordinator))
                     .collect(toImmutableList());
         }
 
         public Set<String> getWorkerNodesIds()
         {
             return getWorkerNodes().stream()
-                    .map(ServiceDescriptor::getNodeId)
+                    .map(InternalNode::getNodeIdentifier)
                     .collect(toImmutableSet());
         }
 

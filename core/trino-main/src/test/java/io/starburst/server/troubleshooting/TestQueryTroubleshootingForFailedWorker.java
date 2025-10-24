@@ -13,7 +13,7 @@ import com.google.inject.Key;
 import com.starburstdata.presto.server.StarburstQueryRunner;
 import io.starburst.server.troubleshooting.TroubleshootingTestHelper.Unzipped;
 import io.trino.Session;
-import io.trino.metadata.InternalNodeManager;
+import io.trino.node.InternalNodeManager;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.server.testing.TestingTrinoServer;
 import io.trino.spi.QueryId;
@@ -63,9 +63,9 @@ public class TestQueryTroubleshootingForFailedWorker
                     .filter(server -> !server.isCoordinator())
                     .findFirst()
                     .orElseThrow();
-            String terminatedNodeId = workerToTerminate.getInstance(Key.get(InternalNodeManager.class)).getCurrentNode().getNodeIdentifier();
+            String terminatedNodeId = workerToTerminate.getCurrentNode().getNodeIdentifier();
             workerToTerminate.close();
-            queryRunner.getCoordinator().refreshNodes();
+            queryRunner.getCoordinator().getInstance(Key.get(InternalNodeManager.class)).refreshNodes(true);
 
             Set<String> expectedWorkerIds = getNodesProcessingQuery(queryRunner, queryId).stream()
                     .filter(workerId -> !workerId.equals(terminatedNodeId))

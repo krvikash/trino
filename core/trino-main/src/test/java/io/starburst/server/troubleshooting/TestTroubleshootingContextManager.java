@@ -20,12 +20,10 @@ import io.airlift.bootstrap.Bootstrap;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.configuration.ConfigDefaults;
 import io.airlift.units.Duration;
-import io.trino.client.NodeVersion;
 import io.trino.execution.QueryInfo;
-import io.trino.metadata.InMemoryNodeManager;
-import io.trino.metadata.InternalNode;
-import io.trino.metadata.InternalNodeManager;
 import io.trino.metadata.SessionPropertyManager;
+import io.trino.node.InternalNodeManager;
+import io.trino.node.TestingInternalNodeManager;
 import io.trino.spi.QueryId;
 import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
@@ -38,7 +36,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.io.UncheckedIOException;
-import java.net.URI;
 import java.nio.channels.Channels;
 import java.nio.file.Path;
 import java.util.Map;
@@ -137,8 +134,7 @@ public class TestTroubleshootingContextManager
                 binder.bind(TroubleshootingArchiver.class).in(Scopes.SINGLETON);
                 binder.bind(ScheduledExecutorService.class).annotatedWith(ForTroubleshooting.class)
                         .toInstance(newSingleThreadScheduledExecutor(daemonThreadsNamed("query-troubleshooting-%s")));
-                binder.bind(InternalNodeManager.class).toInstance(new InMemoryNodeManager(
-                        new InternalNode("coordinator", URI.create("http://127.0.0.1:11"), NodeVersion.UNKNOWN, true)));
+                binder.bind(InternalNodeManager.class).toInstance(TestingInternalNodeManager.createDefault());
                 binder.bind(SessionPropertyManager.class).in(Scopes.SINGLETON);
 
                 Multibinder<TroubleshootingProvider> setBinder = newSetBinder(binder, TroubleshootingProvider.class);

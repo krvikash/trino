@@ -17,8 +17,8 @@ import io.airlift.http.client.testing.TestingHttpClient;
 import io.airlift.http.client.testing.TestingHttpClient.Processor;
 import io.airlift.http.client.testing.TestingResponse;
 import io.trino.client.NodeVersion;
-import io.trino.metadata.InMemoryNodeManager;
-import io.trino.metadata.InternalNode;
+import io.trino.node.InternalNode;
+import io.trino.node.TestingInternalNodeManager;
 import io.trino.spi.Node;
 import io.trino.spi.QueryId;
 import org.assertj.core.api.SoftAssertions;
@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static io.trino.node.TestingInternalNodeManager.CURRENT_NODE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 @ExtendWith(SoftAssertionsExtension.class)
@@ -56,9 +57,9 @@ class TestRemoteTroubleshootingTraceClient
                 }
                 throw new IllegalArgumentException("request not supported " + request);
             };
-            InMemoryNodeManager nodeManager = new InMemoryNodeManager(goodNode, badNode);
+            TestingInternalNodeManager nodeManager = TestingInternalNodeManager.createDefault(goodNode, badNode);
 
-            RemoteTroubleshootingTraceClient client = new RemoteTroubleshootingTraceClient(nodeManager, new TestingHttpClient(processor, executor));
+            RemoteTroubleshootingTraceClient client = new RemoteTroubleshootingTraceClient(CURRENT_NODE, nodeManager, new TestingHttpClient(processor, executor));
 
             Map<Node, DownloadResult> downloaded = client.download(new QueryId("query"), ImmutableSet.of(goodNode.getNodeIdentifier(), badNode.getNodeIdentifier()));
             softly.assertThat(downloaded).containsOnlyKeys(goodNode, badNode);

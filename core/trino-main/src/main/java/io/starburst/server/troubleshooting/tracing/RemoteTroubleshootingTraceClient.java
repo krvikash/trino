@@ -19,8 +19,8 @@ import io.airlift.http.client.Request;
 import io.airlift.http.client.Response;
 import io.airlift.http.client.ResponseHandler;
 import io.airlift.log.Logger;
-import io.trino.metadata.InternalNode;
-import io.trino.metadata.InternalNodeManager;
+import io.trino.node.InternalNode;
+import io.trino.node.InternalNodeManager;
 import io.trino.spi.Node;
 import io.trino.spi.QueryId;
 import io.trino.spi.StandardErrorCode;
@@ -51,12 +51,14 @@ import static java.util.Objects.requireNonNull;
 public class RemoteTroubleshootingTraceClient
 {
     private static final Logger log = Logger.get(RemoteTroubleshootingTraceClient.class);
+    private final InternalNode currentNode;
     private final InternalNodeManager nodeManager;
     private final HttpClient httpClient;
 
     @Inject
-    public RemoteTroubleshootingTraceClient(InternalNodeManager nodeManager, @ForTroubleshooting HttpClient httpClient)
+    public RemoteTroubleshootingTraceClient(InternalNode currentNode, InternalNodeManager nodeManager, @ForTroubleshooting HttpClient httpClient)
     {
+        this.currentNode = requireNonNull(currentNode, "currentNode is null");
         this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
     }
@@ -153,9 +155,9 @@ public class RemoteTroubleshootingTraceClient
     private Stream<InternalNode> getNodes()
     {
         return nodeManager.getAllNodes()
-                .getActiveNodes()
+                .activeNodes()
                 .stream()
-                .filter(node -> !node.equals(nodeManager.getCurrentNode()));
+                .filter(node -> !node.equals(currentNode));
     }
 
     private static class InputStreamResponseHandler

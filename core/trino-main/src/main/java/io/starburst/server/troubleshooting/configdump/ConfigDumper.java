@@ -16,8 +16,7 @@ import io.airlift.configuration.ConfigurationFactory;
 import io.airlift.configuration.ConfigurationInspector;
 import io.airlift.configuration.ConfigurationInspector.ConfigAttribute;
 import io.airlift.configuration.ConfigurationInspector.ConfigRecord;
-import io.trino.metadata.InternalNode;
-import io.trino.metadata.InternalNodeManager;
+import io.trino.node.InternalNode;
 import io.trino.security.AccessControlConfig;
 
 import java.io.ByteArrayInputStream;
@@ -54,7 +53,7 @@ public class ConfigDumper
     private static final byte[] SECURITY_SENSITIVE_PROPERTY_VALUE = "[REDACTED]".getBytes(ISO_8859_1);
 
     private final ConfigurationFactory configurationFactory;
-    private final InternalNodeManager nodeManager;
+    private final InternalNode currentNode;
     private final CatalogConfigProvider catalogConfigProvider;
     private final Path resourceGroupsConfigFile;
     private final List<Path> accessControlConfigFiles;
@@ -63,7 +62,7 @@ public class ConfigDumper
     @Inject
     public ConfigDumper(
             ConfigurationFactory configurationFactory,
-            InternalNodeManager nodeManager,
+            InternalNode currentNode,
             CatalogConfigProvider catalogConfigProvider,
             @ForResourceGroupConfigDump Path resourceGroupsConfigFile,
             @ForAccessControlConfigDump Path defaultAccessControlConfigFile,
@@ -71,7 +70,7 @@ public class ConfigDumper
             Set<BuiltInFeatureConfigDumper> builtInFeatureConfigDumpers)
     {
         this.configurationFactory = requireNonNull(configurationFactory, "configurationFactory is null");
-        this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
+        this.currentNode = requireNonNull(currentNode, "currentNode is null");
         this.catalogConfigProvider = requireNonNull(catalogConfigProvider, "catalogConfigProvider is null");
         this.resourceGroupsConfigFile = requireNonNull(resourceGroupsConfigFile, "resourceGroupsConfigFile is null");
         requireNonNull(accessControlConfig, "accessControlConfig is null");
@@ -113,7 +112,6 @@ public class ConfigDumper
 
     private String createRootDirectoryName()
     {
-        InternalNode currentNode = nodeManager.getCurrentNode();
         if (currentNode.isCoordinator()) {
             return "coordinator";
         }
@@ -192,7 +190,7 @@ public class ConfigDumper
 
     private void dumpFileBasedResourceGroupConfig(ZipOutputStream outputStream, String directoryName)
     {
-        if (nodeManager.getCurrentNode().isCoordinator()) {
+        if (currentNode.isCoordinator()) {
             Map<String, String> properties = loadProperties(resourceGroupsConfigFile);
             dumpProperties(properties, resourceGroupsConfigFile.getFileName().toString(), outputStream, directoryName);
             String configFilePath = properties.get("resource-groups.config-file");
