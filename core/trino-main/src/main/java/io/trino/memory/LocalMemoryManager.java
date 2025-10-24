@@ -18,7 +18,9 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.inject.Inject;
 import io.airlift.units.DataSize;
+import io.starburst.stargate.buffer.data.memory.MemoryConfig;
 
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Verify.verify;
@@ -32,31 +34,47 @@ public final class LocalMemoryManager
             .memoizeWithExpiration(Runtime.getRuntime()::availableProcessors, 30, TimeUnit.SECONDS);
 
     @Inject
+    public LocalMemoryManager(NodeMemoryConfig config, Optional<MemoryConfig> bufferServiceMemoryConfig)
+    {
+        this(config, bufferServiceMemoryConfig, Runtime.getRuntime().maxMemory());
+    }
+
+    @VisibleForTesting
     public LocalMemoryManager(NodeMemoryConfig config)
     {
-        this(config, Runtime.getRuntime().maxMemory());
+        this(config, Optional.empty(), Runtime.getRuntime().maxMemory());
     }
 
     @VisibleForTesting
     public LocalMemoryManager(NodeMemoryConfig config, long availableMemory)
     {
-        validateHeapHeadroom(config, availableMemory);
-        DataSize memoryPoolSize = DataSize.ofBytes(availableMemory - config.getHeapHeadroom().toBytes());
+        this(config, Optional.empty(), availableMemory);
+    }
+
+    @VisibleForTesting
+    public LocalMemoryManager(NodeMemoryConfig config, Optional<MemoryConfig> bufferServiceMemoryConfig, long availableMemory)
+    {
+        validateHeapHeadroom(config, bufferServiceMemoryConfig, availableMemory);
+        long heapHeadRoom = config.getHeapHeadroom().toBytes();
+        long bufferServiceMemory = bufferServiceMemoryConfig.map(MemoryConfig::getBaseMemory).orElse(DataSize.ofBytes(0)).toBytes();
+        DataSize memoryPoolSize = DataSize.ofBytes(availableMemory - heapHeadRoom - bufferServiceMemory);
         verify(memoryPoolSize.toBytes() > 0, "memory pool size is 0");
         memoryPool = new MemoryPool(memoryPoolSize);
     }
 
-    private void validateHeapHeadroom(NodeMemoryConfig config, long availableMemory)
+    private void validateHeapHeadroom(NodeMemoryConfig config, Optional<MemoryConfig> bufferServiceMemoryConfig, long availableMemory)
     {
         long maxQueryTotalMemoryPerNode = config.getMaxQueryMemoryPerNode().toBytes();
         long heapHeadroom = config.getHeapHeadroom().toBytes();
+        long bufferServiceMemory = bufferServiceMemoryConfig.map(MemoryConfig::getBaseMemory).orElse(DataSize.ofBytes(0)).toBytes();
         // (availableMemory - maxQueryTotalMemoryPerNode) bytes will be available for the memory pool and the
         // headroom/untracked allocations, so the heapHeadroom cannot be larger than that space.
-        if (heapHeadroom < 0 || heapHeadroom + maxQueryTotalMemoryPerNode > availableMemory) {
+        if (heapHeadroom < 0 || bufferServiceMemory < 0 || heapHeadroom + bufferServiceMemory + maxQueryTotalMemoryPerNode > availableMemory) {
             throw new IllegalArgumentException(
-                    format("Invalid memory configuration. The sum of max query memory per node (%s) and heap headroom (%s) cannot be larger than the available heap memory (%s)",
+                    format("Invalid memory configuration. The sum of max query memory per node (%s) heap headroom (%s) and buffer service memory (%s) cannot be larger than the available heap memory (%s)",
                             maxQueryTotalMemoryPerNode,
                             heapHeadroom,
+                            bufferServiceMemory,
                             availableMemory));
         }
     }

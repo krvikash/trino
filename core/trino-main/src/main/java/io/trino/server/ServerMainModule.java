@@ -32,6 +32,7 @@ import io.airlift.stats.JmxGcMonitor;
 import io.airlift.stats.PauseMeter;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
+import io.starburst.stargate.buffer.data.memory.MemoryConfig;
 import io.starburst.stargate.buffer.trino.exchange.BufferExchangeManagerFactory;
 import io.starburst.stargate.buffer.trino.exchange.BufferExchangeManagerFactoryRegistrar;
 import io.trino.FeaturesConfig;
@@ -279,6 +280,7 @@ public class ServerMainModule
         configBinder(binder).bindConfig(MemoryManagerConfig.class);
         configBinder(binder).bindConfig(NodeMemoryConfig.class);
         binder.bind(LocalMemoryManager.class).in(Scopes.SINGLETON);
+        newOptionalBinder(binder, MemoryConfig.class); // optional binder for buffer service memory config
         binder.bind(LocalMemoryManagerExporter.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, VersionEmbedder.class).setDefault().to(EmbedVersion.class).in(Scopes.SINGLETON);
         newExporter(binder).export(SqlTaskManager.class).withGeneratedName();

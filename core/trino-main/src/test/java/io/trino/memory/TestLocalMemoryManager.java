@@ -14,7 +14,10 @@
 package io.trino.memory;
 
 import io.airlift.units.DataSize;
+import io.starburst.stargate.buffer.data.memory.StaticMemoryConfig;
 import org.junit.jupiter.api.Test;
+
+import java.util.Optional;
 
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -31,7 +34,26 @@ public class TestLocalMemoryManager
         // 4 MB heap is not sufficient for 1 MB heap headroom and 4 MB query.max-memory-per-node
         assertThatThrownBy(() -> new LocalMemoryManager(config, DataSize.of(4, MEGABYTE).toBytes()))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageMatching("Invalid memory configuration\\. The sum of max query memory per node .* and heap headroom .*" +
+                .hasMessageMatching("Invalid memory configuration\\. The sum of max query memory per node .* heap headroom .*" +
+                        "cannot be larger than the available heap memory .*");
+    }
+
+    @Test
+    public void testNotEnoughAvailableMemoryWithBufferService()
+    {
+        NodeMemoryConfig config = new NodeMemoryConfig()
+                .setHeapHeadroom("1MB")
+                .setMaxQueryMemoryPerNode("4MB");
+
+        StaticMemoryConfig bufferMemoryConfig = new StaticMemoryConfig().setBaseMemory("2MB");
+
+        // 6 MB heap is not sufficient for 1 MB heap headroom, 2 MB buffer service memory and 4 MB query.max-memory-per-node
+        assertThatThrownBy(() -> new LocalMemoryManager(
+                config,
+                Optional.of(bufferMemoryConfig),
+                DataSize.of(6, MEGABYTE).toBytes()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageMatching("Invalid memory configuration\\. The sum of max query memory per node .* heap headroom .*" +
                         "cannot be larger than the available heap memory .*");
     }
 }
