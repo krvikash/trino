@@ -59,6 +59,7 @@ import java.util.Optional;
 
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.SessionTestUtils.TEST_SESSION;
+import static io.trino.plugin.postgresql.TestPostgreSqlPlugin.TESTING_POSTGRESQL_TYPE_MANAGER;
 import static io.trino.spi.function.OperatorType.ADD;
 import static io.trino.spi.function.OperatorType.DIVIDE;
 import static io.trino.spi.function.OperatorType.MODULUS;
@@ -112,7 +113,7 @@ public class TestPostgreSqlClient
             new JdbcStatisticsConfig(),
             session -> { throw new UnsupportedOperationException(); },
             new DefaultQueryBuilder(RemoteQueryModifier.NONE),
-            new TestingPostgreSqlConnectorContext().getTypeManager(),
+            TESTING_POSTGRESQL_TYPE_MANAGER,
             new DefaultIdentifierMapping(),
             RemoteQueryModifier.NONE);
 

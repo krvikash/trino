@@ -51,6 +51,7 @@ public final class TestingConnectorContext
 
     private final NodeManager nodeManager;
     private final VersionEmbedder versionEmbedder;
+    private final TypeManager typeManager;
     private final PageSorter pageSorter;
     private final PageIndexerFactory pageIndexerFactory;
 
@@ -59,14 +60,16 @@ public final class TestingConnectorContext
         this(
                 DEFAULT_CONTEXT.getNodeManager(),
                 DEFAULT_CONTEXT.getVersionEmbedder(),
+                DEFAULT_CONTEXT.getTypeManager(),
                 DEFAULT_CONTEXT.getPageSorter(),
                 DEFAULT_CONTEXT.getPageIndexerFactory());
     }
 
-    private TestingConnectorContext(NodeManager nodeManager, VersionEmbedder versionEmbedder, PageSorter pageSorter, PageIndexerFactory pageIndexerFactory)
+    private TestingConnectorContext(NodeManager nodeManager, VersionEmbedder versionEmbedder, TypeManager typeManager, PageSorter pageSorter, PageIndexerFactory pageIndexerFactory)
     {
         this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
         this.versionEmbedder = requireNonNull(versionEmbedder, "versionEmbedder is null");
+        this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.pageSorter = requireNonNull(pageSorter, "pageSorter is null");
         this.pageIndexerFactory = requireNonNull(pageIndexerFactory, "pageIndexerFactory is null");
     }
@@ -98,7 +101,7 @@ public final class TestingConnectorContext
     @Override
     public TypeManager getTypeManager()
     {
-        return TESTING_TYPE_MANAGER;
+        return typeManager;
     }
 
     @Override
@@ -135,6 +138,7 @@ public final class TestingConnectorContext
     {
         private NodeManager nodeManager = TestingNodeManager.create();
         private VersionEmbedder versionEmbedder = new EmbedVersion(NodeVersion.UNKNOWN);
+        private TypeManager typeManager = TESTING_TYPE_MANAGER;
         private PageSorter pageSorter = new PagesIndexPageSorter(new PagesIndex.TestingFactory(false));
         private PageIndexerFactory pageIndexerFactory = new GroupByHashPageIndexerFactory(new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())));
 
@@ -151,6 +155,12 @@ public final class TestingConnectorContext
         public Builder withVersionEmbedder(VersionEmbedder versionEmbedder)
         {
             this.versionEmbedder = versionEmbedder;
+            return this;
+        }
+
+        public Builder withTypeManager(TypeManager typeManager)
+        {
+            this.typeManager = typeManager;
             return this;
         }
 
@@ -171,6 +181,7 @@ public final class TestingConnectorContext
             return new TestingConnectorContext(
                     nodeManager,
                     versionEmbedder,
+                    typeManager,
                     pageSorter,
                     pageIndexerFactory);
         }
