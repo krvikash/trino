@@ -46,7 +46,7 @@ Follow instructions in [Maintaining cork (Common Starburst Trino Fork)](cork-oss
 </p>
 <p align="center">
   <a href="https://trino.io/download.html" style="text-decoration: none"><img
-    src="https://img.shields.io/maven-central/v/io.trino/trino-server.svg?label=Trino"
+    src="https://img.shields.io/github/v/release/trinodb/trino"
     alt="Trino download"
   /></a>
   <a href="https://github.com/jvm-repo-rebuild/reproducible-central/blob/master/content/io/trino/README.md" style="text-decoration: none"><img
