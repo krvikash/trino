@@ -17,7 +17,6 @@ import com.google.common.collect.ImmutableSet;
 import io.trino.plugin.base.util.AutoCloseableCloser;
 import io.trino.testing.ResourcePresence;
 import io.trino.testing.sql.SqlExecutor;
-import org.junit.jupiter.api.Assumptions;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
@@ -65,8 +64,7 @@ public class TestingVerticaServer
 
     public TestingVerticaServer(String version, String database, String user, String password)
     {
-        super(DockerImageName.parse("vertica/vertica-ce").withTag(version));
-        Assumptions.abort("Disabled until Vertica image is fixed");
+        super(DockerImageName.parse("843985043183.dkr.ecr.us-east-1.amazonaws.com/docker-hub/vertica/vertica-ce").withTag(version));
         this.database = requireNonNull(database, "database is null");
         this.user = requireNonNull(user, "user is null");
         this.password = requireNonNull(password, "password is null");
