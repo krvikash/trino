@@ -217,9 +217,8 @@ public class BufferExchangeManagerFactory
                 AzureBlobClientConfig azureBlobClientConfig = configs.azureBlobClientConfig()
                         .orElseThrow(() -> new IllegalArgumentException("AzureBlobClientConfig not set for embedded buffer service with storage type: " + spoolingStorageType));
 
-                if (azureBlobClientConfig.getConnectionString() != null) {
-                    extendedConfig.put("exchange.buffer-data.spooling.azure.connection-string", azureBlobClientConfig.getConnectionString());
-                }
+                extendedConfig.put("exchange.buffer-data.spooling.azure.connection-string", azureBlobClientConfig.getConnectionString());
+
                 if (azureBlobClientConfig.getRetryPolicyType() != null) {
                     extendedConfig.put("exchange.buffer-data.spooling.azure.retry-policy", azureBlobClientConfig.getRetryPolicyType().name());
                 }

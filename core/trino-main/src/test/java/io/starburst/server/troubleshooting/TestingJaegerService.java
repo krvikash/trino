@@ -190,9 +190,6 @@ public class TestingJaegerService
 
         try (Response response = jaegerHttpClient.newCall(request).execute()) {
             ResponseBody body = response.body();
-            if (body == null) {
-                throw new RuntimeException("empty response body");
-            }
             return mapper.readTree(body.bytes());
         }
         catch (IOException e) {
