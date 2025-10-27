@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Optional;
 
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestLocalMemoryManager
@@ -55,5 +56,8 @@ public class TestLocalMemoryManager
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageMatching("Invalid memory configuration\\. The sum of max query memory per node .* heap headroom .*" +
                         "cannot be larger than the available heap memory .*");
+
+        LocalMemoryManager localMemoryManager = new LocalMemoryManager(config, Optional.of(bufferMemoryConfig), DataSize.of(10, MEGABYTE).toBytes());
+        assertThat(localMemoryManager.getMemoryPool().getMaxBytes()).isEqualTo(DataSize.of(7, MEGABYTE).toBytes()); // 10MB heap - 1MB headroom - 2MB buffer service
     }
 }
