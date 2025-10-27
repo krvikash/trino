@@ -28,6 +28,8 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class BufferExchangeConfig
 {
+    public static final String USE_EMBEDDED_BUFFER_SERVICE_CONFIG_PROPERTY = "exchange.use-embedded-buffer-service";
+
     private URI discoveryServiceUri;
     private boolean useEmbeddedBufferService;
     private DataSize sinkBlockedMemoryLowWaterMark = DataSize.of(128, MEGABYTE);
@@ -89,7 +91,7 @@ public class BufferExchangeConfig
         return useEmbeddedBufferService;
     }
 
-    @Config("exchange.use-embedded-buffer-service")
+    @Config(USE_EMBEDDED_BUFFER_SERVICE_CONFIG_PROPERTY)
     @ConfigDescription("Configures buffer exchange to use buffer service instance embedded in Trino cluster; exchange.buffer-discovery.uri must be unset if true")
     public BufferExchangeConfig setUseEmbeddedBufferService(boolean useEmbeddedBufferService)
     {

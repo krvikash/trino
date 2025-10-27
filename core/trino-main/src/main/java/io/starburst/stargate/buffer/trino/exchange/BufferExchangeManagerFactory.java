@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.base.Verify.verify;
+import static io.starburst.stargate.buffer.trino.exchange.BufferExchangeConfig.USE_EMBEDDED_BUFFER_SERVICE_CONFIG_PROPERTY;
 import static java.util.Objects.requireNonNull;
 
 public class BufferExchangeManagerFactory
@@ -91,7 +92,7 @@ public class BufferExchangeManagerFactory
         requireNonNull(config, "config is null");
 
         // directly check config map so we are not binding unnecessary stuff in case we are not in embedded mode
-        boolean useEmbeddedBufferService = Boolean.parseBoolean(config.getOrDefault("exchange.use-embedded-buffer-service", "false"));
+        boolean useEmbeddedBufferService = Boolean.parseBoolean(config.getOrDefault(USE_EMBEDDED_BUFFER_SERVICE_CONFIG_PROPERTY, "false"));
 
         Bootstrap app = new Bootstrap(
                 new MBeanModule(),
