@@ -37,6 +37,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 
+import static com.google.common.base.Verify.verify;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
@@ -88,18 +89,25 @@ public class BufferExchangeModule
         bindPartitionNodeMapper(PartitionNodeMappingMode.RANDOM, RandomPartitionNodeMapperFactory.class);
         bindPartitionNodeMapper(PartitionNodeMappingMode.LOCAL_PRIORITY, LocalPriorityPartitionNodeMapperFactory.class);
 
-        internalCommunicationDependencies.ifPresent(internalCommunicationDependencies -> {
-            // internalCommunicationDependencies.getInternalCommunicationConfig() is exposed as separate properties as
-            // we need to access those during bootstrapping.
-            binder.bind(SecurityConfig.class).toInstance(internalCommunicationDependencies.getSecurityConfig());
-            binder.bind(NodeInfo.class).toInstance(internalCommunicationDependencies.getNodeInfo());
-        });
-
-        if (apiFactory.isEmpty()) {
-            install(new RealBufferingServiceApiFactoryModule(internalCommunicationDependencies.isPresent()));
+        BufferExchangeConfig bufferExchangeConfig = buildConfigObject(BufferExchangeConfig.class);
+        if (bufferExchangeConfig.isUseEmbeddedBufferService()) {
+            verify(internalCommunicationDependencies.isPresent(), "internalCommunicationDependencies must not be empty if embedded buffer service is in use");
+            internalCommunicationDependencies.ifPresent(internalCommunicationDependencies -> {
+                // internalCommunicationDependencies.getInternalCommunicationConfig() is exposed as separate properties as
+                // we need to access those during bootstrapping.
+                binder.bind(SecurityConfig.class).toInstance(internalCommunicationDependencies.getSecurityConfig());
+                binder.bind(NodeInfo.class).toInstance(internalCommunicationDependencies.getNodeInfo());
+            });
+            install(new RealBufferingServiceApiFactoryModule(true));
         }
         else {
-            binder.bind(ApiFactory.class).toInstance(apiFactory.get());
+            verify(internalCommunicationDependencies.isEmpty(), "internalCommunicationDependencies must be empty if embedded buffer service is not in use");
+            if (apiFactory.isEmpty()) {
+                install(new RealBufferingServiceApiFactoryModule(false));
+            }
+            else {
+                binder.bind(ApiFactory.class).toInstance(apiFactory.get());
+            }
         }
     }
 

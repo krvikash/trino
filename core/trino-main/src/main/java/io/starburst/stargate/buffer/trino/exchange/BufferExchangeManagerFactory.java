@@ -32,6 +32,7 @@ import org.weakref.jmx.guice.MBeanModule;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.google.common.base.Verify.verify;
 import static java.util.Objects.requireNonNull;
 
 public class BufferExchangeManagerFactory
@@ -89,12 +90,15 @@ public class BufferExchangeManagerFactory
     {
         requireNonNull(config, "config is null");
 
+        // directly check config map so we are not binding unnecessary stuff in case we are not in embedded mode
+        boolean useEmbeddedBufferService = Boolean.parseBoolean(config.getOrDefault("exchange.use-embedded-buffer-service", "false"));
+
         Bootstrap app = new Bootstrap(
                 new MBeanModule(),
                 new MBeanServerModule(),
                 new PrefixObjectNameGeneratorModule("io.starburst.stargate.buffer.trino.exchange", "io.starburst.buffer.exchange"),
                 new JsonModule(),
-                new BufferExchangeModule(apiFactory, internalCommunicationDependencies),
+                new BufferExchangeModule(apiFactory, useEmbeddedBufferService ? internalCommunicationDependencies : Optional.empty()),
                 binder -> {
                     binder.bind(OpenTelemetry.class).toInstance(exchangeManagerContext.getOpenTelemetry());
                     binder.bind(CoordinatorLocator.class).toInstance(exchangeManagerContext.getCoordinatorLocator());
@@ -103,28 +107,31 @@ public class BufferExchangeManagerFactory
 
         ImmutableMap.Builder<String, String> extendedConfig = ImmutableMap.builder();
         extendedConfig.putAll(config);
-        internalCommunicationDependencies.ifPresent(internalCommunicationDependencies -> {
-            InternalCommunicationConfig internalCommunicationConfig = internalCommunicationDependencies.getInternalCommunicationConfig();
+        if (useEmbeddedBufferService) {
+            verify(internalCommunicationDependencies.isPresent(), "internalCommunicationDependencies must not be empty if embedded buffer service is in use");
+            internalCommunicationDependencies.ifPresent(internalCommunicationDependencies -> {
+                InternalCommunicationConfig internalCommunicationConfig = internalCommunicationDependencies.getInternalCommunicationConfig();
 
-            internalCommunicationConfig.getSharedSecret().ifPresent(sharedSecret -> {
-                extendedConfig.put("internal-communication.shared-secret", sharedSecret);
+                internalCommunicationConfig.getSharedSecret().ifPresent(sharedSecret -> {
+                    extendedConfig.put("internal-communication.shared-secret", sharedSecret);
+                });
+                extendedConfig.put("internal-communication.http2.enabled", String.valueOf(internalCommunicationConfig.isHttp2Enabled()));
+                extendedConfig.put("internal-communication.https.required", String.valueOf(internalCommunicationConfig.isHttpsRequired()));
+                if (internalCommunicationConfig.getKeyStorePath() != null) {
+                    extendedConfig.put("internal-communication.https.keystore.path", internalCommunicationConfig.getKeyStorePath());
+                }
+                if (internalCommunicationConfig.getKeyStorePassword() != null) {
+                    extendedConfig.put("internal-communication.https.keystore.key", internalCommunicationConfig.getKeyStorePassword());
+                }
+                if (internalCommunicationConfig.getTrustStorePath() != null) {
+                    extendedConfig.put("internal-communication.https.truststore.path", internalCommunicationConfig.getTrustStorePath());
+                }
+                if (internalCommunicationConfig.getTrustStorePassword() != null) {
+                    extendedConfig.put("internal-communication.https.truststore.key", internalCommunicationConfig.getTrustStorePassword());
+                }
+                extendedConfig.put("http-server.https.enabled", String.valueOf(internalCommunicationConfig.isHttpServerHttpsEnabled()));
             });
-            extendedConfig.put("internal-communication.http2.enabled", String.valueOf(internalCommunicationConfig.isHttp2Enabled()));
-            extendedConfig.put("internal-communication.https.required", String.valueOf(internalCommunicationConfig.isHttpsRequired()));
-            if (internalCommunicationConfig.getKeyStorePath() != null) {
-                extendedConfig.put("internal-communication.https.keystore.path", internalCommunicationConfig.getKeyStorePath());
-            }
-            if (internalCommunicationConfig.getKeyStorePassword() != null) {
-                extendedConfig.put("internal-communication.https.keystore.key", internalCommunicationConfig.getKeyStorePassword());
-            }
-            if (internalCommunicationConfig.getTrustStorePath() != null) {
-                extendedConfig.put("internal-communication.https.truststore.path", internalCommunicationConfig.getTrustStorePath());
-            }
-            if (internalCommunicationConfig.getTrustStorePassword() != null) {
-                extendedConfig.put("internal-communication.https.truststore.key", internalCommunicationConfig.getTrustStorePassword());
-            }
-            extendedConfig.put("http-server.https.enabled", String.valueOf(internalCommunicationConfig.isHttpServerHttpsEnabled()));
-        });
+        }
 
         Injector injector = app
                 .doNotInitializeLogging()
