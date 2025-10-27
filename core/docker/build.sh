@@ -103,7 +103,7 @@ function temurin_download_uri() {
 check_environment
 
 if [[ "$TRINO_VERSION" == "" ]]; then
-    TRINO_VERSION=$("${SOURCE_DIR}/mvnw" -f "${SOURCE_DIR}/pom.xml" --quiet help:evaluate -Dexpression=project.version -DforceStdout)
+    TRINO_VERSION=$("${SOURCE_DIR}/mvnw" -f "${SOURCE_DIR}/pom.xml" --quiet help:evaluate -Dexpression=project.version -DforceStdout --raw-streams)
     echo "🎯 Using currently built artifacts from the core/${SERVER_ARTIFACT} and client/trino-cli modules and version ${TRINO_VERSION}"
 fi
 trino_server="${SOURCE_DIR}/core/${SERVER_ARTIFACT}/target/${SERVER_ARTIFACT}-${TRINO_VERSION}.tar.gz"
