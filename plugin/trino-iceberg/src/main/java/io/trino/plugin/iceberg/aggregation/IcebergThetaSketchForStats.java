@@ -13,8 +13,11 @@
  */
 package io.trino.plugin.iceberg.aggregation;
 
+import com.google.common.annotations.VisibleForTesting;
+import io.airlift.slice.Slice;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.ValueBlock;
+import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.function.AggregationFunction;
 import io.trino.spi.function.AggregationState;
 import io.trino.spi.function.BlockIndex;
@@ -26,6 +29,7 @@ import io.trino.spi.function.SqlType;
 import io.trino.spi.function.TypeParameter;
 import io.trino.spi.type.StandardTypes;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.VarcharType;
 import jakarta.annotation.Nullable;
 import org.apache.datasketches.common.Family;
 import org.apache.datasketches.theta.SetOperation;
@@ -60,12 +64,33 @@ public final class IcebergThetaSketchForStats
     {
         verify(!block.isNull(index), "Input function is not expected to be called on a NULL input");
 
+        ByteBuffer byteBuffer;
+        if (type instanceof VarcharType) {
+            byteBuffer = varcharBlockToByteBuffer((VariableWidthBlock) block, index);
+        }
+        else {
+            byteBuffer = blockToByteBuffer(type, block, index);
+        }
+        requireNonNull(byteBuffer, "byteBuffer is null"); // trino value isn't null
+        getOrCreateUpdateSketch(state).update(byteBuffer);
+    }
+
+    @VisibleForTesting
+    static ByteBuffer varcharBlockToByteBuffer(VariableWidthBlock block, int index)
+    {
+        Slice slice = block.getRawSlice();
+        int offset = block.getRawSliceOffset(index);
+        int length = block.getSliceLength(index);
+        return slice.toByteBuffer(offset, length);
+    }
+
+    @VisibleForTesting
+    static ByteBuffer blockToByteBuffer(Type type, ValueBlock block, int index)
+    {
         Object trinoValue = readNativeValue(type, block, index);
         org.apache.iceberg.types.Type icebergType = toIcebergTypeForNewColumn(type, new AtomicInteger(1));
         Object icebergValue = convertTrinoValueToIceberg(type, trinoValue);
-        ByteBuffer byteBuffer = toByteBuffer(icebergType, icebergValue);
-        requireNonNull(byteBuffer, "byteBuffer is null"); // trino value isn't null
-        getOrCreateUpdateSketch(state).update(byteBuffer);
+        return toByteBuffer(icebergType, icebergValue);
     }
 
     private static ByteBuffer toByteBuffer(org.apache.iceberg.types.Type type, Object value)
