@@ -213,6 +213,7 @@ public class TestJdbcPageSourceProvider
                 jdbcTableHandle.getRelationHandle(),
                 domain,
                 ImmutableList.of(),
+                ImmutableList.of(),
                 Optional.empty(),
                 OptionalLong.empty(),
                 Optional.empty(),

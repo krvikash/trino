@@ -157,6 +157,7 @@ public class IgniteMetadata
                     handle.getRelationHandle(),
                     handle.getConstraint(),
                     handle.getConstraintExpressions(),
+                    handle.getConstraintOriginalExpressions(),
                     handle.getSortOrder(),
                     handle.getLimit(),
                     Optional.of(columns),

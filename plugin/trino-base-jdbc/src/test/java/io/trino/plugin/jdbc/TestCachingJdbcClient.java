@@ -662,6 +662,7 @@ public class TestCachingJdbcClient
                 new JdbcQueryRelationHandle(new PreparedQuery("SELECT * FROM first", List.of())),
                 TupleDomain.all(),
                 ImmutableList.of(),
+                ImmutableList.of(),
                 Optional.empty(),
                 OptionalLong.empty(),
                 Optional.empty(),

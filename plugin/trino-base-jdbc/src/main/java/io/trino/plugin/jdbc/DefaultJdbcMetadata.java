@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableSet;
 import io.airlift.slice.Slice;
 import io.trino.plugin.base.filter.UtcConstraintExtractor;
 import io.trino.plugin.base.filter.UtcConstraintExtractor.ExtractionResult;
+import io.trino.plugin.base.util.ConnectorExpressionUtil.ExpressionAndAssignments;
 import io.trino.plugin.jdbc.JdbcProcedureHandle.ProcedureQuery;
 import io.trino.plugin.jdbc.PredicatePushdownController.DomainPushdownResult;
 import io.trino.plugin.jdbc.expression.ParameterizedExpression;
@@ -220,9 +221,11 @@ public class DefaultJdbcMetadata
         TupleDomain<ColumnHandle> oldDomain = handle.getConstraint();
         TupleDomain<ColumnHandle> newDomain = oldDomain.intersect(filterDomain);
         List<ParameterizedExpression> newConstraintExpressions;
+        List<ExpressionAndAssignments> constraintOriginalExpressions;
         TupleDomain<ColumnHandle> remainingFilter;
         if (newDomain.isNone()) {
             newConstraintExpressions = ImmutableList.of();
+            constraintOriginalExpressions = ImmutableList.of();
             remainingFilter = TupleDomain.all();
             remainingExpression = Constant.TRUE;
         }
@@ -252,16 +255,20 @@ public class DefaultJdbcMetadata
 
             if (isComplexExpressionPushdown(session)) {
                 List<ParameterizedExpression> newExpressions = new ArrayList<>();
+                ImmutableList.Builder<ExpressionAndAssignments> constraintOriginalExpressionsBuilder = ImmutableList.builder();
+                constraintOriginalExpressionsBuilder.addAll(handle.getConstraintOriginalExpressions());
                 List<ConnectorExpression> remainingExpressions = new ArrayList<>();
                 for (ConnectorExpression expression : extractConjuncts(remainingExpression)) {
                     Optional<ParameterizedExpression> converted = jdbcClient.convertPredicate(session, expression, constraint.getAssignments());
                     if (converted.isPresent()) {
+                        constraintOriginalExpressionsBuilder.add(new ExpressionAndAssignments(expression, constraint.getAssignments()));
                         newExpressions.add(converted.get());
                     }
                     else {
                         remainingExpressions.add(expression);
                     }
                 }
+                constraintOriginalExpressions = constraintOriginalExpressionsBuilder.build();
                 newConstraintExpressions = ImmutableSet.<ParameterizedExpression>builder()
                         .addAll(handle.getConstraintExpressions())
                         .addAll(newExpressions)
@@ -269,6 +276,7 @@ public class DefaultJdbcMetadata
                 remainingExpression = and(remainingExpressions);
             }
             else {
+                constraintOriginalExpressions = ImmutableList.of();
                 newConstraintExpressions = ImmutableList.of();
             }
         }
@@ -282,6 +290,7 @@ public class DefaultJdbcMetadata
                 handle.getRelationHandle(),
                 newDomain,
                 newConstraintExpressions,
+                constraintOriginalExpressions,
                 handle.getSortOrder(),
                 handle.getLimit(),
                 handle.getColumns(),
@@ -301,6 +310,7 @@ public class DefaultJdbcMetadata
         return new JdbcTableHandle(
                 new JdbcQueryRelationHandle(preparedQuery),
                 TupleDomain.all(),
+                ImmutableList.of(),
                 ImmutableList.of(),
                 Optional.empty(),
                 OptionalLong.empty(),
@@ -361,6 +371,7 @@ public class DefaultJdbcMetadata
                         handle.getRelationHandle(),
                         handle.getConstraint(),
                         handle.getConstraintExpressions(),
+                        handle.getConstraintOriginalExpressions(),
                         handle.getSortOrder(),
                         handle.getLimit(),
                         Optional.of(newColumns),
@@ -421,6 +432,7 @@ public class DefaultJdbcMetadata
                 new JdbcTableHandle(
                         new JdbcQueryRelationHandle(preparedQuery),
                         TupleDomain.all(),
+                        ImmutableList.of(),
                         ImmutableList.of(),
                         Optional.empty(),
                         OptionalLong.empty(),
@@ -595,6 +607,7 @@ public class DefaultJdbcMetadata
                 new JdbcQueryRelationHandle(preparedQuery),
                 TupleDomain.all(),
                 ImmutableList.of(),
+                ImmutableList.of(),
                 Optional.empty(),
                 OptionalLong.empty(),
                 Optional.of(newColumnsList),
@@ -716,6 +729,7 @@ public class DefaultJdbcMetadata
                         new JdbcQueryRelationHandle(joinQuery.get()),
                         TupleDomain.all(),
                         ImmutableList.of(),
+                        ImmutableList.of(),
                         Optional.empty(),
                         OptionalLong.empty(),
                         Optional.of(
@@ -810,6 +824,7 @@ public class DefaultJdbcMetadata
                 new JdbcTableHandle(
                         new JdbcQueryRelationHandle(joinQuery.get()),
                         TupleDomain.all(),
+                        ImmutableList.of(),
                         ImmutableList.of(),
                         Optional.empty(),
                         OptionalLong.empty(),
@@ -921,6 +936,7 @@ public class DefaultJdbcMetadata
                 handle.getRelationHandle(),
                 handle.getConstraint(),
                 handle.getConstraintExpressions(),
+                handle.getConstraintOriginalExpressions(),
                 handle.getSortOrder(),
                 OptionalLong.of(limit),
                 handle.getColumns(),
@@ -976,6 +992,7 @@ public class DefaultJdbcMetadata
                 handle.getRelationHandle(),
                 handle.getConstraint(),
                 handle.getConstraintExpressions(),
+                handle.getConstraintOriginalExpressions(),
                 Optional.of(resultSortOrder),
                 OptionalLong.of(topNCount),
                 handle.getColumns(),

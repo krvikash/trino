@@ -18,6 +18,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import io.trino.plugin.base.util.ConnectorExpressionUtil.ExpressionAndAssignments;
 import io.trino.plugin.jdbc.expression.ParameterizedExpression;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.SchemaTableName;
@@ -45,6 +46,9 @@ public final class JdbcTableHandle
     // Additional to constraint
     private final List<ParameterizedExpression> constraintExpressions;
 
+    // used for re-constructing the constraintExpressions list
+    private final Optional<List<ExpressionAndAssignments>> constraintOriginalExpressions;
+
     // semantically sort order is applied after constraint
     private final Optional<List<JdbcSortItem>> sortOrder;
 
@@ -70,6 +74,7 @@ public final class JdbcTableHandle
                 new JdbcNamedRelationHandle(schemaTableName, remoteTableName, comment),
                 TupleDomain.all(),
                 ImmutableList.of(),
+                Optional.of(ImmutableList.of()),
                 Optional.empty(),
                 OptionalLong.empty(),
                 Optional.empty(),
@@ -92,9 +97,64 @@ public final class JdbcTableHandle
             @JsonProperty("authorization") Optional<String> authorization,
             @JsonProperty("updateAssignments") List<JdbcAssignmentItem> updateAssignments)
     {
+        this(
+                relationHandle,
+                constraint,
+                constraintExpressions,
+                Optional.empty(), // constraintOriginalExpressions is not serialized (not needed in workers)
+                sortOrder,
+                limit,
+                columns,
+                otherReferencedTables,
+                nextSyntheticColumnId,
+                authorization,
+                updateAssignments);
+    }
+
+    public JdbcTableHandle(
+            JdbcRelationHandle relationHandle,
+            TupleDomain<ColumnHandle> constraint,
+            List<ParameterizedExpression> constraintExpressions,
+            List<ExpressionAndAssignments> constraintOriginalExpressions,
+            Optional<List<JdbcSortItem>> sortOrder,
+            OptionalLong limit,
+            Optional<List<JdbcColumnHandle>> columns,
+            Optional<Set<SchemaTableName>> otherReferencedTables,
+            int nextSyntheticColumnId,
+            Optional<String> authorization,
+            List<JdbcAssignmentItem> updateAssignments)
+    {
+        this(
+                relationHandle,
+                constraint,
+                constraintExpressions,
+                Optional.of(constraintOriginalExpressions),
+                sortOrder,
+                limit,
+                columns,
+                otherReferencedTables,
+                nextSyntheticColumnId,
+                authorization,
+                updateAssignments);
+    }
+
+    private JdbcTableHandle(
+            JdbcRelationHandle relationHandle,
+            TupleDomain<ColumnHandle> constraint,
+            List<ParameterizedExpression> constraintExpressions,
+            Optional<List<ExpressionAndAssignments>> constraintOriginalExpressions,
+            Optional<List<JdbcSortItem>> sortOrder,
+            OptionalLong limit,
+            Optional<List<JdbcColumnHandle>> columns,
+            Optional<Set<SchemaTableName>> otherReferencedTables,
+            int nextSyntheticColumnId,
+            Optional<String> authorization,
+            List<JdbcAssignmentItem> updateAssignments)
+    {
         this.relationHandle = requireNonNull(relationHandle, "relationHandle is null");
         this.constraint = requireNonNull(constraint, "constraint is null");
         this.constraintExpressions = ImmutableList.copyOf(requireNonNull(constraintExpressions, "constraintExpressions is null"));
+        this.constraintOriginalExpressions = requireNonNull(constraintOriginalExpressions, "constraintOriginalExpressions is null").map(ImmutableList::copyOf);
         this.sortOrder = sortOrder.map(ImmutableList::copyOf);
         this.limit = requireNonNull(limit, "limit is null");
 
@@ -111,6 +171,7 @@ public final class JdbcTableHandle
                 relationHandle,
                 constraint.intersect(newConstraint),
                 constraintExpressions,
+                constraintOriginalExpressions,
                 sortOrder,
                 limit,
                 columns,
@@ -126,6 +187,7 @@ public final class JdbcTableHandle
                 relationHandle,
                 constraint,
                 constraintExpressions,
+                constraintOriginalExpressions,
                 sortOrder,
                 limit,
                 columns,
@@ -169,6 +231,12 @@ public final class JdbcTableHandle
     public List<ParameterizedExpression> getConstraintExpressions()
     {
         return constraintExpressions;
+    }
+
+    @JsonIgnore
+    public List<ExpressionAndAssignments> getConstraintOriginalExpressions()
+    {
+        return constraintOriginalExpressions.orElseThrow();
     }
 
     @JsonProperty

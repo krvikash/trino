@@ -267,6 +267,7 @@ public abstract class BaseJdbcClient
                     new JdbcQueryRelationHandle(preparedQuery),
                     TupleDomain.all(),
                     ImmutableList.of(),
+                    ImmutableList.of(),
                     Optional.empty(),
                     OptionalLong.empty(),
                     Optional.of(getColumns(session, connection, metadata)),

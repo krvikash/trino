@@ -17,6 +17,7 @@ import com.google.common.base.VerifyException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.trino.plugin.base.util.ConnectorExpressionUtil;
 import io.trino.plugin.jdbc.expression.ParameterizedExpression;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.AggregationApplicationResult;
@@ -34,6 +35,9 @@ import io.trino.spi.connector.SaveMode;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.TableNotFoundException;
 import io.trino.spi.connector.TableScanRedirectApplicationResult;
+import io.trino.spi.expression.Call;
+import io.trino.spi.expression.ConnectorExpression;
+import io.trino.spi.expression.Variable;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.session.PropertyMetadata;
@@ -56,7 +60,9 @@ import static io.trino.plugin.jdbc.DefaultJdbcMetadata.createSyntheticJoinProjec
 import static io.trino.plugin.jdbc.TestingJdbcTypeHandle.JDBC_BIGINT;
 import static io.trino.plugin.jdbc.TestingJdbcTypeHandle.JDBC_VARCHAR;
 import static io.trino.spi.StandardErrorCode.NOT_FOUND;
+import static io.trino.spi.expression.StandardFunctions.IS_NULL_FUNCTION_NAME;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.testing.TestingConnectorSession.SESSION;
@@ -409,6 +415,53 @@ public class TestDefaultJdbcMetadata
     }
 
     @Test
+    public void testConstraintOriginalExpressionsAfterApplyFilter()
+    {
+        // TODO: Create a new JdbcClient for H2 that implements convertPredicate() to avoid this extension.
+        JdbcClient jdbcClient = new ForwardingJdbcClient()
+        {
+            @Override
+            protected JdbcClient delegate()
+            {
+                return database.getJdbcClient();
+            }
+
+            @Override
+            public Optional<ParameterizedExpression> convertPredicate(ConnectorSession session, ConnectorExpression expression, Map<String, ColumnHandle> assignments)
+            {
+                return Optional.of(new ParameterizedExpression("test", List.of()));
+            }
+        };
+        metadata = new DefaultJdbcMetadata(new GroupingSetsEnabledJdbcClient(
+                jdbcClient,
+                Optional.empty()),
+                TimestampTimeZoneDomain.ANY,
+                false,
+                ImmutableSet.of());
+
+        ConnectorSession session = TestingConnectorSession.builder()
+                .setPropertyMetadata(new JdbcMetadataSessionProperties(new JdbcMetadataConfig().setComplexExpressionPushdownEnabled(true), Optional.empty()).getSessionProperties())
+                .build();
+        ConnectorTableHandle baseTableHandle = metadata.getTableHandle(session, new SchemaTableName("example", "numbers"), Optional.empty(), Optional.empty());
+        JdbcColumnHandle columnHandle = new JdbcColumnHandle("a", JDBC_VARCHAR, VARCHAR);
+        ConnectorExpression expression = new Call(
+                BOOLEAN,
+                IS_NULL_FUNCTION_NAME,
+                ImmutableList.of(
+                        new Variable("a", BOOLEAN)));
+        Map<String, ColumnHandle> assignments = Map.of("a", columnHandle);
+        Constraint constraint = new Constraint(
+                TupleDomain.all(),
+                expression,
+                assignments);
+
+        JdbcTableHandle result = applyFilter(session, baseTableHandle, constraint);
+
+        assertThat(result.getConstraintOriginalExpressions())
+                .containsExactly(new ConnectorExpressionUtil.ExpressionAndAssignments(expression, assignments));
+    }
+
+    @Test
     public void testApplyTableScanRedirect()
     {
         TableScanRedirectApplicationResult tableScanRedirectApplicationResult = new TableScanRedirectApplicationResult(
@@ -439,6 +492,7 @@ public class TestDefaultJdbcMetadata
                 baseTableHandle.getRelationHandle(),
                 TupleDomain.all(),
                 ImmutableList.of(new ParameterizedExpression("like", ImmutableList.of())),
+                ImmutableList.of(),
                 Optional.empty(),
                 OptionalLong.empty(),
                 Optional.empty(),
