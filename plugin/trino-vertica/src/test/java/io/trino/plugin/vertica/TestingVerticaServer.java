@@ -64,7 +64,7 @@ public class TestingVerticaServer
 
     public TestingVerticaServer(String version, String database, String user, String password)
     {
-        super(DockerImageName.parse("843985043183.dkr.ecr.us-east-1.amazonaws.com/docker-hub/vertica/vertica-ce").withTag(version));
+        super(DockerImageName.parse("vertica/vertica-ce").withTag(version));
         this.database = requireNonNull(database, "database is null");
         this.user = requireNonNull(user, "user is null");
         this.password = requireNonNull(password, "password is null");
