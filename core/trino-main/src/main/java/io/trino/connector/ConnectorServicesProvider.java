@@ -14,7 +14,9 @@
 package io.trino.connector;
 
 import io.trino.Session;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.catalog.CatalogProperties;
+import io.trino.spi.connector.CatalogVersion;
 
 import java.util.List;
 import java.util.Set;
@@ -28,4 +30,9 @@ public interface ConnectorServicesProvider
     void pruneCatalogs(Set<CatalogHandle> catalogsInUse);
 
     ConnectorServices getConnectorServices(CatalogHandle catalogHandle);
+
+    default ConnectorServices getConnectorServices(CatalogName catalogName)
+    {
+        return getConnectorServices(CatalogHandle.createRootCatalogHandle(catalogName, new CatalogVersion("default")));
+    }
 }

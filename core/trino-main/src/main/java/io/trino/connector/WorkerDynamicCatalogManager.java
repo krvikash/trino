@@ -215,6 +215,17 @@ public class WorkerDynamicCatalogManager
         return catalogConnector.getMaterializedConnector(catalogHandle.getType());
     }
 
+    @Override
+    public ConnectorServices getConnectorServices(CatalogName catalogName)
+    {
+        for (Entry<CatalogHandle, CatalogConnector> entry : catalogs.entrySet()) {
+            if (entry.getKey().getCatalogName().equals(catalogName)) {
+                return entry.getValue().getMaterializedConnector(entry.getKey().getType());
+            }
+        }
+        throw new IllegalArgumentException("No catalog '%s'".formatted(catalogName));
+    }
+
     public void registerGlobalSystemConnector(GlobalSystemConnector connector)
     {
         requireNonNull(connector, "connector is null");

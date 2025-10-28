@@ -252,6 +252,17 @@ public class CoordinatorDynamicCatalogManager
     }
 
     @Override
+    public ConnectorServices getConnectorServices(CatalogName catalogName)
+    {
+        for (Entry<CatalogHandle, CatalogConnector> entry : allCatalogs.entrySet()) {
+            if (entry.getKey().getCatalogName().equals(catalogName)) {
+                return entry.getValue().getMaterializedConnector(entry.getKey().getType());
+            }
+        }
+        throw new IllegalArgumentException("No catalog '%s'".formatted(catalogName));
+    }
+
+    @Override
     public void createCatalog(CatalogName catalogName, ConnectorName connectorName, Map<String, String> properties, boolean notExists)
     {
         requireNonNull(catalogName, "catalogName is null");
