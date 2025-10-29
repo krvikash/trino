@@ -77,6 +77,7 @@ public class ExampleConnectorFactory
 
         return app
                 .doNotInitializeLogging()
+                .disableSystemProperties()
                 .setRequiredConfigurationProperties(config);
     }
 }
