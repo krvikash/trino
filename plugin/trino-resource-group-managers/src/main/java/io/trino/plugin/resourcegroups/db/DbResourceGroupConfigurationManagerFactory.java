@@ -54,6 +54,7 @@ public class DbResourceGroupConfigurationManagerFactory
 
         Injector injector = app
                 .doNotInitializeLogging()
+                .disableSystemProperties()
                 .setRequiredConfigurationProperties(config)
                 .initialize();
 

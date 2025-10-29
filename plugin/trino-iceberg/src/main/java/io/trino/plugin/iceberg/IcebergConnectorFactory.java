@@ -86,6 +86,7 @@ public class IcebergConnectorFactory
             Injector injector = app
                     .doNotInitializeLogging()
                     .loadSecretsPlugins() // starburst-functions-client requires access to secrets.
+                    .disableSystemProperties()
                     .setRequiredConfigurationProperties(config)
                     .initialize();
 
