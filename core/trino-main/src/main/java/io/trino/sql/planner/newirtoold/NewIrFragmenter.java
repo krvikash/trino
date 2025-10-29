@@ -553,8 +553,8 @@ public class NewIrFragmenter
             Block partitioningBoundArguments,
             boolean partitioningReplicateNullsAndAny,
             Optional<List<Integer>> partitioningBucketToPartition,
-            Optional<Integer> bucketCount,
-            Optional<Integer> partitionCount)
+            OptionalInt bucketCount,
+            OptionalInt partitionCount)
     {
         public NewIrPartitioningScheme
         {
@@ -581,8 +581,8 @@ public class NewIrFragmenter
                     partitioningBoundArguments,
                     REPLICATE_NULLS_AND_ANY.getAttribute(exchange.attributes()),
                     Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(exchange.attributes())),
-                    Optional.ofNullable(BUCKET_COUNT.getAttribute(exchange.attributes())),
-                    Optional.ofNullable(PARTITION_COUNT.getAttribute(exchange.attributes())));
+                    BUCKET_COUNT.getAttribute(exchange.attributes()) == null ? OptionalInt.empty() : OptionalInt.of(BUCKET_COUNT.getAttribute(exchange.attributes())),
+                    PARTITION_COUNT.getAttribute(exchange.attributes()) == null ? OptionalInt.empty() : OptionalInt.of(PARTITION_COUNT.getAttribute(exchange.attributes())));
         }
     }
 

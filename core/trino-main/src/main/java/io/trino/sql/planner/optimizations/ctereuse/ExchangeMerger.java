@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
 
@@ -134,8 +135,8 @@ public class ExchangeMerger
                             CONSTANT_VALUES.getAttribute(exchange.attributes()),
                             REPLICATE_NULLS_AND_ANY.getAttribute(exchange.attributes()),
                             Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(exchange.attributes())),
-                            Optional.ofNullable(PARTITION_COUNT.getAttribute(exchange.attributes())),
-                            Optional.ofNullable(BUCKET_COUNT.getAttribute(exchange.attributes())),
+                            PARTITION_COUNT.getAttribute(exchange.attributes()) == null ? OptionalInt.empty() : OptionalInt.of(PARTITION_COUNT.getAttribute(exchange.attributes())),
+                            BUCKET_COUNT.getAttribute(exchange.attributes()) == null ? OptionalInt.empty() : OptionalInt.of(BUCKET_COUNT.getAttribute(exchange.attributes())),
                             Optional.ofNullable(SORT_ORDERS.getAttribute(exchange.attributes())),
                             emptySourceAttributes(1));
                     subgroupRepresentatives.put(i, rebasedRepresentative);
@@ -195,8 +196,8 @@ public class ExchangeMerger
                 CONSTANT_VALUES.getAttribute(exchange.attributes()),
                 REPLICATE_NULLS_AND_ANY.getAttribute(exchange.attributes()),
                 Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(exchange.attributes())),
-                Optional.ofNullable(PARTITION_COUNT.getAttribute(exchange.attributes())),
-                Optional.ofNullable(BUCKET_COUNT.getAttribute(exchange.attributes())),
+                PARTITION_COUNT.getAttribute(exchange.attributes()) == null ? OptionalInt.empty() : OptionalInt.of(PARTITION_COUNT.getAttribute(exchange.attributes())),
+                BUCKET_COUNT.getAttribute(exchange.attributes()) == null ? OptionalInt.empty() : OptionalInt.of(BUCKET_COUNT.getAttribute(exchange.attributes())),
                 Optional.ofNullable(SORT_ORDERS.getAttribute(exchange.attributes())),
                 emptySourceAttributes(1));
         newOperations.put(mergedExchange.result(), mergedExchange);
@@ -364,8 +365,8 @@ public class ExchangeMerger
                             CONSTANT_VALUES.getAttribute(exchange.attributes()),
                             REPLICATE_NULLS_AND_ANY.getAttribute(exchange.attributes()),
                             Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(exchange.attributes())),
-                            Optional.ofNullable(PARTITION_COUNT.getAttribute(exchange.attributes())),
-                            Optional.ofNullable(BUCKET_COUNT.getAttribute(exchange.attributes())),
+                            PARTITION_COUNT.getAttribute(exchange.attributes()) == null ? OptionalInt.empty() : OptionalInt.of(PARTITION_COUNT.getAttribute(exchange.attributes())),
+                            BUCKET_COUNT.getAttribute(exchange.attributes()) == null ? OptionalInt.empty() : OptionalInt.of(BUCKET_COUNT.getAttribute(exchange.attributes())),
                             Optional.ofNullable(SORT_ORDERS.getAttribute(exchange.attributes())),
                             emptySourceAttributes(unifiedSources.size()));
                     subgroupRepresentatives.put(i, rebasedRepresentative);
@@ -486,8 +487,8 @@ public class ExchangeMerger
                 CONSTANT_VALUES.getAttribute(arbitraryExchange.attributes()),
                 REPLICATE_NULLS_AND_ANY.getAttribute(arbitraryExchange.attributes()),
                 Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(arbitraryExchange.attributes())),
-                Optional.ofNullable(PARTITION_COUNT.getAttribute(arbitraryExchange.attributes())),
-                Optional.ofNullable(BUCKET_COUNT.getAttribute(arbitraryExchange.attributes())),
+                PARTITION_COUNT.getAttribute(arbitraryExchange.attributes()) == null ? OptionalInt.empty() : OptionalInt.of(PARTITION_COUNT.getAttribute(arbitraryExchange.attributes())),
+                BUCKET_COUNT.getAttribute(arbitraryExchange.attributes()) == null ? OptionalInt.empty() : OptionalInt.of(BUCKET_COUNT.getAttribute(arbitraryExchange.attributes())),
                 Optional.ofNullable(SORT_ORDERS.getAttribute(arbitraryExchange.attributes())),
                 emptySourceAttributes(arguments.length));
         newOperations.put(mergedExchange.result(), mergedExchange);

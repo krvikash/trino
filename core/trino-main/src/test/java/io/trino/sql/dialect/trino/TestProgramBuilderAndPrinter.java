@@ -53,6 +53,7 @@ import io.trino.testing.TestingTransactionHandle;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
+import java.util.OptionalInt;
 
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -575,8 +576,8 @@ final class TestProgramBuilderAndPrinter
                                                 ImmutableList.of(new Symbol(BIGINT, "f"), new Symbol(BOOLEAN, "g")),
                                                 false,
                                                 Optional.of(new int[] {5, 6, 7}),
-                                                Optional.empty(),
-                                                Optional.empty()),
+                                                OptionalInt.empty(),
+                                                OptionalInt.empty()),
                                         ImmutableList.of(
                                                 new ValuesNode(
                                                         new PlanNodeId("102"),

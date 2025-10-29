@@ -486,8 +486,8 @@ final class TestRelationalProgramBuilder
                         ImmutableList.of(new Symbol(BIGINT, "f"), new Symbol(BOOLEAN, "g")),
                         false,
                         Optional.of(new int[] {5, 6, 7}),
-                        Optional.empty(),
-                        Optional.empty()),
+                        OptionalInt.empty(),
+                        OptionalInt.empty()),
                 ImmutableList.of(
                         VALUES_NODE,
                         new ValuesNode(
@@ -588,8 +588,8 @@ final class TestRelationalProgramBuilder
                 new ConstantValues(new ConstantValue[] {null}),
                 false,
                 Optional.of(ImmutableList.of(5, 6, 7)),
-                Optional.empty(),
-                Optional.empty(),
+                OptionalInt.empty(),
+                OptionalInt.empty(),
                 Optional.empty(),
                 ImmutableList.of(VALUES_OPERATION.attributes(), rightSourceOperation.attributes()));
 
@@ -639,8 +639,8 @@ final class TestRelationalProgramBuilder
                         ImmutableList.of(new Symbol(BIGINT, "f"), new Symbol(BOOLEAN, "g")),
                         false,
                         Optional.of(new int[] {5, 6, 7}),
-                        Optional.empty(),
-                        Optional.of(10)),
+                        OptionalInt.empty(),
+                        OptionalInt.of(10)),
                 ImmutableList.of(VALUES_NODE),
                 ImmutableList.of(ImmutableList.of(new Symbol(BIGINT, "a"), new Symbol(BOOLEAN, "b"))),
                 Optional.of(new OrderingScheme(
@@ -709,8 +709,8 @@ final class TestRelationalProgramBuilder
                 new ConstantValues(new ConstantValue[] {null}),
                 false,
                 Optional.of(ImmutableList.of(5, 6, 7)),
-                Optional.of(10),
-                Optional.empty(),
+                OptionalInt.of(10),
+                OptionalInt.empty(),
                 Optional.of(new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST))),
                 ImmutableList.of(VALUES_OPERATION.attributes()));
 

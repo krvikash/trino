@@ -185,19 +185,26 @@ public class NodePartitioningManager
         return nodes;
     }
 
-    public Optional<Integer> getBucketCount(Session session, PartitioningHandle partitioningHandle)
+    public OptionalInt getBucketCount(Session session, PartitioningHandle partitioningHandle)
     {
         if (partitioningHandle.getConnectorHandle() instanceof SystemPartitioningHandle) {
-            return Optional.empty();
+            return OptionalInt.empty();
         }
 
         ConnectorPartitioningHandle connectorHandle = partitioningHandle.getConnectorHandle();
         if (connectorHandle instanceof MergePartitioningHandle mergeHandle) {
-            return mergeHandle.getBucketCount(handle -> getBucketCount(session, handle))
-                    .or(() -> Optional.of(getDefaultBucketCount(session)));
+            OptionalInt mergeBucketCount = mergeHandle.getBucketCount(handle -> getBucketCount(session, handle));
+            if (mergeBucketCount.isPresent()) {
+                return mergeBucketCount;
+            }
+            return OptionalInt.of(getDefaultBucketCount(session));
         }
+
         Optional<ConnectorBucketNodeMap> bucketNodeMap = getConnectorBucketNodeMap(session, partitioningHandle);
-        return Optional.of(bucketNodeMap.map(ConnectorBucketNodeMap::getBucketCount).orElseGet(() -> getDefaultBucketCount(session)));
+        if (bucketNodeMap.isPresent()) {
+            return OptionalInt.of(bucketNodeMap.get().getBucketCount());
+        }
+        return OptionalInt.of(getDefaultBucketCount(session));
     }
 
     public BucketNodeMap getBucketNodeMap(Session session, PartitioningHandle partitioningHandle, int partitionCount)

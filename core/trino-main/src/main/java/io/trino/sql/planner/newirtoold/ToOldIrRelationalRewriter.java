@@ -99,6 +99,7 @@ import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -316,8 +317,8 @@ public class ToOldIrRelationalRewriter
                         outputSymbols,
                         REPLICATE_NULLS_AND_ANY.getAttribute(exchange.attributes()),
                         Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(exchange.attributes())).map(list -> list.stream().mapToInt(Integer::intValue).toArray()),
-                        Optional.ofNullable(BUCKET_COUNT.getAttribute(exchange.attributes())),
-                        Optional.ofNullable(PARTITION_COUNT.getAttribute(exchange.attributes()))),
+                        BUCKET_COUNT.getAttribute(exchange.attributes()) == null ? OptionalInt.empty() : OptionalInt.of(BUCKET_COUNT.getAttribute(exchange.attributes())),
+                        PARTITION_COUNT.getAttribute(exchange.attributes()) == null ? OptionalInt.empty() : OptionalInt.of(PARTITION_COUNT.getAttribute(exchange.attributes()))),
                 sources,
                 inputSymbols,
                 getOptionalOrderingScheme(ExchangeOperationMetadata.SORT_ORDERS.getAttribute(exchange.attributes()), exchange.orderingSelector(), outputSymbols));

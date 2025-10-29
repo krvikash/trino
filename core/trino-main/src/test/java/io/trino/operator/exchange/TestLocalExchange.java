@@ -50,6 +50,7 @@ import org.junit.jupiter.api.parallel.Execution;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -101,7 +102,7 @@ public class TestLocalExchange
     private static PipelineContext pipelineContext;
     private static ScheduledExecutorService scheduledExecutor;
 
-    private static final Optional<Integer> BUCKET_COUNT = Optional.of(8);
+    private static final OptionalInt BUCKET_COUNT = OptionalInt.of(8);
 
     private final ConcurrentMap<CatalogHandle, ConnectorNodePartitioningProvider> partitionManagers = new ConcurrentHashMap<>();
     private PartitionFunctionProvider functionProvider;

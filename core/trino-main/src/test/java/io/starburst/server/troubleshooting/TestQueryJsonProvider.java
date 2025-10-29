@@ -172,7 +172,7 @@ public class TestQueryJsonProvider
                 new ValuesNode(new PlanNodeId("1"), ImmutableList.of(), ImmutableList.of()),
                 ImmutableSet.of(),
                 new PartitioningHandle(Optional.empty(), Optional.empty(), connectorPartitioningHandle),
-                Optional.empty(),
+                OptionalInt.empty(),
                 ImmutableList.of(),
                 new PartitioningScheme(
                         Partitioning.create(partitioningHandle, ImmutableList.of()),

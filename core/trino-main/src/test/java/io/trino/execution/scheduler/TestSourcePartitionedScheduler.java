@@ -712,7 +712,7 @@ public class TestSourcePartitionedScheduler
                         Optional.empty()),
                 ImmutableSet.of(symbol),
                 SOURCE_DISTRIBUTION,
-                Optional.empty(),
+                OptionalInt.empty(),
                 ImmutableList.of(TABLE_SCAN_NODE_ID),
                 new PartitioningScheme(Partitioning.create(SINGLE_DISTRIBUTION, ImmutableList.of()), ImmutableList.of(symbol)),
                 OptionalInt.empty(),
@@ -767,7 +767,7 @@ public class TestSourcePartitionedScheduler
                 noopTracer(),
                 Span.getInvalid(),
                 new SplitSchedulerStats(),
-                (_, _) -> Optional.empty(),
+                (_, _) -> OptionalInt.empty(),
                 new SplitAdmissionControllerProvider(ImmutableList.of(), TEST_SESSION));
         ImmutableMap.Builder<PlanFragmentId, PipelinedOutputBufferManager> outputBuffers = ImmutableMap.builder();
         outputBuffers.put(fragment.getId(), new PartitionedPipelinedOutputBufferManager(FIXED_HASH_DISTRIBUTION, 1));

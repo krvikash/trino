@@ -67,6 +67,7 @@ import io.trino.sql.planner.plan.WindowNode;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
+import java.util.OptionalInt;
 
 import static io.trino.metadata.TestMetadataManager.createTestMetadataManager;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_FIRST;
@@ -183,8 +184,8 @@ class TestToOldIrRelationalRewriter
                         ImmutableList.of(A, B),
                         false,
                         Optional.of(new int[] {5, 6, 7}),
-                        Optional.empty(),
-                        Optional.empty()),
+                        OptionalInt.empty(),
+                        OptionalInt.empty()),
                 ImmutableList.of(
                         VALUES_NODE,
                         new ValuesNode(
@@ -213,8 +214,8 @@ class TestToOldIrRelationalRewriter
                         ImmutableList.of(A, B, new Symbol(BIGINT, "a_0")),
                         false,
                         Optional.of(new int[] {5, 6, 7}),
-                        Optional.empty(),
-                        Optional.empty()),
+                        OptionalInt.empty(),
+                        OptionalInt.empty()),
                 ImmutableList.of(
                         VALUES_NODE,
                         new ValuesNode(
@@ -238,8 +239,8 @@ class TestToOldIrRelationalRewriter
                         ImmutableList.of(B, A),
                         false,
                         Optional.of(new int[] {5, 6, 7}),
-                        Optional.empty(),
-                        Optional.of(10)),
+                        OptionalInt.empty(),
+                        OptionalInt.of(10)),
                 ImmutableList.of(VALUES_NODE),
                 ImmutableList.of(ImmutableList.of(B, A)),
                 Optional.of(new OrderingScheme(ImmutableList.of(A), ImmutableMap.of(A, DESC_NULLS_FIRST))));

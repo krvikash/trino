@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
@@ -88,8 +89,8 @@ public class Exchange
             ConstantValues partitioningBoundValues,
             boolean partitioningReplicateNullsAndAny,
             Optional<List<Integer>> partitioningBucketToPartition,
-            Optional<Integer> partitionCount,
-            Optional<Integer> bucketCount,
+            OptionalInt partitionCount,
+            OptionalInt bucketCount,
             Optional<SortOrderList> sortOrders,
             List<Map<AttributeKey, Object>> sourceAttributes)
     {
@@ -263,8 +264,8 @@ public class Exchange
                 CONSTANT_VALUES.getAttribute(attributes),
                 REPLICATE_NULLS_AND_ANY.getAttribute(attributes),
                 Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(attributes)),
-                Optional.ofNullable(PARTITION_COUNT.getAttribute(attributes)),
-                Optional.ofNullable(BUCKET_COUNT.getAttribute(attributes)),
+                PARTITION_COUNT.getAttribute(attributes) == null ? OptionalInt.empty() : OptionalInt.of(PARTITION_COUNT.getAttribute(attributes)),
+                BUCKET_COUNT.getAttribute(attributes) == null ? OptionalInt.empty() : OptionalInt.of(BUCKET_COUNT.getAttribute(attributes)),
                 Optional.ofNullable(SORT_ORDERS.getAttribute(attributes)),
                 emptySourceAttributes(inputs.size()));
     }

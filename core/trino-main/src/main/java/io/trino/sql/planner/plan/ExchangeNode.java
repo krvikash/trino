@@ -27,6 +27,7 @@ import io.trino.sql.planner.Symbol;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -191,8 +192,8 @@ public class ExchangeNode
                         child.getOutputSymbols(),
                         replicateNullsAndAny,
                         Optional.empty(),
-                        Optional.empty(),
-                        Optional.empty()));
+                        OptionalInt.empty(),
+                        OptionalInt.empty()));
     }
 
     public static ExchangeNode partitionedExchange(PlanNodeId id, Scope scope, PlanNode child, PartitioningScheme partitioningScheme)

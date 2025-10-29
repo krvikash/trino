@@ -39,6 +39,7 @@ import java.util.Set;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
 
 @Immutable
@@ -48,7 +49,7 @@ public class PlanFragment
     private final PlanNode root;
     private final Set<Symbol> symbols;
     private final PartitioningHandle partitioning;
-    private final Optional<Integer> partitionCount;
+    private final OptionalInt partitionCount;
     private final List<PlanNodeId> partitionedSources;
     private final Set<PlanNodeId> partitionedSourcesSet;
     private final Set<PlanNode> partitionedSourceNodes;
@@ -66,7 +67,7 @@ public class PlanFragment
             PlanNode root,
             Set<Symbol> symbols,
             PartitioningHandle partitioning,
-            Optional<Integer> partitionCount,
+            OptionalInt partitionCount,
             List<PlanNodeId> partitionedSources,
             Set<PlanNodeId> partitionedSourcesSet,
             Set<PlanNode> partitionedSourceNodes,
@@ -103,7 +104,7 @@ public class PlanFragment
             @JsonProperty("root") PlanNode root,
             @JsonProperty("symbols") Set<Symbol> symbols,
             @JsonProperty("partitioning") PartitioningHandle partitioning,
-            @JsonProperty("partitionCount") Optional<Integer> partitionCount,
+            @JsonProperty("partitionCount") OptionalInt partitionCount,
             @JsonProperty("partitionedSources") List<PlanNodeId> partitionedSources,
             @JsonProperty("outputPartitioningScheme") PartitioningScheme outputPartitioningScheme,
             @JsonProperty("outputSkewedBucketCount") OptionalInt outputSkewedBucketCount,
@@ -169,7 +170,7 @@ public class PlanFragment
     }
 
     @JsonProperty
-    public Optional<Integer> getPartitionCount()
+    public OptionalInt getPartitionCount()
     {
         return partitionCount;
     }
@@ -376,7 +377,6 @@ public class PlanFragment
                 partitionCount,
                 partitionedSources,
                 partitionedSourcesSet,
-                types,
                 partitionedSourceNodes,
                 remoteSourceNodes,
                 outputPartitioningScheme,
