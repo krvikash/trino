@@ -39,7 +39,6 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.google.common.base.Verify.verify;
-import static io.trino.plugin.base.io.ByteBuffers.getBytes;
 import static io.trino.plugin.iceberg.IcebergTypes.convertTrinoValueToIceberg;
 import static io.trino.plugin.iceberg.TypeConverter.toIcebergTypeForNewColumn;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
@@ -66,8 +65,7 @@ public final class IcebergThetaSketchForStats
         Object icebergValue = convertTrinoValueToIceberg(type, trinoValue);
         ByteBuffer byteBuffer = toByteBuffer(icebergType, icebergValue);
         requireNonNull(byteBuffer, "byteBuffer is null"); // trino value isn't null
-        byte[] bytes = getBytes(byteBuffer);
-        getOrCreateUpdateSketch(state).update(bytes);
+        getOrCreateUpdateSketch(state).update(byteBuffer);
     }
 
     private static ByteBuffer toByteBuffer(org.apache.iceberg.types.Type type, Object value)
