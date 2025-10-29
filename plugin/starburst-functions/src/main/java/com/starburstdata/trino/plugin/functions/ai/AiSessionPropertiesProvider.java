@@ -7,7 +7,7 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package com.starburstdata.trino.plugin.functions;
+package com.starburstdata.trino.plugin.functions.ai;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.plugin.base.session.SessionPropertiesProvider;

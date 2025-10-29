@@ -35,7 +35,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.starburstdata.trino.plugin.functions.AiSessionPropertiesProvider.isBatchCallingEnabled;
+import static com.starburstdata.trino.plugin.functions.ai.AiSessionPropertiesProvider.isBatchCallingEnabled;
 import static io.trino.spi.function.FunctionKind.BATCH;
 import static io.trino.spi.function.FunctionKind.SCALAR;
 import static java.util.Objects.requireNonNull;

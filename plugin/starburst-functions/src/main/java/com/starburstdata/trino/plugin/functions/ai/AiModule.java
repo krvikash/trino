@@ -12,7 +12,6 @@ package com.starburstdata.trino.plugin.functions.ai;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
-import com.starburstdata.trino.plugin.functions.AiSessionPropertiesProvider;
 import com.starburstdata.trino.plugin.functions.FunctionsConnector;
 import com.starburstdata.trino.plugin.functions.FunctionsMetadata;
 import com.starburstdata.trino.plugin.functions.StarburstFunctions;
