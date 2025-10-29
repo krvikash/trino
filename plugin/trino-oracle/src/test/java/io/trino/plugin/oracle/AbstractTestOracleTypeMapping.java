@@ -828,7 +828,7 @@ public abstract class AbstractTestOracleTypeMapping
                 .execute(getQueryRunner(), withAllowUnsafeTimestampRead(session), oracleCreateAndInsert("test_timestamp_nano"))
                 .execute(getQueryRunner(), withAllowUnsafeTimestampRead(session), trinoCreateAsSelect(withAllowUnsafeTimestampRead(session), "test_timestamp_nano"))
                 .execute(getQueryRunner(), withAllowUnsafeTimestampRead(session), trinoCreateAsSelect(withAllowUnsafeTimestampRead(getSession()), "test_timestamp_nano"))
-                .execute(getQueryRunner(), withAllowUnsafeTimestampRead(session), trinoCreateAndInsert(withAllowUnsafeTimestampRead(session), "test_timestamp_nano"));;
+                .execute(getQueryRunner(), withAllowUnsafeTimestampRead(session), trinoCreateAndInsert(withAllowUnsafeTimestampRead(session), "test_timestamp_nano"));
     }
 
     @Test
