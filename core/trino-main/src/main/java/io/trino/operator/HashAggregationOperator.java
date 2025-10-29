@@ -37,6 +37,7 @@ import io.trino.sql.planner.plan.PlanNodeId;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import java.util.OptionalLong;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -65,7 +66,7 @@ public class HashAggregationOperator
         private final Step step;
         private final boolean produceDefaultOutput;
         private final List<AggregatorFactory> aggregatorFactories;
-        private final Optional<Integer> groupIdChannel;
+        private final OptionalInt groupIdChannel;
 
         private final int expectedGroups;
         private final Optional<DataSize> maxPartialMemory;
@@ -87,7 +88,7 @@ public class HashAggregationOperator
                 List<Integer> globalAggregationGroupIds,
                 Step step,
                 List<AggregatorFactory> aggregatorFactories,
-                Optional<Integer> groupIdChannel,
+                OptionalInt groupIdChannel,
                 int expectedGroups,
                 Optional<DataSize> maxPartialMemory,
                 FlatHashStrategyCompiler hashStrategyCompiler,
@@ -123,7 +124,7 @@ public class HashAggregationOperator
                 Step step,
                 boolean produceDefaultOutput,
                 List<AggregatorFactory> aggregatorFactories,
-                Optional<Integer> groupIdChannel,
+                OptionalInt groupIdChannel,
                 int expectedGroups,
                 Optional<DataSize> maxPartialMemory,
                 boolean spillEnabled,
@@ -161,7 +162,7 @@ public class HashAggregationOperator
                 Step step,
                 boolean produceDefaultOutput,
                 List<AggregatorFactory> aggregatorFactories,
-                Optional<Integer> groupIdChannel,
+                OptionalInt groupIdChannel,
                 int expectedGroups,
                 Optional<DataSize> maxPartialMemory,
                 boolean spillEnabled,
@@ -254,7 +255,7 @@ public class HashAggregationOperator
     private final Step step;
     private final boolean produceDefaultOutput;
     private final List<AggregatorFactory> aggregatorFactories;
-    private final Optional<Integer> groupIdChannel;
+    private final OptionalInt groupIdChannel;
     private final int expectedGroups;
     private final Optional<DataSize> maxPartialMemory;
     private final boolean spillEnabled;
@@ -288,7 +289,7 @@ public class HashAggregationOperator
             Step step,
             boolean produceDefaultOutput,
             List<AggregatorFactory> aggregatorFactories,
-            Optional<Integer> groupIdChannel,
+            OptionalInt groupIdChannel,
             int expectedGroups,
             Optional<DataSize> maxPartialMemory,
             boolean spillEnabled,
