@@ -57,6 +57,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -314,6 +315,7 @@ public class DataApiFacade
     public ListenableFuture<AddDataPagesResponse> addDataPages(long bufferNodeId, String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
     {
         AtomicLong triesCount = new AtomicLong();
+        AtomicBoolean requestPossiblyDelivered = new AtomicBoolean(false);
         Stopwatch stopwatch = Stopwatch.createStarted();
         Stopwatch successRequestStopwatch = Stopwatch.createStarted();
         AtomicLong totalRequestDelay = new AtomicLong();
@@ -350,7 +352,7 @@ public class DataApiFacade
                     successRequestStopwatch.reset().start();
                     if ((failure instanceof DataApiException dataApiException)) {
                         rateMonitor.updateRateLimitInfo(bufferNodeId, dataApiException.getRateLimitInfo());
-                        if (retry && (dataApiException.getErrorCode() == ErrorCode.DRAINING || dataApiException.getErrorCode() == ErrorCode.DRAINED)) {
+                        if (retry && requestPossiblyDelivered.get() && (dataApiException.getErrorCode() == ErrorCode.DRAINING || dataApiException.getErrorCode() == ErrorCode.DRAINED)) {
                             // If we are retrying we need to ensure that we do not propagate DRAINING error to user. We do not know if previous request
                             // was recorded by server or not. If we handle DRAINING, and send data to another buffer service node we may end up with
                             // duplicated data.
@@ -358,6 +360,8 @@ public class DataApiFacade
                             return;
                         }
                     }
+
+                    requestPossiblyDelivered.compareAndSet(false, requestMayHaveAlreadyBeenDelivered(failure));
                     resultFuture.setException(failure);
                 }
             }, directExecutor());
@@ -368,6 +372,21 @@ public class DataApiFacade
                 runWithRetry(bufferNodeId, this::getAddDataPagesRetryExecutor, call),
                 _ -> new AddDataPagesResponse(triesCount.intValue() - 1, stopwatch.elapsed(MILLISECONDS), successRequestStopwatch.elapsed(MILLISECONDS), totalRequestDelay.get()),
                 directExecutor());
+    }
+
+    /**
+     * Determine if given exception rules out that request sent to data server could have been consumed by it, even though client observed an error.
+     */
+    private boolean requestMayHaveAlreadyBeenDelivered(Throwable failure)
+    {
+        if (!(failure instanceof DataApiException dataApiException)) {
+            return true;
+        }
+
+        return switch (dataApiException.getErrorCode()) {
+            case DRAINING, USER_ERROR, BUFFER_NODE_NOT_FOUND, EXCHANGE_NOT_FOUND, CHUNK_NOT_FOUND, OVERLOADED, EXCHANGE_FINISHED, EXCHANGE_CORRUPTED, DRAINING_ON_RETRY, DRAINED -> false;
+            case INTERNAL_ERROR -> true;
+        };
     }
 
     public record AddDataPagesResponse(int retryCount, long processingTimeMillis, long successRequestTimeMillis, long rateLimitDelay) {}
