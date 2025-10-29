@@ -57,6 +57,8 @@ import io.trino.sql.planner.plan.PlanFragmentId;
 import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.planner.plan.RemoteSourceNode;
 import io.trino.util.Failures;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
 import java.net.URI;
@@ -101,6 +103,7 @@ import static io.trino.execution.scheduler.StageExecution.State.SCHEDULING_SPLIT
 import static io.trino.operator.ExchangeOperator.REMOTE_CATALOG_HANDLE;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static io.trino.spi.StandardErrorCode.REMOTE_HOST_GONE;
+import static it.unimi.dsi.fastutil.ints.Int2ObjectMaps.synchronize;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -140,7 +143,7 @@ public class PipelinedStageExecution
     private final Multimap<PlanFragmentId, RemoteSourceNode> exchangeSources;
     private final int attempt;
 
-    private final Map<Integer, RemoteTask> tasks = new ConcurrentHashMap<>();
+    private final Int2ObjectMap<RemoteTask> tasks = synchronize(new Int2ObjectOpenHashMap<>(), this);
 
     // current stage task tracking
     @GuardedBy("this")
