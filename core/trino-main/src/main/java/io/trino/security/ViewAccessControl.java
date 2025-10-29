@@ -59,6 +59,12 @@ public class ViewAccessControl
     }
 
     @Override
+    public Map<SchemaTableName, Set<String>> filterSelectableColumns(SecurityContext context, String catalogName, Map<SchemaTableName, Set<String>> tableColumns)
+    {
+        return delegate.filterSelectableColumns(context, catalogName, tableColumns);
+    }
+
+    @Override
     public void checkCanCreateViewWithSelectFromColumns(SecurityContext context, QualifiedObjectName tableName, Set<String> columnNames)
     {
         wrapAccessDeniedException(() -> delegate.checkCanCreateViewWithSelectFromColumns(context, tableName, columnNames));

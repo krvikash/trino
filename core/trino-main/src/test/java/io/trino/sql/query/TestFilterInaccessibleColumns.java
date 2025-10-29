@@ -13,12 +13,20 @@
  */
 package io.trino.sql.query;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
+import io.trino.connector.MockConnectorFactory;
+import io.trino.connector.MockConnectorPlugin;
 import io.trino.metadata.QualifiedObjectName;
 import io.trino.plugin.tpch.TpchPlugin;
+import io.trino.spi.connector.ConnectorViewDefinition;
+import io.trino.spi.connector.ConnectorViewDefinition.ViewColumn;
+import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.security.Identity;
 import io.trino.spi.security.ViewExpression;
+import io.trino.spi.type.BigintType;
+import io.trino.spi.type.VarcharType;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.StandaloneQueryRunner;
 import io.trino.testing.TestingAccessControlManager;
@@ -26,6 +34,8 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
+
+import java.util.Optional;
 
 import static io.trino.plugin.tpch.TpchMetadata.TINY_SCHEMA_NAME;
 import static io.trino.testing.TestingAccessControlManager.TestingPrivilegeType.SELECT_COLUMN;
@@ -42,6 +52,7 @@ public class TestFilterInaccessibleColumns
 {
     private static final String USER = "user";
     private static final String ADMIN = "admin";
+    private static final String VIEW_OWNER = "view_owner";
 
     private static final Session SESSION = testSessionBuilder()
             .setCatalog(TEST_CATALOG_NAME)
@@ -58,6 +69,27 @@ public class TestFilterInaccessibleColumns
         QueryRunner runner = new StandaloneQueryRunner(SESSION, builder -> builder.addProperty("hide-inaccessible-columns", "true"));
         runner.installPlugin(new TpchPlugin());
         runner.createCatalog(TEST_CATALOG_NAME, "tpch", ImmutableMap.of("tpch.splits-per-node", "1"));
+        runner.installPlugin(new MockConnectorPlugin(MockConnectorFactory.builder()
+                .withGetViews((_, _) ->
+                        ImmutableMap.<SchemaTableName, ConnectorViewDefinition>builder()
+                                .put(
+                                        new SchemaTableName("default", "view_nation"),
+                                        new ConnectorViewDefinition(
+                                                "SELECT * FROM %s.tiny.nation".formatted(TEST_CATALOG_NAME),
+                                                Optional.empty(),
+                                                Optional.empty(),
+                                                ImmutableList.of(
+                                                        // omit `comment` column as access to it is denied in `testSelectFromView` test
+                                                        new ViewColumn("nationkey", BigintType.BIGINT.getTypeId(), Optional.empty()),
+                                                        new ViewColumn("name", VarcharType.createVarcharType(25).getTypeId(), Optional.empty()),
+                                                        new ViewColumn("regionkey", BigintType.BIGINT.getTypeId(), Optional.empty())),
+                                                Optional.empty(),
+                                                Optional.of(VIEW_OWNER),
+                                                false,
+                                                ImmutableList.of()))
+                                .buildOrThrow())
+                .build()));
+        runner.createCatalog("mock", "mock", ImmutableMap.of());
         assertions = new QueryAssertions(runner);
         accessControl = assertions.getQueryRunner().getAccessControl();
     }
@@ -76,6 +108,16 @@ public class TestFilterInaccessibleColumns
         // No filtering baseline
         assertThat(assertions.query("SELECT * FROM nation WHERE name = 'FRANCE'"))
                 .matches("VALUES (BIGINT '6', CAST('FRANCE' AS VARCHAR(25)), BIGINT '3', CAST('refully final requests. regular, ironi' AS VARCHAR(152)))");
+    }
+
+    @Test
+    public void testSelectFromView()
+    {
+        accessControl.reset();
+
+        accessControl.deny(privilege(VIEW_OWNER, "nation.comment", SELECT_COLUMN));
+        assertThat(assertions.query("SELECT * FROM mock.default.view_nation WHERE name = 'FRANCE'"))
+                .matches("VALUES (BIGINT '6', CAST('FRANCE' AS VARCHAR(25)), BIGINT '3')");
     }
 
     @Test
