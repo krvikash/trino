@@ -24,6 +24,7 @@ import io.trino.metadata.CatalogManager;
 import io.trino.server.ServerConfig;
 import io.trino.spi.catalog.CatalogStore;
 
+import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.server.InternalCommunicationHttpClientModule.internalHttpClientModule;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -35,6 +36,7 @@ public class DynamicCatalogManagerModule
     protected void setup(Binder binder)
     {
         if (buildConfigObject(ServerConfig.class).isCoordinator()) {
+            newSetBinder(binder, CatalogFailureHandler.class);
             binder.bind(CoordinatorDynamicCatalogManager.class).in(Scopes.SINGLETON);
             configBinder(binder).bindConfig(CatalogStoreConfig.class);
             binder.bind(CatalogStoreManager.class).in(Scopes.SINGLETON);
