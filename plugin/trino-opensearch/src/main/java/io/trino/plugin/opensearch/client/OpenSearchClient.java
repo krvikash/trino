@@ -741,10 +741,10 @@ public class OpenSearchClient
         }
     }
 
-    public void clearScroll(String scrollId)
+    public void clearScrolls(List<String> scrollIds)
     {
         ClearScrollRequest request = new ClearScrollRequest();
-        request.addScrollId(scrollId);
+        request.scrollIds(scrollIds);
         try {
             client.clearScroll(request);
         }

@@ -14,6 +14,7 @@
 package io.trino.plugin.opensearch;
 
 import com.google.common.collect.AbstractIterator;
+import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.trino.plugin.opensearch.client.OpenSearchClient;
 import io.trino.spi.type.TypeManager;
@@ -126,7 +127,7 @@ public class ScrollQueryPageSource
         {
             if (scrollId != null) {
                 try {
-                    client.clearScroll(scrollId);
+                    client.clearScrolls(ImmutableList.of(scrollId));
                 }
                 catch (Exception e) {
                     // ignore
