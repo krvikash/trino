@@ -293,7 +293,7 @@ final class TestRelationalProgramBuilder
                         new Symbol(BOOLEAN, "b"), 0,
                         new Symbol(BIGINT, "sum_agg"), 1));
 
-        assertThat(aggregateCallOperation.attributes())
+        assertThat(aggregateCallOperation.operationAttributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
                                 new AttributeKey(TRINO, "aggregate_call:sort_orders"),
@@ -309,7 +309,7 @@ final class TestRelationalProgramBuilder
                                 AggregateCallOperationMetadata.AggregationStep.SINGLE)
                         .buildOrThrow());
 
-        assertThat(aggregationOperation.attributes())
+        assertThat(aggregationOperation.operationAttributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
                                 new AttributeKey(TRINO, "aggregation:grouping_sets_count"),
@@ -598,7 +598,7 @@ final class TestRelationalProgramBuilder
                         new Symbol(BIGINT, "f"), 0,
                         new Symbol(BOOLEAN, "g"), 1));
 
-        assertThat(exchangeOperation.attributes())
+        assertThat(exchangeOperation.operationAttributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
                                 new AttributeKey(TRINO, "exchange:type"),
@@ -719,7 +719,7 @@ final class TestRelationalProgramBuilder
                         new Symbol(BIGINT, "f"), 0,
                         new Symbol(BOOLEAN, "g"), 1));
 
-        assertThat(exchangeOperation.attributes())
+        assertThat(exchangeOperation.operationAttributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
                                 new AttributeKey(TRINO, "exchange:type"),
@@ -783,7 +783,7 @@ final class TestRelationalProgramBuilder
                 new MultisetType(anonymousRow(VARCHAR)),
                 ImmutableMap.of(new Symbol(VARCHAR, "Query Plan"), 0));
 
-        assertThat(explainAnalyzeOperation.attributes())
+        assertThat(explainAnalyzeOperation.operationAttributes())
                 .isEqualTo(ImmutableMap.of(new AttributeKey(TRINO, "explain_analyze:verbose"), true));
     }
 
@@ -1074,7 +1074,7 @@ final class TestRelationalProgramBuilder
                         new Symbol(BOOLEAN, "b"), 1,
                         new Symbol(BIGINT, "c"), 2));
 
-        assertThat(joinOperation.attributes())
+        assertThat(joinOperation.operationAttributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
                                 new AttributeKey(TRINO, "join:type"),
@@ -1131,7 +1131,7 @@ final class TestRelationalProgramBuilder
                         new Symbol(BIGINT, "a"), 0,
                         new Symbol(BOOLEAN, "b"), 1));
 
-        assertThat(limitOperation.attributes())
+        assertThat(limitOperation.operationAttributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
                                 new AttributeKey(TRINO, "limit:count"),
@@ -1187,7 +1187,7 @@ final class TestRelationalProgramBuilder
                         new Symbol(BIGINT, "a"), 0,
                         new Symbol(BOOLEAN, "b"), 1));
 
-        assertThat(limitOperation.attributes())
+        assertThat(limitOperation.operationAttributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
                                 new AttributeKey(TRINO, "limit:sort_orders"),
@@ -1413,7 +1413,7 @@ final class TestRelationalProgramBuilder
                         new Symbol(BIGINT, "a"), 0,
                         new Symbol(BOOLEAN, "b"), 1));
 
-        assertThat(tableScanOperation.attributes())
+        assertThat(tableScanOperation.operationAttributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
                                 new AttributeKey(TRINO, "table_scan:table_handle"),
@@ -1720,7 +1720,7 @@ final class TestRelationalProgramBuilder
                         new Symbol(BOOLEAN, "b"), 1,
                         new Symbol(BOOLEAN, "lag_function"), 2));
 
-        assertThat(windowFunctionCallOperation.attributes())
+        assertThat(windowFunctionCallOperation.operationAttributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
                                 new AttributeKey(TRINO, "window_function_call:resolved_function"),
@@ -1745,7 +1745,7 @@ final class TestRelationalProgramBuilder
                                 false)
                         .buildOrThrow());
 
-        assertThat(windowOperation.attributes())
+        assertThat(windowOperation.operationAttributes())
                 .isEqualTo(ImmutableMap.builder()
                         .put(
                                 new AttributeKey(TRINO, "window:pre_partitioned_indexes"),
