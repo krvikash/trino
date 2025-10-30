@@ -60,6 +60,7 @@ public class TestOpenSearchConfig
                 .setIgnorePublishAddress(false)
                 .setProjectionPushdownEnabled(true)
                 .setAggregationPushdownEnabled(true)
+                .setScrollableRawQueryEnabled(true)
                 .setMaxAggregationBuckets(65535)
                 .setSearchStrategy(OpenSearchConfig.SearchStrategy.SCROLL)
                 .setSecurity(null));
@@ -96,6 +97,7 @@ public class TestOpenSearchConfig
                 .put("opensearch.ignore-publish-address", "true")
                 .put("opensearch.projection-pushdown-enabled", "false")
                 .put("opensearch.aggregation-pushdown-enabled", "false")
+                .put("opensearch.scrollable-query-passthrough-enabled", "false")
                 .put("opensearch.max-aggregation-buckets", "1000")
                 .put("opensearch.search-strategy", "SEARCH_AFTER")
                 .put("opensearch.security", "AWS")
@@ -125,6 +127,7 @@ public class TestOpenSearchConfig
                 .setIgnorePublishAddress(true)
                 .setProjectionPushdownEnabled(false)
                 .setAggregationPushdownEnabled(false)
+                .setScrollableRawQueryEnabled(false)
                 .setMaxAggregationBuckets(1000)
                 .setSearchStrategy(OpenSearchConfig.SearchStrategy.SEARCH_AFTER)
                 .setSecurity(AWS);

@@ -1971,6 +1971,14 @@ public abstract class BaseOpenSearchConnectorTest
                 "query => '{\"query\": {\"match\": {\"name\": \"ALGERIA\"}}}')) t(result)"))
                 .matches("VALUES VARCHAR '{\"nationkey\":0,\"name\":\"ALGERIA\",\"regionkey\":0,\"comment\":\" haggle. carefully final deposits detect slyly agai\"}'");
 
+        // just nested query
+        assertThat(query("SELECT json_query(result, 'lax $[0][0].hits.hits._source') " +
+                format("FROM TABLE(%s.system.raw_query(", catalogName) +
+                "schema => 'tpch', " +
+                "index => 'nation', " +
+                "query => '{\"match\": {\"name\": \"ALGERIA\"}}')) t(result)"))
+                .matches("VALUES VARCHAR '{\"nationkey\":0,\"name\":\"ALGERIA\",\"regionkey\":0,\"comment\":\" haggle. carefully final deposits detect slyly agai\"}'");
+
         // parameters
         Session session = Session.builder(getSession())
                 .addPreparedStatement(
@@ -1987,6 +1995,29 @@ public abstract class BaseOpenSearchConnectorTest
                 "index => 'nation', " +
                 "query => '{\"query\": {\"range\": {\"nationkey\": {\"gte\": 0,\"lte\": 3}}}}')) t(result)"))
                 .matches("VALUES CAST(ARRAY['ALGERIA', 'ARGENTINA', 'BRAZIL', 'CANADA'] AS ARRAY(VARCHAR))");
+
+        List<Integer> querySizeOptions = List.of(1, 2, 5, 10, 1000, 10000);
+
+        for (Integer size : querySizeOptions) {
+            assertThat(query("SELECT array_sort(array_agg(name)) " +
+                    "FROM (SELECT name " +
+                    format("FROM TABLE(%s.system.raw_query(", catalogName) +
+                    "schema => 'tpch', " +
+                    "index => 'orders', " +
+                    "query => '{\"size\": %s,\"query\": {\"range\": {\"orderkey\": {\"gte\": 0,\"lte\": 4}}}}')) t(result), ".formatted(size) +
+                    "UNNEST(CAST(json_parse(json_query(result, 'lax $[*][*].hits.hits[*]._source.clerk' WITH ARRAY WRAPPER)) AS array(varchar))) AS t(name))"))
+                    .matches("VALUES CAST(ARRAY['Clerk#000000124', 'Clerk#000000880', 'Clerk#000000951', 'Clerk#000000955'] AS ARRAY(VARCHAR))");
+        }
+
+        // invalid scroll size
+        assertThat(query("SELECT array_sort(array_agg(name)) " +
+                "FROM (SELECT name " +
+                format("FROM TABLE(%s.system.raw_query(", catalogName) +
+                "schema => 'tpch', " +
+                "index => 'nation', " +
+                "query => '{\"size\": 100000,\"query\": {\"range\": {\"nationkey\": {\"gte\": 0,\"lte\": 3}}}}')) t(result), " +
+                "UNNEST(CAST(json_parse(json_query(result, 'lax $[*][*].hits.hits[*]._source.name' WITH ARRAY WRAPPER)) AS array(varchar))) AS t(name))"))
+                .failure().hasMessageContaining("Batch size is too large");
 
         // use aggregations
         @Language("JSON")
@@ -2022,7 +2053,7 @@ public abstract class BaseOpenSearchConnectorTest
                 "schema => 'tpch', " +
                 "index => 'nation', " +
                 "query => 'wrong syntax')) t(result)"))
-                .failure().hasMessageContaining("json_parse_exception");
+                .failure().hasMessageContaining("Unrecognized token 'wrong': was expecting (JSON String, Number, Array, Object or token 'null', 'true' or 'false')");
     }
 
     @Test

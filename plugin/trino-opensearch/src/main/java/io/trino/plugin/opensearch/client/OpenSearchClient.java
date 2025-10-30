@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.opensearch.client;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.NullNode;
@@ -105,9 +106,11 @@ import static io.trino.plugin.opensearch.OpenSearchErrorCode.OPENSEARCH_SSL_INIT
 import static java.lang.StrictMath.toIntExact;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.opensearch.action.search.SearchType.QUERY_THEN_FETCH;
+import static org.opensearch.index.query.QueryBuilders.wrapperQuery;
 
 public class OpenSearchClient
 {
@@ -140,12 +143,14 @@ public class OpenSearchClient
     private final OpenSearchConfig.SearchStrategy searchStrategy;
     private final boolean isServerlessDeployment;
     private final int maxBuckets;
+    private final ObjectMapper objectMapper;
 
     @Inject
     public OpenSearchClient(
             OpenSearchConfig config,
             Optional<AwsSecurityConfig> awsSecurityConfig,
-            Optional<PasswordConfig> passwordConfig)
+            Optional<PasswordConfig> passwordConfig,
+            ObjectMapper objectMapper)
     {
         this.isServerlessDeployment = awsSecurityConfig.map(awsConfig -> awsConfig.getDeploymentType() == DeploymentType.SERVERLESS)
                 .orElse(false);
@@ -159,6 +164,7 @@ public class OpenSearchClient
         this.tlsEnabled = config.isTlsEnabled();
         this.searchStrategy = config.getSearchStrategy();
         this.maxBuckets = config.getMaxAggregationBuckets();
+        this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
     }
 
     @PostConstruct
@@ -577,6 +583,56 @@ public class OpenSearchClient
             return NullNode.getInstance();
         }
         return jsonNode.get(name);
+    }
+
+    public SearchResponse executeInitialScrollableQuery(String index, String query)
+    {
+        JsonNode root;
+        try {
+            root = objectMapper.readTree(query);
+        }
+        catch (JsonProcessingException e) {
+            throw new TrinoException(OPENSEARCH_INVALID_RESPONSE, e);
+        }
+
+        if (root.has("query")) {
+            query = root.get("query").toString();
+        }
+
+        int size = scrollSize;
+        if (root.has("size")) {
+            size = root.get("size").asInt();
+        }
+
+        long start = System.nanoTime();
+        LOG.debug("Begin scrollable search: %s, query: %s", index, query);
+        try {
+            return client.search(
+                    new SearchRequest(index)
+                            .searchType(QUERY_THEN_FETCH)
+                            .scroll(new TimeValue(scrollTimeout.toMillis()))
+                            .source(
+                                    SearchSourceBuilder.searchSource()
+                                            .size(size)
+                                            .query(wrapperQuery(query))));
+        }
+        catch (IOException e) {
+            throw new TrinoException(OPENSEARCH_CONNECTION_ERROR, e);
+        }
+        catch (OpenSearchStatusException e) {
+            Throwable[] suppressed = e.getSuppressed();
+            if (suppressed.length > 0) {
+                Throwable cause = suppressed[0];
+                if (cause instanceof ResponseException responseException) {
+                    throw propagate(responseException);
+                }
+            }
+
+            throw new TrinoException(OPENSEARCH_CONNECTION_ERROR, e);
+        }
+        finally {
+            searchStats.add(Duration.nanosSince(start));
+        }
     }
 
     public String executeQuery(String index, String query)

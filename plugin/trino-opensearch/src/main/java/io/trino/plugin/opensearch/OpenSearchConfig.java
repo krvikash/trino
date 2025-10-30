@@ -72,6 +72,7 @@ public class OpenSearchConfig
     private boolean verifyHostnames = true;
     private boolean projectionPushDownEnabled = true;
     private boolean aggregationPushdownEnabled = true;
+    private boolean scrollableRawQueryEnabled = true;
     // Opensearch limits/expects the #buckets to be in the Integer range
     private int maxAggregationBuckets = MAX_AGGREGATION_BUCKETS;
 
@@ -378,6 +379,19 @@ public class OpenSearchConfig
     public OpenSearchConfig setAggregationPushdownEnabled(boolean aggregationPushdownEnabled)
     {
         this.aggregationPushdownEnabled = aggregationPushdownEnabled;
+        return this;
+    }
+
+    public boolean isScrollableRawQueryEnabled()
+    {
+        return scrollableRawQueryEnabled;
+    }
+
+    @Config("opensearch.scrollable-query-passthrough-enabled")
+    @ConfigDescription("Enable scrollable raw queries")
+    public OpenSearchConfig setScrollableRawQueryEnabled(boolean scrollableRawQueryEnabled)
+    {
+        this.scrollableRawQueryEnabled = scrollableRawQueryEnabled;
         return this;
     }
 

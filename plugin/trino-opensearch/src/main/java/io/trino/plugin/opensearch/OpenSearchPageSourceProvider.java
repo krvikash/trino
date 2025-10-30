@@ -13,6 +13,8 @@
  */
 package io.trino.plugin.opensearch;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import io.trino.plugin.opensearch.client.OpenSearchClient;
 import io.trino.spi.connector.ColumnHandle;
@@ -25,6 +27,7 @@ import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.type.TypeManager;
 
+import java.io.IOException;
 import java.util.List;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -37,12 +40,16 @@ public class OpenSearchPageSourceProvider
 {
     private final OpenSearchClient client;
     private final TypeManager typeManager;
+    private final boolean scrollableRawQueryEnabled;
+    private final ObjectMapper objectMapper;
 
     @Inject
-    public OpenSearchPageSourceProvider(OpenSearchClient client, TypeManager typeManager)
+    public OpenSearchPageSourceProvider(OpenSearchClient client, TypeManager typeManager, OpenSearchConfig config, ObjectMapper objectMapper)
     {
         this.client = requireNonNull(client, "client is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
+        this.scrollableRawQueryEnabled = config.isScrollableRawQueryEnabled();
+        this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
     }
 
     @Override
@@ -61,6 +68,9 @@ public class OpenSearchPageSourceProvider
         OpenSearchSplit opensearchSplit = (OpenSearchSplit) split;
 
         if (opensearchTable.type().equals(QUERY)) {
+            if (isScrollable(opensearchTable.query().orElseThrow())) {
+                return new ScrollablePassthroughQueryPageSource(client, opensearchTable);
+            }
             return new PassthroughQueryPageSource(client, opensearchTable);
         }
 
@@ -99,5 +109,21 @@ public class OpenSearchPageSourceProvider
                 columns.stream()
                         .map(OpenSearchColumnHandle.class::cast)
                         .collect(toImmutableList()));
+    }
+
+    private boolean isScrollable(String query)
+    {
+        if (!scrollableRawQueryEnabled) {
+            return false;
+        }
+
+        try {
+            JsonNode root = objectMapper.readTree(query);
+            boolean hasAggs = root.has("aggs") || root.has("aggregations");
+            return !hasAggs;
+        }
+        catch (IOException e) {
+            return false;
+        }
     }
 }
