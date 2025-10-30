@@ -39,6 +39,8 @@ import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUTES;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
+import static io.trino.sql.planner.optimizations.ctereuse.ComparatorIgnoringDerivedAttributes.blockComparatorIgnoringDerivedAttributes;
+import static io.trino.sql.planner.optimizations.ctereuse.ComparatorIgnoringDerivedAttributes.operationComparatorIgnoringDerivedAttributes;
 import static io.trino.sql.planner.optimizations.ctereuse.RewriteUtils.extractReferencedFields;
 import static io.trino.sql.planner.optimizations.ctereuse.RewriteUtils.reallocateValues;
 import static io.trino.sql.planner.optimizations.ctereuse.RewriteUtils.rebaseBlock;
@@ -86,11 +88,12 @@ class TestRewriteUtils
         Block.Parameter newParameter = new Block.Parameter("%100", irType(anonymousRow(VARCHAR, BIGINT)));
         // remap field reference so that is uses the new parameter and the remapped field index. The operation result remains the same (%0)
         FieldReference newFieldReferenceOperation = new FieldReference("%0", newParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        assertThat(rebaseBlock(blockWithFieldReference, anonymousRow(VARCHAR, BIGINT), new FieldMapping(ImmutableMap.of(2, 0, 0, 1)), new ProgramBuilder.ValueNameAllocator(100)))
-                .isEqualTo(Optional.of(new Block(
+        assertThat(rebaseBlock(blockWithFieldReference, anonymousRow(VARCHAR, BIGINT), new FieldMapping(ImmutableMap.of(2, 0, 0, 1)), new ProgramBuilder.ValueNameAllocator(100)).orElseThrow())
+                .usingComparator(blockComparatorIgnoringDerivedAttributes())
+                .isEqualTo(new Block(
                         Optional.of("^block_with_field_reference"),
                         ImmutableList.of(newParameter),
-                        ImmutableList.of(newFieldReferenceOperation, returnOperation))));
+                        ImmutableList.of(newFieldReferenceOperation, returnOperation)));
     }
 
     @Test
@@ -124,11 +127,12 @@ class TestRewriteUtils
                         ImmutableList.of(
                                 newNestedFieldReference,
                                 nestedReturn)));
-        assertThat(rebaseBlock(blockWithNestedFieldReference, anonymousRow(VARCHAR, BIGINT), new FieldMapping(ImmutableMap.of(2, 0, 0, 1)), new ProgramBuilder.ValueNameAllocator(100)))
-                .isEqualTo(Optional.of(new Block(
+        assertThat(rebaseBlock(blockWithNestedFieldReference, anonymousRow(VARCHAR, BIGINT), new FieldMapping(ImmutableMap.of(2, 0, 0, 1)), new ProgramBuilder.ValueNameAllocator(100)).orElseThrow())
+                .usingComparator(blockComparatorIgnoringDerivedAttributes())
+                .isEqualTo(new Block(
                         Optional.of("^block_with_nested_field_reference"),
                         ImmutableList.of(newParameter),
-                        ImmutableList.of(newLambdaOperation, returnOperation))));
+                        ImmutableList.of(newLambdaOperation, returnOperation)));
     }
 
     @Test
@@ -162,11 +166,12 @@ class TestRewriteUtils
         Block.Parameter newParameter = new Block.Parameter("%100", irType(anonymousRow(BIGINT, BOOLEAN, BIGINT)));
         // remap field reference so that is uses the new parameter and the remapped field index. The operation result remains the same (%0)
         FieldReference newFieldReferenceOperation = new FieldReference("%0", newParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        assertThat(rebaseBlock(blockWithFieldReference, anonymousRow(BIGINT, BOOLEAN, BIGINT), new FieldMapping(ImmutableMap.of(2, 0, 0, 2, 1, 1)), new ProgramBuilder.ValueNameAllocator(100)))
-                .isEqualTo(Optional.of(new Block(
+        assertThat(rebaseBlock(blockWithFieldReference, anonymousRow(BIGINT, BOOLEAN, BIGINT), new FieldMapping(ImmutableMap.of(2, 0, 0, 2, 1, 1)), new ProgramBuilder.ValueNameAllocator(100)).orElseThrow())
+                .usingComparator(blockComparatorIgnoringDerivedAttributes())
+                .isEqualTo(new Block(
                         Optional.of("^block_with_field_reference"),
                         ImmutableList.of(newParameter),
-                        ImmutableList.of(newFieldReferenceOperation, returnOperation))));
+                        ImmutableList.of(newFieldReferenceOperation, returnOperation)));
     }
 
     @Test
@@ -183,11 +188,12 @@ class TestRewriteUtils
         Block.Parameter newParameter = new Block.Parameter("%100", irType(anonymousRow(VARCHAR, BIGINT, SMALLINT, DOUBLE)));
         // remap field reference so that is uses the new parameter and the remapped field index. The operation result remains the same (%0)
         FieldReference newFieldReferenceOperation = new FieldReference("%0", newParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        assertThat(rebaseBlock(blockWithFieldReference, anonymousRow(VARCHAR, BIGINT, SMALLINT, DOUBLE), new FieldMapping(ImmutableMap.of(2, 0, 0, 1)), new ProgramBuilder.ValueNameAllocator(100)))
-                .isEqualTo(Optional.of(new Block(
+        assertThat(rebaseBlock(blockWithFieldReference, anonymousRow(VARCHAR, BIGINT, SMALLINT, DOUBLE), new FieldMapping(ImmutableMap.of(2, 0, 0, 1)), new ProgramBuilder.ValueNameAllocator(100)).orElseThrow())
+                .usingComparator(blockComparatorIgnoringDerivedAttributes())
+                .isEqualTo(new Block(
                         Optional.of("^block_with_field_reference"),
                         ImmutableList.of(newParameter),
-                        ImmutableList.of(newFieldReferenceOperation, returnOperation))));
+                        ImmutableList.of(newFieldReferenceOperation, returnOperation)));
     }
 
     @Test
@@ -435,6 +441,7 @@ class TestRewriteUtils
         FieldReference newNestedFieldReference = new FieldReference("%1", newParameter, 2, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         FieldReference newTopLevelFieldReference = new FieldReference("%4", newParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         assertThat(remapParameters(block, ImmutableList.of(newParameter)))
+                .usingComparator(blockComparatorIgnoringDerivedAttributes())
                 .isEqualTo(new Block(
                         Optional.of("^block"),
                         ImmutableList.of(newParameter),
@@ -517,6 +524,7 @@ class TestRewriteUtils
         Row reallocatedRowOperation = new Row("%102", ImmutableList.of(reallocatedFieldReference.result(), reallocatedOuterFieldReference.result()), ImmutableList.of(reallocatedFieldReference.attributes(), reallocatedOuterFieldReference.attributes()));
         Return reallocatedReturnOperation = new Return("%103", reallocatedRowOperation.result(), reallocatedRowOperation.attributes());
         assertThat(reallocateValues(block, new ProgramBuilder.ValueNameAllocator(100)))
+                .usingComparator(blockComparatorIgnoringDerivedAttributes())
                 .isEqualTo(new Block(
                         Optional.of("^block"),
                         ImmutableList.of(PARAMETER),
@@ -573,6 +581,7 @@ class TestRewriteUtils
         Return reallocatedReturnOperation = new Return("%107", reallocatedRowOperation.result(), reallocatedRowOperation.attributes());
 
         assertThat(reallocateValues(block, new ProgramBuilder.ValueNameAllocator(100)))
+                .usingComparator(blockComparatorIgnoringDerivedAttributes())
                 .isEqualTo(new Block(
                         Optional.of("^block"),
                         ImmutableList.of(PARAMETER),
@@ -635,6 +644,7 @@ class TestRewriteUtils
         Value newResult = new Operation.Result("%new_result", irType(VARCHAR));
 
         assertThat(remapValues(lambdaOperation, ImmutableMap.of(nestedFieldReference.result(), newResult)))
+                .usingComparator(operationComparatorIgnoringDerivedAttributes())
                 .isEqualTo(new Lambda(
                         "%0",
                         new Block(

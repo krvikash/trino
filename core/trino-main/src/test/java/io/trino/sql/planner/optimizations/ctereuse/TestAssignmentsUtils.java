@@ -61,6 +61,7 @@ import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.isFie
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.isFullPassthroughFieldSelector;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.isProjectAssignments;
 import static io.trino.sql.planner.optimizations.ctereuse.AssignmentsUtils.isPruningAssignments;
+import static io.trino.sql.planner.optimizations.ctereuse.ComparatorIgnoringDerivedAttributes.blockComparatorIgnoringDerivedAttributes;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -721,6 +722,7 @@ class TestAssignmentsUtils
                 ImmutableList.of(firstFieldReference.attributes(), secondFieldReference.attributes(), thirdFieldReference.attributes(), fourthFieldReference.attributes(), fifthFieldReference.attributes()));
         Return returnOperation = new Return("%10", rowConstructor.result(), rowConstructor.attributes());
         assertThat(concatenateFieldSelectors(ImmutableList.of(FIELD_SELECTOR_WITHOUT_DUPLICATES, FIELD_SELECTOR_WITH_DUPLICATES), new ProgramBuilder.ValueNameAllocator()))
+                .usingComparator(blockComparatorIgnoringDerivedAttributes())
                 .isEqualTo(new Block(
                         // block name and parameters of the first block
                         Optional.of("^fieldSelectorWithoutDuplicates"),
@@ -740,6 +742,7 @@ class TestAssignmentsUtils
                 ImmutableList.of(first.attributes(), second.attributes()));
         Return returnOp = new Return("%5", row.result(), row.attributes());
         assertThat(concatenateFieldSelectors(ImmutableList.of(EMPTY_FIELD_SELECTOR, FIELD_SELECTOR_WITHOUT_DUPLICATES), new ProgramBuilder.ValueNameAllocator()))
+                .usingComparator(blockComparatorIgnoringDerivedAttributes())
                 .isEqualTo(new Block(
                         // block name and parameters of the first block
                         Optional.of("^emptyFieldSelector"),
@@ -838,6 +841,7 @@ class TestAssignmentsUtils
                 ImmutableList.of(outerFieldReference, thirdReturnOperation));
 
         assertThat(getProjectedItems(projectAssignments, new ProgramBuilder.ValueNameAllocator(100)))
+                .usingComparatorForType(blockComparatorIgnoringDerivedAttributes(), Block.class)
                 .isEqualTo(ImmutableList.of(firstProjectedItem, secondProjectedItem, thirdProjectedItem));
 
         // empty assignments
@@ -937,6 +941,7 @@ class TestAssignmentsUtils
                 ImmutableList.of(firstRowConstructorRemapped.attributes(), secondRowConstructorRemapped.attributes()));
         Return finalReturnOperation = new Return("%109", finalRowConstructor.result(), finalRowConstructor.attributes());
         assertThat(composeProjectedItems(ImmutableList.of(FIELD_SELECTOR_WITHOUT_DUPLICATES, COMPLEX_EXPRESSION_ASSIGNMENTS), new ProgramBuilder.ValueNameAllocator(100)))
+                .usingComparator(blockComparatorIgnoringDerivedAttributes())
                 .isEqualTo(new Block(
                         Optional.empty(),
                         // the resulting block has the same parameters as the first component block

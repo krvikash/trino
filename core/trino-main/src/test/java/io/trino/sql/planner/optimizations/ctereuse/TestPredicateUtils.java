@@ -38,6 +38,7 @@ import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUT
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator.AND;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator.OR;
+import static io.trino.sql.planner.optimizations.ctereuse.ComparatorIgnoringDerivedAttributes.blockComparatorIgnoringDerivedAttributes;
 import static io.trino.sql.planner.optimizations.ctereuse.PredicateUtils.booleanNullPredicate;
 import static io.trino.sql.planner.optimizations.ctereuse.PredicateUtils.conjunction;
 import static io.trino.sql.planner.optimizations.ctereuse.PredicateUtils.disjunction;
@@ -148,6 +149,7 @@ public class TestPredicateUtils
         Return returnOperation = new Return("%105", conjunctionOperation.result(), conjunctionOperation.attributes());
 
         assertThat(conjunction(ImmutableList.of(TRUE, FALSE), new ProgramBuilder.ValueNameAllocator(100)))
+                .usingComparator(blockComparatorIgnoringDerivedAttributes())
                 .isEqualTo(new Block(
                         // block name of the first conjunct
                         Optional.of("^true_predicate"),
@@ -201,6 +203,7 @@ public class TestPredicateUtils
         Return returnOperation = new Return("%105", disjunctionOperation.result(), disjunctionOperation.attributes());
 
         assertThat(disjunction(ImmutableList.of(TRUE, FALSE), new ProgramBuilder.ValueNameAllocator(100)))
+                .usingComparator(blockComparatorIgnoringDerivedAttributes())
                 .isEqualTo(new Block(
                         // block name of the first disjunct
                         Optional.of("^true_predicate"),
@@ -258,6 +261,7 @@ public class TestPredicateUtils
         Return secondReturnOperation = new Return("%115", nestedConjunctionOperation.result(), nestedConjunctionOperation.attributes());
 
         assertThat(extractConjuncts(nestedConjunction, nameAllocator))
+                .usingComparatorForType(blockComparatorIgnoringDerivedAttributes(), Block.class)
                 .isEqualTo(ImmutableList.of(
                         // TRUE
                         new Block(
@@ -326,6 +330,7 @@ public class TestPredicateUtils
                 conjunction(ImmutableList.of(TRUE, FALSE), nameAllocator),
                 TRUE,
                 nameAllocator))
+                .usingComparator(blockComparatorIgnoringDerivedAttributes())
                 .isEqualTo(new Block(
                         Optional.of("^true_predicate"),
                         ImmutableList.of(PARAMETER),

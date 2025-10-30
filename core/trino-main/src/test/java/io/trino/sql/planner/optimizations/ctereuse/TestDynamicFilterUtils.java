@@ -42,6 +42,7 @@ import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUT
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator.AND;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator.OR;
+import static io.trino.sql.planner.optimizations.ctereuse.ComparatorIgnoringDerivedAttributes.extractionResultComparatorIgnoringDerivedAttributes;
 import static io.trino.sql.planner.optimizations.ctereuse.DynamicFilterUtils.extractDynamicConjunct;
 import static io.trino.sql.planner.optimizations.ctereuse.DynamicFilterUtils.extractDynamicFilters;
 import static io.trino.sql.planner.optimizations.ctereuse.DynamicFilterUtils.getDynamicFilterId;
@@ -113,11 +114,13 @@ class TestDynamicFilterUtils
                         truePredicate(SINGLE_DYNAMIC_FILTER.name(), SINGLE_DYNAMIC_FILTER.parameters(), new ProgramBuilder.ValueNameAllocator(100))));
 
         assertThat(extractDynamicFilters(DYNAMIC_FILTERS_CONJUNCTION, new ProgramBuilder.ValueNameAllocator(100)))
+                .usingComparator(extractionResultComparatorIgnoringDerivedAttributes())
                 .isEqualTo(new DynamicFilterExtractionResult(
                         getRemappedDynamicFiltersConjunction(),
                         truePredicate(DYNAMIC_FILTERS_CONJUNCTION.name(), DYNAMIC_FILTERS_CONJUNCTION.parameters(), new ProgramBuilder.ValueNameAllocator(118))));
 
         assertThat(extractDynamicFilters(DYNAMIC_AND_STATIC_FILTERS_CONJUNCTION, new ProgramBuilder.ValueNameAllocator(100)))
+                .usingComparator(extractionResultComparatorIgnoringDerivedAttributes())
                 .isEqualTo(new DynamicFilterExtractionResult(
                         getRemappedDynamicFilterConjunct(),
                         getRemappedStaticFilterConjunct()));
@@ -227,11 +230,13 @@ class TestDynamicFilterUtils
                         truePredicate(SINGLE_DYNAMIC_FILTER.name(), SINGLE_DYNAMIC_FILTER.parameters(), new ProgramBuilder.ValueNameAllocator(100))));
 
         assertThat(extractDynamicConjunct(DYNAMIC_FILTERS_CONJUNCTION, new ProgramBuilder.ValueNameAllocator(100)))
+                .usingComparator(extractionResultComparatorIgnoringDerivedAttributes())
                 .isEqualTo(new DynamicFilterExtractionResult(
                         getRemappedDynamicFiltersConjunction(),
                         truePredicate(DYNAMIC_FILTERS_CONJUNCTION.name(), DYNAMIC_FILTERS_CONJUNCTION.parameters(), new ProgramBuilder.ValueNameAllocator(118))));
 
         assertThat(extractDynamicConjunct(DYNAMIC_AND_STATIC_FILTERS_CONJUNCTION, new ProgramBuilder.ValueNameAllocator(100)))
+                .usingComparator(extractionResultComparatorIgnoringDerivedAttributes())
                 .isEqualTo(new DynamicFilterExtractionResult(
                         getRemappedDynamicFilterConjunct(),
                         getRemappedStaticFilterConjunct()));
@@ -240,6 +245,7 @@ class TestDynamicFilterUtils
                 .hasMessage("expected block returning boolean");
 
         assertThat(extractDynamicConjunct(DYNAMIC_FILTER_DISJUNCTION, new ProgramBuilder.ValueNameAllocator(100)))
+                .usingComparator(extractionResultComparatorIgnoringDerivedAttributes())
                 .isEqualTo(new DynamicFilterExtractionResult(
                         getMinimalDynamicFilterConjunct(),
                         getMaximalStaticFilterConjunct()));
