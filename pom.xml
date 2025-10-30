@@ -173,7 +173,7 @@
 
     <properties>
         <revision>477-cork-20251014-SNAPSHOT</revision>
-        <project.build.targetJdk>24</project.build.targetJdk>
+        <project.build.targetJdk>25</project.build.targetJdk>
         <!-- for reproducible build support, updated by release plugin -->
         <project.build.outputTimestamp>2025-08-25T22:07:52Z</project.build.outputTimestamp>
         <!-- TODO remove this property when no module overrides it -->
@@ -182,7 +182,7 @@
         <air.check.skip-spotbugs>true</air.check.skip-spotbugs>
         <air.check.skip-pmd>true</air.check.skip-pmd>
         <air.check.skip-jacoco>true</air.check.skip-jacoco>
-        <air.java.version>24.0.1</air.java.version>
+        <air.java.version>25.0.1</air.java.version>
         <air.javadoc.lint>syntax,reference,html,-missing</air.javadoc.lint>
         <air.modernizer.java-version>8</air.modernizer.java-version>
         <air.release.preparation-goals>clean verify -DskipTests</air.release.preparation-goals>
@@ -3401,11 +3401,6 @@
 
         <profile>
             <id>errorprone-compiler</id>
-            <properties>
-                <!-- set java target to 25 to enable incubator linking -->
-                <project.build.targetJdk>25</project.build.targetJdk>
-                <air.java.version>25.0.0</air.java.version>
-            </properties>
             <build>
                 <plugins>
                     <plugin>
