@@ -42,7 +42,7 @@ import static org.apache.arrow.vector.compression.CompressionUtil.CodecType.ZSTD
 public class ArrowQueryDataEncoder
         implements QueryDataEncoder
 {
-    private static final String ENCODING = "arrow";
+    private static final String ENCODING = "arrow-preview";
 
     private final BufferAllocator allocator;
     private final CompressionCodec.Factory compressionFactory;

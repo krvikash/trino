@@ -29,6 +29,6 @@ public class TestArrowSpooledDistributedQueries
     @Override
     protected String encoding()
     {
-        return "arrow";
+        return "arrow-preview";
     }
 }

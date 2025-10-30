@@ -29,6 +29,6 @@ public class TestArrowZstdSpooledDistributedQueries
     @Override
     protected String encoding()
     {
-        return "arrow+zstd";
+        return "arrow-preview+zstd";
     }
 }

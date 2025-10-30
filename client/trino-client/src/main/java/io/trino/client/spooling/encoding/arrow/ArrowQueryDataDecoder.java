@@ -42,7 +42,7 @@ import static java.util.UUID.randomUUID;
 public class ArrowQueryDataDecoder
         implements QueryDataDecoder
 {
-    private static final String ENCODING = "arrow";
+    private static final String ENCODING = "arrow-preview";
 
     private static final BufferAllocator ROOT_ALLOCATOR = new RootAllocator(128 * 1024 * 1024);
     private final List<Column> columns;
