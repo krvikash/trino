@@ -164,7 +164,7 @@ public final class DistributedQueryRunner
             extraCoordinatorProperties.putAll(extraProperties);
             extraCoordinatorProperties.putAll(coordinatorProperties);
 
-            if (!extraCoordinatorProperties.containsKey("web-ui.authentication.type")) {
+            if (!extraCoordinatorProperties.containsKey("web-ui.authentication.type") && !"false".equalsIgnoreCase(extraCoordinatorProperties.get("web-ui.enabled"))) {
                 // Make it possible to use Trino UI when running multiple tests (or tests and SomeQueryRunner.main) at once.
                 // This is necessary since cookies are shared (don't discern port number) and logging into one instance logs you out from others.
                 extraCoordinatorProperties.put("web-ui.authentication.type", "fixed");
