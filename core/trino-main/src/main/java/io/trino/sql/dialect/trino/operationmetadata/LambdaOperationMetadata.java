@@ -14,8 +14,16 @@
 package io.trino.sql.dialect.trino.operationmetadata;
 
 import com.google.common.collect.ImmutableSet;
+import io.trino.sql.newir.Operation.AttributeKey;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.passIrLevelAttributes;
 
 public class LambdaOperationMetadata
         implements TrinoOperationMetadata
@@ -32,5 +40,18 @@ public class LambdaOperationMetadata
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of();
+    }
+
+    @Override
+    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> attributeDerivation()
+    {
+        return LambdaOperationMetadata::deriveAttributes;
+    }
+
+    public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
+    {
+        checkArgument(childAttributes.size() == 1, "Lambda operation must have exactly one child attributes map");
+
+        return passIrLevelAttributes(getOnlyElement(childAttributes));
     }
 }

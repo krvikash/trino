@@ -34,6 +34,7 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
+import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUTES;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelectorReturningAtMostOneField;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
@@ -165,13 +166,24 @@ public class AggregateCall
             throw new TrinoException(IR_ERROR, "ordering fields and sort orders for AggregateCall do not match in size");
         }
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        sortOrders.ifPresent(orders -> SORT_ORDERS.putAttribute(attributes, orders));
-        RESOLVED_FUNCTION.putAttribute(attributes, function);
-        DISTINCT.putAttribute(attributes, distinct);
-        AGGREGATION_STEP.putAttribute(attributes, step);
+        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        sortOrders.ifPresent(orders -> SORT_ORDERS.putAttribute(operationAttributesBuilder, orders));
+        RESOLVED_FUNCTION.putAttribute(operationAttributesBuilder, function);
+        DISTINCT.putAttribute(operationAttributesBuilder, distinct);
+        AGGREGATION_STEP.putAttribute(operationAttributesBuilder, step);
+        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        // TODO: derive attributes from input attributes; derive attributes from ResolvedFunction
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(AggregateCallOperationMetadata.deriveAttributes(
+                operationAttributes,
+                ImmutableList.of(
+                        DEFAULT_BLOCK_PARAMETER_ATTRIBUTES, // group input
+                        arguments.getTerminalOperation().attributes(),
+                        filterSelector.getTerminalOperation().attributes(),
+                        maskSelector.getTerminalOperation().attributes(),
+                        orderingSelector.getTerminalOperation().attributes())));
+
         this.attributes = attributes.buildOrThrow();
     }
 

@@ -105,8 +105,13 @@ public class GroupId
 
         this.result = new Result(resultName, irType(new MultisetType(RowType.anonymous(outputTypes.build()))));
 
-        // TODO derive attributes from source attributes
-        this.attributes = GROUPING_SETS.asMap(groupingSets);
+        Map<AttributeKey, Object> operationAttributes = GROUPING_SETS.asMap(groupingSets);
+
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(GroupIdOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes, groupingColumnsSelector.getTerminalOperation().attributes(), aggregationArgumentsSelector.getTerminalOperation().attributes())));
+
+        this.attributes = attributes.buildOrThrow();
     }
 
     @Override

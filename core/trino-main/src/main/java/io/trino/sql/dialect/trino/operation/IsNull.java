@@ -15,6 +15,7 @@ package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import io.trino.sql.dialect.trino.operationmetadata.IsNullOperationMetadata;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -47,8 +48,7 @@ public final class IsNull
 
         this.input = input;
 
-        // TODO derive attributes from source attributes
-        this.attributes = ImmutableMap.of();
+        this.attributes = IsNullOperationMetadata.deriveAttributes(ImmutableMap.of(), ImmutableList.of(sourceAttributes));
     }
 
     @Override

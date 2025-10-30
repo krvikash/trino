@@ -67,7 +67,13 @@ public class ExplainAnalyze
         validateRowSelector(fieldSelector, relationRowType(trinoType(input.type())), "invalid field selection for ExplainAnalyze operation");
         this.fieldSelector = singleBlockRegion(fieldSelector);
 
-        this.attributes = VERBOSE.asMap(verbose);
+        Map<AttributeKey, Object> operationAttributes = VERBOSE.asMap(verbose);
+
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(ExplainAnalyzeOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes, fieldSelector.getTerminalOperation().attributes())));
+
+        this.attributes = attributes.buildOrThrow();
     }
 
     @Override

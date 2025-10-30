@@ -19,6 +19,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
+import io.trino.sql.dialect.trino.operationmetadata.ProjectOperationMetadata;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -74,7 +75,7 @@ public final class Project
         }
         this.result = new Result(resultName, irType(resultType));
 
-        this.attributes = ImmutableMap.of(); // TODO
+        this.attributes = ProjectOperationMetadata.deriveAttributes(ImmutableMap.of(), ImmutableList.of(sourceAttributes, assignments.getTerminalOperation().attributes()));
     }
 
     @Override

@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.RowType;
+import io.trino.sql.dialect.trino.operationmetadata.LambdaOperationMetadata;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -44,6 +45,7 @@ public final class Lambda
 {
     private final Result result;
     private final Region lambda;
+    private final Map<AttributeKey, Object> attributes;
 
     public Lambda(String resultName, Block lambda)
     {
@@ -63,6 +65,8 @@ public final class Lambda
                 trinoType(lambda.getReturnedType()));
 
         this.result = new Result(resultName, irType(resultType));
+
+        this.attributes = LambdaOperationMetadata.deriveAttributes(ImmutableMap.of(), ImmutableList.of(lambda.getTerminalOperation().attributes()));
     }
 
     @Override
@@ -86,7 +90,7 @@ public final class Lambda
     @Override
     public Map<AttributeKey, Object> attributes()
     {
-        return ImmutableMap.of();
+        return attributes;
     }
 
     @Override

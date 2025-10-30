@@ -120,16 +120,19 @@ public class Aggregation
                     }
                 });
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        GROUPING_SETS_COUNT.putAttribute(attributes, groupingSetCount);
-        GLOBAL_GROUPING_SETS.putAttribute(attributes, globalGroupingSets);
-        groupIdIndex.ifPresent(index -> GROUP_ID_INDEX.putAttribute(attributes, index));
-        PRE_GROUPED_INDEXES.putAttribute(attributes, preGroupedIndexes);
-        AGGREGATION_STEP.putAttribute(attributes, step);
-        INPUT_REDUCING.putAttribute(attributes, isInputReducing);
+        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        GROUPING_SETS_COUNT.putAttribute(operationAttributesBuilder, groupingSetCount);
+        GLOBAL_GROUPING_SETS.putAttribute(operationAttributesBuilder, globalGroupingSets);
+        groupIdIndex.ifPresent(index -> GROUP_ID_INDEX.putAttribute(operationAttributesBuilder, index));
+        PRE_GROUPED_INDEXES.putAttribute(operationAttributesBuilder, preGroupedIndexes);
+        AGGREGATION_STEP.putAttribute(operationAttributesBuilder, step);
+        INPUT_REDUCING.putAttribute(operationAttributesBuilder, isInputReducing);
+        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        // TODO derive attributes from source attributes
-        // TODO add more external attributes based on AggregationNode, for example: produces distinct rows, is decomposable,...
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(AggregationOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes, aggregateCalls.getTerminalOperation().attributes(), groupingKeysSelector.getTerminalOperation().attributes())));
+
         this.attributes = attributes.buildOrThrow();
     }
 

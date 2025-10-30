@@ -62,8 +62,13 @@ public final class FieldReference
 
         this.base = base;
 
-        // TODO add source attributes for the selected field
-        this.attributes = FIELD_INDEX.asMap(fieldIndex);
+        Map<AttributeKey, Object> operationAttributes = FIELD_INDEX.asMap(fieldIndex);
+
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(FieldReferenceOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes)));
+
+        this.attributes = attributes.buildOrThrow();
     }
 
     @Override

@@ -16,9 +16,15 @@ package io.trino.sql.dialect.trino.operationmetadata;
 import com.google.common.collect.ImmutableSet;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
 import io.trino.sql.ir.Comparison;
+import io.trino.sql.newir.Operation.AttributeKey;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultDeriveIrLevelAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalEnumAttributeMetadata;
 
 public class ComparisonOperationMetadata
@@ -42,6 +48,19 @@ public class ComparisonOperationMetadata
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of(COMPARISON_OPERATOR_ATTRIBUTE_METADATA);
+    }
+
+    @Override
+    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> attributeDerivation()
+    {
+        return ComparisonOperationMetadata::deriveAttributes;
+    }
+
+    public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
+    {
+        checkArgument(childAttributes.size() == 2, "Comparison operation must have exactly two child attributes maps");
+
+        return defaultDeriveIrLevelAttributes(childAttributes);
     }
 
     public enum ComparisonOperator

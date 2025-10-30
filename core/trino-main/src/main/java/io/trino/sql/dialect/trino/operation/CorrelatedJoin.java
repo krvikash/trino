@@ -102,8 +102,19 @@ public final class CorrelatedJoin
         validatePredicate(filter, relationRowType(trinoType(input.type())), relationRowType(trinoType(subquery.getReturnedType())), "invalid filter for CorrelatedJoin operation");
         this.filter = singleBlockRegion(filter);
 
-        // TODO derive attributes
-        this.attributes = JOIN_TYPE.asMap(joinType);
+        Map<AttributeKey, Object> operationAttributes = JOIN_TYPE.asMap(joinType);
+
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(CorrelatedJoinOperationMetadata.deriveAttributes(
+                operationAttributes,
+                ImmutableList.of(
+                        sourceAttributes,
+                        correlation.getTerminalOperation().attributes(),
+                        subquery.getTerminalOperation().attributes(),
+                        filter.getTerminalOperation().attributes())));
+
+        this.attributes = attributes.buildOrThrow();
     }
 
     @Override

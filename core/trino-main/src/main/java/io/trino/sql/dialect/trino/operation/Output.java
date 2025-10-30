@@ -30,7 +30,7 @@ import java.util.Map;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
-import static io.trino.sql.dialect.ir.IrDialect.terminalOperation;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.terminalOperation;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
@@ -75,11 +75,16 @@ public final class Output
 
         this.fieldSelector = singleBlockRegion(fieldSelector);
 
-        ImmutableMap.Builder<AttributeKey, Object> attributesBuilder = ImmutableMap.builder();
-        COLUMN_NAMES.putAttribute(attributesBuilder, outputNames);
-        terminalOperation(attributesBuilder);
+        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        COLUMN_NAMES.putAttribute(operationAttributesBuilder, outputNames);
+        terminalOperation(operationAttributesBuilder);
+        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        this.attributes = attributesBuilder.buildOrThrow();
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(OutputOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes, fieldSelector.getTerminalOperation().attributes())));
+
+        this.attributes = attributes.buildOrThrow();
     }
 
     @Override

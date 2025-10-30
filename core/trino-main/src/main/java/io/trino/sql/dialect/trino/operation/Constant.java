@@ -14,6 +14,7 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata;
@@ -44,7 +45,13 @@ public final class Constant
 
         this.result = new Result(resultName, irType(type));
 
-        this.attributes = CONSTANT_VALUE.asMap(new NullableValue(type, value));
+        Map<AttributeKey, Object> operationAttributes = CONSTANT_VALUE.asMap(new NullableValue(type, value));
+
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(ConstantOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of()));
+
+        this.attributes = attributes.buildOrThrow();
     }
 
     @Override

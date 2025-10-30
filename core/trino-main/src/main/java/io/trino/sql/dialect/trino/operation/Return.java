@@ -15,6 +15,7 @@ package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import io.trino.sql.dialect.trino.operationmetadata.ReturnOperationMetadata;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -23,7 +24,7 @@ import io.trino.sql.newir.Value;
 import java.util.List;
 import java.util.Map;
 
-import static io.trino.sql.dialect.ir.IrDialect.terminalOperation;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.terminalOperation;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.operationmetadata.ReturnOperationMetadata.NAME;
 import static java.util.Objects.requireNonNull;
@@ -46,7 +47,13 @@ public final class Return
 
         this.input = input;
 
-        this.attributes = terminalOperation(); // TODO pass relevant attributes (skip attrs like join type)
+        Map<AttributeKey, Object> operationAttributes = terminalOperation();
+
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(ReturnOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes)));
+
+        this.attributes = attributes.buildOrThrow();
     }
 
     @Override

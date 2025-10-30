@@ -182,18 +182,30 @@ public class Exchange
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), inputs.size()));
         }
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        EXCHANGE_TYPE.putAttribute(attributes, type);
-        EXCHANGE_SCOPE.putAttribute(attributes, scope);
-        PARTITIONING_HANDLE.putAttribute(attributes, partitioningHandle);
-        NULLABLE_VALUES.putAttribute(attributes, partitioningBoundValues);
-        REPLICATE_NULLS_AND_ANY.putAttribute(attributes, partitioningReplicateNullsAndAny);
-        partitioningBucketToPartition.ifPresent(bucketToPartition -> BUCKET_TO_PARTITION.putAttribute(attributes, bucketToPartition));
-        partitionCount.ifPresent(count -> PARTITION_COUNT.putAttribute(attributes, count));
-        bucketCount.ifPresent(count -> BUCKET_COUNT.putAttribute(attributes, count));
-        sortOrders.ifPresent(orders -> SORT_ORDERS.putAttribute(attributes, orders));
+        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        EXCHANGE_TYPE.putAttribute(operationAttributesBuilder, type);
+        EXCHANGE_SCOPE.putAttribute(operationAttributesBuilder, scope);
+        PARTITIONING_HANDLE.putAttribute(operationAttributesBuilder, partitioningHandle);
+        NULLABLE_VALUES.putAttribute(operationAttributesBuilder, partitioningBoundValues);
+        REPLICATE_NULLS_AND_ANY.putAttribute(operationAttributesBuilder, partitioningReplicateNullsAndAny);
+        partitioningBucketToPartition.ifPresent(bucketToPartition -> BUCKET_TO_PARTITION.putAttribute(operationAttributesBuilder, bucketToPartition));
+        partitionCount.ifPresent(count -> PARTITION_COUNT.putAttribute(operationAttributesBuilder, count));
+        bucketCount.ifPresent(count -> BUCKET_COUNT.putAttribute(operationAttributesBuilder, count));
+        sortOrders.ifPresent(orders -> SORT_ORDERS.putAttribute(operationAttributesBuilder, orders));
+        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        // TODO derive attributes from source attributes
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        ImmutableList.Builder<Map<AttributeKey, Object>> childAttributes = ImmutableList.builder();
+        childAttributes.addAll(sourceAttributes);
+        inputFieldSelectors.stream()
+                .map(Block::getTerminalOperation)
+                .map(Operation::attributes)
+                .forEach(childAttributes::add);
+        childAttributes.add(partitioningBoundArguments.getTerminalOperation().attributes());
+        childAttributes.add(orderingSelector.getTerminalOperation().attributes());
+        attributes.putAll(ExchangeOperationMetadata.deriveAttributes(operationAttributes, childAttributes.build()));
+
         this.attributes = attributes.buildOrThrow();
     }
 

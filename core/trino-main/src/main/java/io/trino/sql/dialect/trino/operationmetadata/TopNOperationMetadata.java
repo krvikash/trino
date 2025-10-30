@@ -16,10 +16,16 @@ package io.trino.sql.dialect.trino.operationmetadata;
 import com.google.common.collect.ImmutableSet;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.planner.plan.TopNNode;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultDeriveIrLevelAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalEnumAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalLongAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalSortOrderListAttributeMetadata;
@@ -52,6 +58,19 @@ public class TopNOperationMetadata
                 SORT_ORDERS_ATTRIBUTE_METADATA,
                 LIMIT_ATTRIBUTE_METADATA,
                 TOP_N_STEP_ATTRIBUTE_METADATA);
+    }
+
+    @Override
+    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> attributeDerivation()
+    {
+        return TopNOperationMetadata::deriveAttributes;
+    }
+
+    public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
+    {
+        checkArgument(childAttributes.size() == 2, "TopN operation must have exactly two child attributes maps: one for the input, and one for the ordering selector");
+
+        return defaultDeriveIrLevelAttributes(childAttributes);
     }
 
     public enum TopNStep

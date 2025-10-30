@@ -17,10 +17,16 @@ import com.google.common.collect.ImmutableSet;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.planner.plan.FrameBoundType;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultDeriveFunctionCallIrLevelAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalBooleanAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalEnumAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalResolvedFunctionAttributeMetadata;
@@ -73,6 +79,20 @@ public class WindowFunctionCallOperationMetadata
                 FRAME_END_TYPE_ATTRIBUTE_METADATA,
                 IGNORE_NULLS_ATTRIBUTE_METADATA,
                 DISTINCT_ATTRIBUTE_METADATA);
+    }
+
+    @Override
+    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> attributeDerivation()
+    {
+        return WindowFunctionCallOperationMetadata::deriveAttributes;
+    }
+
+    public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
+    {
+        checkArgument(childAttributes.size() == 7, "WindowFunctionCall operation must have exactly seven child attributes maps: one for the input, and one for each of the six regions");
+
+        ResolvedFunction resolvedFunction = RESOLVED_FUNCTION.getAttribute(currentAttributes);
+        return defaultDeriveFunctionCallIrLevelAttributes(resolvedFunction, childAttributes);
     }
 
     public enum WindowFrameType

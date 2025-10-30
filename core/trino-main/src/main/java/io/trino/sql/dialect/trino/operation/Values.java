@@ -14,6 +14,7 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
@@ -21,6 +22,7 @@ import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.ValuesOperationMetadata;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
+import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
@@ -80,7 +82,13 @@ public final class Values
                 .collect(toImmutableList());
         // TODO all Blocks representing rows could be combined into one Block returning a multiset<Row>
 
-        this.attributes = CARDINALITY.asMap((long) rows.size());
+        Map<AttributeKey, Object> operationAttributes = CARDINALITY.asMap((long) rows.size());
+
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(ValuesOperationMetadata.deriveAttributes(operationAttributes, rows.stream().map(Block::getTerminalOperation).map(Operation::attributes).collect(toImmutableList())));
+
+        this.attributes = attributes.buildOrThrow();
     }
 
     private Values(String resultName, int rows)
@@ -96,7 +104,13 @@ public final class Values
 
         this.rows = ImmutableList.of();
 
-        this.attributes = CARDINALITY.asMap((long) rows);
+        Map<AttributeKey, Object> operationAttributes = CARDINALITY.asMap((long) rows);
+
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(ValuesOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of()));
+
+        this.attributes = attributes.buildOrThrow();
     }
 
     public static Values valuesWithoutFields(String resultName, int rows)

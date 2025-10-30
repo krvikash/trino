@@ -16,6 +16,7 @@ package io.trino.sql.dialect.trino.operation;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
+import io.trino.sql.dialect.trino.operationmetadata.QueryOperationMetadata;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -29,7 +30,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
-import static io.trino.sql.dialect.ir.IrDialect.terminalOperation;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.terminalOperation;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.operationmetadata.QueryOperationMetadata.NAME;
@@ -41,6 +42,7 @@ public final class Query
 {
     private final Result result;
     private final Region query;
+    private final Map<AttributeKey, Object> attributes;
 
     public Query(String resultName, Block query)
     {
@@ -54,6 +56,14 @@ public final class Query
             throw new TrinoException(IR_ERROR, "query block must end in Output operation");
         }
         this.query = singleBlockRegion(query);
+
+        Map<AttributeKey, Object> operationAttributes = terminalOperation();
+
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(QueryOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(query.getTerminalOperation().attributes())));
+
+        this.attributes = attributes.buildOrThrow();
     }
 
     @Override
@@ -77,7 +87,7 @@ public final class Query
     @Override
     public Map<AttributeKey, Object> attributes()
     {
-        return terminalOperation();
+        return attributes;
     }
 
     @Override

@@ -94,13 +94,17 @@ public class Limit
             throw new TrinoException(IR_ERROR, "invalid count for limit operation");
         }
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        sortOrders.ifPresent(orders -> SORT_ORDERS.putAttribute(attributes, orders));
-        COUNT.putAttribute(attributes, count);
-        PARTIAL.putAttribute(attributes, partial);
-        PRE_SORTED_INDEXES.putAttribute(attributes, preSortedIndexes);
+        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        sortOrders.ifPresent(orders -> SORT_ORDERS.putAttribute(operationAttributesBuilder, orders));
+        COUNT.putAttribute(operationAttributesBuilder, count);
+        PARTIAL.putAttribute(operationAttributesBuilder, partial);
+        PRE_SORTED_INDEXES.putAttribute(operationAttributesBuilder, preSortedIndexes);
+        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        // TODO derive attributes from source attributes
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(LimitOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes, orderingSelector.getTerminalOperation().attributes())));
+
         this.attributes = attributes.buildOrThrow();
     }
 

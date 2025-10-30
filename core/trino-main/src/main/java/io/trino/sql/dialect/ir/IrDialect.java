@@ -159,16 +159,6 @@ public class IrDialect
         throw new UnsupportedOperationException("the ir dialect does not support any types");
     }
 
-    public static void terminalOperation(ImmutableMap.Builder<AttributeKey, Object> builder)
-    {
-        builder.put(new AttributeKey(IR, TERMINAL), true);
-    }
-
-    public static Map<AttributeKey, Object> terminalOperation()
-    {
-        return ImmutableMap.of(new AttributeKey(IR, TERMINAL), true);
-    }
-
     public enum Repeatability
     {
         // The operation always produces the same output for the same input.

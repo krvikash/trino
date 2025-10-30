@@ -13,13 +13,27 @@
  */
 package io.trino.sql.dialect.trino.operationmetadata;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.trino.sql.dialect.ir.IrAttributeUtils;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Operation.AttributeKey;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.deterministic;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.hasNoSideEffects;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.hasSideEffects;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.isKnownDeterministic;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.nonIdempotent;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.safe;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.unsafe;
+import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.getRepeatabilityAttribute;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalBooleanAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalIntegerListAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalLongAttributeMetadata;
@@ -56,5 +70,51 @@ public class LimitOperationMetadata
                 COUNT_ATTRIBUTE_METADATA,
                 PARTIAL_ATTRIBUTE_METADATA,
                 PRE_SORTED_INDEXES_ATTRIBUTE_METADATA);
+    }
+
+    @Override
+    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> attributeDerivation()
+    {
+        return LimitOperationMetadata::deriveAttributes;
+    }
+
+    public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
+    {
+        checkArgument(childAttributes.size() == 2, "Limit operation must have exactly two child attributes maps: one for the input, and one for the ordering selector");
+
+        ImmutableMap.Builder<AttributeKey, Object> derivedAttributes = ImmutableMap.builder();
+
+        boolean isWithTies = SORT_ORDERS.getAttribute(currentAttributes) != null;
+        if (isWithTies) {
+            if (childAttributes.stream().allMatch(IrAttributeUtils::isKnownDeterministic)) {
+                deterministic(derivedAttributes);
+            }
+        }
+        else {
+            Map<AttributeKey, Object> inputAttributes = childAttributes.getFirst();
+            // Limit operation without ties is non-idempotent in that it might return arbitrary subset of rows from its input
+            if (isKnownDeterministic(inputAttributes)) {
+                nonIdempotent(derivedAttributes);
+            }
+            else {
+                derivedAttributes.putAll(getRepeatabilityAttribute(inputAttributes));
+            }
+        }
+
+        if (childAttributes.stream().allMatch(IrAttributeUtils::isKnownSafe)) {
+            safe(derivedAttributes);
+        }
+        else if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownUnsafe)) {
+            unsafe(derivedAttributes);
+        }
+
+        if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownHasSideEffects)) {
+            hasSideEffects(derivedAttributes);
+        }
+        else if (childAttributes.stream().allMatch(IrAttributeUtils::isKnownHasNoSideEffects)) {
+            hasNoSideEffects(derivedAttributes);
+        }
+
+        return derivedAttributes.buildOrThrow();
     }
 }

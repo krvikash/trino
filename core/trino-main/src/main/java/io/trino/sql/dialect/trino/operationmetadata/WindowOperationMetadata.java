@@ -16,10 +16,15 @@ package io.trino.sql.dialect.trino.operationmetadata;
 import com.google.common.collect.ImmutableSet;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Operation.AttributeKey;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultDeriveIrLevelAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalIntegerAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalIntegerListAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalSortOrderListAttributeMetadata;
@@ -52,5 +57,18 @@ public class WindowOperationMetadata
                 PRE_PARTITIONED_INDEXES_ATTRIBUTE_METADATA,
                 SORT_ORDERS_ATTRIBUTE_METADATA,
                 PRE_SORTED_PREFIX_ATTRIBUTE_METADATA);
+    }
+
+    @Override
+    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> attributeDerivation()
+    {
+        return WindowOperationMetadata::deriveAttributes;
+    }
+
+    public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
+    {
+        checkArgument(childAttributes.size() == 4, "Window operation must have exactly four child attributes maps: one for the input, and one for each of the three regions");
+
+        return defaultDeriveIrLevelAttributes(childAttributes);
     }
 }

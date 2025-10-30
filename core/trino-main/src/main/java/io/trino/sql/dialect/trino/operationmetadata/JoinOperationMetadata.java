@@ -17,11 +17,16 @@ import com.google.common.collect.ImmutableSet;
 import io.airlift.json.JsonCodecFactory;
 import io.trino.cost.PlanNodeStatsAndCostSummary;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.planner.plan.JoinNode;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultDeriveIrLevelAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalBooleanAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalEnumAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalObjectAttributeMetadata;
@@ -70,6 +75,19 @@ public class JoinOperationMetadata
                 SPILLABLE_ATTRIBUTE_METADATA,
                 DYNAMIC_FILTER_IDS_ATTRIBUTE_METADATA,
                 STATISTICS_AND_COST_SUMMARY_ATTRIBUTE_METADATA);
+    }
+
+    @Override
+    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> attributeDerivation()
+    {
+        return JoinOperationMetadata::deriveAttributes;
+    }
+
+    public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
+    {
+        checkArgument(childAttributes.size() == 8, "Join operation must have exactly eight child attributes maps: two for the inputs, and one for each of the six regions");
+
+        return defaultDeriveIrLevelAttributes(childAttributes);
     }
 
     public enum JoinType

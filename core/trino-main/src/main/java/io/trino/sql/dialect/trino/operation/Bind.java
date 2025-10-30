@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.Type;
+import io.trino.sql.dialect.trino.operationmetadata.BindOperationMetadata;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -73,8 +74,7 @@ public final class Bind
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), values.size() + 1));
         }
 
-        // TODO
-        this.attributes = ImmutableMap.of();
+        this.attributes = BindOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes);
     }
 
     @Override

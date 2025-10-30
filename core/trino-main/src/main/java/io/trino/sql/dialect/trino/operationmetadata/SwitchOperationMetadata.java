@@ -14,8 +14,14 @@
 package io.trino.sql.dialect.trino.operationmetadata;
 
 import com.google.common.collect.ImmutableSet;
+import io.trino.sql.newir.Operation.AttributeKey;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
+
+import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultDeriveIrLevelAttributes;
 
 public class SwitchOperationMetadata
         implements TrinoOperationMetadata
@@ -32,5 +38,16 @@ public class SwitchOperationMetadata
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of();
+    }
+
+    @Override
+    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> attributeDerivation()
+    {
+        return SwitchOperationMetadata::deriveAttributes;
+    }
+
+    public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
+    {
+        return defaultDeriveIrLevelAttributes(childAttributes);
     }
 }

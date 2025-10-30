@@ -15,11 +15,16 @@ package io.trino.sql.dialect.trino.operationmetadata;
 
 import com.google.common.collect.ImmutableSet;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.planner.plan.AggregationNode;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultDeriveIrLevelAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalBooleanAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalEnumAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalIntegerAttributeMetadata;
@@ -68,6 +73,20 @@ public class AggregationOperationMetadata
                 PRE_GROUPED_INDEXES_ATTRIBUTE_METADATA,
                 AGGREGATION_STEP_ATTRIBUTE_METADATA,
                 INPUT_REDUCING_ATTRIBUTE_METADATA);
+    }
+
+    @Override
+    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> attributeDerivation()
+    {
+        return AggregationOperationMetadata::deriveAttributes;
+    }
+
+    public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
+    {
+        checkArgument(childAttributes.size() == 3, "Aggregation operation must have exactly three child attributes maps: one for the input, and one for each of the two regions");
+
+        // TODO add more external attributes based on AggregationNode, for example: produces distinct rows, is decomposable,...
+        return defaultDeriveIrLevelAttributes(childAttributes);
     }
 
     public enum AggregationStep

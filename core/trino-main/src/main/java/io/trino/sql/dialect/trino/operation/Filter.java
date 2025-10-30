@@ -16,6 +16,7 @@ package io.trino.sql.dialect.trino.operation;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
+import io.trino.sql.dialect.trino.operationmetadata.FilterOperationMetadata;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -63,8 +64,7 @@ public final class Filter
         validatePredicate(predicate, relationRowType(trinoType(input.type())), "invalid predicate for Filter operation");
         this.predicate = singleBlockRegion(predicate);
 
-        // TODO derive attributes from source attributes
-        this.attributes = ImmutableMap.of();
+        this.attributes = FilterOperationMetadata.deriveAttributes(ImmutableMap.of(), ImmutableList.of(sourceAttributes, predicate.getTerminalOperation().attributes()));
     }
 
     @Override

@@ -72,12 +72,16 @@ public class TopN
         }
         this.orderingSelector = singleBlockRegion(orderingSelector);
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        SORT_ORDERS.putAttribute(attributes, sortOrders);
-        LIMIT.putAttribute(attributes, limit);
-        TOP_N_STEP.putAttribute(attributes, step);
+        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        SORT_ORDERS.putAttribute(operationAttributesBuilder, sortOrders);
+        LIMIT.putAttribute(operationAttributesBuilder, limit);
+        TOP_N_STEP.putAttribute(operationAttributesBuilder, step);
+        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        // TODO derive attributes from source attributes
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(TopNOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes, orderingSelector.getTerminalOperation().attributes())));
+
         this.attributes = attributes.buildOrThrow();
     }
 

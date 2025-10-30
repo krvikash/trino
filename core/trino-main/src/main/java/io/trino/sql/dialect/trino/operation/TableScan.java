@@ -91,13 +91,18 @@ public class TableScan
             this.result = new Result(resultName, irType(new MultisetType(RowType.anonymous(outputTypes))));
         }
 
+        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        TABLE_HANDLE.putAttribute(operationAttributesBuilder, tableHandle);
+        COLUMN_HANDLES.putAttribute(operationAttributesBuilder, columnHandles);
+        CONSTRAINT.putAttribute(operationAttributesBuilder, enforcedConstraint);
+        statistics.ifPresent(estimate -> STATISTICS.putAttribute(operationAttributesBuilder, estimate));
+        UPDATE_TARGET.putAttribute(operationAttributesBuilder, updateTarget);
+        useConnectorNodePartitioning.ifPresent(usePartitioning -> USE_CONNECTOR_NODE_PARTITIONING.putAttribute(operationAttributesBuilder, usePartitioning));
+        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
+
         ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        TABLE_HANDLE.putAttribute(attributes, tableHandle);
-        COLUMN_HANDLES.putAttribute(attributes, columnHandles);
-        CONSTRAINT.putAttribute(attributes, enforcedConstraint);
-        statistics.ifPresent(estimate -> STATISTICS.putAttribute(attributes, estimate));
-        UPDATE_TARGET.putAttribute(attributes, updateTarget);
-        useConnectorNodePartitioning.ifPresent(usePartitioning -> USE_CONNECTOR_NODE_PARTITIONING.putAttribute(attributes, usePartitioning));
+        attributes.putAll(operationAttributes);
+        attributes.putAll(TableScanOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of()));
 
         this.attributes = attributes.buildOrThrow();
     }

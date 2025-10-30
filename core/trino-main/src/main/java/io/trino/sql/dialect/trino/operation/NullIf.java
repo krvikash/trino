@@ -16,6 +16,7 @@ package io.trino.sql.dialect.trino.operation;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
+import io.trino.sql.dialect.trino.operationmetadata.NullIfOperationMetadata;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -57,8 +58,7 @@ public final class NullIf
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: 2", sourceAttributes.size()));
         }
 
-        // TODO derive attributes from source attributes
-        this.attributes = ImmutableMap.of();
+        this.attributes = NullIfOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes);
     }
 
     @Override

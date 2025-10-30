@@ -13,20 +13,30 @@
  */
 package io.trino.sql.dialect.trino.operationmetadata;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.json.JsonCodec;
 import io.trino.spi.predicate.NullableValue;
+import io.trino.sql.dialect.ir.IrAttributeUtils;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.planner.PartitioningHandle;
 import io.trino.sql.planner.plan.ExchangeNode;
 import org.assertj.core.util.VisibleForTesting;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
+import static io.trino.sql.dialect.ir.IrAttributeUtils.deterministic;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.hasNoSideEffects;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.hasSideEffects;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.safe;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.unsafe;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalBooleanAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalEnumAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalIntegerAttributeMetadata;
@@ -116,6 +126,43 @@ public class ExchangeOperationMetadata
                 SORT_ORDERS_ATTRIBUTE_METADATA,
                 partitioningHandleTrinoAttributeMetadata,
                 nullableValuesTrinoAttributeMetadata);
+    }
+
+    @Override
+    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> attributeDerivation()
+    {
+        return ExchangeOperationMetadata::deriveAttributes;
+    }
+
+    public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
+    {
+        ImmutableMap.Builder<AttributeKey, Object> derivedAttributes = ImmutableMap.builder();
+
+        // For repeatability, we ignore the last two child attributes which correspond to the partitioning bound arguments and sorting keys.
+        // They only affect how the data is organized on the physical level (partitioning and ordering).
+        // The actual data passed through the exchange depends on the inputs and input field selectors, represented by the preceding child attributes.
+        // TODO we can be more precise about deriving IR-level attributes if we
+        //  - capture input attributes on the field level (e.g., repeatability of input columns)
+        //  - analyze which fields are being selected by input field selectors (e.g., a non-deterministic column is not being passed through the exchange)
+        if (childAttributes.subList(0, childAttributes.size() - 2).stream().allMatch(IrAttributeUtils::isKnownDeterministic)) {
+            deterministic(derivedAttributes);
+        }
+
+        if (childAttributes.stream().allMatch(IrAttributeUtils::isKnownSafe)) {
+            safe(derivedAttributes);
+        }
+        else if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownUnsafe)) {
+            unsafe(derivedAttributes);
+        }
+
+        if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownHasSideEffects)) {
+            hasSideEffects(derivedAttributes);
+        }
+        else if (childAttributes.stream().allMatch(IrAttributeUtils::isKnownHasNoSideEffects)) {
+            hasNoSideEffects(derivedAttributes);
+        }
+
+        return derivedAttributes.buildOrThrow();
     }
 
     public enum ExchangeType

@@ -16,6 +16,7 @@ package io.trino.sql.dialect.trino.operation;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
+import io.trino.sql.dialect.trino.operationmetadata.BetweenOperationMetadata;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -68,8 +69,7 @@ public final class Between
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: 3", sourceAttributes.size()));
         }
 
-        // TODO derive attributes
-        this.attributes = ImmutableMap.of();
+        this.attributes = BetweenOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes);
     }
 
     @Override

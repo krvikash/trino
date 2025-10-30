@@ -70,8 +70,13 @@ public class DynamicFilterSource
             throw new TrinoException(IR_ERROR, "dynamic filter target selector for DynamicFilterSource operation does not match dynamic filter IDs");
         }
 
-        // TODO derive attributes from source attributes
-        this.attributes = DYNAMIC_FILTER_IDS.asMap(dynamicFilterIds);
+        Map<AttributeKey, Object> operationAttributes = DYNAMIC_FILTER_IDS.asMap(dynamicFilterIds);
+
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(DynamicFilterSourceOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes, dynamicFilterTargetSelector.getTerminalOperation().attributes())));
+
+        this.attributes = attributes.buildOrThrow();
     }
 
     @Override

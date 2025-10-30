@@ -148,15 +148,29 @@ public final class Join
             throw new TrinoException(IR_ERROR, "dynamic filter target selector for Join operation does not match dynamic filter IDs");
         }
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        JOIN_TYPE.putAttribute(attributes, joinType);
-        MAY_SKIP_OUTPUT_DUPLICATES.putAttribute(attributes, maySkipOutputDuplicates);
-        distributionType.ifPresent(value -> DISTRIBUTION_TYPE.putAttribute(attributes, value));
-        spillable.ifPresent(value -> SPILLABLE.putAttribute(attributes, value));
-        DYNAMIC_FILTER_IDS.putAttribute(attributes, dynamicFilterIds);
-        reorderJoinStatsAndCost.ifPresent(estimate -> STATISTICS_AND_COST_SUMMARY.putAttribute(attributes, estimate));
+        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        JOIN_TYPE.putAttribute(operationAttributesBuilder, joinType);
+        MAY_SKIP_OUTPUT_DUPLICATES.putAttribute(operationAttributesBuilder, maySkipOutputDuplicates);
+        distributionType.ifPresent(value -> DISTRIBUTION_TYPE.putAttribute(operationAttributesBuilder, value));
+        spillable.ifPresent(value -> SPILLABLE.putAttribute(operationAttributesBuilder, value));
+        DYNAMIC_FILTER_IDS.putAttribute(operationAttributesBuilder, dynamicFilterIds);
+        reorderJoinStatsAndCost.ifPresent(estimate -> STATISTICS_AND_COST_SUMMARY.putAttribute(operationAttributesBuilder, estimate));
+        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        // TODO derive attributes from source attributes
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(JoinOperationMetadata.deriveAttributes(
+                operationAttributes,
+                ImmutableList.of(
+                        leftAttributes,
+                        rightAttributes,
+                        leftCriteriaSelector.getTerminalOperation().attributes(),
+                        rightCriteriaSelector.getTerminalOperation().attributes(),
+                        filter.getTerminalOperation().attributes(),
+                        leftOutputSelector.getTerminalOperation().attributes(),
+                        rightOutputSelector.getTerminalOperation().attributes(),
+                        dynamicFilterTargetSelector.getTerminalOperation().attributes())));
+
         this.attributes = attributes.buildOrThrow();
     }
 

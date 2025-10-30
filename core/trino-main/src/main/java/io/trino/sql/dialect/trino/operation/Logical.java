@@ -14,6 +14,7 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
@@ -68,8 +69,13 @@ public final class Logical
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), terms.size()));
         }
 
-        // TODO also derive attributes from source attributes
-        this.attributes = LOGICAL_OPERATOR.asMap(logicalOperator);
+        Map<AttributeKey, Object> operationAttributes = LOGICAL_OPERATOR.asMap(logicalOperator);
+
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(LogicalOperationMetadata.deriveAttributes(operationAttributes, sourceAttributes));
+
+        this.attributes = attributes.buildOrThrow();
     }
 
     @Override

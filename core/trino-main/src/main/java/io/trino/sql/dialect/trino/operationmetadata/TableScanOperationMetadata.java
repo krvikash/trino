@@ -13,6 +13,7 @@
  */
 package io.trino.sql.dialect.trino.operationmetadata;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.json.JsonCodec;
 import io.airlift.json.JsonCodecFactory;
@@ -21,6 +22,7 @@ import io.trino.metadata.TableHandle;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Operation.AttributeKey;
 import org.assertj.core.util.VisibleForTesting;
 import org.pcollections.HashTreePMap;
 import org.pcollections.PMap;
@@ -28,8 +30,12 @@ import org.pcollections.PMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.hasNoSideEffects;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.safe;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalBooleanAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalObjectAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.prefixedName;
@@ -111,6 +117,24 @@ public class TableScanOperationMetadata
                 tableHandleTrinoAttributeMetadata,
                 columnHandlesTrinoAttributeMetadata,
                 constraintTrinoAttributeMetadata);
+    }
+
+    @Override
+    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> attributeDerivation()
+    {
+        return TableScanOperationMetadata::deriveAttributes;
+    }
+
+    public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
+    {
+        checkArgument(childAttributes.isEmpty(), "TableScan operation must have exactly zero child attributes maps");
+
+        ImmutableMap.Builder<AttributeKey, Object> derivedAttributes = ImmutableMap.builder();
+        // TODO derive repeatability, for now we set unknown
+        safe(derivedAttributes);
+        hasNoSideEffects(derivedAttributes);
+
+        return derivedAttributes.buildOrThrow();
     }
 
     public record Statistics(double outputRowCount, PMap<Integer, SymbolStatsEstimate> fieldStatistics)

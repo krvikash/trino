@@ -130,12 +130,22 @@ public class Window
             this.result = new Result(resultName, irType(new MultisetType(RowType.anonymous(outputTypes))));
         }
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        PRE_PARTITIONED_INDEXES.putAttribute(attributes, prePartitionedIndexes);
-        sortOrders.ifPresent(orders -> SORT_ORDERS.putAttribute(attributes, orders));
-        PRE_SORTED_PREFIX.putAttribute(attributes, preSortedPrefix);
+        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        PRE_PARTITIONED_INDEXES.putAttribute(operationAttributesBuilder, prePartitionedIndexes);
+        sortOrders.ifPresent(orders -> SORT_ORDERS.putAttribute(operationAttributesBuilder, orders));
+        PRE_SORTED_PREFIX.putAttribute(operationAttributesBuilder, preSortedPrefix);
+        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        // TODO derive attributes from source attributes
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(WindowOperationMetadata.deriveAttributes(
+                operationAttributes,
+                ImmutableList.of(
+                        sourceAttributes,
+                        windowFunctionCalls.getTerminalOperation().attributes(),
+                        partitioningSelector.getTerminalOperation().attributes(),
+                        orderingSelector.getTerminalOperation().attributes())));
+
         this.attributes = attributes.buildOrThrow();
     }
 

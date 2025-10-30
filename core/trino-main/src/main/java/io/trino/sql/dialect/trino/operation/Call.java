@@ -14,6 +14,7 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.Type;
@@ -70,8 +71,13 @@ public final class Call
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), arguments.size()));
         }
 
-        // TODO: derive attributes from source attributes; derive attributes from ResolvedFunction
-        this.attributes = RESOLVED_FUNCTION.asMap(function);
+        Map<AttributeKey, Object> operationAttributes = RESOLVED_FUNCTION.asMap(function);
+
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(CallOperationMetadata.deriveAttributes(operationAttributes, sourceAttributes));
+
+        this.attributes = attributes.buildOrThrow();
     }
 
     @Override

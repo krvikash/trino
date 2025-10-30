@@ -14,6 +14,7 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata.ComparisonOperator;
@@ -66,8 +67,13 @@ public final class Comparison
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: 2", sourceAttributes.size()));
         }
 
-        // TODO also derive attributes from source attributes
-        this.attributes = COMPARISON_OPERATOR.asMap(comparisonOperator);
+        Map<AttributeKey, Object> operationAttributes = COMPARISON_OPERATOR.asMap(comparisonOperator);
+
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(ComparisonOperationMetadata.deriveAttributes(operationAttributes, sourceAttributes));
+
+        this.attributes = attributes.buildOrThrow();
     }
 
     @Override

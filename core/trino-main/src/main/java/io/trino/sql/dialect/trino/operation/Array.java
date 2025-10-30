@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.Type;
+import io.trino.sql.dialect.trino.operationmetadata.ArrayOperationMetadata;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -64,8 +65,7 @@ public final class Array
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), elements.size()));
         }
 
-        // TODO derive attributes from source attributes
-        this.attributes = ImmutableMap.of();
+        this.attributes = ArrayOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes);
     }
 
     @Override

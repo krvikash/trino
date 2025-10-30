@@ -33,6 +33,7 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
+import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUTES;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelectorReturningAtMostOneField;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
@@ -138,16 +139,29 @@ public class WindowFunctionCall
             }
         }
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        RESOLVED_FUNCTION.putAttribute(attributes, function);
-        sortOrders.ifPresent(orders -> SORT_ORDERS.putAttribute(attributes, orders));
-        FRAME_TYPE.putAttribute(attributes, frameType);
-        FRAME_START_TYPE.putAttribute(attributes, frameStartType);
-        FRAME_END_TYPE.putAttribute(attributes, frameEndType);
-        IGNORE_NULLS.putAttribute(attributes, ignoreNulls);
-        DISTINCT.putAttribute(attributes, distinct);
+        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        RESOLVED_FUNCTION.putAttribute(operationAttributesBuilder, function);
+        sortOrders.ifPresent(orders -> SORT_ORDERS.putAttribute(operationAttributesBuilder, orders));
+        FRAME_TYPE.putAttribute(operationAttributesBuilder, frameType);
+        FRAME_START_TYPE.putAttribute(operationAttributesBuilder, frameStartType);
+        FRAME_END_TYPE.putAttribute(operationAttributesBuilder, frameEndType);
+        IGNORE_NULLS.putAttribute(operationAttributesBuilder, ignoreNulls);
+        DISTINCT.putAttribute(operationAttributesBuilder, distinct);
+        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        // TODO: derive attributes from input attributes; derive attributes from ResolvedFunction
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(WindowFunctionCallOperationMetadata.deriveAttributes(
+                operationAttributes,
+                ImmutableList.of(
+                        DEFAULT_BLOCK_PARAMETER_ATTRIBUTES, // group input
+                        arguments.getTerminalOperation().attributes(),
+                        orderingSelector.getTerminalOperation().attributes(),
+                        frameStartFieldSelector.getTerminalOperation().attributes(),
+                        sortKeyCoercedForFrameStartComparisonSelector.getTerminalOperation().attributes(),
+                        frameEndFieldSelector.getTerminalOperation().attributes(),
+                        sortKeyCoercedForFrameEndComparisonSelector.getTerminalOperation().attributes())));
+
         this.attributes = attributes.buildOrThrow();
     }
 

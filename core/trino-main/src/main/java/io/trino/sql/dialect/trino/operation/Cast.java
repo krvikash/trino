@@ -16,6 +16,7 @@ package io.trino.sql.dialect.trino.operation;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.type.Type;
+import io.trino.sql.dialect.trino.operationmetadata.CastOperationMetadata;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -49,8 +50,7 @@ public final class Cast
 
         this.input = input;
 
-        // TODO
-        this.attributes = ImmutableMap.of();
+        this.attributes = CastOperationMetadata.deriveAttributes(ImmutableMap.of(), ImmutableList.of(sourceAttributes));
     }
 
     @Override

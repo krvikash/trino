@@ -69,11 +69,15 @@ public class Sort
         }
         this.orderingSelector = singleBlockRegion(orderingSelector);
 
-        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
-        SORT_ORDERS.putAttribute(attributes, sortOrders);
-        PARTIAL.putAttribute(attributes, partial);
+        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        SORT_ORDERS.putAttribute(operationAttributesBuilder, sortOrders);
+        PARTIAL.putAttribute(operationAttributesBuilder, partial);
+        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
 
-        // TODO derive attributes from source attributes
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(SortOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes, orderingSelector.getTerminalOperation().attributes())));
+
         this.attributes = attributes.buildOrThrow();
     }
 
