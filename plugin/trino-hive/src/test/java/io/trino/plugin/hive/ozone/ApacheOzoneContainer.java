@@ -13,23 +13,16 @@
  */
 package io.trino.plugin.hive.ozone;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.net.HostAndPort;
 import io.airlift.log.Logger;
 import org.testcontainers.containers.DockerComposeContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
-import java.util.Map;
 
 import static io.trino.testing.containers.TestContainers.getPathFromClassPathResource;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class ApacheOzoneContainer
         implements AutoCloseable
@@ -43,42 +36,21 @@ public class ApacheOzoneContainer
     public static final String DUMMY_SECRET_KEY = "dummy-secret-key";
 
     private final DockerComposeContainer apacheOzone;
-    private final Path envFilePath;
 
     public ApacheOzoneContainer(Network network)
     {
         String apacheOzoneResourceLocation = getPathFromClassPathResource("com/starburstdata/presto/plugin/hive/ozone");
-        this.envFilePath = Path.of(apacheOzoneResourceLocation + "/.env");
-
-        createEnvFile(
-                envFilePath,
-                ImmutableMap.of(
-                        "NETWORK_ID", network.getId(),
-                        "OZONE_ENVIRONMENT_FILE", apacheOzoneResourceLocation + "/environment-variables.env"));
 
         this.apacheOzone =
                 new DockerComposeContainer<>("ozone-", Paths.get(apacheOzoneResourceLocation, "ozone-docker-compose.yml").toFile())
+                        .withEnv("NETWORK_ID", network.getId())
+                        .withEnv("OZONE_ENVIRONMENT_FILE", apacheOzoneResourceLocation + "/environment-variables.env")
                         .withExposedService("ozone-manager", OFS_ENDPOINT_PORT, Wait.forListeningPort().withStartupTimeout(Duration.ofMinutes(3)))
                         .withExposedService("s3-gateway", S3G_ENDPOINT_PORT)
                         .withServices("ozone-manager", "storage-container-manager", "s3-gateway", "recon")
                         .withScaledService("datanode", 3)
                         .waitingFor("ozone-manager", Wait.forLogMessage(".*HTTP server of ozoneManager listening at.*", 1).withStartupTimeout(Duration.ofMinutes(10)))
                         .withPull(true);
-    }
-
-    private static void createEnvFile(Path envFilePath, Map<String, String> envValues)
-    {
-        try {
-            StringBuilder envBuilder = new StringBuilder();
-            envValues.forEach((key, value) -> envBuilder.append(key).append("=").append(value).append("\n"));
-
-            Files.deleteIfExists(envFilePath);
-            Files.writeString(envFilePath, envBuilder.toString(), UTF_8);
-            Files.setPosixFilePermissions(envFilePath, PosixFilePermissions.fromString("r-xr-xr-x"));
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     public void start()
@@ -103,6 +75,5 @@ public class ApacheOzoneContainer
             throws Exception
     {
         apacheOzone.close();
-        Files.deleteIfExists(envFilePath);
     }
 }
