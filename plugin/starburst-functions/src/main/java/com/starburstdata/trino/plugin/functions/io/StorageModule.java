@@ -67,19 +67,10 @@ import static org.weakref.jmx.guice.ExportBinder.newExporter;
 public class StorageModule
         implements Module
 {
-    private final TypeManager typeManager;
-
-    public StorageModule(TypeManager typeManager)
-    {
-        this.typeManager = requireNonNull(typeManager, "typeManager is null");
-    }
-
     @Override
     public void configure(Binder binder)
     {
         binder.install(new LocationAccessControlModule());
-
-        binder.bind(TypeManager.class).toInstance(typeManager);
 
         binder.bind(StorageConnector.class).in(Scopes.SINGLETON);
         binder.bind(StorageSplitManager.class).in(Scopes.SINGLETON);

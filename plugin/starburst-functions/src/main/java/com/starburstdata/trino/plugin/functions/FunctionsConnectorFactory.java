@@ -56,7 +56,7 @@ public class FunctionsConnectorFactory
         Bootstrap app = new Bootstrap(
                 new AiModule(context.getModelConnectionSpecsLoader()),
                 new JsonModule(),
-                new StorageModule(context.getTypeManager()),
+                new StorageModule(),
                 new ResolvingFileSystemModule(context.getOpenTelemetry()),
                 new ConnectorContextModule(catalogName, context),
                 module);
