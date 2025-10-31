@@ -10,7 +10,6 @@
 package com.starburstdata.trino.plugin.functions;
 
 import com.google.inject.Injector;
-import com.google.inject.Module;
 import com.starburstdata.trino.plugin.functions.ai.AiModule;
 import com.starburstdata.trino.plugin.functions.crypto.CryptoModule;
 import com.starburstdata.trino.plugin.functions.io.ResolvingFileSystemModule;
@@ -28,25 +27,11 @@ import io.trino.spi.connector.ConnectorFactory;
 import java.util.Map;
 import java.util.Set;
 
-import static com.google.inject.util.Modules.EMPTY_MODULE;
 import static io.trino.plugin.base.Versions.checkStrictSpiVersionMatch;
-import static java.util.Objects.requireNonNull;
 
 public class FunctionsConnectorFactory
         implements ConnectorFactory
 {
-    private final Module module;
-
-    public FunctionsConnectorFactory()
-    {
-        this(EMPTY_MODULE);
-    }
-
-    public FunctionsConnectorFactory(Module module)
-    {
-        this.module = requireNonNull(module, "module is null");
-    }
-
     @Override
     public String getName()
     {
@@ -89,8 +74,7 @@ public class FunctionsConnectorFactory
                 new StorageModule(),
                 new ResolvingFileSystemModule(context.getOpenTelemetry()),
                 new ConnectorContextModule(catalogName, context),
-                new ParquetEncryptionModule(),
-                module);
+                new ParquetEncryptionModule());
 
         return app
                 .doNotInitializeLogging()

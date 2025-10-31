@@ -380,7 +380,7 @@ public class TestingTrinoServer
                     binder.bind(AccessControl.class).annotatedWith(ForTracing.class).to(AccessControlManager.class).in(Scopes.SINGLETON);
                     binder.bind(AccessControl.class).to(TracingAccessControl.class).in(Scopes.SINGLETON);
                     binder.bind(LocationAccessControl.class).annotatedWith(ForTracing.class).to(AccessControlManager.class).in(Scopes.SINGLETON);
-                    binder.bind(LocationAccessControl.class).to(TracingLocationAccessControl.class).in(Scopes.SINGLETON);
+                    newOptionalBinder(binder, LocationAccessControl.class).setDefault().to(TracingLocationAccessControl.class).in(Scopes.SINGLETON);
                     binder.bind(ShutdownAction.class).to(TestShutdownAction.class).in(Scopes.SINGLETON);
                     binder.bind(CurrentNodeState.class).in(Scopes.SINGLETON);
                     binder.bind(NodeStateManager.class).in(Scopes.SINGLETON);

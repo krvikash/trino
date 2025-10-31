@@ -26,7 +26,6 @@ import io.trino.plugin.hive.HiveFileWriterFactory;
 import io.trino.plugin.hive.HivePageSourceFactory;
 import io.trino.plugin.hive.HiveSessionProperties;
 import io.trino.plugin.hive.HiveWriterStats;
-import io.trino.plugin.hive.LocationAccessControlModule;
 import io.trino.plugin.hive.PartitionUpdate;
 import io.trino.plugin.hive.RcFileFileWriterFactory;
 import io.trino.plugin.hive.avro.AvroFileWriterFactory;
@@ -70,8 +69,6 @@ public class StorageModule
     @Override
     public void configure(Binder binder)
     {
-        binder.install(new LocationAccessControlModule());
-
         binder.bind(StorageConnector.class).in(Scopes.SINGLETON);
         binder.bind(StorageSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(StoragePageSourceProvider.class).in(Scopes.SINGLETON);

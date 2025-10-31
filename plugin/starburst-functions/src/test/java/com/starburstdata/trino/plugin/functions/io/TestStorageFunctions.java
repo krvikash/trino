@@ -77,7 +77,8 @@ final class TestStorageFunctions
         DistributedQueryRunner queryRunner = StorageQueryRunner.builder()
                 .addCoordinatorProperty("sql.path", "starburst.io")
                 .addConnectorProperty("io.credentials-file", credentialsFile.toAbsolutePath().toString())
-                .setPlugin(new TestingFunctionsPlugin(new DenyLocationAccessControlModule()))
+                .setAdditionalModule(new DenyLocationAccessControlModule())
+                .setPlugin(new TestingFunctionsPlugin())
                 .amendSession(sessionBuilder -> sessionBuilder.setCatalog("hive").setSchema("tpch"))
                 .build();
 

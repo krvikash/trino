@@ -10,30 +10,21 @@
 package com.starburstdata.trino.plugin.functions;
 
 import com.google.common.collect.ImmutableList;
-import com.google.inject.Module;
 import io.trino.spi.connector.ConnectorFactory;
 
 import java.util.List;
 
 import static com.google.common.base.Verify.verify;
-import static java.util.Objects.requireNonNull;
 
 public class TestingFunctionsPlugin
         extends FunctionsPlugin
 {
-    private final Module module;
-
-    public TestingFunctionsPlugin(Module module)
-    {
-        this.module = requireNonNull(module, "module is null");
-    }
-
     @Override
     public Iterable<ConnectorFactory> getConnectorFactories()
     {
         List<ConnectorFactory> connectorFactories = ImmutableList.copyOf(super.getConnectorFactories());
         verify(connectorFactories.size() == 1, "Unexpected connector factories: %s", connectorFactories);
 
-        return ImmutableList.of(new FunctionsConnectorFactory(module));
+        return ImmutableList.of(new FunctionsConnectorFactory());
     }
 }
