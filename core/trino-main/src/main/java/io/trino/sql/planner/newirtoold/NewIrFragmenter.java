@@ -466,8 +466,15 @@ public class NewIrFragmenter
         {
             // An empty values node is compatible with any distribution, so
             // don't attempt to overwrite the one that's already been chosen
-            if (CARDINALITY.getAttribute(operation.attributes()) != 0 || !context.hasDistribution()) {
+            if (CARDINALITY.getAttribute(operation.attributes()) != 0) {
                 context.setSingleNodeDistribution();
+            }
+            else {
+                // An empty values node is compatible with any distribution, so
+                // do not overwrite a distribution if there is one already chosen,
+                // and delay setting the distribution in case the fragment contains
+                // another node with specific distribution requirements
+                context.setContainsEmptyValues();
             }
             return operation.accept(relationalRewriter, ImmutableList.of());
         }
