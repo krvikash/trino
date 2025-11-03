@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Injector;
 import com.google.inject.Module;
+import com.google.inject.Scopes;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.http.client.HttpClient;
@@ -27,6 +28,7 @@ import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.json.JsonModule;
 import io.airlift.node.testing.TestingNodeModule;
 import io.trino.client.NodeVersion;
+import io.trino.server.StartupStatus;
 import io.trino.server.security.SecurityConfig;
 import jakarta.servlet.Servlet;
 import jakarta.servlet.http.HttpServlet;
@@ -188,6 +190,7 @@ class TestAnnounceNodeInventory
                             URI.create("https://example.com:1234"),
                             new NodeVersion("test-version"),
                             true));
+                    binder.bind(StartupStatus.class).in(Scopes.SINGLETON);
                 });
         Injector injector = new Bootstrap(modules.build())
                 .doNotInitializeLogging()
@@ -196,6 +199,8 @@ class TestAnnounceNodeInventory
 
         AnnounceNodeInventory nodeInventory = injector.getInstance(AnnounceNodeInventory.class);
         URI serverUri = injector.getInstance(HttpServerInfo.class).getHttpUri();
+        StartupStatus startupStatus = injector.getInstance(StartupStatus.class);
+        startupStatus.startupComplete();
         return new AnnouncementServer(
                 nodeInventory,
                 serverUri,

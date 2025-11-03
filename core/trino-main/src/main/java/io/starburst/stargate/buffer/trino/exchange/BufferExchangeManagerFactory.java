@@ -31,6 +31,7 @@ import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.base.jmx.PrefixObjectNameGeneratorModule;
 import io.trino.server.InternalCommunicationConfig;
 import io.trino.server.ServerConfig;
+import io.trino.server.StartupStatus;
 import io.trino.server.buffer.EmbeddedBufferServiceConfig;
 import io.trino.server.security.SecurityConfig;
 import io.trino.spi.CoordinatorLocator;
@@ -150,6 +151,11 @@ public class BufferExchangeManagerFactory
                     binder.bind(OpenTelemetry.class).toInstance(exchangeManagerContext.getOpenTelemetry());
                     binder.bind(CoordinatorLocator.class).toInstance(exchangeManagerContext.getCoordinatorLocator());
                     binder.bind(Tracer.class).toInstance(exchangeManagerContext.getTracer());
+                    if (useEmbeddedBufferService) {
+                        StartupStatus startupStatus = new StartupStatus();
+                        startupStatus.startupComplete();
+                        binder.bind(StartupStatus.class).toInstance(startupStatus);
+                    }
                 });
 
         ImmutableMap.Builder<String, String> extendedConfig = ImmutableMap.builder();
