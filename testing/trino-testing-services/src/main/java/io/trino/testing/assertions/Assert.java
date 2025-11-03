@@ -60,18 +60,24 @@ public final class Assert
                 if (((float) successCount / attemptCount) >= minSuccessRate) {
                     return;
                 }
-                if (Duration.nanosSince(start).compareTo(timeout) > 0 || attemptCount > maxAttempts) {
+                if (Duration.nanosSince(start).compareTo(timeout) > 0 || attemptCount >= maxAttempts) {
                     throw new AssertionError(
                             String.format("Success rate %.1f%% is below the minimum required %.1f%%", ((float) successCount / attemptCount) * 100, minSuccessRate * 100),
                             lastFailure);
                 }
             }
             catch (Exception | AssertionError e) {
-                if (Duration.nanosSince(start).compareTo(timeout) > 0 || attemptCount > maxAttempts) {
+                if (Duration.nanosSince(start).compareTo(timeout) > 0 || attemptCount >= maxAttempts) {
                     throw e;
                 }
                 log.debug(e, "Failure on attempt %s of %s", attemptCount, assertion);
                 lastFailure = e;
+                // if we already reached the max failure rate, give up
+                if ((((float) attemptCount - successCount) / maxAttempts) > (1 - minSuccessRate)) {
+                    throw new AssertionError(
+                            String.format("Too many failures; cannot achieve minimum success rate %.1f%% with %s attempt(s) remaining", minSuccessRate * 100, maxAttempts - attemptCount),
+                            lastFailure);
+                }
             }
             try {
                 Thread.sleep(retryFrequency.toMillis());

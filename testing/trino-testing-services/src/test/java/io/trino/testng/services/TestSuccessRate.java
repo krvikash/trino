@@ -59,7 +59,7 @@ public class TestSuccessRate
                 () -> assertEventually(
                         new Duration(3, SECONDS),
                         new Duration(1, SECONDS),
-                        5,
+                        10,
                         0.75f,
                         () -> assertThat(fixture.doWork()).isEqualTo(1)))
                 .isInstanceOf(AssertionError.class)
@@ -71,16 +71,16 @@ public class TestSuccessRate
     @Test
     void testThresholdNotMetMaxRetries()
     {
-        Fixture fixture = new Fixture(0, 1, 1, 1, 1);
+        Fixture fixture = new Fixture(0, 1, 1, 0, 1);
         assertThatThrownBy(
                 () -> assertEventually(
                         new Duration(5, SECONDS),
                         new Duration(50, MILLISECONDS),
-                        2,
+                        5,
                         0.75f,
                         () -> assertThat(fixture.doWork()).isEqualTo(1)))
                 .isInstanceOf(AssertionError.class)
-                .hasMessageContaining("is below the minimum required 75.0%")
+                .hasMessageContaining("Too many failures; cannot achieve minimum success rate 75.0% with 1 attempt(s) remaining")
                 .cause()
                 .hasMessageContaining("\nexpected: 1\n but was: 0");
     }
@@ -94,7 +94,7 @@ public class TestSuccessRate
                         new Duration(3, SECONDS),
                         new Duration(20, MILLISECONDS),
                         5,
-                        0.75f,
+                        0.16f,
                         () -> assertThat(fixture.doWork()).isEqualTo(1)))
                 .isInstanceOf(AssertionError.class)
                 .hasMessageContaining("\nexpected: 1\n but was: 0");
