@@ -424,14 +424,14 @@ public class TestOracleCastPushdown
                     .hasMessageContaining("Decimal overflow");
             assertThat(query("SELECT CAST(c_number_2 AS decimal(38, 0)) FROM %s".formatted(table.getName())))
                     .failure()
-                    .hasMessageContaining("value larger than specified precision allowed for this column");
+                    .hasMessageMatching("(?s)ORA-01438: value .* greater than specified precision \\(.*\\).*");
 
             assertThat(query(withoutPushdown, "SELECT CAST(c_number_2 AS decimal(38, 1)) FROM %s".formatted(table.getName())))
                     .failure()
                     .hasMessageContaining("Decimal overflow");
             assertThat(query("SELECT CAST(c_number_2 AS decimal(38, 1)) FROM %s".formatted(table.getName())))
                     .failure()
-                    .hasMessageContaining("value larger than specified precision allowed for this column");
+                    .hasMessageMatching("(?s)ORA-01438: value .* greater than specified precision \\(.*\\).*");
 
             assertThat(query(withoutPushdown, "SELECT CAST(c_number_2 AS decimal(38, 2)) FROM %s".formatted(table.getName())))
                     .failure()
@@ -446,14 +446,14 @@ public class TestOracleCastPushdown
                     .hasMessageContaining("Decimal overflow");
             assertThat(query("SELECT CAST(c_number_3 AS decimal(38, 0)) FROM %s".formatted(table.getName())))
                     .failure()
-                    .hasMessageContaining("value larger than specified precision allowed for this column");
+                    .hasMessageMatching("(?s)ORA-01438: value .* greater than specified precision \\(.*\\).*");
 
             assertThat(query(withoutPushdown, "SELECT CAST(c_number_3 AS decimal(38, 1)) FROM %s".formatted(table.getName())))
                     .failure()
                     .hasMessageContaining("Decimal overflow");
             assertThat(query("SELECT CAST(c_number_3 AS decimal(38, 1)) FROM %s".formatted(table.getName())))
                     .failure()
-                    .hasMessageContaining("value larger than specified precision allowed for this column");
+                    .hasMessageMatching("(?s)ORA-01438: value .* greater than specified precision \\(.*\\).*");
 
             assertThat(query("SELECT CAST(c_number_4 AS decimal(10, 1)) FROM %s".formatted(table.getName())))
                     .skippingTypesCheck()
@@ -635,14 +635,14 @@ public class TestOracleCastPushdown
                 .execute(onRemoteDatabase(), "test_number_")) {
             assertThat(query("SELECT CAST(c_number_1 AS decimal(5, 4)) FROM %s".formatted(table.getName())))
                     .failure()
-                    .hasMessageContaining("value larger than specified precision allowed for this column");
+                    .hasMessageMatching("(?s)ORA-01438: value .* greater than specified precision \\(.*\\).*");
             assertThat(query(withoutPushdown, "SELECT CAST(c_number_1 AS decimal(5, 4)) FROM %s".formatted(table.getName())))
                     .failure()
                     .hasMessageContaining("Cannot cast DECIMAL(9, 4) '12345.6789' to DECIMAL(5, 4)");
 
             assertThat(query("SELECT CAST(c_number_2 AS decimal(6, 1)) FROM %s".formatted(table.getName())))
                     .failure()
-                    .hasMessageContaining("value larger than specified precision allowed for this column");
+                    .hasMessageMatching("(?s)ORA-01438: value .* greater than specified precision \\(.*\\).*");
             assertThat(query(withoutPushdown, "SELECT CAST(c_number_2 AS decimal(6, 1)) FROM %s".formatted(table.getName())))
                     .failure()
                     .hasMessageContaining("Cannot cast DECIMAL(9, 4) '99999.9999' to DECIMAL(6, 1)");
