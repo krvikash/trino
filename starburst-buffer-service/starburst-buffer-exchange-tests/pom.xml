@@ -352,12 +352,6 @@
             <artifactId>awaitility</artifactId>
             <version>4.1.1</version>
             <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.hamcrest</groupId>
-                    <artifactId>hamcrest</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>
