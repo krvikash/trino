@@ -32,7 +32,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static java.util.concurrent.Executors.newCachedThreadPool;
 
-public class TestingUtils
+public final class TestingUtils
 {
     private TestingUtils() {}
 
@@ -61,7 +61,7 @@ public class TestingUtils
                             "provider": "OPENAI",
                             "endpoint": "https://api.openai.com/v1",
                             "apiKey": "",
-                            "additionalHeaders": {"Authorization": ["bearer ${ENV:OPEN_AI_API_KEY}"]}
+                            "additionalHeaders": {"Authorization": ["Bearer ${ENV:OPEN_AI_API_KEY}"]}
                         }
                     },
                     {
