@@ -1055,6 +1055,124 @@ public class TestClickHouseConnectorTest
     }
 
     @Test
+    void testDatePredicatePushdown()
+    {
+        for (ZoneId zoneId : timezones()) {
+            Session session = Session.builder(getSession())
+                    .setTimeZoneKey(TimeZoneKey.getTimeZoneKey(zoneId.getId()))
+                    .build();
+            try (TestTable table = new TestTable(
+                    onRemoteDatabase(),
+                    "tpch.test_date_predicate_pushdown_",
+                    "(c_date Nullable(Date), c_date32 Nullable(Date32)) Engine = Log",
+                    List.of(
+                            "'2000-01-01', '2000-01-01'",
+                            "'2010-01-01', '2010-01-01'",
+                            "'2020-01-01', '2020-01-01'",
+                            "null, null"))) {
+                // date
+                assertPredicatePushdown(session, table.getName(), "c_date", "= DATE '2010-01-01'", "DATE '2010-01-01'");
+                assertPredicatePushdown(session, table.getName(), "c_date", "> DATE '2010-01-01'", "DATE '2020-01-01'");
+                assertPredicatePushdown(session, table.getName(), "c_date", "< DATE '2010-01-01'", "DATE '2000-01-01'");
+                assertPredicatePushdown(session, table.getName(), "c_date", ">= DATE '2010-01-01'", "DATE '2010-01-01', DATE '2020-01-01'");
+                assertPredicatePushdown(session, table.getName(), "c_date", "<= DATE '2010-01-01'", "DATE '2010-01-01', DATE '2000-01-01'");
+                assertPredicatePushdown(session, table.getName(), "c_date", "!= DATE '2010-01-01'", "DATE '2000-01-01', DATE '2020-01-01'");
+                assertPredicatePushdown(session, table.getName(), "c_date", "IS NULL", "CAST(null AS DATE)");
+                assertPredicatePushdown(session, table.getName(), "c_date", "IS NOT NULL", "DATE '2000-01-01', DATE '2010-01-01', DATE '2020-01-01'");
+                assertPredicatePushdown(session, table.getName(), "c_date", "IN (DATE '2000-01-01', CAST(null AS DATE))", "DATE '2000-01-01'");
+                assertPredicatePushdown(session, table.getName(), "c_date", "BETWEEN DATE '2005-01-01' AND DATE '2015-01-01'", "DATE '2010-01-01'");
+
+                // date32
+                assertPredicatePushdown(session, table.getName(), "c_date32", "= DATE '2010-01-01'", "DATE '2010-01-01'");
+                assertPredicatePushdown(session, table.getName(), "c_date32", "> DATE '2010-01-01'", "DATE '2020-01-01'");
+                assertPredicatePushdown(session, table.getName(), "c_date32", "< DATE '2010-01-01'", "DATE '2000-01-01'");
+                assertPredicatePushdown(session, table.getName(), "c_date32", ">= DATE '2010-01-01'", "DATE '2010-01-01', DATE '2020-01-01'");
+                assertPredicatePushdown(session, table.getName(), "c_date32", "<= DATE '2010-01-01'", "DATE '2010-01-01', DATE '2000-01-01'");
+                assertPredicatePushdown(session, table.getName(), "c_date32", "!= DATE '2010-01-01'", "DATE '2000-01-01', DATE '2020-01-01'");
+                assertPredicatePushdown(session, table.getName(), "c_date32", "IS NULL", "CAST(null AS DATE)");
+                assertPredicatePushdown(session, table.getName(), "c_date32", "IS NOT NULL", "DATE '2000-01-01', DATE '2010-01-01', DATE '2020-01-01'");
+                assertPredicatePushdown(session, table.getName(), "c_date32", "IN (DATE '2000-01-01', CAST(null AS DATE))", "DATE '2000-01-01'");
+                assertPredicatePushdown(session, table.getName(), "c_date32", "BETWEEN DATE '2005-01-01' AND DATE '2015-01-01'", "DATE '2010-01-01'");
+            }
+        }
+    }
+
+    @Test
+    void testTimestampPredicatePushdown()
+    {
+        for (ZoneId zoneId : timezones()) {
+            Session session = Session.builder(getSession())
+                    .setTimeZoneKey(TimeZoneKey.getTimeZoneKey(zoneId.getId()))
+                    .build();
+            try (TestTable table = new TestTable(
+                    onRemoteDatabase(),
+                    "tpch.test_datetime_predicate_pushdown_",
+                    "(c_datetime Nullable(DateTime), c_datetime64 Nullable(DateTime64)) Engine = Log",
+                    List.of(
+                            "'2000-01-01 11:12:13', '2000-01-01 11:12:13.45'",
+                            "'2010-01-01 11:12:13', '2010-01-01 11:12:13.45'",
+                            "'2020-01-01 11:12:13', '2020-01-01 11:12:13.45'",
+                            "null, null"))) {
+                // datetime
+                assertPredicatePushdown(session, table.getName(), "c_datetime", "= TIMESTAMP '2010-01-01 11:12:13'", "TIMESTAMP '2010-01-01 11:12:13'");
+                assertPredicatePushdown(session, table.getName(), "c_datetime", "> TIMESTAMP '2010-01-01 11:12:13'", "TIMESTAMP '2020-01-01 11:12:13'");
+                assertPredicatePushdown(session, table.getName(), "c_datetime", "< TIMESTAMP '2010-01-01 11:12:13'", "TIMESTAMP '2000-01-01 11:12:13'");
+                assertPredicatePushdown(session, table.getName(), "c_datetime", ">= TIMESTAMP '2010-01-01 11:12:13'", "TIMESTAMP '2010-01-01 11:12:13', TIMESTAMP '2020-01-01 11:12:13'");
+                assertPredicatePushdown(session, table.getName(), "c_datetime", "<= TIMESTAMP '2010-01-01 11:12:13'", "TIMESTAMP '2010-01-01 11:12:13', TIMESTAMP '2000-01-01 11:12:13'");
+                assertPredicatePushdown(session, table.getName(), "c_datetime", "!= TIMESTAMP '2010-01-01 11:12:13'", "TIMESTAMP '2000-01-01 11:12:13', TIMESTAMP '2020-01-01 11:12:13'");
+                assertPredicatePushdown(session, table.getName(), "c_datetime", "IS NULL", "CAST(null AS TIMESTAMP(0))");
+                assertPredicatePushdown(session, table.getName(), "c_datetime", "IS NOT NULL", "TIMESTAMP '2000-01-01 11:12:13', TIMESTAMP '2010-01-01 11:12:13', TIMESTAMP '2020-01-01 11:12:13'");
+                assertPredicatePushdown(session, table.getName(), "c_datetime", "IN (TIMESTAMP '2000-01-01 11:12:13', CAST(null AS TIMESTAMP(0)))", "TIMESTAMP '2000-01-01 11:12:13'");
+                assertPredicatePushdown(session, table.getName(), "c_datetime", "BETWEEN TIMESTAMP '2005-01-01 11:12:13' AND TIMESTAMP '2015-01-01 11:12:13'", "TIMESTAMP '2010-01-01 11:12:13'");
+
+                // datetime64
+                assertPredicatePushdown(session, table.getName(), "c_datetime64", "= TIMESTAMP '2010-01-01 11:12:13.450'", "TIMESTAMP '2010-01-01 11:12:13.450'");
+                assertPredicatePushdown(session, table.getName(), "c_datetime64", "> TIMESTAMP '2010-01-01 11:12:13.450'", "TIMESTAMP '2020-01-01 11:12:13.450'");
+                assertPredicatePushdown(session, table.getName(), "c_datetime64", "< TIMESTAMP '2010-01-01 11:12:13.450'", "TIMESTAMP '2000-01-01 11:12:13.450'");
+                assertPredicatePushdown(session, table.getName(), "c_datetime64", ">= TIMESTAMP '2010-01-01 11:12:13.450'", "TIMESTAMP '2010-01-01 11:12:13.450', TIMESTAMP '2020-01-01 11:12:13.450'");
+                assertPredicatePushdown(session, table.getName(), "c_datetime64", "<= TIMESTAMP '2010-01-01 11:12:13.450'", "TIMESTAMP '2010-01-01 11:12:13.450', TIMESTAMP '2000-01-01 11:12:13.450'");
+                assertPredicatePushdown(session, table.getName(), "c_datetime64", "!= TIMESTAMP '2010-01-01 11:12:13.450'", "TIMESTAMP '2000-01-01 11:12:13.450', TIMESTAMP '2020-01-01 11:12:13.450'");
+                assertPredicatePushdown(session, table.getName(), "c_datetime64", "IS NULL", "CAST(null AS TIMESTAMP(3))");
+                assertPredicatePushdown(session, table.getName(), "c_datetime64", "IS NOT NULL", "TIMESTAMP '2000-01-01 11:12:13.450', TIMESTAMP '2010-01-01 11:12:13.450', TIMESTAMP '2020-01-01 11:12:13.450'");
+                assertPredicatePushdown(session, table.getName(), "c_datetime64", "IN (TIMESTAMP '2000-01-01 11:12:13.450', CAST(null AS TIMESTAMP(3)))", "TIMESTAMP '2000-01-01 11:12:13.450'");
+                assertPredicatePushdown(session, table.getName(), "c_datetime64", "BETWEEN TIMESTAMP '2005-01-01 11:12:13' AND TIMESTAMP '2015-01-01 11:12:13'", "TIMESTAMP '2010-01-01 11:12:13.450'");
+            }
+
+            String digits = "123456789"; // digits to use for building fractional part
+            for (int precision = 0; precision < 10; precision++) {
+                String fractionPart = precision == 0 ? "" : "." + digits.substring(0, precision);
+                try (TestTable table = new TestTable(
+                        onRemoteDatabase(),
+                        "tpch.test_datetime64_predicate_pushdown_",
+                        "(c_datetime64 Nullable(DateTime64(%d))) Engine = Log".formatted(precision),
+                        List.of(
+                                "'2000-01-01 11:12:13%1$s'".formatted(fractionPart),
+                                "'2010-01-01 11:12:13%1$s'".formatted(fractionPart),
+                                "'2020-01-01 11:12:13%1$s'".formatted(fractionPart),
+                                "null"))) {
+                    assertPredicatePushdown(session, table.getName(), "c_datetime64", "= TIMESTAMP '2010-01-01 11:12:13%s'".formatted(fractionPart), "TIMESTAMP '2010-01-01 11:12:13%s'".formatted(fractionPart));
+                    assertPredicatePushdown(session, table.getName(), "c_datetime64", "> TIMESTAMP '2010-01-01 11:12:13%s'".formatted(fractionPart), "TIMESTAMP '2020-01-01 11:12:13%s'".formatted(fractionPart));
+                    assertPredicatePushdown(session, table.getName(), "c_datetime64", "< TIMESTAMP '2010-01-01 11:12:13%s'".formatted(fractionPart), "TIMESTAMP '2000-01-01 11:12:13%s'".formatted(fractionPart));
+                    assertPredicatePushdown(session, table.getName(), "c_datetime64", ">= TIMESTAMP '2010-01-01 11:12:13%s'".formatted(fractionPart), "TIMESTAMP '2010-01-01 11:12:13%1$s', TIMESTAMP '2020-01-01 11:12:13%1$s'".formatted(fractionPart));
+                    assertPredicatePushdown(session, table.getName(), "c_datetime64", "<= TIMESTAMP '2010-01-01 11:12:13%s'".formatted(fractionPart), "TIMESTAMP '2010-01-01 11:12:13%1$s', TIMESTAMP '2000-01-01 11:12:13%1$s'".formatted(fractionPart));
+                    assertPredicatePushdown(session, table.getName(), "c_datetime64", "!= TIMESTAMP '2010-01-01 11:12:13%s'".formatted(fractionPart), "TIMESTAMP '2000-01-01 11:12:13%1$s', TIMESTAMP '2020-01-01 11:12:13%1$s'".formatted(fractionPart));
+                    assertPredicatePushdown(session, table.getName(), "c_datetime64", "IS NULL", "CAST(null AS TIMESTAMP(%d))".formatted(precision));
+                    assertPredicatePushdown(session, table.getName(), "c_datetime64", "IS NOT NULL", "TIMESTAMP '2000-01-01 11:12:13%1$s', TIMESTAMP '2010-01-01 11:12:13%1$s', TIMESTAMP '2020-01-01 11:12:13%1$s'".formatted(fractionPart));
+                    assertPredicatePushdown(session, table.getName(), "c_datetime64", "IN (TIMESTAMP '2000-01-01 11:12:13%s', CAST(null AS TIMESTAMP(%d)))".formatted(fractionPart, precision), "TIMESTAMP '2000-01-01 11:12:13%s'".formatted(fractionPart));
+                    assertPredicatePushdown(session, table.getName(), "c_datetime64", "BETWEEN TIMESTAMP '2005-01-01 11:12:13%1$s' AND TIMESTAMP '2015-01-01 11:12:13%1$s'".formatted(fractionPart), "TIMESTAMP '2010-01-01 11:12:13%s'".formatted(fractionPart));
+                }
+            }
+        }
+    }
+
+    private void assertPredicatePushdown(Session session, String tableName, String column, String filterCondition, String expectedValue)
+    {
+        assertThat(query(session, "SELECT %s FROM %s WHERE %s %s".formatted(column, tableName, column, filterCondition)))
+                .matches("VALUES " + expectedValue)
+                .isFullyPushedDown();
+    }
+
+    @Test
     public void testIsNull()
     {
         Session mapStringAsVarbinary = Session.builder(getSession())
