@@ -16,9 +16,10 @@ package io.trino.plugin.bigquery;
 import com.google.common.collect.ImmutableMap;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.parallel.Execution;
-import org.junit.jupiter.api.parallel.ExecutionMode;
 
-@Execution(ExecutionMode.SAME_THREAD) // Run sequentially to remove tests interference, as each test updates the cache
+import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
+
+@Execution(SAME_THREAD) // run single-threaded to avoid interference with other tests
 final class TestBigQueryCaseInsensitiveMappingWithCache
         extends BaseBigQueryCaseInsensitiveMapping
 {
