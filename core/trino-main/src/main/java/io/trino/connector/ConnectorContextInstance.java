@@ -19,6 +19,7 @@ import io.trino.spi.NodeManager;
 import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.PageSorter;
 import io.trino.spi.VersionEmbedder;
+import io.trino.spi.connector.CatalogVersion;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.MetadataProvider;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
@@ -40,6 +41,7 @@ public class ConnectorContextInstance
     private final PageIndexerFactory pageIndexerFactory;
     private final AiModelAccessControl aiModelAccessControl;
     private final ModelConnectionSpecsLoader modelConnectionSpecsLoader;
+    private final CatalogVersion catalogVersion;
 
     public ConnectorContextInstance(
             OpenTelemetry openTelemetry,
@@ -51,7 +53,8 @@ public class ConnectorContextInstance
             AiModelAccessControl aiModelAccessControl,
             ModelConnectionSpecsLoader modelConnectionSpecsLoader,
             PageSorter pageSorter,
-            PageIndexerFactory pageIndexerFactory)
+            PageIndexerFactory pageIndexerFactory,
+            CatalogVersion catalogVersion)
     {
         this.openTelemetry = requireNonNull(openTelemetry, "openTelemetry is null");
         this.tracer = requireNonNull(tracer, "tracer is null");
@@ -63,6 +66,7 @@ public class ConnectorContextInstance
         this.modelConnectionSpecsLoader = requireNonNull(modelConnectionSpecsLoader, "modelConnectionSpecsLoader is null");
         this.pageSorter = requireNonNull(pageSorter, "pageSorter is null");
         this.pageIndexerFactory = requireNonNull(pageIndexerFactory, "pageIndexerFactory is null");
+        this.catalogVersion = requireNonNull(catalogVersion, "catalogVersion is null");
     }
 
     @Override
@@ -123,5 +127,11 @@ public class ConnectorContextInstance
     public ModelConnectionSpecsLoader getModelConnectionSpecsLoader()
     {
         return modelConnectionSpecsLoader;
+    }
+
+    @Override
+    public CatalogVersion getCatalogVersion()
+    {
+        return catalogVersion;
     }
 }

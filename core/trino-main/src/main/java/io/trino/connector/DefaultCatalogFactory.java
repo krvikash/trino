@@ -33,6 +33,7 @@ import io.trino.spi.VersionEmbedder;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.catalog.CatalogProperties;
 import io.trino.spi.classloader.ThreadContextClassLoader;
+import io.trino.spi.connector.CatalogVersion;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
@@ -135,6 +136,7 @@ public class DefaultCatalogFactory
         CatalogHandle catalogHandle = createRootCatalogHandle(catalogProperties.name(), catalogProperties.version());
         Connector connector = createConnector(
                 catalogProperties.name(),
+                catalogProperties.version(),
                 connectorFactory,
                 secretsResolver.getResolvedConfiguration(catalogProperties.properties()));
 
@@ -195,7 +197,7 @@ public class DefaultCatalogFactory
                 catalogProperties);
     }
 
-    private Connector createConnector(CatalogName catalogName, ConnectorFactory connectorFactory, Map<String, String> properties)
+    private Connector createConnector(CatalogName catalogName, CatalogVersion catalogVersion, ConnectorFactory connectorFactory, Map<String, String> properties)
     {
         ConnectorContext context = new ConnectorContextInstance(
                 openTelemetry,
@@ -207,7 +209,8 @@ public class DefaultCatalogFactory
                 aiModelAccessControl,
                 modelConnectionSpecsLoader,
                 pageSorter,
-                pageIndexerFactory);
+                pageIndexerFactory,
+                catalogVersion);
 
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(connectorFactory.getClass().getClassLoader())) {
             // TODO: connector factory should take CatalogName

@@ -92,4 +92,9 @@ public interface ConnectorContext
     {
         throw new UnsupportedOperationException();
     }
+
+    default CatalogVersion getCatalogVersion()
+    {
+        throw new UnsupportedOperationException();
+    }
 }

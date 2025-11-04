@@ -26,6 +26,7 @@ import io.trino.spi.NodeManager;
 import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.PageSorter;
 import io.trino.spi.VersionEmbedder;
+import io.trino.spi.connector.CatalogVersion;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.MetadataProvider;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
@@ -132,6 +133,12 @@ public final class TestingConnectorContext
     public PageIndexerFactory getPageIndexerFactory()
     {
         return pageIndexerFactory;
+    }
+
+    @Override
+    public CatalogVersion getCatalogVersion()
+    {
+        return new CatalogVersion("default");
     }
 
     public static final class Builder

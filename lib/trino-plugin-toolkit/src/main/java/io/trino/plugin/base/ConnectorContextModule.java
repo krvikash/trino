@@ -24,6 +24,7 @@ import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.PageSorter;
 import io.trino.spi.VersionEmbedder;
 import io.trino.spi.catalog.CatalogName;
+import io.trino.spi.connector.CatalogVersion;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.MetadataProvider;
 import io.trino.spi.security.AiModelAccessControl;
@@ -47,6 +48,7 @@ public class ConnectorContextModule
     public void configure(Binder binder)
     {
         binder.bind(CatalogName.class).toInstance(new CatalogName(catalogName));
+        binder.bind(CatalogVersion.class).toInstance(context.getCatalogVersion());
 
         binder.bind(OpenTelemetry.class).toInstance(context.getOpenTelemetry());
         binder.bind(Tracer.class).toInstance(context.getTracer());
