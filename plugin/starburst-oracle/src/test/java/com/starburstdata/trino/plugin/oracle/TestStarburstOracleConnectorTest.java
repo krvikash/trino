@@ -376,6 +376,24 @@ public class TestStarburstOracleConnectorTest
 
     @Test
     @Override
+    public void testExecuteProcedureWithInvalidQuery()
+    {
+        assertQueryFails("CALL system.execute('SELECT 1')", "(?s)Failed to execute query.*");
+        assertQueryFails("CALL system.execute('invalid')", "(?s)Failed to execute query.*");
+    }
+
+    @Override
+    protected boolean isColumnNameRejected(Exception exception, String columnName, boolean delimited)
+    {
+        if (columnName.equals("a\"quote") && exception.getMessage().contains("ORA-03001: unimplemented feature")) {
+            return true;
+        }
+
+        return false;
+    }
+
+    @Test
+    @Override
     public void testCreateTableWithLongTableName()
     {
         abort("https://starburstdata.atlassian.net/browse/SEP-9681");
