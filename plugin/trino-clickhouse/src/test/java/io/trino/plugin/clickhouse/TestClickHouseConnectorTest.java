@@ -1654,6 +1654,277 @@ public class TestClickHouseConnectorTest
     }
 
     @Test
+    public void testTimestampExtractionFunctionsPushdown()
+    {
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_timestamp_extraction_pushdown_",
+                """
+                        (c_date Nullable(Date),
+                         c_date32 Nullable(Date32),
+                         c_datetime Nullable(DateTime),
+                         c_datetime_tz Nullable(DateTime('Europe/Vilnius')),
+                         c_datetime64 Nullable(DateTime64),
+                         c_datetime64_0 Nullable(DateTime64(0)),
+                         c_datetime64_5 Nullable(DateTime64(5)),
+                         c_datetime64_3_tz Nullable(DateTime64(3, 'Pacific/Apia')),
+                         c_datetime64_9_tz Nullable(DateTime64(9, 'Asia/Kathmandu'))) ENGINE = Log""",
+                ImmutableList.of(
+                        "'2015-01-01', '2015-01-01', '2015-01-01 12:34:56', '2015-01-01 12:34:56', '2015-01-01 12:34:56.123', '2015-01-01 12:34:56', '2015-01-01 12:34:56.12345', '2015-01-01 12:34:56.123', '2015-01-01 12:34:56.123456789'",
+                        "'2016-01-01', '2016-01-01', '2016-01-01 12:34:56', '2016-01-01 12:34:56', '2016-01-01 12:34:56.987', '2016-01-01 12:34:56', '2016-01-01 12:34:56.98765', '2016-01-01 12:34:56.987', '2016-01-01 12:34:56.987654321'",
+                        "'2020-12-31', '2020-12-31', '2020-12-31 12:34:56', '2020-12-31 12:34:56', '2020-12-31 12:34:56.123', '2020-12-31 12:34:56', '2020-12-31 12:34:56.12345', '2020-12-31 12:34:56.123', '2020-12-31 12:34:56.123456789'",
+                        "'2025-12-31', '2025-12-31', '2025-12-31 12:34:56', '2025-12-31 12:34:56', '2025-12-31 12:34:56.987', '2025-12-31 12:34:56', '2025-12-31 12:34:56.98765', '2025-12-31 12:34:56.987', '2025-12-31 12:34:56.987654321'",
+                        "null, null, null, null, null, null, null, null, null"
+                ))) {
+            String tableName = table.getName();
+
+            assertTimestampExtractionFunctionIsPushdown("year", "c_date", tableName, "BIGINT '2015', BIGINT '2016', BIGINT '2020', BIGINT '2025', null");
+            assertTimestampExtractionFunctionIsPushdown("year", "c_date32", tableName, "BIGINT '2015', BIGINT '2016', BIGINT '2020', BIGINT '2025', null");
+            assertTimestampExtractionFunctionIsPushdown("year", "c_datetime", tableName, "BIGINT '2015', BIGINT '2016', BIGINT '2020', BIGINT '2025', null");
+            assertTimestampExtractionFunctionIsPushdown("year", "c_datetime_tz", tableName, "BIGINT '2015', BIGINT '2016', BIGINT '2020', BIGINT '2025', null");
+            assertTimestampExtractionFunctionIsPushdown("year", "c_datetime64", tableName, "BIGINT '2015', BIGINT '2016', BIGINT '2020', BIGINT '2025', null");
+            assertTimestampExtractionFunctionIsPushdown("year", "c_datetime64_0", tableName, "BIGINT '2015', BIGINT '2016', BIGINT '2020', BIGINT '2025', null");
+            assertTimestampExtractionFunctionIsPushdown("year", "c_datetime64_5", tableName, "BIGINT '2015', BIGINT '2016', BIGINT '2020', BIGINT '2025', null");
+            assertTimestampExtractionFunctionIsPushdown("year", "c_datetime64_3_tz", tableName, "BIGINT '2015', BIGINT '2016', BIGINT '2020', BIGINT '2025', null");
+            assertTimestampExtractionFunctionIsPushdown("year", "c_datetime64_9_tz", tableName, "BIGINT '2015', BIGINT '2016', BIGINT '2020', BIGINT '2025', null");
+
+            assertTimestampExtractionFunctionIsPushdown("quarter", "c_date", tableName, "BIGINT '1', BIGINT '1', BIGINT '4', BIGINT '4', null");
+            assertTimestampExtractionFunctionIsPushdown("quarter", "c_date32", tableName, "BIGINT '1', BIGINT '1', BIGINT '4', BIGINT '4', null");
+            assertTimestampExtractionFunctionIsPushdown("quarter", "c_datetime", tableName, "BIGINT '1', BIGINT '1', BIGINT '4', BIGINT '4', null");
+            assertTimestampExtractionFunctionIsPushdown("quarter", "c_datetime64", tableName, "BIGINT '1', BIGINT '1', BIGINT '4', BIGINT '4', null");
+            assertTimestampExtractionFunctionIsPushdown("quarter", "c_datetime64_0", tableName, "BIGINT '1', BIGINT '1', BIGINT '4', BIGINT '4', null");
+            assertTimestampExtractionFunctionIsPushdown("quarter", "c_datetime64_5", tableName, "BIGINT '1', BIGINT '1', BIGINT '4', BIGINT '4', null");
+            assertTimestampExtractionFunctionIsPushdown("quarter", "c_datetime64_3_tz", tableName, "BIGINT '1', BIGINT '1', BIGINT '4', BIGINT '4', null");
+            assertTimestampExtractionFunctionIsPushdown("quarter", "c_datetime64_9_tz", tableName, "BIGINT '1', BIGINT '1', BIGINT '4', BIGINT '4', null");
+
+            assertTimestampExtractionFunctionIsPushdown("month", "c_date", tableName, "BIGINT '1', BIGINT '1', BIGINT '12', BIGINT '12', null");
+            assertTimestampExtractionFunctionIsPushdown("month", "c_date32", tableName, "BIGINT '1', BIGINT '1', BIGINT '12', BIGINT '12', null");
+            assertTimestampExtractionFunctionIsPushdown("month", "c_datetime", tableName, "BIGINT '1', BIGINT '1', BIGINT '12', BIGINT '12', null");
+            assertTimestampExtractionFunctionIsPushdown("month", "c_datetime_tz", tableName, "BIGINT '1', BIGINT '1', BIGINT '12', BIGINT '12', null");
+            assertTimestampExtractionFunctionIsPushdown("month", "c_datetime64", tableName, "BIGINT '1', BIGINT '1', BIGINT '12', BIGINT '12', null");
+            assertTimestampExtractionFunctionIsPushdown("month", "c_datetime64_0", tableName, "BIGINT '1', BIGINT '1', BIGINT '12', BIGINT '12', null");
+            assertTimestampExtractionFunctionIsPushdown("month", "c_datetime64_5", tableName, "BIGINT '1', BIGINT '1', BIGINT '12', BIGINT '12', null");
+            assertTimestampExtractionFunctionIsPushdown("month", "c_datetime64_3_tz", tableName, "BIGINT '1', BIGINT '1', BIGINT '12', BIGINT '12', null");
+            assertTimestampExtractionFunctionIsPushdown("month", "c_datetime64_9_tz", tableName, "BIGINT '1', BIGINT '1', BIGINT '12', BIGINT '12', null");
+
+            assertTimestampExtractionFunctionIsPushdown("week", "c_date", tableName, "BIGINT '1', BIGINT '1', BIGINT '53', BIGINT '53', null");
+            assertTimestampExtractionFunctionIsPushdown("week", "c_date32", tableName, "BIGINT '1', BIGINT '1', BIGINT '53', BIGINT '53', null");
+            assertTimestampExtractionFunctionIsPushdown("week", "c_datetime", tableName, "BIGINT '1', BIGINT '1', BIGINT '53', BIGINT '53', null");
+            assertTimestampExtractionFunctionIsPushdown("week", "c_datetime_tz", tableName, "BIGINT '1', BIGINT '1', BIGINT '53', BIGINT '53', null");
+            assertTimestampExtractionFunctionIsPushdown("week", "c_datetime64", tableName, "BIGINT '1', BIGINT '1', BIGINT '53', BIGINT '53', null");
+            assertTimestampExtractionFunctionIsPushdown("week", "c_datetime64_0", tableName, "BIGINT '1', BIGINT '1', BIGINT '53', BIGINT '53', null");
+            assertTimestampExtractionFunctionIsPushdown("week", "c_datetime64_5", tableName, "BIGINT '1', BIGINT '1', BIGINT '53', BIGINT '53', null");
+            assertTimestampExtractionFunctionIsPushdown("week", "c_datetime64_3_tz", tableName, "BIGINT '1', BIGINT '1', BIGINT '53', BIGINT '53', null");
+            assertTimestampExtractionFunctionIsPushdown("week", "c_datetime64_9_tz", tableName, "BIGINT '1', BIGINT '1', BIGINT '53', BIGINT '53', null");
+
+            assertTimestampExtractionFunctionIsPushdown("day", "c_date", tableName, "BIGINT '1', BIGINT '1', BIGINT '31', BIGINT '31', null");
+            assertTimestampExtractionFunctionIsPushdown("day", "c_date32", tableName, "BIGINT '1', BIGINT '1', BIGINT '31', BIGINT '31', null");
+            assertTimestampExtractionFunctionIsPushdown("day", "c_datetime", tableName, "BIGINT '1', BIGINT '1', BIGINT '31', BIGINT '31', null");
+            assertTimestampExtractionFunctionIsPushdown("day", "c_datetime_tz", tableName, "BIGINT '1', BIGINT '1', BIGINT '31', BIGINT '31', null");
+            assertTimestampExtractionFunctionIsPushdown("day", "c_datetime64", tableName, "BIGINT '1', BIGINT '1', BIGINT '31', BIGINT '31', null");
+            assertTimestampExtractionFunctionIsPushdown("day", "c_datetime64_0", tableName, "BIGINT '1', BIGINT '1', BIGINT '31', BIGINT '31', null");
+            assertTimestampExtractionFunctionIsPushdown("day", "c_datetime64_5", tableName, "BIGINT '1', BIGINT '1', BIGINT '31', BIGINT '31', null");
+            assertTimestampExtractionFunctionIsPushdown("day", "c_datetime64_3_tz", tableName, "BIGINT '1', BIGINT '1', BIGINT '31', BIGINT '31', null");
+            assertTimestampExtractionFunctionIsPushdown("day", "c_datetime64_9_tz", tableName, "BIGINT '1', BIGINT '1', BIGINT '31', BIGINT '31', null");
+
+            assertTimestampExtractionFunctionIsPushdown("day_of_month", "c_date", tableName, "BIGINT '1', BIGINT '1', BIGINT '31', BIGINT '31', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_month", "c_date32", tableName, "BIGINT '1', BIGINT '1', BIGINT '31', BIGINT '31', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_month", "c_datetime", tableName, "BIGINT '1', BIGINT '1', BIGINT '31', BIGINT '31', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_month", "c_datetime_tz", tableName, "BIGINT '1', BIGINT '1', BIGINT '31', BIGINT '31', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_month", "c_datetime64", tableName, "BIGINT '1', BIGINT '1', BIGINT '31', BIGINT '31', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_month", "c_datetime64_0", tableName, "BIGINT '1', BIGINT '1', BIGINT '31', BIGINT '31', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_month", "c_datetime64_5", tableName, "BIGINT '1', BIGINT '1', BIGINT '31', BIGINT '31', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_month", "c_datetime64_3_tz", tableName, "BIGINT '1', BIGINT '1', BIGINT '31', BIGINT '31', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_month", "c_datetime64_9_tz", tableName, "BIGINT '1', BIGINT '1', BIGINT '31', BIGINT '31', null");
+
+            assertTimestampExtractionFunctionIsPushdown("day_of_week", "c_date", tableName, "BIGINT '4', BIGINT '5', BIGINT '4', BIGINT '3', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_week", "c_date32", tableName, "BIGINT '4', BIGINT '5', BIGINT '4', BIGINT '3', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_week", "c_datetime", tableName, "BIGINT '4', BIGINT '5', BIGINT '4', BIGINT '3', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_week", "c_datetime_tz", tableName, "BIGINT '4', BIGINT '5', BIGINT '4', BIGINT '3', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_week", "c_datetime64", tableName, "BIGINT '4', BIGINT '5', BIGINT '4', BIGINT '3', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_week", "c_datetime64_0", tableName, "BIGINT '4', BIGINT '5', BIGINT '4', BIGINT '3', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_week", "c_datetime64_5", tableName, "BIGINT '4', BIGINT '5', BIGINT '4', BIGINT '3', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_week", "c_datetime64_3_tz", tableName, "BIGINT '4', BIGINT '5', BIGINT '4', BIGINT '3', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_week", "c_datetime64_9_tz", tableName, "BIGINT '4', BIGINT '5', BIGINT '4', BIGINT '3', null");
+
+            assertTimestampExtractionFunctionIsPushdown("day_of_year", "c_date", tableName, "BIGINT '1', BIGINT '1', BIGINT '366', BIGINT '365', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_year", "c_date32", tableName, "BIGINT '1', BIGINT '1', BIGINT '366', BIGINT '365', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_year", "c_datetime", tableName, "BIGINT '1', BIGINT '1', BIGINT '366', BIGINT '365', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_year", "c_datetime_tz", tableName, "BIGINT '1', BIGINT '1', BIGINT '366', BIGINT '365', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_year", "c_datetime64", tableName, "BIGINT '1', BIGINT '1', BIGINT '366', BIGINT '365', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_year", "c_datetime64_0", tableName, "BIGINT '1', BIGINT '1', BIGINT '366', BIGINT '365', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_year", "c_datetime64_5", tableName, "BIGINT '1', BIGINT '1', BIGINT '366', BIGINT '365', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_year", "c_datetime64_3_tz", tableName, "BIGINT '1', BIGINT '1', BIGINT '366', BIGINT '365', null");
+            assertTimestampExtractionFunctionIsPushdown("day_of_year", "c_datetime64_9_tz", tableName, "BIGINT '1', BIGINT '1', BIGINT '366', BIGINT '365', null");
+
+            assertTimestampExtractionFunctionIsPushdown("dow", "c_date", tableName, "BIGINT '4', BIGINT '5', BIGINT '4', BIGINT '3', null");
+            assertTimestampExtractionFunctionIsPushdown("dow", "c_date32", tableName, "BIGINT '4', BIGINT '5', BIGINT '4', BIGINT '3', null");
+            assertTimestampExtractionFunctionIsPushdown("dow", "c_datetime", tableName, "BIGINT '4', BIGINT '5', BIGINT '4', BIGINT '3', null");
+            assertTimestampExtractionFunctionIsPushdown("dow", "c_datetime_tz", tableName, "BIGINT '4', BIGINT '5', BIGINT '4', BIGINT '3', null");
+            assertTimestampExtractionFunctionIsPushdown("dow", "c_datetime64", tableName, "BIGINT '4', BIGINT '5', BIGINT '4', BIGINT '3', null");
+            assertTimestampExtractionFunctionIsPushdown("dow", "c_datetime64_0", tableName, "BIGINT '4', BIGINT '5', BIGINT '4', BIGINT '3', null");
+            assertTimestampExtractionFunctionIsPushdown("dow", "c_datetime64_5", tableName, "BIGINT '4', BIGINT '5', BIGINT '4', BIGINT '3', null");
+            assertTimestampExtractionFunctionIsPushdown("dow", "c_datetime64_3_tz", tableName, "BIGINT '4', BIGINT '5', BIGINT '4', BIGINT '3', null");
+            assertTimestampExtractionFunctionIsPushdown("dow", "c_datetime64_9_tz", tableName, "BIGINT '4', BIGINT '5', BIGINT '4', BIGINT '3', null");
+
+            assertTimestampExtractionFunctionIsPushdown("doy", "c_date", tableName, "BIGINT '1', BIGINT '1', BIGINT '366', BIGINT '365', null");
+            assertTimestampExtractionFunctionIsPushdown("doy", "c_date32", tableName, "BIGINT '1', BIGINT '1', BIGINT '366', BIGINT '365', null");
+            assertTimestampExtractionFunctionIsPushdown("doy", "c_datetime", tableName, "BIGINT '1', BIGINT '1', BIGINT '366', BIGINT '365', null");
+            assertTimestampExtractionFunctionIsPushdown("doy", "c_datetime_tz", tableName, "BIGINT '1', BIGINT '1', BIGINT '366', BIGINT '365', null");
+            assertTimestampExtractionFunctionIsPushdown("doy", "c_datetime64", tableName, "BIGINT '1', BIGINT '1', BIGINT '366', BIGINT '365', null");
+            assertTimestampExtractionFunctionIsPushdown("doy", "c_datetime64_0", tableName, "BIGINT '1', BIGINT '1', BIGINT '366', BIGINT '365', null");
+            assertTimestampExtractionFunctionIsPushdown("doy", "c_datetime64_5", tableName, "BIGINT '1', BIGINT '1', BIGINT '366', BIGINT '365', null");
+            assertTimestampExtractionFunctionIsPushdown("doy", "c_datetime64_3_tz", tableName, "BIGINT '1', BIGINT '1', BIGINT '366', BIGINT '365', null");
+            assertTimestampExtractionFunctionIsPushdown("doy", "c_datetime64_9_tz", tableName, "BIGINT '1', BIGINT '1', BIGINT '366', BIGINT '365', null");
+
+            // only datetime types are supported for EXTRACT function with field hour
+            assertExtractFunctionIsPushdown("hour(c_date)", tableName, "BIGINT '0', BIGINT '0', BIGINT '0', BIGINT '0', null");
+            assertExtractFunctionIsPushdown("hour(c_date32)", tableName, "BIGINT '0', BIGINT '0', BIGINT '0', BIGINT '0', null");
+            assertTimestampExtractionFunctionIsPushdown("hour", "c_datetime", tableName, "BIGINT '12', BIGINT '12', BIGINT '12', BIGINT '12', null");
+            assertTimestampExtractionFunctionIsPushdown("hour", "c_datetime_tz", tableName, "BIGINT '12', BIGINT '12', BIGINT '12', BIGINT '12', null");
+            assertTimestampExtractionFunctionIsPushdown("hour", "c_datetime64", tableName, "BIGINT '12', BIGINT '12', BIGINT '12', BIGINT '12', null");
+            assertTimestampExtractionFunctionIsPushdown("hour", "c_datetime64_0", tableName, "BIGINT '12', BIGINT '12', BIGINT '12', BIGINT '12', null");
+            assertTimestampExtractionFunctionIsPushdown("hour", "c_datetime64_5", tableName, "BIGINT '12', BIGINT '12', BIGINT '12', BIGINT '12', null");
+            assertTimestampExtractionFunctionIsPushdown("hour", "c_datetime64_3_tz", tableName, "BIGINT '12', BIGINT '12', BIGINT '12', BIGINT '12', null");
+            assertTimestampExtractionFunctionIsPushdown("hour", "c_datetime64_9_tz", tableName, "BIGINT '12', BIGINT '12', BIGINT '12', BIGINT '12', null");
+
+            // only datetime types are supported for EXTRACT function with field minute
+            assertExtractFunctionIsPushdown("minute(c_date)", tableName, "BIGINT '0', BIGINT '0', BIGINT '0', BIGINT '0', null");
+            assertExtractFunctionIsPushdown("minute(c_date32)", tableName, "BIGINT '0', BIGINT '0', BIGINT '0', BIGINT '0', null");
+            assertTimestampExtractionFunctionIsPushdown("minute", "c_datetime", tableName, "BIGINT '34', BIGINT '34', BIGINT '34', BIGINT '34', null");
+            assertTimestampExtractionFunctionIsPushdown("minute", "c_datetime_tz", tableName, "BIGINT '34', BIGINT '34', BIGINT '34', BIGINT '34', null");
+            assertTimestampExtractionFunctionIsPushdown("minute", "c_datetime64", tableName, "BIGINT '34', BIGINT '34', BIGINT '34', BIGINT '34', null");
+            assertTimestampExtractionFunctionIsPushdown("minute", "c_datetime64_0", tableName, "BIGINT '34', BIGINT '34', BIGINT '34', BIGINT '34', null");
+            assertTimestampExtractionFunctionIsPushdown("minute", "c_datetime64_5", tableName, "BIGINT '34', BIGINT '34', BIGINT '34', BIGINT '34', null");
+            assertTimestampExtractionFunctionIsPushdown("minute", "c_datetime64_3_tz", tableName, "BIGINT '34', BIGINT '34', BIGINT '34', BIGINT '34', null");
+            assertTimestampExtractionFunctionIsPushdown("minute", "c_datetime64_9_tz", tableName, "BIGINT '34', BIGINT '34', BIGINT '34', BIGINT '34', null");
+
+            // only datetime types are supported for EXTRACT function with field second
+            assertExtractFunctionIsPushdown("second(c_date)", tableName, "BIGINT '0', BIGINT '0', BIGINT '0', BIGINT '0', null");
+            assertExtractFunctionIsPushdown("second(c_date32)", tableName, "BIGINT '0', BIGINT '0', BIGINT '0', BIGINT '0', null");
+            assertTimestampExtractionFunctionIsPushdown("second", "c_datetime", tableName, "BIGINT '56', BIGINT '56', BIGINT '56', BIGINT '56', null");
+            assertTimestampExtractionFunctionIsPushdown("second", "c_datetime_tz", tableName, "BIGINT '56', BIGINT '56', BIGINT '56', BIGINT '56', null");
+            assertTimestampExtractionFunctionIsPushdown("second", "c_datetime64", tableName, "BIGINT '56', BIGINT '56', BIGINT '56', BIGINT '56', null");
+            assertTimestampExtractionFunctionIsPushdown("second", "c_datetime64_0", tableName, "BIGINT '56', BIGINT '56', BIGINT '56', BIGINT '56', null");
+            assertTimestampExtractionFunctionIsPushdown("second", "c_datetime64_5", tableName, "BIGINT '56', BIGINT '56', BIGINT '56', BIGINT '56', null");
+            assertTimestampExtractionFunctionIsPushdown("second", "c_datetime64_3_tz", tableName, "BIGINT '56', BIGINT '56', BIGINT '56', BIGINT '56', null");
+            assertTimestampExtractionFunctionIsPushdown("second", "c_datetime64_9_tz", tableName, "BIGINT '56', BIGINT '56', BIGINT '56', BIGINT '56', null");
+
+            // millisecond is not supported fields in EXTRACT function
+            assertExtractFunctionIsPushdown("millisecond(c_date)", tableName, "BIGINT '0', BIGINT '0', BIGINT '0', BIGINT '0', null");
+            assertExtractFunctionIsPushdown("millisecond(c_date32)", tableName, "BIGINT '0', BIGINT '0', BIGINT '0', BIGINT '0', null");
+            assertExtractFunctionIsPushdown("millisecond(c_datetime)", tableName, "BIGINT '0', BIGINT '0', BIGINT '0', BIGINT '0', null");
+            assertExtractFunctionIsPushdown("millisecond(c_datetime_tz)", tableName, "BIGINT '0', BIGINT '0', BIGINT '0', BIGINT '0', null");
+            assertExtractFunctionIsPushdown("millisecond(c_datetime64)", tableName, "BIGINT '123', BIGINT '987', BIGINT '123', BIGINT '987', null");
+            assertExtractFunctionIsPushdown("millisecond(c_datetime64_0)", tableName, "BIGINT '0', BIGINT '0', BIGINT '0', BIGINT '0', null");
+            assertExtractFunctionIsPushdown("millisecond(c_datetime64_5)", tableName, "BIGINT '123', BIGINT '987', BIGINT '123', BIGINT '987', null");
+            assertExtractFunctionIsPushdown("millisecond(c_datetime64_3_tz)", tableName, "BIGINT '123', BIGINT '987', BIGINT '123', BIGINT '987', null");
+            assertExtractFunctionIsPushdown("millisecond(c_datetime64_9_tz)", tableName, "BIGINT '123', BIGINT '987', BIGINT '123', BIGINT '987', null");
+
+            // week_of_year is not supported parameter in EXTRACT function
+            assertExtractFunctionIsPushdown("week_of_year(c_date)", tableName, "BIGINT '1', BIGINT '1', BIGINT '53', BIGINT '53', null");
+            assertExtractFunctionIsPushdown("week_of_year(c_date32)", tableName, "BIGINT '1', BIGINT '1', BIGINT '53', BIGINT '53', null");
+            assertExtractFunctionIsPushdown("week_of_year(c_datetime)", tableName, "BIGINT '1', BIGINT '1', BIGINT '53', BIGINT '53', null");
+            assertExtractFunctionIsPushdown("week_of_year(c_datetime_tz)", tableName, "BIGINT '1', BIGINT '1', BIGINT '53', BIGINT '53', null");
+            assertExtractFunctionIsPushdown("week_of_year(c_datetime64)", tableName, "BIGINT '1', BIGINT '1', BIGINT '53', BIGINT '53', null");
+            assertExtractFunctionIsPushdown("week_of_year(c_datetime64_0)", tableName, "BIGINT '1', BIGINT '1', BIGINT '53', BIGINT '53', null");
+            assertExtractFunctionIsPushdown("week_of_year(c_datetime64_5)", tableName, "BIGINT '1', BIGINT '1', BIGINT '53', BIGINT '53', null");
+            assertExtractFunctionIsPushdown("week_of_year(c_datetime64_3_tz)", tableName, "BIGINT '1', BIGINT '1', BIGINT '53', BIGINT '53', null");
+            assertExtractFunctionIsPushdown("week_of_year(c_datetime64_9_tz)", tableName, "BIGINT '1', BIGINT '1', BIGINT '53', BIGINT '53', null");
+
+            //not supported functions: year_of_week, yow
+            assertTimestampExtractionFunctionIsNotPushdown("year_of_week", "c_date", tableName, "BIGINT '2015', BIGINT '2015', BIGINT '2020', BIGINT '2026', null");
+            assertTimestampExtractionFunctionIsNotPushdown("year_of_week", "c_date32", tableName, "BIGINT '2015', BIGINT '2015', BIGINT '2020', BIGINT '2026', null");
+            assertTimestampExtractionFunctionIsNotPushdown("year_of_week", "c_datetime", tableName, "BIGINT '2015', BIGINT '2015', BIGINT '2020', BIGINT '2026', null");
+            assertTimestampExtractionFunctionIsNotPushdown("year_of_week", "c_datetime_tz", tableName, "BIGINT '2015', BIGINT '2015', BIGINT '2020', BIGINT '2026', null");
+            assertTimestampExtractionFunctionIsNotPushdown("year_of_week", "c_datetime64", tableName, "BIGINT '2015', BIGINT '2015', BIGINT '2020', BIGINT '2026', null");
+            assertTimestampExtractionFunctionIsNotPushdown("year_of_week", "c_datetime64_0", tableName, "BIGINT '2015', BIGINT '2015', BIGINT '2020', BIGINT '2026', null");
+            assertTimestampExtractionFunctionIsNotPushdown("year_of_week", "c_datetime64_5", tableName, "BIGINT '2015', BIGINT '2015', BIGINT '2020', BIGINT '2026', null");
+            assertTimestampExtractionFunctionIsNotPushdown("year_of_week", "c_datetime64_3_tz", tableName, "BIGINT '2015', BIGINT '2015', BIGINT '2020', BIGINT '2026', null");
+            assertTimestampExtractionFunctionIsNotPushdown("year_of_week", "c_datetime64_9_tz", tableName, "BIGINT '2015', BIGINT '2015', BIGINT '2020', BIGINT '2026', null");
+
+            assertTimestampExtractionFunctionIsNotPushdown("yow", "c_date", tableName, "BIGINT '2015', BIGINT '2015', BIGINT '2020', BIGINT '2026', null");
+            assertTimestampExtractionFunctionIsNotPushdown("yow", "c_date32", tableName, "BIGINT '2015', BIGINT '2015', BIGINT '2020', BIGINT '2026', null");
+            assertTimestampExtractionFunctionIsNotPushdown("yow", "c_datetime", tableName, "BIGINT '2015', BIGINT '2015', BIGINT '2020', BIGINT '2026', null");
+            assertTimestampExtractionFunctionIsNotPushdown("yow", "c_datetime_tz", tableName, "BIGINT '2015', BIGINT '2015', BIGINT '2020', BIGINT '2026', null");
+            assertTimestampExtractionFunctionIsNotPushdown("yow", "c_datetime64", tableName, "BIGINT '2015', BIGINT '2015', BIGINT '2020', BIGINT '2026', null");
+            assertTimestampExtractionFunctionIsNotPushdown("yow", "c_datetime64_0", tableName, "BIGINT '2015', BIGINT '2015', BIGINT '2020', BIGINT '2026', null");
+            assertTimestampExtractionFunctionIsNotPushdown("yow", "c_datetime64_5", tableName, "BIGINT '2015', BIGINT '2015', BIGINT '2020', BIGINT '2026', null");
+            assertTimestampExtractionFunctionIsNotPushdown("yow", "c_datetime64_3_tz", tableName, "BIGINT '2015', BIGINT '2015', BIGINT '2020', BIGINT '2026', null");
+            assertTimestampExtractionFunctionIsNotPushdown("yow", "c_datetime64_9_tz", tableName, "BIGINT '2015', BIGINT '2015', BIGINT '2020', BIGINT '2026', null");
+        }
+    }
+
+    @Test
+    public void testExtractTimezoneIsNotPushdown()
+    {
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_extract_timezone_function_pushdown_",
+                """
+                        (c_datetime Nullable(DateTime('UTC')),
+                        c_datetime64_0 Nullable(DateTime64(0, 'Asia/Kathmandu')),
+                        c_datetime64_5 Nullable(DateTime64(5, 'Europe/Vilnius')),
+                        c_datetime64_9 Nullable(DateTime64(9, 'Pacific/Apia'))) ENGINE = Log""",
+                ImmutableList.of(
+                        "'2015-01-01 12:34:56', '2015-01-01 12:34:56', '2015-01-01 12:34:56.12345', '2015-01-01 12:34:56.123456789'",
+                        "null, null, null, null"
+                ))) {
+            String tableName = table.getName();
+
+            assertExtractFunctionIsNotPushdown("timezone(c_datetime)", tableName, "'UTC', null");
+            assertExtractFunctionIsNotPushdown("timezone(c_datetime64_0)", tableName, "'+05:45', null");
+            assertExtractFunctionIsNotPushdown("timezone(c_datetime64_5)", tableName, "'+02:00', null");
+            assertExtractFunctionIsNotPushdown("timezone(c_datetime64_9)", tableName, "'+14:00', null");
+
+            assertExtractFunctionIsNotPushdown("EXTRACT(timezone_hour FROM c_datetime)", tableName, "BIGINT '0', null");
+            assertExtractFunctionIsNotPushdown("EXTRACT(timezone_hour FROM c_datetime64_0)", tableName, "BIGINT '5', null");
+            assertExtractFunctionIsNotPushdown("EXTRACT(timezone_hour FROM c_datetime64_5)", tableName, "BIGINT '2', null");
+            assertExtractFunctionIsNotPushdown("EXTRACT(timezone_hour FROM c_datetime64_9)", tableName, "BIGINT '14', null");
+
+            assertExtractFunctionIsNotPushdown("EXTRACT(timezone_minute FROM c_datetime)", tableName, "BIGINT '0', null");
+            assertExtractFunctionIsNotPushdown("EXTRACT(timezone_minute FROM c_datetime64_0)", tableName, "BIGINT '45', null");
+            assertExtractFunctionIsNotPushdown("EXTRACT(timezone_minute FROM c_datetime64_5)", tableName, "BIGINT '0', null");
+            assertExtractFunctionIsNotPushdown("EXTRACT(timezone_minute FROM c_datetime64_9)", tableName, "BIGINT '0', null");
+        }
+    }
+
+    private void assertTimestampExtractionFunctionIsPushdown(String function, String columnName, String tableName, String expected)
+    {
+        assertThat(query("SELECT %s(%s) FROM %s".formatted(function, columnName, tableName)))
+                .matches("VALUES %s".formatted(expected))
+                .isFullyPushedDown();
+        assertThat(query("SELECT EXTRACT(%s FROM %s) FROM %s".formatted(function, columnName, tableName)))
+                .matches("VALUES %s".formatted(expected))
+                .isFullyPushedDown();
+    }
+
+    private void assertTimestampExtractionFunctionIsNotPushdown(String function, String columnName, String tableName, String expected)
+    {
+        assertThat(query("SELECT %s(%s) FROM %s".formatted(function, columnName, tableName)))
+                .matches("VALUES %s".formatted(expected))
+                .isNotFullyPushedDown(ProjectNode.class);
+        assertThat(query("SELECT EXTRACT(%s FROM %s) FROM %s".formatted(function, columnName, tableName)))
+                .matches("VALUES %s".formatted(expected))
+                .isNotFullyPushedDown(ProjectNode.class);
+    }
+
+    private void assertExtractFunctionIsPushdown(String function, String tableName, String expected)
+    {
+        assertThat(query("SELECT %s FROM %s".formatted(function, tableName)))
+                .matches("VALUES %s".formatted(expected))
+                .isFullyPushedDown();
+    }
+
+    private void assertExtractFunctionIsNotPushdown(String function, String tableName, String expected)
+    {
+        assertThat(query("SELECT %s FROM %s".formatted(function, tableName)))
+                .skippingTypesCheck()
+                .matches("VALUES %s".formatted(expected))
+                .isNotFullyPushedDown(ProjectNode.class);
+    }
+
+    @Test
     @Override // Override because ClickHouse allows SELECT query in update procedure
     public void testExecuteProcedureWithInvalidQuery()
     {

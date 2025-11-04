@@ -37,6 +37,7 @@ import io.trino.plugin.clickhouse.expression.RewriteDateTrunc;
 import io.trino.plugin.clickhouse.expression.RewriteLike;
 import io.trino.plugin.clickhouse.expression.RewriteStringComparison;
 import io.trino.plugin.clickhouse.expression.RewriteStringIn;
+import io.trino.plugin.clickhouse.expression.RewriteTimestampExtraction;
 import io.trino.plugin.jdbc.BaseJdbcClient;
 import io.trino.plugin.jdbc.BaseJdbcConfig;
 import io.trino.plugin.jdbc.ColumnMapping;
@@ -276,6 +277,7 @@ public class ClickHouseClient
         this.projectFunctionRewriter = new ProjectFunctionRewriter<>(
                 connectorExpressionRewriter,
                 ImmutableSet.<ProjectFunctionRule<JdbcExpression, ParameterizedExpression>>builder()
+                        .add(new RewriteTimestampExtraction())
                         .add(new RewriteCast(this::getClickHouseServerVersion, (session, type) -> toWriteMapping(session, type).getDataType()))
                         .add(new RewriteDateTrunc())
                         .build());

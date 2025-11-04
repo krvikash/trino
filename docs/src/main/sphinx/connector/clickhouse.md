@@ -418,7 +418,35 @@ The connector supports pushdown for a number of operations:
 {ref}`Projection pushdown <projection-pushdown>` for the following functions:
 
 - {func}`date_trunc`
-
+- {func}`day` 
+- {func}`day_of_the_month` 
+- {func}`day_of_the_week` 
+- {func}`day_of_the_year` 
+- {func}`dow`
+- {func}`doy` 
+- {func}`hour` 
+- {func}`millisecond`
+- {func}`minute` 
+- {func}`month`
+- {func}`quarter`
+- {func}`second` 
+- {func}`week`
+- {func}`week_of_year`
+- {func}`year`
+- {func}`EXTRACT` function with the following fields:
+  - `DAY`
+  - `DAY_OF_MONTH`
+  - `DAY_OF_WEEK`
+  - `DAY_OF_YEAR`
+  - `DOW`
+  - `DOY`
+  - `HOUR`
+  - `MINUTE`
+  - `MONTH`
+  - `QUARTER`
+  - `SECOND`
+  - `WEEK`
+  - `YEAR`
 
 ```{include} pushdown-correctness-behavior.fragment
 ```
