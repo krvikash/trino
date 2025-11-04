@@ -140,6 +140,7 @@ public class BufferExchangeManagerFactory
         boolean useEmbeddedBufferService = Boolean.parseBoolean(config.getOrDefault(USE_EMBEDDED_BUFFER_SERVICE_CONFIG_PROPERTY, "false"));
 
         Bootstrap app = new Bootstrap(
+                "buffer-exchange-manager",
                 new MBeanModule(),
                 new MBeanServerModule(),
                 new PrefixObjectNameGeneratorModule("io.starburst.stargate.buffer.trino.exchange", "io.starburst.buffer.exchange"),

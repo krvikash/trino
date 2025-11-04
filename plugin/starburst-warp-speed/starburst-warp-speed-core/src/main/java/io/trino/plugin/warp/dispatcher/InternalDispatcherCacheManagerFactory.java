@@ -80,7 +80,9 @@ public class InternalDispatcherCacheManagerFactory
 
         optionalModules.ifPresent(modules::addAll);
 
-        Bootstrap app = new Bootstrap(modules);
+        Bootstrap app = new Bootstrap(
+                "io.trino.bootstrap.cache." + cacheManagerName,
+                modules);
         Injector injector = app
                 .doNotInitializeLogging()
                 .setRequiredConfigurationProperties(Collections.emptyMap())

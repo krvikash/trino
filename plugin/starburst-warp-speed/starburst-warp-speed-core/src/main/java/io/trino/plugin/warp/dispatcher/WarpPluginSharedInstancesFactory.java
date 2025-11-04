@@ -50,12 +50,13 @@ public class WarpPluginSharedInstancesFactory
         this.storageEngineModule = storageEngineModule;
     }
 
-    public synchronized WarpPluginSharedInstances create(boolean isCoordinator, Map<String, String> config)
+    public synchronized WarpPluginSharedInstances create(String contextName, boolean isCoordinator, Map<String, String> config)
     {
         Map<String, String> warpConfig = getWarpConfig(config);
 
         if (sharedInstances == null) {
             Bootstrap app = new Bootstrap(
+                    contextName,
                     new MBeanServerModule(),
                     new MBeanModule(),
                     new WarpSharedInstancesModule(storageEngineModule, isCoordinator, config));

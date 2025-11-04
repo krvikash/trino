@@ -55,6 +55,7 @@ public class StargateParallelConnectorFactory
         checkStrictSpiVersionMatch(context, this);
 
         Bootstrap app = new Bootstrap(
+                "io.trino.bootstrap.catalog." + catalogName,
                 new ConnectorContextModule(catalogName, context),
                 binder -> binder.bind(Boolean.class).annotatedWith(EnableWrites.class).toInstance(enableWrites),
                 binder -> binder.install(new ExtraCredentialsBasedIdentityCacheMappingModule()),

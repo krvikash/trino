@@ -99,7 +99,7 @@ public class InternalDispatcherConnectorFactory
         modules.addAll(proxiedConnectorInitializer.getModules(warpConnectorContext));
         modules.add(proxiedConnectorModule(proxiedConnector));
         optionalModules.ifPresent(modules::addAll);
-        Bootstrap app = new Bootstrap(modules);
+        Bootstrap app = new Bootstrap("io.trino.bootstrap.catalog." + catalogName, modules);
 
         Injector injector = app
                 .doNotInitializeLogging()

@@ -43,6 +43,7 @@ public class MemoryCacheManagerFactory
 
         // A plugin is not required to use Guice; it is just very convenient
         Bootstrap app = new Bootstrap(
+                "io.trino.bootstrap.cache." + getName(),
                 new MemoryCacheModule(),
                 new MBeanModule(),
                 new MBeanServerModule(),

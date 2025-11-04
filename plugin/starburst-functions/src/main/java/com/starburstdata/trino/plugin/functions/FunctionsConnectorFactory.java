@@ -54,6 +54,7 @@ public class FunctionsConnectorFactory
         checkStrictSpiVersionMatch(context, this);
 
         Bootstrap app = new Bootstrap(
+                "io.trino.bootstrap.catalog." + catalogName,
                 new AiModule(context.getModelConnectionSpecsLoader()),
                 new JsonModule(),
                 new StorageModule(),

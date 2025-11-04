@@ -45,6 +45,7 @@ public class SnowflakeParallelConnectorFactory
         checkStrictSpiVersionMatch(context, this);
 
         Bootstrap app = new Bootstrap(
+                "io.trino.bootstrap.catalog." + catalogName,
                 new ConnectorContextModule(catalogName, context),
                 new JdbcModule(),
                 new SnowflakeJdbcOverrideModule(),
