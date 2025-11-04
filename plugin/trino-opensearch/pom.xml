@@ -16,7 +16,6 @@
 
     <properties>
         <air.compiler.fail-warnings>true</air.compiler.fail-warnings>
-        <dep.lucene.version>9.12.2</dep.lucene.version>
         <dep.opensearch.version>2.19.3</dep.opensearch.version>
     </properties>
 
@@ -133,7 +132,7 @@
         <dependency>
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-core</artifactId>
-            <version>${dep.lucene.version}</version>
+            <version>9.12.2</version>
         </dependency>
 
         <dependency>
