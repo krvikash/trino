@@ -72,8 +72,8 @@ public final class TestingUtils
                         "temperature": 0.0,
                         "connectionInfo": {
                             "provider": "AWS_BEDROCK",
-                            "awsAccessKey": "${ENV:AWS_ACCESS_KEY_ID}",
-                            "awsSecretKey": "${ENV:AWS_SECRET_ACCESS_KEY}",
+                            "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
+                            "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
                             "region": "us-east-2"
                         }
                     },
@@ -85,8 +85,8 @@ public final class TestingUtils
                         "temperature": 0.0,
                         "connectionInfo": {
                             "provider": "AWS_BEDROCK",
-                            "awsAccessKey": "${ENV:AWS_ACCESS_KEY_ID}",
-                            "awsSecretKey": "${ENV:AWS_SECRET_ACCESS_KEY}",
+                            "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
+                            "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
                             "region": "us-east-2"
                         }
                     }
@@ -122,8 +122,8 @@ public final class TestingUtils
                       "kind": "EMBED",
                       "connectionInfo": {
                         "provider": "AWS_BEDROCK",
-                        "awsAccessKey": "${ENV:AWS_ACCESS_KEY_ID}",
-                        "awsSecretKey": "${ENV:AWS_SECRET_ACCESS_KEY}",
+                        "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
+                        "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
                         "region": "us-east-2"
                       }
                     },
@@ -133,8 +133,8 @@ public final class TestingUtils
                       "kind": "EMBED",
                       "connectionInfo": {
                         "provider": "AWS_BEDROCK",
-                        "awsAccessKey": "${ENV:AWS_ACCESS_KEY_ID}",
-                        "awsSecretKey": "${ENV:AWS_SECRET_ACCESS_KEY}",
+                        "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
+                        "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
                         "region": "us-east-1"
                       }
                     }
