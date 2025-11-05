@@ -585,7 +585,7 @@ public class OpenSearchClient
         return jsonNode.get(name);
     }
 
-    public SearchResponse executeInitialScrollableQuery(String index, String query)
+    public SearchResponse executeInitialScrollableQuery(String index, String query, int shard)
     {
         JsonNode root;
         try {
@@ -605,11 +605,12 @@ public class OpenSearchClient
         }
 
         long start = System.nanoTime();
-        LOG.debug("Begin scrollable search: %s, query: %s", index, query);
+        LOG.debug("Begin scrollable search: %s, query: %s, shard: %s", index, query, shard);
         try {
             return client.search(
                     new SearchRequest(index)
                             .searchType(QUERY_THEN_FETCH)
+                            .preference("_shards:" + shard)
                             .scroll(new TimeValue(scrollTimeout.toMillis()))
                             .source(
                                     SearchSourceBuilder.searchSource()

@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.opensearch;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import io.trino.plugin.opensearch.client.OpenSearchClient;
 import io.trino.spi.connector.ConnectorSession;
@@ -29,17 +30,25 @@ import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.plugin.opensearch.OpenSearchTableHandle.Type.AGGREGATION;
+import static io.trino.plugin.opensearch.OpenSearchUtils.isScrollable;
 import static java.util.Objects.requireNonNull;
 
 public class OpenSearchSplitManager
         implements ConnectorSplitManager
 {
     private final OpenSearchClient client;
+    // TODO remove this flag https://starburstdata.atlassian.net/browse/SEP-19965
+    private final boolean scrollableRawQueryEnabled;
+    private final boolean shardedScrollableRawQueryEnabled;
+    private final ObjectMapper objectMapper;
 
     @Inject
-    public OpenSearchSplitManager(OpenSearchClient client)
+    public OpenSearchSplitManager(OpenSearchClient client, OpenSearchConfig config, ObjectMapper objectMapper)
     {
         this.client = requireNonNull(client, "client is null");
+        this.scrollableRawQueryEnabled = config.isScrollableRawQueryEnabled();
+        this.shardedScrollableRawQueryEnabled = config.isShardedScrollableRawQueryEnabled();
+        this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
     }
 
     @Override
@@ -64,8 +73,9 @@ public class OpenSearchSplitManager
 
     private boolean shouldUseSingleSplit(OpenSearchTableHandle tableHandle)
     {
-        return tableHandle.type().equals(OpenSearchTableHandle.Type.QUERY) ||
-                client.isServerlessDeployment() ||
-                tableHandle.type().equals(AGGREGATION);
+        return client.isServerlessDeployment() ||
+                tableHandle.type().equals(AGGREGATION) ||
+                (tableHandle.type().equals(OpenSearchTableHandle.Type.QUERY) &&
+                        (!scrollableRawQueryEnabled || !shardedScrollableRawQueryEnabled || !isScrollable(objectMapper, tableHandle.query().orElseThrow())));
     }
 }

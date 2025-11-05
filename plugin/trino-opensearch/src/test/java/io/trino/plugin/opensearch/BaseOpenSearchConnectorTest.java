@@ -87,6 +87,8 @@ public abstract class BaseOpenSearchConnectorTest
 
         return OpenSearchQueryRunner.builder(opensearch.getAddress())
                 .setInitialTables(REQUIRED_TPCH_TABLES)
+                .setIndexSettings(ImmutableMap.of("number_of_shards", "5", "number_of_replicas", "1"))
+                .addConnectorProperties(ImmutableMap.of("opensearch.sharded-scrollable-query-passthrough-enabled", "true"))
                 .build();
     }
 
@@ -1968,7 +1970,9 @@ public abstract class BaseOpenSearchConnectorTest
                 format("FROM TABLE(%s.system.raw_query(", catalogName) +
                 "schema => 'tpch', " +
                 "index => 'nation', " +
-                "query => '{\"query\": {\"match\": {\"name\": \"ALGERIA\"}}}')) t(result)"))
+                "query => '{\"query\": {\"match\": {\"name\": \"ALGERIA\"}}}')) t(result) " +
+                "WHERE result IS NOT NULL " +
+                "AND json_query(result, 'lax $[0][0].hits.hits._source') IS NOT NULL"))
                 .matches("VALUES VARCHAR '{\"nationkey\":0,\"name\":\"ALGERIA\",\"regionkey\":0,\"comment\":\" haggle. carefully final deposits detect slyly agai\"}'");
 
         // just nested query
@@ -1976,24 +1980,32 @@ public abstract class BaseOpenSearchConnectorTest
                 format("FROM TABLE(%s.system.raw_query(", catalogName) +
                 "schema => 'tpch', " +
                 "index => 'nation', " +
-                "query => '{\"match\": {\"name\": \"ALGERIA\"}}')) t(result)"))
+                "query => '{\"match\": {\"name\": \"ALGERIA\"}}')) t(result) " +
+                "WHERE result IS NOT NULL " +
+                "AND json_query(result, 'lax $[0][0].hits.hits._source') IS NOT NULL"))
                 .matches("VALUES VARCHAR '{\"nationkey\":0,\"name\":\"ALGERIA\",\"regionkey\":0,\"comment\":\" haggle. carefully final deposits detect slyly agai\"}'");
 
         // parameters
         Session session = Session.builder(getSession())
                 .addPreparedStatement(
                         "my_query",
-                        format("SELECT json_query(result, 'lax $[0][0].hits.hits._source') FROM TABLE(%s.system.raw_query(schema => ?, index => ?, query => ?))", catalogName))
+                        format("SELECT json_query(result, 'lax $[0][0].hits.hits._source') " +
+                                "FROM TABLE(%s.system.raw_query(schema => ?, index => ?, query => ?)) t(result) " +
+                                "WHERE result IS NOT NULL AND json_query(result, 'lax $[0][0].hits.hits._source') IS NOT NULL", catalogName))
                 .build();
         assertThat(query(session, "EXECUTE my_query USING 'tpch', 'nation', '{\"query\": {\"match\": {\"name\": \"ALGERIA\"}}}'"))
                 .matches("VALUES VARCHAR '{\"nationkey\":0,\"name\":\"ALGERIA\",\"regionkey\":0,\"comment\":\" haggle. carefully final deposits detect slyly agai\"}'");
 
         // select multiple records by range. Use array wrapper to wrap multiple results
-        assertThat(query("SELECT array_sort(CAST(json_parse(json_query(result, 'lax $[0][0].hits.hits._source.name' WITH ARRAY WRAPPER)) AS array(varchar))) " +
-                format("FROM TABLE(%s.system.raw_query(", catalogName) +
-                "schema => 'tpch', " +
-                "index => 'nation', " +
-                "query => '{\"query\": {\"range\": {\"nationkey\": {\"gte\": 0,\"lte\": 3}}}}')) t(result)"))
+        assertThat(query(
+                "SELECT array_sort(array_distinct(flatten(array_agg(" +
+                        "CAST(json_parse(json_query(result, 'lax $[0][0].hits.hits._source.name' WITH ARRAY WRAPPER)) AS array(varchar))" +
+                        ")))) " +
+                        format("FROM TABLE(%s.system.raw_query(", catalogName) +
+                        "schema => 'tpch', " +
+                        "index => 'nation', " +
+                        "query => '{\"query\": {\"range\": {\"nationkey\": {\"gte\": 0,\"lte\": 3}}}}')) t(result) " +
+                        "WHERE result IS NOT NULL"))
                 .matches("VALUES CAST(ARRAY['ALGERIA', 'ARGENTINA', 'BRAZIL', 'CANADA'] AS ARRAY(VARCHAR))");
 
         List<Integer> querySizeOptions = List.of(1, 2, 5, 10, 1000, 10000);
@@ -2029,6 +2041,15 @@ public abstract class BaseOpenSearchConnectorTest
                 "    }\n" +
                 "}";
 
+        // size 0
+        assertThat(query("SELECT min(json_query(result, 'lax $[0][0].hits.hits')) " +
+                format("FROM TABLE(%s.system.raw_query(", catalogName) +
+                "schema => 'tpch', " +
+                "index => 'nation', " +
+                "query => '{\"size\":0,\"query\":{\"match_all\":{}}}')) t(result) " +
+                "WHERE json_query(result, 'lax $[0][0].hits.hits') IS NOT NULL"))
+                .matches("VALUES VARCHAR '[]'");
+
         assertThat(query(format("WITH data(r) AS (" +
                 "   SELECT CAST(json_parse(result) AS ROW(aggregations ROW(max_orderkey ROW(value BIGINT), sum_orderkey ROW(value BIGINT)))) " +
                 "   FROM TABLE(%s.system.raw_query(" +
@@ -2040,11 +2061,12 @@ public abstract class BaseOpenSearchConnectorTest
                 .matches("VALUES (BIGINT '60000', BIGINT '449872500')");
 
         // no matches
-        assertThat(query("SELECT json_query(result, 'lax $[0][0].hits.hits') " +
-                format("FROM TABLE(%s.system.raw_query(", catalogName) +
-                "schema => 'tpch', " +
-                "index => 'nation', " +
-                "query => '{\"query\": {\"match\": {\"name\": \"UTOPIA\"}}}')) t(result)"))
+        assertThat(query("SELECT min(json_query(result, 'lax $[0][0].hits.hits')) " +
+                        format("FROM TABLE(%s.system.raw_query(", catalogName) +
+                        "schema => 'tpch', " +
+                        "index => 'nation', " +
+                        "query => '{\"query\": {\"match\": {\"name\": \"UTOPIA\"}}}')) t(result) " +
+                        "WHERE json_query(result, 'lax $[0][0].hits.hits') IS NOT NULL"))
                 .matches("VALUES VARCHAR '[]'");
 
         // syntax error

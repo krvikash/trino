@@ -41,18 +41,20 @@ public class ScrollablePassthroughQueryPageSource
     private final OpenSearchClient client;
     private final String index;
     private final String query;
+    private final int shard;
     private long readTimeNanos;
     private String scrollId;
     private long completedBytes;
     private long hitsSoFar;
     private boolean done;
 
-    public ScrollablePassthroughQueryPageSource(OpenSearchClient client, OpenSearchTableHandle table)
+    public ScrollablePassthroughQueryPageSource(OpenSearchClient client, OpenSearchTableHandle table, int shard)
     {
         requireNonNull(table, "table is null");
         this.client = requireNonNull(client, "client is null");
         this.index = table.index();
         this.query = table.query().orElseThrow();
+        this.shard = shard;
     }
 
     @Override
@@ -82,7 +84,7 @@ public class ScrollablePassthroughQueryPageSource
         SearchResponse searchResponse;
         long start = System.nanoTime();
         if (scrollId == null) {
-            searchResponse = client.executeInitialScrollableQuery(index, query);
+            searchResponse = client.executeInitialScrollableQuery(index, query, shard);
         }
         else {
             searchResponse = client.nextPage(scrollId);

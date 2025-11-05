@@ -451,6 +451,11 @@ The `raw_query` function requires three parameters:
 Once executed, the query returns a single row containing the resulting JSON
 payload returned by OpenSearch.
 
+If `opensearch.sharded-scrollable-query-passthrough-enabled` flag is enabled,
+the query returns a single row containing the resulting JSON payload per shard.
+
+The number of returned rows may vary depending on the `opensearch.scroll-size` setting.
+
 For example, query the `example` catalog and use the `raw_query` table function
 to search for documents in the `orders` index where the country name is
 `ALGERIA` as defined as a JSON-formatted query matcher and passed to the

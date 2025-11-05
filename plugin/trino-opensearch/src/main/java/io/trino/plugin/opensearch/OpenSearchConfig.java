@@ -72,7 +72,9 @@ public class OpenSearchConfig
     private boolean verifyHostnames = true;
     private boolean projectionPushDownEnabled = true;
     private boolean aggregationPushdownEnabled = true;
+    // TODO remove this flag https://starburstdata.atlassian.net/browse/SEP-19965
     private boolean scrollableRawQueryEnabled = true;
+    private boolean shardedScrollableRawQueryEnabled;
     // Opensearch limits/expects the #buckets to be in the Integer range
     private int maxAggregationBuckets = MAX_AGGREGATION_BUCKETS;
 
@@ -392,6 +394,19 @@ public class OpenSearchConfig
     public OpenSearchConfig setScrollableRawQueryEnabled(boolean scrollableRawQueryEnabled)
     {
         this.scrollableRawQueryEnabled = scrollableRawQueryEnabled;
+        return this;
+    }
+
+    public boolean isShardedScrollableRawQueryEnabled()
+    {
+        return shardedScrollableRawQueryEnabled;
+    }
+
+    @Config("opensearch.sharded-scrollable-query-passthrough-enabled")
+    @ConfigDescription("Enable sharded scrollable raw queries")
+    public OpenSearchConfig setShardedScrollableRawQueryEnabled(boolean shardedScrollableRawQueryEnabled)
+    {
+        this.shardedScrollableRawQueryEnabled = shardedScrollableRawQueryEnabled;
         return this;
     }
 

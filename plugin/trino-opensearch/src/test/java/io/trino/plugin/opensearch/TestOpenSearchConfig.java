@@ -61,6 +61,7 @@ public class TestOpenSearchConfig
                 .setProjectionPushdownEnabled(true)
                 .setAggregationPushdownEnabled(true)
                 .setScrollableRawQueryEnabled(true)
+                .setShardedScrollableRawQueryEnabled(false)
                 .setMaxAggregationBuckets(65535)
                 .setSearchStrategy(OpenSearchConfig.SearchStrategy.SCROLL)
                 .setSecurity(null));
@@ -98,6 +99,7 @@ public class TestOpenSearchConfig
                 .put("opensearch.projection-pushdown-enabled", "false")
                 .put("opensearch.aggregation-pushdown-enabled", "false")
                 .put("opensearch.scrollable-query-passthrough-enabled", "false")
+                .put("opensearch.sharded-scrollable-query-passthrough-enabled", "true")
                 .put("opensearch.max-aggregation-buckets", "1000")
                 .put("opensearch.search-strategy", "SEARCH_AFTER")
                 .put("opensearch.security", "AWS")
@@ -128,6 +130,7 @@ public class TestOpenSearchConfig
                 .setProjectionPushdownEnabled(false)
                 .setAggregationPushdownEnabled(false)
                 .setScrollableRawQueryEnabled(false)
+                .setShardedScrollableRawQueryEnabled(true)
                 .setMaxAggregationBuckets(1000)
                 .setSearchStrategy(OpenSearchConfig.SearchStrategy.SEARCH_AFTER)
                 .setSecurity(AWS);
