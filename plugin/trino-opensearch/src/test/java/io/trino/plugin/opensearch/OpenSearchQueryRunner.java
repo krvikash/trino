@@ -67,6 +67,7 @@ public final class OpenSearchQueryRunner
     {
         private final HostAndPort address;
         private final Map<String, String> connectorProperties = new HashMap<>();
+        private Map<String, String> indexSettings = ImmutableMap.of();
         private List<TpchTable<?>> initialTables = ImmutableList.of();
 
         private Builder(HostAndPort address)
@@ -103,6 +104,13 @@ public final class OpenSearchQueryRunner
             return this;
         }
 
+        @CanIgnoreReturnValue
+        public Builder setIndexSettings(Map<String, String> indexSettings)
+        {
+            this.indexSettings = ImmutableMap.copyOf(requireNonNull(indexSettings, "indexSettings is null"));
+            return this;
+        }
+
         @Override
         public DistributedQueryRunner build()
                 throws Exception
@@ -122,7 +130,7 @@ public final class OpenSearchQueryRunner
                 long startTime = System.nanoTime();
                 try (RestHighLevelClient client = new RestHighLevelClient(RestClient.builder(HttpHost.create(address.toString())))) {
                     for (TpchTable<?> table : initialTables) {
-                        loadTpchTopic(client, queryRunner.getClient(), table);
+                        loadTpchTopic(client, queryRunner.getClient(), table, indexSettings);
                     }
                 }
                 LOG.info("Loading complete in %s", nanosSince(startTime).toString(SECONDS));
@@ -136,11 +144,11 @@ public final class OpenSearchQueryRunner
         }
     }
 
-    private static void loadTpchTopic(RestHighLevelClient client, TestingTrinoClient trinoClient, TpchTable<?> table)
+    private static void loadTpchTopic(RestHighLevelClient client, TestingTrinoClient trinoClient, TpchTable<?> table, Map<String, String> indexSettings)
     {
         long start = System.nanoTime();
         LOG.info("Running import for %s", table.getTableName());
-        OpenSearchLoader loader = new OpenSearchLoader(client, table.getTableName().toLowerCase(ENGLISH), trinoClient.getServer(), trinoClient.getDefaultSession());
+        OpenSearchLoader loader = new OpenSearchLoader(client, table.getTableName().toLowerCase(ENGLISH), trinoClient.getServer(), trinoClient.getDefaultSession(), indexSettings);
         loader.execute(format("SELECT * from %s", new QualifiedObjectName(TPCH_SCHEMA, TINY_SCHEMA_NAME, table.getTableName().toLowerCase(ENGLISH))));
         LOG.info("Imported %s in %s", table.getTableName(), nanosSince(start).convertToMostSuccinctTimeUnit());
     }

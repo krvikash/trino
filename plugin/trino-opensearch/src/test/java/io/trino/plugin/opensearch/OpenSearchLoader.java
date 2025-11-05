@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.opensearch;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.client.Column;
 import io.trino.client.QueryStatusInfo;
@@ -27,6 +28,8 @@ import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.support.WriteRequest;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.RestHighLevelClient;
+import org.opensearch.client.indices.CreateIndexRequest;
+import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.core.xcontent.XContentBuilder;
 
 import java.io.IOException;
@@ -55,12 +58,14 @@ public class OpenSearchLoader
             RestHighLevelClient client,
             String tableName,
             TestingTrinoServer trinoServer,
-            Session defaultSession)
+            Session defaultSession,
+            Map<String, String> indexSettings)
     {
         super(trinoServer, defaultSession);
 
         this.tableName = requireNonNull(tableName, "tableName is null");
         this.client = requireNonNull(client, "client is null");
+        createIndexWithSettings(tableName, ImmutableMap.copyOf(requireNonNull(indexSettings, "indexSettings is null")));
     }
 
     @Override
@@ -142,6 +147,20 @@ public class OpenSearchLoader
                 return ((Number) value).doubleValue();
             }
             throw new IllegalArgumentException("Unhandled type: " + type);
+        }
+    }
+
+    private void createIndexWithSettings(String tableName, Map<String, String> indexSettings)
+    {
+        try {
+            if (!client.indices().exists(new GetIndexRequest(tableName), RequestOptions.DEFAULT)) {
+                CreateIndexRequest createIndexRequest = new CreateIndexRequest(tableName);
+                createIndexRequest.settings(indexSettings);
+                client.indices().create(createIndexRequest, RequestOptions.DEFAULT);
+            }
+        }
+        catch (IOException e) {
+            throw new RuntimeException("Failed to check or create index: " + tableName, e);
         }
     }
 }
