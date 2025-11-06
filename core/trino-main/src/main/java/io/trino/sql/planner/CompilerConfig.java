@@ -31,7 +31,7 @@ public class CompilerConfig
     private int rowExpressionMaxMethodComplexity = DEFAULT_ROW_EXPRESSION_MAX_METHOD_COMPLEXITY;
     private int rowExpressionMaxMethodsPerClass = DEFAULT_ROW_EXPRESSION_MAX_METHODS_PER_CLASS;
     private boolean specializeAggregationLoops = true;
-    private boolean columnarFilterSubExpressionEvaluationEnabled;
+    private boolean columnarFilterSubExpressionEvaluationEnabled = true;
 
     @Min(0)
     public int getExpressionCacheSize()

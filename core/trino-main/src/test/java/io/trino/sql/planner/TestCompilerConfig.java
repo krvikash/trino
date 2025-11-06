@@ -32,7 +32,7 @@ public class TestCompilerConfig
                 .setRowExpressionMaxMethodComplexity(1000)
                 .setRowExpressionMaxMethodsPerClass(10)
                 .setSpecializeAggregationLoops(true)
-                .setColumnarFilterSubExpressionEvaluationEnabled(false));
+                .setColumnarFilterSubExpressionEvaluationEnabled(true));
     }
 
     @Test
@@ -43,7 +43,7 @@ public class TestCompilerConfig
                 .put("compiler.row-expression-max-method-complexity", "100000")
                 .put("compiler.row-expression-max-methods-per-class", "200000")
                 .put("compiler.specialized-aggregation-loops", "false")
-                .put("compiler.columnar-filter-sub-expression-evaluation.enabled", "true")
+                .put("compiler.columnar-filter-sub-expression-evaluation.enabled", "false")
                 .buildOrThrow();
 
         CompilerConfig expected = new CompilerConfig()
@@ -51,7 +51,7 @@ public class TestCompilerConfig
                 .setRowExpressionMaxMethodComplexity(100000)
                 .setRowExpressionMaxMethodsPerClass(200000)
                 .setSpecializeAggregationLoops(false)
-                .setColumnarFilterSubExpressionEvaluationEnabled(true);
+                .setColumnarFilterSubExpressionEvaluationEnabled(false);
 
         assertFullMapping(properties, expected);
     }
