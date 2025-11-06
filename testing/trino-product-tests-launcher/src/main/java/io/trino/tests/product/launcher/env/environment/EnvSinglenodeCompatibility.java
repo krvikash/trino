@@ -109,9 +109,6 @@ public class EnvSinglenodeCompatibility
         if (getVersionFromDockerImageName(dockerImage) < 369) {
             return "config-pre369.properties";
         }
-        if (getVersionFromDockerImageName(dockerImage) < 477) {
-            return "config-pre477.properties";
-        }
         return "config.properties";
     }
 
