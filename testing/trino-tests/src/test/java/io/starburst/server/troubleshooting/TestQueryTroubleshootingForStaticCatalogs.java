@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import static com.starburstdata.presto.license.TestingLicenseManager.NOOP_LICENSE_MANAGER;
-import static com.starburstdata.presto.protocol.StarburstClientCapabilities.QUERY_TROUBLESHOOTING;
+import static io.trino.client.AdditionalClientCapabilities.QUERY_TROUBLESHOOTING;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.assertPropertyExists;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.findConfigZips;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.findWorkerConfigDirectoryName;

@@ -32,7 +32,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.starburstdata.presto.protocol.StarburstClientCapabilities.QUERY_TROUBLESHOOTING;
+import static io.trino.client.AdditionalClientCapabilities.QUERY_TROUBLESHOOTING;
 import static io.starburst.server.troubleshooting.TroubleshootingSessionProperties.TROUBLESHOOTING_JFR_MAX_COLLECTED_WORKERS;
 import static io.starburst.server.troubleshooting.TroubleshootingSessionProperties.TROUBLESHOOTING_TRACE_MAX_COLLECTED_WORKERS;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.getTroubleshootingDataForQuery;
