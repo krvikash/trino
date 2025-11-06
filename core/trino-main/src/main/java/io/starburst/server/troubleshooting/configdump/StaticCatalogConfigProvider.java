@@ -20,8 +20,8 @@ import java.util.Map;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.starburstdata.presto.connector.CatalogConfigurationReader.CONNECTOR_NAME_PROPERTY;
-import static com.starburstdata.presto.connector.CatalogConfigurationReader.loadCatalogProperties;
+import static io.trino.connector.CatalogConfigurationReader.CONNECTOR_NAME_PROPERTY;
+import static io.trino.connector.CatalogConfigurationReader.loadCatalogProperties;
 import static java.util.Objects.requireNonNull;
 
 public class StaticCatalogConfigProvider
