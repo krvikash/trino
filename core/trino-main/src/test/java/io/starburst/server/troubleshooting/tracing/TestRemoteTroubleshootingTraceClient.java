@@ -11,11 +11,11 @@ package io.starburst.server.troubleshooting.tracing;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableSet;
-import io.starburst.server.troubleshooting.DownloadResult;
 import io.airlift.http.client.HttpStatus;
 import io.airlift.http.client.testing.TestingHttpClient;
 import io.airlift.http.client.testing.TestingHttpClient.Processor;
 import io.airlift.http.client.testing.TestingResponse;
+import io.starburst.server.troubleshooting.DownloadResult;
 import io.trino.client.NodeVersion;
 import io.trino.node.InternalNode;
 import io.trino.node.TestingInternalNodeManager;

@@ -11,8 +11,8 @@ package io.starburst.server.troubleshooting;
 
 import com.google.common.io.Closer;
 import com.google.inject.Inject;
-import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.airlift.log.Logger;
+import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import jakarta.annotation.PreDestroy;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 

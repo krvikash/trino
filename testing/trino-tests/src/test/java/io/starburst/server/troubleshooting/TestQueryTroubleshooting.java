@@ -32,9 +32,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
-import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.assertPropertyExists;
 import static com.starburstdata.presto.testing.FileUtils.createTempFileForTesting;
+import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.assertPropertyExists;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static org.assertj.core.api.Assertions.assertThat;
 

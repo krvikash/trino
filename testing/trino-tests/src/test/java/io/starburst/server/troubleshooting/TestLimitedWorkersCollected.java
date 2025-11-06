@@ -32,10 +32,10 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.trino.client.AdditionalClientCapabilities.QUERY_TROUBLESHOOTING;
 import static io.starburst.server.troubleshooting.TroubleshootingSessionProperties.TROUBLESHOOTING_JFR_MAX_COLLECTED_WORKERS;
 import static io.starburst.server.troubleshooting.TroubleshootingSessionProperties.TROUBLESHOOTING_TRACE_MAX_COLLECTED_WORKERS;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.getTroubleshootingDataForQuery;
+import static io.trino.client.AdditionalClientCapabilities.QUERY_TROUBLESHOOTING;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static java.lang.Math.min;
 import static org.assertj.core.api.Assertions.assertThat;

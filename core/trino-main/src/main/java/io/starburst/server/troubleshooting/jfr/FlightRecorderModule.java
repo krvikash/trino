@@ -14,8 +14,8 @@ import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
-import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import io.trino.server.ServerConfig;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;

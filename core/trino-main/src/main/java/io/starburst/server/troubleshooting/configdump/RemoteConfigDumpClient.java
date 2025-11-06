@@ -10,13 +10,13 @@
 package io.starburst.server.troubleshooting.configdump;
 
 import com.google.inject.Inject;
-import io.starburst.server.troubleshooting.DownloadResult;
-import io.starburst.server.troubleshooting.ForTroubleshooting;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpStatus;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.Response;
 import io.airlift.http.client.ResponseHandler;
+import io.starburst.server.troubleshooting.DownloadResult;
+import io.starburst.server.troubleshooting.ForTroubleshooting;
 import io.trino.node.InternalNode;
 import io.trino.spi.StandardErrorCode;
 import io.trino.spi.TrinoException;

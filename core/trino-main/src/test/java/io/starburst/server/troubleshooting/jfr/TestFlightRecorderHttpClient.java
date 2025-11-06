@@ -11,10 +11,10 @@ package io.starburst.server.troubleshooting.jfr;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableSet;
-import io.starburst.server.troubleshooting.jfr.FlightRecorderHttpClient.WorkerNodesProvider;
 import io.airlift.http.client.HttpStatus;
 import io.airlift.http.client.testing.TestingHttpClient;
 import io.airlift.http.client.testing.TestingResponse;
+import io.starburst.server.troubleshooting.jfr.FlightRecorderHttpClient.WorkerNodesProvider;
 import io.trino.client.NodeVersion;
 import io.trino.node.InternalNode;
 import io.trino.node.TestingInternalNodeManager;

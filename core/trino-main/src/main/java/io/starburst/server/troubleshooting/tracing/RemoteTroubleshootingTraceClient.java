@@ -11,14 +11,14 @@ package io.starburst.server.troubleshooting.tracing;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
-import io.starburst.server.troubleshooting.DownloadResult;
-import io.starburst.server.troubleshooting.ForTroubleshooting;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpStatus;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.Response;
 import io.airlift.http.client.ResponseHandler;
 import io.airlift.log.Logger;
+import io.starburst.server.troubleshooting.DownloadResult;
+import io.starburst.server.troubleshooting.ForTroubleshooting;
 import io.trino.node.InternalNode;
 import io.trino.node.InternalNodeManager;
 import io.trino.spi.Node;
@@ -40,12 +40,12 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
 import static com.google.common.net.MediaType.JSON_UTF_8;
-import static io.starburst.server.troubleshooting.tracing.RemoteTroubleshootingTraceClient.StatusCodeCheckResponseHandler.checkResponseStatusCode;
 import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
 import static io.airlift.http.client.Request.Builder.prepareDelete;
 import static io.airlift.http.client.Request.Builder.prepareGet;
 import static io.airlift.http.client.Request.Builder.preparePost;
 import static io.airlift.http.client.ResponseHandlerUtils.propagate;
+import static io.starburst.server.troubleshooting.tracing.RemoteTroubleshootingTraceClient.StatusCodeCheckResponseHandler.checkResponseStatusCode;
 import static java.util.Objects.requireNonNull;
 
 public class RemoteTroubleshootingTraceClient

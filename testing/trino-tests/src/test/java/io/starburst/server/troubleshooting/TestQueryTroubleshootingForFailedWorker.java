@@ -33,9 +33,9 @@ import java.util.regex.Pattern;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static io.trino.client.AdditionalClientCapabilities.QUERY_TROUBLESHOOTING;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.getNodesProcessingQuery;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.getTroubleshootingDataForQuery;
+import static io.trino.client.AdditionalClientCapabilities.QUERY_TROUBLESHOOTING;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 
