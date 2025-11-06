@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimaps;
@@ -117,5 +118,25 @@ public class TestLocalPriorityPartitionNodeMapper
                     assertThat(ImmutableSet.copyOf(values)).hasSize(2);
                     assertThat(values.get(0)).isEqualTo(1);
                 });
+    }
+
+    @Test
+    public void testGetMappingSingleWorker()
+            throws ExecutionException, InterruptedException
+    {
+        TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
+        discoveryManager.setBufferNodes(builder -> LongStream.range(0, 1).forEach(nodeId -> builder.putNode(nodeId, ACTIVE)));
+
+        LocalPriorityPartitionNodeMapper mapper = new LocalPriorityPartitionNodeMapper(discoveryManager, executor, 4, 3, NO_WAIT);
+
+        InternalNode node0 = new InternalNode("node0", URI.create("http://node0:80"), NodeVersion.UNKNOWN, false);
+        PartitionNodeMapping mapping = mapper.getMapping(1, Optional.of(node0)).get();
+        assertThat(mapping.getBaseNodesCount()).isEqualTo(ImmutableMap.of(0, 1, 1, 1, 2, 1, 3, 1));
+        assertThat(Multimaps.asMap(mapping.getMapping()))
+                .isEqualTo(ImmutableMap.of(
+                                0, ImmutableList.of(0L),
+                                1, ImmutableList.of(0L),
+                                2, ImmutableList.of(0L),
+                                3, ImmutableList.of(0L)));
     }
 }

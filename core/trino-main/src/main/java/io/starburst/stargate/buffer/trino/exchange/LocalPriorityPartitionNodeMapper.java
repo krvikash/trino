@@ -94,15 +94,17 @@ public class LocalPriorityPartitionNodeMapper
                             mapping.put(partition, localBufferNode.get().nodeId());
                         }
 
-                        int randomStart = ThreadLocalRandom.current().nextInt(otherActiveBufferNodes.size());
-                        for (int i = 0; i < extraRandomNodes; i++) {
-                            int index = (randomStart + i) % otherActiveBufferNodes.size();
-                            if (i != 0 && index == randomStart) {
-                                // we made a full circle, no more unique nodes available
-                                break;
+                        if (!otherActiveBufferNodes.isEmpty()) {
+                            int randomStart = ThreadLocalRandom.current().nextInt(otherActiveBufferNodes.size());
+                            for (int i = 0; i < extraRandomNodes; i++) {
+                                int index = (randomStart + i) % otherActiveBufferNodes.size();
+                                if (i != 0 && index == randomStart) {
+                                    // we made a full circle, no more unique nodes available
+                                    break;
+                                }
+                                BufferNodeInfo bufferNodeInfo = otherActiveBufferNodes.get(index);
+                                mapping.put(partition, bufferNodeInfo.nodeId());
                             }
-                            BufferNodeInfo bufferNodeInfo = otherActiveBufferNodes.get(index);
-                            mapping.put(partition, bufferNodeInfo.nodeId());
                         }
                     }
                     return new PartitionNodeMapping(mapping.build(), baseNodesCount);
