@@ -698,6 +698,10 @@ public class RedshiftClient
                     throw new TrinoException(REDSHIFT_INVALID_TYPE, "column size not present");
                 }
                 int length = type.requiredColumnSize();
+                if (length == -1) {
+                    // CHARACTER VARYING returns -1. Treat the type as varchar(0) for the empty string.
+                    length = 0;
+                }
                 return Optional.of(redshiftVarcharColumnMapping(
                         session,
                         length < VarcharType.MAX_LENGTH
