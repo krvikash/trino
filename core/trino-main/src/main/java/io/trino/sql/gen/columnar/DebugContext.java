@@ -25,6 +25,7 @@ import io.trino.sql.relational.InputReferenceExpression;
 import io.trino.sql.relational.RowExpression;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.TreeMap;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -34,7 +35,7 @@ class DebugContext
 {
     private static final Logger log = Logger.get(DebugContext.class);
 
-    private final List<Type> inputTypes;
+    private final List<Optional<Type>> inputTypes;
     private final List<Type> outputTypes;
     private final List<String> expressions;
     private final String filterExpression;
@@ -43,7 +44,13 @@ class DebugContext
     public DebugContext(List<RowExpression> expressions, String filterExpression, boolean isDebugOutputEnabled)
     {
         this.inputTypes = expressions.stream()
-                .map(expression -> getInputTypes(expression).getFirst())
+                .map(expression -> {
+                    List<Type> types = getInputTypes(expression);
+                    if (types.size() == 1) {
+                        return Optional.of(types.getFirst());
+                    }
+                    return Optional.<Type>empty();
+                })
                 .collect(toImmutableList());
         this.outputTypes = expressions.stream()
                 .map(RowExpression::type)
@@ -66,7 +73,7 @@ class DebugContext
             return;
         }
         Block input = inputPage.getBlock(0);
-        Type inputType = inputTypes.get(argument);
+        Type inputType = inputTypes.get(argument).orElseThrow();
         Type outputType = outputTypes.get(argument);
         log.info("evaluated input block: %s, activePositions %s, expression %s", input, activePositions, expressions.get(argument));
         if (activePositions.isList()) {

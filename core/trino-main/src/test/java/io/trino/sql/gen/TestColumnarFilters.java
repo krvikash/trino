@@ -649,6 +649,23 @@ public class TestColumnarFilters
         assertThatColumnarFilterEvaluationIsNotSupported(lambdaExpression);
     }
 
+    @Test
+    public void testFilterWithoutInputChannels()
+    {
+        // rand() < constant
+        RowExpression filter = call(
+                FUNCTION_RESOLUTION.resolveOperator(LESS_THAN, ImmutableList.of(DOUBLE, DOUBLE)),
+                call(
+                        FUNCTION_RESOLUTION.functionCallBuilder("rand")
+                                .build()
+                                .function()),
+                constant((double) CONSTANT, DOUBLE));
+        assertThatColumnarFilterEvaluationIsSupported(filter);
+
+        List<Page> inputPages = createInputPages(NullsProvider.RANDOM_NULLS, false);
+        verifyFilter(inputPages, filter);
+    }
+
     @ParameterizedTest
     @MethodSource("inputProviders")
     public void testStructFilter(NullsProvider nullsProvider, boolean dictionaryEncoded)
