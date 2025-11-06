@@ -80,7 +80,7 @@ public class LocalPriorityPartitionNodeMapper
 
                     List<BufferNodeInfo> otherActiveBufferNodes = new ArrayList<>();
                     for (BufferNodeInfo bufferNode : nodes.getActiveBufferNodes().values()) {
-                        if (localBufferNode.isPresent() && localBufferNode.get() == bufferNode) {
+                        if (localBufferNode.isPresent() && localBufferNode.get().equals(bufferNode)) {
                             continue;
                         }
                         otherActiveBufferNodes.add(bufferNode);
