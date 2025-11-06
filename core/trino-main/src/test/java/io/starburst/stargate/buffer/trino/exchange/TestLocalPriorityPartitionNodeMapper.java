@@ -108,8 +108,8 @@ public class TestLocalPriorityPartitionNodeMapper
 
         LocalPriorityPartitionNodeMapper mapper = new LocalPriorityPartitionNodeMapper(discoveryManager, executor, 4, 3, NO_WAIT);
 
-        InternalNode node3 = new InternalNode("node1", URI.create("http://node1:80"), NodeVersion.UNKNOWN, false);
-        PartitionNodeMapping mapping = mapper.getMapping(1, Optional.of(node3)).get();
+        InternalNode node1 = new InternalNode("node1", URI.create("http://node1:80"), NodeVersion.UNKNOWN, false);
+        PartitionNodeMapping mapping = mapper.getMapping(1, Optional.of(node1)).get();
         assertThat(mapping.getBaseNodesCount()).isEqualTo(ImmutableMap.of(0, 1, 1, 1, 2, 1, 3, 1));
         assertThat(Multimaps.asMap(mapping.getMapping()))
                 .allSatisfy((_, values) -> {
