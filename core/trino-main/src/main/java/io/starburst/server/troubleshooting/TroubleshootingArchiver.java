@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.starburst.server.troubleshooting.TroubleshootingContext.State.INVALID;
 import static java.lang.String.format;
 import static java.lang.Thread.currentThread;
@@ -49,7 +50,7 @@ public class TroubleshootingArchiver
     public TroubleshootingArchiver(Set<TroubleshootingProvider> dataProviders)
     {
         this.dataProviders = requireNonNull(dataProviders, "dataProviders is null");
-        this.executor = newFixedThreadPool(4);
+        this.executor = newFixedThreadPool(4, daemonThreadsNamed("troubleshooting-archiver-%s"));
     }
 
     public InputStream execute(TroubleshootingContext context)

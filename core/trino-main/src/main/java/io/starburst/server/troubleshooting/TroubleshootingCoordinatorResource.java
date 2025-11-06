@@ -15,14 +15,14 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
 import com.google.inject.Inject;
-import com.starburstdata.presto.server.security.webui.access.WebUiAccessControl;
-import com.starburstdata.presto.server.ui.WebSessionRequest;
 import io.airlift.units.Duration;
+import io.trino.server.HttpRequestSessionContextFactory;
 import io.trino.server.security.ResourceSecurity;
 import io.trino.spi.QueryId;
 import io.trino.spi.security.Identity;
 import io.trino.spi.security.SelectedRole;
 import jakarta.annotation.Nullable;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.QueryParam;
@@ -31,6 +31,7 @@ import jakarta.ws.rs.container.AsyncResponse;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.Suspended;
 import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
 
 import java.io.InputStream;
@@ -42,7 +43,6 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.Futures.transform;
-import static com.starburstdata.presto.insights.util.Constants.WEBUI_PREFIX;
 import static io.airlift.jaxrs.AsyncResponseHandler.bindAsyncResponse;
 import static io.starburst.server.troubleshooting.TroubleshootingCoordinatorResource.BASE_PATH_API_V1;
 import static io.trino.server.security.ResourceSecurity.AccessType.WEB_UI;
@@ -61,19 +61,22 @@ import static java.util.Objects.requireNonNull;
 public class TroubleshootingCoordinatorResource
 {
     private static final Duration MAX_POOL_TIME_MS = Duration.valueOf("5s");
-    public static final String BASE_PATH_API_V1 = WEBUI_PREFIX + "/troubleshooting";
-    private final WebUiAccessControl accessControl;
+    public static final String BASE_PATH_API_V1 = "ui/troubleshooting";
+    private final HttpRequestSessionContextFactory sessionContextFactory;
+    private final TroubleshootingAccessControl accessControl;
     private final TroubleshootingContextManager troubleshootingContextManager;
     private final ScheduledExecutorService executorService;
     private final Duration maxAccessDuration;
 
     @Inject
     public TroubleshootingCoordinatorResource(
-            WebUiAccessControl accessControl,
+            HttpRequestSessionContextFactory sessionContextFactory,
+            TroubleshootingAccessControl accessControl,
             TroubleshootingContextManager troubleshootingContextManager,
             @ForTroubleshooting ScheduledExecutorService executorService,
             TroubleshootingConfig config)
     {
+        this.sessionContextFactory = requireNonNull(sessionContextFactory, "sessionContextFactory is null");
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
         this.troubleshootingContextManager = requireNonNull(troubleshootingContextManager, "troubleshootingContextManager is null");
         this.executorService = requireNonNull(executorService, "executorService is null");
@@ -82,12 +85,18 @@ public class TroubleshootingCoordinatorResource
 
     @ResourceSecurity(WEB_UI)
     @GET
-    public void getTroubleshootingArchive(@QueryParam("queryId") QueryId queryId, @QueryParam("selectedRole") String selectedRole, @Context WebSessionRequest webRequest, @Context ContainerRequestContext request, @Context @Suspended AsyncResponse asyncResponse)
+    public void getTroubleshootingArchive(
+            @QueryParam("queryId") QueryId queryId,
+            @QueryParam("selectedRole") String selectedRole,
+            @Context HttpServletRequest servletRequest,
+            @Context HttpHeaders httpHeaders,
+            @Context ContainerRequestContext request,
+            @Context @Suspended AsyncResponse asyncResponse)
     {
         assertRequest(queryId != null, "Query id was not provided");
 
-        Identity identity = setSelectedRoleIfPresent(webRequest.getIdentity(), selectedRole);
-        if (!accessControl.isPrivilegedUser(identity)) {
+        Identity identity = setSelectedRoleIfPresent(sessionContextFactory.extractAuthorizedIdentity(servletRequest, httpHeaders), selectedRole);
+        if (!accessControl.canRunAndTroubleshoot(identity)) {
             bindAsyncResponse(asyncResponse, immediateFuture(Response.status(FORBIDDEN.getStatusCode(), "You are not allowed to download troubleshooting archive").build()), executorService);
             return;
         }

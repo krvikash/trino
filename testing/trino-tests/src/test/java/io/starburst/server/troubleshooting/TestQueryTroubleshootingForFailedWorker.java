@@ -9,23 +9,23 @@
  */
 package io.starburst.server.troubleshooting;
 
+import com.google.inject.Binder;
 import com.google.inject.Key;
-import com.starburstdata.presto.server.StarburstQueryRunner;
+import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.starburst.server.troubleshooting.TroubleshootingTestHelper.Unzipped;
 import io.trino.Session;
 import io.trino.node.InternalNodeManager;
-import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.server.testing.TestingTrinoServer;
 import io.trino.spi.QueryId;
 import io.trino.spi.security.Identity;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.TestingTrinoClient;
+import io.trino.tests.tpch.TpchQueryRunner;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -33,8 +33,8 @@ import java.util.regex.Pattern;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.getNodesProcessingQuery;
-import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.getTroubleshootingDataForQuery;
+import static io.starburst.server.troubleshooting.DistributedTroubleshootingTestHelper.getNodesProcessingQuery;
+import static io.starburst.server.troubleshooting.DistributedTroubleshootingTestHelper.getTroubleshootingDataForQuery;
 import static io.trino.client.AdditionalClientCapabilities.QUERY_TROUBLESHOOTING;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -55,9 +55,9 @@ public class TestQueryTroubleshootingForFailedWorker
     public void testWorkerFailure()
             throws Exception
     {
-        try (DistributedQueryRunner queryRunner = createQueryRunner(SESSION, 2);
+        try (DistributedQueryRunner queryRunner = createQueryRunner(2);
                 TestingTrinoClient client = new TestingTrinoClient(queryRunner.getCoordinator(), SESSION)) {
-            QueryId queryId = client.execute("select linenumber, count(*) from tpch.tiny.lineitem l group by 1;").getQueryId();
+            QueryId queryId = client.execute("select linenumber, count(*) from tpch.tiny.lineitem l group by 1").getQueryId();
 
             TestingTrinoServer workerToTerminate = queryRunner.getServers().stream()
                     .filter(server -> !server.isCoordinator())
@@ -99,16 +99,22 @@ public class TestQueryTroubleshootingForFailedWorker
         return Optional.empty();
     }
 
-    private static DistributedQueryRunner createQueryRunner(Session session, int workerCount)
+    private static DistributedQueryRunner createQueryRunner(int workerCount)
             throws Exception
     {
-        DistributedQueryRunner queryRunner = StarburstQueryRunner.builder(session)
-                .setCoordinatorProperties(Map.of(
-                        "insights.authorized-users", AUTHORIZED_USER))
+        DistributedQueryRunner queryRunner = TpchQueryRunner.builder()
                 .setWorkerCount(workerCount)
+                .setAdditionalModule(new AbstractConfigurationAwareModule()
+                {
+                    @Override
+                    protected void setup(Binder binder)
+                    {
+                        binder.bind(TroubleshootingAccessControl.class)
+                                .toInstance(identity -> AUTHORIZED_USER.equals(identity.getUser()));
+                        install(new TroubleshootingModule());
+                    }
+                })
                 .build();
-        queryRunner.installPlugin(new TpchPlugin());
-        queryRunner.createCatalog("tpch", "tpch");
         return queryRunner;
     }
 }

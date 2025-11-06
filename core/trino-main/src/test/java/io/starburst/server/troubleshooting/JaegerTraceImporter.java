@@ -29,7 +29,7 @@ import static java.lang.Math.toIntExact;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static java.util.Objects.requireNonNull;
 
-/**
+/*
  * This is an application for importing OpenTelemetry traces produced by Run&Troubleshoot to a local Jaeger instance.
  * For more information, see [project root directory]/architecture/performance/troubleshooting.md
  */

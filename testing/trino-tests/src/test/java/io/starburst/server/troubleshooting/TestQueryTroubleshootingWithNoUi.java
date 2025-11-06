@@ -9,37 +9,20 @@
  */
 package io.starburst.server.troubleshooting;
 
-import com.starburstdata.presto.server.StarburstQueryRunner;
+import io.trino.tests.tpch.TpchQueryRunner;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
-import static io.trino.testing.TestingSession.testSessionBuilder;
 import static org.assertj.core.api.Assertions.assertThatNoException;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestQueryTroubleshootingWithNoUi
 {
     @Test
     public void createQueryRunnerWorksWithWebUiDisabled()
     {
-        assertThatNoException().isThrownBy(() -> StarburstQueryRunner.builder(testSessionBuilder().build())
-                .setCoordinatorProperties(Map.of(
-                        "web-ui.enabled", "false",
-                        "web-ui.authentication.type", "insecure"))
+        assertThatNoException().isThrownBy(() -> TpchQueryRunner.builder()
+                .setCoordinatorProperties(Map.of("web-ui.enabled", "false"))
                 .build());
-    }
-
-    @Test
-    public void troubleshootingIsNotAvailableWithWebUiDisabled()
-    {
-        assertThatThrownBy(() -> StarburstQueryRunner.builder(testSessionBuilder().build())
-                .setCoordinatorProperties(Map.of(
-                        "web-ui.enabled", "false",
-                        "web-ui.authentication.type", "insecure",
-                        // include a troubleshooting property to make sure it's not used:
-                        "troubleshooting.max-access-duration", "20s"))
-                .build())
-                .hasMessageContaining("Configuration property 'troubleshooting.max-access-duration' was not used");
     }
 }

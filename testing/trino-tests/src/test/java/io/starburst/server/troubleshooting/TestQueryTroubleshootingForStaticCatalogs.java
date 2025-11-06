@@ -9,9 +9,9 @@
  */
 package io.starburst.server.troubleshooting;
 
+import com.google.inject.Binder;
 import com.google.inject.Key;
-import com.starburstdata.presto.plugin.ai.StarburstAiPlugin;
-import com.starburstdata.presto.server.StarburstServerExtensionsModule;
+import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.starburst.server.troubleshooting.TroubleshootingTestHelper.Unzipped;
 import io.trino.Session;
 import io.trino.connector.ConnectorServicesProvider;
@@ -34,7 +34,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-import static com.starburstdata.presto.license.TestingLicenseManager.NOOP_LICENSE_MANAGER;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.assertPropertyExists;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.findConfigZips;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.findWorkerConfigDirectoryName;
@@ -108,7 +107,6 @@ public class TestQueryTroubleshootingForStaticCatalogs
         return createNode(nodeBuilder ->
                         nodeBuilder.setCoordinator(true)
                                 .addProperty("web-ui.enabled", "true")
-                                .addProperty("insights.authorized-users", AUTHORIZED_USER)
                                 .addProperty("node-scheduler.include-coordinator", "false"));
     }
 
@@ -122,16 +120,24 @@ public class TestQueryTroubleshootingForStaticCatalogs
         String catalogConfigDir = TestQueryTroubleshootingForStaticCatalogs.class.getClassLoader().getResource("catalogs").getFile();
         TestingTrinoServer.Builder nodeBuilder = TestingTrinoServer.builder()
                 .setEnvironment("testing")
-                .setAdditionalModule(new StarburstServerExtensionsModule())
                 .setCatalogMangerKind(STATIC)
                 .addProperty("catalog.config-dir", catalogConfigDir)
-                .addProperty("catalog.disabled-catalogs", DISABLED_CATALOGS);
+                .addProperty("catalog.disabled-catalogs", DISABLED_CATALOGS)
+                .setAdditionalModule(new AbstractConfigurationAwareModule()
+                {
+                    @Override
+                    protected void setup(Binder binder)
+                    {
+                        binder.bind(TroubleshootingAccessControl.class)
+                                .toInstance(identity -> AUTHORIZED_USER.equals(identity.getUser()));
+                        install(new TroubleshootingModule());
+                    }
+                });
         nodeModifier.accept(nodeBuilder);
         TestingTrinoServer node = nodeBuilder.build();
         node.installPlugin(new TpchPlugin());
         node.installPlugin(new GeoPlugin());
         node.installPlugin(new PostgreSqlPlugin());
-        node.installPlugin(new StarburstAiPlugin(NOOP_LICENSE_MANAGER));
         node.getInstance(Key.get(ConnectorServicesProvider.class)).loadInitialCatalogs();
         return node;
     }

@@ -9,25 +9,18 @@
  */
 package io.starburst.server.troubleshooting;
 
-import com.google.common.collect.ImmutableMap;
+import com.google.inject.Binder;
 import com.google.inject.Key;
-import com.starburstdata.presto.server.StarburstQueryRunner;
-import com.starburstdata.presto.server.workload.resourcegroups.rest.BuiltinResourceGroupConfigurationSpecDto;
-import com.starburstdata.presto.testing.testcontainers.TestingEventLoggerPostgreSqlServer;
+import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.starburst.server.troubleshooting.TroubleshootingTestHelper.Unzipped;
 import io.starburst.server.troubleshooting.configdump.ForResourceGroupConfigDump;
 import io.trino.Session;
 import io.trino.spi.security.Identity;
 import io.trino.testing.DistributedQueryRunner;
-import okhttp3.Call;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
+import io.trino.tests.tpch.TpchQueryRunner;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.testcontainers.containers.JdbcDatabaseContainer;
 
-import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -36,17 +29,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.starburstdata.presto.insights.InsightsTestUtils.authenticate;
-import static com.starburstdata.presto.insights.InsightsTestUtils.jsonBody;
-import static com.starburstdata.presto.protocol.StarburstClientCapabilities.QUERY_TROUBLESHOOTING;
-import static com.starburstdata.presto.server.workload.resourcegroups.rest.BuiltinResourceGroupConfigurationSpecDto.configuration;
-import static com.starburstdata.presto.server.workload.resourcegroups.rest.BuiltinResourceGroupSpecDto.Builder.resourceGroup;
-import static com.starburstdata.presto.server.workload.resourcegroups.rest.BuiltinSelectorSpecDto.Builder.selector;
-import static com.starburstdata.presto.testing.FileUtils.createTempFileForTesting;
-import static io.airlift.json.JsonCodec.jsonCodec;
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
+import static io.starburst.server.troubleshooting.DistributedTroubleshootingTestHelper.getTroubleshootingDataForQuery;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.assertPropertyExists;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.findConfigZips;
-import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.getTroubleshootingDataForQuery;
+import static io.trino.client.AdditionalClientCapabilities.QUERY_TROUBLESHOOTING;
+import static io.trino.testing.FileUtils.createTempFileForTesting;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -64,63 +52,10 @@ public class TestTroubleshootingResourceGroups
     private Path tmpDir;
 
     @Test
-    public void testBuiltInResourceGroups()
-            throws Exception
-    {
-        try (JdbcDatabaseContainer<?> container = new TestingEventLoggerPostgreSqlServer();
-                DistributedQueryRunner queryRunner = StarburstQueryRunner.builder(SESSION)
-                        .addExtraProperty("troubleshooting.jfr.max-recording-size", "8MB")
-                        .setInsightsProperties(container)
-                        .setCoordinatorProperties(
-                                ImmutableMap.<String, String>builder()
-                                        .put("starburst.workload-manager.enabled", "true")
-                                        .put("insights.authorized-users", AUTHORIZED_USER)
-                                        .put("troubleshooting.max-access-duration", "20s")
-                                        .buildOrThrow())
-                        .build()) {
-            queryRunner.getCoordinator().getResourceGroupManager().get().setConfigurationManager("starburst", ImmutableMap.of());
-
-            BuiltinResourceGroupConfigurationSpecDto configuration = configuration(
-                    resourceGroup("first_group")
-                            .setMaxQueued(100)
-                            .setHardConcurrencyLimit(10)
-                            .addSelector(selector().setUser(AUTHORIZED_USER).build())
-                            .build(),
-                    resourceGroup("second_group")
-                            .setMaxQueued(100)
-                            .setHardConcurrencyLimit(10)
-                            .addSelector(selector().setUser("alice").build()).build());
-            updateResourceGroupConfiguration(configuration, queryRunner);
-
-            Unzipped inputsMap = getTroubleshootingDataForQuery(queryRunner, SESSION, "SHOW CATALOGS", tmpDir);
-            List<Unzipped> coordinatorConfigs = findConfigZips(inputsMap, "coordinator", tmpDir);
-            assertThat(coordinatorConfigs.size()).isEqualTo(1);
-            assertThat(coordinatorConfigs.getFirst().contents())
-                    .hasEntrySatisfying(
-                            "coordinator/builtin_resource_groups.json",
-                            value -> assertThat(jsonCodec(BuiltinResourceGroupConfigurationSpecDto.class).fromJson(value)).isEqualTo(configuration));
-        }
-    }
-
-    private void updateResourceGroupConfiguration(BuiltinResourceGroupConfigurationSpecDto configuration, DistributedQueryRunner queryRunner)
-            throws IOException
-    {
-        OkHttpClient client = authenticate(AUTHORIZED_USER, queryRunner);
-        Call call = client.newCall(
-                new Request.Builder()
-                        .url(queryRunner.getCoordinator().resolve("/ui/api/v1/wlm/configuration").toString())
-                        .put(jsonBody(configuration, jsonCodec(BuiltinResourceGroupConfigurationSpecDto.class)))
-                        .build());
-        try (Response execute = call.execute()) {
-            assertThat(execute.isSuccessful()).isTrue();
-        }
-    }
-
-    @Test
     public void testFileBasedResourceGroups()
             throws Exception
     {
-        Path resourceGroupsConfigFile = Paths.get(TestTroubleshootingResourceGroups.class.getClassLoader().getResource("resource_groups_config.json").toURI());
+        Path resourceGroupsConfigFile = Paths.get(TestTroubleshootingResourceGroups.class.getClassLoader().getResource("resource_groups_config_simple.json").toURI());
         Path resourceGroupsPropertiesFile = createTempFileForTesting();
         byte[] resourceGroupsConfigFileContent = Files.readAllBytes(resourceGroupsConfigFile);
         try (OutputStream outputStream = Files.newOutputStream(resourceGroupsPropertiesFile)) {
@@ -130,14 +65,22 @@ public class TestTroubleshootingResourceGroups
             outputStream.write('\n');
         }
 
-        try (DistributedQueryRunner queryRunner = StarburstQueryRunner.builder(SESSION)
+        try (DistributedQueryRunner queryRunner = TpchQueryRunner.builder()
                 .addExtraProperty("troubleshooting.jfr.max-recording-size", "8MB")
-                .setCoordinatorProperties(Map.of(
-                        "insights.authorized-users", AUTHORIZED_USER,
-                        "troubleshooting.max-access-duration", "20s"))
-                .setAdditionalModule(binder -> newOptionalBinder(binder, Key.get(Path.class, ForResourceGroupConfigDump.class))
-                        .setBinding()
-                        .toInstance(resourceGroupsPropertiesFile))
+                .setCoordinatorProperties(Map.of("troubleshooting.max-access-duration", "20s"))
+                .setAdditionalModule(new AbstractConfigurationAwareModule()
+                {
+                    @Override
+                    protected void setup(Binder binder)
+                    {
+                        newOptionalBinder(binder, Key.get(Path.class, ForResourceGroupConfigDump.class))
+                                .setBinding()
+                                .toInstance(resourceGroupsPropertiesFile);
+                        binder.bind(TroubleshootingAccessControl.class)
+                                .toInstance(identity -> AUTHORIZED_USER.equals(identity.getUser()));
+                        install(new TroubleshootingModule());
+                    }
+                })
                 .build()) {
             Unzipped inputsMap = getTroubleshootingDataForQuery(queryRunner, SESSION, "SHOW CATALOGS", tmpDir);
             List<Unzipped> coordinatorConfigs = findConfigZips(inputsMap, "coordinator", tmpDir);

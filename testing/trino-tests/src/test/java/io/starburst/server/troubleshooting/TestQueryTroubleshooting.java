@@ -12,17 +12,18 @@ package io.starburst.server.troubleshooting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.inject.Binder;
 import com.google.inject.Key;
-import com.starburstdata.presto.server.StarburstQueryRunner;
+import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.starburst.server.troubleshooting.TroubleshootingTestHelper.Unzipped;
 import io.starburst.server.troubleshooting.configdump.ForAccessControlConfigDump;
 import io.trino.plugin.geospatial.GeoPlugin;
 import io.trino.plugin.postgresql.PostgreSqlPlugin;
-import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.security.GroupProvider;
 import io.trino.spi.security.Identity;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
+import io.trino.tests.tpch.TpchQueryRunner;
 
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -32,8 +33,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.starburstdata.presto.testing.FileUtils.createTempFileForTesting;
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.assertPropertyExists;
+import static io.trino.testing.FileUtils.createTempFileForTesting;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -70,21 +72,27 @@ public class TestQueryTroubleshooting
             outputStream.write('\n');
         }
 
-        DistributedQueryRunner queryRunner = StarburstQueryRunner.builder(SESSION)
+        DistributedQueryRunner queryRunner = TpchQueryRunner.builder()
                 .addExtraProperty("troubleshooting.jfr.max-recording-size", "8MB")
                 .setCoordinatorProperties(Map.of(
-                        "insights.authorized-users", AUTHORIZED_USER,
-                        "insights.authorized-groups", String.join(",", USER_GROUPS.get(USER_WITHIN_AUTHORIZED_GROUP)),
                         "troubleshooting.max-access-duration", "20s"))
-                .setAdditionalModule(binder -> newOptionalBinder(binder, Key.get(Path.class, ForAccessControlConfigDump.class))
-                        .setBinding()
-                        .toInstance(accessControlPropertiesFile))
+                .setAdditionalModule(new AbstractConfigurationAwareModule()
+                {
+                    @Override
+                    protected void setup(Binder binder)
+                    {
+                        newOptionalBinder(binder, Key.get(Path.class, ForAccessControlConfigDump.class))
+                                .setBinding()
+                                .toInstance(accessControlPropertiesFile);
+                        binder.bind(TroubleshootingAccessControl.class)
+                                .toInstance(identity -> AUTHORIZED_USER.equals(identity.getUser()) || identity.getGroups().contains(AUTHORIZED_GROUP));
+                        install(new TroubleshootingModule());
+                    }
+                })
                 .build();
 
-        queryRunner.installPlugin(new TpchPlugin());
         queryRunner.installPlugin(new GeoPlugin());
         queryRunner.installPlugin(new PostgreSqlPlugin());
-        queryRunner.createCatalog("tpch", "tpch");
         queryRunner.createCatalog("postgres", "postgresql", POSTGRES_CATALOG_PROPERTIES);
 
         GroupProvider groupProvider = user -> USER_GROUPS.getOrDefault(user, ImmutableSet.of());

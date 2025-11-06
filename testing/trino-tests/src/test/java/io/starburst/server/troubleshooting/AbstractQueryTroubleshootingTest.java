@@ -58,13 +58,13 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.starburstdata.presto.protocol.StarburstClientCapabilities.QUERY_TROUBLESHOOTING;
+import static io.starburst.server.troubleshooting.DistributedTroubleshootingTestHelper.getNodesProcessingQuery;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.assertPropertyExists;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.findConfigZips;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.findWorkerConfigDirectoryName;
-import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.getNodesProcessingQuery;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.zipInputStreamToMap;
 import static io.trino.SystemSessionProperties.QUERY_MAX_MEMORY_PER_NODE;
+import static io.trino.client.AdditionalClientCapabilities.QUERY_TROUBLESHOOTING;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.testing.assertions.Assert.assertEventually;
 import static java.lang.Math.toIntExact;
@@ -158,7 +158,7 @@ public abstract class AbstractQueryTroubleshootingTest
     public void testTroubleshootingDataAvailableForAuthorizedUser(Identity authorizedUserIdentity, SoftAssertions softly)
             throws Exception
     {
-        String troubleshootedQuery = "select linenumber, count(*) from tpch.tiny.lineitem l group by 1;";
+        String troubleshootedQuery = "select linenumber, count(*) from tpch.tiny.lineitem l group by 1";
         Session session = authorizedSession(authorizedUserIdentity);
         TroubleshootingData data = getTroubleshootingDataForQuery(session, troubleshootedQuery);
         assertCompleteTroubleshootingData(softly, data, troubleshootedQuery);

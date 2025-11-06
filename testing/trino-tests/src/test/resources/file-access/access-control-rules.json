@@ -1,0 +1,28 @@
+{
+    "functions": [
+        {
+            "catalog": "tpch",
+            "user": "test",
+            "schema": "system",
+            "function": "query",
+            "privileges": [
+                "EXECUTE"
+            ]
+        }
+    ],
+    "system_information": [
+        {
+            "role": "admin",
+            "allow": [
+                "read",
+                "write"
+            ]
+        },
+        {
+            "user": "bob",
+            "allow": [
+                "read"
+            ]
+        }
+    ]
+}

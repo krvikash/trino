@@ -1435,7 +1435,7 @@ jobs:
             - { modules: testing/trino-faulttolerant-tests, profile: test-fault-tolerant-delta }
             - { modules: testing/trino-faulttolerant-tests, profile: test-fault-tolerant-hive }
             - { modules: testing/trino-faulttolerant-tests, profile: test-fault-tolerant-iceberg }
-            - { modules: testing/trino-tests, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
+            - { modules: testing/trino-tests, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ], buildAll: true } # buildAll is needed to build and package plugins required by TestConnectorSensitiveProperties
           EOF
           ./.github/bin/build-matrix-from-impacted.py -v -i gib-impacted.log -m .github/test-matrix.yaml -o matrix.json
           echo "Matrix: $(jq '.' matrix.json)"
@@ -1473,7 +1473,11 @@ jobs:
       - name: Maven Install
         run: |
           export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
-          $MAVEN clean install ${MAVEN_FAST_INSTALL} ${MAVEN_GIB} -am -pl "${{ matrix.modules }}"
+          if [ ${{ matrix.buildAll }} == 'true' ]; then
+            $MAVEN clean install ${MAVEN_FAST_INSTALL}
+          else
+            $MAVEN clean install ${MAVEN_FAST_INSTALL} ${MAVEN_GIB} -am -pl "${{ matrix.modules }}"
+          fi
       - name: Maven Tests
         id: tests
         if: >-

@@ -11,7 +11,6 @@ package io.starburst.server.troubleshooting.configdump;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
-import com.google.common.io.Resources;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigSecuritySensitive;
 import io.github.classgraph.AnnotationInfo;
@@ -44,7 +43,6 @@ import java.util.stream.Stream;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static com.starburstdata.presto.testing.FileUtils.findRepositoryRoot;
 import static io.starburst.server.troubleshooting.configdump.ConnectorSensitiveProperties.SENSITIVE_PROPERTIES_PER_CONNECTOR;
 import static java.util.stream.Collectors.joining;
 
@@ -55,9 +53,15 @@ public class TestConnectorSensitiveProperties
     public void testSensitivePropertySetIsComplete(SoftAssertions softly)
             throws IOException
     {
-        Map<String, Set<String>> expectedPropertiesPerConnector = findSensitivePropertiesPerConnector();
+        testSensitivePropertySetIsComplete(softly, SENSITIVE_PROPERTIES_PER_CONNECTOR, prepareInstalledPluginsDir());
+    }
 
-        Set<String> actualConnectors = SENSITIVE_PROPERTIES_PER_CONNECTOR.keySet();
+    public static void testSensitivePropertySetIsComplete(SoftAssertions softly, Map<String, Set<String>> sensitivePropertiesPerConnector, Path pluginsDir)
+            throws IOException
+    {
+        Map<String, Set<String>> expectedPropertiesPerConnector = findSensitivePropertiesPerConnector(pluginsDir);
+
+        Set<String> actualConnectors = sensitivePropertiesPerConnector.keySet();
         Set<String> expectedConnectors = expectedPropertiesPerConnector.keySet();
         Set<String> connectorsOnlyInActualSet = Sets.difference(expectedConnectors, actualConnectors);
         Set<String> connectorsOnlyInExpectedSet = Sets.difference(actualConnectors, expectedConnectors);
@@ -71,7 +75,7 @@ public class TestConnectorSensitiveProperties
         for (Map.Entry<String, Set<String>> connectorProperties : expectedPropertiesPerConnector.entrySet()) {
             String connectorName = connectorProperties.getKey();
             Set<String> expectedProperties = connectorProperties.getValue();
-            Set<String> actualProperties = SENSITIVE_PROPERTIES_PER_CONNECTOR.get(connectorName);
+            Set<String> actualProperties = sensitivePropertiesPerConnector.get(connectorName);
             softly.assertThat(actualProperties)
                     .withFailMessage("Current sensitive property set for the %s connector is different than expected. Consider updating the set with:\n%s",
                             connectorName, buildPropertyDefinitions(ImmutableSet.of(connectorName), expectedPropertiesPerConnector))
@@ -79,11 +83,10 @@ public class TestConnectorSensitiveProperties
         }
     }
 
-    private static Map<String, Set<String>> findSensitivePropertiesPerConnector()
+    private static Map<String, Set<String>> findSensitivePropertiesPerConnector(Path pluginsDir)
             throws IOException
     {
         Map<String, Set<String>> sensitiveProperties = new HashMap<>();
-        Path pluginsDir = prepareInstalledPluginsDir();
         List<Plugin> plugins = PluginLoader.loadPlugins(pluginsDir.toFile());
         for (Plugin plugin : plugins) {
             for (ConnectorFactory connectorFactory : plugin.getConnectorFactories()) {
@@ -150,15 +153,14 @@ public class TestConnectorSensitiveProperties
             throws IOException
     {
         Properties properties = new Properties();
-        try (InputStream inputStream = Resources.getResource("trino-dependency-version.properties").openStream()) {
+        try (InputStream inputStream = TestConnectorSensitiveProperties.class.getResourceAsStream("/trino-testing.properties")) {
             properties.load(inputStream);
         }
-        String sepVersion = properties.getProperty("project.version");
-
+        String trinoVersion = properties.getProperty("project.version");
         Path rootDir = findRepositoryRoot();
-        Path pluginDir = rootDir.resolve("core/starburst-enterprise/target/starburst-enterprise-" + sepVersion + "-hardlinks/plugin");
+        Path pluginDir = rootDir.resolve("core/trino-server/target/trino-server-" + trinoVersion + "-hardlinks/plugin");
         checkState(Files.exists(pluginDir), "The \"plugin\" directory does not exist: %s. " +
-                "Before running this test the project has to be built so that the final .tar.gz, produced by the \"provisio:provision\" Maven goal, is available.",
+                        "Before running this test the project has to be built so that the final .tar.gz, produced by the \"provisio:provision\" Maven goal, is available.",
                 pluginDir.toAbsolutePath());
         return pluginDir;
     }
@@ -180,5 +182,16 @@ public class TestConnectorSensitiveProperties
                             """.formatted(connectorName, propertiesDefinition.trim());
                 })
                 .collect(joining());
+    }
+
+    private static Path findRepositoryRoot()
+    {
+        Path workingDirectory = Paths.get("").toAbsolutePath();
+        for (Path path = workingDirectory; path != null; path = path.getParent()) {
+            if (Files.isDirectory(path.resolve(".git"))) {
+                return path;
+            }
+        }
+        throw new RuntimeException("Failed to find repository root from " + workingDirectory);
     }
 }

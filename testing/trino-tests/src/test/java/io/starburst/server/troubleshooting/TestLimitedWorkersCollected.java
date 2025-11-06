@@ -9,14 +9,17 @@
  */
 package io.starburst.server.troubleshooting;
 
-import com.starburstdata.presto.server.StarburstQueryRunner;
+import com.google.inject.Binder;
+import com.google.inject.Key;
+import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.starburst.server.troubleshooting.TroubleshootingTestHelper.Unzipped;
 import io.trino.Session;
-import io.trino.plugin.tpch.TpchPlugin;
+import io.trino.node.InternalNodeManager;
 import io.trino.spi.security.Identity;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
+import io.trino.tests.tpch.TpchQueryRunner;
 import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -32,13 +35,16 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.starburst.server.troubleshooting.DistributedTroubleshootingTestHelper.getTroubleshootingDataForQuery;
 import static io.starburst.server.troubleshooting.TroubleshootingSessionProperties.TROUBLESHOOTING_JFR_MAX_COLLECTED_WORKERS;
 import static io.starburst.server.troubleshooting.TroubleshootingSessionProperties.TROUBLESHOOTING_TRACE_MAX_COLLECTED_WORKERS;
-import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.getTroubleshootingDataForQuery;
 import static io.trino.client.AdditionalClientCapabilities.QUERY_TROUBLESHOOTING;
+import static io.trino.node.NodeState.ACTIVE;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static java.lang.Math.min;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 public class TestLimitedWorkersCollected
         extends AbstractTestQueryFramework
@@ -52,9 +58,6 @@ public class TestLimitedWorkersCollected
             .build();
     private static final int WORKER_COUNT = 3;
 
-    @TempDir
-    private Path tmpDir;
-
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
@@ -65,33 +68,43 @@ public class TestLimitedWorkersCollected
     private static DistributedQueryRunner createQueryRunner(int maxCollectedWorkers)
             throws Exception
     {
-        DistributedQueryRunner queryRunner = StarburstQueryRunner.builder(troubleshootedSession)
+        DistributedQueryRunner queryRunner = TpchQueryRunner.builder()
                 .setCoordinatorProperties(Map.of(
-                        "insights.authorized-users", AUTHORIZED_USER,
                         "troubleshooting.jfr.max-collected-workers", String.valueOf(maxCollectedWorkers),
                         "troubleshooting.trace.max-collected-workers", String.valueOf(maxCollectedWorkers)))
+                .setAdditionalModule(new AbstractConfigurationAwareModule()
+                {
+                    @Override
+                    protected void setup(Binder binder)
+                    {
+                        binder.bind(TroubleshootingAccessControl.class)
+                                .toInstance(identity -> AUTHORIZED_USER.equals(identity.getUser()));
+                        install(new TroubleshootingModule());
+                    }
+                })
                 .setWorkerCount(WORKER_COUNT)
                 .build();
-
-        queryRunner.installPlugin(new TpchPlugin());
-        queryRunner.createCatalog("tpch", "tpch");
+        // wait for all the workers to announce itself in the discovery service
+        InternalNodeManager nodeManager = queryRunner.getCoordinator().getInstance(Key.get(InternalNodeManager.class));
+        await().atMost(5, SECONDS)
+                .untilAsserted(() -> assertThat(nodeManager.getNodes(ACTIVE)).hasSizeGreaterThanOrEqualTo(queryRunner.getNodeCount()));
 
         return queryRunner;
     }
 
     @ParameterizedTest
     @MethodSource("configWorkersCollected")
-    public void testConfigLimitedWorkersCollected(int maxCollectedWorkers, int expectedWorkersCollected)
+    public void testConfigLimitedWorkersCollected(int maxCollectedWorkers, int expectedWorkersCollected, @TempDir Path tmpDir)
             throws Exception
     {
         try (DistributedQueryRunner queryRunner = createQueryRunner(maxCollectedWorkers)) {
-            assertTroubleshootingDataCollected(queryRunner, troubleshootedSession, expectedWorkersCollected, expectedWorkersCollected);
+            assertTroubleshootingDataCollected(queryRunner, troubleshootedSession, expectedWorkersCollected, expectedWorkersCollected, tmpDir);
         }
     }
 
     @ParameterizedTest
     @MethodSource("sessionWorkersCollected")
-    public void testSessionLimitedWorkersCollected(int maxJfrCollectedWorkers, int maxTraceCollectedWorkers)
+    public void testSessionLimitedWorkersCollected(int maxJfrCollectedWorkers, int maxTraceCollectedWorkers, @TempDir Path tmpDir)
             throws Exception
     {
         assertTroubleshootingDataCollected(
@@ -101,10 +114,10 @@ public class TestLimitedWorkersCollected
                         .setSystemProperty(TROUBLESHOOTING_TRACE_MAX_COLLECTED_WORKERS, String.valueOf(maxTraceCollectedWorkers))
                         .build(),
                 min(maxJfrCollectedWorkers, WORKER_COUNT),
-                min(maxTraceCollectedWorkers, WORKER_COUNT));
+                min(maxTraceCollectedWorkers, WORKER_COUNT), tmpDir);
     }
 
-    private void assertTroubleshootingDataCollected(DistributedQueryRunner queryRunner, Session session, int expectedJfrWorkersCollected, int expectedTraceWorkersCollected)
+    private void assertTroubleshootingDataCollected(DistributedQueryRunner queryRunner, Session session, int expectedJfrWorkersCollected, int expectedTraceWorkersCollected, Path tmpDir)
             throws Exception
     {
         Unzipped inputsMap = getTroubleshootingDataForQuery(queryRunner, session, "SHOW CATALOGS", tmpDir);

@@ -10,7 +10,6 @@
 package io.starburst.server.troubleshooting;
 
 import com.google.inject.Inject;
-import com.starburstdata.presto.server.security.webui.access.WebUiAccessControl;
 import io.starburst.server.troubleshooting.tracing.SpanInterceptor;
 import io.trino.eventlistener.EventListenerManager;
 import io.trino.spi.QueryId;
@@ -26,14 +25,14 @@ import static java.util.Objects.requireNonNull;
 public class TroubleshootingEventListener
         implements EventListener
 {
-    private final WebUiAccessControl accessControl;
+    private final TroubleshootingAccessControl accessControl;
     private final TroubleshootingContextManager troubleshootingContextManager;
     private final boolean anonymizePlan;
     private final SpanInterceptor spanInterceptor;
 
     @Inject
     public TroubleshootingEventListener(
-            WebUiAccessControl accessControl,
+            TroubleshootingAccessControl accessControl,
             TroubleshootingConfig config,
             TroubleshootingContextManager troubleshootingContextManager,
             EventListenerManager listenerManager,
@@ -74,7 +73,7 @@ public class TroubleshootingEventListener
         if (!context.getClientCapabilities().contains(QUERY_TROUBLESHOOTING.name())) {
             return false;
         }
-        return accessControl.isPrivilegedUser(forUser(context.getUser())
+        return accessControl.canRunAndTroubleshoot(forUser(context.getUser())
                 .withEnabledRoles(context.getEnabledRoles())
                 .withGroups(context.getGroups())
                 .build());
