@@ -1686,7 +1686,7 @@ public class IcebergMetadata
         commitUpdate(appendFiles, session, "insert");
 
         if (isS3Tables(icebergTable.location())) {
-            log.debug("S3 Tables does not support statistics: %s", table.name());
+            log.debug("S3 Tables do not support statistics: %s", table.name());
         }
         else if (!computedStatistics.isEmpty()) {
             long newSnapshotId = table.branch().isEmpty() ? icebergTable.currentSnapshot().snapshotId() : icebergTable.refs().get(table.branch().get()).snapshotId();
@@ -3620,7 +3620,7 @@ public class IcebergMetadata
         IcebergTableHandle handle = (IcebergTableHandle) tableHandle;
         Table icebergTable = catalog.loadTable(session, handle.getSchemaTableName());
         if (isS3Tables(icebergTable.location())) {
-            throw new TrinoException(NOT_SUPPORTED, "S3 Tables does not support analyze");
+            throw new TrinoException(NOT_SUPPORTED, "S3 Tables do not support analyze");
         }
         beginTransaction(icebergTable);
         return handle;
