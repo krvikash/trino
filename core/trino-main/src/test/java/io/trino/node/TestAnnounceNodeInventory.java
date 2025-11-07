@@ -14,6 +14,7 @@
 package io.trino.node;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
@@ -27,18 +28,27 @@ import io.airlift.json.JsonModule;
 import io.airlift.node.testing.TestingNodeModule;
 import io.trino.client.NodeVersion;
 import io.trino.server.security.SecurityConfig;
+import jakarta.servlet.Servlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.Timeout;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
+import static com.google.common.base.MoreObjects.toStringHelper;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.trino.server.InternalHeaders.TRINO_ENVIRONMENT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
@@ -60,6 +70,7 @@ class TestAnnounceNodeInventory
             URI clientUri = URI.create("https://example.com:7777");
             AnnounceNodeAnnouncer announcer = new AnnounceNodeAnnouncer(
                     clientUri,
+                    "test",
                     List.of(server.serverUri()),
                     false,
                     httpClient);
@@ -76,6 +87,7 @@ class TestAnnounceNodeInventory
             URI clientUriA = URI.create("https://example.com:7777");
             AnnounceNodeAnnouncer announcerA = new AnnounceNodeAnnouncer(
                     clientUriA,
+                    "test",
                     List.of(server.serverUri()),
                     false,
                     httpClient);
@@ -84,6 +96,7 @@ class TestAnnounceNodeInventory
             URI clientUriB = URI.create("https://example.com:8888");
             AnnounceNodeAnnouncer announcerB = new AnnounceNodeAnnouncer(
                     clientUriB,
+                    "test",
                     List.of(server.serverUri()),
                     false,
                     httpClient);
@@ -101,6 +114,7 @@ class TestAnnounceNodeInventory
             URI clientUri = URI.create("https://example.com:7777");
             AnnounceNodeAnnouncer announcer = new AnnounceNodeAnnouncer(
                     clientUri,
+                    "test",
                     List.of(serverA.serverUri(), serverB.serverUri()),
                     false,
                     httpClient);
@@ -119,12 +133,14 @@ class TestAnnounceNodeInventory
             URI clientUriA = URI.create("https://example.com:7777");
             AnnounceNodeAnnouncer announcerA = new AnnounceNodeAnnouncer(
                     clientUriA,
+                    "test",
                     List.of(server.serverUri()),
                     false,
                     httpClient);
             URI clientUriB = URI.create("https://example.com:8888");
             AnnounceNodeAnnouncer announcerB = new AnnounceNodeAnnouncer(
                     clientUriB,
+                    "test",
                     List.of(server.serverUri()),
                     false,
                     httpClient);
@@ -184,5 +200,120 @@ class TestAnnounceNodeInventory
                 nodeInventory,
                 serverUri,
                 () -> injector.getInstance(LifeCycleManager.class).stop());
+    }
+
+    @Test
+    void testEnvironmentHeaderPassed()
+            throws IOException, InterruptedException
+    {
+        ConcurrentLinkedDeque<HttpRequestInfo> requests = new ConcurrentLinkedDeque<>();
+
+        HttpServlet testServlet = new HttpServlet() {
+            @Override
+            protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+            {
+                requests.add(new HttpRequestInfo(req));
+                resp.setStatus(200);
+            }
+        };
+
+        try (TestingHttpServer httpServer = new TestingHttpServer(testServlet)) {
+            URI clientUri = URI.create("https://example.com:7777");
+            AnnounceNodeAnnouncer announcer = new AnnounceNodeAnnouncer(
+                    clientUri,
+                    "some_env",
+                    List.of(httpServer.getBaseUri()),
+                    false,
+                    httpClient);
+            announcer.start();
+            getFutureValue(announcer.forceAnnounce());
+            announcer.stop();
+
+            assertThat(requests).isNotEmpty();
+            for (HttpRequestInfo request : requests) {
+                assertThat(request.getMethod()).isEqualTo("POST");
+                assertThat(request.getUri()).isEqualTo("/v1/announce");
+                assertThat(request.getHeaders().get(TRINO_ENVIRONMENT)).isEqualTo("some_env");
+            }
+        }
+    }
+
+    private static class HttpRequestInfo
+    {
+        private final String method;
+        private final String uri;
+        private final Map<String, String> headers;
+
+        public HttpRequestInfo(HttpServletRequest request)
+        {
+            method = request.getMethod();
+            uri = request.getRequestURI();
+            ImmutableMap.Builder<String, String> headerBuilder = ImmutableMap.builder();
+            request.getHeaderNames().asIterator().forEachRemaining(header -> headerBuilder.put(header, request.getHeader(header)));
+            headers = headerBuilder.buildOrThrow();
+        }
+
+        public String getMethod()
+        {
+            return method;
+        }
+
+        public String getUri()
+        {
+            return uri;
+        }
+
+        public Map<String, String> getHeaders()
+        {
+            return headers;
+        }
+
+        @Override
+        public String toString()
+        {
+            return toStringHelper(this)
+                    .add("method", method)
+                    .add("uri", uri)
+                    .add("headers", headers)
+                    .toString();
+        }
+    }
+
+    private static class TestingHttpServer
+            implements Closeable
+    {
+        private final LifeCycleManager lifeCycleManager;
+        private final URI baseUri;
+
+        public TestingHttpServer(HttpServlet servlet)
+        {
+            Bootstrap app = new Bootstrap(
+                    new TestingNodeModule(),
+                    new TestingHttpServerModule(),
+                    binder -> {
+                        binder.bind(Servlet.class).toInstance(servlet);
+                    });
+
+            Injector injector = app
+                    .doNotInitializeLogging()
+                    .quiet()
+                    .initialize();
+
+            lifeCycleManager = injector.getInstance(LifeCycleManager.class);
+            HttpServerInfo httpServerInfo = injector.getInstance(HttpServerInfo.class);
+            baseUri = httpServerInfo.getHttpUri();
+        }
+
+        public URI getBaseUri()
+        {
+            return baseUri;
+        }
+
+        @Override
+        public void close()
+                throws IOException
+        {
+            lifeCycleManager.stop();
+        }
     }
 }

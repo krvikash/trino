@@ -24,6 +24,7 @@ import io.airlift.http.client.Request;
 import io.airlift.http.client.StaticBodyGenerator;
 import io.airlift.http.client.StatusResponseHandler.StatusResponse;
 import io.airlift.log.Logger;
+import io.airlift.node.NodeInfo;
 import jakarta.annotation.PreDestroy;
 
 import java.net.URI;
@@ -41,6 +42,7 @@ import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
 import static io.airlift.http.client.Request.Builder.preparePost;
 import static io.airlift.http.client.StaticBodyGenerator.createStaticBodyGenerator;
 import static io.airlift.http.client.StatusResponseHandler.createStatusResponseHandler;
+import static io.trino.server.InternalHeaders.TRINO_ENVIRONMENT;
 import static jakarta.ws.rs.core.MediaType.TEXT_PLAIN;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
@@ -62,17 +64,19 @@ public class AnnounceNodeAnnouncer
 
     private final AtomicBoolean started = new AtomicBoolean();
     private final boolean coordinator;
+    private final String environment;
 
     @Inject
-    public AnnounceNodeAnnouncer(InternalNode currentNode, AnnounceNodeAnnouncerConfig config, @ForAnnouncer HttpClient httpClient)
+    public AnnounceNodeAnnouncer(InternalNode currentNode, NodeInfo currentNodeInfo, AnnounceNodeAnnouncerConfig config, @ForAnnouncer HttpClient httpClient)
     {
-        this(currentNode.getInternalUri(), config.getCoordinatorUris(), currentNode.isCoordinator(), httpClient);
+        this(currentNode.getInternalUri(), currentNodeInfo.getEnvironment(), config.getCoordinatorUris(), currentNode.isCoordinator(), httpClient);
     }
 
     @VisibleForTesting
-    public AnnounceNodeAnnouncer(URI internalUri, Collection<URI> coordinatorUris, boolean coordinator, HttpClient httpClient)
+    public AnnounceNodeAnnouncer(URI internalUri, String environment, Collection<URI> coordinatorUris, boolean coordinator, HttpClient httpClient)
     {
         URI currentUri = internalUri;
+        this.environment = requireNonNull(environment, "environment is null");
         this.announceUris = coordinatorUris.stream()
                 .filter(not(currentUri::equals))
                 .map(uri -> uriBuilderFrom(uri).appendPath("/v1/announce").build())
@@ -125,6 +129,7 @@ public class AnnounceNodeAnnouncer
                 .setUri(announceUri)
                 .setBodyGenerator(currentHostAnnouncement)
                 .setHeader(HttpHeaders.CONTENT_TYPE, TEXT_PLAIN)
+                .setHeader(TRINO_ENVIRONMENT, environment) // used by announce proxy mechanism in starburst-portal
                 .build();
         ListenableFuture<StatusResponse> responseFuture = httpClient.executeAsync(request, createStatusResponseHandler());
 

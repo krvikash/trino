@@ -16,6 +16,7 @@ package io.trino.server;
 public final class InternalHeaders
 {
     public static final String TRINO_CURRENT_VERSION = "X-Trino-Current-Version";
+    public static final String TRINO_ENVIRONMENT = "X-Trino-Environment";
     public static final String TRINO_MAX_WAIT = "X-Trino-Max-Wait";
     public static final String TRINO_MAX_SIZE = "X-Trino-Max-Size";
     public static final String TRINO_TASK_INSTANCE_ID = "X-Trino-Task-Instance-Id";
