@@ -9,9 +9,11 @@
  */
 package io.starburst.ai.model;
 
+import java.util.Map;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElse;
 
 public record LanguageModelConnectionSpec(
         String id,
@@ -22,6 +24,7 @@ public record LanguageModelConnectionSpec(
         Optional<Float> topP,
         boolean useDeveloperForSystemRole,
         Optional<PromptOverrides> prompts,
+        Map<LlmTrait, String> traits,
         ConnectionInfo connectionInfo)
         implements ModelConnectionSpec
 {
@@ -34,6 +37,7 @@ public record LanguageModelConnectionSpec(
         requireNonNull(temperature, "temperature is null");
         requireNonNull(topP, "topP is null");
         requireNonNull(prompts, "prompts is null");
+        traits = requireNonNullElse(traits, Map.of());
         requireNonNull(connectionInfo, "connectionInfo is null");
         if (!(maxTokens.isEmpty() || maxTokens.get() > 0)) {
             throw new IllegalArgumentException("if present maxTokens must be greater than 0");
