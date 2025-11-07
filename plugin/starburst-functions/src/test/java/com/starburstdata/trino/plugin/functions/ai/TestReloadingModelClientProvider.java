@@ -16,7 +16,6 @@ import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.Objects;
@@ -153,23 +152,17 @@ public class TestReloadingModelClientProvider
                 .allMatch(Objects::nonNull);
         assertThatThrownBy(() -> simpleEmbedding("openai_embed_3_large"))
                 .hasMessage("Embedding model client not found for id: openai_embed_3_large");
-        Files.write(modelSpecsFile.toPath(), MODEL_SPECS_V2.getBytes(StandardCharsets.UTF_8));
+        Files.writeString(modelSpecsFile.toPath(), MODEL_SPECS_V2);
         assertEventually(() -> assertThat(simplePrompt("haiku35")).isEqualTo("paris"));
         assertEventually(() -> assertThat(simplePrompt("meta_llama")).isEqualTo("paname"));
-        assertEventually(() -> {
-            assertThatThrownBy(() -> simplePrompt("gpt4o_mini"))
-                    .hasMessage("Language model client not found for id: gpt4o_mini");
-        });
+        assertEventually(() -> assertThatThrownBy(() -> simplePrompt("gpt4o_mini"))
+                .hasMessage("Language model client not found for id: gpt4o_mini"));
         // Assert that the system prompt change was picked up
-        assertEventually(() -> {
-            assertThat(simpleEmbedding("openai_embed_3_large"))
-                    .isNotEmpty()
-                    .allMatch(Objects::nonNull);
-        });
-        assertEventually(() -> {
-            assertThatThrownBy(() -> simpleEmbedding("titan_v2"))
-                    .hasMessage("Embedding model client not found for id: titan_v2");
-        });
+        assertEventually(() -> assertThat(simpleEmbedding("openai_embed_3_large"))
+                .isNotEmpty()
+                .allMatch(Objects::nonNull));
+        assertEventually(() -> assertThatThrownBy(() -> simpleEmbedding("titan_v2"))
+                .hasMessage("Embedding model client not found for id: titan_v2"));
         // Verify that the updated classify prompt is set to the mask prompt.
         String prompt = "My credit card number is 1234-5678-9012-3456 and my password is hunter2";
         assertEventually(() -> {
