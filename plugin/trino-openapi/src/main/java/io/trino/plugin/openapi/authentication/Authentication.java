@@ -70,6 +70,7 @@ public class Authentication
     private final String clientId;
     private final String clientSecret;
     private final LoadingCache<String, String> tokens = EvictableCacheBuilder.newBuilder()
+            .maximumSize(4096)
             .build(CacheLoader.from(this::getToken));
 
     @Inject
