@@ -65,10 +65,10 @@ public final class TestingRedshiftServer
         return Jdbi.create(JDBC_URL, JDBC_USER, JDBC_PASSWORD).withHandle(callback);
     }
 
-    public static boolean isExceptionRecoverable(Throwable exception)
+    static boolean isExceptionRecoverable(Throwable exception)
     {
         return exception != null && (
-                exception.getMessage().matches(".* concurrent transaction.*")
+                exception.getMessage().matches(".* concurrent transaction .*")
                         || exception.getMessage().matches(".*deadlock detected.*")
                         || exception.getMessage().matches(".*could not open relation with OID.*")
                         || exception.getMessage().matches(".*The connection attempt failed.*")
