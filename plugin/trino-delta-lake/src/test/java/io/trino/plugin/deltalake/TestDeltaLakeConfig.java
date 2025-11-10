@@ -78,7 +78,8 @@ public class TestDeltaLakeConfig
                 .setDeltaLogFileSystemCacheDisabled(false)
                 .setMetadataParallelism(8)
                 .setCheckpointProcessingParallelism(4)
-                .setLogRetentionDurationEnabled(false));
+                .setLogRetentionDurationEnabled(false)
+                .setTimeZone("UTC"));
     }
 
     @Test
@@ -124,6 +125,7 @@ public class TestDeltaLakeConfig
                 .put("delta.metadata.parallelism", "10")
                 .put("delta.checkpoint-processing.parallelism", "8")
                 .put("delta.log-retention-duration.enabled", "true")
+                .put("delta.time-zone", "Asia/Kolkata")
                 .buildOrThrow();
 
         DeltaLakeConfig expected = new DeltaLakeConfig()
@@ -165,7 +167,8 @@ public class TestDeltaLakeConfig
                 .setDeltaLogFileSystemCacheDisabled(true)
                 .setMetadataParallelism(10)
                 .setCheckpointProcessingParallelism(8)
-                .setLogRetentionDurationEnabled(true);
+                .setLogRetentionDurationEnabled(true)
+                .setTimeZone("Asia/Kolkata");
 
         assertFullMapping(properties, expected);
     }

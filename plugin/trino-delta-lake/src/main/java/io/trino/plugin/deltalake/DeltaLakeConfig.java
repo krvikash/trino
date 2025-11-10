@@ -31,6 +31,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import org.joda.time.DateTimeZone;
 
+import java.time.ZoneId;
 import java.util.Optional;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
@@ -99,6 +100,7 @@ public class DeltaLakeConfig
     private int metadataParallelism = 8;
     private int checkpointProcessingParallelism = 4;
     private boolean logRetentionDurationEnabled;
+    private String timeZone = "UTC";
 
     public Duration getMetadataCacheTtl()
     {
@@ -627,6 +629,26 @@ public class DeltaLakeConfig
     public DeltaLakeConfig setLogRetentionDurationEnabled(boolean logRetentionDurationEnabled)
     {
         this.logRetentionDurationEnabled = logRetentionDurationEnabled;
+        return this;
+    }
+
+    public DateTimeZone getDateTimeZone()
+    {
+        TimeZone timeZone = TimeZone.getTimeZone(ZoneId.of(this.timeZone));
+        return DateTimeZone.forTimeZone(timeZone);
+    }
+
+    @NotNull
+    public String getTimeZone()
+    {
+        return timeZone;
+    }
+
+    @Config("delta.time-zone")
+    @ConfigDescription("Time zone to apply when reading TIMESTAMP WITH TIME ZONE values")
+    public DeltaLakeConfig setTimeZone(String timeZone)
+    {
+        this.timeZone = timeZone;
         return this;
     }
 }

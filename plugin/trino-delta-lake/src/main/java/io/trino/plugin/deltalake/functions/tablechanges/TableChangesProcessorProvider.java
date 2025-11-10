@@ -35,6 +35,7 @@ public class TableChangesProcessorProvider
     private final DeltaLakeFileSystemFactory fileSystemFactory;
     private final DateTimeZone parquetDateTimeZone;
     private final int domainCompactionThreshold;
+    private final DateTimeZone dateTimeZone;
     private final FileFormatDataSourceStats fileFormatDataSourceStats;
     private final ParquetReaderOptions parquetReaderOptions;
 
@@ -48,6 +49,7 @@ public class TableChangesProcessorProvider
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.parquetDateTimeZone = deltaLakeConfig.getParquetDateTimeZone();
         this.domainCompactionThreshold = deltaLakeConfig.getDomainCompactionThreshold();
+        this.dateTimeZone = deltaLakeConfig.getDateTimeZone();
         this.fileFormatDataSourceStats = requireNonNull(fileFormatDataSourceStats, "fileFormatDataSourceStats is null");
         this.parquetReaderOptions = parquetReaderConfig.toParquetReaderOptions();
     }
@@ -60,6 +62,7 @@ public class TableChangesProcessorProvider
                 fileSystemFactory,
                 parquetDateTimeZone,
                 domainCompactionThreshold,
+                dateTimeZone,
                 fileFormatDataSourceStats,
                 parquetReaderOptions,
                 (TableChangesTableFunctionHandle) handle,

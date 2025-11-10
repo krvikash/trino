@@ -180,7 +180,7 @@ public class TimestampTzBlockTransformer
     public static boolean timestampTzBlockTransformationRequired(Type sourceType)
     {
         return switch (sourceType) {
-            case TimestampWithTimeZoneType timestampWithTimeZoneType -> TIMESTAMP_TZ_MILLIS.equals(timestampWithTimeZoneType) // for $file_modified_time column
+            case TimestampWithTimeZoneType timestampWithTimeZoneType -> TIMESTAMP_TZ_MILLIS.equals(timestampWithTimeZoneType)
                     || TIMESTAMP_TZ_MICROS.equals(timestampWithTimeZoneType)
                     || TIMESTAMP_TZ_NANOS.equals(timestampWithTimeZoneType);
             case RowType rowType -> rowType.getFields().stream()

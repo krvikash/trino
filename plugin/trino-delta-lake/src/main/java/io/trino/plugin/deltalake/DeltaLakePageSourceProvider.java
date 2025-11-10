@@ -30,6 +30,7 @@ import io.trino.parquet.metadata.FileMetadata;
 import io.trino.parquet.metadata.ParquetMetadata;
 import io.trino.parquet.reader.MetadataReader;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
+import io.trino.plugin.base.type.TimestampTzBlockTransformer;
 import io.trino.plugin.deltalake.delete.PositionDeleteFilter;
 import io.trino.plugin.deltalake.delete.RoaringBitmapArray;
 import io.trino.plugin.deltalake.transactionlog.DeletionVectorEntry;
@@ -109,11 +110,11 @@ import static io.trino.plugin.deltalake.transactionlog.TransactionLogParser.dese
 import static io.trino.plugin.deltalake.util.DeltaLakeDomains.partitionMatchesPredicate;
 import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.PARQUET_ROW_INDEX_COLUMN;
 import static io.trino.spi.type.DateTimeEncoding.packDateTimeWithZone;
-import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.Math.min;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
+import static org.joda.time.DateTimeZone.UTC;
 
 public class DeltaLakePageSourceProvider
         implements ConnectorPageSourceProvider
@@ -127,6 +128,7 @@ public class DeltaLakePageSourceProvider
     private final ParquetReaderOptions parquetReaderOptions;
     private final int domainCompactionThreshold;
     private final DateTimeZone parquetDateTimeZone;
+    private final DateTimeZone dateTimeZone;
     private final TypeManager typeManager;
 
     @Inject
@@ -142,6 +144,7 @@ public class DeltaLakePageSourceProvider
         this.parquetReaderOptions = ParquetReaderOptions.builder(parquetReaderConfig.toParquetReaderOptions()).withBloomFilter(false).build();
         this.domainCompactionThreshold = deltaLakeConfig.getDomainCompactionThreshold();
         this.parquetDateTimeZone = deltaLakeConfig.getParquetDateTimeZone();
+        this.dateTimeZone = deltaLakeConfig.getDateTimeZone();
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
     }
 
@@ -211,6 +214,7 @@ public class DeltaLakePageSourceProvider
                     partitionKeys,
                     partitionValues,
                     generatePages(split.getFileRowCount().get(), onlyRowIdColumn(regularColumns)),
+                    dateTimeZone,
                     split.getPath(),
                     split.getFileSize(),
                     split.getFileModifiedTime());
@@ -285,6 +289,7 @@ public class DeltaLakePageSourceProvider
                 partitionKeys,
                 partitionValues,
                 delegate,
+                dateTimeZone,
                 split.getPath(),
                 split.getFileSize(),
                 split.getFileModifiedTime());
@@ -296,6 +301,7 @@ public class DeltaLakePageSourceProvider
             Map<String, Optional<String>> partitionKeys,
             Optional<List<String>> partitionValues,
             ConnectorPageSource delegate,
+            DateTimeZone dateTimeZone,
             String path,
             long fileSize,
             long fileModifiedTime)
@@ -314,7 +320,7 @@ public class DeltaLakePageSourceProvider
                 transform.constantValue(Utils.nativeValueToBlock(FILE_SIZE_TYPE, fileSize));
             }
             else if (column.baseColumnName().equals(FILE_MODIFIED_TIME_COLUMN_NAME)) {
-                long packedTimestamp = packDateTimeWithZone(fileModifiedTime, UTC_KEY);
+                long packedTimestamp = packDateTimeWithZone(fileModifiedTime, dateTimeZone.getID());
                 transform.constantValue(Utils.nativeValueToBlock(FILE_MODIFIED_TIME_TYPE, packedTimestamp));
             }
             else if (column.baseColumnName().equals(ROW_ID_COLUMN_NAME)) {
@@ -325,6 +331,10 @@ public class DeltaLakePageSourceProvider
             }
             else if (missingColumnNames.contains(column.baseColumnName())) {
                 transform.constantValue(column.type().createNullBlock());
+            }
+            else if (!dateTimeZone.equals(UTC)) {
+                transform.transform(delegateIndex, new TimestampTzBlockTransformer(column.type(), dateTimeZone));
+                delegateIndex++;
             }
             else {
                 transform.column(delegateIndex);

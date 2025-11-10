@@ -34,6 +34,7 @@ import io.trino.spi.Node;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.TypeManager;
+import org.joda.time.DateTimeZone;
 
 import java.util.Optional;
 import java.util.concurrent.Executor;
@@ -65,6 +66,7 @@ public class DeltaLakeMetadataFactory
     private final boolean useUniqueTableLocation;
     private final DeltaLakeTableMetadataScheduler metadataScheduler;
     private final Executor metadataFetchingExecutor;
+    private final DateTimeZone dateTimeZone;
     private final boolean allowManagedTableRename;
     private final boolean usingSystemSecurity;
     private final boolean isOperateOnUnityMetastore;
@@ -121,6 +123,7 @@ public class DeltaLakeMetadataFactory
         else {
             this.metadataFetchingExecutor = new BoundedExecutor(executorService, deltaLakeConfig.getMetadataParallelism());
         }
+        this.dateTimeZone = deltaLakeConfig.getDateTimeZone();
         this.isOperateOnUnityMetastore = metastoreTypeConfig.getMetastoreType() == UNITY;
         this.transactionLogReaderFactory = requireNonNull(transactionLogReaderFactory, "transactionLogLoaderFactory is null");
         this.logRetentionDurationEnabled = deltaLakeConfig.isLogRetentionDurationEnabled();
@@ -160,6 +163,7 @@ public class DeltaLakeMetadataFactory
                 deleteSchemaLocationsFallback,
                 statisticsAccess,
                 metadataScheduler,
+                dateTimeZone,
                 useUniqueTableLocation,
                 allowManagedTableRename,
                 isOperateOnUnityMetastore,

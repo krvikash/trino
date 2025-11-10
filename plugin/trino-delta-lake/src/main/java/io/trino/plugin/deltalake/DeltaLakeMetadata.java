@@ -164,6 +164,7 @@ import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.VarcharType;
 import jakarta.annotation.Nullable;
+import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
 import java.net.URI;
@@ -220,7 +221,6 @@ import static io.trino.hive.formats.HiveClassNames.LAZY_SIMPLE_SERDE_CLASS;
 import static io.trino.hive.formats.HiveClassNames.SEQUENCEFILE_INPUT_FORMAT_CLASS;
 import static io.trino.metastore.StorageFormat.create;
 import static io.trino.metastore.Table.TABLE_COMMENT;
-import static io.trino.plugin.base.filter.UtcConstraintExtractor.extractTupleDomain;
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.ProjectedColumnRepresentation;
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.extractSupportedProjectedColumns;
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.replaceWithNewVariables;
@@ -396,6 +396,7 @@ import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.collectingAndThen;
 import static java.util.stream.Collectors.partitioningBy;
 import static java.util.stream.Collectors.toUnmodifiableSet;
+import static org.joda.time.DateTimeZone.UTC;
 
 public class DeltaLakeMetadata
         implements ConnectorMetadata
@@ -505,6 +506,7 @@ public class DeltaLakeMetadata
     private final Executor metadataFetchingExecutor;
     private final TransactionLogReaderFactory transactionLogReaderFactory;
     private final boolean logRetentionDurationEnabled;
+    private final DateTimeZone dateTimeZone;
 
     private record QueriedTable(SchemaTableName schemaTableName, long version)
     {
@@ -533,6 +535,7 @@ public class DeltaLakeMetadata
             boolean deleteSchemaLocationsFallback,
             CachingExtendedStatisticsAccess statisticsAccess,
             DeltaLakeTableMetadataScheduler metadataScheduler,
+            DateTimeZone dateTimeZone,
             boolean useUniqueTableLocation,
             boolean allowManagedTableRename,
             boolean isOperateOnUnityMetastore,
@@ -559,6 +562,7 @@ public class DeltaLakeMetadata
         this.statisticsAccess = requireNonNull(statisticsAccess, "statisticsAccess is null");
         this.deleteSchemaLocationsFallback = deleteSchemaLocationsFallback;
         this.metadataScheduler = requireNonNull(metadataScheduler, "metadataScheduler is null");
+        this.dateTimeZone = requireNonNull(dateTimeZone, "dateTimeZone is null");
         this.useUniqueTableLocation = useUniqueTableLocation;
         this.allowManagedTableRename = allowManagedTableRename;
         this.isOperateOnUnityMetastore = isOperateOnUnityMetastore;
@@ -3818,8 +3822,21 @@ public class DeltaLakeMetadata
 
         checkArgument(constraint.getSummary().getDomains().isPresent(), "constraint summary is NONE");
 
-        UtcConstraintExtractor.ExtractionResult extractionResult = extractTupleDomain(constraint);
-        TupleDomain<ColumnHandle> predicate = extractionResult.tupleDomain();
+        TupleDomain<ColumnHandle> predicate;
+        ConnectorExpression connectorExpression;
+        // TODO when using delta.time-zone with value other than UTC, then UtcConstraintExtractor does not behave correctly as
+        //  UtcConstraintExtractor assumes all values of TIMESTAMP WITH TIME ZONE type are represented using the UTC time zone.
+        //  Make UtcConstraintExtractor to work with other time zones as well, so we can push down constraints for other time zones.
+        //  https://starburstdata.atlassian.net/browse/SEP-17396
+        if (dateTimeZone.equals(UTC)) {
+            UtcConstraintExtractor.ExtractionResult extractionResult = UtcConstraintExtractor.extractTupleDomain(constraint);
+            predicate = extractionResult.tupleDomain();
+            connectorExpression = extractionResult.remainingExpression();
+        }
+        else {
+            predicate = constraint.getSummary();
+            connectorExpression = constraint.getExpression();
+        }
 
         if (predicate.isAll() && constraint.getPredicateColumns().isEmpty()) {
             return Optional.empty();
@@ -3911,7 +3928,7 @@ public class DeltaLakeMetadata
         return Optional.of(new ConstraintApplicationResult<>(
                 newHandle,
                 newRemainingConstraint.transformKeys(ColumnHandle.class::cast),
-                extractionResult.remainingExpression(),
+                connectorExpression,
                 false));
     }
 

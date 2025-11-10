@@ -78,6 +78,7 @@ public class TableChangesFunctionProcessor
             DeltaLakeFileSystemFactory fileSystemFactory,
             DateTimeZone parquetDateTimeZone,
             int domainCompactionThreshold,
+            DateTimeZone dateTimeZone,
             FileFormatDataSourceStats fileFormatDataSourceStats,
             ParquetReaderOptions parquetReaderOptions,
             TableChangesTableFunctionHandle handle,
@@ -86,6 +87,7 @@ public class TableChangesFunctionProcessor
         requireNonNull(session, "session is null");
         requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         requireNonNull(parquetDateTimeZone, "parquetDateTimeZone is null");
+        requireNonNull(dateTimeZone, "dateTimeZone is null");
         requireNonNull(fileFormatDataSourceStats, "fileFormatDataSourceStats is null");
         requireNonNull(parquetReaderOptions, "parquetReaderOptions is null");
         requireNonNull(handle, "handle is null");
@@ -97,6 +99,7 @@ public class TableChangesFunctionProcessor
                 fileSystemFactory,
                 parquetDateTimeZone,
                 domainCompactionThreshold,
+                dateTimeZone,
                 fileFormatDataSourceStats,
                 parquetReaderOptions,
                 handle,
@@ -165,6 +168,7 @@ public class TableChangesFunctionProcessor
             DeltaLakeFileSystemFactory fileSystemFactory,
             DateTimeZone parquetDateTimeZone,
             int domainCompactionThreshold,
+            DateTimeZone dateTimeZone,
             FileFormatDataSourceStats fileFormatDataSourceStats,
             ParquetReaderOptions parquetReaderOptions,
             TableChangesTableFunctionHandle handle,
@@ -216,6 +220,7 @@ public class TableChangesFunctionProcessor
                 partitionKeys,
                 Optional.empty(),
                 pageSource,
+                dateTimeZone,
                 split.path(),
                 split.fileSize(),
                 0);
