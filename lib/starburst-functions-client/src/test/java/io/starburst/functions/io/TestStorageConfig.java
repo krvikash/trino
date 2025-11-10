@@ -10,6 +10,7 @@
 package io.starburst.functions.io;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.ConfigurationException;
 import io.airlift.configuration.ConfigurationFactory;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,7 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
 
+import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,6 +35,21 @@ final class TestStorageConfig
                 .setCredentialsKey(null)
                 .setCredentialsFile(null)
                 .setUseRowSemantics(false));
+    }
+
+    @Test
+    void testExplicitPropertyMappings()
+    {
+        Map<String, String> properties = ImmutableMap.<String, String>builder()
+                .put("io.credentials-key", "key")
+                .put("io.unload.use-row-semantics", "true")
+                .buildOrThrow();
+
+        StorageConfig expected = new StorageConfig()
+                .setCredentialsKey("key")
+                .setUseRowSemantics(true);
+
+        assertFullMapping(properties, expected, ImmutableSet.of("io.credentials-file"));
     }
 
     @Test
