@@ -18,13 +18,15 @@ import static java.util.Objects.requireNonNull;
 
 public enum StarburstFeature
 {
+    AGENTIC_LAYER("agentic-layer", "Agentic layer"),
     AI_WORKFLOWS("ai-workflows", "AI workflows"),
     DYNAMODB("dynamodb", "Starburst DynamoDB connector"),
+    MCP("mcp", "MCP server"),
     SALESFORCE("salesforce", "Starburst Salesforce connector"),
     SPARK("spark", "Spark"),
     SPLUNK("splunk", "Starburst Splunk connector"),
     WARP_SPEED("warp-speed", "Warp Speed"),
-    DELL("dell", "Dell Data Lakehouse", ImmutableSet.of(AI_WORKFLOWS, SPARK, WARP_SPEED)),
+    DELL("dell", "Dell Data Lakehouse", ImmutableSet.of(AGENTIC_LAYER, AI_WORKFLOWS, MCP, SPARK, WARP_SPEED)),
     /**/;
 
     private final String featureName;
