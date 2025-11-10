@@ -15,12 +15,14 @@ package io.trino.plugin.hive.functions;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.configuration.LegacyConfig;
 
 public class UnloadConfig
 {
     private boolean useRowSemantics;
 
-    @Config("hive.unload.use-row-semantics")
+    @Config("hive.unload.experimental-use-row-semantics")
+    @LegacyConfig("hive.unload.use-row-semantics")
     @ConfigDescription("Forces unload function to use row semantics. PARTITION BY and ORDER BY clauses are not supported")
     public UnloadConfig setUseRowSemantics(boolean useRowSemantics)
     {

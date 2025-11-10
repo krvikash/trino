@@ -12,6 +12,7 @@ package io.starburst.functions.io;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigSecuritySensitive;
+import io.airlift.configuration.LegacyConfig;
 import io.airlift.configuration.validation.FileExists;
 import jakarta.validation.constraints.AssertTrue;
 
@@ -56,7 +57,8 @@ public class StorageConfig
         return useRowSemantics;
     }
 
-    @Config("io.unload.use-row-semantics")
+    @Config("io.unload.experimental-use-row-semantics")
+    @LegacyConfig("io.unload.use-row-semantics")
     @ConfigDescription("Forces unload function to use row semantics. PARTITION BY and ORDER BY clauses are not supported")
     public StorageConfig setUseRowSemantics(boolean useRowSemantics)
     {

@@ -35,7 +35,7 @@ final class TestUnloadConfig
     void testExplicitPropertyMappings()
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
-                .put("hive.unload.use-row-semantics", "true")
+                .put("hive.unload.experimental-use-row-semantics", "true")
                 .buildOrThrow();
 
         UnloadConfig expected = new UnloadConfig()

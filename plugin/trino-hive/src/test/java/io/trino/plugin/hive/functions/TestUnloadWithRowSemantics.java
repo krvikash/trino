@@ -29,7 +29,7 @@ public class TestUnloadWithRowSemantics
     @Override
     protected Map<String, String> getAdditionalConnectorProperties()
     {
-        return ImmutableMap.of("hive.unload.use-row-semantics", "true");
+        return ImmutableMap.of("hive.unload.experimental-use-row-semantics", "true");
     }
 
     @Override

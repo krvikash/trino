@@ -42,7 +42,7 @@ final class TestStorageConfig
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("io.credentials-key", "key")
-                .put("io.unload.use-row-semantics", "true")
+                .put("io.unload.experimental-use-row-semantics", "true")
                 .buildOrThrow();
 
         StorageConfig expected = new StorageConfig()
