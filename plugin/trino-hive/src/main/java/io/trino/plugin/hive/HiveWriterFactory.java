@@ -520,8 +520,7 @@ public class HiveWriterFactory
                     sortFields,
                     sortOrders,
                     pageSorter,
-                    typeManager.getTypeOperators(),
-                    OrcFileWriterFactory::createOrcDataSink);
+                    typeManager.getTypeOperators());
         }
 
         return new HiveWriter(
@@ -560,8 +559,7 @@ public class HiveWriterFactory
                 sortFields,
                 sortOrders,
                 pageSorter,
-                typeManager.getTypeOperators(),
-                OrcFileWriterFactory::createOrcDataSink);
+                typeManager.getTypeOperators());
     }
 
     private void validateSchema(Optional<String> partitionName, Map<String, String> schema)
