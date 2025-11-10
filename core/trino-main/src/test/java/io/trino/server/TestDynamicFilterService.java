@@ -87,6 +87,7 @@ import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.DynamicFilters.createDynamicFilterExpression;
+import static io.trino.sql.ir.Booleans.TRUE;
 import static io.trino.sql.ir.IrUtils.and;
 import static io.trino.sql.ir.IrUtils.or;
 import static io.trino.sql.planner.DynamicFilterDomain.multipleValues;
@@ -1083,7 +1084,7 @@ public class TestDynamicFilterService
                 new JoinNode(new PlanNodeId("join_id"),
                         INNER,
                         filterNode,
-                        remote,
+                        new FilterNode(new PlanNodeId("build_filter_node_id"), remote, TRUE),
                         ImmutableList.of(),
                         tableScan.getOutputSymbols(),
                         remote.getOutputSymbols(),

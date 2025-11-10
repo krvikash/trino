@@ -22,6 +22,7 @@ import io.trino.sql.planner.optimizations.PlanNodeSearcher;
 import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.DynamicFilterSourceNode;
 import io.trino.sql.planner.plan.ExchangeNode;
+import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.ProjectNode;
@@ -83,6 +84,7 @@ public final class JoinUtils
         if (node instanceof JoinNode joinNode) {
             return PlanNodeSearcher.searchFrom(joinNode.getRight())
                     .recurseOnlyWhen(planNode -> planNode instanceof ProjectNode ||
+                                    planNode instanceof FilterNode ||
                                     isLocalRepartitionExchange(planNode) ||
                                     isLocalGatherExchange(planNode))  // used in cross join case
                     .where(planNode -> isRemoteReplicatedExchange(planNode) || isRemoteReplicatedSourceNode(planNode))

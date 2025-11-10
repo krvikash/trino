@@ -45,6 +45,7 @@ import io.trino.spi.type.TypeOperators;
 import io.trino.sql.DynamicFilters;
 import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
 import io.trino.sql.dialect.trino.operation.Exchange;
+import io.trino.sql.dialect.trino.operation.Filter;
 import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Query;
@@ -624,6 +625,7 @@ public class DynamicFilterService
     private static boolean hasReplicatedSource(Operation operation, Map<Value, Operation> operations)
     {
         if (operation instanceof Project ||
+                operation instanceof Filter ||
                 (operation instanceof Exchange exchange &&
                         EXCHANGE_SCOPE.getAttribute(exchange.attributes()) == LOCAL &&
                         ImmutableSet.of(REPARTITION, GATHER).contains(EXCHANGE_TYPE.getAttribute(exchange.attributes())))) {
