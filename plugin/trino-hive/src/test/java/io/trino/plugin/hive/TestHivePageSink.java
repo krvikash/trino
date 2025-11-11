@@ -30,6 +30,7 @@ import io.trino.operator.FlatHashStrategyCompiler;
 import io.trino.operator.GroupByHashPageIndexerFactory;
 import io.trino.operator.NullSafeHashCompiler;
 import io.trino.plugin.hive.metastore.HivePageSinkMetadata;
+import io.trino.plugin.hive.util.SortTempFileFactory;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.SplitWeight;
@@ -400,6 +401,7 @@ public class TestHivePageSink
                 TESTING_TYPE_MANAGER,
                 config,
                 sortingFileWriterConfig,
+                new SortTempFileFactory(),
                 new HiveLocationService(HDFS_FILE_SYSTEM_FACTORY, config),
                 partitionUpdateCodec,
                 stats);

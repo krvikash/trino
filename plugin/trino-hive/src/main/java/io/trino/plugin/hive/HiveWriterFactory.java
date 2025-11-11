@@ -38,6 +38,7 @@ import io.trino.plugin.hive.acid.AcidTransaction;
 import io.trino.plugin.hive.metastore.HivePageSinkMetadataProvider;
 import io.trino.plugin.hive.orc.OrcFileWriterFactory;
 import io.trino.plugin.hive.util.HiveWriteUtils;
+import io.trino.plugin.hive.util.SortTempFileFactory;
 import io.trino.spi.Page;
 import io.trino.spi.PageSorter;
 import io.trino.spi.TrinoException;
@@ -137,6 +138,7 @@ public class HiveWriterFactory
     private final boolean sortedWritingTempStagingPathEnabled;
     private final String sortedWritingTempStagingPath;
     private final InsertExistingPartitionsBehavior insertExistingPartitionsBehavior;
+    private final SortTempFileFactory sortTempFileFactory;
 
     private final ConnectorSession session;
     private final OptionalInt bucketCount;
@@ -166,6 +168,7 @@ public class HiveWriterFactory
             PageSorter pageSorter,
             DataSize sortBufferSize,
             int maxOpenSortFiles,
+            SortTempFileFactory sortTempFileFactory,
             ConnectorSession session,
             HiveWriterStats hiveWriterStats,
             boolean sortedWritingTempStagingPathEnabled,
@@ -194,6 +197,7 @@ public class HiveWriterFactory
         this.sortedWritingTempStagingPathEnabled = sortedWritingTempStagingPathEnabled;
         this.sortedWritingTempStagingPath = requireNonNull(sortedWritingTempStagingPath, "sortedWritingTempStagingPath is null");
         this.insertExistingPartitionsBehavior = getInsertExistingPartitionsBehavior(session);
+        this.sortTempFileFactory = requireNonNull(sortTempFileFactory, "sortTempFileFactory is null");
 
         // divide input columns into partition and data columns
         ImmutableList.Builder<String> partitionColumnNames = ImmutableList.builder();
@@ -516,6 +520,7 @@ public class HiveWriterFactory
                     hiveFileWriter,
                     sortBufferSize,
                     maxOpenSortFiles,
+                    sortTempFileFactory,
                     types,
                     sortFields,
                     sortOrders,
@@ -555,6 +560,7 @@ public class HiveWriterFactory
                 deleteFileWriter,
                 sortBufferSize,
                 maxOpenSortFiles,
+                sortTempFileFactory,
                 types,
                 sortFields,
                 sortOrders,

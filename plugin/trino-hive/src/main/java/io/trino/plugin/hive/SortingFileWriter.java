@@ -21,10 +21,11 @@ import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.plugin.hive.util.MergingPageIterator;
 import io.trino.plugin.hive.util.SortBuffer;
-import io.trino.plugin.hive.util.TempFileReader;
-import io.trino.plugin.hive.util.TempFileWriter;
+import io.trino.plugin.hive.util.SortTempFileFactory;
 import io.trino.spi.Page;
 import io.trino.spi.PageSorter;
+import io.trino.spi.PageStreamReader;
+import io.trino.spi.PageStreamWriter;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.type.Type;
@@ -63,6 +64,7 @@ public final class SortingFileWriter
     private final TrinoFileSystem fileSystem;
     private final Location tempFilePrefix;
     private final int maxOpenTempFiles;
+    private final SortTempFileFactory sortTempFileFactory;
     private final List<Type> types;
     private final List<Integer> sortFields;
     private final List<SortOrder> sortOrders;
@@ -81,6 +83,7 @@ public final class SortingFileWriter
             FileWriter outputWriter,
             DataSize maxMemory,
             int maxOpenTempFiles,
+            SortTempFileFactory sortTempFileFactory,
             List<Type> types,
             List<Integer> sortFields,
             List<SortOrder> sortOrders,
@@ -91,6 +94,7 @@ public final class SortingFileWriter
         this.fileSystem = requireNonNull(fileSystem, "fileSystem is null");
         this.tempFilePrefix = requireNonNull(tempFilePrefix, "tempFilePrefix is null");
         this.maxOpenTempFiles = maxOpenTempFiles;
+        this.sortTempFileFactory = requireNonNull(sortTempFileFactory, "sortTempFileFactory is null");
         this.types = ImmutableList.copyOf(requireNonNull(types, "types is null"));
         this.sortFields = ImmutableList.copyOf(requireNonNull(sortFields, "sortFields is null"));
         this.sortOrders = ImmutableList.copyOf(requireNonNull(sortOrders, "sortOrders is null"));
@@ -224,7 +228,7 @@ public final class SortingFileWriter
             Collection<Iterator<Page>> iterators = new ArrayList<>();
 
             for (TempFile tempFile : files) {
-                TempFileReader reader = new TempFileReader(types, fileSystem, tempFile.location());
+                PageStreamReader reader = sortTempFileFactory.createReader(types, fileSystem, tempFile.location());
                 closer.register(reader);
                 iterators.add(reader);
             }
@@ -241,11 +245,11 @@ public final class SortingFileWriter
         }
     }
 
-    private void writeTempFile(Consumer<TempFileWriter> consumer)
+    private void writeTempFile(Consumer<PageStreamWriter> consumer)
     {
         Location tempFile = getTempFileName();
 
-        try (TempFileWriter writer = new TempFileWriter(types, fileSystem, tempFile)) {
+        try (PageStreamWriter writer = sortTempFileFactory.createWriter(types, fileSystem, tempFile)) {
             consumer.accept(writer);
             writer.close();
             tempFiles.add(new TempFile(tempFile, writer.getWrittenBytes()));

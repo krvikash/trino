@@ -26,11 +26,11 @@ import io.trino.orc.OrcRecordReader;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.orc.HdfsOrcDataSource;
 import io.trino.spi.Page;
+import io.trino.spi.PageStreamReader;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.type.Type;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.util.List;
@@ -43,7 +43,7 @@ import static org.joda.time.DateTimeZone.UTC;
 
 public class TempFileReader
         extends AbstractIterator<Page>
-        implements Closeable
+        implements PageStreamReader
 {
     private final OrcRecordReader reader;
 

@@ -24,6 +24,7 @@ import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.SortingColumn;
 import io.trino.metastore.cache.CachingHiveMetastore;
 import io.trino.plugin.hive.metastore.HivePageSinkMetadataProvider;
+import io.trino.plugin.hive.util.SortTempFileFactory;
 import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.PageSorter;
 import io.trino.spi.connector.ConnectorInsertTableHandle;
@@ -60,6 +61,7 @@ public class HivePageSinkProvider
     private final int maxOpenPartitions;
     private final int maxOpenSortFiles;
     private final DataSize writerSortBufferSize;
+    private final SortTempFileFactory sortTempFileFactory;
     private final LocationService locationService;
     private final JsonCodec<PartitionUpdate> partitionUpdateCodec;
     private final HiveWriterStats hiveWriterStats;
@@ -77,6 +79,7 @@ public class HivePageSinkProvider
             TypeManager typeManager,
             HiveConfig config,
             SortingFileWriterConfig sortingFileWriterConfig,
+            SortTempFileFactory sortTempFileFactory,
             LocationService locationService,
             JsonCodec<PartitionUpdate> partitionUpdateCodec,
             HiveWriterStats hiveWriterStats)
@@ -90,6 +93,7 @@ public class HivePageSinkProvider
         this.maxOpenPartitions = config.getMaxPartitionsPerWriter();
         this.maxOpenSortFiles = sortingFileWriterConfig.getMaxOpenSortFiles();
         this.writerSortBufferSize = requireNonNull(sortingFileWriterConfig.getWriterSortBufferSize(), "writerSortBufferSize is null");
+        this.sortTempFileFactory = requireNonNull(sortTempFileFactory, "sortTempFileFactory is null");
         this.locationService = requireNonNull(locationService, "locationService is null");
         this.partitionUpdateCodec = requireNonNull(partitionUpdateCodec, "partitionUpdateCodec is null");
         this.hiveWriterStats = requireNonNull(hiveWriterStats, "hiveWriterStats is null");
@@ -160,6 +164,7 @@ public class HivePageSinkProvider
                 pageSorter,
                 writerSortBufferSize,
                 maxOpenSortFiles,
+                sortTempFileFactory,
                 session,
                 hiveWriterStats,
                 temporaryStagingDirectoryEnabled,

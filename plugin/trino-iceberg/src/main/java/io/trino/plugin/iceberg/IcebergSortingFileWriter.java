@@ -17,6 +17,7 @@ import io.airlift.units.DataSize;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.plugin.hive.SortingFileWriter;
+import io.trino.plugin.hive.util.SortTempFileFactory;
 import io.trino.spi.Page;
 import io.trino.spi.PageSorter;
 import io.trino.spi.connector.SortOrder;
@@ -41,6 +42,7 @@ public final class IcebergSortingFileWriter
             IcebergFileWriter outputWriter,
             DataSize maxMemory,
             int maxOpenTempFiles,
+            SortTempFileFactory sortTempFileFactory,
             List<Type> types,
             List<Integer> sortFields,
             List<SortOrder> sortOrders,
@@ -54,6 +56,7 @@ public final class IcebergSortingFileWriter
                 outputWriter,
                 maxMemory,
                 maxOpenTempFiles,
+                sortTempFileFactory,
                 types,
                 sortFields,
                 sortOrders,

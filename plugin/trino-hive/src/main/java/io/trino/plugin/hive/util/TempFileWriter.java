@@ -26,10 +26,10 @@ import io.trino.orc.OrcWriterStats;
 import io.trino.orc.metadata.OrcType;
 import io.trino.plugin.hive.orc.OrcFileWriterFactory;
 import io.trino.spi.Page;
+import io.trino.spi.PageStreamWriter;
 import io.trino.spi.type.StandardTypes;
 import io.trino.spi.type.Type;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
@@ -44,7 +44,7 @@ import static io.trino.spi.type.TimeType.TIME_MICROS;
 import static java.util.Objects.requireNonNull;
 
 public class TempFileWriter
-        implements Closeable
+        implements PageStreamWriter
 {
     private final OrcWriter orcWriter;
 
@@ -58,6 +58,7 @@ public class TempFileWriter
         this.orcWriter = createOrcFileWriter(sink, types);
     }
 
+    @Override
     public void writePage(Page page)
     {
         try {
@@ -75,6 +76,7 @@ public class TempFileWriter
         orcWriter.close();
     }
 
+    @Override
     public long getWrittenBytes()
     {
         return orcWriter.getWrittenBytes();

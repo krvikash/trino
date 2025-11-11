@@ -21,6 +21,7 @@ import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
 import io.starburst.ai.client.ModelClientProvider;
 import io.trino.plugin.hive.SortingFileWriterConfig;
+import io.trino.plugin.hive.util.SortTempFileFactory;
 import io.trino.plugin.iceberg.delete.PositionDeleteFiles;
 import io.trino.plugin.iceberg.procedure.IcebergGenerateEmbeddingsHandle;
 import io.trino.plugin.iceberg.procedure.IcebergOptimizeHandle;
@@ -77,6 +78,7 @@ public class IcebergPageSinkProvider
     private final DataSize sortingFileWriterBufferSize;
     private final int sortingFileWriterMaxOpenFiles;
     private final Optional<String> sortingFileWriterLocalStagingPath;
+    private final SortTempFileFactory sortTempFileFactory;
     private final TypeManager typeManager;
     private final PageSorter pageSorter;
     private final ModelClientProvider embeddingClientProvider;
@@ -90,6 +92,7 @@ public class IcebergPageSinkProvider
             IcebergPageSourceProviderFactory pageSourceProviderFactory,
             SortingFileWriterConfig sortingFileWriterConfig,
             IcebergConfig icebergConfig,
+            SortTempFileFactory sortTempFileFactory,
             TypeManager typeManager,
             PageSorter pageSorter,
             ModelClientProvider embeddingClientProvider)
@@ -102,6 +105,7 @@ public class IcebergPageSinkProvider
         this.sortingFileWriterBufferSize = sortingFileWriterConfig.getWriterSortBufferSize();
         this.sortingFileWriterMaxOpenFiles = sortingFileWriterConfig.getMaxOpenSortFiles();
         this.sortingFileWriterLocalStagingPath = icebergConfig.getSortedWritingLocalStagingPath();
+        this.sortTempFileFactory = requireNonNull(sortTempFileFactory, "sortTempFileFactory is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.pageSorter = requireNonNull(pageSorter, "pageSorter is null");
         this.embeddingClientProvider = requireNonNull(embeddingClientProvider, "embeddingClientProvider is null");
@@ -147,6 +151,7 @@ public class IcebergPageSinkProvider
                 sortingFileWriterBufferSize,
                 sortingFileWriterMaxOpenFiles,
                 sortingFileWriterLocalStagingPath,
+                sortTempFileFactory,
                 typeManager,
                 pageSorter);
     }
@@ -181,6 +186,7 @@ public class IcebergPageSinkProvider
                         sortingFileWriterBufferSize,
                         sortingFileWriterMaxOpenFiles,
                         sortingFileWriterLocalStagingPath,
+                        sortTempFileFactory,
                         typeManager,
                         pageSorter);
             case GENERATE_EMBEDDINGS:
@@ -326,6 +332,7 @@ public class IcebergPageSinkProvider
                 sortingFileWriterBufferSize,
                 sortingFileWriterMaxOpenFiles,
                 sortingFileWriterLocalStagingPath,
+                sortTempFileFactory,
                 typeManager,
                 pageSorter);
 

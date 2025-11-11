@@ -21,6 +21,7 @@ import io.airlift.slice.Slice;
 import io.airlift.units.DataSize;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
+import io.trino.plugin.hive.util.SortTempFileFactory;
 import io.trino.plugin.iceberg.PartitionTransforms.ColumnTransform;
 import io.trino.spi.Page;
 import io.trino.spi.PageIndexer;
@@ -127,6 +128,7 @@ public class IcebergPageSink
     private final DataSize sortingFileWriterBufferSize;
     private final Integer sortingFileWriterMaxOpenFiles;
     private final Location tempDirectory;
+    private final SortTempFileFactory sortTempFileFactory;
     private final TypeManager typeManager;
     private final PageSorter pageSorter;
     private final List<Type> columnTypes;
@@ -160,6 +162,7 @@ public class IcebergPageSink
             DataSize sortingFileWriterBufferSize,
             int sortingFileWriterMaxOpenFiles,
             Optional<String> sortedWritingLocalStagingPath,
+            SortTempFileFactory sortTempFileFactory,
             TypeManager typeManager,
             PageSorter pageSorter)
     {
@@ -182,6 +185,7 @@ public class IcebergPageSink
         this.sortedWritingEnabled = isSortedWritingEnabled(session);
         this.sortingFileWriterBufferSize = requireNonNull(sortingFileWriterBufferSize, "sortingFileWriterBufferSize is null");
         this.sortingFileWriterMaxOpenFiles = sortingFileWriterMaxOpenFiles;
+        this.sortTempFileFactory = requireNonNull(sortTempFileFactory, "sortTempFileFactory is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.pageSorter = requireNonNull(pageSorter, "pageSorter is null");
         this.columnTypes = getTopLevelColumns(outputSchema, typeManager).stream()
@@ -379,6 +383,7 @@ public class IcebergPageSink
                         writerContext.getWriter(),
                         sortingFileWriterBufferSize,
                         sortingFileWriterMaxOpenFiles,
+                        sortTempFileFactory,
                         columnTypes,
                         sortColumnIndexes,
                         sortOrders,

@@ -25,6 +25,7 @@ import io.trino.plugin.hive.orc.OrcReaderConfig;
 import io.trino.plugin.hive.orc.OrcWriterConfig;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.plugin.hive.parquet.ParquetWriterConfig;
+import io.trino.plugin.hive.util.SortTempFileFactory;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
@@ -55,6 +56,8 @@ class LakehouseModule
         newExporter(binder).export(FileFormatDataSourceStats.class).withGeneratedName();
 
         binder.bind(Key.get(boolean.class, HideDeltaLakeTables.class)).toInstance(false);
+
+        binder.bind(SortTempFileFactory.class).in(Scopes.SINGLETON);
 
         binder.install(new LocationAccessControlModule());
     }

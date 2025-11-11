@@ -34,6 +34,7 @@ import io.trino.plugin.hive.orc.OrcReaderConfig;
 import io.trino.plugin.hive.orc.OrcWriterConfig;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.plugin.hive.parquet.ParquetWriterConfig;
+import io.trino.plugin.hive.util.SortTempFileFactory;
 import io.trino.plugin.iceberg.cache.IcebergCacheKeyProvider;
 import io.trino.plugin.iceberg.fileio.ForwardingFileIoFactory;
 import io.trino.plugin.iceberg.functions.IcebergFunctionProvider;
@@ -163,6 +164,8 @@ public class IcebergModule
         newOptionalBinder(binder, CacheKeyProvider.class).setBinding().to(IcebergCacheKeyProvider.class).in(Scopes.SINGLETON);
 
         binder.bind(IcebergConnector.class).in(Scopes.SINGLETON);
+
+        binder.bind(SortTempFileFactory.class).in(Scopes.SINGLETON);
 
         binder.install(new IcebergExecutorModule());
     }
