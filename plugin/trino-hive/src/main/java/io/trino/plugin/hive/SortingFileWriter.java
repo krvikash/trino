@@ -222,13 +222,13 @@ public final class SortingFileWriter
         }
     }
 
-    private void mergeFiles(Iterable<TempFile> files, Consumer<Page> consumer)
+    private void mergeFiles(Collection<TempFile> files, Consumer<Page> consumer)
     {
         try (Closer closer = Closer.create()) {
             Collection<Iterator<Page>> iterators = new ArrayList<>();
 
             for (TempFile tempFile : files) {
-                PageStreamReader reader = sortTempFileFactory.createReader(types, fileSystem, tempFile.location());
+                PageStreamReader reader = sortTempFileFactory.createReader(types, fileSystem, tempFile.location(), tempFile.size(), files.size());
                 closer.register(reader);
                 iterators.add(reader);
             }
@@ -253,7 +253,7 @@ public final class SortingFileWriter
             consumer.accept(writer);
             writer.close();
             tempFiles.add(new TempFile(tempFile, writer.getWrittenBytes()));
-            tempFilesWrittenBytes += writer.getWrittenBytes();
+            tempFilesWrittenBytes += sortTempFileFactory.estimateWrittenBytesToOutputFile(writer.getWrittenBytes());
         }
         catch (IOException | UncheckedIOException e) {
             cleanupFile(fileSystem, tempFile);

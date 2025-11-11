@@ -27,6 +27,7 @@ public class SortingFileWriterConfig
 {
     private DataSize writerSortBufferSize = DataSize.of(64, MEGABYTE);
     private int maxOpenSortFiles = 50;
+    private boolean optimizedSortedWriterEnabled = true;
 
     @MinDataSize("1MB")
     @MaxDataSize("1GB")
@@ -54,6 +55,19 @@ public class SortingFileWriterConfig
     public SortingFileWriterConfig setMaxOpenSortFiles(int maxOpenSortFiles)
     {
         this.maxOpenSortFiles = maxOpenSortFiles;
+        return this;
+    }
+
+    public boolean isOptimizedSortedWriterEnabled()
+    {
+        return optimizedSortedWriterEnabled;
+    }
+
+    @Config("optimized-sorted-writer.enabled")
+    @ConfigDescription("Enable optimized implementation for writing sorted files")
+    public SortingFileWriterConfig setOptimizedSortedWriterEnabled(boolean optimizedSortedWriterEnabled)
+    {
+        this.optimizedSortedWriterEnabled = optimizedSortedWriterEnabled;
         return this;
     }
 }

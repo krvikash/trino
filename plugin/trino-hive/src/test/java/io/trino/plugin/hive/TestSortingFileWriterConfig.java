@@ -32,7 +32,8 @@ public class TestSortingFileWriterConfig
     {
         assertRecordedDefaults(recordDefaults(SortingFileWriterConfig.class)
                 .setWriterSortBufferSize(DataSize.of(64, MEGABYTE))
-                .setMaxOpenSortFiles(50));
+                .setMaxOpenSortFiles(50)
+                .setOptimizedSortedWriterEnabled(true));
     }
 
     @Test
@@ -41,10 +42,12 @@ public class TestSortingFileWriterConfig
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("writer-sort-buffer-size", "1GB")
                 .put("max-open-sort-files", "3")
+                .put("optimized-sorted-writer.enabled", "false")
                 .buildOrThrow();
         SortingFileWriterConfig expected = new SortingFileWriterConfig()
                 .setWriterSortBufferSize(DataSize.of(1, GIGABYTE))
-                .setMaxOpenSortFiles(3);
+                .setMaxOpenSortFiles(3)
+                .setOptimizedSortedWriterEnabled(false);
         assertFullMapping(properties, expected);
     }
 }

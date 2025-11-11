@@ -46,6 +46,7 @@ import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
 import io.trino.testing.MaterializedResult;
+import io.trino.testing.TestingConnectorContext;
 import io.trino.tpch.LineItem;
 import io.trino.tpch.LineItemColumn;
 import io.trino.tpch.LineItemGenerator;
@@ -401,7 +402,7 @@ public class TestHivePageSink
                 TESTING_TYPE_MANAGER,
                 config,
                 sortingFileWriterConfig,
-                new SortTempFileFactory(),
+                new SortTempFileFactory(new TestingConnectorContext().getPageStreamFactory(), true, DataSize.of(64, MEGABYTE)),
                 new HiveLocationService(HDFS_FILE_SYSTEM_FACTORY, config),
                 partitionUpdateCodec,
                 stats);

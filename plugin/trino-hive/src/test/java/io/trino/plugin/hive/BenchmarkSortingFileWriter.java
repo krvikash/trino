@@ -25,6 +25,7 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
+import io.trino.testing.TestingConnectorContext;
 import io.trino.tpch.LineItem;
 import io.trino.tpch.TpchColumn;
 import org.junit.jupiter.api.Test;
@@ -97,6 +98,9 @@ public class BenchmarkSortingFileWriter
     })
     public DataSet dataSet;
 
+    @Param({"true", "false"})
+    public boolean optimizedSortedWriterEnabled;
+
     private TestData data;
     private File targetDir;
     private SortTempFileFactory sortTempFileFactory;
@@ -109,7 +113,7 @@ public class BenchmarkSortingFileWriter
     {
         targetDir = createTempDirectory(BenchmarkSortingFileWriter.class.getSimpleName()).toFile();
         data = dataSet.createTestData();
-        sortTempFileFactory = new SortTempFileFactory();
+        sortTempFileFactory = new SortTempFileFactory(new TestingConnectorContext().getPageStreamFactory(), optimizedSortedWriterEnabled, SORTING_BUFFER_SIZE);
         fileSystem = new LocalFileSystem(targetDir.toPath());
         tempFilePrefix = Location.of("local:///temp_" + UUID.randomUUID());
     }
@@ -138,6 +142,7 @@ public class BenchmarkSortingFileWriter
     public void testBenchmarkData()
             throws IOException
     {
+        optimizedSortedWriterEnabled = true;
         for (DataSet dataSet : DataSet.values()) {
             this.dataSet = dataSet;
             setup();
