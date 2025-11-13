@@ -27,6 +27,7 @@ public class ParquetReaderOptions
     private static final DataSize DEFAULT_MAX_BUFFER_SIZE = DataSize.of(8, MEGABYTE);
     private static final DataSize DEFAULT_SMALL_FILE_THRESHOLD = DataSize.of(3, MEGABYTE);
     private static final DataSize DEFAULT_MAX_FOOTER_READ_SIZE = DataSize.of(15, MEGABYTE);
+    private static final DataSize DEFAULT_MAX_PAGE_READ_SIZE = DataSize.of(500, MEGABYTE);
 
     private final boolean ignoreStatistics;
     private final DataSize maxReadBlockSize;
@@ -39,6 +40,7 @@ public class ParquetReaderOptions
     private final boolean vectorizedDecodingEnabled;
     private final DataSize maxFooterReadSize;
     private final boolean rebaseLegacyInt96Timestamp;
+    private final DataSize maxPageReadSize;
 
     private ParquetReaderOptions()
     {
@@ -53,6 +55,7 @@ public class ParquetReaderOptions
         vectorizedDecodingEnabled = true;
         maxFooterReadSize = DEFAULT_MAX_FOOTER_READ_SIZE;
         rebaseLegacyInt96Timestamp = false;
+        maxPageReadSize = DEFAULT_MAX_PAGE_READ_SIZE;
     }
 
     private ParquetReaderOptions(
@@ -66,7 +69,8 @@ public class ParquetReaderOptions
             DataSize smallFileThreshold,
             boolean vectorizedDecodingEnabled,
             DataSize maxFooterReadSize,
-            boolean rebaseLegacyInt96Timestamp)
+            boolean rebaseLegacyInt96Timestamp,
+            DataSize maxPageReadSize)
     {
         this.ignoreStatistics = ignoreStatistics;
         this.maxReadBlockSize = requireNonNull(maxReadBlockSize, "maxReadBlockSize is null");
@@ -80,6 +84,7 @@ public class ParquetReaderOptions
         this.vectorizedDecodingEnabled = vectorizedDecodingEnabled;
         this.maxFooterReadSize = requireNonNull(maxFooterReadSize, "maxFooterReadSize is null");
         this.rebaseLegacyInt96Timestamp = rebaseLegacyInt96Timestamp;
+        this.maxPageReadSize = requireNonNull(maxPageReadSize, "maxPageReadSize is null");
     }
 
     public static Builder builder()
@@ -152,6 +157,11 @@ public class ParquetReaderOptions
         return rebaseLegacyInt96Timestamp;
     }
 
+    public DataSize getMaxPageReadSize()
+    {
+        return maxPageReadSize;
+    }
+
     public static class Builder
     {
         private boolean ignoreStatistics;
@@ -165,6 +175,7 @@ public class ParquetReaderOptions
         private boolean vectorizedDecodingEnabled;
         private DataSize maxFooterReadSize;
         private boolean rebaseLegacyInt96Timestamp;
+        private DataSize maxPageReadSize;
 
         private Builder(ParquetReaderOptions parquetReaderOptions)
         {
@@ -180,6 +191,7 @@ public class ParquetReaderOptions
             this.vectorizedDecodingEnabled = parquetReaderOptions.vectorizedDecodingEnabled;
             this.maxFooterReadSize = parquetReaderOptions.maxFooterReadSize;
             this.rebaseLegacyInt96Timestamp = parquetReaderOptions.rebaseLegacyInt96Timestamp;
+            this.maxPageReadSize = parquetReaderOptions.maxPageReadSize;
         }
 
         public Builder withIgnoreStatistics(boolean ignoreStatistics)
@@ -248,6 +260,12 @@ public class ParquetReaderOptions
             return this;
         }
 
+        public Builder withMaxPageReadSize(DataSize maxPageReadSize)
+        {
+            this.maxPageReadSize = requireNonNull(maxPageReadSize, "maxPageSize is null");
+            return this;
+        }
+
         public ParquetReaderOptions build()
         {
             return new ParquetReaderOptions(
@@ -261,7 +279,8 @@ public class ParquetReaderOptions
                     smallFileThreshold,
                     vectorizedDecodingEnabled,
                     maxFooterReadSize,
-                    rebaseLegacyInt96Timestamp);
+                    rebaseLegacyInt96Timestamp,
+                    maxPageReadSize);
         }
     }
 }
