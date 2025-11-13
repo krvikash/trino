@@ -15,12 +15,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.openai.client.OpenAIClient;
 import com.openai.core.JsonValue;
+import com.openai.core.http.StreamResponse;
 import com.openai.errors.InternalServerException;
 import com.openai.errors.RateLimitException;
+import com.openai.helpers.ChatCompletionAccumulator;
 import com.openai.models.FunctionDefinition;
 import com.openai.models.FunctionParameters;
 import com.openai.models.chat.completions.ChatCompletion;
 import com.openai.models.chat.completions.ChatCompletionAssistantMessageParam;
+import com.openai.models.chat.completions.ChatCompletionChunk;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import com.openai.models.chat.completions.ChatCompletionMessage;
 import com.openai.models.chat.completions.ChatCompletionTool;
@@ -42,6 +45,8 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import static io.opentelemetry.api.trace.StatusCode.ERROR;
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_OPENAI_RESPONSE_SERVICE_TIER;
@@ -115,7 +120,7 @@ public class OpenAiLanguageModelClient
     @Override
     protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> llmMessages)
     {
-        ChatCompletion response = getChatCompletion(buildChatCompletionCreateParams(systemPrompts, llmMessages).build());
+        ChatCompletion response = getChatCompletion(() -> client.chat().completions().create(buildChatCompletionCreateParams(systemPrompts, llmMessages).build()));
         ChatCompletionMessage message = response.choices().stream()
                 .map(ChatCompletion.Choice::message)
                 .findFirst()
@@ -132,14 +137,46 @@ public class OpenAiLanguageModelClient
     protected ToolUseResponse generateCompletionWithTools(
             List<String> systemPrompts,
             List<LlmMessage> llmMessages,
-            List<ToolDefinition<?>> tools)
+            List<ToolDefinition<?>> tools,
+            Consumer<String> output)
     {
         ChatCompletionCreateParams.Builder builder = buildChatCompletionCreateParams(systemPrompts, llmMessages);
         tools.forEach(tool -> builder.addTool(toOpenAiTool(tool)));
 
-        ChatCompletion response = getChatCompletion(builder.build());
+        ChatCompletion response = getChatCompletion(() -> stream(builder.build(), output));
 
         return parseOpenAiToolResponse(response);
+    }
+
+    private ChatCompletion stream(ChatCompletionCreateParams params, Consumer<String> output)
+    {
+        // This is necessary because Gemini's tool call streaming does not follow the OpenAI spec.
+        // See https://discuss.ai.google.dev/t/gemini-openai-compatibility-issue-with-tool-call-streaming/59886
+        if (isGeminiEndpoint) {
+            ChatCompletion clientResponse = client.chat().completions().create(params);
+            clientResponse.choices().stream()
+                    .map(ChatCompletion.Choice::message)
+                    .findFirst()
+                    .flatMap(ChatCompletionMessage::content)
+                    .filter(content -> !content.isEmpty())
+                    .ifPresent(output);
+            return clientResponse;
+        }
+        ChatCompletionAccumulator chatCompletionAccumulator = ChatCompletionAccumulator.create();
+        try (StreamResponse<ChatCompletionChunk> streamResponse =
+                     client.chat().completions().createStreaming(params)) {
+            streamResponse.stream()
+                    .peek(chatCompletionAccumulator::accumulate)
+                    .filter(completion -> !completion.choices().isEmpty())
+                    .map(completion -> completion.choices().getFirst())
+                    .flatMap(choice -> choice.delta().content().stream())
+                    .filter(content -> !content.isEmpty())
+                    .forEach(output);
+        }
+        catch (Exception e) {
+            throw new TrinoException(AI_CLIENT_ERROR, "Error occurred during streaming chat completion", e);
+        }
+        return chatCompletionAccumulator.chatCompletion();
     }
 
     private ChatCompletionCreateParams.Builder buildChatCompletionCreateParams(List<String> systemPrompts, List<LlmMessage> llmMessages)
@@ -169,7 +206,7 @@ public class OpenAiLanguageModelClient
         return builder;
     }
 
-    ChatCompletion getChatCompletion(ChatCompletionCreateParams params)
+    ChatCompletion getChatCompletion(Supplier<ChatCompletion> getOpenAiResponse)
     {
         Span span = tracer.spanBuilder(CHAT + " " + modelName)
                 .setAttribute(GEN_AI_OPERATION_NAME, CHAT)
@@ -180,7 +217,7 @@ public class OpenAiLanguageModelClient
                 .startSpan();
 
         try (var _ = span.makeCurrent()) {
-            ChatCompletion response = Failsafe.with(RATE_LIMIT_RETRY_POLICY).get(() -> client.chat().completions().create(params));
+            ChatCompletion response = Failsafe.with(RATE_LIMIT_RETRY_POLICY).get(getOpenAiResponse::get);
 
             span.setAttribute(GEN_AI_RESPONSE_ID, response.id());
             span.setAttribute(GEN_AI_RESPONSE_MODEL, response.model());

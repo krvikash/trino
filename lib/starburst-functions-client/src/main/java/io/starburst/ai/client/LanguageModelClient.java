@@ -10,6 +10,7 @@
 package io.starburst.ai.client;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 public interface LanguageModelClient
 {
@@ -38,13 +39,25 @@ public interface LanguageModelClient
     /**
      * Generates a response with tool use support.
      * The LLM can choose to use tools, provide a text response, or both.
-
+     *
      * @param systemPrompt System instructions for the LLM
      * @param messages Conversation history
      * @param tools Available tools the LLM can use
      * @return Response containing text and/or tool calls
      */
     ToolUseResponse generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools);
+
+    /**
+     * Generates a response with tool use support.
+     * The LLM can choose to use tools, provide a text response, or both.
+     *
+     * @param systemPrompt System instructions for the LLM
+     * @param messages Conversation history
+     * @param tools Available tools the LLM can use
+     * @param output Consumer that receives incremental text chunks as they are streamed from the LLM
+     * @return Response containing text and/or tool calls
+     */
+    ToolUseResponse generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output);
 
     String mask(String text, List<String> labels);
 

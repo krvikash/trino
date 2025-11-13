@@ -19,6 +19,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -73,12 +74,15 @@ public abstract class BaseTestToolUse
         List<LlmMessage> messages = ImmutableList.of(
                 new LlmMessage(USER, "What is 25 + 37? Use the calculator tool."));
 
+        StringBuilder streamedTokens = new StringBuilder();
         ToolUseResponse response = modelClientProvider
                 .languageModelClient(utf8Slice(modelId))
                 .generateWithTools(
                         "You are a helpful assistant with access to a calculator.",
                         messages,
-                        ImmutableList.of(tool));
+                        ImmutableList.of(tool),
+                        streamedTokens::append);
+        assertThat(streamedTokens.toString()).isEqualTo(response.textResponse());
 
         for (ToolUseResponse.ToolCall call : response.toolCalls()) {
             log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
@@ -108,12 +112,15 @@ public abstract class BaseTestToolUse
         List<LlmMessage> messages = ImmutableList.of(
                 new LlmMessage(USER, "What's the weather like in Paris?"));
 
+        StringBuilder streamedTokens = new StringBuilder();
         ToolUseResponse response = modelClientProvider
                 .languageModelClient(utf8Slice(modelId))
                 .generateWithTools(
                         "You are a helpful assistant. Use the appropriate tool to answer questions.",
                         messages,
-                        tools);
+                        tools,
+                        streamedTokens::append);
+        assertThat(streamedTokens.toString()).isEqualTo(response.textResponse());
         for (ToolUseResponse.ToolCall call : response.toolCalls()) {
             log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
         }
@@ -137,12 +144,15 @@ public abstract class BaseTestToolUse
                 new LlmMessage(ASSISTANT, "I can use my calculator for that! What calculation do you need?"),
                 new LlmMessage(USER, "What's 42 times 13?"));
 
+        StringBuilder streamedTokens = new StringBuilder();
         ToolUseResponse response = modelClientProvider
                 .languageModelClient(utf8Slice(modelId))
                 .generateWithTools(
                         "You are a helpful math assistant.",
                         messages,
-                        ImmutableList.of(tool));
+                        ImmutableList.of(tool),
+                        streamedTokens::append);
+        assertThat(streamedTokens.toString()).isEqualTo(response.textResponse());
         for (ToolUseResponse.ToolCall call : response.toolCalls()) {
             log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
         }
@@ -162,18 +172,49 @@ public abstract class BaseTestToolUse
         List<LlmMessage> messages = ImmutableList.of(
                 new LlmMessage(USER, "Hello, how are you?"));
 
+        StringBuilder streamedTokens = new StringBuilder();
         ToolUseResponse response = modelClientProvider
                 .languageModelClient(utf8Slice(modelId))
                 .generateWithTools(
                         "You are a helpful assistant",
                         messages,
-                        ImmutableList.of(tool));
+                        ImmutableList.of(tool),
+                        streamedTokens::append);
+        assertThat(streamedTokens.toString()).isEqualTo(response.textResponse());
         for (ToolUseResponse.ToolCall call : response.toolCalls()) {
             log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
         }
 
         assertThat(response.textResponse()).isNotEmpty();
         assertThat(response.toolCalls()).isEmpty();
+    }
+
+    @ParameterizedTest
+    @MethodSource("modelIds")
+    public void testToolCallWithNoParameters(String modelId)
+    {
+        ToolDefinition<?> tool = new ClockTool();
+
+        List<LlmMessage> messages = ImmutableList.of(
+                new LlmMessage(USER, "What's the current time in UTC?"));
+
+        StringBuilder streamedTokens = new StringBuilder();
+        ToolUseResponse response = modelClientProvider
+                .languageModelClient(utf8Slice(modelId))
+                .generateWithTools(
+                        "You are a helpful assistant",
+                        messages,
+                        ImmutableList.of(tool),
+                        streamedTokens::append);
+        assertThat(streamedTokens.toString()).isEqualTo(response.textResponse());
+        for (ToolUseResponse.ToolCall call : response.toolCalls()) {
+            log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
+        }
+
+        // Should call the clock tool
+        ToolUseResponse.ToolCall toolCall = response.toolCalls().getFirst();
+        assertThat(toolCall.name()).isEqualTo("clock");
+        assertThat(toolCall.input().isNull() || toolCall.input().isEmpty()).isTrue();
     }
 
     private static class CalculatorTool
@@ -302,6 +343,25 @@ public abstract class BaseTestToolUse
             // Mock implementation
             String query = input.has("query") ? input.get("query").asText() : "unknown";
             return ToolResult.success("Search results for: " + query);
+        }
+    }
+
+    private static class ClockTool
+            extends InternalToolDefinition<String>
+    {
+        public ClockTool()
+        {
+            super(
+                    "clock",
+                    "Gets the current UTC timestamp",
+                    ImmutableList.of());
+        }
+
+        @Override
+        public ToolResult<String> executeInternal(JsonNode input)
+        {
+            // Mock implementation
+            return ToolResult.success(Instant.now().toString());
         }
     }
 

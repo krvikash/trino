@@ -21,6 +21,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -36,9 +37,10 @@ public abstract class AbstractLanguageModelClient
     protected static final JsonCodec<String> STRING_CODEC = jsonCodec(String.class);
     private static final PromptCodec NUMBERED_LIST_CODEC = new NumberedListCodec();
     private static final PromptCodec XML_TAGS_CODEC = new XmlTagsCodec();
-    private static final Logger log = Logger.get(AbstractLanguageModelClient.class);
+    protected static final Logger log = Logger.get(AbstractLanguageModelClient.class);
     private static final int MAX_BATCH_SIZE = 32;
     private static final int MAX_BATCH_TEXT_LENGTH = 64_000;
+    private static final Consumer<String> NO_OP_CONSUMER = _ -> {};
 
     private final Executor executor;
     protected final PromptDao promptDao;
@@ -150,7 +152,17 @@ public abstract class AbstractLanguageModelClient
                 .addAll(topLevelSystemPrompts)
                 .add(systemPrompt)
                 .build();
-        return generateCompletionWithTools(systemPrompts, messages, tools);
+        return generateCompletionWithTools(systemPrompts, messages, tools, NO_OP_CONSUMER);
+    }
+
+    @Override
+    public ToolUseResponse generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output)
+    {
+        List<String> systemPrompts = ImmutableList.<String>builder()
+                .addAll(topLevelSystemPrompts)
+                .add(systemPrompt)
+                .build();
+        return generateCompletionWithTools(systemPrompts, messages, tools, output);
     }
 
     @Override
@@ -229,7 +241,8 @@ public abstract class AbstractLanguageModelClient
     protected abstract ToolUseResponse generateCompletionWithTools(
             List<String> systemPrompts,
             List<LlmMessage> messages,
-            List<ToolDefinition<?>> tools);
+            List<ToolDefinition<?>> tools,
+            Consumer<String> output);
 
     protected record ModelWithFixedPrompt(String name, List<String> systemPrompts, String prompt) {}
 

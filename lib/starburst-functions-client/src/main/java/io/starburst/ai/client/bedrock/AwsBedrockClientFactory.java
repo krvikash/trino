@@ -32,7 +32,11 @@ import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.retry.RetryPolicy;
 import software.amazon.awssdk.core.retry.conditions.RetryCondition;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeAsyncClient;
+import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeAsyncClientBuilder;
+import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeBaseClientBuilder;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClientBuilder;
 import software.amazon.awssdk.services.bedrockruntime.model.ModelErrorException;
@@ -90,7 +94,8 @@ public class AwsBedrockClientFactory
                 executor,
                 batchParallelism,
                 tracer,
-                createBedrockClient(connectionInfo));
+                createBedrockClient(connectionInfo),
+                createBedrockAsyncClient(connectionInfo));
     }
 
     @Override
@@ -117,6 +122,25 @@ public class AwsBedrockClientFactory
     private BedrockRuntimeClient createBedrockClient(AwsBedrockConnectionInfo connectionInfo)
     {
         BedrockRuntimeClientBuilder clientBuilder = BedrockRuntimeClient.builder();
+        populateClientBuilder(clientBuilder, connectionInfo);
+        ApacheHttpClient.Builder httpClientBuilder = ApacheHttpClient.builder()
+                .socketTimeout(socketTimeout.toJavaTime());
+        clientBuilder.httpClientBuilder(httpClientBuilder);
+        return clientBuilder.build();
+    }
+
+    private BedrockRuntimeAsyncClient createBedrockAsyncClient(AwsBedrockConnectionInfo connectionInfo)
+    {
+        BedrockRuntimeAsyncClientBuilder clientBuilder = BedrockRuntimeAsyncClient.builder();
+        populateClientBuilder(clientBuilder, connectionInfo);
+        NettyNioAsyncHttpClient.Builder nettyClient = NettyNioAsyncHttpClient.builder()
+                .readTimeout(socketTimeout.toJavaTime());
+        clientBuilder.httpClientBuilder(nettyClient);
+        return clientBuilder.build();
+    }
+
+    private void populateClientBuilder(BedrockRuntimeBaseClientBuilder clientBuilder, AwsBedrockConnectionInfo connectionInfo)
+    {
         clientBuilder.credentialsProvider(getCredentialsProvider(connectionInfo));
         connectionInfo.region().ifPresent(region ->
                 clientBuilder.region(Region.of(region)));
@@ -156,16 +180,8 @@ public class AwsBedrockClientFactory
         if (!connectionInfo.additionalHeaders().isEmpty()) {
             AwsBedrockConnectionInfo resolvedConnectionInfo = resolveBedrockSecrets(connectionInfo, secretsResolver);
             resolvedConnectionInfo.additionalHeaders().forEach(clientOverrideConfigurationBuilder::putHeader);
-            clientBuilder.overrideConfiguration(clientOverrideConfigurationBuilder.build());
         }
-
-        ApacheHttpClient.Builder httpClientBuilder = ApacheHttpClient.builder()
-                .socketTimeout(socketTimeout.toJavaTime());
-
-        return clientBuilder
-                .httpClientBuilder(httpClientBuilder)
-                .overrideConfiguration(clientOverrideConfigurationBuilder.build())
-                .build();
+        clientBuilder.overrideConfiguration(clientOverrideConfigurationBuilder.build());
     }
 
     private AwsCredentialsProvider getCredentialsProvider(AwsBedrockConnectionInfo connectionInfo)

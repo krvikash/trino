@@ -26,25 +26,40 @@ import io.starburst.ai.client.ToolDefinition;
 import io.starburst.ai.client.ToolUseResponse;
 import io.trino.spi.TrinoException;
 import software.amazon.awssdk.core.document.Document;
+import software.amazon.awssdk.protocols.json.internal.unmarshall.document.DocumentUnmarshaller;
+import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeAsyncClient;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 import software.amazon.awssdk.services.bedrockruntime.model.ContentBlock;
+import software.amazon.awssdk.services.bedrockruntime.model.ContentBlockDeltaEvent;
+import software.amazon.awssdk.services.bedrockruntime.model.ContentBlockStartEvent;
+import software.amazon.awssdk.services.bedrockruntime.model.ContentBlockStopEvent;
 import software.amazon.awssdk.services.bedrockruntime.model.ConversationRole;
 import software.amazon.awssdk.services.bedrockruntime.model.ConverseRequest;
 import software.amazon.awssdk.services.bedrockruntime.model.ConverseResponse;
+import software.amazon.awssdk.services.bedrockruntime.model.ConverseStreamMetadataEvent;
+import software.amazon.awssdk.services.bedrockruntime.model.ConverseStreamRequest;
+import software.amazon.awssdk.services.bedrockruntime.model.ConverseStreamResponseHandler;
 import software.amazon.awssdk.services.bedrockruntime.model.Message;
+import software.amazon.awssdk.services.bedrockruntime.model.MessageStopEvent;
 import software.amazon.awssdk.services.bedrockruntime.model.StopReason;
 import software.amazon.awssdk.services.bedrockruntime.model.SystemContentBlock;
 import software.amazon.awssdk.services.bedrockruntime.model.Tool;
 import software.amazon.awssdk.services.bedrockruntime.model.ToolInputSchema;
 import software.amazon.awssdk.services.bedrockruntime.model.ToolSpecification;
 import software.amazon.awssdk.services.bedrockruntime.model.ToolUseBlock;
+import software.amazon.awssdk.services.bedrockruntime.model.ToolUseBlockDelta;
+import software.amazon.awssdk.services.bedrockruntime.model.ToolUseBlockStart;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.opentelemetry.api.trace.StatusCode.ERROR;
@@ -77,6 +92,7 @@ public class AwsBedrockLanguageModelClient
     private final Tracer tracer;
     private final String modelName;
     private final BedrockRuntimeClient client;
+    private final BedrockRuntimeAsyncClient asyncClient;
 
     public AwsBedrockLanguageModelClient(
             String modelName,
@@ -87,7 +103,8 @@ public class AwsBedrockLanguageModelClient
             Executor executor,
             int batchParallelism,
             Tracer tracer,
-            BedrockRuntimeClient client)
+            BedrockRuntimeClient client,
+            BedrockRuntimeAsyncClient asyncClient)
     {
         super(promptDao, executor, batchParallelism);
         this.maxTokens = requireNonNull(maxTokens, "maxTokens is null");
@@ -96,6 +113,7 @@ public class AwsBedrockLanguageModelClient
         this.tracer = requireNonNull(tracer, "tracer is null");
         this.modelName = requireNonNull(modelName, "modelName is null");
         this.client = requireNonNull(client, "client is null");
+        this.asyncClient = requireNonNull(asyncClient, "asyncClient is null");
     }
 
     @Override
@@ -113,10 +131,12 @@ public class AwsBedrockLanguageModelClient
 
         ConverseResponse response = getConverseResponse(
                 CHAT + " " + modelName,
-                systemContentBlocks,
                 modelName,
-                messages,
-                ImmutableList.of());
+                () -> client.converse(request -> initializeConverseRequestBuilder(request,
+                        systemContentBlocks,
+                        modelName,
+                        messages,
+                        ImmutableList.of())));
 
         List<ContentBlock> contentBlocks = response.output().message().content();
         if (response.stopReason() != null && (ERROR_STOP_REASONS.contains(response.stopReason()) || response.stopReason() == StopReason.TOOL_USE)) {
@@ -133,7 +153,8 @@ public class AwsBedrockLanguageModelClient
     protected ToolUseResponse generateCompletionWithTools(
             List<String> systemPrompts,
             List<LlmMessage> messages,
-            List<ToolDefinition<?>> tools)
+            List<ToolDefinition<?>> tools,
+            Consumer<String> output)
     {
         List<SystemContentBlock> systemContentBlocks = systemPrompts.stream()
                 .map(SystemContentBlock::fromText)
@@ -145,10 +166,34 @@ public class AwsBedrockLanguageModelClient
 
         ConverseResponse response = getConverseResponse(
                 CHAT + " " + modelName + " (with tools)",
-                systemContentBlocks,
                 modelName,
-                messages,
-                bedrockTools);
+                () -> {
+                    ConverseResponse.Builder builder = ConverseResponse.builder();
+                    Message.Builder messageBuilder = Message.builder()
+                            .role(ConversationRole.ASSISTANT);
+                    StreamResponseVisitor visitor = new StreamResponseVisitor(output, builder);
+                    ConverseStreamResponseHandler responseStreamHandler = ConverseStreamResponseHandler.builder()
+                            .subscriber(visitor)
+                            .build();
+                    try {
+                        asyncClient.converseStream(request -> initializeConverseStreamRequestBuilder(request,
+                                systemContentBlocks,
+                                modelName,
+                                messages,
+                                bedrockTools), responseStreamHandler).get();
+                    }
+                    catch (InterruptedException | ExecutionException e) {
+                        if (e instanceof InterruptedException) {
+                            Thread.currentThread().interrupt();
+                            throw new TrinoException(AI_CLIENT_ERROR, "Streaming was interrupted", e);
+                        }
+                        throw new TrinoException(AI_CLIENT_ERROR, "Failed to stream response from Bedrock model", e);
+                    }
+                    List<ContentBlock> contentBlocks = visitor.getContentBlocks();
+                    return builder
+                            .output(v -> v.message(messageBuilder.content(contentBlocks).build()))
+                            .build();
+                });
         if (response.stopReason() != null && ERROR_STOP_REASONS.contains(response.stopReason())) {
             throw new TrinoException(AI_CLIENT_ERROR, "AI model refused to generate response: " + response.stopReasonAsString());
         }
@@ -158,10 +203,8 @@ public class AwsBedrockLanguageModelClient
 
     private ConverseResponse getConverseResponse(
             String spanName,
-            List<SystemContentBlock> systemContentBlocks,
             String modelName,
-            List<LlmMessage> messages,
-            List<Tool> bedrockTools)
+            Supplier<ConverseResponse> getBedrockResponse)
     {
         Span span = tracer.spanBuilder(spanName)
                 .setAttribute(GEN_AI_OPERATION_NAME, CHAT)
@@ -171,11 +214,7 @@ public class AwsBedrockLanguageModelClient
                 .startSpan();
 
         try (var _ = span.makeCurrent()) {
-            ConverseResponse response = client.converse(request -> initializeConverseRequestBuilder(request,
-                    systemContentBlocks,
-                    modelName,
-                    messages,
-                    bedrockTools));
+            ConverseResponse response = getBedrockResponse.get();
             span.setAttribute(GEN_AI_RESPONSE_MODEL, modelName);
             span.setAttribute(GEN_AI_USAGE_INPUT_TOKENS, Optional.ofNullable(response.usage().inputTokens()).orElse(0));
             span.setAttribute(GEN_AI_USAGE_OUTPUT_TOKENS, Optional.ofNullable(response.usage().outputTokens()).orElse(0));
@@ -194,6 +233,33 @@ public class AwsBedrockLanguageModelClient
 
     private void initializeConverseRequestBuilder(
             ConverseRequest.Builder request,
+            List<SystemContentBlock> systemContentBlocks,
+            String modelName,
+            List<LlmMessage> messages,
+            List<Tool> bedrockTools)
+    {
+        if (!systemContentBlocks.isEmpty()) {
+            request.system(systemContentBlocks);
+        }
+        request
+                .modelId(modelName)
+                .messages(messages.stream()
+                        .map(message -> Message.builder()
+                                .role(toConversationRole(message))
+                                .content(ContentBlock.fromText(message.content()))
+                                .build())
+                        .collect(toImmutableList()))
+                .inferenceConfig(config -> config
+                        .maxTokens(maxTokens.orElse(null))
+                        .temperature(temperature.orElse(null))
+                        .topP(topP.orElse(null)));
+        if (!bedrockTools.isEmpty()) {
+            request.toolConfig(config -> config.tools(bedrockTools));
+        }
+    }
+
+    private void initializeConverseStreamRequestBuilder(
+            ConverseStreamRequest.Builder request,
             List<SystemContentBlock> systemContentBlocks,
             String modelName,
             List<LlmMessage> messages,
@@ -338,5 +404,112 @@ public class AwsBedrockLanguageModelClient
             case USER -> ConversationRole.USER;
             case ASSISTANT -> ConversationRole.ASSISTANT;
         };
+    }
+
+    private static class StreamResponseVisitor
+            implements ConverseStreamResponseHandler.Visitor
+    {
+        private final Consumer<String> output;
+        private final StringBuilder responseChunksText;
+        private final List<ToolUseBlock> responseChunksTools;
+        private final StringBuilder currentToolArgs;
+        private final ConverseResponse.Builder responseBuilder;
+
+        private String currentToolName;
+        private String currentToolUseId;
+
+        public StreamResponseVisitor(Consumer<String> output, ConverseResponse.Builder responseBuilder)
+        {
+            this.output = output;
+            this.responseBuilder = responseBuilder;
+            this.responseChunksText = new StringBuilder();
+            this.responseChunksTools = new ArrayList<>();
+            this.currentToolArgs = new StringBuilder();
+        }
+
+        @Override
+        public void visitContentBlockStart(ContentBlockStartEvent chunk)
+        {
+            ToolUseBlockStart toolUse = chunk.start().toolUse();
+            if (toolUse != null) {
+                if (currentToolName != null || currentToolUseId != null) {
+                    log.warn("Starting new tool block with incomplete previous tool data");
+                }
+                currentToolName = toolUse.name();
+                currentToolUseId = toolUse.toolUseId();
+            }
+        }
+
+        @Override
+        public void visitContentBlockStop(ContentBlockStopEvent event)
+        {
+            if (currentToolName != null && currentToolUseId != null) {
+                try {
+                    String toolArgsJson = currentToolArgs.toString();
+                    Document document;
+                    if (toolArgsJson.isBlank()) {
+                        document = Document.fromNull();
+                    }
+                    else {
+                        software.amazon.awssdk.protocols.jsoncore.JsonNode node =
+                                software.amazon.awssdk.protocols.jsoncore.JsonNode.parser().parse(toolArgsJson);
+                        document = node.visit(new DocumentUnmarshaller());
+                    }
+                    responseChunksTools.add(
+                            ToolUseBlock.builder()
+                                    .name(currentToolName)
+                                    .toolUseId(currentToolUseId)
+                                    .input(document)
+                                    .build());
+                }
+                catch (Exception e) {
+                    log.error(e, "Error parsing tool input JSON");
+                    throw new TrinoException(AI_CLIENT_ERROR, "Failed to parse tool use input", e);
+                }
+                finally {
+                    currentToolName = null;
+                    currentToolUseId = null;
+                    currentToolArgs.setLength(0);
+                }
+            }
+        }
+
+        @Override
+        public void visitContentBlockDelta(ContentBlockDeltaEvent chunk)
+        {
+            ToolUseBlockDelta toolUse = chunk.delta().toolUse();
+            if (toolUse != null) {
+                currentToolArgs.append(toolUse.input());
+            }
+            String text = chunk.delta().text();
+            if (text != null) {
+                output.accept(text);
+                responseChunksText.append(text);
+            }
+        }
+
+        @Override
+        public void visitMetadata(ConverseStreamMetadataEvent metadata)
+        {
+            responseBuilder.usage(metadata.usage());
+        }
+
+        @Override
+        public void visitMessageStop(MessageStopEvent stop)
+        {
+            responseBuilder.stopReason(stop.stopReason());
+        }
+
+        public List<ContentBlock> getContentBlocks()
+        {
+            List<ContentBlock> contentBlocks = new ArrayList<>();
+            if (!responseChunksText.isEmpty()) {
+                contentBlocks.add(ContentBlock.fromText(responseChunksText.toString()));
+            }
+            responseChunksTools.stream()
+                    .map(ContentBlock::fromToolUse)
+                    .forEach(contentBlocks::add);
+            return contentBlocks;
+        }
     }
 }
