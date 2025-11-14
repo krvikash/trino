@@ -6,9 +6,9 @@
 
 ## What is this repo all about?
 
-It is a continues fork of Trino OSS that is used as a base for Starburst products (SEP and Galaxy).
-This is project is updated with changes from OSS Trino in continuous manner so all changes in Trino land
-in this repo eventually. This way we maintain relationship with Trino codebase in order to avoid a hard fork.
+It is a continuous fork of Trino OSS that is used as a base for Starburst products (SEP and Galaxy).
+This is project is updated with changes from OSS Trino in a continuous manner so all changes in Trino land
+in this repo eventually. This way we maintain a relationship with Trino codebase in order to avoid a hard fork.
 
 This is described in greater detail in
 [“Starburst Trino Fork improvements” document](https://docs.google.com/document/d/1ZovT1xEpsud7yuX_R16uf9E9suKpUTFe2dTaverZQjg).
