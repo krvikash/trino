@@ -291,6 +291,7 @@ public class TestQueryJsonProvider
                 ImmutableList.of(),
                 ImmutableSet.of(),
                 Optional.empty(),
+                Optional.empty(),
                 ImmutableList.of(),
                 ImmutableList.of(),
                 false,

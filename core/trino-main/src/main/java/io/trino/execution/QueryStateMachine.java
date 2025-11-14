@@ -49,6 +49,7 @@ import io.trino.spi.ErrorCode;
 import io.trino.spi.QueryId;
 import io.trino.spi.TrinoException;
 import io.trino.spi.TrinoWarning;
+import io.trino.spi.eventlistener.ColumnLineageInfo;
 import io.trino.spi.eventlistener.RoutineInfo;
 import io.trino.spi.eventlistener.StageGcStatistics;
 import io.trino.spi.eventlistener.TableInfo;
@@ -183,6 +184,7 @@ public class QueryStateMachine
 
     private final AtomicReference<Set<Input>> inputs = new AtomicReference<>(ImmutableSet.of());
     private final AtomicReference<Optional<Output>> output = new AtomicReference<>(Optional.empty());
+    private final AtomicReference<Optional<List<ColumnLineageInfo>>> selectColumnsLineageInfo = new AtomicReference<>(Optional.empty());
     private final AtomicReference<List<TableInfo>> referencedTables = new AtomicReference<>(ImmutableList.of());
     private final AtomicReference<List<RoutineInfo>> routines = new AtomicReference<>(ImmutableList.of());
     private final AtomicReference<Map<String, Metrics>> catalogMetadataMetrics = new AtomicReference<>(ImmutableMap.of());
@@ -695,6 +697,7 @@ public class QueryStateMachine
                 warningCollector.getWarnings(),
                 inputs.get(),
                 output.get(),
+                selectColumnsLineageInfo.get(),
                 referencedTables.get(),
                 routines.get(),
                 finalInfo,
@@ -1033,6 +1036,12 @@ public class QueryStateMachine
     {
         requireNonNull(output, "output is null");
         this.output.set(output);
+    }
+
+    public void setSelectColumnsLineageInfo(Optional<List<ColumnLineageInfo>> selectOutputColumnsLineage)
+    {
+        requireNonNull(selectOutputColumnsLineage, "selectOutputColumnsLineage is null");
+        this.selectColumnsLineageInfo.set(selectOutputColumnsLineage);
     }
 
     public void setReferencedTables(List<TableInfo> tables)
@@ -1505,6 +1514,7 @@ public class QueryStateMachine
                 queryInfo.getWarnings(),
                 queryInfo.getInputs(),
                 queryInfo.getOutput(),
+                Optional.empty(),
                 queryInfo.getReferencedTables(),
                 queryInfo.getRoutines(),
                 queryInfo.isFinalQueryInfo(),
