@@ -185,7 +185,7 @@ mv ${PLUGIN_DIRECTORY}/trino-openapi-* ${PLUGIN_DIRECTORY}/trino-openapi
 To test and debug the connector locally, run the `OpenApiQueryRunner` class
 located in tests:
 ```bash
-mvn test-compile exec:java -Dexec.mainClass="pl.net.was.OpenApiQueryRunner" -Dexec.classpathScope=test
+mvn test-compile exec:java -Dexec.mainClass="io.trino.plugin.openapi.OpenApiQueryRunner" -Dexec.classpathScope=test
 ```
 
 And then run the Trino CLI using `trino --server localhost:8080 --no-progress`
