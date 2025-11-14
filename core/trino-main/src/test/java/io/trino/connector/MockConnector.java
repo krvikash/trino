@@ -1123,6 +1123,12 @@ public class MockConnector
         public void storeMergedRows(Page page) {}
 
         @Override
+        public long getCompletedBytes()
+        {
+            return 0;
+        }
+
+        @Override
         public CompletableFuture<Collection<Slice>> finish()
         {
             return completedFuture(ImmutableList.of());
