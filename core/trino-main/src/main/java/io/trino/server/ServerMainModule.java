@@ -297,7 +297,19 @@ public class ServerMainModule
         newExporter(binder).export(PageFunctionCompiler.class).withGeneratedName();
         binder.bind(ColumnarFilterCompiler.class).in(Scopes.SINGLETON);
         newExporter(binder).export(ColumnarFilterCompiler.class).withGeneratedName();
-        configBinder(binder).bindConfig(TaskManagerConfig.class);
+        NodeSchedulerConfig nodeSchedulerConfig = buildConfigObject(NodeSchedulerConfig.class);
+        configBinder(binder).bindConfigDefaults(TaskManagerConfig.class, config -> {
+            if (serverConfig.isCoordinator() && !nodeSchedulerConfig.isIncludeCoordinator()) {
+                // In Galaxy, we currently deploy coordinator on machines with 8 cores, 7 allotted to Trino, and Trino default is 14 threads.
+                // Coordinator worker thread pool is used for metadata queries (bounded to coordinator), and these are IO, not CPU bound.
+                // Increase the thread pool to reduce contention between these queries.
+                // In Galaxy, we currently allow at most 20 queries (including metadata queries) plus 40 "data definition" (including DESCRIBE) and each
+                // metadata query typically has 1-3 splits bounded to coordinator.
+                // SEP does not have a default coordinator size or an upper bound on metadata queries, however using the same sizing logic
+                // is reasonable there as well
+                config.setMaxWorkerThreads("9C");
+            }
+        });
 
         // TODO: use conditional module
         TaskManagerConfig taskManagerConfig = buildConfigObject(TaskManagerConfig.class);
