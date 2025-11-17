@@ -31,9 +31,9 @@ import java.util.concurrent.ExecutorService;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.toListenableFuture;
-import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.getS3UriInfo;
-import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.keyFromUri;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.toDataPages;
+import static io.starburst.stargate.buffer.data.spooling.s3.S3SpoolUtils.getS3UriInfo;
+import static io.starburst.stargate.buffer.data.spooling.s3.S3SpoolUtils.keyFromUri;
 import static java.util.Objects.requireNonNull;
 
 public class S3SpooledChunkReader

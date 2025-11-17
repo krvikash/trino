@@ -7,17 +7,18 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package io.starburst.stargate.buffer.data.client.spooling;
+package io.starburst.stargate.buffer.data.spooling.s3;
 
+import io.starburst.stargate.buffer.data.spooling.s3.S3SpoolUtils.S3UriInfo;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 
-import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.getS3UriInfo;
+import static io.starburst.stargate.buffer.data.spooling.s3.S3SpoolUtils.getS3UriInfo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class TestSpoolUtils
+class TestS3SpoolUtils
 {
     @Test
     void testGetS3UriInfoWithNormalHost()
@@ -33,7 +34,7 @@ class TestSpoolUtils
         // URI with underscore in bucket name - host is null, uses authority
         // This simulates S3 buckets with underscores (us-east-1)
         URI uri = URI.create("s3://my_bucket/path/to/file");
-        SpoolUtils.S3UriInfo s3UriInfo = getS3UriInfo(uri);
+        S3UriInfo s3UriInfo = getS3UriInfo(uri);
         assertThat(s3UriInfo.bucket()).isEqualTo("my_bucket");
         assertThat(s3UriInfo.path()).isEqualTo("path/to/file");
     }
@@ -43,7 +44,7 @@ class TestSpoolUtils
     {
         // URI with user info and normal host (no underscore) should return the host
         URI uri = URI.create("s3://user:password@my-bucket/path/to/dir");
-        SpoolUtils.S3UriInfo s3UriInfo = getS3UriInfo(uri);
+        S3UriInfo s3UriInfo = getS3UriInfo(uri);
         assertThat(s3UriInfo.bucket()).isEqualTo("my-bucket");
         assertThat(s3UriInfo.path()).isEqualTo("path/to/dir");
     }
@@ -70,9 +71,9 @@ class TestSpoolUtils
     {
         // URI with complex path
         URI uri = URI.create("s3://bucket-name/some/deep/path");
-        SpoolUtils.S3UriInfo s3UriInfo = getS3UriInfo(uri);
+        S3UriInfo s3UriInfo = getS3UriInfo(uri);
         assertThat(s3UriInfo.bucket()).isEqualTo("bucket-name");
-        assertThat(s3UriInfo.path()).isEqualTo("/some/deep/path");
+        assertThat(s3UriInfo.path()).isEqualTo("some/deep/path");
     }
 
     @Test
@@ -80,7 +81,7 @@ class TestSpoolUtils
     {
         // URI with just bucket, no path
         URI uri = URI.create("s3://my-bucket");
-        SpoolUtils.S3UriInfo s3UriInfo = getS3UriInfo(uri);
+        S3UriInfo s3UriInfo = getS3UriInfo(uri);
         assertThat(s3UriInfo.bucket()).isEqualTo("my-bucket");
         assertThat(s3UriInfo.path()).isEqualTo("");
     }
@@ -90,7 +91,7 @@ class TestSpoolUtils
     {
         // URI with multiple underscores in bucket name
         URI uri = URI.create("s3://my_test_bucket/path");
-        SpoolUtils.S3UriInfo s3UriInfo = getS3UriInfo(uri);
+        S3UriInfo s3UriInfo = getS3UriInfo(uri);
         assertThat(s3UriInfo.bucket()).isEqualTo("my_test_bucket");
         assertThat(s3UriInfo.path()).isEqualTo("path");
     }
@@ -100,7 +101,7 @@ class TestSpoolUtils
     {
         // URI with both dash and underscore in bucket name
         URI uri = URI.create("s3://my-test_bucket/path");
-        SpoolUtils.S3UriInfo s3UriInfo = getS3UriInfo(uri);
+        S3UriInfo s3UriInfo = getS3UriInfo(uri);
         assertThat(s3UriInfo.bucket()).isEqualTo("my-test_bucket");
         assertThat(s3UriInfo.path()).isEqualTo("path");
     }
@@ -110,7 +111,7 @@ class TestSpoolUtils
     {
         // URI with just bucket, no path
         URI uri = URI.create("s3://my-bucket///some//path///");
-        SpoolUtils.S3UriInfo s3UriInfo = getS3UriInfo(uri);
+        S3UriInfo s3UriInfo = getS3UriInfo(uri);
         assertThat(s3UriInfo.bucket()).isEqualTo("my-bucket");
         assertThat(s3UriInfo.path()).isEqualTo("some//path");
     }
