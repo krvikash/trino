@@ -31,7 +31,7 @@ import java.util.concurrent.ExecutorService;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.toListenableFuture;
-import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.getBucketName;
+import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.getS3UriInfo;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.keyFromUri;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.toDataPages;
 import static java.util.Objects.requireNonNull;
@@ -65,7 +65,7 @@ public class S3SpooledChunkReader
         checkArgument(scheme.equals("s3") || scheme.equals("gs"), "Unexpected storage scheme %s for S3SpooledChunkReader, expecting s3/gs", scheme);
 
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-                .bucket(getBucketName(uri))
+                .bucket(getS3UriInfo(uri).bucket())
                 .key(keyFromUri(uri))
                 .range("bytes=" + offset + "-" + (offset + length - 1))
                 .build();

@@ -52,6 +52,7 @@ import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Publisher;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.List;
@@ -68,7 +69,7 @@ import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.toListenableFuture;
 import static io.airlift.concurrent.Threads.threadsNamed;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.PATH_SEPARATOR;
-import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.getBucketName;
+import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.getS3UriInfo;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getMetadataFileName;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.translateFailures;
 import static io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage.CompatibilityMode.AWS;
@@ -107,7 +108,8 @@ public class S3SpoolingStorage
         super(bufferNodeId, mergedFileNameGenerator, dataServerStats);
 
         this.s3AsyncClient = s3AsyncClient;
-        this.bucketName = getBucketName(requireNonNull(chunkManagerConfig.getSpoolingDirectory(), "spoolingDirectory is null"));
+        URI spoolingDirectoryUri = requireNonNull(chunkManagerConfig.getSpoolingDirectory(), "spoolingDirectory is null");
+        this.bucketName = getS3UriInfo(spoolingDirectoryUri).bucket();
         this.compatibilityMode = requireNonNull(compatibilityMode, "compatibilityMode is null");
 
         if (compatibilityMode == GCP) {

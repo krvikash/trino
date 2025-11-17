@@ -26,6 +26,7 @@ import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSU
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.calculateChecksum;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.readSerializedPages;
 import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 
 public final class SpoolUtils
 {
@@ -78,17 +79,27 @@ public final class SpoolUtils
      * @return The host value where uri.getAuthority() is used when uri.getHost() returns null as long as no UserInfo is present.
      * @throws IllegalArgumentException If the bucket cannot be determined from the URI.
      */
-    public static String getBucketName(URI uri)
+    public static S3UriInfo getS3UriInfo(URI uri)
     {
+        if (uri.getPort() != -1) {
+            throw new IllegalArgumentException("Invalid S3 URI: " + uri);
+        }
+
+        String bucketName;
         if (uri.getHost() != null) {
-            return uri.getHost();
+            bucketName = uri.getHost();
+        }
+        else if (uri.getUserInfo() == null) {
+            bucketName = uri.getAuthority();
+        }
+        else {
+            throw new IllegalArgumentException("Invalid S3 URI: " + uri);
         }
 
-        if (uri.getUserInfo() == null) {
-            return uri.getAuthority();
+        if (bucketName.contains("@") || bucketName.contains(":")) {
+            throw new IllegalArgumentException("Invalid S3 URI: " + uri);
         }
-
-        throw new IllegalArgumentException("Unable to determine S3 bucket from URI.");
+        return new S3UriInfo(bucketName);
     }
 
     public static String keyFromUri(URI uri)
@@ -105,4 +116,12 @@ public final class SpoolUtils
     }
 
     private SpoolUtils() {}
+
+    public record S3UriInfo(String bucket)
+    {
+        public S3UriInfo
+        {
+            requireNonNull(bucket, "bucket is null");
+        }
+    }
 }
