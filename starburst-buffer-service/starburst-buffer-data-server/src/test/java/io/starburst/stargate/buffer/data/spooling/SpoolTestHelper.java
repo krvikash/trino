@@ -75,9 +75,14 @@ public final class SpoolTestHelper
 
     public static SpoolingStorage createAzureBlobSpoolingStorage(BlobServiceAsyncClient client, String containerName)
     {
+        return createAzureBlobSpoolingStorage(client, containerName, "");
+    }
+
+    public static SpoolingStorage createAzureBlobSpoolingStorage(BlobServiceAsyncClient client, String containerName, String path)
+    {
         return new AzureBlobSpoolingStorage(
                 new BufferNodeId(0L),
-                new ChunkManagerConfig().setSpoolingDirectory("abfs://" + containerName + "@test.dfs.core.windows.net"),
+                new ChunkManagerConfig().setSpoolingDirectory("abfs://" + containerName + "@test.dfs.core.windows.net" + (path.isEmpty() ? "" : "/" + path)),
                 new MergedFileNameGenerator(),
                 new DataServerStats(),
                 client,

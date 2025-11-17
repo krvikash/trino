@@ -56,6 +56,7 @@ public class AzureBlobSpoolingStorage
 {
     private final String hostName;
     private final String containerName;
+    private final String path;
     private final BlobContainerAsyncClient containerClient;
     private final BlobBatchAsyncClient batchClient;
     private final long uploadBlockSize;
@@ -76,6 +77,7 @@ public class AzureBlobSpoolingStorage
         AzureSpoolUtils.AzureUriInfo azureUriInfo = getAzureUriInfo(spoolingDirectory);
         this.hostName = azureUriInfo.hostName();
         this.containerName = azureUriInfo.containerName();
+        this.path = azureUriInfo.path();
         this.containerClient = requireNonNull(blobServiceAsyncClient, "blobServiceAsyncClient is null").getBlobContainerAsyncClient(containerName);
         this.batchClient = new BlobBatchClientBuilder(containerClient).buildAsyncClient();
         requireNonNull(azureBlobSpoolingConfig, "azureBlobSpoolingConfig is null");
@@ -86,14 +88,25 @@ public class AzureBlobSpoolingStorage
     @Override
     protected String getLocation(String fileName)
     {
-        return "abfs://" + containerName + "@" + hostName + PATH_SEPARATOR + fileName;
+        return "abfs://" + containerName + "@" + hostName + PATH_SEPARATOR + getKey(fileName);
+    }
+
+    private String getKey(String fileName)
+    {
+        StringBuilder sb = new StringBuilder();
+        if (!path.isEmpty()) {
+            sb.append(path);
+            sb.append(PATH_SEPARATOR);
+        }
+        sb.append(fileName);
+        return sb.toString();
     }
 
     @Override
     protected ListenableFuture<Void> deleteDirectories(List<String> directoryNames)
     {
         CompletableFuture<Void> result = Flux.fromIterable(directoryNames)
-                .flatMap(directoryName -> containerClient.listBlobs(new ListBlobsOptions().setPrefix(directoryName)))
+                .flatMap(directoryName -> containerClient.listBlobs(new ListBlobsOptions().setPrefix(getKey(directoryName))))
                 .map(blobItem -> containerClient.getBlobContainerUrl() + PATH_SEPARATOR + blobItem.getName())
                 .buffer(256) // Azure's max batch size
                 .flatMap(batch -> batchClient.deleteBlobs(batch, DeleteSnapshotsOptionType.INCLUDE))
@@ -107,7 +120,7 @@ public class AzureBlobSpoolingStorage
     protected ListenableFuture<Map<Long, SpooledChunk>> putStorageObject(String fileName, Map<Chunk, ChunkDataLease> chunkDataLeaseMap, long contentLength)
     {
         ImmutableMap.Builder<Long, SpooledChunk> spooledChunkMap = ImmutableMap.builder();
-        BlobAsyncClient blobAsyncClient = containerClient.getBlobAsyncClient(fileName);
+        BlobAsyncClient blobAsyncClient = containerClient.getBlobAsyncClient(getKey(fileName));
         String location = getLocation(fileName);
         Flux<ByteBuffer> parts = Flux.create(fluxSink -> {
             long offset = 0;
@@ -142,7 +155,7 @@ public class AzureBlobSpoolingStorage
     public ListenableFuture<Void> writeMetadataFile(long bufferNodeId, Slice metadataSlice)
     {
         String metadataFileName = getMetadataFileName(bufferNodeId);
-        BlockBlobAsyncClient blockBlobAsyncClient = containerClient.getBlobAsyncClient(metadataFileName).getBlockBlobAsyncClient();
+        BlockBlobAsyncClient blockBlobAsyncClient = containerClient.getBlobAsyncClient(getKey(metadataFileName)).getBlockBlobAsyncClient();
         return asVoid(toListenableFuture(blockBlobAsyncClient.upload(Flux.just(metadataSlice.toByteBuffer()), metadataSlice.length()).toFuture()));
     }
 
@@ -150,7 +163,7 @@ public class AzureBlobSpoolingStorage
     public ListenableFuture<Slice> readMetadataFile(long bufferNodeId)
     {
         String metadataFileName = getMetadataFileName(bufferNodeId);
-        BlockBlobAsyncClient blockBlobAsyncClient = containerClient.getBlobAsyncClient(metadataFileName).getBlockBlobAsyncClient();
+        BlockBlobAsyncClient blockBlobAsyncClient = containerClient.getBlobAsyncClient(getKey(metadataFileName)).getBlockBlobAsyncClient();
         return Futures.transform(
                 toListenableFuture(blockBlobAsyncClient.downloadContent().toFuture()),
                 response -> Slices.wrappedBuffer(response.toBytes()),
