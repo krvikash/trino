@@ -21,14 +21,17 @@ public final class AzureSpoolUtils
 
     private AzureSpoolUtils() {}
 
-    public static String getHostName(URI uri)
+    public static AzureUriInfo getAzureUriInfo(URI uri)
     {
-        return requireNonNull(uri.getHost(), "Invalid abfs URI passed to getHostName: " + uri);
-    }
-
-    public static String getContainerName(URI uri)
-    {
-        return requireNonNull(uri.getUserInfo(), "Invalid abfs URI passed to getContainerName: " + uri);
+        String host = uri.getHost();
+        if (host == null) {
+            throw new IllegalArgumentException("Invalid abfs URI: " + uri);
+        }
+        String containerName = uri.getUserInfo();
+        if (containerName == null) {
+            throw new IllegalArgumentException("Invalid abfs URI: " + uri);
+        }
+        return new AzureUriInfo(host, containerName);
     }
 
     public static String keyFromUri(URI uri)
@@ -40,5 +43,14 @@ public final class AzureSpoolUtils
         }
         checkArgument(!key.isEmpty(), "Invalid abfs URI passed to keyFromUri: %s", uri);
         return key;
+    }
+
+    public record AzureUriInfo(String hostName, String containerName)
+    {
+        public AzureUriInfo
+        {
+            requireNonNull(hostName, "hostName is null");
+            requireNonNull(containerName, "containerName is null");
+        }
     }
 }

@@ -30,7 +30,7 @@ import java.util.List;
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.airlift.concurrent.MoreFutures.toListenableFuture;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.toDataPages;
-import static io.starburst.stargate.buffer.data.spooling.azure.AzureSpoolUtils.getContainerName;
+import static io.starburst.stargate.buffer.data.spooling.azure.AzureSpoolUtils.getAzureUriInfo;
 import static io.starburst.stargate.buffer.data.spooling.azure.AzureSpoolUtils.keyFromUri;
 import static java.util.Objects.requireNonNull;
 
@@ -61,7 +61,7 @@ public class AzureBlobSpooledChunkReader
         String scheme = spooledChunkUri.getScheme();
         checkArgument(spooledChunkUri.getScheme().equals("abfs"), "Unexpected storage scheme '%s' for AzureSpooledChunkReader, expecting 'abfs'", scheme);
 
-        return toListenableFuture(azureClient.getBlobContainerAsyncClient(getContainerName(spooledChunkUri))
+        return toListenableFuture(azureClient.getBlobContainerAsyncClient(getAzureUriInfo(spooledChunkUri).containerName())
                 .getBlobAsyncClient(keyFromUri(spooledChunkUri))
                 .downloadStreamWithResponse(new BlobRange(offset, (long) length), null, null, false)
                 .flatMapMany(ResponseBase::getValue)

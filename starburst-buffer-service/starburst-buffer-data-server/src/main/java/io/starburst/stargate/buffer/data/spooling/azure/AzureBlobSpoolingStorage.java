@@ -48,8 +48,7 @@ import static io.airlift.concurrent.MoreFutures.toListenableFuture;
 import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.CHUNK_FILE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getMetadataFileName;
 import static io.starburst.stargate.buffer.data.spooling.azure.AzureSpoolUtils.PATH_SEPARATOR;
-import static io.starburst.stargate.buffer.data.spooling.azure.AzureSpoolUtils.getContainerName;
-import static io.starburst.stargate.buffer.data.spooling.azure.AzureSpoolUtils.getHostName;
+import static io.starburst.stargate.buffer.data.spooling.azure.AzureSpoolUtils.getAzureUriInfo;
 import static java.util.Objects.requireNonNull;
 
 public class AzureBlobSpoolingStorage
@@ -74,8 +73,9 @@ public class AzureBlobSpoolingStorage
         super(bufferNodeId, mergedFileNameGenerator, dataServerStats);
 
         URI spoolingDirectory = requireNonNull(chunkManagerConfig.getSpoolingDirectory(), "spoolingDirectory is null");
-        this.hostName = getHostName(spoolingDirectory);
-        this.containerName = getContainerName(spoolingDirectory);
+        AzureSpoolUtils.AzureUriInfo azureUriInfo = getAzureUriInfo(spoolingDirectory);
+        this.hostName = azureUriInfo.hostName();
+        this.containerName = azureUriInfo.containerName();
         this.containerClient = requireNonNull(blobServiceAsyncClient, "blobServiceAsyncClient is null").getBlobContainerAsyncClient(containerName);
         this.batchClient = new BlobBatchClientBuilder(containerClient).buildAsyncClient();
         requireNonNull(azureBlobSpoolingConfig, "azureBlobSpoolingConfig is null");
