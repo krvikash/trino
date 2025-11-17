@@ -15,7 +15,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.nullToEmpty;
 import static java.util.Objects.requireNonNull;
 
-public class AzureSpoolUtils
+public final class AzureSpoolUtils
 {
     public static final String PATH_SEPARATOR = "/";
 
