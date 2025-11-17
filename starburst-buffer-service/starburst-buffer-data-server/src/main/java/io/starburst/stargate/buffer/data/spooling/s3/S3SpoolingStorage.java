@@ -25,6 +25,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.inject.Inject;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
+import io.starburst.stargate.buffer.data.client.spooling.SpoolUtils;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
@@ -81,6 +82,7 @@ public class S3SpoolingStorage
         extends AbstractSpoolingStorage
 {
     private final String bucketName;
+    private final String path;
     private final S3AsyncClient s3AsyncClient;
     private final CompatibilityMode compatibilityMode;
 
@@ -109,7 +111,9 @@ public class S3SpoolingStorage
 
         this.s3AsyncClient = s3AsyncClient;
         URI spoolingDirectoryUri = requireNonNull(chunkManagerConfig.getSpoolingDirectory(), "spoolingDirectory is null");
-        this.bucketName = getS3UriInfo(spoolingDirectoryUri).bucket();
+        SpoolUtils.S3UriInfo s3UriInfo = getS3UriInfo(spoolingDirectoryUri);
+        this.bucketName = s3UriInfo.bucket();
+        this.path = s3UriInfo.path();
         this.compatibilityMode = requireNonNull(compatibilityMode, "compatibilityMode is null");
 
         if (compatibilityMode == GCP) {
@@ -158,7 +162,7 @@ public class S3SpoolingStorage
         PutObjectRequest.Builder requestBuilder = PutObjectRequest.builder()
                 .overrideConfiguration(disableStrongIntegrityChecksums())
                 .bucket(bucketName)
-                .key(fileName);
+                .key(getKey(fileName));
         if (compatibilityMode == AWS) {
             // S3 compatibility on GCS does not support change in checksum algorithms
             requestBuilder.checksumAlgorithm(ChecksumAlgorithm.CRC32_C);
@@ -181,7 +185,18 @@ public class S3SpoolingStorage
     protected String getLocation(String fileName)
     {
         String prefix = (compatibilityMode == GCP) ? "gs://" : "s3://";
-        return prefix + bucketName + PATH_SEPARATOR + fileName;
+        return prefix + bucketName + PATH_SEPARATOR + getKey(fileName);
+    }
+
+    private String getKey(String fileName)
+    {
+        StringBuilder sb = new StringBuilder();
+        if (!path.isEmpty()) {
+            sb.append(path);
+            sb.append(PATH_SEPARATOR);
+        }
+        sb.append(fileName);
+        return sb.toString();
     }
 
     @Override
@@ -195,7 +210,7 @@ public class S3SpoolingStorage
         for (String directoryName : directoryNames) {
             ImmutableList.Builder<String> keys = ImmutableList.builder();
             ListenableFuture<List<String>> listObjectsFuture = Futures.transform(
-                    toListenableFuture(listObjectsRecursively(directoryName)
+                    toListenableFuture(listObjectsRecursively(getKey(directoryName))
                             .subscribe(listObjectsV2Response -> listObjectsV2Response.contents().stream()
                                     .map(S3Object::key)
                                     .forEach(keys::add))),
@@ -222,7 +237,7 @@ public class S3SpoolingStorage
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                 .overrideConfiguration(disableStrongIntegrityChecksums())
                 .bucket(bucketName)
-                .key(getMetadataFileName(bufferNodeId))
+                .key(getKey(getMetadataFileName(bufferNodeId)))
                 .build();
         return asVoid(toListenableFuture(s3AsyncClient.putObject(putObjectRequest, AsyncRequestBody.fromBytesUnsafe(metadataSlice.byteArray()))));
     }
@@ -232,7 +247,7 @@ public class S3SpoolingStorage
     {
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                 .bucket(bucketName)
-                .key(getMetadataFileName(bufferNodeId))
+                .key(getKey(getMetadataFileName(bufferNodeId)))
                 .build();
         return Futures.transform(
                 toListenableFuture(s3AsyncClient.getObject(getObjectRequest, AsyncResponseTransformer.toBytes())),
@@ -258,7 +273,7 @@ public class S3SpoolingStorage
         return translateFailures(asVoid(deleteExecutor.submit(() -> {
             StorageBatch batch = storage.batch();
             for (String directoryName : directoryNames) {
-                Page<Blob> blobs = storage.list(bucketName, Storage.BlobListOption.prefix(directoryName));
+                Page<Blob> blobs = storage.list(bucketName, Storage.BlobListOption.prefix(getKey(directoryName)));
                 for (Blob blob : blobs.iterateAll()) {
                     batch.delete(blob.getBlobId());
                 }

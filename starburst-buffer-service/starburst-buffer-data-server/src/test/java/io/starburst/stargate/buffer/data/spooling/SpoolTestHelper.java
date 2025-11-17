@@ -37,10 +37,15 @@ public final class SpoolTestHelper
 
     public static SpoolingStorage createS3SpoolingStorage(MinioStorage minioStorage)
     {
+        return createS3SpoolingStorage(minioStorage, "");
+    }
+
+    public static SpoolingStorage createS3SpoolingStorage(MinioStorage minioStorage, String path)
+    {
         try {
             return new S3SpoolingStorage(
                     new BufferNodeId(0L),
-                    new ChunkManagerConfig().setSpoolingDirectory("s3://" + minioStorage.getBucketName()),
+                    new ChunkManagerConfig().setSpoolingDirectory("s3://" + minioStorage.getBucketName() + (path.isEmpty() ? "" : "/" + path)),
                     S3Utils.createS3Client(new S3ClientConfig()
                             .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
                             .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
