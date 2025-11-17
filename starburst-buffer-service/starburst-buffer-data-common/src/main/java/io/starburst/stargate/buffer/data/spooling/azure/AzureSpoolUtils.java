@@ -38,7 +38,7 @@ public final class AzureSpoolUtils
         if (key.startsWith(PATH_SEPARATOR)) {
             key = key.substring(PATH_SEPARATOR.length());
         }
-        checkArgument(key.length() > 0, "Invalid abfs URI passed to keyFromUri: %s", uri);
+        checkArgument(!key.isEmpty(), "Invalid abfs URI passed to keyFromUri: %s", uri);
         return key;
     }
 }
