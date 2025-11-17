@@ -31,7 +31,19 @@ public final class AzureSpoolUtils
         if (containerName == null) {
             throw new IllegalArgumentException("Invalid abfs URI: " + uri);
         }
-        return new AzureUriInfo(host, containerName);
+        String path = uri.getPath();
+        if (path == null) {
+            path = "";
+        }
+
+        while (path.startsWith(PATH_SEPARATOR)) {
+            path = path.substring(1);
+        }
+        while (path.endsWith(PATH_SEPARATOR)) {
+            path = path.substring(0, path.length() - 1);
+        }
+
+        return new AzureUriInfo(host, containerName, path);
     }
 
     public static String keyFromUri(URI uri)
@@ -45,12 +57,13 @@ public final class AzureSpoolUtils
         return key;
     }
 
-    public record AzureUriInfo(String hostName, String containerName)
+    public record AzureUriInfo(String hostName, String containerName, String path)
     {
         public AzureUriInfo
         {
             requireNonNull(hostName, "hostName is null");
             requireNonNull(containerName, "containerName is null");
+            requireNonNull(path, "path is null");
         }
     }
 }
