@@ -20,7 +20,6 @@ public class ShortArrayPreSizedBlockBuilder
 {
     private static final Block NULL_VALUE_BLOCK = new ShortArrayBlock(0, 1, new boolean[] {true}, new short[1]);
 
-    private final int expectedEntries;
     private final boolean[] isNull;
     private final short[] values;
 
@@ -31,7 +30,6 @@ public class ShortArrayPreSizedBlockBuilder
     public ShortArrayPreSizedBlockBuilder(int expectedEntries)
     {
         checkArgument(expectedEntries >= 0, "expectedEntries %s must be positive", expectedEntries);
-        this.expectedEntries = expectedEntries;
         this.isNull = new boolean[expectedEntries];
         this.values = new short[expectedEntries];
     }
@@ -52,7 +50,6 @@ public class ShortArrayPreSizedBlockBuilder
     @Override
     public Block build()
     {
-        checkArgument(positionCount == expectedEntries, "Expected %s entries, but wrote %s", expectedEntries, positionCount);
         if (!hasNonNullValue) {
             return RunLengthEncodedBlock.create(NULL_VALUE_BLOCK, positionCount);
         }

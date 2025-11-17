@@ -28,7 +28,6 @@ public class VariableWidthPreSizedBlockBuilder
 {
     private static final Block NULL_VALUE_BLOCK = new VariableWidthBlock(0, 1, EMPTY_SLICE, new int[] {0, 0}, new boolean[] {true});
 
-    private final int expectedEntries;
     private final boolean[] isNull;
     private final int[] offsets;
     private final List<Slice> values;
@@ -40,7 +39,6 @@ public class VariableWidthPreSizedBlockBuilder
     public VariableWidthPreSizedBlockBuilder(int expectedEntries)
     {
         checkArgument(expectedEntries >= 0, "expectedEntries %s must be positive", expectedEntries);
-        this.expectedEntries = expectedEntries;
         this.isNull = new boolean[expectedEntries];
         this.offsets = new int[expectedEntries + 1];
         this.values = new ArrayList<>(expectedEntries);
@@ -63,7 +61,6 @@ public class VariableWidthPreSizedBlockBuilder
     @Override
     public Block build()
     {
-        checkArgument(positionCount == expectedEntries, "Expected %s entries, but wrote %s", expectedEntries, positionCount);
         if (!hasNonNullValue) {
             return RunLengthEncodedBlock.create(NULL_VALUE_BLOCK, positionCount);
         }

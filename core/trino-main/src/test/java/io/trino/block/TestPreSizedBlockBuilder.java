@@ -42,7 +42,6 @@ import static io.trino.spi.type.UuidType.javaUuidToTrinoUuid;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 final class TestPreSizedBlockBuilder
 {
@@ -380,7 +379,7 @@ final class TestPreSizedBlockBuilder
     {
         verifyEmptyBlock(type);
         verifyAllNullsBlock(type);
-        verifyIllegalStateExceptionOnOverAppend(type);
+        verifyOverSizedBuilder(type);
     }
 
     private static void verifyAllNullsBlock(Type type)
@@ -402,16 +401,18 @@ final class TestPreSizedBlockBuilder
         assertBlockEquals(type, preSizedBlockBuilder.build(), type.createBlockBuilder(null, 0).build());
     }
 
-    private static void verifyIllegalStateExceptionOnOverAppend(Type type)
+    private static void verifyOverSizedBuilder(Type type)
     {
         PreSizedBlockBuilder preSizedBlockBuilder = type.createPreSizedBlockBuilder(3);
 
         preSizedBlockBuilder.appendNull();
         preSizedBlockBuilder.appendNull();
 
-        assertThatThrownBy(preSizedBlockBuilder::build)
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Expected 3 entries, but wrote 2");
+        Block actualBlock = preSizedBlockBuilder.build();
+        assertBlockEquals(
+                type,
+                actualBlock,
+                type.createBlockBuilder(null, 2).appendNull().appendNull().build());
     }
 
     private static Block longArrayBlock(long... values)

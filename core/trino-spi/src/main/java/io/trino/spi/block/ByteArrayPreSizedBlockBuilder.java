@@ -20,7 +20,6 @@ public class ByteArrayPreSizedBlockBuilder
 {
     private static final Block NULL_VALUE_BLOCK = new ByteArrayBlock(0, 1, new boolean[] {true}, new byte[1]);
 
-    private final int expectedEntries;
     private final boolean[] isNull;
     private final byte[] values;
 
@@ -31,7 +30,6 @@ public class ByteArrayPreSizedBlockBuilder
     public ByteArrayPreSizedBlockBuilder(int expectedEntries)
     {
         checkArgument(expectedEntries >= 0, "expectedEntries %s must be positive", expectedEntries);
-        this.expectedEntries = expectedEntries;
         this.isNull = new boolean[expectedEntries];
         this.values = new byte[expectedEntries];
     }
@@ -52,7 +50,6 @@ public class ByteArrayPreSizedBlockBuilder
     @Override
     public Block build()
     {
-        checkArgument(positionCount == expectedEntries, "Expected %s entries, but wrote %s", expectedEntries, positionCount);
         if (!hasNonNullValue) {
             return RunLengthEncodedBlock.create(NULL_VALUE_BLOCK, positionCount);
         }

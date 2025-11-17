@@ -20,7 +20,6 @@ public class LongArrayPreSizedBlockBuilder
 {
     private static final Block NULL_VALUE_BLOCK = new LongArrayBlock(0, 1, new boolean[] {true}, new long[1]);
 
-    private final int expectedEntries;
     private final boolean[] isNull;
     private final long[] values;
 
@@ -31,7 +30,6 @@ public class LongArrayPreSizedBlockBuilder
     public LongArrayPreSizedBlockBuilder(int expectedEntries)
     {
         checkArgument(expectedEntries >= 0, "expectedEntries %s must be positive", expectedEntries);
-        this.expectedEntries = expectedEntries;
         this.isNull = new boolean[expectedEntries];
         this.values = new long[expectedEntries];
     }
@@ -52,7 +50,6 @@ public class LongArrayPreSizedBlockBuilder
     @Override
     public Block build()
     {
-        checkArgument(positionCount == expectedEntries, "Expected %s entries, but wrote %s", expectedEntries, positionCount);
         if (!hasNonNullValue) {
             return RunLengthEncodedBlock.create(NULL_VALUE_BLOCK, positionCount);
         }

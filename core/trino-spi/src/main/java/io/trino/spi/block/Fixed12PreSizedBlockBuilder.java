@@ -21,7 +21,6 @@ public class Fixed12PreSizedBlockBuilder
 {
     private static final Block NULL_VALUE_BLOCK = new Fixed12Block(0, 1, new boolean[] {true}, new int[3]);
 
-    private final int expectedEntries;
     private final boolean[] isNull;
     private final int[] values;
 
@@ -32,7 +31,6 @@ public class Fixed12PreSizedBlockBuilder
     public Fixed12PreSizedBlockBuilder(int expectedEntries)
     {
         checkArgument(expectedEntries >= 0, "expectedEntries %s must be positive", expectedEntries);
-        this.expectedEntries = expectedEntries;
         this.isNull = new boolean[expectedEntries];
         this.values = new int[expectedEntries * 3];
     }
@@ -55,7 +53,6 @@ public class Fixed12PreSizedBlockBuilder
     @Override
     public Block build()
     {
-        checkArgument(positionCount == expectedEntries, "Expected %s entries, but wrote %s", expectedEntries, positionCount);
         if (!hasNonNullValue) {
             return RunLengthEncodedBlock.create(NULL_VALUE_BLOCK, positionCount);
         }
