@@ -99,7 +99,20 @@ public final class SpoolUtils
         if (bucketName.contains("@") || bucketName.contains(":")) {
             throw new IllegalArgumentException("Invalid S3 URI: " + uri);
         }
-        return new S3UriInfo(bucketName);
+
+        String path = uri.getPath();
+        if (path == null) {
+            path = "";
+        }
+
+        while (path.startsWith(PATH_SEPARATOR)) {
+            path = path.substring(1);
+        }
+        while (path.endsWith(PATH_SEPARATOR)) {
+            path = path.substring(0, path.length() - 1);
+        }
+
+        return new S3UriInfo(bucketName, path);
     }
 
     public static String keyFromUri(URI uri)
@@ -117,11 +130,12 @@ public final class SpoolUtils
 
     private SpoolUtils() {}
 
-    public record S3UriInfo(String bucket)
+    public record S3UriInfo(String bucket, String path)
     {
         public S3UriInfo
         {
             requireNonNull(bucket, "bucket is null");
+            requireNonNull(path, "path is null");
         }
     }
 }
