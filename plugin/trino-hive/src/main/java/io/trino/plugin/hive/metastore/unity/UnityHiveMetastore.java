@@ -18,6 +18,7 @@ import com.databricks.sdk.core.DatabricksConfig;
 import com.databricks.sdk.core.DatabricksError;
 import com.databricks.sdk.core.DatabricksException;
 import com.databricks.sdk.core.error.platform.BadRequest;
+import com.databricks.sdk.core.error.platform.DeadlineExceeded;
 import com.databricks.sdk.core.error.platform.NotFound;
 import com.databricks.sdk.core.http.Request;
 import com.databricks.sdk.service.catalog.ColumnInfo;
@@ -33,6 +34,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Streams;
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
+import dev.failsafe.function.CheckedSupplier;
 import io.airlift.log.Logger;
 import io.trino.metastore.AcidOperation;
 import io.trino.metastore.AcidTransactionOwner;
@@ -76,6 +80,7 @@ import io.unitycatalog.client.model.TableOperation;
 import io.unitycatalog.client.model.TemporaryCredentials;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -107,6 +112,7 @@ import static io.trino.plugin.hive.TableType.MANAGED_TABLE;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.connector.SchemaTableName.schemaTableName;
 import static io.trino.spi.security.PrincipalType.USER;
+import static java.time.temporal.ChronoUnit.MILLIS;
 import static java.util.Objects.requireNonNull;
 
 public class UnityHiveMetastore
@@ -125,6 +131,14 @@ public class UnityHiveMetastore
     private static final Map<com.databricks.sdk.service.catalog.TableType, TableType> SUPPORTED_TABLE_TYPES_MAPPING = ImmutableMap.of(
             MANAGED, MANAGED_TABLE,
             EXTERNAL, EXTERNAL_TABLE);
+    // sometimes we see transient DeadlineExceeded errors from unity api, which could be retried
+    private static final RetryPolicy<Object> UNITY_API_RETRY_POLICY = RetryPolicy.builder()
+            .handleIf(failure -> failure instanceof DeadlineExceeded)
+            .onFailedAttempt(e -> LOG.warn(e.getLastException(), "Retrying unity api call"))
+            .withMaxDuration(Duration.ofSeconds(5))
+            .withBackoff(100, 500, MILLIS)
+            .withMaxAttempts(3)
+            .build();
 
     private final Set<DataSourceFormat> supportedUnityTableFormats;
     private final ApiClient apiClient;
@@ -161,7 +175,7 @@ public class UnityHiveMetastore
     {
         SchemaInfo schemaInfo;
         try {
-            schemaInfo = schemasApi.get(catalogName + NAMESPACE_SEPARATOR + databaseName);
+            schemaInfo = retry(() -> schemasApi.get(catalogName + NAMESPACE_SEPARATOR + databaseName));
         }
         catch (DatabricksError e) {
             if (e.getStatusCode() == 404) {
@@ -184,9 +198,9 @@ public class UnityHiveMetastore
     public List<String> getAllDatabases()
     {
         try {
-            return Streams.stream(schemasApi.list(catalogName).iterator())
+            return retry(() -> Streams.stream(schemasApi.list(catalogName).iterator())
                     .map(SchemaInfo::getName)
-                    .collect(toImmutableList());
+                    .collect(toImmutableList()));
         }
         catch (Exception e) {
             throw new TrinoException(HIVE_METASTORE_ERROR, e);
@@ -198,7 +212,7 @@ public class UnityHiveMetastore
     {
         com.databricks.sdk.service.catalog.TableInfo tableInfo;
         try {
-            tableInfo = tablesApi.get(catalogName + NAMESPACE_SEPARATOR + databaseName + NAMESPACE_SEPARATOR + tableName);
+            tableInfo = retry(() -> tablesApi.get(catalogName + NAMESPACE_SEPARATOR + databaseName + NAMESPACE_SEPARATOR + tableName));
         }
         catch (DatabricksError e) {
             if (e.getStatusCode() == 404) {
@@ -242,7 +256,7 @@ public class UnityHiveMetastore
     public List<TableInfo> getTables(String databaseName)
     {
         try {
-            return Streams.stream(tablesApi.list(catalogName, databaseName))
+            return retry(() -> Streams.stream(tablesApi.list(catalogName, databaseName))
                     .filter(tableInfo -> {
                         DataSourceFormat dataSourceFormat = firstNonNull(tableInfo.getDataSourceFormat(), DELTA);
                         com.databricks.sdk.service.catalog.TableType tableType = firstNonNull(tableInfo.getTableType(), MANAGED);
@@ -253,7 +267,7 @@ public class UnityHiveMetastore
                                 && SUPPORTED_TABLE_TYPES_MAPPING.containsKey(tableType);
                     })
                     .map(table -> new TableInfo(schemaTableName(table.getSchemaName(), table.getName()), TABLE))
-                    .collect(toImmutableList());
+                    .collect(toImmutableList()));
         }
         catch (DatabricksError e) {
             if (e.getStatusCode() == 404) {
@@ -882,6 +896,12 @@ public class UnityHiveMetastore
             return com.databricks.sdk.service.catalog.DataSourceFormat.TEXT;
         }
         throw new TrinoException(NOT_SUPPORTED, "Unsupported data source format: " + storageFormat);
+    }
+
+    private static <T> T retry(CheckedSupplier<T> supplier)
+    {
+        return Failsafe.with(UNITY_API_RETRY_POLICY)
+                .get(supplier);
     }
 
     /// /////////////////////////////////////////
