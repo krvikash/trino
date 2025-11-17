@@ -19,6 +19,8 @@ public class AzureSpoolUtils
 {
     public static final String PATH_SEPARATOR = "/";
 
+    private AzureSpoolUtils() {}
+
     public static String getHostName(URI uri)
     {
         return requireNonNull(uri.getHost(), "Invalid abfs URI passed to getHostName: " + uri);
@@ -39,6 +41,4 @@ public class AzureSpoolUtils
         checkArgument(key.length() > 0, "Invalid abfs URI passed to keyFromUri: %s", uri);
         return key;
     }
-
-    private AzureSpoolUtils() {}
 }
