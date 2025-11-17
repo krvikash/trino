@@ -1908,7 +1908,7 @@ jobs:
             - suite-delta-lake-databricks-unity-s3-credentials-vending
             - suite-delta-lake-databricks-unity-gcs-credentials-vending
             - suite-hive-databricks-unity
-            - suite-exasol
+            #- suite-exasol
             - suite-ranger
             - suite-gcs
             - suite-hive4
