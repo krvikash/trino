@@ -14,6 +14,7 @@
 package io.trino.sql.gen;
 
 import com.google.common.collect.ImmutableList;
+import io.airlift.slice.Slices;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.operator.DriverYieldSignal;
@@ -25,6 +26,7 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.IntArrayBlock;
 import io.trino.spi.block.LongArrayBlock;
 import io.trino.spi.block.ShortArrayBlock;
+import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.type.StandardTypes;
@@ -32,6 +34,7 @@ import io.trino.spi.type.Type;
 import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.relational.RowExpression;
 import io.trino.sql.relational.SpecialForm;
+import io.trino.type.LikePattern;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
@@ -55,10 +58,12 @@ import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
 import static io.trino.sql.relational.Expressions.call;
 import static io.trino.sql.relational.Expressions.constant;
 import static io.trino.sql.relational.Expressions.field;
+import static io.trino.type.LikePatternType.LIKE_PATTERN;
 import static java.lang.Math.toIntExact;
 import static org.openjdk.jmh.annotations.Scope.Thread;
 
@@ -70,7 +75,7 @@ import static org.openjdk.jmh.annotations.Scope.Thread;
 public class BenchmarkColumnarFilter
 {
     private static final Random RANDOM = new Random(5376453765L);
-    private static final long CONSTANT = 8456;
+    private static final long CONSTANT = 18456;
     private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
 
     private PageProcessor compiledProcessor;
@@ -83,11 +88,11 @@ public class BenchmarkColumnarFilter
             "BETWEEN",
             "LESS_THAN",
             "NOT_EQUAL",
+            "LIKE_SUBSTRING",
             "IS_NULL",
             "IS_NOT_NULL",
     })
     public FilterProvider filterProvider;
-    public String dataType = StandardTypes.INTEGER;
 
     public enum FilterProvider
     {
@@ -147,6 +152,20 @@ public class BenchmarkColumnarFilter
                                 field(0, type),
                                 constant(CONSTANT, type)));
             }
+        },
+        LIKE_SUBSTRING {
+            @Override
+            RowExpression getExpression(Type type)
+            {
+                return call(
+                        FUNCTION_RESOLUTION.resolveFunction("$like", fromTypes(VARCHAR, LIKE_PATTERN)),
+                        call(
+                                FUNCTION_RESOLUTION.resolveFunction("substr", fromTypes(VARCHAR, BIGINT, BIGINT)),
+                                field(0, VARCHAR),
+                                constant(2L, BIGINT),
+                                constant(3L, BIGINT)),
+                        constant(LikePattern.compile("845", Optional.empty()), LIKE_PATTERN));
+            }
         }
         /**/;
 
@@ -156,11 +175,22 @@ public class BenchmarkColumnarFilter
     @Setup
     public void setup()
     {
+        if (filterProvider == FilterProvider.LIKE_SUBSTRING) {
+            setup(StandardTypes.VARCHAR);
+        }
+        else {
+            setup(StandardTypes.INTEGER);
+        }
+    }
+
+    public void setup(String dataType)
+    {
         for (int pageCount = 0; pageCount < 20; pageCount++) {
             Block block = switch (dataType) {
                 case StandardTypes.BIGINT -> createLongsBlock(8192, nullsPercentage);
                 case StandardTypes.INTEGER -> createIntsBlock(8192, nullsPercentage);
                 case StandardTypes.SMALLINT -> createShortsBlock(8192, nullsPercentage);
+                case StandardTypes.VARCHAR -> createStringsBlock(8192, nullsPercentage);
                 default -> throw new UnsupportedOperationException();
             };
             inputPages.add(new Page(block.getPositionCount(), block));
@@ -170,6 +200,7 @@ public class BenchmarkColumnarFilter
             case StandardTypes.BIGINT -> BIGINT;
             case StandardTypes.INTEGER -> INTEGER;
             case StandardTypes.SMALLINT -> SMALLINT;
+            case StandardTypes.VARCHAR -> VARCHAR;
             default -> throw new UnsupportedOperationException();
         };
         ExpressionCompiler expressionCompiler = FUNCTION_RESOLUTION.getExpressionCompiler();
@@ -208,14 +239,19 @@ public class BenchmarkColumnarFilter
     {
         for (boolean columnarEvaluationEnabled : ImmutableList.of(false, true)) {
             for (FilterProvider filterProvider : FilterProvider.values()) {
-                for (String dataType : ImmutableList.of(StandardTypes.BIGINT, StandardTypes.INTEGER, StandardTypes.SMALLINT)) {
+                for (String dataType : ImmutableList.of(StandardTypes.BIGINT, StandardTypes.INTEGER, StandardTypes.SMALLINT, StandardTypes.VARCHAR)) {
+                    if (dataType.equals(StandardTypes.VARCHAR) && filterProvider != FilterProvider.LIKE_SUBSTRING) {
+                        continue;
+                    }
+                    if (!dataType.equals(StandardTypes.VARCHAR) && filterProvider == FilterProvider.LIKE_SUBSTRING) {
+                        continue;
+                    }
                     for (int nullsPercentage : ImmutableList.of(0, 10)) {
                         BenchmarkColumnarFilter benchmark = new BenchmarkColumnarFilter();
                         benchmark.filterProvider = filterProvider;
-                        benchmark.dataType = dataType;
                         benchmark.columnarEvaluationEnabled = columnarEvaluationEnabled;
                         benchmark.nullsPercentage = nullsPercentage;
-                        benchmark.setup();
+                        benchmark.setup(dataType);
                         benchmark.evaluateFilter();
                     }
                 }
@@ -266,6 +302,20 @@ public class BenchmarkColumnarFilter
             }
         }
         return new LongArrayBlock(positionsCount, Optional.of(isNull), values);
+    }
+
+    private static Block createStringsBlock(int positionsCount, int nullsPercentage)
+    {
+        VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, positionsCount, positionsCount * 10);
+        for (int i = 0; i < positionsCount; i++) {
+            if (RANDOM.nextInt(100) < nullsPercentage) {
+                builder.appendNull();
+            }
+            else {
+                builder.writeEntry(Slices.utf8Slice(Long.toString(RANDOM.nextLong(CONSTANT - 15, CONSTANT + 15))));
+            }
+        }
+        return builder.build();
     }
 
     static {
