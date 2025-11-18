@@ -73,11 +73,12 @@ public class TestOpenApiQueries
                 "spec-location", fastApiServer.getSpecUrl(),
                 "base-uri", fastApiServer.getApiUrl()));
 
-        return OpenApiQueryRunner.createQueryRunner(Map.of(
+        return OpenApiQueryRunner.builder(Map.of(
                 "openmeteo", Map.of("spec-location", "https://raw.githubusercontent.com/open-meteo/open-meteo/main/openapi.yml",
                         "base-uri", "https://api.open-meteo.com"),
                 "petstore", petStoreProperties.buildOrThrow(),
-                "fastapi", fastApiProperties.buildOrThrow()));
+                "fastapi", fastApiProperties.buildOrThrow()))
+                .build();
     }
 
     @Test

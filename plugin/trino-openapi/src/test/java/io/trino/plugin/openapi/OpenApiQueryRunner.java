@@ -15,56 +15,88 @@
 package io.trino.plugin.openapi;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import io.airlift.log.Level;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
-import io.trino.Session;
 import io.trino.plugin.memory.MemoryPlugin;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import static com.google.common.base.Verify.verify;
+import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static java.util.Objects.requireNonNullElse;
 
-public class OpenApiQueryRunner
+public final class OpenApiQueryRunner
 {
-    private OpenApiQueryRunner() {}
-
-    public static QueryRunner createQueryRunner(Map<String, Map<String, String>> catalogProperties)
-            throws Exception
-    {
+    static {
         Logging logger = Logging.initialize();
         logger.setLevel("io.trino.plugin.openapi", Level.DEBUG);
         logger.setLevel("io.trino", Level.INFO);
         logger.setLevel("io.airlift", Level.INFO);
+    }
 
-        catalogProperties.values().forEach(properties -> verify(
-                properties.containsKey("spec-location") && properties.containsKey("base-uri"),
-                "catalogProperties must include spec-location and base-uri"));
-        Session defaultSession = testSessionBuilder()
-                .setCatalog(catalogProperties.keySet().stream().findFirst().orElseThrow())
-                .setSchema("default")
-                .build();
+    private OpenApiQueryRunner() {}
 
-        ImmutableMap.Builder<String, String> extraProperties = ImmutableMap.<String, String>builder();
-        if (System.getenv("TRINO_PORT") != null) {
-            extraProperties.put("http-server.http.port", System.getenv("TRINO_PORT"));
+    public static Builder builder(Map<String, Map<String, String>> openAPICatalogs)
+    {
+        if (openAPICatalogs.isEmpty()) {
+            throw new IllegalArgumentException("openAPICatalogs is empty, required at least one catalog for a default.");
+        }
+        String initialCatalogName = openAPICatalogs.keySet().iterator().next();
+        Builder builder = new Builder(initialCatalogName);
+        openAPICatalogs.forEach(builder::addOpenAPICatalog);
+        return builder;
+    }
+
+    public static final class Builder
+            extends DistributedQueryRunner.Builder<Builder>
+    {
+        private final Map<String, Map<String, String>> openAPICatalogs = new HashMap<>();
+
+        private Builder(String initialCatalogName)
+        {
+            super(testSessionBuilder()
+                    .setCatalog(initialCatalogName)
+                    .setSchema("default")
+                    .build());
         }
 
-        QueryRunner queryRunner = DistributedQueryRunner.builder(defaultSession)
-                .setExtraProperties(extraProperties.buildOrThrow())
-                .setWorkerCount(0)
-                .build();
-        queryRunner.installPlugin(new OpenApiPlugin());
-        queryRunner.installPlugin(new MemoryPlugin());
+        @CanIgnoreReturnValue
+        public Builder addOpenAPICatalog(String catalogName, Map<String, String> catalogProperties)
+        {
+            verify(
+                    catalogProperties.containsKey("spec-location") &&
+                            catalogProperties.containsKey("base-uri"),
+                    "catalogProperties must include spec-location and base-uri");
+            openAPICatalogs.put(catalogName, catalogProperties);
+            return this;
+        }
 
-        queryRunner.createCatalog("memory", "memory");
-        catalogProperties.forEach((name, properties) -> queryRunner.createCatalog(name, "openapi", properties));
+        @Override
+        public DistributedQueryRunner build()
+                throws Exception
+        {
+            DistributedQueryRunner queryRunner = super.build();
+            try {
+                queryRunner.installPlugin(new MemoryPlugin());
+                queryRunner.createCatalog("memory", "memory");
 
-        return queryRunner;
+                queryRunner.installPlugin(new OpenApiPlugin());
+                openAPICatalogs.forEach((name, properties) ->
+                        queryRunner.createCatalog(name, "openapi", properties));
+
+                return queryRunner;
+            }
+            catch (Throwable e) {
+                closeAllSuppress(e, queryRunner);
+                throw e;
+            }
+        }
     }
 
     public static void main(String[] args)
@@ -101,7 +133,12 @@ public class OpenApiQueryRunner
                     "authentication.api-key-name", requireNonNullElse(System.getenv("OPENAPI_API_KEY_NAME"), "api_key"),
                     "authentication.api-key-value", requireNonNullElse(System.getenv("OPENAPI_API_KEY_VALUE"), "special-key")));
         }
-        QueryRunner queryRunner = createQueryRunner(Map.of("openapi", properties.buildOrThrow()));
+        Builder queryRunnerBuilder = builder(Map.of("openapi", properties.buildOrThrow()));
+        if (System.getenv("TRINO_PORT") != null) {
+            queryRunnerBuilder = queryRunnerBuilder.addCoordinatorProperty("http-server.http.port",
+                    System.getenv("TRINO_PORT"));
+        }
+        QueryRunner queryRunner = queryRunnerBuilder.build();
 
         Logger log = Logger.get(OpenApiQueryRunner.class);
         log.info("======== SERVER STARTED ========");

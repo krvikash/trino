@@ -43,7 +43,7 @@ public class TestGithub
                 "authentication.type", "http",
                 "authentication.scheme", "bearer",
                 "authentication.bearer-token", requireNonNullElse(System.getenv("GITHUB_TOKEN"), "")));
-        return OpenApiQueryRunner.createQueryRunner(Map.of("github", properties.buildOrThrow()));
+        return OpenApiQueryRunner.builder(Map.of("github", properties.buildOrThrow())).build();
     }
 
     @Test

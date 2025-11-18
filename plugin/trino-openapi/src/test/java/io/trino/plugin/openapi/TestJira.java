@@ -40,7 +40,7 @@ public class TestJira
                 "authentication.scheme", "basic",
                 "authentication.username", requireNonNullElse(System.getenv("JIRA_USER"), ""),
                 "authentication.password", requireNonNullElse(System.getenv("JIRA_TOKEN"), "")));
-        return OpenApiQueryRunner.createQueryRunner(Map.of("jira", properties.buildOrThrow()));
+        return OpenApiQueryRunner.builder(Map.of("jira", properties.buildOrThrow())).build();
     }
 
     @Test
