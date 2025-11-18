@@ -18,6 +18,7 @@ import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.gcs.GcsFileSystemConfig;
 import io.trino.filesystem.gcs.GcsFileSystemFactory;
 import io.trino.filesystem.gcs.GcsServiceAccountAuth;
+import io.trino.filesystem.gcs.GcsServiceAccountAuthConfig;
 import io.trino.filesystem.gcs.GcsStorageFactory;
 import io.trino.plugin.hive.HiveQueryRunner;
 import io.trino.testing.QueryRunner;
@@ -59,8 +60,9 @@ public class TestUnloadGcs
     protected TrinoFileSystemFactory getFileSystemFactory()
             throws IOException
     {
-        GcsFileSystemConfig config = new GcsFileSystemConfig().setJsonKey(gcsJsonKey);
-        return new GcsFileSystemFactory(config, new GcsStorageFactory(config, new GcsServiceAccountAuth(config)));
+        GcsFileSystemConfig config = new GcsFileSystemConfig();
+        GcsServiceAccountAuthConfig authConfig = new GcsServiceAccountAuthConfig().setJsonKey(gcsJsonKey);
+        return new GcsFileSystemFactory(config, new GcsStorageFactory(config, new GcsServiceAccountAuth(authConfig)));
     }
 
     @Override

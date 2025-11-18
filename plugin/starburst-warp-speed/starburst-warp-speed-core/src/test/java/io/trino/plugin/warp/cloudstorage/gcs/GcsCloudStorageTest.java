@@ -17,6 +17,7 @@ import io.airlift.configuration.ConfigurationFactory;
 import io.trino.filesystem.gcs.GcsFileSystemConfig;
 import io.trino.filesystem.gcs.GcsFileSystemFactory;
 import io.trino.filesystem.gcs.GcsServiceAccountAuth;
+import io.trino.filesystem.gcs.GcsServiceAccountAuthConfig;
 import io.trino.filesystem.gcs.GcsStorageFactory;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.cloudstorage.CloudStorageAbstractTest;
@@ -38,9 +39,10 @@ public class GcsCloudStorageTest
     void setUp()
             throws IOException
     {
-        GcsFileSystemConfig config = new GcsFileSystemConfig().setJsonKey(GCP_CREDENTIAL_KEY);
+        GcsFileSystemConfig config = new GcsFileSystemConfig();
+        GcsServiceAccountAuthConfig authConfig = new GcsServiceAccountAuthConfig().setJsonKey(GCP_CREDENTIAL_KEY);
 
-        GcsStorageFactory storageFactory = new GcsStorageFactory(config, new GcsServiceAccountAuth(config));
+        GcsStorageFactory storageFactory = new GcsStorageFactory(config, new GcsServiceAccountAuth(authConfig));
 
         GcsFileSystemFactory fileSystemFactory = new GcsFileSystemFactory(config, storageFactory);
 

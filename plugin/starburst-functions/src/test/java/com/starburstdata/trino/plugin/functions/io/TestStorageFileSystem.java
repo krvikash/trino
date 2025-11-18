@@ -23,6 +23,7 @@ import io.trino.filesystem.gcs.GcsFileSystem;
 import io.trino.filesystem.gcs.GcsFileSystemConfig;
 import io.trino.filesystem.gcs.GcsFileSystemFactory;
 import io.trino.filesystem.gcs.GcsServiceAccountAuth;
+import io.trino.filesystem.gcs.GcsServiceAccountAuthConfig;
 import io.trino.filesystem.gcs.GcsStorageFactory;
 import io.trino.filesystem.s3.S3FileSystem;
 import io.trino.filesystem.s3.S3FileSystemConfig;
@@ -126,8 +127,9 @@ final class TestStorageFileSystem
     private static GcsFileSystem gcsFileSystem(ConnectorSession session)
             throws IOException
     {
-        GcsFileSystemConfig config = new GcsFileSystemConfig().setJsonKey(GCP_CREDENTIALS_KEY);
-        GcsFileSystemFactory fileSystemFactory = new GcsFileSystemFactory(config, new GcsStorageFactory(config, new GcsServiceAccountAuth(config)));
+        GcsFileSystemConfig config = new GcsFileSystemConfig();
+        GcsServiceAccountAuthConfig authConfig = new GcsServiceAccountAuthConfig().setJsonKey(GCP_CREDENTIALS_KEY);
+        GcsFileSystemFactory fileSystemFactory = new GcsFileSystemFactory(config, new GcsStorageFactory(config, new GcsServiceAccountAuth(authConfig)));
         return (GcsFileSystem) fileSystemFactory.create(session);
     }
 
