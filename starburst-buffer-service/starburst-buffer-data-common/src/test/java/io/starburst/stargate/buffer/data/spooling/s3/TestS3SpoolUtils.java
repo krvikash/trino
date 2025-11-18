@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import java.net.URI;
 
 import static io.starburst.stargate.buffer.data.spooling.s3.S3SpoolUtils.getS3UriInfo;
+import static io.starburst.stargate.buffer.data.spooling.s3.S3SpoolUtils.keyFromUri;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -114,5 +115,105 @@ class TestS3SpoolUtils
         S3UriInfo s3UriInfo = getS3UriInfo(uri);
         assertThat(s3UriInfo.bucket()).isEqualTo("my-bucket");
         assertThat(s3UriInfo.path()).isEqualTo("some//path");
+    }
+
+    @Test
+    void testKeyFromUriWithSimplePath()
+    {
+        URI uri = URI.create("s3://my-bucket/path/to/file");
+        assertThat(keyFromUri(uri)).isEqualTo("path/to/file");
+    }
+
+    @Test
+    void testKeyFromUriWithLeadingSlash()
+    {
+        URI uri = URI.create("s3://my-bucket/some/key");
+        assertThat(keyFromUri(uri)).isEqualTo("some/key");
+    }
+
+    @Test
+    void testKeyFromUriWithTrailingSlash()
+    {
+        URI uri = URI.create("s3://my-bucket/some/key/");
+        assertThat(keyFromUri(uri)).isEqualTo("some/key");
+    }
+
+    @Test
+    void testKeyFromUriWithLeadingAndTrailingSlash()
+    {
+        URI uri = URI.create("s3://my-bucket/some/key/");
+        assertThat(keyFromUri(uri)).isEqualTo("some/key");
+    }
+
+    @Test
+    void testKeyFromUriWithMultipleLeadingSlashes()
+    {
+        URI uri = URI.create("s3://my-bucket///some/key");
+        assertThat(keyFromUri(uri)).isEqualTo("//some/key");
+    }
+
+    @Test
+    void testKeyFromUriWithMultipleTrailingSlashes()
+    {
+        URI uri = URI.create("s3://my-bucket/some/key///");
+        assertThat(keyFromUri(uri)).isEqualTo("some/key//");
+    }
+
+    @Test
+    void testKeyFromUriWithNoPath()
+    {
+        URI uri = URI.create("s3://my-bucket");
+        assertThat(keyFromUri(uri)).isEqualTo("");
+    }
+
+    @Test
+    void testKeyFromUriWithEmptyPath()
+    {
+        URI uri = URI.create("s3://my-bucket/");
+        assertThat(keyFromUri(uri)).isEqualTo("");
+    }
+
+    @Test
+    void testKeyFromUriWithSingleSegment()
+    {
+        URI uri = URI.create("s3://my-bucket/file");
+        assertThat(keyFromUri(uri)).isEqualTo("file");
+    }
+
+    @Test
+    void testKeyFromUriWithDeepPath()
+    {
+        URI uri = URI.create("s3://my-bucket/level1/level2/level3/level4/file.txt");
+        assertThat(keyFromUri(uri)).isEqualTo("level1/level2/level3/level4/file.txt");
+    }
+
+    @Test
+    void testKeyFromUriWithSpecialCharacters()
+    {
+        URI uri = URI.create("s3://my-bucket/path-with_special.chars/file-name_123.txt");
+        assertThat(keyFromUri(uri)).isEqualTo("path-with_special.chars/file-name_123.txt");
+    }
+
+    @Test
+    void testKeyFromUriWithUnderscoreInBucket()
+    {
+        URI uri = URI.create("s3://my_bucket/path/to/key");
+        assertThat(keyFromUri(uri)).isEqualTo("path/to/key");
+    }
+
+    @Test
+    void testKeyFromUriWithRelativeUri()
+    {
+        URI uri = URI.create("/path/to/file");
+        assertThatThrownBy(() -> keyFromUri(uri))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Uri is not absolute");
+    }
+
+    @Test
+    void testKeyFromUriWithNullPath()
+    {
+        URI uri = URI.create("s3://my-bucket");
+        assertThat(keyFromUri(uri)).isEqualTo("");
     }
 }
