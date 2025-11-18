@@ -308,7 +308,6 @@ public class TestExponentialGrowthPartitionMemoryEstimator
                         ImmutableMap.of(),
                         ImmutableMap.of(),
                         ImmutableMap.of(),
-                        ImmutableMap.of(),
                         ImmutableMap.of()));
     }
 }
