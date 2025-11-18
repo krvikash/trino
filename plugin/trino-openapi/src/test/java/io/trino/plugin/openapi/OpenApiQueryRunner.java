@@ -29,7 +29,6 @@ import java.util.Map;
 import static com.google.common.base.Verify.verify;
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.trino.testing.TestingSession.testSessionBuilder;
-import static java.util.Objects.requireNonNullElse;
 
 public final class OpenApiQueryRunner
 {
@@ -102,44 +101,15 @@ public final class OpenApiQueryRunner
     public static void main(String[] args)
             throws Exception
     {
-        ImmutableMap.Builder<String, String> properties = ImmutableMap.builder();
-        if (System.getenv("OPENAPI_SPEC_LOCATION") == null || System.getenv("OPENAPI_BASE_URI") == null) {
-            PetStoreServer server = new PetStoreServer(new KeycloakServer());
-            properties.put("spec-location", server.getSpecUrl());
-            properties.put("base-uri", server.getApiUrl());
-        }
-        else {
-            properties.put("spec-location", System.getenv("OPENAPI_SPEC_LOCATION"));
-            properties.put("base-uri", System.getenv("OPENAPI_BASE_URI"));
-        }
-        properties.putAll(Map.of(
+        FastApiServer fastApiServer = new FastApiServer();
+        ImmutableMap<String, String> openapiProperties = ImmutableMap.of(
                 "openApi.http-client.log.enabled", "true",
                 "openApi.http-client.log.path", "logs",
-                "authentication.type", requireNonNullElse(System.getenv("OPENAPI_AUTH_TYPE"), "api_key"),
-                "authentication.scheme", requireNonNullElse(System.getenv("OPENAPI_AUTH_SCHEME"), "basic"),
-                "authentication.username", requireNonNullElse(System.getenv("OPENAPI_USERNAME"), "test"),
-                "authentication.password", requireNonNullElse(System.getenv("OPENAPI_PASSWORD"), "abc123"),
-                "authentication.bearer-token", requireNonNullElse(System.getenv("OPENAPI_BEARER_TOKEN"), "")));
-        if (System.getenv("OPENAPI_CLIENT_ID") != null) {
-            properties.putAll(Map.of(
-                    "authentication.client-id", requireNonNullElse(System.getenv("OPENAPI_CLIENT_ID"), "sample-client-id"),
-                    "authentication.client-secret", requireNonNullElse(System.getenv("OPENAPI_CLIENT_SECRET"), "secret")));
-        }
-        if (System.getenv("OPENAPI_API_KEYS") != null) {
-            properties.put("authentication.api-keys", System.getenv("OPENAPI_API_KEYS"));
-        }
-        else {
-            properties.putAll(Map.of(
-                    "authentication.api-key-name", requireNonNullElse(System.getenv("OPENAPI_API_KEY_NAME"), "api_key"),
-                    "authentication.api-key-value", requireNonNullElse(System.getenv("OPENAPI_API_KEY_VALUE"), "special-key")));
-        }
-        Builder queryRunnerBuilder = builder(Map.of("openapi", properties.buildOrThrow()));
-        if (System.getenv("TRINO_PORT") != null) {
-            queryRunnerBuilder = queryRunnerBuilder.addCoordinatorProperty("http-server.http.port",
-                    System.getenv("TRINO_PORT"));
-        }
-        QueryRunner queryRunner = queryRunnerBuilder.build();
-
+                "spec-location", fastApiServer.getSpecUrl(),
+                "base-uri", fastApiServer.getApiUrl());
+        QueryRunner queryRunner = builder(Map.of("openapi", openapiProperties))
+                .addCoordinatorProperty("http-server.http.port", "8080")
+                .build();
         Logger log = Logger.get(OpenApiQueryRunner.class);
         log.info("======== SERVER STARTED ========");
         log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
