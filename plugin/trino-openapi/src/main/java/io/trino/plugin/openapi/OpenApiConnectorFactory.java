@@ -42,9 +42,7 @@ public class OpenApiConnectorFactory
 
         // A plugin is not required to use Guice; it is just very convenient
         Bootstrap app = new Bootstrap(
-                new OpenApiModule(
-                        context.getNodeManager(),
-                        context.getTypeManager()));
+                new OpenApiModule());
 
         Injector injector = app
                 .doNotInitializeLogging()

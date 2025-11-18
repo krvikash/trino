@@ -18,32 +18,19 @@ import com.google.inject.Binder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.plugin.openapi.authentication.Authentication;
 import io.trino.plugin.openapi.authentication.OpenApiAuthenticationClient;
-import io.trino.spi.NodeManager;
-import io.trino.spi.type.TypeManager;
 
 import static com.google.inject.Scopes.SINGLETON;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
-import static java.util.Objects.requireNonNull;
 
 public class OpenApiModule
         extends AbstractConfigurationAwareModule
 {
-    private final NodeManager nodeManager;
-    private final TypeManager typeManager;
-
-    public OpenApiModule(NodeManager nodeManager, TypeManager typeManager)
-    {
-        this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
-        this.typeManager = requireNonNull(typeManager, "typeManager is null");
-    }
+    public OpenApiModule() {}
 
     @Override
     protected void setup(Binder binder)
     {
-        binder.bind(NodeManager.class).toInstance(nodeManager);
-        binder.bind(TypeManager.class).toInstance(typeManager);
-
         binder.bind(OpenApiConnector.class).in(SINGLETON);
         binder.bind(OpenApiMetadata.class).in(SINGLETON);
         binder.bind(OpenApiSplitManager.class).in(SINGLETON);
