@@ -19,7 +19,6 @@ import io.airlift.bootstrap.LifeCycleManager;
 import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.dispatcher.DispatcherAlternativeChooser;
 import io.trino.plugin.warp.dispatcher.DispatcherNodePartitioningProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.node.CoordinatorNodeManager;
@@ -29,6 +28,7 @@ import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
+import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
@@ -77,9 +77,9 @@ public class SingleDispatcherConnector
     }
 
     @Override
-    public DispatcherAlternativeChooser getAlternativeChooser()
+    public ConnectorPageSourceProvider getPageSourceProvider()
     {
-        return workerDispatcherConnector.getAlternativeChooser();
+        return workerDispatcherConnector.getPageSourceProvider();
     }
 
     @Override

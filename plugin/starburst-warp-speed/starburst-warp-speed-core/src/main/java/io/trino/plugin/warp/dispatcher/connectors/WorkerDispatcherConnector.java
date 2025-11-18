@@ -19,12 +19,13 @@ import io.airlift.bootstrap.LifeCycleManager;
 import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.dispatcher.DispatcherAlternativeChooser;
+import io.trino.plugin.warp.dispatcher.DispatcherPageSourceProvider;
 import io.trino.plugin.warp.dispatcher.WorkerNodePartitioningProvider;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
+import io.trino.spi.connector.ConnectorPageSourceProvider;
 
 import static java.util.Objects.requireNonNull;
 
@@ -32,7 +33,7 @@ import static java.util.Objects.requireNonNull;
 public class WorkerDispatcherConnector
         extends DispatcherConnectorBase
 {
-    private final DispatcherAlternativeChooser dispatcherAlternativeChooser;
+    private final DispatcherPageSourceProvider dispatcherPageSourceProvider;
     private final WorkerCapacityManager workerCapacityManager;
 
     @Inject
@@ -40,21 +41,21 @@ public class WorkerDispatcherConnector
             @ForWarp Connector proxiedConnector,
             GlobalConfig globalConfig,
             WarpSessionProperties warpSessionProperties,
-            DispatcherAlternativeChooser dispatcherAlternativeChooser,
+            DispatcherPageSourceProvider dispatcherPageSourceProvider,
             LifeCycleManager lifeCycleManager,
             ConnectorTaskExecutor connectorTaskExecutor,
             NativeStorageStateHandler nativeStorageStateHandler,
             WorkerCapacityManager workerCapacityManager)
     {
         super(proxiedConnector, globalConfig, warpSessionProperties, lifeCycleManager, connectorTaskExecutor, nativeStorageStateHandler);
-        this.dispatcherAlternativeChooser = requireNonNull(dispatcherAlternativeChooser);
+        this.dispatcherPageSourceProvider = requireNonNull(dispatcherPageSourceProvider);
         this.workerCapacityManager = workerCapacityManager;
     }
 
     @Override
-    public DispatcherAlternativeChooser getAlternativeChooser()
+    public ConnectorPageSourceProvider getPageSourceProvider()
     {
-        return dispatcherAlternativeChooser;
+        return dispatcherPageSourceProvider;
     }
 
     @Override

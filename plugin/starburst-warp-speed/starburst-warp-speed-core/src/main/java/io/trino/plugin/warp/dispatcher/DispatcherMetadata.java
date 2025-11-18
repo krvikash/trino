@@ -95,7 +95,6 @@ import io.trino.spi.statistics.TableStatistics;
 import io.trino.spi.statistics.TableStatisticsMetadata;
 import io.trino.spi.type.Type;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -941,12 +940,10 @@ public class DispatcherMetadata
         // Build and return result
         if (resultOpt.isEmpty()) {
             if (dispatcherTableHandle.getWarpExpression().equals(warpExpression)) {
-                return createSubsumedPredicatesAlternative(session, dispatcherTableHandle, constraint.getExpression())
-                        .flatMap(alternative -> Optional.of(new ConstraintApplicationResult<>(true, List.of(alternative))));
+                return Optional.empty();
             }
             return createConstraintApplicationResult(
                     session,
-                    constraint,
                     dispatcherTableHandle,
                     constraint.getSummary(),
                     Optional.empty(),
@@ -963,7 +960,6 @@ public class DispatcherMetadata
 
         return createConstraintApplicationResult(
                 session,
-                constraint,
                 dispatcherTableHandle,
                 newRemainingFilter,
                 newRemainingExpression,
@@ -974,7 +970,6 @@ public class DispatcherMetadata
 
     private Optional<ConstraintApplicationResult<ConnectorTableHandle>> createConstraintApplicationResult(
             ConnectorSession session,
-            Constraint constraint,
             DispatcherTableHandle table,
             TupleDomain<ColumnHandle> newRemainingFilter,
             Optional<ConnectorExpression> newRemainingExpression,
@@ -983,20 +978,14 @@ public class DispatcherMetadata
             Map<String, Long> customStatsMap)
     {
         List<CustomStat> customStats = mergeCustomStats(table.getCustomStats(), customStatsMap);
-
         TupleDomain<ColumnHandle> fullPredicate = table.getFullPredicate().intersect(newRemainingFilter);
         DispatcherTableHandle dispatcherTableHandle = createTableHandleBuilder(session, Optional.of(table), proxiedConnectorTableHandle, table.getSchemaTableName())
                 .warpExpression(warpExpression)
                 .customStats(customStats)
                 .fullPredicate(fullPredicate)
-                .subsumedPredicates(false)
                 .build();
-
-        List<ConstraintApplicationResult.Alternative<ConnectorTableHandle>> alternatives = new ArrayList<>(2);
-        alternatives.add(new ConstraintApplicationResult.Alternative<>(dispatcherTableHandle, newRemainingFilter, newRemainingExpression, false));
-
-        createSubsumedPredicatesAlternative(session, dispatcherTableHandle, constraint.getExpression())
-                .ifPresent(alternatives::add);
+        List<ConstraintApplicationResult.Alternative<ConnectorTableHandle>> alternatives = List.of(
+                new ConstraintApplicationResult.Alternative<>(dispatcherTableHandle, newRemainingFilter, newRemainingExpression, false));
 
         return Optional.of(new ConstraintApplicationResult<>(false, alternatives));
     }
@@ -1017,25 +1006,6 @@ public class DispatcherMetadata
         return allStatsMap.entrySet().stream()
                 .map(entry -> new CustomStat(entry.getKey(), entry.getValue()))
                 .toList();
-    }
-
-    private Optional<ConstraintApplicationResult.Alternative<ConnectorTableHandle>> createSubsumedPredicatesAlternative(
-            ConnectorSession session,
-            DispatcherTableHandle dispatcherTableHandle,
-            ConnectorExpression remainingExpression)
-    {
-        if (!dispatcherTableHandle.getFullPredicate().isAll()) {
-            // TODO: Support expressions (we currently don't have a way to know if the expression is fully subsumed or not)
-            DispatcherTableHandle table = createTableHandleBuilder(session, Optional.of(dispatcherTableHandle), dispatcherTableHandle.getProxyConnectorTableHandle(), dispatcherTableHandle.getSchemaTableName())
-                    .subsumedPredicates(true)
-                    .build();
-            return Optional.of(new ConstraintApplicationResult.Alternative<>(
-                    table,
-                    TupleDomain.all(), // in this alternative, TupleDomain is fully subsumed
-                    Optional.of(remainingExpression), // currently, Trino has to filter expressions after WarpSpeed
-                    false));
-        }
-        return Optional.empty();
     }
 
     @Override
@@ -1119,20 +1089,6 @@ public class DispatcherMetadata
         DispatcherTableHandle secondTable = (DispatcherTableHandle) second;
 
         if (!Objects.equals(firstTable.getSchemaTableName(), secondTable.getSchemaTableName())) {
-            return Optional.empty();
-        }
-
-        if (firstTable.isSubsumedPredicates() || secondTable.isSubsumedPredicates()) {
-            // TODO: Consider supporting subsumedPredicates
-            //  (probably not worth the effort as "subplan alternatives" is currently not used in production and not even supported by the new IR)
-            //  To support subsumedPredicates properly, we need to return a corresponding compensationFilter for both tables.
-            //  Using each table’s full predicate defeats the purpose of subsumed predicates.
-            //  A better approach is calling applyFilter() on the unified table. This would create a new alternative with
-            //  subsumedPredicate=true (among other alternatives), which we can pick.
-            //  However, calling applyFilter isn’t trivial. It requires reconstructing ConnectorExpression and assignments.
-            //  To support this, we might want to preserve the original ConnectorExpression on each table (as an unserialized member, since it's not needed on workers).
-            //  We would probably just apply an OR between the expressions, though this needs to be tested carefully as Warp’s support for expressions can be brittle.
-            //  Note that currently we don’t combine (AND) Warp expressions in applyFilter, even though we probably should.
             return Optional.empty();
         }
 

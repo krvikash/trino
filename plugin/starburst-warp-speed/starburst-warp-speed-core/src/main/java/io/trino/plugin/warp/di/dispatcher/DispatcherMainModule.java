@@ -19,8 +19,8 @@ import io.trino.plugin.warp.di.ExtraModule;
 import io.trino.plugin.warp.di.WarpBaseModule;
 import io.trino.plugin.warp.dictionary.AttachDictionaryService;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
-import io.trino.plugin.warp.dispatcher.DispatcherAlternativeChooser;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSinkProvider;
+import io.trino.plugin.warp.dispatcher.DispatcherPageSourceProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandleBuilderProvider;
 import io.trino.plugin.warp.dispatcher.ReadErrorHandler;
 import io.trino.plugin.warp.dispatcher.WarpConnectorContext;
@@ -98,7 +98,7 @@ public class DispatcherMainModule
             binder.bind(DemoterSync.class).toInstance(context.getWarpPluginSharedInstances().demoterSync());
             binder.bind(DictionaryCacheService.class);
             binder.bind(DictionaryWriterFactory.class);
-            binder.bind(DispatcherAlternativeChooser.class);
+            binder.bind(DispatcherPageSourceProvider.class);
             binder.bind(DispatcherPageSinkProvider.class);
             binder.bind(DomainToMapBlockConvertor.class);
             binder.bind(EmptyRowGroupWarmer.class);

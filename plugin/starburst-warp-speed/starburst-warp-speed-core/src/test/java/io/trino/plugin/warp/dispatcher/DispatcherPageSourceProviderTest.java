@@ -33,7 +33,6 @@ import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
-import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.metrics.MetricsRegistry;
 import io.trino.plugin.warp.metrics.PrintMetricsTimerTask;
@@ -53,9 +52,9 @@ import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
+import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
-import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.SchemaTableName;
@@ -86,19 +85,17 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class DispatcherAlternativePageSourceProviderTest
+public class DispatcherPageSourceProviderTest
 {
     private GlobalConfig globalConfig;
     private ConnectorTransactionHandle connectorTransactionHandle;
     private MetricsManager metricsManager;
-    private CustomStatsContext customStatsContext;
     private StorageEngineConstants storageEngineConstants;
     private WorkerWarmingService workerWarmingService;
     private ConnectorSession connectorSession;
@@ -108,9 +105,9 @@ public class DispatcherAlternativePageSourceProviderTest
     private RowGroupDataService rowGroupDataService;
     private RowGroupKey rowGroupKey;
 
-    private DispatcherAlternativeChooser.ResourceCloser resourceCloser;
-    private DispatcherAlternativePageSourceProvider dispatcherAlternativePageSourceProvider;
+    private DispatcherPageSourceProvider dispatcherPageSourceProvider;
     private TestingConnectorPageSourceProvider proxiedPageSourceProvider;
+    private ConnectorPageSourceProviderFactory connectorPageSourceProviderFactory;
     private DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private QueryClassifier queryClassifier;
     private final SchemaTableName schemaTableName = new SchemaTableName("s", "t");
@@ -156,21 +153,14 @@ public class DispatcherAlternativePageSourceProviderTest
                 dispatcherSplit.getDeletedFilesHash());
 
         proxiedPageSourceProvider = mock(TestingConnectorPageSourceProvider.class);
+        connectorPageSourceProviderFactory = mock(ConnectorPageSourceProviderFactory.class);
+        when(connectorPageSourceProviderFactory.createPageSourceProvider()).thenReturn(proxiedPageSourceProvider);
 
         queryClassifier = mock(QueryClassifier.class);
 
         dispatcherTableHandle = mockDispatcherTableHandle(schemaTableName.getSchemaName(), schemaTableName.getTableName(), TupleDomain.all());
 
-        customStatsContext = new CustomStatsContext(metricsManager, dispatcherTableHandle.getCustomStats());
-
-        resourceCloser = mock(DispatcherAlternativeChooser.ResourceCloser.class);
-        doAnswer(invocation -> {
-                    rowGroupDataService.get(rowGroupKey).getLock().readUnLock();
-                    return null;
-                }
-        ).when(resourceCloser).close();
-
-        dispatcherAlternativePageSourceProvider = createDispatcherPageSourceProvider(dispatcherSplit, dispatcherTableHandle, resourceCloser);
+        dispatcherPageSourceProvider = createDispatcherPageSourceProvider();
 
         dynamicFilter = DynamicFilter.EMPTY;
     }
@@ -197,8 +187,10 @@ public class DispatcherAlternativePageSourceProviderTest
         when(dispatcherProxiedConnectorTransformer.createProxiedConnectorTableHandleForMixedQuery(eq(dispatcherTableHandle)))
                 .thenReturn(dispatcherTableHandle.getProxyConnectorTableHandle());
 
-        try (ConnectorPageSource wrapperPageSource = dispatcherAlternativePageSourceProvider.createPageSource(connectorTransactionHandle,
+        try (ConnectorPageSource wrapperPageSource = dispatcherPageSourceProvider.createPageSource(connectorTransactionHandle,
                 connectorSession,
+                dispatcherSplit,
+                dispatcherTableHandle,
                 columnHandles,
                 dynamicFilter,
                 true)) {
@@ -224,9 +216,11 @@ public class DispatcherAlternativePageSourceProviderTest
         when(dispatcherProxiedConnectorTransformer.createProxiedConnectorTableHandleForMixedQuery(eq(dispatcherTableHandle)))
                 .thenReturn(dispatcherTableHandle.getProxyConnectorTableHandle());
 
-        ConnectorPageSource pageSource = dispatcherAlternativePageSourceProvider.createPageSource(
+        ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(
                 connectorTransactionHandle,
                 connectorSession,
+                dispatcherSplit,
+                dispatcherTableHandle,
                 columnHandles,
                 dynamicFilter,
                 true);
@@ -255,9 +249,11 @@ public class DispatcherAlternativePageSourceProviderTest
         when(dispatcherProxiedConnectorTransformer.createProxiedConnectorTableHandleForMixedQuery(eq(dispatcherTableHandle)))
                 .thenReturn(dispatcherTableHandle.getProxyConnectorTableHandle());
 
-        try (ConnectorPageSource pageSource = dispatcherAlternativePageSourceProvider.createPageSource(
+        try (ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(
                 connectorTransactionHandle,
                 connectorSession,
+                dispatcherSplit,
+                dispatcherTableHandle,
                 columnHandles,
                 dynamicFilter,
                 true)) {
@@ -282,9 +278,11 @@ public class DispatcherAlternativePageSourceProviderTest
         when(rowGroupDataService.get(rowGroupKey)).thenReturn(rowGroupDataWarmedUpElements);
         when(rowGroupDataService.getIfPresent(rowGroupKey)).thenReturn(rowGroupDataWarmedUpElements);
 
-        try (ConnectorPageSource pageSource = dispatcherAlternativePageSourceProvider.createPageSource(
+        try (ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(
                 connectorTransactionHandle,
                 connectorSession,
+                dispatcherSplit,
+                dispatcherTableHandle,
                 allColumns,
                 dynamicFilter,
                 true)) {
@@ -306,8 +304,10 @@ public class DispatcherAlternativePageSourceProviderTest
         when(rowGroupDataService.get(rowGroupKey)).thenReturn(rowGroupData);
         when(rowGroupDataService.getIfPresent(rowGroupKey)).thenReturn(rowGroupData);
 
-        ConnectorPageSource pageSource = dispatcherAlternativePageSourceProvider.createPageSource(connectorTransactionHandle,
+        ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(connectorTransactionHandle,
                 connectorSession,
+                dispatcherSplit,
+                dispatcherTableHandle,
                 Collections.emptyList(),
                 DynamicFilter.EMPTY,
                 true);
@@ -329,7 +329,7 @@ public class DispatcherAlternativePageSourceProviderTest
         dispatcherTableHandle = mockDispatcherTableHandle(schemaTableName.getSchemaName(),
                 schemaTableName.getTableName(),
                 predicate);
-        dispatcherAlternativePageSourceProvider = createDispatcherPageSourceProvider(dispatcherSplit, dispatcherTableHandle, resourceCloser);
+        dispatcherPageSourceProvider = createDispatcherPageSourceProvider();
 
         mockQueryClassifier(false, true, false);
 
@@ -338,8 +338,10 @@ public class DispatcherAlternativePageSourceProviderTest
         when(rowGroupDataService.get(rowGroupKey)).thenReturn(rowGroupData);
         when(rowGroupDataService.getIfPresent(rowGroupKey)).thenReturn(rowGroupData);
 
-        ConnectorPageSource pageSource = dispatcherAlternativePageSourceProvider.createPageSource(connectorTransactionHandle,
+        ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(connectorTransactionHandle,
                 connectorSession,
+                dispatcherSplit,
+                dispatcherTableHandle,
                 columns,
                 new CompletedDynamicFilter(predicate),
                 true);
@@ -366,7 +368,7 @@ public class DispatcherAlternativePageSourceProviderTest
         dispatcherTableHandle = mockDispatcherTableHandle(schemaTableName.getSchemaName(),
                 schemaTableName.getTableName(),
                 predicate);
-        dispatcherAlternativePageSourceProvider = createDispatcherPageSourceProvider(dispatcherSplit, dispatcherTableHandle, resourceCloser);
+        dispatcherPageSourceProvider = createDispatcherPageSourceProvider();
 
         mockQueryClassifier(false, false, false);
 
@@ -382,8 +384,10 @@ public class DispatcherAlternativePageSourceProviderTest
                 any(DynamicFilter.class)))
                 .thenReturn(mock(TestingConnectorPageSource.class));
 
-        ConnectorPageSource pageSource = dispatcherAlternativePageSourceProvider.createPageSource(connectorTransactionHandle,
+        ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(connectorTransactionHandle,
                 connectorSession,
+                dispatcherSplit,
+                dispatcherTableHandle,
                 columns,
                 new CompletedDynamicFilter(predicate),
                 true);
@@ -414,8 +418,10 @@ public class DispatcherAlternativePageSourceProviderTest
                 any(DynamicFilter.class)))
                 .thenReturn(mock(TestingConnectorPageSource.class));
 
-        ConnectorPageSource pageSource = dispatcherAlternativePageSourceProvider.createPageSource(connectorTransactionHandle,
+        ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(connectorTransactionHandle,
                 connectorSession,
+                dispatcherSplit,
+                dispatcherTableHandle,
                 columns,
                 dynamicFilter,
                 true);
@@ -451,8 +457,10 @@ public class DispatcherAlternativePageSourceProviderTest
                 any(DynamicFilter.class)))
                 .thenReturn(mock(TestingConnectorPageSource.class));
 
-        ConnectorPageSource pageSource = dispatcherAlternativePageSourceProvider.createPageSource(connectorTransactionHandle,
+        ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(connectorTransactionHandle,
                 connectorSession,
+                dispatcherSplit,
+                dispatcherTableHandle,
                 columns,
                 new CompletedDynamicFilter(predicate),
                 true);
@@ -463,37 +471,7 @@ public class DispatcherAlternativePageSourceProviderTest
                 .isEqualTo(PageSourceDecision.MIXED);
     }
 
-    @Test
-    public void testLockRowGroup()
-            throws IOException
-    {
-        RowGroupData rowGroupData = generateRowGroupData(rowGroupKey, columnHandles);
-        when(rowGroupDataService.get(rowGroupKey)).thenReturn(rowGroupData);
-        when(rowGroupDataService.getIfPresent(rowGroupKey)).thenReturn(rowGroupData);
-        mockQueryClassifier(false, false, false);
-
-        // rowGroup is locked before creating PageSourceProvider
-        rowGroupData.getLock().readLock();
-
-        dispatcherAlternativePageSourceProvider = createDispatcherPageSourceProvider(dispatcherSplit, dispatcherTableHandle, resourceCloser);
-        assertThat(rowGroupData.getLock().getCount()).isEqualTo(1);
-
-        ConnectorPageSource pageSource = dispatcherAlternativePageSourceProvider.createPageSource(
-                connectorTransactionHandle,
-                connectorSession,
-                columnHandles,
-                dynamicFilter,
-                true);
-        assertThat(rowGroupData.getLock().getCount()).isEqualTo(2);
-
-        dispatcherAlternativePageSourceProvider.close();
-        assertThat(rowGroupData.getLock().getCount()).isEqualTo(1);
-
-        pageSource.close();
-        assertThat(rowGroupData.getLock().getCount()).isEqualTo(0);
-    }
-
-    private DispatcherAlternativePageSourceProvider createDispatcherPageSourceProvider(ConnectorSplit split, ConnectorTableHandle table, DispatcherAlternativeChooser.ResourceCloser resourceCloser)
+    private DispatcherPageSourceProvider createDispatcherPageSourceProvider()
     {
         StorageEngineTxService txService = mock(StorageEngineTxService.class);
 
@@ -522,14 +500,11 @@ public class DispatcherAlternativePageSourceProviderTest
                 nativeStorageStateHandler,
                 new ShapingLoggerFactory(new CatalogName("catalog-name"), new SharedConfig()));
 
-        return new DispatcherAlternativePageSourceProvider(proxiedPageSourceProvider,
+        return new DispatcherPageSourceProvider(connectorPageSourceProviderFactory,
                 pageSourceFactory,
                 txService,
-                customStatsContext,
-                new CatalogName("warp"),
-                split,
-                table,
-                resourceCloser);
+                metricsManager,
+                new CatalogName("warp"));
     }
 
     protected void mockQueryClassifier(boolean isProxyOnly, boolean isWarpOnly, boolean isPrefilledOnly)
