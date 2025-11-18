@@ -702,6 +702,7 @@ public class TrinoHiveCatalog
                                 : currentViewColumn)
                         .collect(toImmutableList()),
                 definition.getGracePeriod(),
+                definition.getWhenStaleBehavior(),
                 definition.getComment(),
                 definition.getOwner(),
                 definition.getPath());
