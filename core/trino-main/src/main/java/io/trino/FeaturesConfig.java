@@ -96,6 +96,7 @@ public class FeaturesConfig
     private CompressionCodec exchangeCompressionCodec = LZ4;
     private boolean exchangeVbyteBlockEncodingEnabled = true;
     private boolean exchangeAdaptiveBlockEncodingEnabled = true;
+    private boolean exchangeVectorizedSerdeEnabled = true;
     private boolean pagesIndexEagerCompactionEnabled;
     private boolean omitDateTimeTypePrecision;
     private int maxRecursionDepth = 10;
@@ -411,6 +412,19 @@ public class FeaturesConfig
     {
         this.exchangeAdaptiveBlockEncodingEnabled = exchangeAdaptiveBlockEncodingEnabled;
         return this;
+    }
+
+    @Config("exchange.experimental.vectorized-serde.enabled")
+    @ConfigDescription("Enable using Java Vector API for faster serialization and deserialization of exchange data")
+    public FeaturesConfig setExchangeVectorizedSerdeEnabled(boolean exchangeVectorizedSerdeEnabled)
+    {
+        this.exchangeVectorizedSerdeEnabled = exchangeVectorizedSerdeEnabled;
+        return this;
+    }
+
+    public boolean isExchangeVectorizedSerdeEnabled()
+    {
+        return exchangeVectorizedSerdeEnabled;
     }
 
     public DataIntegrityVerification getExchangeDataIntegrityVerification()
