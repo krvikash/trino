@@ -20,7 +20,6 @@ import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 
 import java.io.Closeable;
-import java.net.URISyntaxException;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -33,7 +32,6 @@ public class FastApiServer
     private final GenericContainer<?> dockerContainer;
 
     public FastApiServer()
-            throws URISyntaxException
     {
         dockerContainer = new GenericContainer<>(new ImageFromDockerfile()
                 .withFileFromClasspath(".", "fastapi"))
