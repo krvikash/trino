@@ -87,6 +87,7 @@ public abstract class BaseObjectStoreHudiConnectorTest
             // ObjectStore adds support for materialized views using Iceberg
             case SUPPORTS_CREATE_MATERIALIZED_VIEW:
             case SUPPORTS_CREATE_MATERIALIZED_VIEW_GRACE_PERIOD:
+            case SUPPORTS_CREATE_MATERIALIZED_VIEW_WHEN_STALE:
             case SUPPORTS_CREATE_FEDERATED_MATERIALIZED_VIEW:
             case SUPPORTS_MATERIALIZED_VIEW_FRESHNESS_FROM_BASE_TABLES:
             case SUPPORTS_RENAME_MATERIALIZED_VIEW:
@@ -333,6 +334,22 @@ public abstract class BaseObjectStoreHudiConnectorTest
     {
         skipTestUnless(hasBehavior(SUPPORTS_CREATE_TABLE));
         super.testMaterializedViewBaseTableGone();
+    }
+
+    @Test
+    @Override
+    public void testMaterializedViewWhenStaleInline()
+    {
+        skipTestUnless(hasBehavior(SUPPORTS_CREATE_TABLE));
+        super.testMaterializedViewWhenStaleInline();
+    }
+
+    @Test
+    @Override
+    public void testMaterializedViewWhenStaleFail()
+    {
+        skipTestUnless(hasBehavior(SUPPORTS_CREATE_TABLE));
+        super.testMaterializedViewWhenStaleFail();
     }
 
     @Test

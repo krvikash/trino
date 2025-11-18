@@ -68,6 +68,7 @@ public abstract class BaseObjectStoreDeltaConnectorTest
             // ObjectStore adds support for materialized views using Iceberg
             case SUPPORTS_CREATE_MATERIALIZED_VIEW:
             case SUPPORTS_CREATE_MATERIALIZED_VIEW_GRACE_PERIOD:
+            case SUPPORTS_CREATE_MATERIALIZED_VIEW_WHEN_STALE:
             case SUPPORTS_CREATE_FEDERATED_MATERIALIZED_VIEW:
 //            case SUPPORTS_MATERIALIZED_VIEW_FRESHNESS_FROM_BASE_TABLES: TODO currently not supported for Iceberg materialized views based on Delta tables
             case SUPPORTS_RENAME_MATERIALIZED_VIEW:

@@ -77,6 +77,7 @@ public abstract class BaseObjectStoreHiveConnectorTest
             // ObjectStore adds support for materialized views using Iceberg
             case SUPPORTS_CREATE_MATERIALIZED_VIEW:
             case SUPPORTS_CREATE_MATERIALIZED_VIEW_GRACE_PERIOD:
+            case SUPPORTS_CREATE_MATERIALIZED_VIEW_WHEN_STALE:
             case SUPPORTS_CREATE_FEDERATED_MATERIALIZED_VIEW:
             case SUPPORTS_RENAME_MATERIALIZED_VIEW:
 //            case SUPPORTS_RENAME_MATERIALIZED_VIEW_ACROSS_SCHEMAS: -- not supported by Iceberg:

@@ -708,6 +708,13 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
 
     @Test
     @Override
+    public void testMaterializedViewWhenStaleFail()
+    {
+        skipDuplicateTestCoverage("testMaterializedViewWhenStaleFail");
+    }
+
+    @Test
+    @Override
     public void testColumnName()
     {
         skipDuplicateTestCoverage("testColumnName");
@@ -1436,9 +1443,9 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
 
     @Test
     @Override
-    public void testMaterializedViewWhenStale()
+    public void testMaterializedViewWhenStaleInline()
     {
-        skipDuplicateTestCoverage("testMaterializedViewWhenStale");
+        skipDuplicateTestCoverage("testMaterializedViewWhenStaleInline");
     }
 
     @Test

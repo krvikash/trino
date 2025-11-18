@@ -215,6 +215,7 @@ public abstract class BaseIcebergMaterializedViewTest
         assertThat((String) computeScalar("SHOW CREATE MATERIALIZED VIEW test_mv_show_create"))
                 .matches(
                         "\\QCREATE MATERIALIZED VIEW iceberg." + schema + ".test_mv_show_create\n" +
+                                "WHEN STALE INLINE\n" +
                                 "WITH (\n" +
                                 "   format = 'ORC',\n" +
                                 "   format_version = 2,\n" +
@@ -531,6 +532,7 @@ public abstract class BaseIcebergMaterializedViewTest
 
         assertThat((String) computeScalar("SHOW CREATE MATERIALIZED VIEW materialized_view_window"))
                 .matches("\\QCREATE MATERIALIZED VIEW " + qualifiedMaterializedViewName + "\n" +
+                        "WHEN STALE INLINE\n" +
                         "WITH (\n" +
                         "   format = 'PARQUET',\n" +
                         "   format_version = 2,\n" +

@@ -998,9 +998,16 @@ public abstract class BaseTestObjectStoreDeltaFeaturesConnectorTest
 
     @Test
     @Override
-    public void testMaterializedViewWhenStale()
+    public void testMaterializedViewWhenStaleFail()
     {
-        skipDuplicateTestCoverage("testMaterializedViewWhenStale");
+        skipDuplicateTestCoverage("testMaterializedViewWhenStaleFail");
+    }
+
+    @Test
+    @Override
+    public void testMaterializedViewWhenStaleInline()
+    {
+        skipDuplicateTestCoverage("testMaterializedViewWhenStaleInline");
     }
 
     @Test

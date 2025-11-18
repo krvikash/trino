@@ -173,6 +173,7 @@ public class TestIcebergMaterializedViewExpiredSnapshotCleanup
                 columns,
                 Optional.empty(),
                 Optional.empty(),
+                Optional.empty(),
                 ImmutableList.of(new CatalogSchemaName(ICEBERG_CATALOG, schema)));
         String encodedDefinition = encodeMaterializedViewData(definition);
 
