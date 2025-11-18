@@ -104,7 +104,6 @@ public final class OpenApiQueryRunner
         FastApiServer fastApiServer = new FastApiServer();
         ImmutableMap<String, String> openapiProperties = ImmutableMap.of(
                 "openApi.http-client.log.enabled", "true",
-                "openApi.http-client.log.path", "logs",
                 "spec-location", fastApiServer.getSpecUrl(),
                 "base-uri", fastApiServer.getApiUrl());
         QueryRunner queryRunner = builder(Map.of("openapi", openapiProperties))
