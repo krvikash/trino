@@ -57,7 +57,7 @@ public class InternalCommunicationForDiscoveryModule
         discoveryFilterBinder.addBinding().to(InternalAuthenticationManager.class);
     }
 
-    private static class DiscoveryEncodeAddressAsHostname
+    static class DiscoveryEncodeAddressAsHostname
             implements HttpRequestFilter
     {
         @Override
@@ -68,7 +68,7 @@ public class InternalCommunicationForDiscoveryModule
                     .build();
         }
 
-        private static URI toIpEncodedAsHostnameUri(URI uri)
+        static URI toIpEncodedAsHostnameUri(URI uri)
         {
             if (!uri.getScheme().equals("https")) {
                 return uri;

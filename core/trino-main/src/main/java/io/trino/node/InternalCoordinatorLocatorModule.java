@@ -5,6 +5,8 @@ import com.google.inject.Binder;
 import com.google.inject.Provides;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.discovery.client.DiscoveryClientConfig;
+import io.airlift.node.NodeConfig;
+import io.trino.server.InternalCommunicationConfig;
 
 import java.net.URI;
 import java.util.Set;
@@ -36,16 +38,17 @@ public class InternalCoordinatorLocatorModule
         protected void setup(Binder binder)
         {
             configBinder(binder).bindConfig(AnnounceNodeAnnouncerConfig.class);
+            configBinder(binder).bindConfig(InternalCommunicationConfig.class);
         }
 
         @Provides
-        private InternalCoordinatorLocator coordinatorLocator(InternalNode currentNode, AnnounceNodeAnnouncerConfig config)
+        private InternalCoordinatorLocator coordinatorLocator(InternalNode currentNode, AnnounceNodeAnnouncerConfig config, NodeConfig nodeConfig, InternalCommunicationConfig internalCommunicationConfig)
         {
             if (currentNode.isCoordinator()) {
                 return () -> ImmutableSet.of(currentNode.getInternalUri());
             }
             Set<URI> uris = ImmutableSet.copyOf(config.getCoordinatorUris());
-            return () -> uris;
+            return encode(uris, nodeConfig, internalCommunicationConfig);
         }
     }
 
@@ -56,13 +59,14 @@ public class InternalCoordinatorLocatorModule
         protected void setup(Binder binder)
         {
             configBinder(binder).bindConfig(DiscoveryClientConfig.class);
+            configBinder(binder).bindConfig(InternalCommunicationConfig.class);
         }
 
         @Provides
-        private InternalCoordinatorLocator coordinatorUris(DiscoveryClientConfig config)
+        private InternalCoordinatorLocator coordinatorUris(DiscoveryClientConfig config, NodeConfig nodeConfig, InternalCommunicationConfig internalCommunicationConfig)
         {
-            URI uris = config.getDiscoveryServiceURI();
-            return () -> ImmutableSet.of(uris);
+            URI uri = config.getDiscoveryServiceURI();
+            return encode(ImmutableSet.of(uri), nodeConfig, internalCommunicationConfig);
         }
     }
 
@@ -81,5 +85,19 @@ public class InternalCoordinatorLocatorModule
             Set<String> hosts = config.getHosts();
             return () -> hosts.stream().map(URI::create).collect(toImmutableSet());
         }
+    }
+
+    private static InternalCoordinatorLocator encode(Set<URI> uris, NodeConfig nodeConfig, InternalCommunicationConfig internalCommunicationConfig)
+    {
+        if (uris.isEmpty() || nodeConfig.getInternalAddressSource() == NodeConfig.AddressSource.FQDN) {
+            return () -> uris;
+        }
+        if (!internalCommunicationConfig.isHttpsRequired() || internalCommunicationConfig.getKeyStorePath() != null || internalCommunicationConfig.getTrustStorePath() != null) {
+            return () -> uris;
+        }
+        Set<URI> encodedUris = uris.stream()
+                .map(InternalCommunicationForDiscoveryModule.DiscoveryEncodeAddressAsHostname::toIpEncodedAsHostnameUri)
+                .collect(toImmutableSet());
+        return () -> encodedUris;
     }
 }
