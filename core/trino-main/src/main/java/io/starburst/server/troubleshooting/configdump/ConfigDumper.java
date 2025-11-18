@@ -16,8 +16,10 @@ import io.airlift.configuration.ConfigurationFactory;
 import io.airlift.configuration.ConfigurationInspector;
 import io.airlift.configuration.ConfigurationInspector.ConfigAttribute;
 import io.airlift.configuration.ConfigurationInspector.ConfigRecord;
+import io.starburst.server.troubleshooting.ForTroubleshooting;
 import io.trino.node.InternalNode;
 import io.trino.security.AccessControlConfig;
+import jakarta.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -30,7 +32,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -41,7 +42,6 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.configuration.ConfigurationLoader.loadPropertiesFrom;
-import static io.starburst.server.troubleshooting.configdump.ConnectorSensitiveProperties.SENSITIVE_PROPERTIES_PER_CONNECTOR;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
@@ -58,6 +58,7 @@ public class ConfigDumper
     private final Path resourceGroupsConfigFile;
     private final List<Path> accessControlConfigFiles;
     private final Set<BuiltInFeatureConfigDumper> builtInFeatureConfigDumpers;
+    private final Map<String, Set<String>> sensitivePropertiesPerConnector;
 
     @Inject
     public ConfigDumper(
@@ -67,12 +68,14 @@ public class ConfigDumper
             @ForResourceGroupConfigDump Path resourceGroupsConfigFile,
             @ForAccessControlConfigDump Path defaultAccessControlConfigFile,
             AccessControlConfig accessControlConfig,
-            Set<BuiltInFeatureConfigDumper> builtInFeatureConfigDumpers)
+            Set<BuiltInFeatureConfigDumper> builtInFeatureConfigDumpers,
+            @ForTroubleshooting Map<String, Set<String>> sensitivePropertiesPerConnector)
     {
         this.configurationFactory = requireNonNull(configurationFactory, "configurationFactory is null");
         this.currentNode = requireNonNull(currentNode, "currentNode is null");
         this.catalogConfigProvider = requireNonNull(catalogConfigProvider, "catalogConfigProvider is null");
         this.resourceGroupsConfigFile = requireNonNull(resourceGroupsConfigFile, "resourceGroupsConfigFile is null");
+        this.sensitivePropertiesPerConnector = requireNonNull(sensitivePropertiesPerConnector, "sensitivePropertiesPerConnector is null");
         requireNonNull(accessControlConfig, "accessControlConfig is null");
         this.accessControlConfigFiles = resolveConfigFiles(accessControlConfig.getAccessControlFiles(), defaultAccessControlConfigFile);
         this.builtInFeatureConfigDumpers = requireNonNull(builtInFeatureConfigDumpers, "builtInFeatureConfigDumpers is null");
@@ -167,7 +170,7 @@ public class ConfigDumper
             throws IOException
     {
         String connectorName = catalogConfig.connectorName();
-        Set<String> sensitivePropertyNames = SENSITIVE_PROPERTIES_PER_CONNECTOR.getOrDefault(connectorName, Collections.emptySet());
+        Set<String> sensitivePropertyNames = sensitivePropertiesPerConnector.get(connectorName);
         for (Map.Entry<String, String> property : catalogConfig.properties().entrySet()) {
             String propertyName = property.getKey();
             outputStream.write(propertyName.getBytes(ISO_8859_1));
@@ -183,8 +186,12 @@ public class ConfigDumper
         }
     }
 
-    private static boolean isSecuritySensitiveProperty(String propertyName, Set<String> sensitivePropertyNames)
+    private static boolean isSecuritySensitiveProperty(String propertyName, @Nullable Set<String> sensitivePropertyNames)
     {
+        if (sensitivePropertyNames == null) {
+            // the connector is not configured, assume all properties are sensitive
+            return true;
+        }
         return sensitivePropertyNames.stream().anyMatch(propertyName::endsWith);
     }
 

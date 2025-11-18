@@ -12,6 +12,7 @@ package io.starburst.server.troubleshooting;
 import com.google.inject.Binder;
 import com.google.inject.Key;
 import com.google.inject.Scopes;
+import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.units.DataSize;
@@ -21,6 +22,7 @@ import io.starburst.server.troubleshooting.configdump.CatalogConfigProvider;
 import io.starburst.server.troubleshooting.configdump.ConfigDumpProvider;
 import io.starburst.server.troubleshooting.configdump.ConfigDumpResource;
 import io.starburst.server.troubleshooting.configdump.ConfigDumper;
+import io.starburst.server.troubleshooting.configdump.ConnectorSensitiveProperties;
 import io.starburst.server.troubleshooting.configdump.CoordinatorDynamicCatalogConfigProvider;
 import io.starburst.server.troubleshooting.configdump.EmptyCatalogConfigProvider;
 import io.starburst.server.troubleshooting.configdump.ForAccessControlConfigDump;
@@ -48,6 +50,8 @@ import jdk.jfr.FlightRecorder;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
@@ -96,6 +100,9 @@ public class TroubleshootingModule
                 .setDefault()
                 .toInstance(Paths.get("etc", "resource-groups.properties"));
         newSetBinder(binder, BuiltInFeatureConfigDumper.class);
+        newOptionalBinder(binder, Key.get(new TypeLiteral<Map<String, Set<String>>>() {}, ForTroubleshooting.class))
+                .setDefault()
+                .toInstance(ConnectorSensitiveProperties.SENSITIVE_PROPERTIES_PER_CONNECTOR);
 
         CatalogManagerConfig catalogManagerConfig = buildConfigObject(CatalogManagerConfig.class);
         CatalogMangerKind catalogMangerKind = catalogManagerConfig.getCatalogMangerKind();
