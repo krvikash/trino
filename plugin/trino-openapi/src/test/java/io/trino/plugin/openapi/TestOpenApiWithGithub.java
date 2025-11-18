@@ -28,7 +28,7 @@ import static java.util.Objects.requireNonNullElse;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @EnabledIfEnvironmentVariable(named = "GITHUB_TOKEN", matches = ".*")
-public class TestGithub
+public class TestOpenApiWithGithub
         extends AbstractTestQueryFramework
 {
     @Override

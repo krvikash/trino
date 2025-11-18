@@ -25,7 +25,7 @@ import java.util.Map;
 import static java.util.Objects.requireNonNullElse;
 
 @EnabledIfEnvironmentVariable(named = "JIRA_SITE", matches = ".*")
-public class TestJira
+public class TestOpenApiWithJira
         extends AbstractTestQueryFramework
 {
     @Override
