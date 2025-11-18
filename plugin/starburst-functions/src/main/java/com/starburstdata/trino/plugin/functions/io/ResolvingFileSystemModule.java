@@ -38,6 +38,7 @@ import io.trino.filesystem.cache.CachingHostAddressProvider;
 import io.trino.filesystem.cache.DefaultCacheKeyProvider;
 import io.trino.filesystem.cache.DefaultCachingHostAddressProvider;
 import io.trino.filesystem.cache.TrinoFileSystemCache;
+import io.trino.filesystem.gcs.ApplicationDefaultAuth;
 import io.trino.filesystem.gcs.GcsAccessTokenAuth;
 import io.trino.filesystem.gcs.GcsAuth;
 import io.trino.filesystem.gcs.GcsFileSystemConfig;
@@ -182,6 +183,7 @@ public class ResolvingFileSystemModule
                             GcsServiceAccountAuthConfig authConfig = configFactory.build(GcsServiceAccountAuthConfig.class);
                             yield new GcsServiceAccountAuth(authConfig);
                         }
+                        case APPLICATION_DEFAULT -> new ApplicationDefaultAuth();
                     };
                     GcsStorageFactory storageFactory = new GcsStorageFactory(config, gcsAuth);
                     yield new GcsFileSystemFactory(config, storageFactory);

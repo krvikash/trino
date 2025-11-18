@@ -19,6 +19,7 @@ import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import io.airlift.configuration.ConfigurationFactory;
+import io.trino.filesystem.gcs.ApplicationDefaultAuth;
 import io.trino.filesystem.gcs.GcsAccessTokenAuth;
 import io.trino.filesystem.gcs.GcsAuth;
 import io.trino.filesystem.gcs.GcsFileSystemConfig;
@@ -58,6 +59,7 @@ public class GcsCloudStorageModule
         switch (config.getAuthType()) {
             case ACCESS_TOKEN -> binder.bind(GcsAuth.class).to(GcsAccessTokenAuth.class).in(Scopes.SINGLETON);
             case SERVICE_ACCOUNT -> binder.install(new GcsServiceAccountModule());
+            case APPLICATION_DEFAULT -> binder.bind(GcsAuth.class).to(ApplicationDefaultAuth.class).in(Scopes.SINGLETON);
         }
 
         binder.bind(GcsCloudStorage.class).annotatedWith(annotation).to(GcsCloudStorage.class);
