@@ -15,6 +15,7 @@ package io.trino.plugin.elasticsearch;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import io.airlift.slice.Slices;
 import io.trino.plugin.elasticsearch.client.IndexMetadata;
 import io.trino.plugin.elasticsearch.decoders.DoubleDecoder;
 import io.trino.plugin.elasticsearch.decoders.IntegerDecoder;
@@ -46,6 +47,7 @@ public class TestElasticsearchQueryBuilder
     private static final ElasticsearchColumnHandle AGE = new ElasticsearchColumnHandle(ImmutableList.of("age"), INTEGER, new IndexMetadata.PrimitiveType("int"), new IntegerDecoder.Descriptor("age"), true);
     private static final ElasticsearchColumnHandle SCORE = new ElasticsearchColumnHandle(ImmutableList.of("score"), DOUBLE, new IndexMetadata.PrimitiveType("double"), new DoubleDecoder.Descriptor("score"), true);
     private static final ElasticsearchColumnHandle LENGTH = new ElasticsearchColumnHandle(ImmutableList.of("length"), DOUBLE, new IndexMetadata.PrimitiveType("double"), new DoubleDecoder.Descriptor("length"), true);
+    private static final ElasticsearchColumnHandle PRODUCT = new ElasticsearchColumnHandle(ImmutableList.of("product"), Optional.of("product_code"), VARCHAR, new IndexMetadata.PrimitiveType("text"), new VarcharDecoder.Descriptor("product.product_code"), true);
 
     @Test
     public void testMatchAll()
@@ -129,6 +131,46 @@ public class TestElasticsearchQueryBuilder
                 new BoolQueryBuilder()
                         .filter(new TermQueryBuilder(AGE.name(), 10L))
                         .mustNot(new ExistsQueryBuilder(SCORE.name())));
+    }
+
+    @Test
+    public void testMultiFields()
+    {
+        // SingleValue
+        assertQueryBuilder(
+                ImmutableMap.of(PRODUCT, Domain.singleValue(VARCHAR, Slices.utf8Slice("PN1"))),
+                new BoolQueryBuilder().filter(new TermQueryBuilder("product.product_code", "PN1")));
+
+        // Range
+        assertQueryBuilder(
+                ImmutableMap.of(PRODUCT, Domain.create(ValueSet.ofRanges(Range.range(VARCHAR, Slices.utf8Slice("PA"), false, Slices.utf8Slice("PZ"), true)), false)),
+                new BoolQueryBuilder().filter(new RangeQueryBuilder("product.product_code").gt("PA").lte("PZ")));
+
+        // List
+        assertQueryBuilder(
+                ImmutableMap.of(PRODUCT, Domain.multipleValues(VARCHAR, ImmutableList.of(Slices.utf8Slice("PN1"), Slices.utf8Slice("PN2")))),
+                new BoolQueryBuilder().filter(
+                        new BoolQueryBuilder()
+                                .should(new TermQueryBuilder("product.product_code", "PN1"))
+                                .should(new TermQueryBuilder("product.product_code", "PN2"))));
+
+        // notNull
+        assertQueryBuilder(
+                ImmutableMap.of(PRODUCT, Domain.notNull(VARCHAR)),
+                new BoolQueryBuilder().filter(new ExistsQueryBuilder("product.product_code")));
+
+        // isNull
+        assertQueryBuilder(
+                ImmutableMap.of(PRODUCT, Domain.onlyNull(VARCHAR)),
+                new BoolQueryBuilder().mustNot(new ExistsQueryBuilder("product.product_code")));
+
+        // isNullAllowed
+        assertQueryBuilder(
+                ImmutableMap.of(PRODUCT, Domain.singleValue(VARCHAR, Slices.utf8Slice("PN1"), true)),
+                new BoolQueryBuilder().filter(
+                        new BoolQueryBuilder()
+                                .should(new TermQueryBuilder("product.product_code", "PN1"))
+                                .should(new BoolQueryBuilder().mustNot(new ExistsQueryBuilder("product.product_code")))));
     }
 
     private static void assertQueryBuilder(Map<ElasticsearchColumnHandle, Domain> domains, QueryBuilder expected)

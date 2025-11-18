@@ -21,23 +21,36 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.type.Type;
 
 import java.util.List;
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
 public record ElasticsearchColumnHandle(
         List<String> path,
+        Optional<String> delegatedField,
         Type type,
         IndexMetadata.Type elasticsearchType,
         DecoderDescriptor decoderDescriptor,
         boolean supportsPredicates)
         implements ColumnHandle
 {
+    public ElasticsearchColumnHandle(
+            List<String> path,
+            Type type,
+            IndexMetadata.Type elasticsearchType,
+            DecoderDescriptor decoderDescriptor,
+            boolean supportsPredicates)
+    {
+        this(path, Optional.empty(), type, elasticsearchType, decoderDescriptor, supportsPredicates);
+    }
+
     public ElasticsearchColumnHandle
     {
         path = ImmutableList.copyOf(path);
         requireNonNull(type, "type is null");
         requireNonNull(elasticsearchType, "elasticsearchType is null");
         requireNonNull(decoderDescriptor, "decoderDescriptor is null");
+        requireNonNull(delegatedField, "delegatedField is null");
     }
 
     @JsonIgnore
@@ -50,5 +63,11 @@ public record ElasticsearchColumnHandle(
     public String toString()
     {
         return name() + "::" + type();
+    }
+
+    @Override
+    public Optional<String> delegatedField()
+    {
+        return delegatedField;
     }
 }

@@ -268,12 +268,15 @@ public class ElasticsearchMetadata
 
         for (IndexMetadata.Field field : fields) {
             TypeAndDecoder converted = toTrino(field);
+            Optional<String> delegate = pushDownDelegateMultiFields(field.type(), converted.type(), field.multiFields());
+
             result.put(field.name(), new ElasticsearchColumnHandle(
                     ImmutableList.of(field.name()),
+                    delegate,
                     converted.type(),
                     field.type(),
                     converted.decoderDescriptor(),
-                    supportsPredicates(field.type(), converted.type)));
+                    supportsPredicates(field.type(), converted.type) || delegate.isPresent()));
         }
 
         return result.buildOrThrow();
@@ -568,8 +571,11 @@ public class ElasticsearchMetadata
                         IndexMetadata metadata = client.getIndexMetadata(handle.index());
                         if (metadata.schema()
                                     .fields().stream()
-                                    .anyMatch(field -> columnName.equals(field.name()) && field.type() instanceof PrimitiveType && "keyword".equals(((PrimitiveType) field.type()).name()))) {
-                            newRegexes.put(columnName, likeToRegexp(slice, escape));
+                                    .anyMatch(field -> columnName.equals(field.name()) &&
+                                                       (field.type() instanceof PrimitiveType(String name) && "keyword".equals(name))
+                                                       || column.delegatedField().isPresent())) {
+                            newRegexes.put(columnName + column.delegatedField().map(delegate -> "." + delegate).orElse(""),
+                                    likeToRegexp(slice, escape));
                             continue;
                         }
                     }
@@ -779,6 +785,7 @@ public class ElasticsearchMetadata
         DecoderDescriptor decoderDescriptor = baseColumn.decoderDescriptor();
         IndexMetadata.Type elasticsearchType = baseColumn.elasticsearchType();
         Type type = baseColumn.type();
+        List<IndexMetadata.Field> multiFields = ImmutableList.of();
 
         for (int index : indices) {
             verify(type instanceof RowType, "type should be Row type");
@@ -790,15 +797,19 @@ public class ElasticsearchMetadata
 
             verify(decoderDescriptor instanceof RowDecoder.Descriptor, "decoderDescriptor should be RowDecoder.Descriptor type");
             decoderDescriptor = ((RowDecoder.Descriptor) decoderDescriptor).getFields().get(index).getDescriptor();
-            elasticsearchType = ((IndexMetadata.ObjectType) elasticsearchType).fields().get(index).type();
+            IndexMetadata.Field subField = ((ObjectType) elasticsearchType).fields().get(index);
+            elasticsearchType = subField.type();
+            multiFields = subField.multiFields();
         }
 
+        Optional<String> delegate = pushDownDelegateMultiFields(elasticsearchType, projectedColumnType, multiFields);
         return new ElasticsearchColumnHandle(
                 path.build(),
+                delegate,
                 projectedColumnType,
                 elasticsearchType,
                 decoderDescriptor,
-                supportsPredicates(elasticsearchType, projectedColumnType));
+                supportsPredicates(elasticsearchType, projectedColumnType) || delegate.isPresent());
     }
 
     @Override
@@ -821,6 +832,18 @@ public class ElasticsearchMetadata
             case VarcharType _ when type instanceof PrimitiveType primitiveType && primitiveType.name().toLowerCase(ENGLISH).equals("keyword") -> true;
             default -> false;
         };
+    }
+
+    private static Optional<String> pushDownDelegateMultiFields(IndexMetadata.Type elasticsearchType, Type projectedColumnType, List<IndexMetadata.Field> multiFields)
+    {
+        if (elasticsearchType instanceof PrimitiveType(String name) && name.equals("text")) {
+            for (IndexMetadata.Field index : multiFields) {
+                if (supportsPredicates(index.type(), projectedColumnType)) {
+                    return Optional.of(index.name());
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     private record InternalTableMetadata(SchemaTableName tableName, List<ColumnMetadata> columnMetadata, Map<String, ColumnHandle> columnHandles) {}
