@@ -1,0 +1,182 @@
+{
+  "format-version" : 2,
+  "table-uuid" : "d9596590-cae3-49d3-8a7a-51c795594308",
+  "location" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/store_sales-90ed542b99874b0f992461aef7316428",
+  "last-sequence-number" : 1,
+  "last-updated-ms" : 1688151166835,
+  "last-column-id" : 23,
+  "current-schema-id" : 0,
+  "schemas" : [ {
+    "type" : "struct",
+    "schema-id" : 0,
+    "fields" : [ {
+      "id" : 1,
+      "name" : "ss_sold_date_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 2,
+      "name" : "ss_sold_time_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 3,
+      "name" : "ss_item_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 4,
+      "name" : "ss_customer_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 5,
+      "name" : "ss_cdemo_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 6,
+      "name" : "ss_hdemo_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 7,
+      "name" : "ss_addr_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 8,
+      "name" : "ss_store_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 9,
+      "name" : "ss_promo_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 10,
+      "name" : "ss_ticket_number",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 11,
+      "name" : "ss_quantity",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 12,
+      "name" : "ss_wholesale_cost",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 13,
+      "name" : "ss_list_price",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 14,
+      "name" : "ss_sales_price",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 15,
+      "name" : "ss_ext_discount_amt",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 16,
+      "name" : "ss_ext_sales_price",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 17,
+      "name" : "ss_ext_wholesale_cost",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 18,
+      "name" : "ss_ext_list_price",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 19,
+      "name" : "ss_ext_tax",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 20,
+      "name" : "ss_coupon_amt",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 21,
+      "name" : "ss_net_paid",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 22,
+      "name" : "ss_net_paid_inc_tax",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 23,
+      "name" : "ss_net_profit",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    } ]
+  } ],
+  "default-spec-id" : 0,
+  "partition-specs" : [ {
+    "spec-id" : 0,
+    "fields" : [ {
+      "name" : "ss_sold_date_sk",
+      "transform" : "identity",
+      "source-id" : 1,
+      "field-id" : 1000
+    } ]
+  } ],
+  "last-partition-id" : 1000,
+  "default-sort-order-id" : 0,
+  "sort-orders" : [ {
+    "order-id" : 0,
+    "fields" : [ ]
+  } ],
+  "properties" : {
+    "write.format.default" : "PARQUET"
+  },
+  "current-snapshot-id" : 7765361954883405459,
+  "refs" : {
+    "main" : {
+      "snapshot-id" : 7765361954883405459,
+      "type" : "branch"
+    }
+  },
+  "snapshots" : [ {
+    "sequence-number" : 1,
+    "snapshot-id" : 7765361954883405459,
+    "timestamp-ms" : 1688151166835,
+    "summary" : {
+      "operation" : "append",
+      "trino_query_id" : "20230630_181646_01238_wcd7b",
+      "added-data-files" : "3068",
+      "added-records" : "2879987999",
+      "added-files-size" : "102453470830",
+      "changed-partition-count" : "1824",
+      "total-records" : "2879987999",
+      "total-files-size" : "102453470830",
+      "total-data-files" : "3068",
+      "total-delete-files" : "0",
+      "total-position-deletes" : "0",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/store_sales-90ed542b99874b0f992461aef7316428/metadata/snap-7765361954883405459-1-1594b6e6-0e9c-4c45-8154-f06e0cd58d8d.avro",
+    "schema-id" : 0
+  } ],
+  "statistics" : [ ],
+  "snapshot-log" : [ {
+    "timestamp-ms" : 1688151166835,
+    "snapshot-id" : 7765361954883405459
+  } ],
+  "metadata-log" : [ ]
+}

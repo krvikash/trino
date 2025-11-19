@@ -1,0 +1,167 @@
+{
+  "format-version" : 2,
+  "table-uuid" : "7f31ca73-357c-40a8-9cb9-4ec762600d1a",
+  "location" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/store_returns-b68faefdd7624e03935cebac98bf3f7c",
+  "last-sequence-number" : 1,
+  "last-updated-ms" : 1688149004383,
+  "last-column-id" : 20,
+  "current-schema-id" : 0,
+  "schemas" : [ {
+    "type" : "struct",
+    "schema-id" : 0,
+    "fields" : [ {
+      "id" : 1,
+      "name" : "sr_returned_date_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 2,
+      "name" : "sr_return_time_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 3,
+      "name" : "sr_item_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 4,
+      "name" : "sr_customer_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 5,
+      "name" : "sr_cdemo_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 6,
+      "name" : "sr_hdemo_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 7,
+      "name" : "sr_addr_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 8,
+      "name" : "sr_store_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 9,
+      "name" : "sr_reason_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 10,
+      "name" : "sr_ticket_number",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 11,
+      "name" : "sr_return_quantity",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 12,
+      "name" : "sr_return_amt",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 13,
+      "name" : "sr_return_tax",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 14,
+      "name" : "sr_return_amt_inc_tax",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 15,
+      "name" : "sr_fee",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 16,
+      "name" : "sr_return_ship_cost",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 17,
+      "name" : "sr_refunded_cash",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 18,
+      "name" : "sr_reversed_charge",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 19,
+      "name" : "sr_store_credit",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 20,
+      "name" : "sr_net_loss",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    } ]
+  } ],
+  "default-spec-id" : 0,
+  "partition-specs" : [ {
+    "spec-id" : 0,
+    "fields" : [ {
+      "name" : "sr_returned_date_sk",
+      "transform" : "identity",
+      "source-id" : 1,
+      "field-id" : 1000
+    } ]
+  } ],
+  "last-partition-id" : 1000,
+  "default-sort-order-id" : 0,
+  "sort-orders" : [ {
+    "order-id" : 0,
+    "fields" : [ ]
+  } ],
+  "properties" : {
+    "write.format.default" : "PARQUET"
+  },
+  "current-snapshot-id" : 7410004197601503830,
+  "refs" : {
+    "main" : {
+      "snapshot-id" : 7410004197601503830,
+      "type" : "branch"
+    }
+  },
+  "snapshots" : [ {
+    "sequence-number" : 1,
+    "snapshot-id" : 7410004197601503830,
+    "timestamp-ms" : 1688149004383,
+    "summary" : {
+      "operation" : "append",
+      "trino_query_id" : "20230630_181345_01236_wcd7b",
+      "added-data-files" : "2020",
+      "added-records" : "287999764",
+      "added-files-size" : "13557795287",
+      "changed-partition-count" : "2004",
+      "total-records" : "287999764",
+      "total-files-size" : "13557795287",
+      "total-data-files" : "2020",
+      "total-delete-files" : "0",
+      "total-position-deletes" : "0",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/store_returns-b68faefdd7624e03935cebac98bf3f7c/metadata/snap-7410004197601503830-1-c2450278-2db4-4043-bbca-e98cf26c478d.avro",
+    "schema-id" : 0
+  } ],
+  "statistics" : [ ],
+  "snapshot-log" : [ {
+    "timestamp-ms" : 1688149004383,
+    "snapshot-id" : 7410004197601503830
+  } ],
+  "metadata-log" : [ ]
+}

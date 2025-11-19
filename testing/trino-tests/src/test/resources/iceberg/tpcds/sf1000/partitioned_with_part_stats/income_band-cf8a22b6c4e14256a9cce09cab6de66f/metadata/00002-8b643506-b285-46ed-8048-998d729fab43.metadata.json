@@ -1,0 +1,140 @@
+{
+  "format-version" : 2,
+  "table-uuid" : "cadf95b4-9bc2-4933-a861-a67d651fb03d",
+  "location" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/income_band-cf8a22b6c4e14256a9cce09cab6de66f",
+  "last-sequence-number" : 2,
+  "last-updated-ms" : 1710971156109,
+  "last-column-id" : 3,
+  "current-schema-id" : 0,
+  "schemas" : [ {
+    "type" : "struct",
+    "schema-id" : 0,
+    "fields" : [ {
+      "id" : 1,
+      "name" : "ib_income_band_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 2,
+      "name" : "ib_lower_bound",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 3,
+      "name" : "ib_upper_bound",
+      "required" : false,
+      "type" : "int"
+    } ]
+  } ],
+  "default-spec-id" : 0,
+  "partition-specs" : [ {
+    "spec-id" : 0,
+    "fields" : [ ]
+  } ],
+  "last-partition-id" : 999,
+  "default-sort-order-id" : 0,
+  "sort-orders" : [ {
+    "order-id" : 0,
+    "fields" : [ ]
+  } ],
+  "properties" : {
+    "write.format.default" : "PARQUET"
+  },
+  "current-snapshot-id" : 6313400532293902969,
+  "refs" : {
+    "main" : {
+      "snapshot-id" : 6313400532293902969,
+      "type" : "branch"
+    }
+  },
+  "snapshots" : [ {
+    "sequence-number" : 1,
+    "snapshot-id" : 4775793288971143292,
+    "timestamp-ms" : 1688148798712,
+    "summary" : {
+      "operation" : "append",
+      "trino_query_id" : "20230630_181318_01232_wcd7b",
+      "added-data-files" : "1",
+      "added-records" : "20",
+      "added-files-size" : "744",
+      "changed-partition-count" : "1",
+      "total-records" : "20",
+      "total-files-size" : "744",
+      "total-data-files" : "1",
+      "total-delete-files" : "0",
+      "total-position-deletes" : "0",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/income_band-cf8a22b6c4e14256a9cce09cab6de66f/metadata/snap-4775793288971143292-1-a32fce3e-6cef-4418-ae41-f19b5ff3de05.avro",
+    "schema-id" : 0
+  }, {
+    "sequence-number" : 2,
+    "snapshot-id" : 6313400532293902969,
+    "parent-snapshot-id" : 4775793288971143292,
+    "timestamp-ms" : 1710971156109,
+    "summary" : {
+      "operation" : "replace",
+      "trino_query_id" : "20240320_214554_03171_qajwg",
+      "added-data-files" : "4",
+      "deleted-data-files" : "1",
+      "added-records" : "20",
+      "deleted-records" : "20",
+      "added-files-size" : "2417",
+      "removed-files-size" : "744",
+      "changed-partition-count" : "1",
+      "total-records" : "20",
+      "total-files-size" : "2417",
+      "total-data-files" : "4",
+      "total-delete-files" : "0",
+      "total-position-deletes" : "0",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/income_band-cf8a22b6c4e14256a9cce09cab6de66f/metadata/snap-6313400532293902969-1-83753193-2d78-4a21-a3de-dea8c26e8bfc.avro",
+    "schema-id" : 0
+  } ],
+  "statistics" : [ {
+    "snapshot-id" : 4775793288971143292,
+    "statistics-path" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/income_band-cf8a22b6c4e14256a9cce09cab6de66f/metadata/20230630_181318_01232_wcd7b-e4ea01e7-5de8-46d9-9a1f-8c2cffaaddb0.stats",
+    "file-size-in-bytes" : 1202,
+    "file-footer-size-in-bytes" : 631,
+    "blob-metadata" : [ {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 4775793288971143292,
+      "sequence-number" : 1,
+      "fields" : [ 1 ],
+      "properties" : {
+        "ndv" : "20"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 4775793288971143292,
+      "sequence-number" : 1,
+      "fields" : [ 2 ],
+      "properties" : {
+        "ndv" : "20"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 4775793288971143292,
+      "sequence-number" : 1,
+      "fields" : [ 3 ],
+      "properties" : {
+        "ndv" : "20"
+      }
+    } ]
+  } ],
+  "snapshot-log" : [ {
+    "timestamp-ms" : 1688148798712,
+    "snapshot-id" : 4775793288971143292
+  }, {
+    "timestamp-ms" : 1710971156109,
+    "snapshot-id" : 6313400532293902969
+  } ],
+  "metadata-log" : [ {
+    "timestamp-ms" : 1688148798712,
+    "metadata-file" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/income_band-cf8a22b6c4e14256a9cce09cab6de66f/metadata/00000-c7f86017-4a00-40d8-b00e-25778346d106.metadata.json"
+  }, {
+    "timestamp-ms" : 1688148799140,
+    "metadata-file" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/income_band-cf8a22b6c4e14256a9cce09cab6de66f/metadata/00001-b415876d-0404-491e-895c-449859a0a3a1.metadata.json"
+  } ]
+}

@@ -1,0 +1,218 @@
+{
+  "format-version" : 2,
+  "table-uuid" : "045809f0-d164-44c2-ac14-20626ac55882",
+  "location" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/catalog_page-318748511b8f4d288fcd265c0ae2437a",
+  "last-sequence-number" : 2,
+  "last-updated-ms" : 1710970695581,
+  "last-column-id" : 9,
+  "current-schema-id" : 0,
+  "schemas" : [ {
+    "type" : "struct",
+    "schema-id" : 0,
+    "fields" : [ {
+      "id" : 1,
+      "name" : "cp_catalog_page_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 2,
+      "name" : "cp_catalog_page_id",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 3,
+      "name" : "cp_start_date_sk",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 4,
+      "name" : "cp_end_date_sk",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 5,
+      "name" : "cp_department",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 6,
+      "name" : "cp_catalog_number",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 7,
+      "name" : "cp_catalog_page_number",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 8,
+      "name" : "cp_description",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 9,
+      "name" : "cp_type",
+      "required" : false,
+      "type" : "string"
+    } ]
+  } ],
+  "default-spec-id" : 0,
+  "partition-specs" : [ {
+    "spec-id" : 0,
+    "fields" : [ ]
+  } ],
+  "last-partition-id" : 999,
+  "default-sort-order-id" : 0,
+  "sort-orders" : [ {
+    "order-id" : 0,
+    "fields" : [ ]
+  } ],
+  "properties" : {
+    "write.format.default" : "PARQUET"
+  },
+  "current-snapshot-id" : 6954579505784936404,
+  "refs" : {
+    "main" : {
+      "snapshot-id" : 6954579505784936404,
+      "type" : "branch"
+    }
+  },
+  "snapshots" : [ {
+    "sequence-number" : 1,
+    "snapshot-id" : 17514739785483505,
+    "timestamp-ms" : 1688147231215,
+    "summary" : {
+      "operation" : "append",
+      "trino_query_id" : "20230630_174710_01198_wcd7b",
+      "added-data-files" : "1",
+      "added-records" : "30000",
+      "added-files-size" : "910902",
+      "changed-partition-count" : "1",
+      "total-records" : "30000",
+      "total-files-size" : "910902",
+      "total-data-files" : "1",
+      "total-delete-files" : "0",
+      "total-position-deletes" : "0",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/catalog_page-318748511b8f4d288fcd265c0ae2437a/metadata/snap-17514739785483505-1-f1f2bca5-3b7b-464e-a4b9-de94e9dbc4f2.avro",
+    "schema-id" : 0
+  }, {
+    "sequence-number" : 2,
+    "snapshot-id" : 6954579505784936404,
+    "parent-snapshot-id" : 17514739785483505,
+    "timestamp-ms" : 1710970695581,
+    "summary" : {
+      "operation" : "replace",
+      "trino_query_id" : "20240320_213814_02984_g62wy",
+      "added-data-files" : "4",
+      "deleted-data-files" : "1",
+      "added-records" : "30000",
+      "deleted-records" : "30000",
+      "added-files-size" : "936933",
+      "removed-files-size" : "910902",
+      "changed-partition-count" : "1",
+      "total-records" : "30000",
+      "total-files-size" : "936933",
+      "total-data-files" : "4",
+      "total-delete-files" : "0",
+      "total-position-deletes" : "0",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/catalog_page-318748511b8f4d288fcd265c0ae2437a/metadata/snap-6954579505784936404-1-b4f3d402-42ba-4999-97b3-11170c60b1f4.avro",
+    "schema-id" : 0
+  } ],
+  "statistics" : [ {
+    "snapshot-id" : 17514739785483505,
+    "statistics-path" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/catalog_page-318748511b8f4d288fcd265c0ae2437a/metadata/20230630_174710_01198_wcd7b-8386afcc-8c99-411b-b55c-b98d987fa5c7.stats",
+    "file-size-in-bytes" : 104480,
+    "file-footer-size-in-bytes" : 1760,
+    "blob-metadata" : [ {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 17514739785483505,
+      "sequence-number" : 1,
+      "fields" : [ 1 ],
+      "properties" : {
+        "ndv" : "29851"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 17514739785483505,
+      "sequence-number" : 1,
+      "fields" : [ 2 ],
+      "properties" : {
+        "ndv" : "30219"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 17514739785483505,
+      "sequence-number" : 1,
+      "fields" : [ 3 ],
+      "properties" : {
+        "ndv" : "91"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 17514739785483505,
+      "sequence-number" : 1,
+      "fields" : [ 4 ],
+      "properties" : {
+        "ndv" : "97"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 17514739785483505,
+      "sequence-number" : 1,
+      "fields" : [ 5 ],
+      "properties" : {
+        "ndv" : "1"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 17514739785483505,
+      "sequence-number" : 1,
+      "fields" : [ 6 ],
+      "properties" : {
+        "ndv" : "109"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 17514739785483505,
+      "sequence-number" : 1,
+      "fields" : [ 7 ],
+      "properties" : {
+        "ndv" : "277"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 17514739785483505,
+      "sequence-number" : 1,
+      "fields" : [ 8 ],
+      "properties" : {
+        "ndv" : "28827"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 17514739785483505,
+      "sequence-number" : 1,
+      "fields" : [ 9 ],
+      "properties" : {
+        "ndv" : "3"
+      }
+    } ]
+  } ],
+  "snapshot-log" : [ {
+    "timestamp-ms" : 1688147231215,
+    "snapshot-id" : 17514739785483505
+  }, {
+    "timestamp-ms" : 1710970695581,
+    "snapshot-id" : 6954579505784936404
+  } ],
+  "metadata-log" : [ {
+    "timestamp-ms" : 1688147231215,
+    "metadata-file" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/catalog_page-318748511b8f4d288fcd265c0ae2437a/metadata/00000-d008b1ba-061c-4ac2-91ef-7208b0b0badc.metadata.json"
+  }, {
+    "timestamp-ms" : 1688147231613,
+    "metadata-file" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/catalog_page-318748511b8f4d288fcd265c0ae2437a/metadata/00001-111a08d1-f8d9-4d0c-ac14-0c05487aae72.metadata.json"
+  } ]
+}

@@ -1,0 +1,107 @@
+{
+  "format-version" : 2,
+  "table-uuid" : "09a6019c-b9df-4ded-8367-dfed07d8084d",
+  "location" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/customer_demographics-8e8c332e73d04e6296628e0074c8db09",
+  "last-sequence-number" : 1,
+  "last-updated-ms" : 1688147252903,
+  "last-column-id" : 9,
+  "current-schema-id" : 0,
+  "schemas" : [ {
+    "type" : "struct",
+    "schema-id" : 0,
+    "fields" : [ {
+      "id" : 1,
+      "name" : "cd_demo_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 2,
+      "name" : "cd_gender",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 3,
+      "name" : "cd_marital_status",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 4,
+      "name" : "cd_education_status",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 5,
+      "name" : "cd_purchase_estimate",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 6,
+      "name" : "cd_credit_rating",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 7,
+      "name" : "cd_dep_count",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 8,
+      "name" : "cd_dep_employed_count",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 9,
+      "name" : "cd_dep_college_count",
+      "required" : false,
+      "type" : "int"
+    } ]
+  } ],
+  "default-spec-id" : 0,
+  "partition-specs" : [ {
+    "spec-id" : 0,
+    "fields" : [ ]
+  } ],
+  "last-partition-id" : 999,
+  "default-sort-order-id" : 0,
+  "sort-orders" : [ {
+    "order-id" : 0,
+    "fields" : [ ]
+  } ],
+  "properties" : {
+    "write.format.default" : "PARQUET"
+  },
+  "current-snapshot-id" : 1534016139487342563,
+  "refs" : {
+    "main" : {
+      "snapshot-id" : 1534016139487342563,
+      "type" : "branch"
+    }
+  },
+  "snapshots" : [ {
+    "sequence-number" : 1,
+    "snapshot-id" : 1534016139487342563,
+    "timestamp-ms" : 1688147252903,
+    "summary" : {
+      "operation" : "append",
+      "trino_query_id" : "20230630_174731_01204_wcd7b",
+      "added-data-files" : "10",
+      "added-records" : "1920800",
+      "added-files-size" : "2033433",
+      "changed-partition-count" : "1",
+      "total-records" : "1920800",
+      "total-files-size" : "2033433",
+      "total-data-files" : "10",
+      "total-delete-files" : "0",
+      "total-position-deletes" : "0",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/customer_demographics-8e8c332e73d04e6296628e0074c8db09/metadata/snap-1534016139487342563-1-fa02c8f4-1e9d-407d-90c9-d309fe2f9b58.avro",
+    "schema-id" : 0
+  } ],
+  "statistics" : [ ],
+  "snapshot-log" : [ {
+    "timestamp-ms" : 1688147252903,
+    "snapshot-id" : 1534016139487342563
+  } ],
+  "metadata-log" : [ ]
+}

@@ -1,0 +1,92 @@
+{
+  "format-version" : 2,
+  "table-uuid" : "5c16c8cf-104c-43ed-b4d8-35556f4b7c3f",
+  "location" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/ship_mode-d2c361f285934f3cbaefc0bd5e5751a2",
+  "last-sequence-number" : 1,
+  "last-updated-ms" : 1688147282675,
+  "last-column-id" : 6,
+  "current-schema-id" : 0,
+  "schemas" : [ {
+    "type" : "struct",
+    "schema-id" : 0,
+    "fields" : [ {
+      "id" : 1,
+      "name" : "sm_ship_mode_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 2,
+      "name" : "sm_ship_mode_id",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 3,
+      "name" : "sm_type",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 4,
+      "name" : "sm_code",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 5,
+      "name" : "sm_carrier",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 6,
+      "name" : "sm_contract",
+      "required" : false,
+      "type" : "string"
+    } ]
+  } ],
+  "default-spec-id" : 0,
+  "partition-specs" : [ {
+    "spec-id" : 0,
+    "fields" : [ ]
+  } ],
+  "last-partition-id" : 999,
+  "default-sort-order-id" : 0,
+  "sort-orders" : [ {
+    "order-id" : 0,
+    "fields" : [ ]
+  } ],
+  "properties" : {
+    "write.format.default" : "PARQUET"
+  },
+  "current-snapshot-id" : 253009778880942553,
+  "refs" : {
+    "main" : {
+      "snapshot-id" : 253009778880942553,
+      "type" : "branch"
+    }
+  },
+  "snapshots" : [ {
+    "sequence-number" : 1,
+    "snapshot-id" : 253009778880942553,
+    "timestamp-ms" : 1688147282675,
+    "summary" : {
+      "operation" : "append",
+      "trino_query_id" : "20230630_174801_01216_wcd7b",
+      "added-data-files" : "1",
+      "added-records" : "20",
+      "added-files-size" : "1695",
+      "changed-partition-count" : "1",
+      "total-records" : "20",
+      "total-files-size" : "1695",
+      "total-data-files" : "1",
+      "total-delete-files" : "0",
+      "total-position-deletes" : "0",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/ship_mode-d2c361f285934f3cbaefc0bd5e5751a2/metadata/snap-253009778880942553-1-90e09388-4c6c-485a-b28f-aff80b564367.avro",
+    "schema-id" : 0
+  } ],
+  "statistics" : [ ],
+  "snapshot-log" : [ {
+    "timestamp-ms" : 1688147282675,
+    "snapshot-id" : 253009778880942553
+  } ],
+  "metadata-log" : [ ]
+}

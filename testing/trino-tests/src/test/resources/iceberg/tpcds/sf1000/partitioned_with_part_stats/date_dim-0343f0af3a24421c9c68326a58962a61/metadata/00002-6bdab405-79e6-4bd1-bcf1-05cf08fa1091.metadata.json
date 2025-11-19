@@ -1,0 +1,465 @@
+{
+  "format-version" : 2,
+  "table-uuid" : "eb87cfe7-d319-498d-9736-d51022dc6d3c",
+  "location" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/date_dim-0343f0af3a24421c9c68326a58962a61",
+  "last-sequence-number" : 2,
+  "last-updated-ms" : 1710971145507,
+  "last-column-id" : 28,
+  "current-schema-id" : 0,
+  "schemas" : [ {
+    "type" : "struct",
+    "schema-id" : 0,
+    "fields" : [ {
+      "id" : 1,
+      "name" : "d_date_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 2,
+      "name" : "d_date_id",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 3,
+      "name" : "d_date",
+      "required" : false,
+      "type" : "date"
+    }, {
+      "id" : 4,
+      "name" : "d_month_seq",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 5,
+      "name" : "d_week_seq",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 6,
+      "name" : "d_quarter_seq",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 7,
+      "name" : "d_year",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 8,
+      "name" : "d_dow",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 9,
+      "name" : "d_moy",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 10,
+      "name" : "d_dom",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 11,
+      "name" : "d_qoy",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 12,
+      "name" : "d_fy_year",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 13,
+      "name" : "d_fy_quarter_seq",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 14,
+      "name" : "d_fy_week_seq",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 15,
+      "name" : "d_day_name",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 16,
+      "name" : "d_quarter_name",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 17,
+      "name" : "d_holiday",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 18,
+      "name" : "d_weekend",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 19,
+      "name" : "d_following_holiday",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 20,
+      "name" : "d_first_dom",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 21,
+      "name" : "d_last_dom",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 22,
+      "name" : "d_same_day_ly",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 23,
+      "name" : "d_same_day_lq",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 24,
+      "name" : "d_current_day",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 25,
+      "name" : "d_current_week",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 26,
+      "name" : "d_current_month",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 27,
+      "name" : "d_current_quarter",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 28,
+      "name" : "d_current_year",
+      "required" : false,
+      "type" : "string"
+    } ]
+  } ],
+  "default-spec-id" : 0,
+  "partition-specs" : [ {
+    "spec-id" : 0,
+    "fields" : [ ]
+  } ],
+  "last-partition-id" : 999,
+  "default-sort-order-id" : 0,
+  "sort-orders" : [ {
+    "order-id" : 0,
+    "fields" : [ ]
+  } ],
+  "properties" : {
+    "write.format.default" : "PARQUET"
+  },
+  "current-snapshot-id" : 4273572274325135936,
+  "refs" : {
+    "main" : {
+      "snapshot-id" : 4273572274325135936,
+      "type" : "branch"
+    }
+  },
+  "snapshots" : [ {
+    "sequence-number" : 1,
+    "snapshot-id" : 2403071911418199167,
+    "timestamp-ms" : 1688147257214,
+    "summary" : {
+      "operation" : "append",
+      "trino_query_id" : "20230630_174735_01206_wcd7b",
+      "added-data-files" : "1",
+      "added-records" : "73049",
+      "added-files-size" : "909635",
+      "changed-partition-count" : "1",
+      "total-records" : "73049",
+      "total-files-size" : "909635",
+      "total-data-files" : "1",
+      "total-delete-files" : "0",
+      "total-position-deletes" : "0",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/date_dim-0343f0af3a24421c9c68326a58962a61/metadata/snap-2403071911418199167-1-8cdb7c9b-d4d2-4565-96e3-682bea7f3f58.avro",
+    "schema-id" : 0
+  }, {
+    "sequence-number" : 2,
+    "snapshot-id" : 4273572274325135936,
+    "parent-snapshot-id" : 2403071911418199167,
+    "timestamp-ms" : 1710971145507,
+    "summary" : {
+      "operation" : "replace",
+      "trino_query_id" : "20240320_214544_03165_qajwg",
+      "added-data-files" : "4",
+      "deleted-data-files" : "1",
+      "added-records" : "73049",
+      "deleted-records" : "73049",
+      "added-files-size" : "898565",
+      "removed-files-size" : "909635",
+      "changed-partition-count" : "1",
+      "total-records" : "73049",
+      "total-files-size" : "898565",
+      "total-data-files" : "4",
+      "total-delete-files" : "0",
+      "total-position-deletes" : "0",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/date_dim-0343f0af3a24421c9c68326a58962a61/metadata/snap-4273572274325135936-1-3fc631f6-0a75-4c53-a9bb-a5cd4d08b0b4.avro",
+    "schema-id" : 0
+  } ],
+  "statistics" : [ {
+    "snapshot-id" : 2403071911418199167,
+    "statistics-path" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/date_dim-0343f0af3a24421c9c68326a58962a61/metadata/20230630_174735_01206_wcd7b-de711d7e-6d95-4be8-b4b4-bf963f8d4e25.stats",
+    "file-size-in-bytes" : 312132,
+    "file-footer-size-in-bytes" : 5413,
+    "blob-metadata" : [ {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 1 ],
+      "properties" : {
+        "ndv" : "71965"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 2 ],
+      "properties" : {
+        "ndv" : "75104"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 3 ],
+      "properties" : {
+        "ndv" : "73018"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 4 ],
+      "properties" : {
+        "ndv" : "2401"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 5 ],
+      "properties" : {
+        "ndv" : "10621"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 6 ],
+      "properties" : {
+        "ndv" : "801"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 7 ],
+      "properties" : {
+        "ndv" : "201"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 8 ],
+      "properties" : {
+        "ndv" : "7"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 9 ],
+      "properties" : {
+        "ndv" : "12"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 10 ],
+      "properties" : {
+        "ndv" : "31"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 11 ],
+      "properties" : {
+        "ndv" : "4"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 12 ],
+      "properties" : {
+        "ndv" : "201"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 13 ],
+      "properties" : {
+        "ndv" : "801"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 14 ],
+      "properties" : {
+        "ndv" : "10621"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 15 ],
+      "properties" : {
+        "ndv" : "7"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 16 ],
+      "properties" : {
+        "ndv" : "801"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 17 ],
+      "properties" : {
+        "ndv" : "2"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 18 ],
+      "properties" : {
+        "ndv" : "2"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 19 ],
+      "properties" : {
+        "ndv" : "2"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 20 ],
+      "properties" : {
+        "ndv" : "2401"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 21 ],
+      "properties" : {
+        "ndv" : "2401"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 22 ],
+      "properties" : {
+        "ndv" : "73902"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 23 ],
+      "properties" : {
+        "ndv" : "73521"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 24 ],
+      "properties" : {
+        "ndv" : "1"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 25 ],
+      "properties" : {
+        "ndv" : "1"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 26 ],
+      "properties" : {
+        "ndv" : "2"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 27 ],
+      "properties" : {
+        "ndv" : "2"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 2403071911418199167,
+      "sequence-number" : 1,
+      "fields" : [ 28 ],
+      "properties" : {
+        "ndv" : "2"
+      }
+    } ]
+  } ],
+  "snapshot-log" : [ {
+    "timestamp-ms" : 1688147257214,
+    "snapshot-id" : 2403071911418199167
+  }, {
+    "timestamp-ms" : 1710971145507,
+    "snapshot-id" : 4273572274325135936
+  } ],
+  "metadata-log" : [ {
+    "timestamp-ms" : 1688147257214,
+    "metadata-file" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/date_dim-0343f0af3a24421c9c68326a58962a61/metadata/00000-5128835b-c48a-469f-ae21-dbd9871a665e.metadata.json"
+  }, {
+    "timestamp-ms" : 1688147257722,
+    "metadata-file" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/date_dim-0343f0af3a24421c9c68326a58962a61/metadata/00001-74f4cba8-248f-4c04-be34-91cb66936aa1.metadata.json"
+  } ]
+}

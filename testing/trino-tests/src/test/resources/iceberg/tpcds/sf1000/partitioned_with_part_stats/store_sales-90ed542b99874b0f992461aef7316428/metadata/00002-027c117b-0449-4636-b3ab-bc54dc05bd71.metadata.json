@@ -1,0 +1,405 @@
+{
+  "format-version" : 2,
+  "table-uuid" : "d9596590-cae3-49d3-8a7a-51c795594308",
+  "location" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/store_sales-90ed542b99874b0f992461aef7316428",
+  "last-sequence-number" : 2,
+  "last-updated-ms" : 1710971660928,
+  "last-column-id" : 23,
+  "current-schema-id" : 0,
+  "schemas" : [ {
+    "type" : "struct",
+    "schema-id" : 0,
+    "fields" : [ {
+      "id" : 1,
+      "name" : "ss_sold_date_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 2,
+      "name" : "ss_sold_time_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 3,
+      "name" : "ss_item_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 4,
+      "name" : "ss_customer_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 5,
+      "name" : "ss_cdemo_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 6,
+      "name" : "ss_hdemo_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 7,
+      "name" : "ss_addr_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 8,
+      "name" : "ss_store_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 9,
+      "name" : "ss_promo_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 10,
+      "name" : "ss_ticket_number",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 11,
+      "name" : "ss_quantity",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 12,
+      "name" : "ss_wholesale_cost",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 13,
+      "name" : "ss_list_price",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 14,
+      "name" : "ss_sales_price",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 15,
+      "name" : "ss_ext_discount_amt",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 16,
+      "name" : "ss_ext_sales_price",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 17,
+      "name" : "ss_ext_wholesale_cost",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 18,
+      "name" : "ss_ext_list_price",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 19,
+      "name" : "ss_ext_tax",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 20,
+      "name" : "ss_coupon_amt",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 21,
+      "name" : "ss_net_paid",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 22,
+      "name" : "ss_net_paid_inc_tax",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    }, {
+      "id" : 23,
+      "name" : "ss_net_profit",
+      "required" : false,
+      "type" : "decimal(7, 2)"
+    } ]
+  } ],
+  "default-spec-id" : 0,
+  "partition-specs" : [ {
+    "spec-id" : 0,
+    "fields" : [ {
+      "name" : "ss_sold_date_sk",
+      "transform" : "identity",
+      "source-id" : 1,
+      "field-id" : 1000
+    } ]
+  } ],
+  "last-partition-id" : 1000,
+  "default-sort-order-id" : 0,
+  "sort-orders" : [ {
+    "order-id" : 0,
+    "fields" : [ ]
+  } ],
+  "properties" : {
+    "write.format.default" : "PARQUET"
+  },
+  "current-snapshot-id" : 809960606229381850,
+  "refs" : {
+    "main" : {
+      "snapshot-id" : 809960606229381850,
+      "type" : "branch"
+    }
+  },
+  "snapshots" : [ {
+    "sequence-number" : 1,
+    "snapshot-id" : 7765361954883405459,
+    "timestamp-ms" : 1688151166835,
+    "summary" : {
+      "operation" : "append",
+      "trino_query_id" : "20230630_181646_01238_wcd7b",
+      "added-data-files" : "3068",
+      "added-records" : "2879987999",
+      "added-files-size" : "102453470830",
+      "changed-partition-count" : "1824",
+      "total-records" : "2879987999",
+      "total-files-size" : "102453470830",
+      "total-data-files" : "3068",
+      "total-delete-files" : "0",
+      "total-position-deletes" : "0",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/store_sales-90ed542b99874b0f992461aef7316428/metadata/snap-7765361954883405459-1-1594b6e6-0e9c-4c45-8154-f06e0cd58d8d.avro",
+    "schema-id" : 0
+  }, {
+    "sequence-number" : 2,
+    "snapshot-id" : 809960606229381850,
+    "parent-snapshot-id" : 7765361954883405459,
+    "timestamp-ms" : 1710971660928,
+    "summary" : {
+      "operation" : "replace",
+      "trino_query_id" : "20240320_215126_02474_t6z6k",
+      "added-data-files" : "1824",
+      "deleted-data-files" : "3055",
+      "added-records" : "2758584594",
+      "deleted-records" : "2758584594",
+      "added-files-size" : "98437948939",
+      "removed-files-size" : "98963868735",
+      "changed-partition-count" : "1824",
+      "total-records" : "2879987999",
+      "total-files-size" : "101927551034",
+      "total-data-files" : "1837",
+      "total-delete-files" : "0",
+      "total-position-deletes" : "0",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/store_sales-90ed542b99874b0f992461aef7316428/metadata/snap-809960606229381850-1-1db4184b-75d3-4700-8c98-bb193709901b.avro",
+    "schema-id" : 0
+  } ],
+  "statistics" : [ {
+    "snapshot-id" : 7765361954883405459,
+    "statistics-path" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/store_sales-90ed542b99874b0f992461aef7316428/metadata/20230630_181646_01238_wcd7b-4f8f4a40-2b94-4dd7-a992-56f6b1a111ab.stats",
+    "file-size-in-bytes" : 626931,
+    "file-footer-size-in-bytes" : 4558,
+    "blob-metadata" : [ {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 1 ],
+      "properties" : {
+        "ndv" : "1823"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 2 ],
+      "properties" : {
+        "ndv" : "46239"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 3 ],
+      "properties" : {
+        "ndv" : "302153"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 4 ],
+      "properties" : {
+        "ndv" : "11975335"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 5 ],
+      "properties" : {
+        "ndv" : "1930039"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 6 ],
+      "properties" : {
+        "ndv" : "7175"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 7 ],
+      "properties" : {
+        "ndv" : "6043919"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 8 ],
+      "properties" : {
+        "ndv" : "501"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 9 ],
+      "properties" : {
+        "ndv" : "1500"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 10 ],
+      "properties" : {
+        "ndv" : "244731139"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 11 ],
+      "properties" : {
+        "ndv" : "100"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 12 ],
+      "properties" : {
+        "ndv" : "9772"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 13 ],
+      "properties" : {
+        "ndv" : "19534"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 14 ],
+      "properties" : {
+        "ndv" : "19699"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 15 ],
+      "properties" : {
+        "ndv" : "1179619"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 16 ],
+      "properties" : {
+        "ndv" : "778767"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 17 ],
+      "properties" : {
+        "ndv" : "402210"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 18 ],
+      "properties" : {
+        "ndv" : "796316"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 19 ],
+      "properties" : {
+        "ndv" : "152086"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 20 ],
+      "properties" : {
+        "ndv" : "1179619"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 21 ],
+      "properties" : {
+        "ndv" : "1286441"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 22 ],
+      "properties" : {
+        "ndv" : "1661753"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 7765361954883405459,
+      "sequence-number" : 1,
+      "fields" : [ 23 ],
+      "properties" : {
+        "ndv" : "1569739"
+      }
+    } ]
+  } ],
+  "snapshot-log" : [ {
+    "timestamp-ms" : 1688151166835,
+    "snapshot-id" : 7765361954883405459
+  }, {
+    "timestamp-ms" : 1710971660928,
+    "snapshot-id" : 809960606229381850
+  } ],
+  "metadata-log" : [ {
+    "timestamp-ms" : 1688151166835,
+    "metadata-file" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/store_sales-90ed542b99874b0f992461aef7316428/metadata/00000-902ddec3-0213-4c26-a6a2-d6ffe9e83079.metadata.json"
+  }, {
+    "timestamp-ms" : 1688151167427,
+    "metadata-file" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/store_sales-90ed542b99874b0f992461aef7316428/metadata/00001-7d25d91b-8670-4c67-be46-abe15ac80f53.metadata.json"
+  } ]
+}

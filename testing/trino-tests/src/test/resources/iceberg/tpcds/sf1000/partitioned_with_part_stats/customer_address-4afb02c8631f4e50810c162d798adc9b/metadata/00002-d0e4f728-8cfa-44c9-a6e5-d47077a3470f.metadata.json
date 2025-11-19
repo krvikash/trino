@@ -1,0 +1,270 @@
+{
+  "format-version" : 2,
+  "table-uuid" : "642fc390-8356-4d2b-8fdf-53011025a4c8",
+  "location" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/customer_address-4afb02c8631f4e50810c162d798adc9b",
+  "last-sequence-number" : 2,
+  "last-updated-ms" : 1710971133861,
+  "last-column-id" : 13,
+  "current-schema-id" : 0,
+  "schemas" : [ {
+    "type" : "struct",
+    "schema-id" : 0,
+    "fields" : [ {
+      "id" : 1,
+      "name" : "ca_address_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 2,
+      "name" : "ca_address_id",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 3,
+      "name" : "ca_street_number",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 4,
+      "name" : "ca_street_name",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 5,
+      "name" : "ca_street_type",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 6,
+      "name" : "ca_suite_number",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 7,
+      "name" : "ca_city",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 8,
+      "name" : "ca_county",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 9,
+      "name" : "ca_state",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 10,
+      "name" : "ca_zip",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 11,
+      "name" : "ca_country",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 12,
+      "name" : "ca_gmt_offset",
+      "required" : false,
+      "type" : "decimal(5, 2)"
+    }, {
+      "id" : 13,
+      "name" : "ca_location_type",
+      "required" : false,
+      "type" : "string"
+    } ]
+  } ],
+  "default-spec-id" : 0,
+  "partition-specs" : [ {
+    "spec-id" : 0,
+    "fields" : [ ]
+  } ],
+  "last-partition-id" : 999,
+  "default-sort-order-id" : 0,
+  "sort-orders" : [ {
+    "order-id" : 0,
+    "fields" : [ ]
+  } ],
+  "properties" : {
+    "write.format.default" : "PARQUET"
+  },
+  "current-snapshot-id" : 1584360025691187325,
+  "refs" : {
+    "main" : {
+      "snapshot-id" : 1584360025691187325,
+      "type" : "branch"
+    }
+  },
+  "snapshots" : [ {
+    "sequence-number" : 1,
+    "snapshot-id" : 5397763774750105855,
+    "timestamp-ms" : 1688147249309,
+    "summary" : {
+      "operation" : "append",
+      "trino_query_id" : "20230630_174724_01202_wcd7b",
+      "added-data-files" : "10",
+      "added-records" : "6000000",
+      "added-files-size" : "69862518",
+      "changed-partition-count" : "1",
+      "total-records" : "6000000",
+      "total-files-size" : "69862518",
+      "total-data-files" : "10",
+      "total-delete-files" : "0",
+      "total-position-deletes" : "0",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/customer_address-4afb02c8631f4e50810c162d798adc9b/metadata/snap-5397763774750105855-1-7db48b60-a6a5-49f4-8602-4de56b389802.avro",
+    "schema-id" : 0
+  }, {
+    "sequence-number" : 2,
+    "snapshot-id" : 1584360025691187325,
+    "parent-snapshot-id" : 5397763774750105855,
+    "timestamp-ms" : 1710971133861,
+    "summary" : {
+      "operation" : "replace",
+      "trino_query_id" : "20240320_214529_03159_qajwg",
+      "added-data-files" : "4",
+      "deleted-data-files" : "10",
+      "added-records" : "6000000",
+      "deleted-records" : "6000000",
+      "added-files-size" : "69657297",
+      "removed-files-size" : "69862518",
+      "changed-partition-count" : "1",
+      "total-records" : "6000000",
+      "total-files-size" : "69657297",
+      "total-data-files" : "4",
+      "total-delete-files" : "0",
+      "total-position-deletes" : "0",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/customer_address-4afb02c8631f4e50810c162d798adc9b/metadata/snap-1584360025691187325-1-a3d4adcc-dc82-4685-b772-1b6c6035a0dd.avro",
+    "schema-id" : 0
+  } ],
+  "statistics" : [ {
+    "snapshot-id" : 5397763774750105855,
+    "statistics-path" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/customer_address-4afb02c8631f4e50810c162d798adc9b/metadata/20230630_174724_01202_wcd7b-025164d1-1844-456b-b2f7-a01a52e3c294.stats",
+    "file-size-in-bytes" : 161402,
+    "file-footer-size-in-bytes" : 2553,
+    "blob-metadata" : [ {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 5397763774750105855,
+      "sequence-number" : 1,
+      "fields" : [ 1 ],
+      "properties" : {
+        "ndv" : "6043919"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 5397763774750105855,
+      "sequence-number" : 1,
+      "fields" : [ 2 ],
+      "properties" : {
+        "ndv" : "6133651"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 5397763774750105855,
+      "sequence-number" : 1,
+      "fields" : [ 3 ],
+      "properties" : {
+        "ndv" : "1000"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 5397763774750105855,
+      "sequence-number" : 1,
+      "fields" : [ 4 ],
+      "properties" : {
+        "ndv" : "8294"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 5397763774750105855,
+      "sequence-number" : 1,
+      "fields" : [ 5 ],
+      "properties" : {
+        "ndv" : "20"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 5397763774750105855,
+      "sequence-number" : 1,
+      "fields" : [ 6 ],
+      "properties" : {
+        "ndv" : "75"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 5397763774750105855,
+      "sequence-number" : 1,
+      "fields" : [ 7 ],
+      "properties" : {
+        "ndv" : "986"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 5397763774750105855,
+      "sequence-number" : 1,
+      "fields" : [ 8 ],
+      "properties" : {
+        "ndv" : "1846"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 5397763774750105855,
+      "sequence-number" : 1,
+      "fields" : [ 9 ],
+      "properties" : {
+        "ndv" : "51"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 5397763774750105855,
+      "sequence-number" : 1,
+      "fields" : [ 10 ],
+      "properties" : {
+        "ndv" : "9283"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 5397763774750105855,
+      "sequence-number" : 1,
+      "fields" : [ 11 ],
+      "properties" : {
+        "ndv" : "1"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 5397763774750105855,
+      "sequence-number" : 1,
+      "fields" : [ 12 ],
+      "properties" : {
+        "ndv" : "6"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 5397763774750105855,
+      "sequence-number" : 1,
+      "fields" : [ 13 ],
+      "properties" : {
+        "ndv" : "3"
+      }
+    } ]
+  } ],
+  "snapshot-log" : [ {
+    "timestamp-ms" : 1688147249309,
+    "snapshot-id" : 5397763774750105855
+  }, {
+    "timestamp-ms" : 1710971133861,
+    "snapshot-id" : 1584360025691187325
+  } ],
+  "metadata-log" : [ {
+    "timestamp-ms" : 1688147249309,
+    "metadata-file" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/customer_address-4afb02c8631f4e50810c162d798adc9b/metadata/00000-1943f987-be96-479c-8138-7b13bf4562a4.metadata.json"
+  }, {
+    "timestamp-ms" : 1688147249803,
+    "metadata-file" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/customer_address-4afb02c8631f4e50810c162d798adc9b/metadata/00001-1ada1fc0-6d57-40fb-b465-c5ffb63d0d80.metadata.json"
+  } ]
+}

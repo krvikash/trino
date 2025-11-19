@@ -1,0 +1,283 @@
+{
+  "format-version" : 2,
+  "table-uuid" : "b15bd2d7-6ff3-4c01-bd1b-564f70f0b53b",
+  "location" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/warehouse-acb87d6251bc47bf9230514c95f60420",
+  "last-sequence-number" : 2,
+  "last-updated-ms" : 1710971772287,
+  "last-column-id" : 14,
+  "current-schema-id" : 0,
+  "schemas" : [ {
+    "type" : "struct",
+    "schema-id" : 0,
+    "fields" : [ {
+      "id" : 1,
+      "name" : "w_warehouse_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 2,
+      "name" : "w_warehouse_id",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 3,
+      "name" : "w_warehouse_name",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 4,
+      "name" : "w_warehouse_sq_ft",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 5,
+      "name" : "w_street_number",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 6,
+      "name" : "w_street_name",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 7,
+      "name" : "w_street_type",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 8,
+      "name" : "w_suite_number",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 9,
+      "name" : "w_city",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 10,
+      "name" : "w_county",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 11,
+      "name" : "w_state",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 12,
+      "name" : "w_zip",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 13,
+      "name" : "w_country",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 14,
+      "name" : "w_gmt_offset",
+      "required" : false,
+      "type" : "decimal(5, 2)"
+    } ]
+  } ],
+  "default-spec-id" : 0,
+  "partition-specs" : [ {
+    "spec-id" : 0,
+    "fields" : [ ]
+  } ],
+  "last-partition-id" : 999,
+  "default-sort-order-id" : 0,
+  "sort-orders" : [ {
+    "order-id" : 0,
+    "fields" : [ ]
+  } ],
+  "properties" : {
+    "write.format.default" : "PARQUET"
+  },
+  "current-snapshot-id" : 1065919444015442136,
+  "refs" : {
+    "main" : {
+      "snapshot-id" : 1065919444015442136,
+      "type" : "branch"
+    }
+  },
+  "snapshots" : [ {
+    "sequence-number" : 1,
+    "snapshot-id" : 1030461177913417038,
+    "timestamp-ms" : 1688147292194,
+    "summary" : {
+      "operation" : "append",
+      "trino_query_id" : "20230630_174811_01222_wcd7b",
+      "added-data-files" : "1",
+      "added-records" : "20",
+      "added-files-size" : "3809",
+      "changed-partition-count" : "1",
+      "total-records" : "20",
+      "total-files-size" : "3809",
+      "total-data-files" : "1",
+      "total-delete-files" : "0",
+      "total-position-deletes" : "0",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/warehouse-acb87d6251bc47bf9230514c95f60420/metadata/snap-1030461177913417038-1-72a4e3c4-006d-411f-9de6-cd239c901c10.avro",
+    "schema-id" : 0
+  }, {
+    "sequence-number" : 2,
+    "snapshot-id" : 1065919444015442136,
+    "parent-snapshot-id" : 1030461177913417038,
+    "timestamp-ms" : 1710971772287,
+    "summary" : {
+      "operation" : "replace",
+      "trino_query_id" : "20240320_215610_02492_t6z6k",
+      "added-data-files" : "4",
+      "deleted-data-files" : "1",
+      "added-records" : "20",
+      "deleted-records" : "20",
+      "added-files-size" : "10904",
+      "removed-files-size" : "3809",
+      "changed-partition-count" : "1",
+      "total-records" : "20",
+      "total-files-size" : "10904",
+      "total-data-files" : "4",
+      "total-delete-files" : "0",
+      "total-position-deletes" : "0",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/warehouse-acb87d6251bc47bf9230514c95f60420/metadata/snap-1065919444015442136-1-2f311c28-7df6-4797-92e4-024a557634da.avro",
+    "schema-id" : 0
+  } ],
+  "statistics" : [ {
+    "snapshot-id" : 1030461177913417038,
+    "statistics-path" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/warehouse-acb87d6251bc47bf9230514c95f60420/metadata/20230630_174811_01222_wcd7b-078b9ad7-5c71-49d6-9bcb-dcb7e629ac2c.stats",
+    "file-size-in-bytes" : 4736,
+    "file-footer-size-in-bytes" : 2686,
+    "blob-metadata" : [ {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 1030461177913417038,
+      "sequence-number" : 1,
+      "fields" : [ 1 ],
+      "properties" : {
+        "ndv" : "20"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 1030461177913417038,
+      "sequence-number" : 1,
+      "fields" : [ 2 ],
+      "properties" : {
+        "ndv" : "20"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 1030461177913417038,
+      "sequence-number" : 1,
+      "fields" : [ 3 ],
+      "properties" : {
+        "ndv" : "19"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 1030461177913417038,
+      "sequence-number" : 1,
+      "fields" : [ 4 ],
+      "properties" : {
+        "ndv" : "19"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 1030461177913417038,
+      "sequence-number" : 1,
+      "fields" : [ 5 ],
+      "properties" : {
+        "ndv" : "18"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 1030461177913417038,
+      "sequence-number" : 1,
+      "fields" : [ 6 ],
+      "properties" : {
+        "ndv" : "19"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 1030461177913417038,
+      "sequence-number" : 1,
+      "fields" : [ 7 ],
+      "properties" : {
+        "ndv" : "13"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 1030461177913417038,
+      "sequence-number" : 1,
+      "fields" : [ 8 ],
+      "properties" : {
+        "ndv" : "17"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 1030461177913417038,
+      "sequence-number" : 1,
+      "fields" : [ 9 ],
+      "properties" : {
+        "ndv" : "12"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 1030461177913417038,
+      "sequence-number" : 1,
+      "fields" : [ 10 ],
+      "properties" : {
+        "ndv" : "14"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 1030461177913417038,
+      "sequence-number" : 1,
+      "fields" : [ 11 ],
+      "properties" : {
+        "ndv" : "13"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 1030461177913417038,
+      "sequence-number" : 1,
+      "fields" : [ 12 ],
+      "properties" : {
+        "ndv" : "18"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 1030461177913417038,
+      "sequence-number" : 1,
+      "fields" : [ 13 ],
+      "properties" : {
+        "ndv" : "1"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 1030461177913417038,
+      "sequence-number" : 1,
+      "fields" : [ 14 ],
+      "properties" : {
+        "ndv" : "3"
+      }
+    } ]
+  } ],
+  "snapshot-log" : [ {
+    "timestamp-ms" : 1688147292194,
+    "snapshot-id" : 1030461177913417038
+  }, {
+    "timestamp-ms" : 1710971772287,
+    "snapshot-id" : 1065919444015442136
+  } ],
+  "metadata-log" : [ {
+    "timestamp-ms" : 1688147292194,
+    "metadata-file" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/warehouse-acb87d6251bc47bf9230514c95f60420/metadata/00000-ab2f9053-1d9d-4536-8210-5b8b50b1b543.metadata.json"
+  }, {
+    "timestamp-ms" : 1688147292634,
+    "metadata-file" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/warehouse-acb87d6251bc47bf9230514c95f60420/metadata/00001-21841a06-d466-4171-865a-54f65e3b5a00.metadata.json"
+  } ]
+}

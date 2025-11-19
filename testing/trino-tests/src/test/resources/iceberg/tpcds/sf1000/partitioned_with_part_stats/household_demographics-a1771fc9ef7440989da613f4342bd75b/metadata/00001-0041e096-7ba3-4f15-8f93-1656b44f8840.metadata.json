@@ -1,0 +1,136 @@
+{
+  "format-version" : 2,
+  "table-uuid" : "06911c7d-70e3-4e43-9e5e-3880bd60423a",
+  "location" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/household_demographics-a1771fc9ef7440989da613f4342bd75b",
+  "last-sequence-number" : 1,
+  "last-updated-ms" : 1688147260655,
+  "last-column-id" : 5,
+  "current-schema-id" : 0,
+  "schemas" : [ {
+    "type" : "struct",
+    "schema-id" : 0,
+    "fields" : [ {
+      "id" : 1,
+      "name" : "hd_demo_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 2,
+      "name" : "hd_income_band_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 3,
+      "name" : "hd_buy_potential",
+      "required" : false,
+      "type" : "string"
+    }, {
+      "id" : 4,
+      "name" : "hd_dep_count",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 5,
+      "name" : "hd_vehicle_count",
+      "required" : false,
+      "type" : "int"
+    } ]
+  } ],
+  "default-spec-id" : 0,
+  "partition-specs" : [ {
+    "spec-id" : 0,
+    "fields" : [ ]
+  } ],
+  "last-partition-id" : 999,
+  "default-sort-order-id" : 0,
+  "sort-orders" : [ {
+    "order-id" : 0,
+    "fields" : [ ]
+  } ],
+  "properties" : {
+    "write.format.default" : "PARQUET"
+  },
+  "current-snapshot-id" : 3545935553088638847,
+  "refs" : {
+    "main" : {
+      "snapshot-id" : 3545935553088638847,
+      "type" : "branch"
+    }
+  },
+  "snapshots" : [ {
+    "sequence-number" : 1,
+    "snapshot-id" : 3545935553088638847,
+    "timestamp-ms" : 1688147260117,
+    "summary" : {
+      "operation" : "append",
+      "trino_query_id" : "20230630_174739_01208_wcd7b",
+      "added-data-files" : "1",
+      "added-records" : "7200",
+      "added-files-size" : "10130",
+      "changed-partition-count" : "1",
+      "total-records" : "7200",
+      "total-files-size" : "10130",
+      "total-data-files" : "1",
+      "total-delete-files" : "0",
+      "total-position-deletes" : "0",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/household_demographics-a1771fc9ef7440989da613f4342bd75b/metadata/snap-3545935553088638847-1-c2788291-4454-4452-ae7f-6654dd8fbe42.avro",
+    "schema-id" : 0
+  } ],
+  "statistics" : [ {
+    "snapshot-id" : 3545935553088638847,
+    "statistics-path" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/household_demographics-a1771fc9ef7440989da613f4342bd75b/metadata/20230630_174739_01208_wcd7b-2fa88388-d068-4913-8a57-728502aafcb4.stats",
+    "file-size-in-bytes" : 34273,
+    "file-footer-size-in-bytes" : 1011,
+    "blob-metadata" : [ {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 3545935553088638847,
+      "sequence-number" : 1,
+      "fields" : [ 1 ],
+      "properties" : {
+        "ndv" : "7160"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 3545935553088638847,
+      "sequence-number" : 1,
+      "fields" : [ 2 ],
+      "properties" : {
+        "ndv" : "20"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 3545935553088638847,
+      "sequence-number" : 1,
+      "fields" : [ 3 ],
+      "properties" : {
+        "ndv" : "6"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 3545935553088638847,
+      "sequence-number" : 1,
+      "fields" : [ 4 ],
+      "properties" : {
+        "ndv" : "10"
+      }
+    }, {
+      "type" : "apache-datasketches-theta-v1",
+      "snapshot-id" : 3545935553088638847,
+      "sequence-number" : 1,
+      "fields" : [ 5 ],
+      "properties" : {
+        "ndv" : "6"
+      }
+    } ]
+  } ],
+  "snapshot-log" : [ {
+    "timestamp-ms" : 1688147260117,
+    "snapshot-id" : 3545935553088638847
+  } ],
+  "metadata-log" : [ {
+    "timestamp-ms" : 1688147260117,
+    "metadata-file" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/household_demographics-a1771fc9ef7440989da613f4342bd75b/metadata/00000-1f5a1147-f34e-4af4-8fa4-30fb9dcdce56.metadata.json"
+  } ]
+}

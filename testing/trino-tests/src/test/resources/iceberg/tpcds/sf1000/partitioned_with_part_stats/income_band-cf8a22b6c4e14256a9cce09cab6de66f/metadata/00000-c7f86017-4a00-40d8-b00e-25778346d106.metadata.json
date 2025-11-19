@@ -1,0 +1,77 @@
+{
+  "format-version" : 2,
+  "table-uuid" : "cadf95b4-9bc2-4933-a861-a67d651fb03d",
+  "location" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/income_band-cf8a22b6c4e14256a9cce09cab6de66f",
+  "last-sequence-number" : 1,
+  "last-updated-ms" : 1688148798712,
+  "last-column-id" : 3,
+  "current-schema-id" : 0,
+  "schemas" : [ {
+    "type" : "struct",
+    "schema-id" : 0,
+    "fields" : [ {
+      "id" : 1,
+      "name" : "ib_income_band_sk",
+      "required" : false,
+      "type" : "long"
+    }, {
+      "id" : 2,
+      "name" : "ib_lower_bound",
+      "required" : false,
+      "type" : "int"
+    }, {
+      "id" : 3,
+      "name" : "ib_upper_bound",
+      "required" : false,
+      "type" : "int"
+    } ]
+  } ],
+  "default-spec-id" : 0,
+  "partition-specs" : [ {
+    "spec-id" : 0,
+    "fields" : [ ]
+  } ],
+  "last-partition-id" : 999,
+  "default-sort-order-id" : 0,
+  "sort-orders" : [ {
+    "order-id" : 0,
+    "fields" : [ ]
+  } ],
+  "properties" : {
+    "write.format.default" : "PARQUET"
+  },
+  "current-snapshot-id" : 4775793288971143292,
+  "refs" : {
+    "main" : {
+      "snapshot-id" : 4775793288971143292,
+      "type" : "branch"
+    }
+  },
+  "snapshots" : [ {
+    "sequence-number" : 1,
+    "snapshot-id" : 4775793288971143292,
+    "timestamp-ms" : 1688148798712,
+    "summary" : {
+      "operation" : "append",
+      "trino_query_id" : "20230630_181318_01232_wcd7b",
+      "added-data-files" : "1",
+      "added-records" : "20",
+      "added-files-size" : "744",
+      "changed-partition-count" : "1",
+      "total-records" : "20",
+      "total-files-size" : "744",
+      "total-data-files" : "1",
+      "total-delete-files" : "0",
+      "total-position-deletes" : "0",
+      "total-equality-deletes" : "0"
+    },
+    "manifest-list" : "s3://starburst-benchmarks-data/iceberg-tpcds-sf1000-parquet-part-with-part-stats/income_band-cf8a22b6c4e14256a9cce09cab6de66f/metadata/snap-4775793288971143292-1-a32fce3e-6cef-4418-ae41-f19b5ff3de05.avro",
+    "schema-id" : 0
+  } ],
+  "statistics" : [ ],
+  "snapshot-log" : [ {
+    "timestamp-ms" : 1688148798712,
+    "snapshot-id" : 4775793288971143292
+  } ],
+  "metadata-log" : [ ]
+}
