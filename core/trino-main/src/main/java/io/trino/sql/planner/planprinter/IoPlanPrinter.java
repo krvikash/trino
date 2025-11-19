@@ -29,7 +29,12 @@ import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
 import io.trino.sql.PlannerContext;
+import io.trino.sql.dialect.trino.operation.Query;
+import io.trino.sql.dialect.trino.operation.TableScan;
+import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata;
 import io.trino.sql.ir.Expression;
+import io.trino.sql.newir.Block;
+import io.trino.sql.newir.Program;
 import io.trino.sql.planner.DomainTranslator;
 import io.trino.sql.planner.Plan;
 import io.trino.sql.planner.plan.ChooseAlternativeNode;
@@ -57,6 +62,9 @@ import java.util.Set;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.airlift.json.JsonCodec.jsonCodec;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.CONSTRAINT;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.STATISTICS;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.TABLE_HANDLE;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -81,6 +89,64 @@ public class IoPlanPrinter
     public static String textIoPlan(Plan plan, PlannerContext plannerContext, Session session)
     {
         return new IoPlanPrinter(plan, plannerContext, session).print();
+    }
+
+    public static String textIoPlan(Program program, PlannerContext plannerContext, Session session)
+    {
+        return jsonCodec(IoPlan.class).toJson(new IoPlan(
+                getAllInputTableColumnInfo(session, plannerContext, program),
+                Optional.empty(),
+                new EstimatedStatsAndCost(Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN)));
+    }
+
+    private static Set<IoPlan.TableColumnInfo> getAllInputTableColumnInfo(Session session, PlannerContext plannerContext, Program program)
+    {
+        // todo further improvements needed: https://starburstdata.atlassian.net/browse/ENG-5226
+        // todo - support output table
+        ImmutableSet.Builder<IoPlan.TableColumnInfo> builder = ImmutableSet.builder();
+
+        Block mainBlock = ((Query) program.getRoot()).query();
+
+        mainBlock.operations().stream()
+                .filter(TableScan.class::isInstance)
+                .map(TableScan.class::cast)
+                .forEach(tableScan -> {
+                    TableHandle table = TABLE_HANDLE.getAttribute(tableScan.attributes());
+                    CatalogSchemaTableName tableName = plannerContext.getMetadata().getTableName(session, table);
+                    Optional<TableScanOperationMetadata.Statistics> statistics = Optional.ofNullable(STATISTICS.getAttribute(tableScan.attributes()));
+
+                    EstimatedStatsAndCost estimatedStatsAndCost = new EstimatedStatsAndCost(
+                            statistics.map(TableScanOperationMetadata.Statistics::outputRowCount).orElse(Double.NaN),
+                            Double.NaN,
+                            Double.NaN,
+                            Double.NaN,
+                            Double.NaN);
+                    ValuePrinter valuePrinter = new ValuePrinter(plannerContext.getMetadata(), plannerContext.getFunctionManager(), session);
+
+                    TupleDomain<ColumnHandle> constraint = CONSTRAINT.getAttribute(tableScan.operationAttributes());
+
+                    ImmutableSet.Builder<ColumnConstraint> columnConstraints = ImmutableSet.builder();
+                    constraint.getDomains().ifPresent(domains -> {
+                        for (Map.Entry<ColumnHandle, Domain> entry : domains.entrySet()) {
+                            ColumnMetadata columnMetadata = plannerContext.getMetadata().getColumnMetadata(session, table, entry.getKey());
+                            columnConstraints.add(new ColumnConstraint(
+                                    columnMetadata.getName(),
+                                    columnMetadata.getType(),
+                                    parseDomain(valuePrinter, entry.getValue().simplify())));
+                        }
+                    });
+
+                    builder.add(
+                            new IoPlan.TableColumnInfo(
+                                    new CatalogSchemaTableName(
+                                            tableName.getCatalogName(),
+                                            tableName.getSchemaTableName().getSchemaName(),
+                                            tableName.getSchemaTableName().getTableName()),
+                                    new Constraint(constraint.isNone(), columnConstraints.build()),
+                                    estimatedStatsAndCost));
+                });
+
+        return builder.build();
     }
 
     private String print()
@@ -786,49 +852,9 @@ public class IoPlanPrinter
                 columnConstraints.add(new ColumnConstraint(
                         columnMetadata.getName(),
                         columnMetadata.getType(),
-                        parseDomain(entry.getValue().simplify())));
+                        parseDomain(valuePrinter, entry.getValue().simplify())));
             }
             return new Constraint(false, columnConstraints.build());
-        }
-
-        private FormattedDomain parseDomain(Domain domain)
-        {
-            ImmutableSet.Builder<FormattedRange> formattedRanges = ImmutableSet.builder();
-            Type type = domain.getType();
-
-            domain.getValues().getValuesProcessor().consume(
-                    ranges -> formattedRanges.addAll(
-                            ranges.getOrderedRanges().stream()
-                                    .map(this::formatRange)
-                                    .collect(toImmutableSet())),
-                    discreteValues -> formattedRanges.addAll(
-                            discreteValues.getValues().stream()
-                                    .map(value -> valuePrinter.castToVarcharOrFail(type, value))
-                                    .map(value -> new FormattedMarker(Optional.of(value), Bound.EXACTLY))
-                                    .map(marker -> new FormattedRange(marker, marker))
-                                    .collect(toImmutableSet())),
-                    allOrNone -> {
-                        throw new IllegalStateException("Unreachable AllOrNone consumer");
-                    });
-
-            return new FormattedDomain(domain.isNullAllowed(), formattedRanges.build());
-        }
-
-        private FormattedRange formatRange(Range range)
-        {
-            FormattedMarker low = range.isLowUnbounded()
-                    ? new FormattedMarker(Optional.empty(), Bound.ABOVE)
-                    : new FormattedMarker(
-                    Optional.of(valuePrinter.castToVarcharOrFail(range.getType(), range.getLowBoundedValue())),
-                    range.isLowInclusive() ? Bound.EXACTLY : Bound.ABOVE);
-
-            FormattedMarker high = range.isHighUnbounded()
-                    ? new FormattedMarker(Optional.empty(), Bound.BELOW)
-                    : new FormattedMarker(
-                    Optional.of(valuePrinter.castToVarcharOrFail(range.getType(), range.getHighBoundedValue())),
-                    range.isHighInclusive() ? Bound.EXACTLY : Bound.BELOW);
-
-            return new FormattedRange(low, high);
         }
 
         private Void processChildren(PlanNode node, IoPlanBuilder context)
@@ -839,5 +865,45 @@ public class IoPlanPrinter
 
             return null;
         }
+    }
+
+    private static FormattedDomain parseDomain(ValuePrinter valuePrinter, Domain domain)
+    {
+        ImmutableSet.Builder<FormattedRange> formattedRanges = ImmutableSet.builder();
+        Type type = domain.getType();
+
+        domain.getValues().getValuesProcessor().consume(
+                ranges -> formattedRanges.addAll(
+                        ranges.getOrderedRanges().stream()
+                                .map(x -> formatRange(valuePrinter, x))
+                                .collect(toImmutableSet())),
+                discreteValues -> formattedRanges.addAll(
+                        discreteValues.getValues().stream()
+                                .map(value -> valuePrinter.castToVarcharOrFail(type, value))
+                                .map(value -> new FormattedMarker(Optional.of(value), Bound.EXACTLY))
+                                .map(marker -> new FormattedRange(marker, marker))
+                                .collect(toImmutableSet())),
+                allOrNone -> {
+                    throw new IllegalStateException("Unreachable AllOrNone consumer");
+                });
+
+        return new FormattedDomain(domain.isNullAllowed(), formattedRanges.build());
+    }
+
+    private static FormattedRange formatRange(ValuePrinter valuePrinter, Range range)
+    {
+        FormattedMarker low = range.isLowUnbounded()
+                ? new FormattedMarker(Optional.empty(), Bound.ABOVE)
+                : new FormattedMarker(
+                Optional.of(valuePrinter.castToVarcharOrFail(range.getType(), range.getLowBoundedValue())),
+                range.isLowInclusive() ? Bound.EXACTLY : Bound.ABOVE);
+
+        FormattedMarker high = range.isHighUnbounded()
+                ? new FormattedMarker(Optional.empty(), Bound.BELOW)
+                : new FormattedMarker(
+                Optional.of(valuePrinter.castToVarcharOrFail(range.getType(), range.getHighBoundedValue())),
+                range.isHighInclusive() ? Bound.EXACTLY : Bound.BELOW);
+
+        return new FormattedRange(low, high);
     }
 }

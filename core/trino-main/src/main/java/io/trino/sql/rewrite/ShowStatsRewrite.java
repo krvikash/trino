@@ -147,7 +147,9 @@ public class ShowStatsRewrite
         protected Node visitShowStats(ShowStats node, Void context)
         {
             Query query = getRelation(node);
-            Plan plan = queryExplainer.getLogicalPlan(session, query, parameters, warningCollector, planOptimizersStatsCollector);
+            // The query output is the same regardless of the plan representation (old IR vs new IR), and of the optimizations applied.
+            // Therefore, it is fine calculate the output stats based on the old IR plan.
+            Plan plan = queryExplainer.getLogicalPlan(session, query, parameters, warningCollector, planOptimizersStatsCollector).oldIrPlan();
             CachingStatsProvider cachingStatsProvider = new CachingStatsProvider(statsCalculator, session, new CachingTableStatsProvider(metadata, session, () -> false));
             PlanNodeStatsEstimate stats = cachingStatsProvider.getStats(plan.getRoot());
             return rewriteShowStats(plan, stats);

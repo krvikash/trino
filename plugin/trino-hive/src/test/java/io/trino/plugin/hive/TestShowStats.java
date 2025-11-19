@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import static io.trino.SystemSessionProperties.PREFER_PARTIAL_AGGREGATION;
+import static io.trino.SystemSessionProperties.REUSE_COMMON_SUBQUERIES;
 import static io.trino.SystemSessionProperties.USE_PARTIAL_DISTINCT_LIMIT;
 import static io.trino.SystemSessionProperties.USE_PARTIAL_TOPN;
 import static io.trino.tpch.TpchTable.NATION;
@@ -730,6 +731,37 @@ public class TestShowStats
                         "   (null, null, null, null, null, null, null)");
 
         assertUpdate("DROP TABLE nation_partitioned_without_stats");
+    }
+
+    @Test
+    public void testShowStatsForNewIr()
+    {
+        // query does not qualify for CTE reuse, so the old IR representation is used
+        assertQuery(
+                sessionWith(getSession(), REUSE_COMMON_SUBQUERIES, "true"),
+                "SHOW STATS FOR (SELECT * FROM nation)",
+                "VALUES " +
+                        "   ('nationkey', null, 25, 0, null, 0, 24), " +
+                        "   ('name', 177, 25, 0, null, null, null), " +
+                        "   ('regionkey', null, 5, 0, null, 0, 4), " +
+                        "   ('comment', 1857, 25, 0, null, null, null), " +
+                        "   (null, null, null, null, 25, null, null)");
+
+        // query qualifies for CTE reuse, so the new IR representation is used
+        // the stats are computed based on the old IR representation
+        assertQuery(
+                sessionWith(getSession(), REUSE_COMMON_SUBQUERIES, "true"),
+                "SHOW STATS FOR (SELECT * FROM nation, nation)",
+                "VALUES " +
+                        "   ('nationkey', null, 25, 0, null, 0, 24), " +
+                        "   ('name', 4425, 25, 0, null, null, null), " +
+                        "   ('regionkey', null, 5, 0, null, 0, 4), " +
+                        "   ('comment', 46425, 25, 0, null, null, null), " +
+                        "   ('nationkey', null, 25, 0, null, 0, 24), " +
+                        "   ('name', 4425, 25, 0, null, null, null), " +
+                        "   ('regionkey', null, 5, 0, null, 0, 4), " +
+                        "   ('comment', 46425, 25, 0, null, null, null), " +
+                        "   (null, null, null, null, 625, null, null)");
     }
 
     private static Session sessionWith(Session base, String property, String value)

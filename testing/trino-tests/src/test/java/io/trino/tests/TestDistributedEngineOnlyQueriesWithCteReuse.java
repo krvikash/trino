@@ -19,15 +19,22 @@ import io.trino.connector.MockConnectorFactory;
 import io.trino.connector.MockConnectorPlugin;
 import io.trino.plugin.memory.MemoryQueryRunner;
 import io.trino.testing.AbstractDistributedEngineOnlyQueries;
+import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
-import org.junit.jupiter.api.Disabled;
+import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.trino.SystemSessionProperties.ENABLE_DYNAMIC_FILTERING;
+import static io.trino.sql.analyzer.QueryExplainer.DEPRECATED_TYPE_LOGICAL_WARNING;
 import static io.trino.sql.planner.OptimizerConfig.JoinDistributionType.BROADCAST;
+import static io.trino.sql.tree.ExplainType.Type.DISTRIBUTED;
+import static io.trino.sql.tree.ExplainType.Type.IO;
+import static io.trino.sql.tree.ExplainType.Type.LOGICAL;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestDistributedEngineOnlyQueriesWithCteReuse
         extends AbstractDistributedEngineOnlyQueries
@@ -63,50 +70,186 @@ public class TestDistributedEngineOnlyQueriesWithCteReuse
 
     @Override
     @Test
-    @Disabled
+    public void testDefaultExplainTextFormat()
+    {
+        // query does not qualify for CTE reuse, so the old IR representation is used
+        String query = "SELECT * FROM orders";
+        MaterializedResult result = computeActual("EXPLAIN " + query);
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getExplainPlan(query, DISTRIBUTED));
+
+        // query qualifies for CTE reuse, so the new IR representation is used
+        query = "SELECT * FROM orders, orders";
+        result = computeActual("EXPLAIN " + query);
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getExplainPlan(query, DISTRIBUTED));
+    }
+
+    @Override
+    @Test
+    public void testDefaultExplainGraphvizFormat()
+    {
+        // query does not qualify for CTE reuse, so the old IR representation is used
+        String query = "SELECT * FROM orders";
+        MaterializedResult result = computeActual("EXPLAIN (FORMAT GRAPHVIZ) " + query);
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getGraphvizExplainPlan(query, DISTRIBUTED));
+
+        // query qualifies for CTE reuse, so the new IR representation is used
+        query = "SELECT * FROM orders, orders";
+        result = computeActual("EXPLAIN (FORMAT GRAPHVIZ) " + query);
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getGraphvizExplainPlan(query, DISTRIBUTED));
+    }
+
+    @Override
+    @Test
+    public void testDefaultExplainJsonFormat()
+    {
+        // query does not qualify for CTE reuse, so the old IR representation is used
+        String query = "SELECT * FROM orders";
+        MaterializedResult result = computeActual("EXPLAIN (FORMAT JSON) " + query);
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getJsonExplainPlan(query, DISTRIBUTED));
+
+        // query qualifies for CTE reuse, so the new IR representation is used
+        query = "SELECT * FROM orders";
+        result = computeActual("EXPLAIN (FORMAT JSON) " + query);
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getJsonExplainPlan(query, DISTRIBUTED));
+    }
+
+    @Override
+    @Test
     public void testLogicalExplainTextFormat()
     {
-        // EXPLAIN TYPE LOGICAL is not supported in new IR
+        // query does not qualify for CTE reuse, so the old IR representation is used
+        @Language("SQL") String query = "SELECT * FROM orders";
+        MaterializedResult result = computeActual("EXPLAIN (TYPE LOGICAL, FORMAT TEXT) " + query);
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getExplainPlan(query, LOGICAL));
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(DEPRECATED_TYPE_LOGICAL_WARNING + getExplainPlan(query, DISTRIBUTED));
+
+        // query qualifies for CTE reuse, so the new IR representation is used
+        query = "SELECT * FROM orders, orders";
+        result = computeActual("EXPLAIN (TYPE LOGICAL, FORMAT TEXT) " + query);
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getExplainPlan(query, LOGICAL));
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(DEPRECATED_TYPE_LOGICAL_WARNING + getExplainPlan(query, DISTRIBUTED));
     }
 
     @Override
     @Test
-    @Disabled
-    public void testExplainExecute()
-    {
-        // EXPLAIN TYPE LOGICAL is not supported in new IR
-    }
-
-    @Override
-    @Test
-    @Disabled
-    public void testLogicalExplainGraphvizFormat()
-    {
-        // EXPLAIN TYPE LOGICAL is not supported in new IR
-    }
-
-    @Override
-    @Test
-    @Disabled
-    public void testExplainExecuteWithUsing()
-    {
-        // EXPLAIN TYPE LOGICAL is not supported in new IR
-    }
-
-    @Override
-    @Test
-    @Disabled
-    public void testIoExplain()
-    {
-        // EXPLAIN TYPE IO is not supported in new IR
-    }
-
-    @Override
-    @Test
-    @Disabled
     public void testLogicalExplain()
     {
-        // EXPLAIN TYPE LOGICAL is not supported in new IR
+        // query does not qualify for CTE reuse, so the old IR representation is used
+        String query = "SELECT * FROM orders";
+        MaterializedResult result = computeActual("EXPLAIN (TYPE LOGICAL) " + query);
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getExplainPlan(query, LOGICAL));
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(DEPRECATED_TYPE_LOGICAL_WARNING + getExplainPlan(query, DISTRIBUTED));
+
+        // query qualifies for CTE reuse, so the new IR representation is used
+        query = "SELECT * FROM orders, orders";
+        result = computeActual("EXPLAIN (TYPE LOGICAL) " + query);
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getExplainPlan(query, LOGICAL));
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(DEPRECATED_TYPE_LOGICAL_WARNING + getExplainPlan(query, DISTRIBUTED));
+    }
+
+    @Override
+    @Test
+    public void testExplainExecute()
+    {
+        Session session = Session.builder(getSession())
+                .addPreparedStatement("my_query", "SELECT * FROM orders")
+                .addPreparedStatement("my_query_cte", "SELECT * FROM orders, orders")
+                .build();
+
+        MaterializedResult result = computeActual(session, "EXPLAIN (TYPE LOGICAL) EXECUTE my_query");
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getExplainPlan("SELECT * FROM orders", LOGICAL));
+
+        result = computeActual(session, "EXPLAIN (TYPE LOGICAL) EXECUTE my_query_cte");
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getExplainPlan("SELECT * FROM orders, orders", LOGICAL));
+    }
+
+    @Override
+    @Test
+    public void testExplainExecuteWithUsing()
+    {
+        Session session = Session.builder(getSession())
+                .addPreparedStatement("my_query", "SELECT * FROM orders WHERE orderkey < ?")
+                .addPreparedStatement("my_query_cte", "SELECT * FROM orders o1, orders o2 WHERE o1.orderkey < ?")
+                .build();
+
+        MaterializedResult result = computeActual(session, "EXPLAIN (TYPE LOGICAL) EXECUTE my_query USING 7");
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getExplainPlan("SELECT * FROM orders WHERE orderkey < 7", LOGICAL));
+
+        result = computeActual(session, "EXPLAIN (TYPE LOGICAL) EXECUTE my_query_cte USING 7");
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getExplainPlan("SELECT * FROM orders o1, orders o2 WHERE o1.orderkey < 7", LOGICAL));
+    }
+
+    @Override
+    @Test
+    public void testLogicalExplainGraphvizFormat()
+    {
+        // query does not qualify for CTE reuse, so the old IR representation is used
+        String query = "SELECT * FROM orders";
+        MaterializedResult result = computeActual("EXPLAIN (TYPE LOGICAL, FORMAT GRAPHVIZ) " + query);
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getGraphvizExplainPlan(query, LOGICAL));
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getGraphvizExplainPlan(query, DISTRIBUTED));
+
+        // query qualifies for CTE reuse, so the new IR representation is used
+        query = "SELECT * FROM orders, orders";
+        result = computeActual("EXPLAIN (TYPE LOGICAL, FORMAT GRAPHVIZ) " + query);
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getGraphvizExplainPlan(query, LOGICAL));
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getGraphvizExplainPlan(query, DISTRIBUTED));
+    }
+
+    @Override
+    @Test
+    public void testLogicalExplainJsonFormat()
+    {
+        // query does not qualify for CTE reuse, so the old IR representation is used
+        String query = "SELECT * FROM orders";
+        MaterializedResult result = computeActual("EXPLAIN (TYPE LOGICAL, FORMAT JSON) " + query);
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getJsonExplainPlan(query, LOGICAL));
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getJsonExplainPlan(query, DISTRIBUTED));
+
+        // query qualifies for CTE reuse, so the new IR representation is used
+        query = "SELECT * FROM orders, orders";
+        result = computeActual("EXPLAIN (TYPE LOGICAL, FORMAT JSON) " + query);
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getJsonExplainPlan(query, LOGICAL));
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getJsonExplainPlan(query, DISTRIBUTED));
+    }
+
+    @Override
+    @Test
+    public void testIoExplain()
+    {
+        String query = "SELECT * FROM orders";
+        MaterializedResult result = computeActual("EXPLAIN (TYPE IO) " + query);
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getExplainPlan(query, IO));
+
+        String queryCteReuse = "SELECT * FROM orders, orders";
+        result = computeActual("EXPLAIN (TYPE IO) " + queryCteReuse);
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getExplainPlan(queryCteReuse, IO));
+    }
+
+    @Override
+    @Test
+    public void testIoExplainJsonFormat()
+    {
+        String query = "SELECT * FROM orders";
+        MaterializedResult result = computeActual("EXPLAIN (TYPE IO, FORMAT JSON) " + query);
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getExplainPlan(query, IO));
+
+        String queryCteReuse = "SELECT * FROM orders, orders";
+        result = computeActual("EXPLAIN (TYPE IO, FORMAT JSON) " + queryCteReuse);
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getExplainPlan(queryCteReuse, IO));
+    }
+
+    @Override
+    @Test
+    public void testExplainValidate()
+    {
+        // query does not qualify for CTE reuse, so the old IR representation is used
+        MaterializedResult result = computeActual("EXPLAIN (TYPE VALIDATE) SELECT * FROM orders");
+        assertThat(result.getOnlyValue()).isEqualTo(true);
+
+        // query qualifies for CTE reuse, so the new IR representation is used
+        result = computeActual("EXPLAIN (TYPE VALIDATE) SELECT * FROM orders, orders");
+        assertThat(result.getOnlyValue()).isEqualTo(true);
     }
 
     @Override

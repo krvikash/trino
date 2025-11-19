@@ -355,9 +355,9 @@ public abstract class AbstractTestEngineOnlyQueries
     {
         // with implicit coercions
         assertQuery("SELECT * FROM (VALUES" +
-                "   CAST(NULL AS char(3)), " +
-                "   CAST('   ' AS char(3))) t(x) " +
-                "WHERE x = CAST('  ' AS varchar(2))",
+                        "   CAST(NULL AS char(3)), " +
+                        "   CAST('   ' AS char(3))) t(x) " +
+                        "WHERE x = CAST('  ' AS varchar(2))",
                 // H2 returns '' on CAST char(3) to varchar(2)
                 "SELECT '   '");
 
@@ -5986,6 +5986,7 @@ public abstract class AbstractTestEngineOnlyQueries
         String query = "SELECT * FROM orders";
         MaterializedResult result = computeActual("EXPLAIN (TYPE LOGICAL) " + query);
         assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getExplainPlan(query, LOGICAL));
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(DEPRECATED_TYPE_LOGICAL_WARNING + getExplainPlan(query, DISTRIBUTED));
     }
 
     @Test
@@ -6005,6 +6006,14 @@ public abstract class AbstractTestEngineOnlyQueries
         String query = "SELECT * FROM orders";
         MaterializedResult result = computeActual("EXPLAIN (TYPE IO) " + query);
         assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getExplainPlan(query, IO));
+    }
+
+    @Test
+    public void testIoExplainJsonFormat()
+    {
+        String query = "SELECT * FROM orders";
+        MaterializedResult result = computeActual("EXPLAIN (TYPE IO, FORMAT JSON) " + query);
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getJsonExplainPlan(query, IO));
     }
 
     @Test
@@ -6031,6 +6040,7 @@ public abstract class AbstractTestEngineOnlyQueries
         String query = "SELECT * FROM orders";
         MaterializedResult result = computeActual("EXPLAIN (TYPE LOGICAL, FORMAT GRAPHVIZ) " + query);
         assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getGraphvizExplainPlan(query, LOGICAL));
+        assertThat(getOnlyElement(result.getOnlyColumnAsSet())).isEqualTo(getGraphvizExplainPlan(query, DISTRIBUTED));
     }
 
     @Test

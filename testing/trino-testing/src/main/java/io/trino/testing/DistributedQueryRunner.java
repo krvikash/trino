@@ -58,6 +58,7 @@ import io.trino.split.SplitManager;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.analyzer.QueryExplainer;
 import io.trino.sql.parser.SqlParser;
+import io.trino.sql.planner.LogicalPlanner.PlanOptions;
 import io.trino.sql.planner.NodePartitioningManager;
 import io.trino.sql.planner.Plan;
 import io.trino.testing.LocalSpoolingManager.LocalSpoolingPlugin;
@@ -642,12 +643,16 @@ public final class DistributedQueryRunner
             spansValid = concurrentQueries.incrementAndGet() == 1;
             try {
                 spanExporter.reset();
-                return coordinator.getQueryExplainer().getLogicalPlan(
+                PlanOptions planOptions = coordinator.getQueryExplainer().getLogicalPlan(
                         session,
                         coordinator.getInstance(Key.get(SqlParser.class)).createStatement(sql),
                         ImmutableList.of(),
                         WarningCollector.NOOP,
                         createPlanOptimizersStatsCollector());
+                if (planOptions.newIrProgram().isPresent()) {
+                    throw new IllegalStateException("This context does not allow reuse_common_subqueries set to true.");
+                }
+                return planOptions.oldIrPlan();
             }
             finally {
                 concurrentQueries.decrementAndGet();
