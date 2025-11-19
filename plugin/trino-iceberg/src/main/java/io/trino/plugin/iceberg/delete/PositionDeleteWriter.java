@@ -37,7 +37,6 @@ import org.apache.iceberg.io.LocationProvider;
 import org.apache.iceberg.util.DeleteFileSet;
 import org.roaringbitmap.longlong.ImmutableLongBitmapDataProvider;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
