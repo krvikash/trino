@@ -18,6 +18,7 @@ import io.airlift.slice.Slice;
 import io.trino.FeaturesConfig;
 import io.trino.metadata.BlockEncodingManager;
 import io.trino.metadata.InternalBlockEncodingSerde;
+import io.trino.simd.BlockEncodingSimdSupport;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockEncoding;
@@ -118,7 +119,7 @@ public class BenchmarkIntArrayBlockEncoding
         @Setup
         public void setup()
         {
-            blockEncodingSerde = new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig()), TESTING_TYPE_MANAGER);
+            blockEncodingSerde = new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig(), new BlockEncodingSimdSupport(true)), TESTING_TYPE_MANAGER);
             encoding = new IntArrayAdaptiveBlockEncoding(true);
 
             blocks = new Block[BLOCK_COUNT];

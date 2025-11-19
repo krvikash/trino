@@ -21,6 +21,8 @@ import io.trino.block.DictionaryAdaptiveBlockEncoding;
 import io.trino.block.IntArrayAdaptiveBlockEncoding;
 import io.trino.block.LongArrayAdaptiveBlockEncoding;
 import io.trino.block.VariableWidthAdaptiveBlockEncoding;
+import io.trino.simd.BlockEncodingSimdSupport;
+import io.trino.simd.BlockEncodingSimdSupport.SimdSupport;
 import io.trino.spi.block.ArrayBlockEncoding;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockEncoding;
@@ -53,11 +55,12 @@ public final class BlockEncodingManager
     private final Map<Class<? extends Block>, BlockEncoding> blockEncodingNamesByClass = new ConcurrentHashMap<>();
 
     @Inject
-    public BlockEncodingManager(FeaturesConfig config)
+    public BlockEncodingManager(FeaturesConfig config, BlockEncodingSimdSupport blockEncodingSimdSupport)
     {
         // add the built-in BlockEncodings
-        addBlockEncoding(new ByteArrayBlockEncoding());
-        addBlockEncoding(new ShortArrayBlockEncoding());
+        SimdSupport simdSupport = blockEncodingSimdSupport.getSimdSupport();
+        addBlockEncoding(new ByteArrayBlockEncoding(simdSupport.expandAndCompressByte()));
+        addBlockEncoding(new ShortArrayBlockEncoding(simdSupport.expandAndCompressShort()));
         addBlockEncoding(new Fixed12BlockEncoding());
         addBlockEncoding(new Int128ArrayBlockEncoding());
         addBlockEncoding(new ArrayBlockEncoding());
@@ -81,8 +84,8 @@ public final class BlockEncodingManager
             addBlockEncoding(new VariableWidthAdaptiveBlockEncoding(vByteEncodingEnabled));
         }
         else {
-            addBlockEncoding(new IntArrayBlockEncoding());
-            addBlockEncoding(new LongArrayBlockEncoding());
+            addBlockEncoding(new IntArrayBlockEncoding(simdSupport.expandAndCompressInt()));
+            addBlockEncoding(new LongArrayBlockEncoding(simdSupport.expandAndCompressLong()));
             addBlockEncoding(new DictionaryBlockEncoding());
             addBlockEncoding(new VariableWidthBlockEncoding());
         }

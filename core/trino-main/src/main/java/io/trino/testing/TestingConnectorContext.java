@@ -26,6 +26,7 @@ import io.trino.operator.GroupByHashPageIndexerFactory;
 import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.PagesIndex;
 import io.trino.operator.PagesIndexPageSorter;
+import io.trino.simd.BlockEncodingSimdSupport;
 import io.trino.spi.NodeManager;
 import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.PageSorter;
@@ -143,7 +144,7 @@ public final class TestingConnectorContext
     @Override
     public PageStreamFactory getPageStreamFactory()
     {
-        return new PagesSerdeStreamFactory(new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig()), TESTING_TYPE_MANAGER));
+        return new PagesSerdeStreamFactory(new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig(), new BlockEncodingSimdSupport(true)), TESTING_TYPE_MANAGER));
     }
 
     @Override

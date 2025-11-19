@@ -17,6 +17,7 @@ import io.airlift.slice.DynamicSliceOutput;
 import io.trino.FeaturesConfig;
 import io.trino.metadata.BlockEncodingManager;
 import io.trino.metadata.InternalBlockEncodingSerde;
+import io.trino.simd.BlockEncodingSimdSupport;
 import io.trino.spi.block.BaseBlockEncodingTest;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
@@ -38,7 +39,7 @@ class TestVariableWidthAdaptiveBlockEncoding
     @Override
     protected BlockEncodingSerde createBlockEncodingSerde()
     {
-        BlockEncodingManager blockEncodingManager = new BlockEncodingManager(new FeaturesConfig());
+        BlockEncodingManager blockEncodingManager = new BlockEncodingManager(new FeaturesConfig(), new BlockEncodingSimdSupport(true));
         assertThat(blockEncodingManager.getBlockEncodingByBlockClass(VariableWidthBlock.class))
                 .isInstanceOf(VariableWidthAdaptiveBlockEncoding.class);
         return new InternalBlockEncodingSerde(blockEncodingManager, TESTING_TYPE_MANAGER);

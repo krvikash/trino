@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import io.trino.FeaturesConfig;
 import io.trino.metadata.BlockEncodingManager;
 import io.trino.metadata.InternalBlockEncodingSerde;
+import io.trino.simd.BlockEncodingSimdSupport;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.PageStreamFactory;
@@ -52,7 +53,7 @@ final class TestPagesSerdeStream
         List<Page> inputPages = generatePages(types);
         Path spillFile = Files.createTempFile(TestPagesSerdeStream.class.getSimpleName(), null);
         try {
-            InternalBlockEncodingSerde blockEncodingSerde = new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig()), TESTING_TYPE_MANAGER);
+            InternalBlockEncodingSerde blockEncodingSerde = new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig(), new BlockEncodingSimdSupport(true)), TESTING_TYPE_MANAGER);
             PageStreamFactory factory = new PagesSerdeStreamFactory(blockEncodingSerde);
 
             PageStreamWriter writer = factory.createWriter(Files.newOutputStream(spillFile));

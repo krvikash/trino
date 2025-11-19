@@ -36,6 +36,7 @@ import io.trino.operator.DriverFactory;
 import io.trino.operator.Operator;
 import io.trino.operator.OperatorContext;
 import io.trino.operator.OperatorFactory;
+import io.trino.simd.BlockEncodingSimdSupport;
 import io.trino.spi.Page;
 import io.trino.spi.block.TestingBlockEncodingSerde;
 import io.trino.spi.cache.CacheColumnId;
@@ -115,7 +116,7 @@ public class TestCacheDataOperator
         registry = new CacheManagerRegistry(cacheConfig, memoryManager, new TestingBlockEncodingSerde(), new CacheStats(), CURRENT_NODE, TestingInternalNodeManager.createDefault());
         registry.loadCacheManager();
         TypeManager typeManager = new TestingTypeManager();
-        tupleDomainCodec = getTupleDomainJsonCodec(new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig()), typeManager), typeManager);
+        tupleDomainCodec = getTupleDomainJsonCodec(new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig(), new BlockEncodingSimdSupport(true)), typeManager), typeManager);
     }
 
     @Test

@@ -23,6 +23,7 @@ import io.trino.filesystem.local.LocalFileSystem;
 import io.trino.metadata.BlockEncodingManager;
 import io.trino.metadata.InternalBlockEncodingSerde;
 import io.trino.plugin.hive.util.SortTempFileFactory;
+import io.trino.simd.BlockEncodingSimdSupport;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.PageStreamWriter;
@@ -171,7 +172,7 @@ final class TestSortTempFileFactory
             DataSize sortingBufferSize = DataSize.of(64, MEGABYTE);
             LocalFileSystem fileSystem = new LocalFileSystem(targetDir.toPath());
             PagesSerdeStreamFactory serdeStreamFactory = new PagesSerdeStreamFactory(
-                    new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig()), TESTING_TYPE_MANAGER));
+                    new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig(), new BlockEncodingSimdSupport(true)), TESTING_TYPE_MANAGER));
             SortTempFileFactory sortTempFileFactory = new SortTempFileFactory(serdeStreamFactory, optimized, sortingBufferSize);
             Location tempFileLocation = Location.of("local:///temp_optimized_" + optimized);
 

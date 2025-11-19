@@ -34,6 +34,7 @@ import io.trino.operator.DevNullOperator;
 import io.trino.operator.Driver;
 import io.trino.operator.DriverContext;
 import io.trino.operator.DriverFactory;
+import io.trino.simd.BlockEncodingSimdSupport;
 import io.trino.spi.block.TestingBlockEncodingSerde;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.cache.CacheManager;
@@ -144,7 +145,7 @@ public class TestCacheDriverFactory
         registry.loadCacheManager(cacheManagerFactory, ImmutableMap.of());
         splitCache = cacheManagerFactory.getCacheManager().getSplitCache();
         TypeManager typeManager = new TestingTypeManager();
-        tupleDomainCodec = getTupleDomainJsonCodec(new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig()), typeManager), typeManager);
+        tupleDomainCodec = getTupleDomainJsonCodec(new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig(), new BlockEncodingSimdSupport(true)), typeManager), typeManager);
         scheduledExecutor = Executors.newScheduledThreadPool(1);
     }
 

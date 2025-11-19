@@ -17,6 +17,7 @@ import io.airlift.slice.DynamicSliceOutput;
 import io.trino.FeaturesConfig;
 import io.trino.metadata.BlockEncodingManager;
 import io.trino.metadata.InternalBlockEncodingSerde;
+import io.trino.simd.BlockEncodingSimdSupport;
 import io.trino.spi.block.BaseBlockEncodingTest;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
@@ -42,7 +43,7 @@ class TestLongArrayAdaptiveBlockEncoding
     @Override
     protected BlockEncodingSerde createBlockEncodingSerde()
     {
-        BlockEncodingManager blockEncodingManager = new BlockEncodingManager(new FeaturesConfig());
+        BlockEncodingManager blockEncodingManager = new BlockEncodingManager(new FeaturesConfig(), new BlockEncodingSimdSupport(true));
         assertThat(blockEncodingManager.getBlockEncodingByBlockClass(LongArrayBlock.class))
                 .isInstanceOf(LongArrayAdaptiveBlockEncoding.class);
         return new InternalBlockEncodingSerde(blockEncodingManager, TESTING_TYPE_MANAGER);
@@ -209,7 +210,8 @@ class TestLongArrayAdaptiveBlockEncoding
         BlockEncodingManager blockEncodingManager = new BlockEncodingManager(
                 new FeaturesConfig()
                         .setExchangeVbyteBlockEncodingEnabled(false)
-                        .setExchangeAdaptiveBlockEncodingEnabled(false));
+                        .setExchangeAdaptiveBlockEncodingEnabled(false),
+                new BlockEncodingSimdSupport(true));
         return new InternalBlockEncodingSerde(blockEncodingManager, TESTING_TYPE_MANAGER);
     }
 
@@ -218,7 +220,8 @@ class TestLongArrayAdaptiveBlockEncoding
         BlockEncodingManager blockEncodingManager = new BlockEncodingManager(
                 new FeaturesConfig()
                         .setExchangeVbyteBlockEncodingEnabled(false)
-                        .setExchangeAdaptiveBlockEncodingEnabled(true));
+                        .setExchangeAdaptiveBlockEncodingEnabled(true),
+                new BlockEncodingSimdSupport(true));
         return new InternalBlockEncodingSerde(blockEncodingManager, TESTING_TYPE_MANAGER);
     }
 }

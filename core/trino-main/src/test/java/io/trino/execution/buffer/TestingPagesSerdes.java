@@ -16,17 +16,19 @@ package io.trino.execution.buffer;
 import io.trino.FeaturesConfig;
 import io.trino.metadata.BlockEncodingManager;
 import io.trino.metadata.InternalBlockEncodingSerde;
+import io.trino.simd.BlockEncodingSimdSupport;
 
 import static io.trino.execution.buffer.CompressionCodec.NONE;
+import static io.trino.testing.PlanTester.TESTING_BLOCK_ENCODING_MANAGER;
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
 
 public final class TestingPagesSerdes
 {
     private TestingPagesSerdes() {}
 
-    private static final InternalBlockEncodingSerde BLOCK_ENCODING_SERDE = new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig()), TESTING_TYPE_MANAGER);
     private static final InternalBlockEncodingSerde BLOCK_ENCODING_SERDE_VBYTE_DISABLED = new InternalBlockEncodingSerde(
-            new BlockEncodingManager(new FeaturesConfig().setExchangeVbyteBlockEncodingEnabled(false)), TESTING_TYPE_MANAGER);
+            new BlockEncodingManager(new FeaturesConfig().setExchangeVbyteBlockEncodingEnabled(false), new BlockEncodingSimdSupport(true)), TESTING_TYPE_MANAGER);
+    private static final InternalBlockEncodingSerde BLOCK_ENCODING_SERDE = new InternalBlockEncodingSerde(TESTING_BLOCK_ENCODING_MANAGER, TESTING_TYPE_MANAGER);
 
     public static PagesSerdeFactory createTestingPagesSerdeFactory()
     {

@@ -17,6 +17,7 @@ import io.airlift.slice.DynamicSliceOutput;
 import io.trino.FeaturesConfig;
 import io.trino.metadata.BlockEncodingManager;
 import io.trino.metadata.InternalBlockEncodingSerde;
+import io.trino.simd.BlockEncodingSimdSupport;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockEncodingSerde;
@@ -47,7 +48,7 @@ public class TestDictionaryAdaptiveBlockEncoding
     @BeforeAll
     public void setup()
     {
-        BlockEncodingManager blockEncodingManager = new BlockEncodingManager(new FeaturesConfig());
+        BlockEncodingManager blockEncodingManager = new BlockEncodingManager(new FeaturesConfig(), new BlockEncodingSimdSupport(true));
         assertThat(blockEncodingManager.getBlockEncodingByBlockClass(DictionaryBlock.class))
                 .isInstanceOf(DictionaryAdaptiveBlockEncoding.class);
         blockEncodingSerde = new InternalBlockEncodingSerde(blockEncodingManager, TESTING_TYPE_MANAGER);
