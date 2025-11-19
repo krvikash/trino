@@ -21,6 +21,7 @@ public enum StarburstFeature
     AGENTIC_LAYER("agentic-layer", "Agentic layer"),
     AI_WORKFLOWS("ai-workflows", "AI workflows"),
     DYNAMODB("dynamodb", "Starburst DynamoDB connector"),
+    MAPR("mapr", "MapR support in Hive connector"),
     MCP("mcp", "MCP server"),
     SALESFORCE("salesforce", "Starburst Salesforce connector"),
     SPARK("spark", "Spark"),
