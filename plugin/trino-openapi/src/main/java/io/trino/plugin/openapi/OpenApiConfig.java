@@ -18,9 +18,9 @@ import com.google.common.base.Splitter;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigSecuritySensitive;
-import io.airlift.configuration.InvalidConfigurationException;
 import io.trino.plugin.openapi.authentication.OpenApiAuthenticationScheme;
 import io.trino.plugin.openapi.authentication.OpenApiAuthenticationType;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
@@ -55,6 +55,15 @@ public class OpenApiConfig
     // (or sequence of range predicates).
     // Too large IN lists cause too many requests being made, so a hard limit is required.
     private int domainExpansionLimit = 256;
+
+    @AssertTrue(message = "At most one of the apiKeys property or both the apiKeyName and apiKeyValue properties must be set")
+    public boolean isApiKeyConfigurationValid()
+    {
+        if (apiKeyName != null || apiKeyValue != null) {
+            return apiKeys.isEmpty();
+        }
+        return true;
+    }
 
     @NotNull
     public String getSpecLocation()
@@ -160,13 +169,9 @@ public class OpenApiConfig
 
     @Config("openapi.authentication.api-keys")
     public OpenApiConfig setApiKeys(String apiKeys)
-            throws InvalidConfigurationException
     {
         if (apiKeys.isEmpty()) {
             return this;
-        }
-        if (this.apiKeyName != null || this.apiKeyValue != null) {
-            throw new InvalidConfigurationException("Cannot use authentication.api-keys if authentication.api-key-name or authentication.api-key-name is set");
         }
         this.apiKeys = Splitter
                 .on(',')
@@ -185,11 +190,7 @@ public class OpenApiConfig
     @Config("openapi.authentication.api-key-name")
     @ConfigDescription("API key name")
     public OpenApiConfig setApiKeyName(String apiKeyName)
-            throws InvalidConfigurationException
     {
-        if (!this.apiKeys.isEmpty()) {
-            throw new InvalidConfigurationException("Cannot use authentication.api-key-name if authentication.api-keys is set");
-        }
         this.apiKeyName = apiKeyName;
         return this;
     }
@@ -203,11 +204,7 @@ public class OpenApiConfig
     @ConfigDescription("API key value")
     @ConfigSecuritySensitive
     public OpenApiConfig setApiKeyValue(String apiKeyValue)
-            throws InvalidConfigurationException
     {
-        if (!this.apiKeys.isEmpty()) {
-            throw new InvalidConfigurationException("Cannot use authentication.api-key-value if authentication.api-keys is set");
-        }
         this.apiKeyValue = apiKeyValue;
         return this;
     }
