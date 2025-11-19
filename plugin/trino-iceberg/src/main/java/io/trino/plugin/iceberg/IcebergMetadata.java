@@ -1827,11 +1827,12 @@ public class IcebergMetadata
         int retainLast = firstNonNull(
                 (Integer) executeProperties.get("retain_last"),
                 propertyAsInt(icebergTable.properties(), MIN_SNAPSHOTS_TO_KEEP, MIN_SNAPSHOTS_TO_KEEP_DEFAULT));
+        boolean cleanExpiredMetadata = (boolean) executeProperties.get("clean_expired_metadata");
 
         return Optional.of(new IcebergTableExecuteHandle(
                 tableHandle.getSchemaTableName(),
                 EXPIRE_SNAPSHOTS,
-                new IcebergExpireSnapshotsHandle(retentionThreshold, retainLast),
+                new IcebergExpireSnapshotsHandle(retentionThreshold, retainLast, cleanExpiredMetadata),
                 icebergTable.location(),
                 icebergTable.io().properties(),
                 tableHandle.getFormatVersion()));
@@ -2600,6 +2601,7 @@ public class IcebergMetadata
             table.expireSnapshots()
                     .expireOlderThan(session.getStart().toEpochMilli() - retention.toMillis())
                     .retainLast(expireSnapshotsHandle.retainLast())
+                    .cleanExpiredMetadata(expireSnapshotsHandle.cleanExpiredMetadata())
                     .planWith(icebergScanExecutor)
                     .commit();
         }
