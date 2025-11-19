@@ -44,21 +44,21 @@ import static io.airlift.http.client.Request.Builder.fromRequest;
 import static io.airlift.http.client.Request.Builder.preparePost;
 import static io.airlift.http.client.StaticBodyGenerator.createStaticBodyGenerator;
 import static io.airlift.json.JsonCodec.jsonCodec;
-import static io.trino.plugin.openapi.authentication.AuthenticationScheme.BEARER;
+import static io.trino.plugin.openapi.authentication.OpenApiAuthenticationScheme.BEARER;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.joining;
 
-public class Authentication
+public class OpenApiAuthentication
         implements HttpRequestFilter
 {
     private final Map<String, Map<PathItem.HttpMethod, List<SecurityRequirement>>> pathSecurityRequirements;
     private final Map<String, SecurityScheme> securitySchemas;
     private final List<SecurityRequirement> securityRequirements;
     private final String defaultAuthenticationScheme;
-    private final AuthenticationType defaultAuthenticationType;
+    private final OpenApiAuthenticationType defaultAuthenticationType;
     private final String username;
     private final String password;
     private final String bearerToken;
@@ -74,9 +74,9 @@ public class Authentication
             .build(CacheLoader.from(this::getToken));
 
     @Inject
-    public Authentication(OpenApiConfig config,
-            OpenApiSpec spec,
-            @OpenApiAuthenticationClient HttpClient httpClient)
+    public OpenApiAuthentication(OpenApiConfig config,
+                                 OpenApiSpec spec,
+                                 @OpenApiAuthenticationClient HttpClient httpClient)
     {
         requireNonNull(config, "config is null");
         requireNonNull(spec, "spec is null");
@@ -254,7 +254,7 @@ public class Authentication
                                         getBody("client_credentials", clientId, clientSecret),
                                         UTF_8))
                                 .build(),
-                        createJsonResponseHandler(jsonCodec(Authentication.TokenResponse.class)))
+                        createJsonResponseHandler(jsonCodec(OpenApiAuthentication.TokenResponse.class)))
                 .accessToken();
     }
 

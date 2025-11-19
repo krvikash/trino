@@ -13,8 +13,11 @@
  */
 package io.trino.plugin.openapi.authentication;
 
-public enum AuthenticationScheme
+public enum OpenApiAuthenticationType
 {
-    BASIC,
-    BEARER,
+    NONE,
+    HTTP,
+    API_KEY,
+    OAUTH,
+    /**/;
 }

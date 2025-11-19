@@ -56,26 +56,27 @@ public class TestOpenApiQueries
 
         ImmutableMap.Builder<String, String> petStoreProperties = ImmutableMap.builder();
         petStoreProperties.putAll(Map.of(
-                "spec-location", petStoreServer.getSpecUrl(),
-                "base-uri", petStoreServer.getApiUrl(),
-                "authentication.type", "oauth",
-                "authentication.scheme", "basic",
-                "authentication.username", "user",
-                "authentication.password", "user",
-                "authentication.api-key-name", "api_key",
-                "authentication.api-key-value", "special-key"));
+                "openapi.spec-location", petStoreServer.getSpecUrl(),
+                "openapi.base-uri", petStoreServer.getApiUrl(),
+                "openapi.authentication.type", "oauth",
+                "openapi.authentication.scheme", "basic",
+                "openapi.authentication.username", "user",
+                "openapi.authentication.password", "user",
+                "openapi.authentication.api-key-name", "api_key",
+                "openapi.authentication.api-key-value", "special-key"));
         petStoreProperties.putAll(Map.of(
-                "authentication.client-id", "sample-client-id",
-                "authentication.client-secret", "secret"));
+                "openapi.authentication.client-id", "sample-client-id",
+                "openapi.authentication.client-secret", "secret"));
 
         ImmutableMap.Builder<String, String> fastApiProperties = ImmutableMap.builder();
         fastApiProperties.putAll(Map.of(
-                "spec-location", fastApiServer.getSpecUrl(),
-                "base-uri", fastApiServer.getApiUrl()));
+                "openapi.spec-location", fastApiServer.getSpecUrl(),
+                "openapi.base-uri", fastApiServer.getApiUrl()));
 
         return OpenApiQueryRunner.builder(Map.of(
-                "openmeteo", Map.of("spec-location", "https://raw.githubusercontent.com/open-meteo/open-meteo/main/openapi.yml",
-                        "base-uri", "https://api.open-meteo.com"),
+                "openmeteo", Map.of(
+                        "openapi.spec-location", "https://raw.githubusercontent.com/open-meteo/open-meteo/main/openapi.yml",
+                        "openapi.base-uri", "https://api.open-meteo.com"),
                 "petstore", petStoreProperties.buildOrThrow(),
                 "fastapi", fastApiProperties.buildOrThrow()))
                 .build();

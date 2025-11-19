@@ -38,11 +38,11 @@ public class TestOpenApiWithGithub
         ImmutableMap.Builder<String, String> properties = ImmutableMap.builder();
         properties.putAll(Map.of(
                 // a copy of https://github.com/github/rest-api-description/raw/main/descriptions/api.github.com/api.github.com.json with the pagination extension added to some endpoints
-                "spec-location", "src/test/resources/github-patched.json",
-                "base-uri", "https://api.github.com",
-                "authentication.type", "http",
-                "authentication.scheme", "bearer",
-                "authentication.bearer-token", requireNonNullElse(System.getenv("GITHUB_TOKEN"), "")));
+                "openapi.spec-location", "src/test/resources/github-patched.json",
+                "openapi.base-uri", "https://api.github.com",
+                "openapi.authentication.type", "http",
+                "openapi.authentication.scheme", "bearer",
+                "openapi.authentication.bearer-token", requireNonNullElse(System.getenv("GITHUB_TOKEN"), "")));
         return OpenApiQueryRunner.builder(Map.of("github", properties.buildOrThrow())).build();
     }
 

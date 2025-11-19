@@ -69,8 +69,8 @@ public final class OpenApiQueryRunner
         public Builder addOpenAPICatalog(String catalogName, Map<String, String> catalogProperties)
         {
             verify(
-                    catalogProperties.containsKey("spec-location") &&
-                            catalogProperties.containsKey("base-uri"),
+                    catalogProperties.containsKey("openapi.spec-location") &&
+                            catalogProperties.containsKey("openapi.base-uri"),
                     "catalogProperties must include spec-location and base-uri");
             openAPICatalogs.put(catalogName, catalogProperties);
             return this;
@@ -103,9 +103,9 @@ public final class OpenApiQueryRunner
     {
         FastApiServer fastApiServer = new FastApiServer();
         ImmutableMap<String, String> openapiProperties = ImmutableMap.of(
-                "openApi.http-client.log.enabled", "true",
-                "spec-location", fastApiServer.getSpecUrl(),
-                "base-uri", fastApiServer.getApiUrl());
+                "openapi.http-client.log.enabled", "true",
+                "openapi.spec-location", fastApiServer.getSpecUrl(),
+                "openapi.base-uri", fastApiServer.getApiUrl());
         QueryRunner queryRunner = builder(Map.of("openapi", openapiProperties))
                 .addCoordinatorProperty("http-server.http.port", "8080")
                 .build();

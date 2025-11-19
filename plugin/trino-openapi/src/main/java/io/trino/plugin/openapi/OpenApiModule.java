@@ -16,7 +16,7 @@ package io.trino.plugin.openapi;
 
 import com.google.inject.Binder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.trino.plugin.openapi.authentication.Authentication;
+import io.trino.plugin.openapi.authentication.OpenApiAuthentication;
 import io.trino.plugin.openapi.authentication.OpenApiAuthenticationClient;
 
 import static com.google.inject.Scopes.SINGLETON;
@@ -41,8 +41,8 @@ public class OpenApiModule
 
         binder.bind(OpenApiSpec.class).in(SINGLETON);
         httpClientBinder(binder)
-                .bindHttpClient("openApi", ForOpenApi.class)
-                .withFilter(Authentication.class);
+                .bindHttpClient("openapi", ForOpenApi.class)
+                .withFilter(OpenApiAuthentication.class);
 
         httpClientBinder(binder).bindHttpClient("openApiAuthentication", OpenApiAuthenticationClient.class);
     }

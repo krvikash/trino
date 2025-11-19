@@ -6,31 +6,31 @@ from and write to HTTP APIs given an OpenAPI specification.
 
 ## Configuration
 
-| Configuration property        | Description                                                                                              |
-|-------------------------------|----------------------------------------------------------------------------------------------------------|
-| spec-location                 | URL or filename containing the OpenAPI specification, either JSON or YAML                                |
-| base-uri                      | Base URL for the API, often includes API version                                                         |
-| authentication.type           | Default authentication type if not set in the specification. One of: `none`, `http`, `api_key`, `oauth`. |
-| authentication.scheme         | Authentication scheme for the `http` authentication type. One of: `basic`, `bearer`.                     |
-| authentication.client-id      | OAuth Client ID                                                                                          |
-| authentication.client-secret  | OAuth Client secret                                                                                      |
-| authentication.username       | Username used for the `http` and `oauth` authentication types                                            |
-| authentication.password       | Password used for the `http` and `oauth` authentication types                                            |
-| authentication.bearer-token   | Bearer token for `http` authentication                                                                   |
-| authentication.api-key-name   | API key name                                                                                             |
-| authentication.api-key-value  | API key value                                                                                            |
-| max-requests-per-second       | Maximum HTTP requests per second executed from a single Trino node                                       |
-| max-splits-per-second         | Maximum number of splits per second generated when executing a query                                     |
-| domain-expansion-limit        | Maximum number of discrete domain values generated from range predicates, which correlates with the number of HTTP requests executed |
+| Configuration property               | Description                                                                                              |
+|--------------------------------------|----------------------------------------------------------------------------------------------------------|
+| openapi.spec-location                | URL or filename containing the OpenAPI specification, either JSON or YAML                                |
+| openapi.base-uri                     | Base URL for the API, often includes API version                                                         |
+| openapi.authentication.type          | Default authentication type if not set in the specification. One of: `none`, `http`, `api_key`, `oauth`. |
+| openapi.authentication.scheme        | Authentication scheme for the `http` authentication type. One of: `basic`, `bearer`.                     |
+| openapi.authentication.client-id     | OAuth Client ID                                                                                          |
+| openapi.authentication.client-secret | OAuth Client secret                                                                                      |
+| openapi.authentication.username      | Username used for the `http` and `oauth` authentication types                                            |
+| openapi.authentication.password      | Password used for the `http` and `oauth` authentication types                                            |
+| openapi.authentication.bearer-token  | Bearer token for `http` authentication                                                                   |
+| openapi.authentication.api-key-name  | API key name                                                                                             |
+| openapi.authentication.api-key-value | API key value                                                                                            |
+| openapi.max-requests-per-second      | Maximum HTTP requests per second executed from a single Trino node                                       |
+| openapi.max-splits-per-second        | Maximum number of splits per second generated when executing a query                                     |
+| openapi.domain-expansion-limit       | Maximum number of discrete domain values generated from range predicates, which correlates with the number of HTTP requests executed |
 
 The connector is using the Airlift HTTP client, which can be configured with
 [additional
 properties](https://github.com/airlift/airlift/blob/master/http-client/src/main/java/io/airlift/http/client/HttpClientConfig.java)
-prefixed with `openApi`, like so:
+prefixed with `openapi`, like so:
 
 ```
-openApi.http-client.log.enabled=true
-openApi.http-client.log.path=logs
+openapi..http-client.log.enabled=true
+openapi..http-client.log.path=logs
 ```
 
 ## Known APIs

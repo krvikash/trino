@@ -34,12 +34,12 @@ public class TestOpenApiWithJira
     {
         ImmutableMap.Builder<String, String> properties = ImmutableMap.builder();
         properties.putAll(Map.of(
-                "spec-location", "https://developer.atlassian.com/cloud/jira/platform/swagger-v3.v3.json",
-                "base-uri", requireNonNullElse(System.getenv("JIRA_SITE"), ""),
-                "authentication.type", "http",
-                "authentication.scheme", "basic",
-                "authentication.username", requireNonNullElse(System.getenv("JIRA_USER"), ""),
-                "authentication.password", requireNonNullElse(System.getenv("JIRA_TOKEN"), "")));
+                "openapi.spec-location", "https://developer.atlassian.com/cloud/jira/platform/swagger-v3.v3.json",
+                "openapi.sbase-uri", requireNonNullElse(System.getenv("JIRA_SITE"), ""),
+                "openapi.authentication.type", "http",
+                "openapi.authentication.scheme", "basic",
+                "openapi.authentication.username", requireNonNullElse(System.getenv("JIRA_USER"), ""),
+                "openapi.authentication.password", requireNonNullElse(System.getenv("JIRA_TOKEN"), "")));
         return OpenApiQueryRunner.builder(Map.of("jira", properties.buildOrThrow())).build();
     }
 

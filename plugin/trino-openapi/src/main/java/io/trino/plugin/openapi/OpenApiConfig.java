@@ -19,8 +19,8 @@ import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigSecuritySensitive;
 import io.airlift.configuration.InvalidConfigurationException;
-import io.trino.plugin.openapi.authentication.AuthenticationScheme;
-import io.trino.plugin.openapi.authentication.AuthenticationType;
+import io.trino.plugin.openapi.authentication.OpenApiAuthenticationScheme;
+import io.trino.plugin.openapi.authentication.OpenApiAuthenticationType;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
@@ -33,9 +33,9 @@ public class OpenApiConfig
 {
     private String specLocation;
     private URI baseUri;
-    private AuthenticationType authenticationType = AuthenticationType.NONE;
+    private OpenApiAuthenticationType authenticationType = OpenApiAuthenticationType.NONE;
 
-    private AuthenticationScheme authenticationScheme = AuthenticationScheme.BASIC;
+    private OpenApiAuthenticationScheme authenticationScheme = OpenApiAuthenticationScheme.BASIC;
 
     private String username;
     private String password;
@@ -62,7 +62,7 @@ public class OpenApiConfig
         return specLocation;
     }
 
-    @Config("spec-location")
+    @Config("openapi.spec-location")
     @ConfigDescription("Path to the OpenAPI spec file")
     public OpenApiConfig setSpecLocation(String value)
     {
@@ -76,7 +76,7 @@ public class OpenApiConfig
         return baseUri;
     }
 
-    @Config("base-uri")
+    @Config("openapi.base-uri")
     @ConfigDescription("Base URI of the API")
     public OpenApiConfig setBaseUri(URI baseUri)
     {
@@ -84,28 +84,28 @@ public class OpenApiConfig
         return this;
     }
 
-    public AuthenticationType getAuthenticationType()
+    public OpenApiAuthenticationType getAuthenticationType()
     {
         return authenticationType;
     }
 
-    @Config("authentication.type")
+    @Config("openapi.authentication.type")
     @ConfigDescription("Default authentication type if not set in the API specification")
-    public OpenApiConfig setAuthenticationType(AuthenticationType authenticationType)
+    public OpenApiConfig setAuthenticationType(OpenApiAuthenticationType authenticationType)
     {
         this.authenticationType = authenticationType;
         return this;
     }
 
     @NotNull
-    public AuthenticationScheme getAuthenticationScheme()
+    public OpenApiAuthenticationScheme getAuthenticationScheme()
     {
         return authenticationScheme;
     }
 
-    @Config("authentication.scheme")
+    @Config("openapi.authentication.scheme")
     @ConfigDescription("HTTP authentication scheme")
-    public OpenApiConfig setAuthenticationScheme(AuthenticationScheme authenticationScheme)
+    public OpenApiConfig setAuthenticationScheme(OpenApiAuthenticationScheme authenticationScheme)
     {
         this.authenticationScheme = authenticationScheme;
         return this;
@@ -116,7 +116,7 @@ public class OpenApiConfig
         return username;
     }
 
-    @Config("authentication.username")
+    @Config("openapi.authentication.username")
     @ConfigDescription("Username")
     public OpenApiConfig setUsername(String username)
     {
@@ -129,7 +129,7 @@ public class OpenApiConfig
         return password;
     }
 
-    @Config("authentication.password")
+    @Config("openapi.authentication.password")
     @ConfigDescription("Password")
     @ConfigSecuritySensitive
     public OpenApiConfig setPassword(String password)
@@ -143,7 +143,7 @@ public class OpenApiConfig
         return bearerToken;
     }
 
-    @Config("authentication.bearer-token")
+    @Config("openapi.authentication.bearer-token")
     @ConfigDescription("Bearer token")
     @ConfigSecuritySensitive
     public OpenApiConfig setBearerToken(String bearerToken)
@@ -158,7 +158,7 @@ public class OpenApiConfig
         return apiKeys;
     }
 
-    @Config("authentication.api-keys")
+    @Config("openapi.authentication.api-keys")
     public OpenApiConfig setApiKeys(String apiKeys)
             throws InvalidConfigurationException
     {
@@ -182,7 +182,7 @@ public class OpenApiConfig
         return apiKeyName;
     }
 
-    @Config("authentication.api-key-name")
+    @Config("openapi.authentication.api-key-name")
     @ConfigDescription("API key name")
     public OpenApiConfig setApiKeyName(String apiKeyName)
             throws InvalidConfigurationException
@@ -199,7 +199,7 @@ public class OpenApiConfig
         return apiKeyValue;
     }
 
-    @Config("authentication.api-key-value")
+    @Config("openapi.authentication.api-key-value")
     @ConfigDescription("API key value")
     @ConfigSecuritySensitive
     public OpenApiConfig setApiKeyValue(String apiKeyValue)
@@ -217,7 +217,7 @@ public class OpenApiConfig
         return clientId;
     }
 
-    @Config("authentication.client-id")
+    @Config("openapi.authentication.client-id")
     @ConfigDescription("OAuth client ID")
     public OpenApiConfig setClientId(String clientId)
     {
@@ -230,7 +230,7 @@ public class OpenApiConfig
         return clientSecret;
     }
 
-    @Config("authentication.client-secret")
+    @Config("openapi.authentication.client-secret")
     @ConfigDescription("OAuth client secret")
     @ConfigSecuritySensitive
     public OpenApiConfig setClientSecret(String clientSecret)
@@ -244,7 +244,7 @@ public class OpenApiConfig
         return maxRequestsPerSecond;
     }
 
-    @Config("max-requests-per-second")
+    @Config("openapi.max-requests-per-second")
     public OpenApiConfig setMaxRequestsPerSecond(double maxRequestsPerSecond)
     {
         this.maxRequestsPerSecond = maxRequestsPerSecond;
@@ -256,7 +256,7 @@ public class OpenApiConfig
         return maxSplitsPerSecond;
     }
 
-    @Config("max-splits-per-second")
+    @Config("openapi.max-splits-per-second")
     public OpenApiConfig setMaxSplitsPerSecond(double maxSplitsPerSecond)
     {
         this.maxSplitsPerSecond = maxSplitsPerSecond;
@@ -269,7 +269,7 @@ public class OpenApiConfig
         return domainExpansionLimit;
     }
 
-    @Config("domain-expansion-limit")
+    @Config("openapi.domain-expansion-limit")
     @ConfigDescription("Maximum number of discrete values in a predicate domain.")
     public OpenApiConfig setDomainExpansionLimit(int domainExpansionLimit)
     {
