@@ -78,8 +78,6 @@ public class OpenApiAuthentication
                                  OpenApiSpec spec,
                                  @OpenApiAuthenticationClient HttpClient httpClient)
     {
-        requireNonNull(config, "config is null");
-        requireNonNull(spec, "spec is null");
         this.pathSecurityRequirements = spec.getPathSecurityRequirements();
         this.securityRequirements = spec.getSecurityRequirements();
         this.securitySchemas = spec.getSecuritySchemas();
@@ -92,7 +90,7 @@ public class OpenApiAuthentication
         this.apiKeyName = config.getApiKeyName();
         this.apiKeyValue = config.getApiKeyValue();
 
-        this.httpClient = requireNonNull(httpClient, "httpClient is null");
+        this.httpClient = httpClient;
         this.clientId = config.getClientId();
         this.clientSecret = config.getClientSecret();
     }
