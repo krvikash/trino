@@ -19,6 +19,7 @@ from and write to HTTP APIs given an OpenAPI specification.
 | openapi.authentication.bearer-token  | Bearer token for `http` authentication                                                                   |
 | openapi.authentication.api-key-name  | API key name                                                                                             |
 | openapi.authentication.api-key-value | API key value                                                                                            |
+| openapi.authentication.api-keys      | A string of comma separated api key names followed by `=`'s followed by api key values.                  |
 | openapi.max-requests-per-second      | Maximum HTTP requests per second executed from a single Trino node                                       |
 | openapi.max-splits-per-second        | Maximum number of splits per second generated when executing a query                                     |
 | openapi.domain-expansion-limit       | Maximum number of discrete domain values generated from range predicates, which correlates with the number of HTTP requests executed |
