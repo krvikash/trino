@@ -33,6 +33,7 @@ import io.trino.testing.minio.MinioClient;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -40,7 +41,6 @@ import java.util.Optional;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
-import static com.google.common.collect.MoreCollectors.onlyElement;
 import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static io.trino.metastore.PrincipalPrivileges.NO_PRIVILEGES;
@@ -155,7 +155,8 @@ public class IcebergCostBasedPlanTestSetup
             try (MinioClient minioClient = minio.createMinioClient()) {
                 String metadataPath = minioClient.listObjects(BUCKET_NAME, targetPath + "/metadata/").stream()
                         .filter(path -> path.endsWith(METADATA_FILE_EXTENSION))
-                        .collect(onlyElement());
+                        .max(Comparator.naturalOrder())
+                        .orElseThrow();
                 metadataLocation = "s3://%s/%s".formatted(BUCKET_NAME, metadataPath);
             }
 
