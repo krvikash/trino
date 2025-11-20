@@ -1306,6 +1306,51 @@ public class TestLocalExchange
     }
 
     @Test
+    public void testPartitionWithMergeEarlyClose()
+    {
+        LocalExchange exchange = new LocalExchange(
+                functionProvider,
+                testSessionBuilder().build(),
+                2,
+                FIXED_HASH_DISTRIBUTION,
+                BUCKET_COUNT,
+                ImmutableList.of(0),
+                TYPES,
+                POSITIONS_APPENDER_FACTORY,
+                TYPES,
+                LOCAL_EXCHANGE_MAX_BUFFERED_BYTES,
+                HASH_COMPILER,
+                WRITER_SCALING_MIN_DATA_PROCESSED,
+                TOTAL_MEMORY_USED);
+
+        assertThat(exchange.getBufferCount()).isEqualTo(2);
+        assertExchangeTotalBufferedBytes(exchange, 0);
+
+        LocalExchangeSinkFactory sinkFactory = exchange.createSinkFactory();
+        sinkFactory.noMoreSinkFactories();
+        LocalExchangeSink sink = sinkFactory.createSink();
+        assertSinkCanWrite(sink);
+        sinkFactory.close();
+
+        OperatorContext operatorContextA = newOperatorContext();
+        LocalExchangePageBuffer sourceA = exchange.getNextSource(operatorContextA);
+        assertSource(sourceA, 0);
+
+        sink.addPage(createPage(MAX_POSITION_COUNT, 0));
+
+        assertSource(sourceA, 1);
+
+        assertThat(sourceA.waitForReading().isDone()).isTrue();
+        // page is buffered
+        assertThat(sourceA.removePage()).isNull();
+
+        // call close before reading all the buffered data
+        sourceA.close();
+
+        assertThat(operatorContextA.getOperatorMemoryContext().getUserMemory()).isEqualTo(0);
+    }
+
+    @Test
     public void testPartitionCustomPartitioning()
     {
         ConnectorPartitioningHandle connectorPartitioningHandle = new ConnectorPartitioningHandle() {};

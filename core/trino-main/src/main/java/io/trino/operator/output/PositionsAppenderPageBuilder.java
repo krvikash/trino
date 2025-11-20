@@ -197,6 +197,7 @@ public class PositionsAppenderPageBuilder
 
     public void release()
     {
+        reset();
         // release memory early
         Arrays.fill(channelAppenders, null);
     }
