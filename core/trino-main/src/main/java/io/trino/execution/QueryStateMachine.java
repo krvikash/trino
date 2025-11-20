@@ -609,6 +609,7 @@ public class QueryStateMachine
                 queryStateTimer.getCreateTime(),
                 getEndTime().orElse(null),
                 queryStateTimer.getQueuedTime(),
+                queryStateTimer.getResourceWaitingTime(),
                 queryStateTimer.getElapsedTime(),
                 queryStateTimer.getExecutionTime(),
 
