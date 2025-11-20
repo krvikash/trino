@@ -646,6 +646,7 @@ public class RedshiftClient
                     RedshiftClient::readTime,
                     RedshiftClient::writeTime));
         }
+
         if ("binary varying".equals(type.jdbcTypeName().orElse("")) || type.jdbcType() == Types.LONGVARBINARY) {
             return Optional.of(ColumnMapping.sliceMapping(
                     VARBINARY,
@@ -709,6 +710,12 @@ public class RedshiftClient
                                 : createUnboundedVarcharType(),
                         true));
             }
+
+            case Types.LONGVARBINARY:
+                return Optional.of(ColumnMapping.sliceMapping(
+                        VARBINARY,
+                        varbinaryReadFunction(),
+                        varbinaryWriteFunction()));
 
             case Types.DATE:
                 return Optional.of(ColumnMapping.longMapping(
