@@ -39,7 +39,7 @@ public class QueryJsonProvider
     {
         return context.get(QueryInfo.class).map(queryInfo -> {
             try {
-                return ImmutableMap.of("query.json", toInputStream(objectMapper.writeValueAsString(queryInfo)));
+                return ImmutableMap.of("query.json", toInputStream(objectMapper.writeValueAsString(queryInfo.pruneCatalogProperties())));
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
