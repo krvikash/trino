@@ -15,6 +15,7 @@ package io.trino.plugin.openapi;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableList;
 import io.airlift.slice.SizeOf;
 import io.swagger.v3.oas.models.PathItem;
 import io.trino.spi.TrinoException;
@@ -65,13 +66,13 @@ public class OpenApiTableHandle
             TupleDomain<ColumnHandle> constraint)
     {
         this.schemaTableName = schemaTableName;
-        this.selectPaths = requireNonNull(selectPaths, "selectPaths is null");
+        this.selectPaths = ImmutableList.copyOf(selectPaths);
         this.selectMethod = requireNonNull(selectMethod, "selectMethod is null");
-        this.insertPaths = requireNonNull(insertPaths, "insertPaths is null");
+        this.insertPaths = ImmutableList.copyOf(insertPaths);
         this.insertMethod = requireNonNull(insertMethod, "insertMethod is null");
-        this.updatePaths = requireNonNull(updatePaths, "updatePaths is null");
+        this.updatePaths = ImmutableList.copyOf(updatePaths);
         this.updateMethod = requireNonNull(updateMethod, "updateMethod is null");
-        this.deletePaths = requireNonNull(deletePaths, "deletePaths is null");
+        this.deletePaths = ImmutableList.copyOf(deletePaths);
         this.deleteMethod = requireNonNull(deleteMethod, "deleteMethod is null");
         this.constraint = requireNonNull(constraint, "constraint is null");
     }
