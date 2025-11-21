@@ -33,7 +33,7 @@ final class TestOpenApiWithJira
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("openapi.spec-location", "https://developer.atlassian.com/cloud/jira/platform/swagger-v3.v3.json")
-                .put("openapi.sbase-uri", requireNonNullElse(System.getenv("JIRA_SITE"), ""))
+                .put("openapi.base-uri", requireNonNullElse(System.getenv("JIRA_SITE"), ""))
                 .put("openapi.authentication.type", "http")
                 .put("openapi.authentication.scheme", "basic")
                 .put("openapi.authentication.username", requireNonNullElse(System.getenv("JIRA_USER"), ""))
