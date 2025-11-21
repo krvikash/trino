@@ -30,10 +30,10 @@ import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 import static io.airlift.testing.ValidationAssertions.assertFailsValidation;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class TestOpenApiConfig
+final class TestOpenApiConfig
 {
     @Test
-    public void testDefaults()
+    void testDefaults()
     {
         assertRecordedDefaults(recordDefaults(OpenApiConfig.class)
                 .setSpecLocation(null)
@@ -54,7 +54,7 @@ public class TestOpenApiConfig
     }
 
     @Test
-    public void testExplicitPropertyMappingsApiKeys()
+    void testExplicitPropertyMappingsApiKeys()
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("openapi.spec-location", "/spec/on/server.json")
@@ -93,7 +93,7 @@ public class TestOpenApiConfig
     }
 
     @Test
-    public void testExplicitPropertyMappingsApiKeyPair()
+    void testExplicitPropertyMappingsApiKeyPair()
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("openapi.spec-location", "/spec/on/server.json")
@@ -112,7 +112,7 @@ public class TestOpenApiConfig
     }
 
     @Test
-    public void testApiKeyValidation()
+    void testApiKeyValidation()
     {
         assertFailsValidation(
                 new OpenApiConfig()
@@ -125,7 +125,7 @@ public class TestOpenApiConfig
     }
 
     @Test
-    public void testSpecLocationValidation()
+    void testSpecLocationValidation()
     {
         assertFailsValidation(
                 new OpenApiConfig()
@@ -136,7 +136,7 @@ public class TestOpenApiConfig
     }
 
     @Test
-    public void testBaseUriValidation()
+    void testBaseUriValidation()
     {
         assertFailsValidation(
                 new OpenApiConfig()
@@ -147,7 +147,7 @@ public class TestOpenApiConfig
     }
 
     @Test
-    public void testDomainExpansionLimitValidation()
+    void testDomainExpansionLimitValidation()
     {
         assertFailsValidation(
                 new OpenApiConfig()

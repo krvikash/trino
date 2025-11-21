@@ -43,7 +43,7 @@ import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.util.Objects.requireNonNull;
 
-class TestOpenApiSpec
+final class TestOpenApiSpec
 {
     private final Schema<?> intSchema = newSchema("integer");
     private final Schema<?> numberSchema = newSchema("number");
@@ -61,7 +61,7 @@ class TestOpenApiSpec
     }
 
     @Test
-    public void getGithubTables()
+    void testGetGithubTables()
     {
         OpenApiSpec spec = loadSpec("github.json");
         Map<String, List<OpenApiColumn>> tables = spec.getTables();
@@ -74,7 +74,7 @@ class TestOpenApiSpec
     }
 
     @Test
-    public void getGithubExtensionTables()
+    void testGetGithubExtensionTables()
     {
         OpenApiSpec spec = loadSpec("github-patched.json");
         Map<String, List<OpenApiColumn>> tables = spec.getTables();
@@ -567,7 +567,7 @@ class TestOpenApiSpec
     }
 
     @Test
-    public void getJiraTables()
+    void testGetJiraTables()
     {
         OpenApiSpec spec = loadSpec("jira.json");
         Map<String, List<OpenApiColumn>> tables = spec.getTables();
@@ -732,7 +732,7 @@ class TestOpenApiSpec
     }
 
     @Test
-    public void getGalaxyTables()
+    void getGalaxyTables()
     {
         OpenApiSpec spec = loadSpec("galaxy.json");
         Map<String, List<OpenApiColumn>> tables = spec.getTables();
@@ -761,7 +761,7 @@ class TestOpenApiSpec
     }
 
     @Test
-    public void getPetstoreTables()
+    void testGetPetstoreTables()
     {
         OpenApiSpec spec = loadSpec("petstore.yaml");
         Map<String, List<OpenApiColumn>> tables = spec.getTables();
@@ -874,7 +874,7 @@ class TestOpenApiSpec
     }
 
     @Test
-    public void getDatadogTables()
+    void testGetDatadogTables()
     {
         OpenApiSpec spec = loadSpec("datadog.yaml");
         Map<String, List<OpenApiColumn>> tables = spec.getTables();
@@ -955,7 +955,7 @@ class TestOpenApiSpec
     }
 
     @Test
-    public void getCloudflareTables()
+    void testGetCloudflareTables()
     {
         OpenApiSpec spec = loadSpec("cloudflare.json");
         Map<String, List<OpenApiColumn>> tables = spec.getTables();
@@ -1195,7 +1195,7 @@ class TestOpenApiSpec
     }
 
     @Test
-    public void getOpenMeteoTables()
+    void testGetOpenMeteoTables()
     {
         OpenApiSpec spec = loadSpec("openmeteo.yml");
         Map<String, List<OpenApiColumn>> tables = spec.getTables();
@@ -1407,7 +1407,7 @@ class TestOpenApiSpec
     }
 
     @Test
-    public void testPathParams()
+    void testPathParams()
     {
         String specContents =
                 """

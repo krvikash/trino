@@ -21,6 +21,7 @@ import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
+import java.util.List;
 import java.util.Map;
 
 import static java.lang.String.format;
@@ -28,30 +29,29 @@ import static java.util.Objects.requireNonNullElse;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @EnabledIfEnvironmentVariable(named = "GITHUB_TOKEN", matches = ".*")
-public class TestOpenApiWithGithub
+final class TestOpenApiWithGithub
         extends AbstractTestQueryFramework
 {
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        ImmutableMap.Builder<String, String> properties = ImmutableMap.builder();
-        properties.putAll(Map.of(
+        Map<String, String> properties = ImmutableMap.<String, String>builder()
                 // a copy of https://github.com/github/rest-api-description/raw/main/descriptions/api.github.com/api.github.com.json with the pagination extension added to some endpoints
-                "openapi.spec-location", "src/test/resources/github-patched.json",
-                "openapi.base-uri", "https://api.github.com",
-                "openapi.authentication.type", "http",
-                "openapi.authentication.scheme", "bearer",
-                "openapi.authentication.bearer-token", requireNonNullElse(System.getenv("GITHUB_TOKEN"), "")));
-        return OpenApiQueryRunner.builder(Map.of("github", properties.buildOrThrow())).build();
+                .put("openapi.spec-location", "src/test/resources/github-patched.json")
+                .put("openapi.base-uri", "https://api.github.com")
+                .put("openapi.authentication.type", "http")
+                .put("openapi.authentication.scheme", "bearer")
+                .put("openapi.authentication.bearer-token", requireNonNullElse(System.getenv("GITHUB_TOKEN"), ""))
+                .buildOrThrow();
+        return OpenApiQueryRunner.builder(Map.of("github", properties)).build();
     }
 
     @Test
-    public void showTables()
+    void testShowTables()
     {
         assertQuery("SHOW SCHEMAS FROM github", "VALUES 'default', 'information_schema'");
-        ImmutableList.Builder<String> expectedTables = ImmutableList.builder();
-        expectedTables
+        List<String> expectedTables = ImmutableList.<String>builder()
                 .add("advisories")
                 .add("app")
                 .add("app_hook_config")
@@ -420,12 +420,13 @@ public class TestOpenApiWithGithub
                 .add("users_starred")
                 .add("users_subscriptions")
                 .add("versions")
-                .add("zen");
-        assertQuery("SHOW TABLES FROM github.default", "VALUES '" + String.join("', '", expectedTables.build()) + "'");
+                .add("zen")
+                .build();
+        assertQuery("SHOW TABLES FROM github.default", "VALUES '" + String.join("', '", expectedTables) + "'");
     }
 
     @Test
-    public void selectFromTable()
+    void testSelectFromTable()
     {
         assertQuery("SELECT login FROM orgs WHERE org = 'trinodb'",
                 "VALUES ('trinodb')");
@@ -462,7 +463,7 @@ public class TestOpenApiWithGithub
     }
 
     @Test
-    public void selectFromGithubActionsTable()
+    void testSelectFromGithubActionsTable()
     {
         assertQuery("SELECT name FROM repos_actions_workflows WHERE owner = 'nineinchnick' AND repo = 'trino-openapi' AND name = 'Release with Maven'",
                 "VALUES ('Release with Maven')");
@@ -479,7 +480,7 @@ public class TestOpenApiWithGithub
     }
 
     @Test
-    public void selectJoinDynamicFilter()
+    void testSelectJoinDynamicFilter()
     {
         /*
         assertQuery("WITH " +

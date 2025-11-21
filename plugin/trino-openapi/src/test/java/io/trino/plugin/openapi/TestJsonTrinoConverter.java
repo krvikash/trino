@@ -22,10 +22,10 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class TestJsonTrinoConverter
+final class TestJsonTrinoConverter
 {
     @Test
-    void shouldConvertDifferentDateTimeFormatsIntoLong()
+    void testShouldConvertDifferentDateTimeFormatsIntoLong()
     {
         Type type = TimestampType.createTimestampType(3);
         Schema<?> schema = new Schema<>();
@@ -40,7 +40,7 @@ class TestJsonTrinoConverter
     }
 
     @Test
-    void shouldConvertDateToLong()
+    void testShouldConvertDateToLong()
     {
         Type type = DateType.DATE;
         Schema<?> schema = new Schema<>();

@@ -25,26 +25,26 @@ import java.util.Map;
 import static java.util.Objects.requireNonNullElse;
 
 @EnabledIfEnvironmentVariable(named = "JIRA_SITE", matches = ".*")
-public class TestOpenApiWithJira
+final class TestOpenApiWithJira
         extends AbstractTestQueryFramework
 {
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        ImmutableMap.Builder<String, String> properties = ImmutableMap.builder();
-        properties.putAll(Map.of(
-                "openapi.spec-location", "https://developer.atlassian.com/cloud/jira/platform/swagger-v3.v3.json",
-                "openapi.sbase-uri", requireNonNullElse(System.getenv("JIRA_SITE"), ""),
-                "openapi.authentication.type", "http",
-                "openapi.authentication.scheme", "basic",
-                "openapi.authentication.username", requireNonNullElse(System.getenv("JIRA_USER"), ""),
-                "openapi.authentication.password", requireNonNullElse(System.getenv("JIRA_TOKEN"), "")));
-        return OpenApiQueryRunner.builder(Map.of("jira", properties.buildOrThrow())).build();
+        Map<String, String> properties = ImmutableMap.<String, String>builder()
+                .put("openapi.spec-location", "https://developer.atlassian.com/cloud/jira/platform/swagger-v3.v3.json")
+                .put("openapi.sbase-uri", requireNonNullElse(System.getenv("JIRA_SITE"), ""))
+                .put("openapi.authentication.type", "http")
+                .put("openapi.authentication.scheme", "basic")
+                .put("openapi.authentication.username", requireNonNullElse(System.getenv("JIRA_USER"), ""))
+                .put("openapi.authentication.password", requireNonNullElse(System.getenv("JIRA_TOKEN"), ""))
+                .buildOrThrow();
+        return OpenApiQueryRunner.builder(Map.of("jira", properties)).build();
     }
 
     @Test
-    public void searchIssues()
+    void testSearchIssues()
     {
         assertQuery("SELECT i.key, i.fields['summary'] FROM jira.default.rest_api_3_search_jql j CROSS JOIN unnest(issues) i WHERE jql = 'text ~ \"first*\"' AND j.fields = ARRAY['*all']",
                 "VALUES ('KAN-1', 'First issue')");

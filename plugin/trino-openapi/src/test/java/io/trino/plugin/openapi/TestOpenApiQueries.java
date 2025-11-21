@@ -30,7 +30,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class TestOpenApiQueries
+final class TestOpenApiQueries
         extends AbstractTestQueryFramework
 {
     KeycloakServer keycloakServer;
@@ -54,36 +54,35 @@ public class TestOpenApiQueries
         petStoreServer = new PetStoreServer(keycloakServer);
         fastApiServer = new FastApiServer();
 
-        ImmutableMap.Builder<String, String> petStoreProperties = ImmutableMap.builder();
-        petStoreProperties.putAll(Map.of(
-                "openapi.spec-location", petStoreServer.getSpecUrl(),
-                "openapi.base-uri", petStoreServer.getApiUrl(),
-                "openapi.authentication.type", "oauth",
-                "openapi.authentication.scheme", "basic",
-                "openapi.authentication.username", "user",
-                "openapi.authentication.password", "user",
-                "openapi.authentication.api-key-name", "api_key",
-                "openapi.authentication.api-key-value", "special-key"));
-        petStoreProperties.putAll(Map.of(
-                "openapi.authentication.client-id", "sample-client-id",
-                "openapi.authentication.client-secret", "secret"));
+        Map<String, String> petStoreProperties = ImmutableMap.<String, String>builder()
+                .put("openapi.spec-location", petStoreServer.getSpecUrl())
+                .put("openapi.base-uri", petStoreServer.getApiUrl())
+                .put("openapi.authentication.type", "oauth")
+                .put("openapi.authentication.scheme", "basic")
+                .put("openapi.authentication.username", "user")
+                .put("openapi.authentication.password", "user")
+                .put("openapi.authentication.api-key-name", "api_key")
+                .put("openapi.authentication.api-key-value", "special-key")
+                .put("openapi.authentication.client-id", "sample-client-id")
+                .put("openapi.authentication.client-secret", "secret")
+                .buildOrThrow();
 
-        ImmutableMap.Builder<String, String> fastApiProperties = ImmutableMap.builder();
-        fastApiProperties.putAll(Map.of(
-                "openapi.spec-location", fastApiServer.getSpecUrl(),
-                "openapi.base-uri", fastApiServer.getApiUrl()));
+        Map<String, String> fastApiProperties = ImmutableMap.<String, String>builder()
+                .put("openapi.spec-location", fastApiServer.getSpecUrl())
+                .put("openapi.base-uri", fastApiServer.getApiUrl())
+                .buildOrThrow();
 
         return OpenApiQueryRunner.builder(Map.of(
                 "openmeteo", Map.of(
                         "openapi.spec-location", "https://raw.githubusercontent.com/open-meteo/open-meteo/main/openapi.yml",
                         "openapi.base-uri", "https://api.open-meteo.com"),
-                "petstore", petStoreProperties.buildOrThrow(),
-                "fastapi", fastApiProperties.buildOrThrow()))
+                "petstore", petStoreProperties,
+                "fastapi", fastApiProperties))
                 .build();
     }
 
     @Test
-    public void showPetStoreTables()
+    void testShowPetStoreTables()
     {
         assertQuery("SHOW SCHEMAS FROM petstore",
                 "VALUES 'default', 'information_schema'");
@@ -92,7 +91,7 @@ public class TestOpenApiQueries
     }
 
     @Test
-    public void selectFromPetTable()
+    void testSelectFromPetTable()
     {
         assertQuery("SELECT name FROM petstore.default.pet_find_by_status WHERE status = 'available' AND id != 100",
                 "VALUES ('Cat 1'), ('Cat 2'), ('Dog 1'), ('Lion 1'), ('Lion 2'), ('Lion 3'), ('Rabbit 1')");
@@ -101,7 +100,7 @@ public class TestOpenApiQueries
     }
 
     @Test
-    public void insertPet()
+    void testInsertPet()
     {
         assertQueryReturnsEmptyResult("SELECT name FROM petstore.default.pet WHERE pet_id = 100");
         assertQuerySucceeds("INSERT INTO petstore.default.pet (id, name, photo_urls, status) VALUES (100, 'Cat X', ARRAY[], 'available')");
@@ -115,7 +114,7 @@ public class TestOpenApiQueries
     }
 
     @Test
-    public void selectFromForecastTable()
+    void testSelectFromForecastTable()
     {
         assertQuery("SELECT elevation, timezone, current_weather.temperature BETWEEN -50 AND 100 AS is_livable " +
                         "FROM openmeteo.default.v1_forecast WHERE latitude_req = 53.1325 AND longitude_req = 23.1688",
@@ -126,7 +125,7 @@ public class TestOpenApiQueries
     }
 
     @Test
-    public void selectItems()
+    void testSelectItems()
     {
         List<MaterializedRow> rows = getQueryRunner().execute("SELECT name, description, price, tax, tags, map_entries(properties), created_at, valid_until, revised_at FROM fastapi.default.items WHERE item_id = 1").getMaterializedRows();
         // can't use assertQuery, because array of dates read from H2 as not using LocalDate
@@ -144,7 +143,7 @@ public class TestOpenApiQueries
     }
 
     @Test
-    public void searchItemsWithInPhrase()
+    void testSearchItemsWithInPhrase()
     {
         List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM fastapi.default.search WHERE item_ids IN (ARRAY['2'])").getMaterializedRows();
         assertThat(rows).size().isEqualTo(1);
@@ -155,7 +154,7 @@ public class TestOpenApiQueries
     }
 
     @Test
-    public void searchItemsWithSubQuery10k()
+    void testSearchItemsWithSubQuery10k()
     {
         try (TestTable table = generateDataset("memory.default.test_items_10k", 10000)) {
             List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM fastapi.default.search WHERE item_ids IN (select array_agg(item_id) from %s)".formatted(table.getName())).getMaterializedRows();
@@ -166,7 +165,7 @@ public class TestOpenApiQueries
     }
 
     @Test
-    public void searchItemsWithSubQuery100k()
+    void testSearchItemsWithSubQuery100k()
     {
         try (TestTable table = generateDataset("memory.default.test_items_100k", 100000)) {
             List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM fastapi.default.search WHERE item_ids IN (select array_agg(item_id) from %s)".formatted(table.getName())).getMaterializedRows();
@@ -177,7 +176,7 @@ public class TestOpenApiQueries
     }
 
     @Test
-    public void itemCategories()
+    void testItemCategories()
     {
         List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM fastapi.default.item_categories").getMaterializedRows();
         assertThat(rows).size().isEqualTo(1);
@@ -185,7 +184,7 @@ public class TestOpenApiQueries
     }
 
     @Test
-    public void items()
+    public void testItems()
     {
         List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM fastapi.default.items").getMaterializedRows();
         assertThat(rows)
@@ -194,7 +193,7 @@ public class TestOpenApiQueries
     }
 
     @Test
-    public void errors()
+    void testErrors()
     {
         assertQueryFails("SELECT * FROM fastapi.default.error", "Server responded with error 418: \"Oops! Inevitable error happened. There goes a rainbow...\"");
     }
