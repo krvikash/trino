@@ -71,7 +71,7 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
 
-public class JsonTrinoConverter
+public final class JsonTrinoConverter
 {
     private JsonTrinoConverter()
     {
