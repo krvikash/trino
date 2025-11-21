@@ -24,7 +24,6 @@ import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.transaction.IsolationLevel;
 
-import static io.trino.plugin.openapi.OpenApiTransactionHandle.INSTANCE;
 import static java.util.Objects.requireNonNull;
 
 public class OpenApiConnector
@@ -54,7 +53,7 @@ public class OpenApiConnector
     @Override
     public ConnectorTransactionHandle beginTransaction(IsolationLevel isolationLevel, boolean readOnly, boolean autoCommit)
     {
-        return INSTANCE;
+        return OpenApiTransactionHandle.INSTANCE;
     }
 
     @Override
