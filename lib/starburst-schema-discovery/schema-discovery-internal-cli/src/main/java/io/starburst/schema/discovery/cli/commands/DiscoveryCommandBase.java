@@ -9,7 +9,6 @@
  */
 package io.starburst.schema.discovery.cli.commands;
 
-import io.airlift.units.DataSize;
 import io.opentelemetry.api.OpenTelemetry;
 import io.starburst.schema.discovery.io.DiscoveryTrinoFileSystem;
 import io.trino.filesystem.TrinoFileSystem;
@@ -37,8 +36,7 @@ abstract sealed class DiscoveryCommandBase
                 OpenTelemetry.noop(),
                 new S3FileSystemConfig()
                         // credentials are taken from default chain, which usually is ~/.aws/credentials [default] profile
-                        .setRegion("us-east-1")
-                        .setStreamingPartSize(DataSize.valueOf("5.5MB")),
+                        .setRegion("us-east-1"),
                 new S3FileSystemStats());
 
         return s3FileSystemFactory.create(ConnectorIdentity.ofUser("local-discovery"));
