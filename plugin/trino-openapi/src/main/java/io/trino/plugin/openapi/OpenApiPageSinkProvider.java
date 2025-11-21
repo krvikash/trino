@@ -24,6 +24,8 @@ import io.trino.spi.connector.ConnectorPageSinkProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 
+import static java.util.Objects.requireNonNull;
+
 public class OpenApiPageSinkProvider
         implements ConnectorPageSinkProvider
 {
@@ -32,7 +34,7 @@ public class OpenApiPageSinkProvider
     @Inject
     OpenApiPageSinkProvider(OpenApiClient client)
     {
-        this.client = client;
+        this.client = requireNonNull(client, "client is null");
     }
 
     @Override

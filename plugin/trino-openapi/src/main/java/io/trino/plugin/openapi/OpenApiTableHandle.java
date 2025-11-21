@@ -66,14 +66,14 @@ public class OpenApiTableHandle
     {
         this.schemaTableName = schemaTableName;
         this.selectPaths = requireNonNull(selectPaths, "selectPaths is null");
-        this.selectMethod = selectMethod;
+        this.selectMethod = requireNonNull(selectMethod, "selectMethod is null");
         this.insertPaths = requireNonNull(insertPaths, "insertPaths is null");
-        this.insertMethod = insertMethod;
+        this.insertMethod = requireNonNull(insertMethod, "insertMethod is null");
         this.updatePaths = requireNonNull(updatePaths, "updatePaths is null");
-        this.updateMethod = updateMethod;
+        this.updateMethod = requireNonNull(updateMethod, "updateMethod is null");
         this.deletePaths = requireNonNull(deletePaths, "deletePaths is null");
-        this.deleteMethod = deleteMethod;
-        this.constraint = constraint;
+        this.deleteMethod = requireNonNull(deleteMethod, "deleteMethod is null");
+        this.constraint = requireNonNull(constraint, "constraint is null");
     }
 
     @JsonProperty

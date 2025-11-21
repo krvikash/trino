@@ -46,6 +46,7 @@ import java.util.Optional;
 import static io.trino.plugin.openapi.OpenApiSpec.ROW_ID;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.connector.RowChangeParadigm.CHANGE_ONLY_UPDATED_COLUMNS;
+import static java.util.Objects.requireNonNull;
 import static java.util.function.UnaryOperator.identity;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
@@ -61,7 +62,7 @@ public class OpenApiMetadata
     @Inject
     public OpenApiMetadata(OpenApiSpec spec, OpenApiConfig config)
     {
-        this.spec = spec;
+        this.spec = requireNonNull(spec, "spec is null");
         this.domainExpansionLimit = config.getDomainExpansionLimit();
     }
 

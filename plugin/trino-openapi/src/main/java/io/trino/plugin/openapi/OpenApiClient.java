@@ -126,8 +126,8 @@ public class OpenApiClient
     public OpenApiClient(OpenApiConfig config, @ForOpenApi HttpClient httpClient, OpenApiSpec openApiSpec)
     {
         this.baseUri = config.getBaseUri();
-        this.httpClient = httpClient;
-        this.openApiSpec = openApiSpec;
+        this.httpClient = requireNonNull(httpClient, "httpClient is null");
+        this.openApiSpec = requireNonNull(openApiSpec, "openApiSpec is null");
         if (config.getMaxRequestsPerSecond() != Double.MAX_VALUE) {
             rateLimiter = RateLimiter.create(config.getMaxRequestsPerSecond());
         }

@@ -22,6 +22,7 @@ import io.trino.spi.connector.ConnectorPageSink;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
 public class OpenApiPageSink
@@ -32,8 +33,8 @@ public class OpenApiPageSink
 
     public OpenApiPageSink(OpenApiClient client, OpenApiOutputTableHandle table)
     {
-        this.client = client;
-        this.table = table;
+        this.client = requireNonNull(client, "client is null");
+        this.table = requireNonNull(table, "table is null");
     }
 
     @Override

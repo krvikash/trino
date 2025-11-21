@@ -29,6 +29,7 @@ import io.trino.spi.type.Type;
 
 import java.util.List;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
 public class OpenApiRecordSetProvider
@@ -40,8 +41,8 @@ public class OpenApiRecordSetProvider
     @Inject
     public OpenApiRecordSetProvider(OpenApiMetadata metadata, OpenApiClient client)
     {
-        this.metadata = metadata;
-        this.client = client;
+        this.metadata = requireNonNull(metadata, "metadata is null");
+        this.client = requireNonNull(client, "client is null");
     }
 
     @Override

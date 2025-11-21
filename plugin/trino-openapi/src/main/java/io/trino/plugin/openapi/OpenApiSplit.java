@@ -21,6 +21,8 @@ import io.trino.spi.connector.ConnectorSplit;
 
 import java.util.List;
 
+import static java.util.Objects.requireNonNull;
+
 public class OpenApiSplit
         implements ConnectorSplit
 {
@@ -32,7 +34,7 @@ public class OpenApiSplit
     public OpenApiSplit(
             @JsonProperty("tableHandle") OpenApiTableHandle tableHandle)
     {
-        this.tableHandle = tableHandle;
+        this.tableHandle = requireNonNull(tableHandle, "tableHandle is null");
     }
 
     @Override

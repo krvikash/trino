@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableMap;
 import io.swagger.v3.oas.models.media.Schema;
 import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.type.Type;
+import jakarta.annotation.Nullable;
 
 import java.util.Map;
 import java.util.Objects;
@@ -40,7 +41,7 @@ public class OpenApiColumn
 
     private OpenApiColumn(
             String name,
-            String sourceName,
+            @Nullable String sourceName,
             Type type,
             Schema<?> sourceType,
             Map<HttpPath, ParameterLocation> requiresPredicate,
@@ -50,10 +51,10 @@ public class OpenApiColumn
             boolean isPageNumber,
             String comment)
     {
-        this.name = name;
+        this.name = requireNonNull(name, "name is null");
         this.sourceName = sourceName;
-        this.type = type;
-        this.sourceType = sourceType;
+        this.type = requireNonNull(type, "type is null");
+        this.sourceType = requireNonNull(sourceType, "sourceType is null");
         this.requiresPredicate = ImmutableMap.copyOf(requiresPredicate);
         this.optionalPredicate = ImmutableMap.copyOf(optionalPredicate);
         this.metadata = ColumnMetadata.builder()
@@ -72,6 +73,7 @@ public class OpenApiColumn
         return name;
     }
 
+    @Nullable // TODO Covert to Optional<String>
     public String getSourceName()
     {
         return sourceName;
