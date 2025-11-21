@@ -25,8 +25,6 @@ import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 public class OpenApiModule
         extends AbstractConfigurationAwareModule
 {
-    public OpenApiModule() {}
-
     @Override
     protected void setup(Binder binder)
     {
