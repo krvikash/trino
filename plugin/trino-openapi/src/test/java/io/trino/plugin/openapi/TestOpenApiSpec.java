@@ -23,7 +23,6 @@ import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.TypeOperators;
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.net.URL;
@@ -42,6 +41,7 @@ import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.util.Objects.requireNonNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestOpenApiSpec
 {
@@ -70,7 +70,7 @@ final class TestOpenApiSpec
                 "repos_contributors",
                 "repos_pages",
                 "projects");
-        Assertions.assertThat(tables.keySet()).containsAll(expected);
+        assertThat(tables.keySet()).containsAll(expected);
     }
 
     @Test
@@ -83,14 +83,14 @@ final class TestOpenApiSpec
                 "orgs",
                 "repos",
                 "repos_actions_workflows");
-        Assertions.assertThat(tables.keySet()).containsAll(expected);
+        assertThat(tables.keySet()).containsAll(expected);
 
         OpenApiTableHandle orgsTableHandle = spec.getTableHandle(schemaTableName(SCHEMA_NAME, "orgs"));
         String paramsPath = "/orgs/{org}";
-        Assertions.assertThat(orgsTableHandle.getSelectPaths()).containsExactly("/orgs/{org}");
-        Assertions.assertThat(orgsTableHandle.getInsertPaths()).isEmpty();
-        Assertions.assertThat(orgsTableHandle.getUpdatePaths()).isEmpty();
-        Assertions.assertThat(orgsTableHandle.getDeletePaths()).containsExactly("/orgs/{org}");
+        assertThat(orgsTableHandle.getSelectPaths()).containsExactly("/orgs/{org}");
+        assertThat(orgsTableHandle.getInsertPaths()).isEmpty();
+        assertThat(orgsTableHandle.getUpdatePaths()).isEmpty();
+        assertThat(orgsTableHandle.getDeletePaths()).containsExactly("/orgs/{org}");
         List<OpenApiColumn> orgColumns = tables.get("orgs").stream()
                 .map(column -> {
                     // compare only source types, so rebuild it without any other attribute
@@ -101,7 +101,7 @@ final class TestOpenApiSpec
                             .build();
                 })
                 .toList();
-        Assertions.assertThat(orgColumns)
+        assertThat(orgColumns)
                 .containsExactly(
                         OpenApiColumn.builder()
                                 .setName("__trino_row_id")
@@ -452,10 +452,10 @@ final class TestOpenApiSpec
         OpenApiTableHandle workflowTableHandle = spec.getTableHandle(schemaTableName(SCHEMA_NAME, "repos_actions_workflows"));
         String listPath = "/repos/{owner}/{repo}/actions/workflows";
         String onePath = "/repos/{owner}/{repo}/actions/workflows/{workflow_id}";
-        Assertions.assertThat(workflowTableHandle.getSelectPaths()).containsExactly(listPath, onePath);
-        Assertions.assertThat(workflowTableHandle.getInsertPaths()).isEmpty();
-        Assertions.assertThat(workflowTableHandle.getUpdatePaths()).isEmpty();
-        Assertions.assertThat(workflowTableHandle.getDeletePaths()).isEmpty();
+        assertThat(workflowTableHandle.getSelectPaths()).containsExactly(listPath, onePath);
+        assertThat(workflowTableHandle.getInsertPaths()).isEmpty();
+        assertThat(workflowTableHandle.getUpdatePaths()).isEmpty();
+        assertThat(workflowTableHandle.getDeletePaths()).isEmpty();
         List<OpenApiColumn> workflowColumns = tables.get("repos_actions_workflows").stream()
                 .map(column -> {
                     // compare only source types, so rebuild it without any other attribute
@@ -466,7 +466,7 @@ final class TestOpenApiSpec
                             .build();
                 })
                 .toList();
-        Assertions.assertThat(workflowColumns)
+        assertThat(workflowColumns)
                 .containsExactly(
                         OpenApiColumn.builder()
                                 .setName("total_count").setSourceName("total_count")
@@ -576,14 +576,14 @@ final class TestOpenApiSpec
                 "rest_api_3_issue",
                 "rest_api_3_project",
                 "rest_api_3_search");
-        Assertions.assertThat(tables.keySet()).containsAll(expected);
+        assertThat(tables.keySet()).containsAll(expected);
 
         OpenApiTableHandle tableHandle = spec.getTableHandle(schemaTableName(SCHEMA_NAME, "rest_api_3_search"));
         String path = "/rest/api/3/search";
-        Assertions.assertThat(tableHandle.getSelectPaths()).containsExactly(path);
-        Assertions.assertThat(tableHandle.getInsertPaths()).containsExactly(path);
-        Assertions.assertThat(tableHandle.getUpdatePaths()).containsExactly(path);
-        Assertions.assertThat(tableHandle.getDeletePaths()).isEmpty();
+        assertThat(tableHandle.getSelectPaths()).containsExactly(path);
+        assertThat(tableHandle.getInsertPaths()).containsExactly(path);
+        assertThat(tableHandle.getUpdatePaths()).containsExactly(path);
+        assertThat(tableHandle.getDeletePaths()).isEmpty();
         List<OpenApiColumn> columns = tables.get("rest_api_3_search").stream()
                 .map(column -> {
                     // compare only source types, so rebuild it without any other attribute
@@ -621,7 +621,7 @@ final class TestOpenApiSpec
                 RowType.field("self", VARCHAR),
                 RowType.field("transitions", new ArrayType(VARCHAR)),
                 RowType.field("versionedRepresentations", new MapType(VARCHAR, new MapType(VARCHAR, VARCHAR, new TypeOperators()), new TypeOperators())))));
-        Assertions.assertThat(columns)
+        assertThat(columns)
                 .containsExactly(
                         OpenApiColumn.builder()
                                 .setName("__trino_row_id")
@@ -757,7 +757,7 @@ final class TestOpenApiSpec
                 "public_api_v1_role",
                 "public_api_v1_schema_discovery",
                 "public_api_v1_role_privilege");
-        Assertions.assertThat(tables.keySet()).containsAll(expected);
+        assertThat(tables.keySet()).containsAll(expected);
     }
 
     @Test
@@ -776,14 +776,14 @@ final class TestOpenApiSpec
                 "user",
                 "user_create_with_list",
                 "pet");
-        Assertions.assertThat(tables.keySet()).containsAll(expected);
+        assertThat(tables.keySet()).containsAll(expected);
         OpenApiTableHandle tableHandle = spec.getTableHandle(schemaTableName(SCHEMA_NAME, "pet"));
         String listPath = "/pet";
         String onePath = "/pet/{petId}";
-        Assertions.assertThat(tableHandle.getSelectPaths()).containsExactly(onePath);
-        Assertions.assertThat(tableHandle.getInsertPaths()).containsExactly(listPath, onePath);
-        Assertions.assertThat(tableHandle.getUpdatePaths()).containsExactly(listPath, onePath);
-        Assertions.assertThat(tableHandle.getDeletePaths()).containsExactly(onePath);
+        assertThat(tableHandle.getSelectPaths()).containsExactly(onePath);
+        assertThat(tableHandle.getInsertPaths()).containsExactly(listPath, onePath);
+        assertThat(tableHandle.getUpdatePaths()).containsExactly(listPath, onePath);
+        assertThat(tableHandle.getDeletePaths()).containsExactly(onePath);
         List<OpenApiColumn> petColumns = tables.get("pet").stream()
                 .map(column -> {
                     // compare only source types, so rebuild it without any other attribute
@@ -799,7 +799,7 @@ final class TestOpenApiSpec
                 RowType.field("name", VARCHAR)));
         ArrayType photosType = new ArrayType(VARCHAR);
         ArrayType tagsType = new ArrayType(categoryType);
-        Assertions.assertThat(petColumns)
+        assertThat(petColumns)
                 .containsExactly(
                         OpenApiColumn.builder()
                                 .setName("__trino_row_id")
@@ -884,13 +884,13 @@ final class TestOpenApiSpec
                 "api_v2_team",
                 "api_v2_metrics",
                 "api_v2_query_timeseries");
-        Assertions.assertThat(tables.keySet()).containsAll(expected);
+        assertThat(tables.keySet()).containsAll(expected);
         OpenApiTableHandle tableHandle = spec.getTableHandle(schemaTableName(SCHEMA_NAME, "api_v2_query_timeseries"));
         String path = "/api/v2/query/timeseries";
-        Assertions.assertThat(tableHandle.getSelectPaths()).containsExactly(path);
-        Assertions.assertThat(tableHandle.getInsertPaths()).containsExactly(path);
-        Assertions.assertThat(tableHandle.getUpdatePaths()).containsExactly(path);
-        Assertions.assertThat(tableHandle.getDeletePaths()).isEmpty();
+        assertThat(tableHandle.getSelectPaths()).containsExactly(path);
+        assertThat(tableHandle.getInsertPaths()).containsExactly(path);
+        assertThat(tableHandle.getUpdatePaths()).containsExactly(path);
+        assertThat(tableHandle.getDeletePaths()).isEmpty();
         List<OpenApiColumn> columns = tables.get("api_v2_query_timeseries").stream()
                 .map(column -> {
                     // compare only source types, so rebuild it without any other attribute
@@ -927,7 +927,7 @@ final class TestOpenApiSpec
                         RowType.field("queries", new ArrayType(VARCHAR)),
                         RowType.field("to", BIGINT)))),
                 RowType.field("type", VARCHAR)));
-        Assertions.assertThat(columns)
+        assertThat(columns)
                 .containsExactly(
                         OpenApiColumn.builder()
                                 .setName("__trino_row_id")
@@ -965,14 +965,14 @@ final class TestOpenApiSpec
                 "certificates",
                 "user",
                 "zones");
-        Assertions.assertThat(tables.keySet()).containsAll(expected);
+        assertThat(tables.keySet()).containsAll(expected);
         OpenApiTableHandle tableHandle = spec.getTableHandle(schemaTableName(SCHEMA_NAME, "zones"));
         String listPath = "/zones";
         String onePath = "/zones/{identifier}";
-        Assertions.assertThat(tableHandle.getSelectPaths()).containsExactly(listPath, onePath);
-        Assertions.assertThat(tableHandle.getInsertPaths()).containsExactly(listPath);
-        Assertions.assertThat(tableHandle.getUpdatePaths()).containsExactly(listPath);
-        Assertions.assertThat(tableHandle.getDeletePaths()).containsExactly(onePath);
+        assertThat(tableHandle.getSelectPaths()).containsExactly(listPath, onePath);
+        assertThat(tableHandle.getInsertPaths()).containsExactly(listPath);
+        assertThat(tableHandle.getUpdatePaths()).containsExactly(listPath);
+        assertThat(tableHandle.getDeletePaths()).containsExactly(onePath);
         List<OpenApiColumn> columns = tables.get("zones").stream()
                 .map(column -> {
                     // compare only source types, so rebuild it without any other attribute
@@ -1015,7 +1015,7 @@ final class TestOpenApiSpec
                 RowType.field("page", createDecimalType(18, 8)),
                 RowType.field("per_page", createDecimalType(18, 8)),
                 RowType.field("total_count", createDecimalType(18, 8))));
-        Assertions.assertThat(columns)
+        assertThat(columns)
                 .containsExactly(
                         OpenApiColumn.builder()
                                 .setName("__trino_row_id")
@@ -1202,13 +1202,13 @@ final class TestOpenApiSpec
 
         Set<String> expected = Set.of(
                 "v1_forecast");
-        Assertions.assertThat(tables.keySet()).containsAll(expected);
+        assertThat(tables.keySet()).containsAll(expected);
         OpenApiTableHandle tableHandle = spec.getTableHandle(schemaTableName(SCHEMA_NAME, "v1_forecast"));
         String path = "/v1/forecast";
-        Assertions.assertThat(tableHandle.getSelectPaths()).containsExactly(path);
-        Assertions.assertThat(tableHandle.getInsertPaths()).isEmpty();
-        Assertions.assertThat(tableHandle.getUpdatePaths()).isEmpty();
-        Assertions.assertThat(tableHandle.getDeletePaths()).isEmpty();
+        assertThat(tableHandle.getSelectPaths()).containsExactly(path);
+        assertThat(tableHandle.getInsertPaths()).isEmpty();
+        assertThat(tableHandle.getUpdatePaths()).isEmpty();
+        assertThat(tableHandle.getDeletePaths()).isEmpty();
         List<OpenApiColumn> columns = tables.get("v1_forecast").stream()
                 .map(column -> {
                     // compare only source types, so rebuild it without any other attribute
@@ -1282,7 +1282,7 @@ final class TestOpenApiSpec
                 RowType.field("wind_speed", REAL),
                 RowType.field("wind_direction", REAL),
                 RowType.field("weather_code", INTEGER)));
-        Assertions.assertThat(columns)
+        assertThat(columns)
                 .containsExactly(
                         OpenApiColumn.builder()
                                 .setName("latitude").setSourceName("latitude")
@@ -1471,13 +1471,13 @@ final class TestOpenApiSpec
 
         String postPath = "/namespaces/{namespace}/indexes/{index}/search";
         OpenApiTableHandle tableHandle = spec.getTableHandle(schemaTableName(SCHEMA_NAME, "namespaces_indexes_search"));
-        Assertions.assertThat(tableHandle.getSelectPaths()).containsExactly(postPath);
-        Assertions.assertThat(tableHandle.getInsertPaths()).containsExactly(postPath);
-        Assertions.assertThat(tableHandle.getUpdatePaths()).containsExactly(postPath);
-        Assertions.assertThat(tableHandle.getDeletePaths()).isEmpty();
+        assertThat(tableHandle.getSelectPaths()).containsExactly(postPath);
+        assertThat(tableHandle.getInsertPaths()).containsExactly(postPath);
+        assertThat(tableHandle.getUpdatePaths()).containsExactly(postPath);
+        assertThat(tableHandle.getDeletePaths()).isEmpty();
 
         Set<String> expected = Set.of("namespaces_indexes_search");
-        Assertions.assertThat(tables.keySet()).containsAll(expected);
+        assertThat(tables.keySet()).containsAll(expected);
         List<OpenApiColumn> columns = tables.get("namespaces_indexes_search").stream()
                 .map(column -> {
                     // compare only source types, so rebuild it without any other attribute
@@ -1488,7 +1488,7 @@ final class TestOpenApiSpec
                             .build();
                 })
                 .toList();
-        Assertions.assertThat(columns)
+        assertThat(columns)
                 .containsExactly(
                         OpenApiColumn.builder()
                                 .setName("__trino_row_id")
