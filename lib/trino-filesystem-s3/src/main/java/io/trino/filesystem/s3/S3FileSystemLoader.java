@@ -103,8 +103,7 @@ public final class S3FileSystemLoader
                         config.getSseCustomerKey()),
                 Optional.empty(),
                 config.getStorageClass(),
-                config.getCannedAcl(),
-                config.isSupportsExclusiveCreate());
+                config.getCannedAcl());
         if (s3ClientCaching) {
             Map<Optional<S3SecurityMappingResult>, S3Client> clients = new ConcurrentHashMap<>();
             this.s3ClientProvider = mapping -> clients.computeIfAbsent(mapping, clientFactory::create);

@@ -84,7 +84,6 @@ public class TestS3FileSystemMinIoWithCustomCredentialProvider
                 .setEndpoint(minio.getMinioAddress())
                 .setRegion(MINIO_REGION)
                 .setPathStyleAccess(true)
-                .setSupportsExclusiveCreate(true)
                 .setCustomCredentialProviderClass(CustomCredentialProviders.MapBasedAwsCredentialsProvider.class.getName())
                 .setCustomCredentialProviderArguments("accessKey=%s,secretKey=%s".formatted(MINIO_ACCESS_KEY, MINIO_SECRET_KEY))
                 .setStreamingPartSize(DataSize.valueOf("5.5MB")), new S3FileSystemStats());
@@ -134,7 +133,6 @@ public class TestS3FileSystemMinIoWithCustomCredentialProvider
                 .setEndpoint(minio.getMinioAddress())
                 .setRegion(MINIO_REGION)
                 .setPathStyleAccess(true)
-                .setSupportsExclusiveCreate(true)
                 .setCustomCredentialProviderClass("MissingCustomCredentialProvider"),
                 new S3FileSystemStats()))
                 .hasMessageContaining("AwsCredentialsProvider MissingCustomCredentialProvider not found");
@@ -147,7 +145,6 @@ public class TestS3FileSystemMinIoWithCustomCredentialProvider
                 .setEndpoint(minio.getMinioAddress())
                 .setRegion(MINIO_REGION)
                 .setPathStyleAccess(true)
-                .setSupportsExclusiveCreate(true)
                 .setCustomCredentialProviderClass(CustomCredentialProviders.AwsCredentialsProviderWithMissingConstructor.class.getName()),
                 new S3FileSystemStats()))
                 .hasMessageContaining("Unable to initialize AwsCredentialsProvider %s".formatted(CustomCredentialProviders.AwsCredentialsProviderWithMissingConstructor.class.getName()));
