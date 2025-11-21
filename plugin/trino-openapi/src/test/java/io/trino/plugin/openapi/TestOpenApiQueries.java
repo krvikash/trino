@@ -129,7 +129,7 @@ final class TestOpenApiQueries
     {
         List<MaterializedRow> rows = getQueryRunner().execute("SELECT name, description, price, tax, tags, map_entries(properties), created_at, valid_until, revised_at FROM fastapi.default.items WHERE item_id = 1").getMaterializedRows();
         // can't use assertQuery, because array of dates read from H2 as not using LocalDate
-        assertThat(rows).size().isEqualTo(1);
+        assertThat(rows).hasSize(1);
         assertThat(rows.getFirst().getFields()).containsExactly(
                 "Portal Gun",
                 null,
@@ -146,11 +146,11 @@ final class TestOpenApiQueries
     void testSearchItemsWithInPhrase()
     {
         List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM fastapi.default.search WHERE item_ids IN (ARRAY['2'])").getMaterializedRows();
-        assertThat(rows).size().isEqualTo(1);
+        assertThat(rows).hasSize(1);
         assertThat(rows.getFirst().getFields()).first().isEqualTo("Plumbus");
 
         rows = getQueryRunner().execute("SELECT name FROM fastapi.default.search WHERE item_ids IN (ARRAY['1', '2'])").getMaterializedRows();
-        assertThat(rows).size().isEqualTo(2);
+        assertThat(rows).hasSize(2);
     }
 
     @Test
@@ -179,7 +179,7 @@ final class TestOpenApiQueries
     void testItemCategories()
     {
         List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM fastapi.default.item_categories").getMaterializedRows();
-        assertThat(rows).size().isEqualTo(1);
+        assertThat(rows).hasSize(1);
         assertThat(rows.getFirst().getFields()).first().isEqualTo("main");
     }
 
