@@ -91,6 +91,10 @@ mysql:
   - changed-files:
     - any-glob-to-any-file: 'plugin/trino-mysql/**'
 
+openapi:
+  - changed-files:
+    - any-glob-to-any-file: 'plugin/trino-openapi/**'
+
 opensearch:
   - changed-files:
     - any-glob-to-any-file: 'plugin/trino-opensearch/**'
