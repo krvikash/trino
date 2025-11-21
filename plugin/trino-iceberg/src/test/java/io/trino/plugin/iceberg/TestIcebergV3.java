@@ -158,6 +158,54 @@ public class TestIcebergV3
     }
 
     @Test
+    void testSetDefaultColumn()
+    {
+        try (TestTable table = newTrinoTable("test_set_default", "(id int, col int)")) {
+            assertThat(getColumnDefault(table.getName(), "col")).isNull();
+
+            assertUpdate("ALTER TABLE " + table.getName() + " ALTER COLUMN col SET DEFAULT 123");
+            assertThat(getColumnDefault(table.getName(), "col")).isEqualTo("123");
+            assertThat((String) computeScalar("SHOW CREATE TABLE " + table.getName()))
+                    .contains("col integer DEFAULT 123");
+            assertUpdate("INSERT INTO " + table.getName() + " (id) VALUES 1", 1);
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES (1, 123)");
+
+            assertUpdate("ALTER TABLE " + table.getName() + " ALTER COLUMN col SET DEFAULT 456");
+            assertThat(getColumnDefault(table.getName(), "col")).isEqualTo("456");
+            assertThat((String) computeScalar("SHOW CREATE TABLE " + table.getName()))
+                    .contains("col integer DEFAULT 456");
+            assertUpdate("INSERT INTO " + table.getName() + " (id) VALUES 2", 1);
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES (1, 123), (2, 456)");
+        }
+    }
+
+    @Test
+    void testDropDefaultColumn()
+    {
+        try (TestTable table = newTrinoTable("test_drop_default", "(id int, col int DEFAULT 123)")) {
+            assertThat(getColumnDefault(table.getName(), "col")).isEqualTo("123");
+            assertThat((String) computeScalar("SHOW CREATE TABLE " + table.getName()))
+                    .contains("col integer DEFAULT 123");
+
+            assertUpdate("ALTER TABLE " + table.getName() + " ALTER COLUMN col DROP DEFAULT");
+            assertThat(getColumnDefault(table.getName(), "col")).isNull();
+            assertThat((String) computeScalar("SHOW CREATE TABLE " + table.getName()))
+                    .doesNotContain("DEFAULT");
+            assertUpdate("INSERT INTO " + table.getName() + " (id) VALUES 1", 1);
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES (1, CAST(NULL AS integer))");
+        }
+    }
+
+    private String getColumnDefault(String tableName, String columnName)
+    {
+        return (String) computeScalar("SELECT column_default FROM information_schema.columns " +
+                "WHERE table_schema = CURRENT_SCHEMA AND table_name = '" + tableName + "' AND column_name = '" + columnName + "'");
+    }
+
+    @Test
     void testUpgradeTableToV3FromTrino()
     {
         String tableName = "test_upgrade_table_to_v3_from_trino_" + randomNameSuffix();

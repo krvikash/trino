@@ -16,11 +16,15 @@ package io.trino.plugin.iceberg;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
+import org.apache.iceberg.BaseTable;
+import org.apache.iceberg.expressions.Literal;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
+import static io.trino.plugin.iceberg.IcebergTestUtils.getHiveMetastore;
 import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestIcebergDefaultValue
@@ -235,7 +239,23 @@ final class TestIcebergDefaultValue
 
         try (TestTable table = newTrinoTable("test_unsupported_default_column_value", "(x int)  WITH (format_version=2)")) {
             assertQueryFails("ALTER TABLE " + table.getName() + " ADD COLUMN y int DEFAULT 1", "Default values are not supported for format version < 3");
+            assertQueryFails("ALTER TABLE " + table.getName() + " ALTER COLUMN x SET DEFAULT 123", "Default values are not supported for format version < 3");
+
+            loadTable(table.getName()).updateSchema()
+                    .updateColumnDefault("x", Literal.of(123))
+                    .commit();
+            assertQueryFails("ALTER TABLE " + table.getName() + " ALTER COLUMN x DROP DEFAULT", "Default values are not supported for format version < 3");
         }
+    }
+
+    private BaseTable loadTable(String tableName)
+    {
+        return IcebergTestUtils.loadTable(
+                tableName,
+                getHiveMetastore(getQueryRunner()),
+                getFileSystemFactory(getQueryRunner()),
+                "iceberg",
+                "tpch");
     }
 
     private void testDefaultValue(IcebergFileFormat format, @Language("SQL") String type, @Language("SQL") String defaultValue, @Language("SQL") String expectedValue)

@@ -3157,7 +3157,12 @@ public class IcebergMetadata
 
     private static void checkDefaultValueCompatibility(int formatVersion, ColumnMetadata column)
     {
-        if (formatVersion < 3 && column.getDefaultValue().isPresent()) {
+        checkDefaultValueCompatibility(formatVersion, column.getDefaultValue().isPresent());
+    }
+
+    private static void checkDefaultValueCompatibility(int formatVersion, boolean defaultValuePresent)
+    {
+        if (formatVersion < 3 && defaultValuePresent) {
             throw new TrinoException(NOT_SUPPORTED, "Default values are not supported for format version < 3");
         }
     }
@@ -3420,6 +3425,48 @@ public class IcebergMetadata
         }
         catch (RuntimeException e) {
             throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to drop a not null constraint: " + firstNonNull(e.getMessage(), e), e);
+        }
+    }
+
+    @Override
+    public void setDefaultValue(ConnectorSession session, ConnectorTableHandle tableHandle, ColumnHandle columnHandle, String defaultValue)
+    {
+        IcebergTableHandle table = (IcebergTableHandle) tableHandle;
+        IcebergColumnHandle column = (IcebergColumnHandle) columnHandle;
+
+        checkDefaultValueCompatibility(table.getFormatVersion(), true);
+
+        Table icebergTable = catalog.loadTable(session, table.getSchemaTableName());
+        verify(column.isBaseColumn(), "Cannot set default values on nested fields");
+
+        try {
+            icebergTable.updateSchema()
+                    .updateColumnDefault(column.getName(), toIcebergLiteral(icebergTable.schema().findType(column.getName()), defaultValue))
+                    .commit();
+        }
+        catch (RuntimeException e) {
+            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to set default values: " + firstNonNull(e.getMessage(), e), e);
+        }
+    }
+
+    @Override
+    public void dropDefaultValue(ConnectorSession session, ConnectorTableHandle tableHandle, ColumnHandle columnHandle)
+    {
+        IcebergTableHandle table = (IcebergTableHandle) tableHandle;
+        IcebergColumnHandle column = (IcebergColumnHandle) columnHandle;
+
+        checkDefaultValueCompatibility(table.getFormatVersion(), true);
+
+        Table icebergTable = catalog.loadTable(session, table.getSchemaTableName());
+        verify(column.isBaseColumn(), "Cannot drop default values on nested fields");
+
+        try {
+            icebergTable.updateSchema()
+                    .updateColumnDefault(column.getName(), null)
+                    .commit();
+        }
+        catch (RuntimeException e) {
+            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to drop default values: " + firstNonNull(e.getMessage(), e), e);
         }
     }
 

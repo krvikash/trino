@@ -207,6 +207,32 @@ public class TestIcebergParquetConnectorTest
 
     @Test
     @Override
+    public void testSetDefaultColumn()
+    {
+        if (formatVersion() >= 3) {
+            super.testSetDefaultColumn();
+        }
+        else {
+            assertThatThrownBy(super::testSetDefaultColumn)
+                    .hasMessageContaining("Default values are not supported for format version < 3");
+        }
+    }
+
+    @Test
+    @Override
+    public void testDropDefaultColumn()
+    {
+        if (formatVersion() >= 3) {
+            super.testDropDefaultColumn();
+        }
+        else {
+            assertThatThrownBy(super::testDropDefaultColumn)
+                    .hasMessageContaining("Default values are not supported for format version < 3");
+        }
+    }
+
+    @Test
+    @Override
     public void testInsertDefaultNullIntoNotNullColumn()
     {
         if (formatVersion() >= 3) {
