@@ -74,9 +74,10 @@ public class OpenApiAuthentication
             .build(CacheLoader.from(this::getToken));
 
     @Inject
-    public OpenApiAuthentication(OpenApiConfig config,
-                                 OpenApiSpec spec,
-                                 @OpenApiAuthenticationClient HttpClient httpClient)
+    public OpenApiAuthentication(
+            OpenApiConfig config,
+            OpenApiSpec spec,
+            @OpenApiAuthenticationClient HttpClient httpClient)
     {
         this.pathSecurityRequirements = spec.getPathSecurityRequirements();
         this.securityRequirements = spec.getSecurityRequirements();
