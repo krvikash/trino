@@ -259,6 +259,6 @@ public class OpenApiTableHandle
             return false;
         }
         // can push down only the first predicate against this column
-        throw new TrinoException(INVALID_ROW_FILTER, "Already pushed down a predicate for " + column.getName() + " which only supports a single value");
+        throw new TrinoException(INVALID_ROW_FILTER, "Already pushed down a predicate for " + column.name() + " which only supports a single value");
     }
 }

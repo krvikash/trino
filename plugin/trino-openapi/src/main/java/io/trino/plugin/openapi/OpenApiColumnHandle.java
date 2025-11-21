@@ -13,59 +13,27 @@
  */
 package io.trino.plugin.openapi;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.airlift.slice.SizeOf;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.type.Type;
 
-import java.util.Objects;
+import static java.util.Objects.requireNonNull;
 
-public class OpenApiColumnHandle
+public record OpenApiColumnHandle(String name, Type type)
         implements ColumnHandle
 {
     private static final int INSTANCE_SIZE = SizeOf.instanceSize(OpenApiColumnHandle.class);
 
-    private final String name;
-    private final Type type;
-
-    @JsonCreator
-    public OpenApiColumnHandle(String name, Type type)
+    public OpenApiColumnHandle
     {
-        this.name = name;
-        this.type = type;
-    }
-
-    @JsonProperty
-    public String getName()
-    {
-        return name;
-    }
-
-    @JsonProperty
-    public Type getType()
-    {
-        return type;
+        requireNonNull(name, "name is null");
+        requireNonNull(type, "type is null");
     }
 
     @Override
-    public boolean equals(Object o)
+    public String toString()
     {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        OpenApiColumnHandle that = (OpenApiColumnHandle) o;
-        return Objects.equals(name, that.name)
-                && Objects.equals(type, that.type);
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return Objects.hash(name, type);
+        return "%s:%s".formatted(name, type);
     }
 
     public long getRetainedSizeInBytes()

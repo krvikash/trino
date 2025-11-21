@@ -145,7 +145,7 @@ public class OpenApiMetadata
             ColumnHandle columnHandle)
     {
         OpenApiColumnHandle handle = (OpenApiColumnHandle) columnHandle;
-        return new ColumnMetadata(handle.getName(), handle.getType());
+        return new ColumnMetadata(handle.name(), handle.type());
     }
 
     @Override
@@ -206,7 +206,7 @@ public class OpenApiMetadata
         OpenApiTableHandle table = (OpenApiTableHandle) tableHandle;
         Map<String, OpenApiColumnHandle> columns = getColumnHandles(table);
         return columns.values().stream()
-                .filter(column -> column.getName().equals(ROW_ID))
+                .filter(column -> column.name().equals(ROW_ID))
                 .findFirst()
                 .orElseThrow(() -> new TrinoException(NOT_SUPPORTED, MODIFYING_ROWS_MESSAGE));
     }

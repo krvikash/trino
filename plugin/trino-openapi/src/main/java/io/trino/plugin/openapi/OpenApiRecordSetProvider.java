@@ -61,12 +61,12 @@ public class OpenApiRecordSetProvider
                 .map(column -> {
                     int index = 0;
                     for (ColumnMetadata columnMetadata : tableMetadata.getColumns()) {
-                        if (columnMetadata.getName().equalsIgnoreCase(column.getName())) {
+                        if (columnMetadata.getName().equalsIgnoreCase(column.name())) {
                             return index;
                         }
                         index++;
                     }
-                    throw new IllegalStateException("Unknown column: " + column.getName());
+                    throw new IllegalStateException("Unknown column: " + column.name());
                 })
                 .toList();
 
@@ -77,7 +77,7 @@ public class OpenApiRecordSetProvider
                 .collect(toList()));
 
         List<Type> mappedTypes = columnHandles.stream()
-                .map(OpenApiColumnHandle::getType)
+                .map(OpenApiColumnHandle::type)
                 .toList();
         return new InMemoryRecordSet(mappedTypes, mappedRows);
     }
