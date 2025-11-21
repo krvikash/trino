@@ -111,7 +111,7 @@ public class OpenApiSpec
     @Inject
     public OpenApiSpec(OpenApiConfig config)
     {
-        this(parse(requireNonNull(config, "config is null").getSpecLocation()));
+        this(parse(config.getSpecLocation()));
     }
 
     OpenApiSpec(OpenAPI openApi)
