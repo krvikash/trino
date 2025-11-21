@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import io.swagger.v3.oas.models.media.Schema;
 import io.trino.spi.type.DateType;
 import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.Type;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,8 +27,8 @@ class TestJsonTrinoConverter
     @Test
     void shouldConvertDifferentDateTimeFormatsIntoLong()
     {
-        var type = TimestampType.createTimestampType(3);
-        var schema = new Schema<>();
+        Type type = TimestampType.createTimestampType(3);
+        Schema<?> schema = new Schema<>();
 
         schema.setFormat("date-time");
 
@@ -41,8 +42,8 @@ class TestJsonTrinoConverter
     @Test
     void shouldConvertDateToLong()
     {
-        var type = DateType.DATE;
-        var schema = new Schema<>();
+        Type type = DateType.DATE;
+        Schema<?> schema = new Schema<>();
 
         schema.setFormat("date");
 
