@@ -32,14 +32,13 @@ public class OpenApiMergeSink
     @Override
     public void storeMergedRows(Page page)
     {
-        Block rowIds = page.getBlock(page.getChannelCount() - 1);
         Block ops = page.getBlock(page.getChannelCount() - 3);
         for (int position = 0; position < page.getPositionCount(); position++) {
             byte op = TINYINT.getByte(ops, position);
             switch (op) {
                 case INSERT_OPERATION_NUMBER -> insertedPage(page, position);
                 case UPDATE_OPERATION_NUMBER -> updatedPage(page, position);
-                case DELETE_OPERATION_NUMBER -> deletedPage(rowIds, position);
+                case DELETE_OPERATION_NUMBER -> deletedPage();
                 default -> throw new IllegalStateException("Unsupported operation: " + op);
             }
         }
@@ -55,11 +54,11 @@ public class OpenApiMergeSink
         }
     }
 
-    private void deletedPage(Block rowIds, int position)
+    private void deletedPage()
     {
         PathItem.HttpMethod method = this.table.getTableHandle().getDeleteMethod();
         if (method == PathItem.HttpMethod.DELETE) {
-            client.deleteRows(table, rowIds, position);
+            client.deleteRows(table);
         }
         else {
             throw new IllegalArgumentException("Unsupported DELETE method: " + method);

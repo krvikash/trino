@@ -238,7 +238,7 @@ public class OpenApiClient
         }
     }
 
-    public void deleteRows(OpenApiOutputTableHandle table, Block rowIds, int position)
+    public void deleteRows(OpenApiOutputTableHandle table)
     {
         // don't have to decode the rowId since it's value is copied from the predicate that's still present in the table handle
         Map.Entry<String, Map<String, Object>> pathWithParams = selectPath(
