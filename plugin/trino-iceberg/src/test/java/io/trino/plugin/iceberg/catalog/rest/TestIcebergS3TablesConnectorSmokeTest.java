@@ -144,33 +144,6 @@ final class TestIcebergS3TablesConnectorSmokeTest
 
     @Test
     @Override
-    public void testDeleteWithV3Format()
-    {
-        assertThatThrownBy(super::testDeleteWithV3Format)
-                .hasMessageContaining("Failed to create transaction")
-                .hasStackTraceContaining("Unsupported format version: v3");
-    }
-
-    @Test
-    @Override
-    public void testDefaultColumnValue()
-    {
-        assertThatThrownBy(super::testDefaultColumnValue)
-                .hasMessageContaining("Failed to create transaction")
-                .hasStackTraceContaining("Unsupported format version: v3");
-    }
-
-    @Test
-    @Override
-    public void testVariantType()
-    {
-        assertThatThrownBy(super::testVariantType)
-                .hasMessageContaining("Failed to create transaction")
-                .hasStackTraceContaining("Cannot parse type string to primitive: variant");
-    }
-
-    @Test
-    @Override
     public void testRenameSchema()
     {
         assertThatThrownBy(super::testRenameSchema)
