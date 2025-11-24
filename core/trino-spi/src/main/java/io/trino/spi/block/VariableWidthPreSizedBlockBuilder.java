@@ -59,6 +59,22 @@ public class VariableWidthPreSizedBlockBuilder
     }
 
     @Override
+    public void append(ValueBlock block, int position)
+    {
+        VariableWidthBlock variableWidthBlock = (VariableWidthBlock) block;
+        if (variableWidthBlock.isNull(position)) {
+            isNull[positionCount] = true;
+            offsets[positionCount + 1] = offsets[positionCount];
+            positionCount++;
+            hasNullValue = true;
+        }
+        else {
+            Slice value = variableWidthBlock.getSlice(position);
+            addNonNullEntry(value, value.length());
+        }
+    }
+
+    @Override
     public Block build()
     {
         if (!hasNonNullValue) {

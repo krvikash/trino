@@ -20,6 +20,7 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.LongArrayBlock;
 import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.RunLengthEncodedBlock;
+import io.trino.spi.block.ValueBlock;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.LongTimestamp;
 import io.trino.spi.type.Type;
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Optional;
 
 import static io.trino.block.BlockAssertions.assertBlockEquals;
+import static io.trino.block.BlockAssertions.createRandomBlockForType;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
@@ -373,6 +375,7 @@ final class TestPreSizedBlockBuilder
 
         verifyEmptyBlock(arrayType);
         verifyAllNullsBlock(arrayType);
+        verifyValueBlockAppend(arrayType);
     }
 
     private static void verifyPreSizedBlockBuilder(Type type)
@@ -380,6 +383,7 @@ final class TestPreSizedBlockBuilder
         verifyEmptyBlock(type);
         verifyAllNullsBlock(type);
         verifyOverSizedBuilder(type);
+        verifyValueBlockAppend(type);
     }
 
     private static void verifyAllNullsBlock(Type type)
@@ -413,6 +417,18 @@ final class TestPreSizedBlockBuilder
                 type,
                 actualBlock,
                 type.createBlockBuilder(null, 2).appendNull().appendNull().build());
+    }
+
+    private static void verifyValueBlockAppend(Type type)
+    {
+        ValueBlock block = createRandomBlockForType(type, 100, 0.2f);
+        PreSizedBlockBuilder preSizedBlockBuilder = type.createPreSizedBlockBuilder(250);
+
+        for (int i = 0; i < block.getPositionCount(); i++) {
+            preSizedBlockBuilder.append(block, i);
+        }
+
+        assertBlockEquals(type, preSizedBlockBuilder.build(), block);
     }
 
     private static Block longArrayBlock(long... values)

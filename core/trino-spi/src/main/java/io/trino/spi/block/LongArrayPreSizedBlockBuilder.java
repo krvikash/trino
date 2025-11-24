@@ -48,6 +48,21 @@ public class LongArrayPreSizedBlockBuilder
     }
 
     @Override
+    public void append(ValueBlock block, int position)
+    {
+        LongArrayBlock longArrayBlock = (LongArrayBlock) block;
+        if (longArrayBlock.isNull(position)) {
+            isNull[positionCount] = true;
+            hasNullValue = true;
+        }
+        else {
+            values[positionCount] = longArrayBlock.getLong(position);
+            hasNonNullValue = true;
+        }
+        positionCount++;
+    }
+
+    @Override
     public Block build()
     {
         if (!hasNonNullValue) {

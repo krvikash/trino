@@ -21,6 +21,11 @@ public interface PreSizedBlockBuilder
 {
     void appendNull();
 
+    /**
+     * Append the specified value.
+     */
+    void append(ValueBlock block, int position);
+
     Block build();
 
     @FormatMethod

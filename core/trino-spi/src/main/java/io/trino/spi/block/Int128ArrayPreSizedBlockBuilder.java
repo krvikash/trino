@@ -52,6 +52,26 @@ public class Int128ArrayPreSizedBlockBuilder
     }
 
     @Override
+    public void append(ValueBlock block, int position)
+    {
+        Int128ArrayBlock int128ArrayBlock = (Int128ArrayBlock) block;
+        if (int128ArrayBlock.isNull(position)) {
+            isNull[positionCount] = true;
+            hasNullValue = true;
+        }
+        else {
+            long[] rawValues = int128ArrayBlock.getRawValues();
+            int rawValuePosition = (int128ArrayBlock.getRawOffset() + position) * 2;
+
+            int positionIndex = positionCount * 2;
+            values[positionIndex] = rawValues[rawValuePosition];
+            values[positionIndex + 1] = rawValues[rawValuePosition + 1];
+            hasNonNullValue = true;
+        }
+        positionCount++;
+    }
+
+    @Override
     public Block build()
     {
         if (!hasNonNullValue) {

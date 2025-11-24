@@ -51,6 +51,27 @@ public class Fixed12PreSizedBlockBuilder
     }
 
     @Override
+    public void append(ValueBlock block, int position)
+    {
+        Fixed12Block fixed12Block = (Fixed12Block) block;
+        if (fixed12Block.isNull(position)) {
+            isNull[positionCount] = true;
+            hasNullValue = true;
+        }
+        else {
+            int[] rawValues = fixed12Block.getRawValues();
+            int rawValuePosition = (fixed12Block.getRawOffset() + position) * 3;
+
+            int positionIndex = positionCount * 3;
+            values[positionIndex] = rawValues[rawValuePosition];
+            values[positionIndex + 1] = rawValues[rawValuePosition + 1];
+            values[positionIndex + 2] = rawValues[rawValuePosition + 2];
+            hasNonNullValue = true;
+        }
+        positionCount++;
+    }
+
+    @Override
     public Block build()
     {
         if (!hasNonNullValue) {

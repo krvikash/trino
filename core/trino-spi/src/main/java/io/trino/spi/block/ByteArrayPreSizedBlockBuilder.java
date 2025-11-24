@@ -48,6 +48,21 @@ public class ByteArrayPreSizedBlockBuilder
     }
 
     @Override
+    public void append(ValueBlock block, int position)
+    {
+        ByteArrayBlock byteArrayBlock = (ByteArrayBlock) block;
+        if (byteArrayBlock.isNull(position)) {
+            isNull[positionCount] = true;
+            hasNullValue = true;
+        }
+        else {
+            values[positionCount] = byteArrayBlock.getByte(position);
+            hasNonNullValue = true;
+        }
+        positionCount++;
+    }
+
+    @Override
     public Block build()
     {
         if (!hasNonNullValue) {

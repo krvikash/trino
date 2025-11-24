@@ -48,6 +48,21 @@ public class IntArrayPreSizedBlockBuilder
     }
 
     @Override
+    public void append(ValueBlock block, int position)
+    {
+        IntArrayBlock intArrayBlock = (IntArrayBlock) block;
+        if (intArrayBlock.isNull(position)) {
+            isNull[positionCount] = true;
+            hasNullValue = true;
+        }
+        else {
+            values[positionCount] = intArrayBlock.getInt(position);
+            hasNonNullValue = true;
+        }
+        positionCount++;
+    }
+
+    @Override
     public Block build()
     {
         if (!hasNonNullValue) {

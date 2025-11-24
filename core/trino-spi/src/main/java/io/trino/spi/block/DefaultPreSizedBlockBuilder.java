@@ -37,6 +37,12 @@ public class DefaultPreSizedBlockBuilder
     }
 
     @Override
+    public void append(ValueBlock block, int position)
+    {
+        blockBuilder.append(block, position);
+    }
+
+    @Override
     public Block build()
     {
         return blockBuilder.build();

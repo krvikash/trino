@@ -154,7 +154,7 @@ public final class BlockAssertions
         if (type == BIGINT) {
             return createRandomLongsBlock(positionCount, nullRate);
         }
-        if (type == INTEGER || type == REAL) {
+        if (type == INTEGER || type == REAL || type == DATE) {
             return createRandomIntsBlock(positionCount, nullRate);
         }
         if (type == SMALLINT) {

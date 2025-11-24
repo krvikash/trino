@@ -48,6 +48,21 @@ public class ShortArrayPreSizedBlockBuilder
     }
 
     @Override
+    public void append(ValueBlock block, int position)
+    {
+        ShortArrayBlock shortArrayBlock = (ShortArrayBlock) block;
+        if (shortArrayBlock.isNull(position)) {
+            isNull[positionCount] = true;
+            hasNullValue = true;
+        }
+        else {
+            values[positionCount] = shortArrayBlock.getShort(position);
+            hasNonNullValue = true;
+        }
+        positionCount++;
+    }
+
+    @Override
     public Block build()
     {
         if (!hasNonNullValue) {
