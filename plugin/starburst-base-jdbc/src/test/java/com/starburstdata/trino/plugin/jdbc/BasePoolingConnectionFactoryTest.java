@@ -18,6 +18,7 @@ import io.trino.plugin.jdbc.credential.CredentialProvider;
 import io.trino.plugin.jdbc.credential.DefaultCredentialPropertiesProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.security.ConnectorIdentity;
+import io.trino.testing.connector.TestingConnectorSession;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -44,7 +45,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
-import static io.trino.spi.block.TestingSession.SESSION;
 import static java.lang.Thread.sleep;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -117,7 +117,7 @@ public abstract class BasePoolingConnectionFactoryTest
     private Connection openConnection(ConnectionFactory connectionFactory)
             throws SQLException
     {
-        return connectionFactory.openConnection(SESSION);
+        return connectionFactory.openConnection(TestingConnectorSession.SESSION);
     }
 
     private PoolingConnectionFactory createPoolingConnectionFactory(String catalogName)
