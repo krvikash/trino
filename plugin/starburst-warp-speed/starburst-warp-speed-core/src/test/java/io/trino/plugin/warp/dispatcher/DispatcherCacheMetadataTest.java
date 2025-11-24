@@ -14,17 +14,18 @@
 package io.trino.plugin.warp.dispatcher;
 
 import io.trino.spi.cache.ConnectorCacheMetadata;
-import io.trino.spi.testing.InterfaceTestUtils;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;
+
+import static io.trino.testing.InterfaceTestUtils.assertAllMethodsOverridden;
 
 class DispatcherCacheMetadataTest
 {
     @Test
     public void testEverythingImplemented()
     {
-        InterfaceTestUtils.assertAllMethodsOverridden(
+        assertAllMethodsOverridden(
                 ConnectorCacheMetadata.class,
                 DispatcherCacheMetadata.class,
                 Set.of());

@@ -23,7 +23,6 @@ import io.trino.spi.Node;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorSplitSource;
-import io.trino.spi.testing.InterfaceTestUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -38,6 +37,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static io.trino.testing.InterfaceTestUtils.assertAllMethodsOverridden;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -111,7 +111,7 @@ public class DispatcherSplitSourceTest
     @Test
     public void testEverythingImplemented()
     {
-        InterfaceTestUtils.assertAllMethodsOverridden(
+        assertAllMethodsOverridden(
                 ConnectorSplitSource.class,
                 DispatcherSplitSource.class);
     }

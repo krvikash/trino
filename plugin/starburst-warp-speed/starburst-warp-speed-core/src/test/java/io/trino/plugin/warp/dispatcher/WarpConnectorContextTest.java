@@ -14,19 +14,20 @@
 package io.trino.plugin.warp.dispatcher;
 
 import io.trino.spi.connector.ConnectorContext;
-import io.trino.spi.testing.InterfaceTestUtils;
 import org.junit.jupiter.api.Test;
+
+import static io.trino.testing.InterfaceTestUtils.assertAllMethodsOverridden;
 
 public class WarpConnectorContextTest
 {
     @Test
     public void testEverythingImplemented()
     {
-        InterfaceTestUtils.assertAllMethodsOverridden(
+        assertAllMethodsOverridden(
                 ConnectorContext.class,
                 WarpConnectorContext.class);
 
-        InterfaceTestUtils.assertAllMethodsOverridden(
+        assertAllMethodsOverridden(
                 WarpContext.class,
                 WarpCacheMgrConnectorContext.class);
     }

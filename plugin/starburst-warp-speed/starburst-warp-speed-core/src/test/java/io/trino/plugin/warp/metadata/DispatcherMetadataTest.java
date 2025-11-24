@@ -69,7 +69,6 @@ import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.predicate.ValueSet;
 import io.trino.spi.statistics.TableStatistics;
-import io.trino.spi.testing.InterfaceTestUtils;
 import io.trino.spi.type.VarcharType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -89,6 +88,7 @@ import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.mockColumnHandl
 import static io.trino.spi.expression.StandardFunctions.LIKE_FUNCTION_NAME;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.testing.InterfaceTestUtils.assertAllMethodsOverridden;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -131,7 +131,7 @@ public class DispatcherMetadataTest
     public void testEverythingImplemented()
             throws NoSuchMethodException
     {
-        InterfaceTestUtils.assertAllMethodsOverridden(
+        assertAllMethodsOverridden(
                 ConnectorMetadata.class,
                 DispatcherMetadata.class,
                 Set.of(

@@ -12,7 +12,7 @@ package com.starburstdata.trino.plugin.dynamodb;
 import io.trino.plugin.jdbc.JdbcPageSinkProvider;
 import org.junit.jupiter.api.Test;
 
-import static io.trino.spi.testing.InterfaceTestUtils.assertAllMethodsOverridden;
+import static io.trino.testing.InterfaceTestUtils.assertAllMethodsOverridden;
 
 public class TestDynamoDbJdbcPageSinkProvider
 {

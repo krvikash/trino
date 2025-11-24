@@ -14,10 +14,11 @@
 package io.trino.plugin.warp.dispatcher;
 
 import io.trino.spi.connector.ConnectorContext;
-import io.trino.spi.testing.InterfaceTestUtils;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;
+
+import static io.trino.testing.InterfaceTestUtils.assertAllMethodsOverridden;
 
 public class WarpCacheMgrConnectorContextTest
 {
@@ -25,7 +26,7 @@ public class WarpCacheMgrConnectorContextTest
     public void testEverythingImplemented()
             throws NoSuchMethodException
     {
-        InterfaceTestUtils.assertAllMethodsOverridden(
+        assertAllMethodsOverridden(
                 ConnectorContext.class,
                 WarpCacheMgrConnectorContext.class,
                 Set.of(
@@ -41,7 +42,7 @@ public class WarpCacheMgrConnectorContextTest
                         ConnectorContext.class.getMethod("getPageStreamFactory"),
                         ConnectorContext.class.getMethod("getCatalogVersion")));
 
-        InterfaceTestUtils.assertAllMethodsOverridden(
+        assertAllMethodsOverridden(
                 WarpContext.class,
                 WarpCacheMgrConnectorContext.class);
     }

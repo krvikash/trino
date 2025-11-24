@@ -41,7 +41,6 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
-import io.trino.spi.testing.InterfaceTestUtils;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -55,6 +54,7 @@ import java.util.Set;
 import static io.trino.metastore.HiveType.HIVE_INT;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.REGULAR;
 import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.testing.InterfaceTestUtils.assertAllMethodsOverridden;
 import static org.mockito.Mockito.mock;
 
 public class ObjectStoreProxiedConnectorTransformerTest
@@ -248,7 +248,7 @@ public class ObjectStoreProxiedConnectorTransformerTest
     public void assertAllImplemented()
             throws NoSuchMethodException
     {
-        InterfaceTestUtils.assertAllMethodsOverridden(
+        assertAllMethodsOverridden(
                 DispatcherProxiedConnectorTransformer.class,
                 ObjectStoreProxiedConnectorTransformer.class,
                 Set.of(

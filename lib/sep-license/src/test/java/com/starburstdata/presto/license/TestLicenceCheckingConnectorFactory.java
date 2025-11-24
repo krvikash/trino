@@ -12,7 +12,7 @@ package com.starburstdata.presto.license;
 import io.trino.spi.connector.ConnectorFactory;
 import org.junit.jupiter.api.Test;
 
-import static io.trino.spi.testing.InterfaceTestUtils.assertAllMethodsOverridden;
+import static io.trino.testing.InterfaceTestUtils.assertAllMethodsOverridden;
 
 public class TestLicenceCheckingConnectorFactory
 {
