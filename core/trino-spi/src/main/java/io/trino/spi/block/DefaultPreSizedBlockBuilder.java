@@ -48,6 +48,12 @@ public class DefaultPreSizedBlockBuilder
         return blockBuilder.build();
     }
 
+    @Override
+    public PreSizedBlockBuilder newBlockBuilderLike(int expectedEntries)
+    {
+        return new DefaultPreSizedBlockBuilder(blockBuilder.newBlockBuilderLike(expectedEntries, null));
+    }
+
     public BlockBuilder getBlockBuilder()
     {
         return blockBuilder;

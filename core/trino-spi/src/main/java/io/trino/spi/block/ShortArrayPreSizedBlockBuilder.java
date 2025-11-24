@@ -70,4 +70,10 @@ public class ShortArrayPreSizedBlockBuilder
         }
         return new ShortArrayBlock(0, positionCount, hasNullValue ? isNull : null, values);
     }
+
+    @Override
+    public PreSizedBlockBuilder newBlockBuilderLike(int expectedEntries)
+    {
+        return new ShortArrayPreSizedBlockBuilder(expectedEntries);
+    }
 }

@@ -28,6 +28,11 @@ public interface PreSizedBlockBuilder
 
     Block build();
 
+    /**
+     * Creates a new block builder of the same type based on the current usage statistics of this block builder.
+     */
+    PreSizedBlockBuilder newBlockBuilderLike(int expectedEntries);
+
     @FormatMethod
     static void checkArgument(boolean condition, String message, Object... messageArgs)
     {

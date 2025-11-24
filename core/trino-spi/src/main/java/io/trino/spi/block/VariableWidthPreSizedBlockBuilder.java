@@ -83,6 +83,12 @@ public class VariableWidthPreSizedBlockBuilder
         return new VariableWidthBlock(0, positionCount, asSlice(), offsets, hasNullValue ? isNull : null);
     }
 
+    @Override
+    public PreSizedBlockBuilder newBlockBuilderLike(int expectedEntries)
+    {
+        return new VariableWidthPreSizedBlockBuilder(expectedEntries);
+    }
+
     private void addNonNullEntry(Slice value, int bytesWritten)
     {
         values.add(value);

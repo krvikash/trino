@@ -79,4 +79,10 @@ public class Int128ArrayPreSizedBlockBuilder
         }
         return new Int128ArrayBlock(0, positionCount, hasNullValue ? isNull : null, values);
     }
+
+    @Override
+    public PreSizedBlockBuilder newBlockBuilderLike(int expectedEntries)
+    {
+        return new Int128ArrayPreSizedBlockBuilder(expectedEntries);
+    }
 }

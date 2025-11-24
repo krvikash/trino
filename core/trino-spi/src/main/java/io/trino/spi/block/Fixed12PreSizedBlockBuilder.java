@@ -79,4 +79,10 @@ public class Fixed12PreSizedBlockBuilder
         }
         return new Fixed12Block(0, positionCount, hasNullValue ? isNull : null, values);
     }
+
+    @Override
+    public PreSizedBlockBuilder newBlockBuilderLike(int expectedEntries)
+    {
+        return new Fixed12PreSizedBlockBuilder(expectedEntries);
+    }
 }

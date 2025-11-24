@@ -70,4 +70,10 @@ public class ByteArrayPreSizedBlockBuilder
         }
         return new ByteArrayBlock(0, positionCount, hasNullValue ? isNull : null, values);
     }
+
+    @Override
+    public PreSizedBlockBuilder newBlockBuilderLike(int expectedEntries)
+    {
+        return new ByteArrayPreSizedBlockBuilder(expectedEntries);
+    }
 }

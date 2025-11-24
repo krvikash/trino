@@ -70,4 +70,10 @@ public class LongArrayPreSizedBlockBuilder
         }
         return new LongArrayBlock(0, positionCount, hasNullValue ? isNull : null, values);
     }
+
+    @Override
+    public PreSizedBlockBuilder newBlockBuilderLike(int expectedEntries)
+    {
+        return new LongArrayPreSizedBlockBuilder(expectedEntries);
+    }
 }

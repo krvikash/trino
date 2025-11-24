@@ -376,6 +376,7 @@ final class TestPreSizedBlockBuilder
         verifyEmptyBlock(arrayType);
         verifyAllNullsBlock(arrayType);
         verifyValueBlockAppend(arrayType);
+        verifyNewBlockBuilderLike(arrayType);
     }
 
     private static void verifyPreSizedBlockBuilder(Type type)
@@ -384,6 +385,7 @@ final class TestPreSizedBlockBuilder
         verifyAllNullsBlock(type);
         verifyOverSizedBuilder(type);
         verifyValueBlockAppend(type);
+        verifyNewBlockBuilderLike(type);
     }
 
     private static void verifyAllNullsBlock(Type type)
@@ -429,6 +431,17 @@ final class TestPreSizedBlockBuilder
         }
 
         assertBlockEquals(type, preSizedBlockBuilder.build(), block);
+    }
+
+    private static void verifyNewBlockBuilderLike(Type type)
+    {
+        PreSizedBlockBuilder preSizedBlockBuilder = type.createPreSizedBlockBuilder(5);
+        preSizedBlockBuilder.appendNull();
+        PreSizedBlockBuilder newBuilder = preSizedBlockBuilder.newBlockBuilderLike(2);
+        assertBlockEquals(type, newBuilder.build(), type.createBlockBuilder(null, 2).build());
+
+        newBuilder.appendNull();
+        assertBlockEquals(type, newBuilder.build(), type.createBlockBuilder(null, 2).appendNull().build());
     }
 
     private static Block longArrayBlock(long... values)

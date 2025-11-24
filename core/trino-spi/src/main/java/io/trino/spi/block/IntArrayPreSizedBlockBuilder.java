@@ -70,4 +70,10 @@ public class IntArrayPreSizedBlockBuilder
         }
         return new IntArrayBlock(0, positionCount, hasNullValue ? isNull : null, values);
     }
+
+    @Override
+    public PreSizedBlockBuilder newBlockBuilderLike(int expectedEntries)
+    {
+        return new IntArrayPreSizedBlockBuilder(expectedEntries);
+    }
 }
