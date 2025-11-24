@@ -95,9 +95,8 @@ public class InternalCoordinatorLocatorModule
         if (!internalCommunicationConfig.isHttpsRequired() || internalCommunicationConfig.getKeyStorePath() != null || internalCommunicationConfig.getTrustStorePath() != null) {
             return () -> uris;
         }
-        Set<URI> encodedUris = uris.stream()
+        return () -> uris.stream()
                 .map(InternalCommunicationForDiscoveryModule.DiscoveryEncodeAddressAsHostname::toIpEncodedAsHostnameUri)
                 .collect(toImmutableSet());
-        return () -> encodedUris;
     }
 }
