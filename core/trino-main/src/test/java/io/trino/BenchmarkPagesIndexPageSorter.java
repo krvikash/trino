@@ -13,13 +13,12 @@
  */
 package io.trino;
 
-import io.trino.block.BlockAssertions;
+import com.google.common.collect.ImmutableList;
 import io.trino.operator.PagesIndex;
 import io.trino.operator.PagesIndexPageSorter;
 import io.trino.spi.Page;
 import io.trino.spi.PageSorter;
 import io.trino.spi.block.Block;
-import io.trino.spi.block.PageBuilderStatus;
 import io.trino.spi.type.Type;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
@@ -37,6 +36,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static com.google.common.collect.Iterators.cycle;
+import static com.google.common.collect.Iterators.limit;
+import static io.trino.block.BlockAssertions.createRandomBlockForType;
 import static io.trino.jmh.Benchmarks.benchmark;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_FIRST;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -48,8 +50,8 @@ import static java.util.Collections.nCopies;
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
 @Fork(3)
-@Warmup(iterations = 10, time = 500, timeUnit = TimeUnit.MILLISECONDS)
-@Measurement(iterations = 10, time = 500, timeUnit = TimeUnit.MILLISECONDS)
+@Warmup(iterations = 10, time = 1000, timeUnit = TimeUnit.MILLISECONDS)
+@Measurement(iterations = 10, time = 1000, timeUnit = TimeUnit.MILLISECONDS)
 public class BenchmarkPagesIndexPageSorter
 {
     @Benchmark
@@ -65,31 +67,16 @@ public class BenchmarkPagesIndexPageSorter
         return totalPositions;
     }
 
-    private static List<Page> createPages(int pageCount, int channelCount, Type type)
+    private static List<Page> createPages(int pageCount, int channelCount, List<Type> types)
     {
-        int positionCount = PageBuilderStatus.DEFAULT_MAX_PAGE_SIZE_IN_BYTES / (channelCount * 8);
-
         List<Page> pages = new ArrayList<>(pageCount);
         for (int numPage = 0; numPage < pageCount; numPage++) {
             Block[] blocks = new Block[channelCount];
             for (int numChannel = 0; numChannel < channelCount; numChannel++) {
-                if (type.equals(BIGINT)) {
-                    blocks[numChannel] = BlockAssertions.createLongSequenceBlock(0, positionCount);
-                }
-                else if (type.equals(VARCHAR)) {
-                    blocks[numChannel] = BlockAssertions.createStringSequenceBlock(0, positionCount);
-                }
-                else if (type.equals(DOUBLE)) {
-                    blocks[numChannel] = BlockAssertions.createDoubleSequenceBlock(0, positionCount);
-                }
-                else if (type.equals(BOOLEAN)) {
-                    blocks[numChannel] = BlockAssertions.createBooleanSequenceBlock(0, positionCount);
-                }
-                else {
-                    throw new IllegalArgumentException("Unsupported type: " + type);
-                }
+                Type type = types.get(numChannel);
+                blocks[numChannel] = createRandomBlockForType(type, 4096, 0.1f);
             }
-            pages.add(new Page(blocks));
+            pages.add(new Page(4096, blocks));
         }
         return pages;
     }
@@ -97,11 +84,8 @@ public class BenchmarkPagesIndexPageSorter
     @State(Scope.Thread)
     public static class BenchmarkData
     {
-        @Param({"2", "3", "4", "5"})
+        @Param({"1", "2", "3", "4"})
         private int numSortChannels;
-
-        @Param({"BIGINT", "VARCHAR", "DOUBLE", "BOOLEAN"})
-        private String sortChannelType;
 
         private List<Page> pages;
         private final int maxPages = 500;
@@ -113,30 +97,14 @@ public class BenchmarkPagesIndexPageSorter
         public void setup()
         {
             int totalChannels = 20;
-            Type type = getType();
 
-            pages = createPages(maxPages, totalChannels, type);
-            types = nCopies(totalChannels, type);
+            types = ImmutableList.copyOf(limit(cycle(ImmutableList.of(BIGINT, VARCHAR, DOUBLE, BOOLEAN)), totalChannels));
+            pages = createPages(maxPages, totalChannels, types);
 
             sortChannels = new ArrayList<>();
             for (int i = 0; i < numSortChannels; i++) {
                 sortChannels.add(i);
             }
-        }
-
-        private Type getType()
-        {
-            switch (sortChannelType) {
-                case "BIGINT":
-                    return BIGINT;
-                case "VARCHAR":
-                    return VARCHAR;
-                case "DOUBLE":
-                    return DOUBLE;
-                case "BOOLEAN":
-                    return BOOLEAN;
-            }
-            throw new IllegalArgumentException("Unsupported type: " + sortChannelType);
         }
     }
 
