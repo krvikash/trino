@@ -17,13 +17,13 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.spi.NodeManager;
 import io.trino.spi.Plugin;
 import io.trino.spi.block.BlockEncodingSerde;
-import io.trino.spi.block.TestingBlockEncodingSerde;
 import io.trino.spi.cache.CacheManagerContext;
 import io.trino.spi.cache.CacheManagerFactory;
 import io.trino.spi.cache.MemoryAllocator;
 import org.junit.jupiter.api.Test;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.trino.metadata.InternalBlockEncodingSerde.TESTING_BLOCK_ENCODING_SERDE;
 
 public class TestMemoryCachePlugin
 {
@@ -45,7 +45,7 @@ public class TestMemoryCachePlugin
                     @Override
                     public BlockEncodingSerde blockEncodingSerde()
                     {
-                        return new TestingBlockEncodingSerde();
+                        return TESTING_BLOCK_ENCODING_SERDE;
                     }
 
                     @Override

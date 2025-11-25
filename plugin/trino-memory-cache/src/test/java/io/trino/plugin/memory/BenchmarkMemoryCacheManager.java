@@ -50,6 +50,7 @@ import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.jmh.Benchmarks.benchmark;
+import static io.trino.metadata.InternalBlockEncodingSerde.TESTING_BLOCK_ENCODING_SERDE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static java.util.Collections.nCopies;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -83,7 +84,7 @@ public class BenchmarkMemoryCacheManager
                     @Override
                     public BlockEncodingSerde blockEncodingSerde()
                     {
-                        return new TestingBlockEncodingSerde();
+                        return TESTING_BLOCK_ENCODING_SERDE;
                     }
                 },
                 true);

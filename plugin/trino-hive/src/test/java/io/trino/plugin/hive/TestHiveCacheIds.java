@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableSet;
 import io.airlift.json.JsonCodec;
 import io.airlift.json.JsonCodecFactory;
 import io.airlift.json.ObjectMapperProvider;
+import io.trino.block.BlockJsonSerde;
 import io.trino.filesystem.cache.DefaultCachingHostAddressProvider;
 import io.trino.filesystem.hdfs.HdfsFileSystemFactory;
 import io.trino.filesystem.memory.MemoryFileSystemFactory;
@@ -36,8 +37,6 @@ import io.trino.plugin.hive.security.SqlStandardAccessControlMetadata;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.block.Block;
-import io.trino.spi.block.TestingBlockEncodingSerde;
-import io.trino.spi.block.TestingBlockJsonSerde;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.predicate.TupleDomain;
@@ -57,6 +56,7 @@ import java.util.OptionalInt;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
+import static io.trino.metadata.InternalBlockEncodingSerde.TESTING_BLOCK_ENCODING_SERDE;
 import static io.trino.metastore.HiveType.HIVE_INT;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.PARTITION_KEY;
 import static io.trino.plugin.hive.HiveColumnHandle.createBaseColumn;
@@ -341,9 +341,9 @@ public class TestHiveCacheIds
         TypeDeserializer typeDeserializer = new TypeDeserializer(new TestingTypeManager());
         objectMapperProvider.setJsonDeserializers(
                 ImmutableMap.of(
-                        Block.class, new TestingBlockJsonSerde.Deserializer(new TestingBlockEncodingSerde()),
+                        Block.class, new BlockJsonSerde.Deserializer(TESTING_BLOCK_ENCODING_SERDE),
                         Type.class, typeDeserializer));
-        objectMapperProvider.setJsonSerializers(ImmutableMap.of(Block.class, new TestingBlockJsonSerde.Serializer(new TestingBlockEncodingSerde())));
+        objectMapperProvider.setJsonSerializers(ImmutableMap.of(Block.class, new BlockJsonSerde.Serializer(TESTING_BLOCK_ENCODING_SERDE)));
         return new JsonCodecFactory(objectMapperProvider).jsonCodec(clazz);
     }
 }

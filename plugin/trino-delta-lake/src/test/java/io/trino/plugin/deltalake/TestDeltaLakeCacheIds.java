@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableSet;
 import io.airlift.json.JsonCodec;
 import io.airlift.json.JsonCodecFactory;
 import io.airlift.json.ObjectMapperProvider;
+import io.trino.block.BlockJsonSerde;
 import io.trino.filesystem.cache.DefaultCachingHostAddressProvider;
 import io.trino.filesystem.hdfs.HdfsFileSystemFactory;
 import io.trino.hdfs.HdfsConfig;
@@ -52,8 +53,6 @@ import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.block.Block;
-import io.trino.spi.block.TestingBlockEncodingSerde;
-import io.trino.spi.block.TestingBlockJsonSerde;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.TestingTypeManager;
 import io.trino.spi.type.Type;
@@ -75,6 +74,7 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
 import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
+import static io.trino.metadata.InternalBlockEncodingSerde.TESTING_BLOCK_ENCODING_SERDE;
 import static io.trino.node.TestingInternalNodeManager.CURRENT_NODE;
 import static io.trino.plugin.deltalake.DeltaLakeAnalyzeProperties.AnalyzeMode.FULL_REFRESH;
 import static io.trino.plugin.deltalake.DeltaLakeTableHandle.WriteType.UPDATE;
@@ -462,9 +462,9 @@ public class TestDeltaLakeCacheIds
         TypeDeserializer typeDeserializer = new TypeDeserializer(new TestingTypeManager());
         objectMapperProvider.setJsonDeserializers(
                 ImmutableMap.of(
-                        Block.class, new TestingBlockJsonSerde.Deserializer(new TestingBlockEncodingSerde()),
+                        Block.class, new BlockJsonSerde.Deserializer(TESTING_BLOCK_ENCODING_SERDE),
                         Type.class, typeDeserializer));
-        objectMapperProvider.setJsonSerializers(ImmutableMap.of(Block.class, new TestingBlockJsonSerde.Serializer(new TestingBlockEncodingSerde())));
+        objectMapperProvider.setJsonSerializers(ImmutableMap.of(Block.class, new BlockJsonSerde.Serializer(TESTING_BLOCK_ENCODING_SERDE)));
         return new JsonCodecFactory(objectMapperProvider).jsonCodec(clazz);
     }
 }

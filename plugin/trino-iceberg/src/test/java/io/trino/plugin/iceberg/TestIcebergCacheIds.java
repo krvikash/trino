@@ -19,6 +19,7 @@ import io.airlift.json.JsonCodec;
 import io.airlift.json.JsonCodecFactory;
 import io.airlift.json.ObjectMapperProvider;
 import io.airlift.tracing.Tracing;
+import io.trino.block.BlockJsonSerde;
 import io.trino.filesystem.cache.DefaultCachingHostAddressProvider;
 import io.trino.plugin.base.TypeDeserializer;
 import io.trino.plugin.hive.LocationAccessControl;
@@ -30,8 +31,6 @@ import io.trino.plugin.iceberg.delete.DeleteFile;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.block.Block;
-import io.trino.spi.block.TestingBlockEncodingSerde;
-import io.trino.spi.block.TestingBlockJsonSerde;
 import io.trino.spi.cache.CacheTableId;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.SchemaTableName;
@@ -68,6 +67,7 @@ import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
 import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
+import static io.trino.metadata.InternalBlockEncodingSerde.TESTING_BLOCK_ENCODING_SERDE;
 import static io.trino.plugin.hive.HiveTestUtils.HDFS_FILE_SYSTEM_FACTORY;
 import static io.trino.plugin.iceberg.ColumnIdentity.primitiveColumnIdentity;
 import static io.trino.plugin.iceberg.IcebergTestUtils.FILE_IO_FACTORY;
@@ -488,9 +488,9 @@ public class TestIcebergCacheIds
         TypeDeserializer typeDeserializer = new TypeDeserializer(new TestingTypeManager());
         objectMapperProvider.setJsonDeserializers(
                 ImmutableMap.of(
-                        Block.class, new TestingBlockJsonSerde.Deserializer(new TestingBlockEncodingSerde()),
+                        Block.class, new BlockJsonSerde.Deserializer(TESTING_BLOCK_ENCODING_SERDE),
                         Type.class, typeDeserializer));
-        objectMapperProvider.setJsonSerializers(ImmutableMap.of(Block.class, new TestingBlockJsonSerde.Serializer(new TestingBlockEncodingSerde())));
+        objectMapperProvider.setJsonSerializers(ImmutableMap.of(Block.class, new BlockJsonSerde.Serializer(TESTING_BLOCK_ENCODING_SERDE)));
         return new JsonCodecFactory(objectMapperProvider).jsonCodec(clazz);
     }
 }

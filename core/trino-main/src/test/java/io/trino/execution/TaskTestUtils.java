@@ -43,7 +43,6 @@ import io.trino.operator.index.IndexJoinLookupStats;
 import io.trino.operator.index.IndexManager;
 import io.trino.server.protocol.spooling.QueryDataEncoders;
 import io.trino.server.protocol.spooling.SpoolingEnabledConfig;
-import io.trino.spi.block.TestingBlockEncodingSerde;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spiller.GenericSpillerFactory;
 import io.trino.split.AlternativeChooser;
@@ -79,6 +78,7 @@ import java.util.Set;
 import static io.airlift.tracing.Tracing.noopTracer;
 import static io.opentelemetry.api.OpenTelemetry.noop;
 import static io.trino.SessionTestUtils.TEST_SESSION;
+import static io.trino.metadata.InternalBlockEncodingSerde.TESTING_BLOCK_ENCODING_SERDE;
 import static io.trino.node.TestingInternalNodeManager.CURRENT_NODE;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
@@ -202,7 +202,7 @@ public final class TaskTestUtils
                 hashCompiler,
                 new TableExecuteContextManager(),
                 new ExchangeManagerRegistry(noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), noopTracer(), new SecretsResolver(ImmutableMap.of()), new ExchangeManagerConfig()),
-                new CacheManagerRegistry(new CacheConfig(), new LocalMemoryManager(new NodeMemoryConfig()), new TestingBlockEncodingSerde(), cacheStats, CURRENT_NODE, TestingInternalNodeManager.createDefault()),
+                new CacheManagerRegistry(new CacheConfig(), new LocalMemoryManager(new NodeMemoryConfig()), TESTING_BLOCK_ENCODING_SERDE, cacheStats, CURRENT_NODE, TestingInternalNodeManager.createDefault()),
                 new CachePerformanceTracker(),
                 new JsonCodecFactory(new ObjectMapperProvider()).jsonCodec(TupleDomain.class),
                 new NodeVersion("test"),
