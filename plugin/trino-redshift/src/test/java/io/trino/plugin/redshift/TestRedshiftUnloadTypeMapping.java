@@ -15,7 +15,6 @@ package io.trino.plugin.redshift;
 
 import com.google.common.collect.ImmutableMap;
 import io.trino.testing.QueryRunner;
-import org.junit.jupiter.api.Disabled;
 
 import java.util.Map;
 
@@ -25,7 +24,6 @@ import static io.trino.plugin.redshift.TestingRedshiftServer.JDBC_URL;
 import static io.trino.plugin.redshift.TestingRedshiftServer.JDBC_USER;
 import static io.trino.testing.TestingProperties.requiredNonEmptySystemProperty;
 
-@Disabled("https://github.com/starburstdata/cork/issues/1642")
 public class TestRedshiftUnloadTypeMapping
         extends TestRedshiftTypeMapping
 {
