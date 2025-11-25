@@ -43,9 +43,9 @@ import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.block.BlockAssertions.assertBlockEquals;
 import static io.trino.plugin.memory.MemoryCacheManager.MAP_ENTRY_SIZE;
 import static io.trino.plugin.memory.MemoryCacheManager.MAX_CACHED_CHANNELS_PER_COLUMN;
-import static io.trino.plugin.memory.TestUtils.assertBlockEquals;
 import static io.trino.spi.cache.PlanSignature.canonicalizePlanSignature;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.IntegerType.INTEGER;
@@ -132,7 +132,7 @@ public class TestMemoryCacheManager
         // ensure cached pages are correct
         ConnectorPageSource source = sourceOptional.get();
         assertThat(source.getMemoryUsage()).isEqualTo(block.getRetainedSizeInBytes());
-        assertBlockEquals(source.getNextSourcePage().getBlock(0), block);
+        assertBlockEquals(BIGINT, source.getNextSourcePage().getBlock(0), block);
         assertThat(source.isFinished()).isTrue();
 
         // make sure no data is available for other signatures
@@ -238,11 +238,11 @@ public class TestMemoryCacheManager
         sink.appendPage(new Page(col1BlockStore1, col2BlockStore1));
         sink.finish();
         assertThat(cacheManager.getCachedSplitsCount()).isEqualTo(2);
-        assertPageSourceEquals(cacheCol21.loadPages(SPLIT1, TupleDomain.all(), TupleDomain.all()), col2BlockStore1, col1BlockStore1);
+        assertPageSourceEquals(cacheCol21.loadPages(SPLIT1, TupleDomain.all(), TupleDomain.all()), List.of(INTEGER, INTEGER), col2BlockStore1, col1BlockStore1);
 
         // subset of columns should also be cached
         SplitCache cacheCol2 = cacheManager.getSplitCache(createPlanSignature("sig", COLUMN2));
-        assertPageSourceEquals(cacheCol2.loadPages(SPLIT1, TupleDomain.all(), TupleDomain.all()), col2BlockStore1);
+        assertPageSourceEquals(cacheCol2.loadPages(SPLIT1, TupleDomain.all(), TupleDomain.all()), List.of(INTEGER), col2BlockStore1);
 
         // data for column1 and column3 should be cached together with separate store id
         SplitCache cacheCol13 = cacheManager.getSplitCache(createPlanSignature("sig", COLUMN1, COLUMN3));
@@ -260,10 +260,10 @@ public class TestMemoryCacheManager
         assertThat(cacheManager.getCachedSplitsCount()).isEqualTo(4);
 
         // (col1, col2) page source should still use "store no 1" blocks
-        assertPageSourceEquals(cacheCol12.loadPages(SPLIT1, TupleDomain.all(), TupleDomain.all()), col1BlockStore1, col2BlockStore1);
+        assertPageSourceEquals(cacheCol12.loadPages(SPLIT1, TupleDomain.all(), TupleDomain.all()), List.of(INTEGER, INTEGER), col1BlockStore1, col2BlockStore1);
 
         // (col1, col3) page source should use "store no 2" blocks
-        assertPageSourceEquals(cacheCol13.loadPages(SPLIT1, TupleDomain.all(), TupleDomain.all()), col1BlockStore2, col3BlockStore2);
+        assertPageSourceEquals(cacheCol13.loadPages(SPLIT1, TupleDomain.all(), TupleDomain.all()), List.of(INTEGER, INTEGER), col1BlockStore2, col3BlockStore2);
 
         // cache should return the newest entries
         SplitCache cacheCol123 = cacheManager.getSplitCache(createPlanSignature("sig", COLUMN1, COLUMN2, COLUMN3));
@@ -276,7 +276,7 @@ public class TestMemoryCacheManager
         sink.appendPage(new Page(col1BlockStore3, col2BlockStore3, col3BlockStore3));
         sink.finish();
         assertThat(cacheManager.getCachedSplitsCount()).isEqualTo(7);
-        assertPageSourceEquals(cacheCol13.loadPages(SPLIT1, TupleDomain.all(), TupleDomain.all()), col1BlockStore3, col3BlockStore3);
+        assertPageSourceEquals(cacheCol13.loadPages(SPLIT1, TupleDomain.all(), TupleDomain.all()), List.of(INTEGER, INTEGER), col1BlockStore3, col3BlockStore3);
 
         // make sure group by columns do not use non-aggregated cached column data
         SplitCache groupByCacheCol1 = cacheManager.getSplitCache(new PlanSignature(
@@ -399,10 +399,10 @@ public class TestMemoryCacheManager
         assertThat(cacheManager.getCachedPlanSignaturesCount()).isEqualTo(1);
         assertThat(cacheManager.getCachedColumnIdsCount()).isEqualTo(MAX_CACHED_CHANNELS_PER_COLUMN + 2);
         assertThat(cacheManager.getCachedSplitsCount()).isEqualTo(splitCount + 1);
-        assertPageSourceEquals(cache.loadPages(SPLIT1, TupleDomain.all(), TupleDomain.all()), block, block);
+        assertPageSourceEquals(cache.loadPages(SPLIT1, TupleDomain.all(), TupleDomain.all()), List.of(INTEGER, INTEGER), block, block);
     }
 
-    private void assertPageSourceEquals(Optional<ConnectorPageSource> sourceOptional, Block... expectedBlocks)
+    private void assertPageSourceEquals(Optional<ConnectorPageSource> sourceOptional, List<Type> types, Block... expectedBlocks)
     {
         assertThat(sourceOptional).isPresent();
         ConnectorPageSource source = sourceOptional.get();
@@ -410,7 +410,7 @@ public class TestMemoryCacheManager
         assertThat(source.isFinished()).isTrue();
         assertThat(actualPage.getChannelCount()).isEqualTo(expectedBlocks.length);
         for (int i = 0; i < actualPage.getChannelCount(); i++) {
-            assertBlockEquals(actualPage.getBlock(i), expectedBlocks[i]);
+            assertBlockEquals(types.get(i), actualPage.getBlock(i), expectedBlocks[i]);
         }
     }
 

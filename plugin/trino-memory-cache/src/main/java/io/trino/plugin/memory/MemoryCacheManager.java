@@ -83,10 +83,10 @@ public class MemoryCacheManager
         implements CacheManager
 {
     // based on SizeOf.estimatedSizeOf(java.util.Map<K,V>, java.util.function.ToLongFunction<K>, java.util.function.ToLongFunction<V>)
-    static final int MAP_ENTRY_SIZE = instanceSize(AbstractMap.SimpleEntry.class);
+    public static final int MAP_ENTRY_SIZE = instanceSize(AbstractMap.SimpleEntry.class);
 
     private static final int MAP_SIZE_LIMIT = 1_000_000_000;
-    static final int MAX_CACHED_CHANNELS_PER_COLUMN = 20;
+    public static final int MAX_CACHED_CHANNELS_PER_COLUMN = 20;
 
     private final MemoryAllocator revocableMemoryAllocator;
     private final boolean forceStore;
@@ -641,9 +641,9 @@ public class MemoryCacheManager
     }
 
     @VisibleForTesting
-    static final class SplitKey
+    public static final class SplitKey
     {
-        static final int INSTANCE_SIZE = instanceSize(SplitKey.class);
+        public static final int INSTANCE_SIZE = instanceSize(SplitKey.class);
         private final long signatureId;
         private final long columnId;
         private final CacheSplitId splitId;
@@ -652,7 +652,7 @@ public class MemoryCacheManager
 
         private volatile int hashCode;
 
-        SplitKey(long signatureId, long columnId, CacheSplitId splitId, long predicateId, long unenforcedPredicateId)
+        public SplitKey(long signatureId, long columnId, CacheSplitId splitId, long predicateId, long unenforcedPredicateId)
         {
             this.signatureId = signatureId;
             this.columnId = columnId;
@@ -725,7 +725,7 @@ public class MemoryCacheManager
         }
     }
 
-    static class Channel
+    public static class Channel
     {
         private static final int INSTANCE_SIZE = instanceSize(Channel.class);
 

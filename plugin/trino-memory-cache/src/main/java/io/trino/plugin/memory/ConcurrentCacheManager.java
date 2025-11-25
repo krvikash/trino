@@ -114,7 +114,7 @@ public class ConcurrentCacheManager
     }
 
     @VisibleForTesting
-    long revokeMemory(long bytesToRevoke, int minElementsToRevoke)
+    public long revokeMemory(long bytesToRevoke, int minElementsToRevoke)
     {
         // shuffle managers to prevent bias when revoking
         List<MemoryCacheManager> shuffledManagers = new ArrayList<>(Arrays.asList(cacheManagers));
@@ -216,14 +216,14 @@ public class ConcurrentCacheManager
     }
 
     @VisibleForTesting
-    MemoryCacheManager getCacheManager(PlanSignature signature, CacheSplitId splitId)
+    public MemoryCacheManager getCacheManager(PlanSignature signature, CacheSplitId splitId)
     {
         int signatureHash = canonicalizePlanSignature(signature).hashCode();
         return cacheManagers[getCacheManagerIndex(signatureHash, splitId)];
     }
 
     @VisibleForTesting
-    MemoryCacheManager[] getCacheManagers()
+    public MemoryCacheManager[] getCacheManagers()
     {
         return cacheManagers;
     }

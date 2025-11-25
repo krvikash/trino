@@ -15,7 +15,6 @@ package io.trino.plugin.memory;
 
 import io.trino.spi.Page;
 import io.trino.spi.block.BlockEncodingSerde;
-import io.trino.spi.block.TestingBlockEncodingSerde;
 import io.trino.spi.cache.CacheManager.SplitCache;
 import io.trino.spi.cache.CacheManagerContext;
 import io.trino.spi.cache.CacheSplitId;
@@ -32,6 +31,7 @@ import java.util.Arrays;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.metadata.InternalBlockEncodingSerde.TESTING_BLOCK_ENCODING_SERDE;
 import static io.trino.plugin.memory.TestMemoryCacheManager.createOneMegaBytePage;
 import static io.trino.plugin.memory.TestMemoryCacheManager.createPlanSignature;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -71,7 +71,7 @@ public class TestConcurrentCacheManager
             @Override
             public BlockEncodingSerde blockEncodingSerde()
             {
-                return new TestingBlockEncodingSerde();
+                return TESTING_BLOCK_ENCODING_SERDE;
             }
         };
         cacheManager = new ConcurrentCacheManager(context);

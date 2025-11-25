@@ -66,8 +66,8 @@ import java.util.OptionalInt;
 import java.util.Random;
 import java.util.stream.Stream;
 
+import static io.trino.block.BlockAssertions.assertBlockEquals;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
-import static io.trino.spi.block.BlockTestUtils.assertBlockEquals;
 import static io.trino.spi.function.OperatorType.ADD;
 import static io.trino.spi.function.OperatorType.EQUAL;
 import static io.trino.spi.function.OperatorType.HASH_CODE;

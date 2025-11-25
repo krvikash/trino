@@ -191,7 +191,7 @@ public class ObjectToIdMap<T>
     }
 
     @VisibleForTesting
-    static <T> long getEntrySize(T object, Function<T, Long> retainedSizeInBytesProvider)
+    public static <T> long getEntrySize(T object, Function<T, Long> retainedSizeInBytesProvider)
     {
         requireNonNull(object, "object is null");
         // account for objectToId

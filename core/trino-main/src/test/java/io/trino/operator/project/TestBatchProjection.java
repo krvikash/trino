@@ -58,8 +58,8 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.block.BlockAssertions.assertBlockEquals;
 import static io.trino.operator.project.BatchProjectionUtils.compilePageFilterWithBatchFunction;
-import static io.trino.spi.block.BlockTestUtils.assertBlockEquals;
 import static io.trino.spi.function.FunctionKind.BATCH;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
