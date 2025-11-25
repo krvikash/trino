@@ -13,11 +13,12 @@
  */
 package io.trino.plugin.base.util;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.trino.plugin.base.util.ConnectorExpressionUtil.ExpressionAndAssignments;
 import io.trino.spi.connector.ColumnHandle;
-import io.trino.spi.connector.TestingColumnHandle;
 import io.trino.spi.expression.Call;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.expression.FieldDereference;
@@ -26,7 +27,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
+import static com.google.common.base.MoreObjects.toStringHelper;
 import static io.trino.plugin.base.expression.ConnectorExpressions.and;
 import static io.trino.plugin.base.expression.ConnectorExpressions.or;
 import static io.trino.plugin.base.util.ConnectorExpressionUtil.extractVariableNames;
@@ -35,6 +38,7 @@ import static io.trino.spi.expression.StandardFunctions.LESS_THAN_OR_EQUAL_OPERA
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.RowType.field;
 import static io.trino.spi.type.RowType.rowType;
+import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestConnectorExpressionUtil
@@ -585,5 +589,50 @@ final class TestConnectorExpressionUtil
         Variable variable = new Variable(variableName, rowType(field(rowType(field(BOOLEAN)))));
         FieldDereference innerDereference = new FieldDereference(rowType(field(BOOLEAN)), variable, 0);
         return new FieldDereference(BOOLEAN, innerDereference, 0);
+    }
+
+    public static final class TestingColumnHandle
+            implements ColumnHandle
+    {
+        private final String name;
+
+        @JsonCreator
+        public TestingColumnHandle(@JsonProperty("name") String name)
+        {
+            this.name = requireNonNull(name, "name is null");
+        }
+
+        @JsonProperty
+        public String getName()
+        {
+            return name;
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return Objects.hash(name);
+        }
+
+        @Override
+        public boolean equals(Object obj)
+        {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null || getClass() != obj.getClass()) {
+                return false;
+            }
+            TestingColumnHandle other = (TestingColumnHandle) obj;
+            return Objects.equals(this.name, other.name);
+        }
+
+        @Override
+        public String toString()
+        {
+            return toStringHelper(this)
+                    .add("name", name)
+                    .toString();
+        }
     }
 }

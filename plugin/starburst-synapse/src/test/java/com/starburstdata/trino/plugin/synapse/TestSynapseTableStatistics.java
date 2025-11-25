@@ -10,9 +10,9 @@
 package com.starburstdata.trino.plugin.synapse;
 
 import com.google.common.collect.ImmutableMap;
+import io.trino.connector.TestingColumnHandle;
 import io.trino.plugin.jdbc.BaseJdbcTableStatisticsTest;
 import io.trino.spi.connector.ColumnHandle;
-import io.trino.spi.connector.TestingColumnHandle;
 import io.trino.spi.statistics.ColumnStatistics;
 import io.trino.spi.statistics.Estimate;
 import io.trino.spi.statistics.TableStatistics;

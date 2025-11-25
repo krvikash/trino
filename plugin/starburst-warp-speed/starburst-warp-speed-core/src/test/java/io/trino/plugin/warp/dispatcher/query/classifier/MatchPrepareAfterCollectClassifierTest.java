@@ -14,6 +14,7 @@
 package io.trino.plugin.warp.dispatcher.query.classifier;
 
 import com.google.common.collect.ImmutableMap;
+import io.trino.connector.TestingColumnHandle;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
@@ -29,7 +30,6 @@ import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.spi.connector.ColumnHandle;
-import io.trino.spi.connector.TestingColumnHandle;
 import io.trino.spi.type.IntegerType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
