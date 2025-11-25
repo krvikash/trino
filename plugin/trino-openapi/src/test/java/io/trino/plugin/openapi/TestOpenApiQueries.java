@@ -19,7 +19,6 @@ import io.trino.testing.MaterializedRow;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
 import io.trino.testing.sql.TrinoSqlExecutor;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -32,26 +31,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 final class TestOpenApiQueries
         extends AbstractTestQueryFramework
 {
-    KeycloakServer keycloakServer;
-    PetStoreServer petStoreServer;
-    FastApiServer fastApiServer;
-
-    @AfterAll
-    void tearDown()
-    {
-        fastApiServer.close();
-        petStoreServer.close();
-        keycloakServer.close();
-    }
-
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        // this method is called from a @BeforeAll method in the super class
-        keycloakServer = new KeycloakServer();
-        petStoreServer = new PetStoreServer(keycloakServer);
-        fastApiServer = new FastApiServer();
+        KeycloakServer keycloakServer = closeAfterClass(new KeycloakServer());
+        PetStoreServer petStoreServer = closeAfterClass(new PetStoreServer(keycloakServer));
+        FastApiServer fastApiServer = closeAfterClass(new FastApiServer());
 
         Map<String, String> petStoreProperties = ImmutableMap.<String, String>builder()
                 .put("openapi.spec-location", petStoreServer.getSpecUrl())
