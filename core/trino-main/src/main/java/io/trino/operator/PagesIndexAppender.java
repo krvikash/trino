@@ -13,9 +13,9 @@
  */
 package io.trino.operator;
 
-import io.trino.spi.PageBuilder;
+import io.trino.spi.PreSizedPageBuilder;
 
 public interface PagesIndexAppender
 {
-    void append(int blockIndex, int blockPosition, PageBuilder pageBuilder);
+    void append(int blockIndex, int blockPosition, PreSizedPageBuilder pageBuilder);
 }

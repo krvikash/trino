@@ -16,7 +16,7 @@ package io.trino.sql.gen;
 import com.google.common.collect.ImmutableList;
 import io.trino.operator.PagesIndexAppender;
 import io.trino.operator.SimplePageIndexAppender;
-import io.trino.spi.PageBuilder;
+import io.trino.spi.PreSizedPageBuilder;
 import io.trino.spi.block.Block;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
@@ -90,8 +90,8 @@ final class TestPageIndexAppender
         PagesIndexAppender simple = new SimplePageIndexAppender(channels);
 
         // Test appending from different blocks at different positions
-        PageBuilder compiledBuilder = new PageBuilder(types);
-        PageBuilder simpleBuilder = new PageBuilder(types);
+        PreSizedPageBuilder compiledBuilder = new PreSizedPageBuilder(types);
+        PreSizedPageBuilder simpleBuilder = new PreSizedPageBuilder(types);
 
         // Append from first block, position 1
         compiledBuilder.declarePosition();
@@ -147,8 +147,8 @@ final class TestPageIndexAppender
         PagesIndexAppender simple = new SimplePageIndexAppender(channels);
 
         // Build pages using both appenders
-        PageBuilder compiledBuilder = new PageBuilder(types);
-        PageBuilder simpleBuilder = new PageBuilder(types);
+        PreSizedPageBuilder compiledBuilder = new PreSizedPageBuilder(types);
+        PreSizedPageBuilder simpleBuilder = new PreSizedPageBuilder(types);
 
         // Append all positions from block 0
         for (int position = 0; position < positionCount; position++) {
@@ -163,7 +163,7 @@ final class TestPageIndexAppender
         assertPagesEqual(types, compiledBuilder, simpleBuilder);
     }
 
-    private void assertPagesEqual(List<Type> types, PageBuilder compiledBuilder, PageBuilder simpleBuilder)
+    private void assertPagesEqual(List<Type> types, PreSizedPageBuilder compiledBuilder, PreSizedPageBuilder simpleBuilder)
     {
         assertThat(compiledBuilder.getPositionCount()).isEqualTo(simpleBuilder.getPositionCount());
 

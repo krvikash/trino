@@ -27,7 +27,7 @@ import io.trino.operator.join.JoinHashSupplier;
 import io.trino.operator.join.LookupSource;
 import io.trino.operator.join.LookupSourceSupplier;
 import io.trino.spi.Page;
-import io.trino.spi.PageBuilder;
+import io.trino.spi.PreSizedPageBuilder;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
@@ -591,7 +591,7 @@ public class PagesIndex
         {
             private final int startingModificationCount = modificationCount;
             private int currentPosition = start;
-            private final PageBuilder pageBuilder = new PageBuilder(types);
+            private final PreSizedPageBuilder pageBuilder = new PreSizedPageBuilder(types);
 
             @Override
             public Page computeNext()
@@ -608,7 +608,7 @@ public class PagesIndex
                 return page;
             }
 
-            private int buildPage(int position, int endPosition, PageBuilder pageBuilder, PagesIndexAppender appender)
+            private int buildPage(int position, int endPosition, PreSizedPageBuilder pageBuilder, PagesIndexAppender appender)
             {
                 while (!pageBuilder.isFull() && position < endPosition) {
                     long pageAddress = valueAddresses.getLong(position);

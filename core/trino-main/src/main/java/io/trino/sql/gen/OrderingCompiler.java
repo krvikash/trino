@@ -40,9 +40,9 @@ import io.trino.operator.SimplePageWithPositionComparator;
 import io.trino.operator.SimplePagesIndexComparator;
 import io.trino.operator.SyntheticAddress;
 import io.trino.spi.Page;
-import io.trino.spi.PageBuilder;
+import io.trino.spi.PreSizedPageBuilder;
 import io.trino.spi.block.Block;
-import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.ValueBlock;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.type.Type;
@@ -431,7 +431,7 @@ public class OrderingCompiler
     {
         Parameter blockIndex = arg("blockIndex", int.class);
         Parameter blockPosition = arg("blockPosition", int.class);
-        Parameter pageBuilder = arg("pageBuilder", PageBuilder.class);
+        Parameter pageBuilder = arg("pageBuilder", PreSizedPageBuilder.class);
         MethodDefinition appendMethod = classDefinition.declareMethod(a(PUBLIC), "append", type(void.class), blockIndex, blockPosition, pageBuilder);
 
         Variable thisVariable = appendMethod.getThis();
@@ -451,7 +451,7 @@ public class OrderingCompiler
                             .cast(Block.class)));
 
             BytecodeExpression blockBuilderExpression = pageBuilder
-                    .invoke("getBlockBuilder", BlockBuilder.class, constantInt(channel));
+                    .invoke("getBlockBuilder", PreSizedBlockBuilder.class, constantInt(channel));
             appendBody
                     .comment("pageBuilder.getBlockBuilder(%s).append(block.getUnderlyingValueBlock(), block.getUnderlyingValuePosition(blockPosition));", channel)
                     .append(blockBuilderExpression.invoke(

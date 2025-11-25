@@ -13,7 +13,7 @@
  */
 package io.trino.operator;
 
-import io.trino.spi.PageBuilder;
+import io.trino.spi.PreSizedPageBuilder;
 import io.trino.spi.block.Block;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
@@ -32,7 +32,7 @@ public final class SimplePageIndexAppender
     }
 
     @Override
-    public void append(int blockIndex, int blockPosition, PageBuilder pageBuilder)
+    public void append(int blockIndex, int blockPosition, PreSizedPageBuilder pageBuilder)
     {
         for (int channel = 0; channel < channels.length; channel++) {
             Block block = channels[channel].get(blockIndex);
