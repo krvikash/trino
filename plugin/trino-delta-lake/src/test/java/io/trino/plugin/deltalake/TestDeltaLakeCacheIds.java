@@ -54,7 +54,6 @@ import io.trino.spi.NodeVersion;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.block.Block;
 import io.trino.spi.predicate.TupleDomain;
-import io.trino.spi.type.TestingTypeManager;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import io.trino.testing.TestingConnectorContext;
@@ -459,7 +458,7 @@ public class TestDeltaLakeCacheIds
     private static <T> JsonCodec<T> createJsonCodec(Class<T> clazz)
     {
         ObjectMapperProvider objectMapperProvider = new ObjectMapperProvider();
-        TypeDeserializer typeDeserializer = new TypeDeserializer(new TestingTypeManager());
+        TypeDeserializer typeDeserializer = new TypeDeserializer(TESTING_TYPE_MANAGER);
         objectMapperProvider.setJsonDeserializers(
                 ImmutableMap.of(
                         Block.class, new BlockJsonSerde.Deserializer(TESTING_BLOCK_ENCODING_SERDE),

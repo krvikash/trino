@@ -49,8 +49,6 @@ import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.FixedPageSource;
 import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.TupleDomain;
-import io.trino.spi.type.TestingTypeManager;
-import io.trino.spi.type.TypeManager;
 import io.trino.split.PageSourceProvider;
 import io.trino.split.PageSourceProviderFactory;
 import io.trino.sql.planner.InternalDynamicFilter;
@@ -89,6 +87,7 @@ import static io.trino.testing.TestingHandles.TEST_TABLE_HANDLE;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.testing.TestingSplit.createRemoteSplit;
 import static io.trino.testing.TestingTaskContext.createTaskContext;
+import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -115,8 +114,7 @@ public class TestCacheDataOperator
         cacheConfig.setEnabled(true);
         registry = new CacheManagerRegistry(cacheConfig, memoryManager, TESTING_BLOCK_ENCODING_SERDE, new CacheStats(), CURRENT_NODE, TestingInternalNodeManager.createDefault());
         registry.loadCacheManager();
-        TypeManager typeManager = new TestingTypeManager();
-        tupleDomainCodec = getTupleDomainJsonCodec(new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig(), new BlockEncodingSimdSupport(true)), typeManager), typeManager);
+        tupleDomainCodec = getTupleDomainJsonCodec(new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig(), new BlockEncodingSimdSupport(true)), TESTING_TYPE_MANAGER), TESTING_TYPE_MANAGER);
     }
 
     @Test

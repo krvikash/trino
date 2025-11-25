@@ -40,7 +40,6 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.predicate.ValueSet;
 import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.type.LongTimestampWithTimeZone;
-import io.trino.spi.type.TestingTypeManager;
 import io.trino.spi.type.Type;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionSpecParser;
@@ -485,7 +484,7 @@ public class TestIcebergCacheIds
     public static <T> JsonCodec<T> createJsonCodec(Class<T> clazz)
     {
         ObjectMapperProvider objectMapperProvider = new ObjectMapperProvider();
-        TypeDeserializer typeDeserializer = new TypeDeserializer(new TestingTypeManager());
+        TypeDeserializer typeDeserializer = new TypeDeserializer(TESTING_TYPE_MANAGER);
         objectMapperProvider.setJsonDeserializers(
                 ImmutableMap.of(
                         Block.class, new BlockJsonSerde.Deserializer(TESTING_BLOCK_ENCODING_SERDE),

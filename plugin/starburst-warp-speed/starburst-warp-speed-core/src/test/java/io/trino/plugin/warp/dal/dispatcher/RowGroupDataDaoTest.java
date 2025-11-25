@@ -54,7 +54,6 @@ import io.trino.plugin.warp.util.json.WarpColumnJsonKeyDeserializer;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.type.IntegerType;
-import io.trino.spi.type.TestingTypeManager;
 import io.trino.spi.type.Type;
 import io.trino.type.TypeDeserializer;
 import org.apache.commons.io.FileUtils;
@@ -80,6 +79,7 @@ import java.util.stream.IntStream;
 
 import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
+import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -333,7 +333,7 @@ public class RowGroupDataDaoTest
         provider.setJsonSerializers(ImmutableMap.of(
                 Slice.class, new SliceSerializer()));
         provider.setJsonDeserializers(ImmutableMap.of(
-                Type.class, new TypeDeserializer(new TestingTypeManager())));
+                Type.class, new TypeDeserializer(TESTING_TYPE_MANAGER)));
         provider.withKeyDeserializers(ImmutableMap.of(
                 WarpColumn.class, new WarpColumnJsonKeyDeserializer()));
         ObjectMapper objectMapper = provider.get();

@@ -40,7 +40,6 @@ import io.trino.spi.block.Block;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.predicate.TupleDomain;
-import io.trino.spi.type.TestingTypeManager;
 import io.trino.spi.type.Type;
 import io.trino.util.EmbedVersion;
 import org.apache.hadoop.conf.Configuration;
@@ -124,7 +123,7 @@ public class TestHiveCacheIds
                 new MemoryFileSystemFactory(),
                 executorService,
                 new EmbedVersion("test"),
-                new TestingTypeManager(),
+                TESTING_TYPE_MANAGER,
                 createJsonCodec(HiveCacheSplitId.class),
                 new DefaultCachingHostAddressProvider());
     }
@@ -338,7 +337,7 @@ public class TestHiveCacheIds
     public static <T> JsonCodec<T> createJsonCodec(Class<T> clazz)
     {
         ObjectMapperProvider objectMapperProvider = new ObjectMapperProvider();
-        TypeDeserializer typeDeserializer = new TypeDeserializer(new TestingTypeManager());
+        TypeDeserializer typeDeserializer = new TypeDeserializer(TESTING_TYPE_MANAGER);
         objectMapperProvider.setJsonDeserializers(
                 ImmutableMap.of(
                         Block.class, new BlockJsonSerde.Deserializer(TESTING_BLOCK_ENCODING_SERDE),
