@@ -13,7 +13,6 @@
  */
 package io.trino.connector;
 
-import io.trino.Session;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.catalog.CatalogProperties;
 import io.trino.spi.connector.CatalogVersion;
@@ -25,7 +24,7 @@ public interface ConnectorServicesProvider
 {
     void loadInitialCatalogs();
 
-    void ensureCatalogsLoaded(Session session, List<CatalogProperties> catalogs);
+    void ensureCatalogsLoaded(List<CatalogProperties> catalogs);
 
     void pruneCatalogs(Set<CatalogHandle> catalogsInUse);
 
