@@ -82,7 +82,7 @@ public class TestIcebergHiveCatalogMaterializedViewAutoRefreshTest
 
     protected Map<String, String> getIcebergCatalogProperties()
     {
-        return ImmutableMap.of();
+        return ImmutableMap.of("hive.metastore.catalog.dir", "local:///iceberg_data");
     }
 
     @Test

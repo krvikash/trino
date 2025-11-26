@@ -35,8 +35,9 @@ import static java.util.Objects.requireNonNull;
 public class TestingIcebergConnectorFactory
         implements ConnectorFactory
 {
+    private final Path localFileSystemRootPath;
     private final Optional<Module> icebergCatalogModule;
-    private final Module module;
+    private final Optional<WorkScheduler> workScheduler;
 
     public TestingIcebergConnectorFactory(Path localFileSystemRootPath)
     {
@@ -49,18 +50,11 @@ public class TestingIcebergConnectorFactory
             Optional<Module> icebergCatalogModule,
             Optional<WorkScheduler> workScheduler)
     {
+        this.localFileSystemRootPath = requireNonNull(localFileSystemRootPath, "localFileSystemRootPath is null");
         boolean ignored = localFileSystemRootPath.toFile().mkdirs();
         this.icebergCatalogModule = requireNonNull(icebergCatalogModule, "icebergCatalogModule is null");
+        this.workScheduler = requireNonNull(workScheduler, "workScheduler is null");
         requireNonNull(workScheduler, "workScheduler is null");
-        this.module = binder -> {
-            newMapBinder(binder, String.class, TrinoFileSystemFactory.class)
-                    .addBinding("local").toInstance(new LocalFileSystemFactory(localFileSystemRootPath));
-            configBinder(binder).bindConfigDefaults(FileHiveMetastoreConfig.class, config -> config.setCatalogDirectory("local:///"));
-            configBinder(binder).bindConfigDefaults(IcebergConfig.class, config -> config.setMaxFormatVersion(3));
-            if (workScheduler.isPresent()) {
-                newOptionalBinder(binder, WorkScheduler.class).setBinding().toInstance(workScheduler.get());
-            }
-        };
     }
 
     @Override
@@ -78,6 +72,16 @@ public class TestingIcebergConnectorFactory
                     .put("iceberg.catalog.type", "TESTING_FILE_METASTORE")
                     .buildOrThrow();
         }
+        Module module = binder -> {
+            newMapBinder(binder, String.class, TrinoFileSystemFactory.class)
+                    .addBinding("local").toInstance(new LocalFileSystemFactory(localFileSystemRootPath));
+            configBinder(binder).bindConfigDefaults(
+                    FileHiveMetastoreConfig.class,
+                    metastoreConfig -> metastoreConfig.setCatalogDirectory("local:///" + catalogName));
+            if (workScheduler.isPresent()) {
+                newOptionalBinder(binder, WorkScheduler.class).setBinding().toInstance(workScheduler.get());
+            }
+        };
         return createConnector(catalogName, config, context, module, icebergCatalogModule);
     }
 }

@@ -82,11 +82,15 @@ public class TestIcebergV3
                 .addIcebergProperty("iceberg.format-version", "3")
                 .addIcebergProperty("iceberg.max-format-version", "3")
                 .addIcebergProperty("iceberg.add-files-procedure.enabled", "true")
+                .addIcebergProperty("hive.metastore.catalog.dir", dataDirectory.toString())
+                .addIcebergProperty("fs.hadoop.enabled", "true")
                 .build();
 
         queryRunner.installPlugin(new TestingHivePlugin(dataDirectory));
         queryRunner.createCatalog("hive", "hive", ImmutableMap.<String, String>builder()
                 .put("hive.security", "allow-all")
+                .put("hive.metastore.catalog.dir", dataDirectory.toString())
+                .put("fs.hadoop.enabled", "true")
                 .buildOrThrow());
 
         metastore = getHiveMetastore(queryRunner);

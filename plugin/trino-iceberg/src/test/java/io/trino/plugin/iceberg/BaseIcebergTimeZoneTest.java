@@ -100,6 +100,7 @@ public abstract class BaseIcebergTimeZoneTest
                         .put("iceberg.format-version", Integer.toString(formatVersion))
                         .put("iceberg.register-table-procedure.enabled", "true")
                         .put("iceberg.time-zone", "Asia/Kolkata")
+                        .put("hive.metastore.catalog.dir", dataDirectory.getPath())
                         .buildOrThrow())
                 .setMetastoreDirectory(dataDirectory)
                 .setInitialTables(REGION)
