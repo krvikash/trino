@@ -21,12 +21,16 @@ import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import static com.google.common.io.MoreFiles.deleteRecursively;
+import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -51,6 +55,13 @@ final class TestIcebergAddFilesProcedure
                 .buildOrThrow());
 
         return queryRunner;
+    }
+
+    @AfterAll
+    public void tearDown()
+            throws IOException
+    {
+        deleteRecursively(dataDirectory, ALLOW_INSECURE);
     }
 
     @Test
