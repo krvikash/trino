@@ -19,6 +19,7 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
 import io.trino.Session;
+import io.trino.connector.alternatives.MockPlanAlternativeConnector;
 import io.trino.connector.alternatives.MockPlanAlternativePlugin;
 import io.trino.metadata.QualifiedObjectName;
 import io.trino.metastore.Database;
@@ -30,6 +31,7 @@ import io.trino.plugin.tpch.ColumnNaming;
 import io.trino.plugin.tpch.DecimalTypeMapping;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.server.testing.TestingTrinoServer;
+import io.trino.spi.connector.Connector;
 import io.trino.spi.security.Identity;
 import io.trino.spi.security.PrincipalType;
 import io.trino.spi.security.SelectedRole;
@@ -44,6 +46,7 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -286,6 +289,11 @@ public final class HiveQueryRunner
                             .buildOrThrow();
                     hiveBucketedProperties = new HashMap<>(hiveBucketedProperties);
                     hiveBucketedProperties.put("hive.compression-codec", "NONE"); // so that the file is splittable
+                    if (Objects.equals(hiveBucketedProperties.get("hive.metastore"), "file")) {
+                        // Use separate file metastore location from the non-bucketed catalog. File metastore relies on Java synchronization.
+                        // Two catalogs having separate file metastore instances but sharing disk location may encounter spurious errors which lead to test failures.
+                        hiveBucketedProperties.put("hive.metastore.catalog.dir", queryRunner.getCoordinator().getBaseDataDir().resolve("hive_bucketed_data").toString());
+                    }
                     queryRunner.createCatalog(HIVE_BUCKETED_CATALOG, withPlanAlternatives ? "plan_alternatives_hive" : "hive", hiveBucketedProperties);
                 }
 
@@ -314,12 +322,28 @@ public final class HiveQueryRunner
                 copyTpchTables(queryRunner, "tpch", TINY_SCHEMA_NAME, initialTables);
             }
 
-            if (tpchBucketedCatalogEnabled && metastore.getDatabase(TPCH_BUCKETED_SCHEMA).isEmpty()) {
-                metastore.createDatabase(createDatabaseMetastoreObject(TPCH_BUCKETED_SCHEMA, initialSchemasLocationBase));
-                Session session = createBucketedSession(Optional.empty());
-                copyTpchTablesBucketed(queryRunner, "tpch", TINY_SCHEMA_NAME, session, initialTables, tpchColumnNaming);
+            if (tpchBucketedCatalogEnabled) {
+                metastore = unwrapConnector(queryRunner.getCoordinator().getConnector(HiveQueryRunner.HIVE_BUCKETED_CATALOG))
+                        .getInjector().getInstance(HiveMetastoreFactory.class)
+                        .createMetastore(Optional.of(SESSION.getIdentity()));
+                if (metastore.getDatabase(TPCH_BUCKETED_SCHEMA).isEmpty()) {
+                    metastore.createDatabase(createDatabaseMetastoreObject(TPCH_BUCKETED_SCHEMA, initialSchemasLocationBase));
+                    Session session = createBucketedSession(Optional.empty());
+                    copyTpchTablesBucketed(queryRunner, "tpch", TINY_SCHEMA_NAME, session, initialTables, tpchColumnNaming);
+                }
             }
         }
+    }
+
+    private static HiveConnector unwrapConnector(Connector connector)
+    {
+        if (connector instanceof HiveConnector hiveConnector) {
+            return hiveConnector;
+        }
+        if (connector instanceof MockPlanAlternativeConnector mockPlanAlternativeConnector && mockPlanAlternativeConnector.getDelegate() instanceof HiveConnector hiveConnector) {
+            return hiveConnector;
+        }
+        throw new IllegalArgumentException("Expected HiveConnector or MockPlanAlternativeConnector but got " + connector);
     }
 
     private static Database createDatabaseMetastoreObject(String name, Optional<String> locationBase)
