@@ -48,7 +48,7 @@ public final class ValuePrinter
         }
     }
 
-    public String castToVarcharOrFail(Type type, Object value)
+    String castToVarcharOrFail(Type type, Object value)
             throws OperatorNotFoundException
     {
         if (value == null) {

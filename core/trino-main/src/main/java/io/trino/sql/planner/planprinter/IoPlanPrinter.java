@@ -852,9 +852,49 @@ public class IoPlanPrinter
                 columnConstraints.add(new ColumnConstraint(
                         columnMetadata.getName(),
                         columnMetadata.getType(),
-                        parseDomain(valuePrinter, entry.getValue().simplify())));
+                        parseDomain(entry.getValue().simplify())));
             }
             return new Constraint(false, columnConstraints.build());
+        }
+
+        private FormattedDomain parseDomain(Domain domain)
+        {
+            ImmutableSet.Builder<FormattedRange> formattedRanges = ImmutableSet.builder();
+            Type type = domain.getType();
+
+            domain.getValues().getValuesProcessor().consume(
+                    ranges -> formattedRanges.addAll(
+                            ranges.getOrderedRanges().stream()
+                                    .map(this::formatRange)
+                                    .collect(toImmutableSet())),
+                    discreteValues -> formattedRanges.addAll(
+                            discreteValues.getValues().stream()
+                                    .map(value -> valuePrinter.castToVarchar(type, value))
+                                    .map(value -> new FormattedMarker(Optional.of(value), Bound.EXACTLY))
+                                    .map(marker -> new FormattedRange(marker, marker))
+                                    .collect(toImmutableSet())),
+                    allOrNone -> {
+                        throw new IllegalStateException("Unreachable AllOrNone consumer");
+                    });
+
+            return new FormattedDomain(domain.isNullAllowed(), formattedRanges.build());
+        }
+
+        private FormattedRange formatRange(Range range)
+        {
+            FormattedMarker low = range.isLowUnbounded()
+                    ? new FormattedMarker(Optional.empty(), Bound.ABOVE)
+                    : new FormattedMarker(
+                    Optional.of(valuePrinter.castToVarchar(range.getType(), range.getLowBoundedValue())),
+                    range.isLowInclusive() ? Bound.EXACTLY : Bound.ABOVE);
+
+            FormattedMarker high = range.isHighUnbounded()
+                    ? new FormattedMarker(Optional.empty(), Bound.BELOW)
+                    : new FormattedMarker(
+                    Optional.of(valuePrinter.castToVarchar(range.getType(), range.getHighBoundedValue())),
+                    range.isHighInclusive() ? Bound.EXACTLY : Bound.BELOW);
+
+            return new FormattedRange(low, high);
         }
 
         private Void processChildren(PlanNode node, IoPlanBuilder context)
