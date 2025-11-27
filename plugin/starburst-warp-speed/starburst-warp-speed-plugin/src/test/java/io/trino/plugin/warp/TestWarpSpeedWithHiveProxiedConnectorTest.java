@@ -101,6 +101,7 @@ public class TestWarpSpeedWithHiveProxiedConnectorTest
                  SUPPORTS_NOT_NULL_CONSTRAINT,
                  SUPPORTS_RENAME_FIELD,
                  SUPPORTS_SET_COLUMN_TYPE,
+                 SUPPORTS_LIMIT_PUSHDOWN,
                  SUPPORTS_TOPN_PUSHDOWN,
                  SUPPORTS_TRUNCATE -> false;
             default -> super.hasBehavior(connectorBehavior);

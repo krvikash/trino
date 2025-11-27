@@ -42,6 +42,7 @@ import static io.trino.plugin.sqlserver.SqlServerSessionProperties.BULK_COPY_FOR
 import static io.trino.spi.connector.ConnectorMetadata.MODIFYING_ROWS_MESSAGE;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.node;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.tableScan;
+import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -75,9 +76,14 @@ public class TestSynapseConnectorTest
             // Overriden because Synapse disables connector expression pushdown due to correctness issues with varchar pushdown because of default case-insensitive collation
             case SUPPORTS_PREDICATE_EXPRESSION_PUSHDOWN:
             case SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_EQUALITY:
+            case SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_INEQUALITY:
                 return false;
             case SUPPORTS_PREDICATE_ARITHMETIC_EXPRESSION_PUSHDOWN:
+            case SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY:
                 return true;
+            case SUPPORTS_MERGE:
+            case SUPPORTS_ROW_LEVEL_UPDATE:
+                return false;
             default:
                 return super.hasBehavior(connectorBehavior);
         }
@@ -604,10 +610,10 @@ public class TestSynapseConnectorTest
     private boolean expectVarcharJoinPushdown(String operator)
     {
         if ("IS DISTINCT FROM".equals(operator)) {
-            return this.hasBehavior(TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM) && this.hasBehavior(TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY);
+            return this.hasBehavior(TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM) && this.hasBehavior(SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY);
         }
         return switch (this.toJoinConditionOperator(operator)) {
-            case EQUAL, NOT_EQUAL -> this.hasBehavior(TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY);
+            case EQUAL, NOT_EQUAL -> this.hasBehavior(SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY);
             case LESS_THAN, LESS_THAN_OR_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL -> this.hasBehavior(TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_INEQUALITY);
             case IDENTICAL -> false;
         };

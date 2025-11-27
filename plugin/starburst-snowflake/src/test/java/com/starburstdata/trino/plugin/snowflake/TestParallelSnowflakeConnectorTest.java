@@ -42,8 +42,8 @@ public class TestParallelSnowflakeConnectorTest
     protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
     {
         switch (connectorBehavior) {
+            // TOPN is retained due to parallelism
             case SUPPORTS_TOPN_PUSHDOWN:
-                // TOPN is retained due to parallelism
                 return false;
             default:
                 return super.hasBehavior(connectorBehavior);

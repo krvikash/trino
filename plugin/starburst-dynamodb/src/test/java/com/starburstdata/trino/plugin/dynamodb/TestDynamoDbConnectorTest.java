@@ -59,6 +59,7 @@ public class TestDynamoDbConnectorTest
             case SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_EQUALITY:
                 return true;
             case SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_INEQUALITY:
+            case SUPPORTS_PREDICATE_ARITHMETIC_EXPRESSION_PUSHDOWN:
             case SUPPORTS_ARRAY:
             case SUPPORTS_LIMIT_PUSHDOWN:
             case SUPPORTS_TOPN_PUSHDOWN:

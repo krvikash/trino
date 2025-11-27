@@ -52,6 +52,8 @@ public abstract class BaseSapHanaConnectorTest
             case SUPPORTS_AGGREGATION_PUSHDOWN_COVARIANCE:
             case SUPPORTS_AGGREGATION_PUSHDOWN_REGRESSION:
             case SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM:
+            case SUPPORTS_PREDICATE_EXPRESSION_PUSHDOWN_WITH_LIKE:
+            case SUPPORTS_PREDICATE_ARITHMETIC_EXPRESSION_PUSHDOWN:
                 return false;
 
             case SUPPORTS_COMMENT_ON_TABLE:
@@ -65,6 +67,7 @@ public abstract class BaseSapHanaConnectorTest
                 return false;
 
             case SUPPORTS_SET_COLUMN_TYPE:
+            case SUPPORTS_ADD_COLUMN_WITH_POSITION:
                 return false;
             case SUPPORTS_DROP_NOT_NULL_CONSTRAINT:
                 return false;
@@ -73,6 +76,10 @@ public abstract class BaseSapHanaConnectorTest
             case SUPPORTS_MAP_TYPE:
             case SUPPORTS_ROW_TYPE:
             case SUPPORTS_NEGATIVE_DATE:
+                return false;
+
+            case SUPPORTS_MERGE:
+            case SUPPORTS_ROW_LEVEL_UPDATE:
                 return false;
 
             default:

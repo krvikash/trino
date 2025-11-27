@@ -66,6 +66,7 @@ public abstract class BaseSnowflakeConnectorTest
     {
         return switch (connectorBehavior) {
             case SUPPORTS_ADD_COLUMN_WITH_COMMENT,
+                 SUPPORTS_ADD_COLUMN_WITH_POSITION,
                  SUPPORTS_ARRAY,
                  SUPPORTS_COMMENT_ON_TABLE,
                  SUPPORTS_COMMENT_ON_COLUMN,
@@ -73,6 +74,8 @@ public abstract class BaseSnowflakeConnectorTest
                  SUPPORTS_CREATE_TABLE_WITH_COLUMN_COMMENT,
                  SUPPORTS_MAP_TYPE,
                  SUPPORTS_ROW_TYPE,
+                 SUPPORTS_PREDICATE_ARITHMETIC_EXPRESSION_PUSHDOWN,
+                 SUPPORTS_PREDICATE_EXPRESSION_PUSHDOWN_WITH_LIKE,
                  SUPPORTS_SET_COLUMN_TYPE -> false;
             case SUPPORTS_AGGREGATION_PUSHDOWN_COVARIANCE,
                  SUPPORTS_AGGREGATION_PUSHDOWN_CORRELATION,

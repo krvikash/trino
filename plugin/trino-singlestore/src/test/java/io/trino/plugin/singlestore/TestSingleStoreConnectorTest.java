@@ -88,6 +88,7 @@ public class TestSingleStoreConnectorTest
                  SUPPORTS_AGGREGATION_PUSHDOWN_VARIANCE,
                  SUPPORTS_AGGREGATION_PUSHDOWN_COUNT_DISTINCT -> true;
             case SUPPORTS_ADD_COLUMN_WITH_COMMENT,
+                 SUPPORTS_ADD_COLUMN_WITH_POSITION,
                  SUPPORTS_ARRAY,
                  SUPPORTS_COMMENT_ON_COLUMN,
                  SUPPORTS_COMMENT_ON_TABLE,
@@ -102,10 +103,13 @@ public class TestSingleStoreConnectorTest
                  SUPPORTS_AGGREGATION_PUSHDOWN_COVARIANCE,
                  SUPPORTS_AGGREGATION_PUSHDOWN_CORRELATION,
                  SUPPORTS_AGGREGATION_PUSHDOWN_REGRESSION,
+                 SUPPORTS_PREDICATE_EXPRESSION_PUSHDOWN,
                  SUPPORTS_RENAME_SCHEMA,
                  SUPPORTS_RENAME_TABLE_ACROSS_SCHEMAS,
                  SUPPORTS_ROW_TYPE,
-                 SUPPORTS_SET_COLUMN_TYPE -> false;
+                 SUPPORTS_SET_COLUMN_TYPE,
+                 SUPPORTS_MERGE,
+                 SUPPORTS_ROW_LEVEL_UPDATE -> false;
             default -> super.hasBehavior(connectorBehavior);
         };
     }

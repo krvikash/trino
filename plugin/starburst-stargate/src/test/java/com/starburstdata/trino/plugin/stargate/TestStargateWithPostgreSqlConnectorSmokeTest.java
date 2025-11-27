@@ -60,6 +60,8 @@ public class TestStargateWithPostgreSqlConnectorSmokeTest
 
             case SUPPORTS_INSERT:
             case SUPPORTS_DELETE:
+            case SUPPORTS_MERGE:
+            case SUPPORTS_UPDATE:
                 // Writes are not enabled
                 return false;
 

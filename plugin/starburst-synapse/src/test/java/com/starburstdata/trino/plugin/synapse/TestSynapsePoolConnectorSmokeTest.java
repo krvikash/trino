@@ -60,6 +60,10 @@ public final class TestSynapsePoolConnectorSmokeTest
             case SUPPORTS_RENAME_TABLE_ACROSS_SCHEMAS:
                 return false;
 
+            case SUPPORTS_MERGE:
+            case SUPPORTS_ROW_LEVEL_UPDATE:
+                return false;
+
             default:
                 return super.hasBehavior(connectorBehavior);
         }

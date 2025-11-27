@@ -85,6 +85,8 @@ public class TestVerticaConnectorTest
                  // Vertica returns NaN for stddev functions in case of single value for example, but trino expects null
                  SUPPORTS_AGGREGATION_PUSHDOWN_STDDEV,
                  SUPPORTS_AGGREGATION_PUSHDOWN_VARIANCE,
+                 SUPPORTS_ADD_COLUMN_WITH_POSITION,
+                 SUPPORTS_AGGREGATION_PUSHDOWN,
                  SUPPORTS_COMMENT_ON_COLUMN,
                  SUPPORTS_COMMENT_ON_TABLE,
                  SUPPORTS_CREATE_TABLE_WITH_COLUMN_COMMENT,

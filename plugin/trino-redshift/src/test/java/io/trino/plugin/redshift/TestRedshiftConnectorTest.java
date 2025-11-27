@@ -104,6 +104,7 @@ public class TestRedshiftConnectorTest
                  SUPPORTS_PREDICATE_EXPRESSION_PUSHDOWN_WITH_LIKE -> true;
             case SUPPORTS_ADD_COLUMN_NOT_NULL_CONSTRAINT,
                  SUPPORTS_ADD_COLUMN_WITH_COMMENT,
+                 SUPPORTS_ADD_COLUMN_WITH_POSITION,
                  SUPPORTS_AGGREGATION_PUSHDOWN_CORRELATION,
                  SUPPORTS_AGGREGATION_PUSHDOWN_COVARIANCE,
                  SUPPORTS_AGGREGATION_PUSHDOWN_REGRESSION,
@@ -117,6 +118,8 @@ public class TestRedshiftConnectorTest
                  SUPPORTS_PREDICATE_ARITHMETIC_EXPRESSION_PUSHDOWN,
                  SUPPORTS_RENAME_TABLE_ACROSS_SCHEMAS,
                  SUPPORTS_ROW_TYPE,
+                 SUPPORTS_ROW_LEVEL_UPDATE,
+                 SUPPORTS_MERGE,
                  SUPPORTS_SET_COLUMN_TYPE -> false;
             default -> super.hasBehavior(connectorBehavior);
         };

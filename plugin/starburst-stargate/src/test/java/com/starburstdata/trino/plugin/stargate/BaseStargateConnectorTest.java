@@ -61,6 +61,10 @@ public abstract class BaseStargateConnectorTest
             case SUPPORTS_COMMENT_ON_TABLE:
             case SUPPORTS_CREATE_TABLE_WITH_TABLE_COMMENT:
             case SUPPORTS_CREATE_TABLE_WITH_COLUMN_COMMENT:
+            case SUPPORTS_MERGE:
+            case SUPPORTS_UPDATE:
+            case SUPPORTS_ADD_COLUMN_WITH_POSITION:
+            case SUPPORTS_ROW_LEVEL_UPDATE:
                 // not yet supported in Stargate connector
                 return false;
 
