@@ -140,8 +140,7 @@ public class DispatcherMetadataTest
                         ConnectorMetadata.class.getMethod("streamTableColumns", ConnectorSession.class, SchemaTablePrefix.class),
                         ConnectorMetadata.class.getMethod("listTableColumns", ConnectorSession.class, SchemaTablePrefix.class),
                         ConnectorMetadata.class.getMethod("delegateMaterializedViewRefreshToConnector", ConnectorSession.class, SchemaTableName.class),
-                        ConnectorMetadata.class.getMethod("refreshMaterializedView", ConnectorSession.class, SchemaTableName.class),
-                        ConnectorMetadata.class.getMethod("getStatisticsCollectionMetadataForWrite", ConnectorSession.class, ConnectorTableMetadata.class)));
+                        ConnectorMetadata.class.getMethod("refreshMaterializedView", ConnectorSession.class, SchemaTableName.class)));
     }
 
     @Test

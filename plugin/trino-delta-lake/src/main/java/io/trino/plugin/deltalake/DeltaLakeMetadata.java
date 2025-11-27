@@ -4380,12 +4380,6 @@ public class DeltaLakeMetadata
                 true);
     }
 
-    @Override
-    public TableStatisticsMetadata getStatisticsCollectionMetadataForWrite(ConnectorSession session, ConnectorTableMetadata tableMetadata)
-    {
-        throw new UnsupportedOperationException("This variant of getStatisticsCollectionMetadataForWrite is unsupported");
-    }
-
     private TableStatisticsMetadata getStatisticsCollectionMetadata(
             List<ColumnMetadata> tableColumns,
             Set<String> analyzeColumnNames,
