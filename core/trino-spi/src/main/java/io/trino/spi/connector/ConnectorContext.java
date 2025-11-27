@@ -39,8 +39,9 @@ public interface ConnectorContext
 
     default Node getCurrentNode()
     {
-        //noinspection deprecation
-        return getNodeManager().getCurrentNode();
+        @SuppressWarnings("deprecation")
+        Node currentNode = getNodeManager().getCurrentNode();
+        return currentNode;
     }
 
     default NodeManager getNodeManager()
