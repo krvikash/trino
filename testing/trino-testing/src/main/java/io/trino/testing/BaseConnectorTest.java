@@ -265,6 +265,7 @@ public abstract class BaseConnectorTest
     {
         String schemaName = getSession().getSchema().orElseThrow();
         assertThat((String) computeScalar("SHOW CREATE SCHEMA " + schemaName))
+                // If the connector reports additional attributes, the expected value needs to be adjusted in the test subclass
                 .isEqualTo(format("CREATE SCHEMA %s.%s", getSession().getCatalog().orElseThrow(), schemaName));
     }
 
@@ -5308,11 +5309,8 @@ public abstract class BaseConnectorTest
     @Test
     public void testUpdate()
     {
-        if (!hasBehavior(SUPPORTS_UPDATE)) {
-            // Note this change is a no-op, if actually run
-            assertQueryFails("UPDATE nation SET nationkey = nationkey + regionkey WHERE regionkey < 1", MODIFYING_ROWS_MESSAGE);
-            return;
-        }
+        skipTestUnless(hasBehavior(SUPPORTS_UPDATE));
+
         try (TestTable table = newTrinoTable("test_row_update", "AS SELECT * FROM nation")) {
             assertUpdate("UPDATE " + table.getName() + " SET nationkey = 100 WHERE regionkey = 2", 5);
             assertQuery("SELECT count(*) FROM " + table.getName() + " WHERE nationkey = 100", "VALUES 5");
@@ -5368,11 +5366,7 @@ public abstract class BaseConnectorTest
     public void testRowLevelUpdate()
     {
         skipTestUnless(hasBehavior(SUPPORTS_CREATE_TABLE_WITH_DATA));
-        if (!hasBehavior(SUPPORTS_ROW_LEVEL_UPDATE)) {
-            // Note this change is a no-op, if actually run
-            assertQueryFails("UPDATE nation SET nationkey = nationkey + regionkey WHERE regionkey < 1", MODIFYING_ROWS_MESSAGE);
-            return;
-        }
+        skipTestUnless(hasBehavior(SUPPORTS_ROW_LEVEL_UPDATE));
 
         try (TestTable table = createTestTableForWrites("test_update", "AS TABLE tpch.tiny.nation", "nationkey,regionkey")) {
             String tableName = table.getName();
@@ -5706,11 +5700,7 @@ public abstract class BaseConnectorTest
     @Test
     public void testUpdateWithPredicates()
     {
-        if (!hasBehavior(SUPPORTS_UPDATE)) {
-            // Note this change is a no-op, if actually run
-            assertQueryFails("UPDATE nation SET nationkey = nationkey + regionkey WHERE regionkey < 1", MODIFYING_ROWS_MESSAGE);
-            return;
-        }
+        skipTestUnless(hasBehavior(SUPPORTS_ROW_LEVEL_UPDATE));
 
         try (TestTable table = createTestTableForWrites("test_update_with_predicates", "(a INT, b INT, c INT)", "a")) {
             String tableName = table.getName();
@@ -5729,15 +5719,8 @@ public abstract class BaseConnectorTest
     @Test
     public void testUpdateRowType()
     {
-        if (!hasBehavior(SUPPORTS_UPDATE)) {
-            // Note this change is a no-op, if actually run
-            assertQueryFails("UPDATE nation SET nationkey = nationkey + regionkey WHERE regionkey < 1", MODIFYING_ROWS_MESSAGE);
-            return;
-        }
-
-        if (!hasBehavior(SUPPORTS_ROW_TYPE)) {
-            return;
-        }
+        skipTestUnless(hasBehavior(SUPPORTS_UPDATE));
+        skipTestUnless(hasBehavior(SUPPORTS_ROW_TYPE));
 
         try (TestTable table = newTrinoTable("test_update_with_predicates_on_row_types", "(int_t INT, row_t ROW(f1 INT, f2 INT))")) {
             String tableName = table.getName();
@@ -5769,11 +5752,7 @@ public abstract class BaseConnectorTest
     @Test
     public void testUpdateAllValues()
     {
-        if (!hasBehavior(SUPPORTS_UPDATE)) {
-            // Note this change is a no-op, if actually run
-            assertQueryFails("UPDATE nation SET nationkey = nationkey + regionkey WHERE regionkey < 1", MODIFYING_ROWS_MESSAGE);
-            return;
-        }
+        skipTestUnless(hasBehavior(SUPPORTS_UPDATE));
 
         try (TestTable table = createTestTableForWrites("test_update_all_columns", "(a INT, b INT, c INT)", "a")) {
             String tableName = table.getName();
