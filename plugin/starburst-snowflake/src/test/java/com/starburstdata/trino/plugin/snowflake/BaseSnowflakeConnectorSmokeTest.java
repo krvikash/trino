@@ -13,7 +13,7 @@ import com.google.common.base.Suppliers;
 import io.trino.plugin.jdbc.BaseJdbcConnectorSmokeTest;
 import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.sql.SqlExecutor;
-import io.trino.testing.sql.TestTable;
+import io.trino.testing.sql.TemporaryRelation;
 import org.junit.jupiter.api.Test;
 
 import java.util.function.Supplier;
@@ -77,9 +77,9 @@ public abstract class BaseSnowflakeConnectorSmokeTest
     }
 
     @Override
-    protected TestTable createTestTableForWrites(String tablePrefix)
+    protected TemporaryRelation createTestTableForWrites(String tablePrefix)
     {
-        TestTable table = super.createTestTableForWrites(tablePrefix);
+        TemporaryRelation table = super.createTestTableForWrites(tablePrefix);
         String tableName = table.getName();
         String schemaTableName = getSession().getSchema().orElseThrow() + "." + tableName;
         onRemoteDatabase().execute(format("ALTER TABLE %s ADD CONSTRAINT pk_%s PRIMARY KEY (%s)", schemaTableName, tableName, "a"));
