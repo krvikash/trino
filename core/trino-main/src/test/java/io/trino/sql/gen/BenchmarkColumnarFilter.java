@@ -328,7 +328,7 @@ public class BenchmarkColumnarFilter
         }
     }
 
-    public static void main(String[] args)
+    static void main()
             throws Throwable
     {
         benchmark(BenchmarkColumnarFilter.class)
