@@ -54,8 +54,6 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.ConstraintApplicationResult;
-import io.trino.spi.connector.JoinStatistics;
-import io.trino.spi.connector.JoinType;
 import io.trino.spi.connector.LimitApplicationResult;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SchemaTablePrefix;
@@ -136,7 +134,6 @@ public class DispatcherMetadataTest
                 DispatcherMetadata.class,
                 Set.of(
                         // Deprecated methods
-                        ConnectorMetadata.class.getMethod("applyJoin", ConnectorSession.class, JoinType.class, ConnectorTableHandle.class, ConnectorTableHandle.class, List.class, Map.class, Map.class, JoinStatistics.class),
                         ConnectorMetadata.class.getMethod("streamTableColumns", ConnectorSession.class, SchemaTablePrefix.class),
                         ConnectorMetadata.class.getMethod("listTableColumns", ConnectorSession.class, SchemaTablePrefix.class),
                         ConnectorMetadata.class.getMethod("delegateMaterializedViewRefreshToConnector", ConnectorSession.class, SchemaTableName.class),
