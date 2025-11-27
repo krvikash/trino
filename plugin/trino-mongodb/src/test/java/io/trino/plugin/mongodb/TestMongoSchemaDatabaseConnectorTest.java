@@ -14,10 +14,12 @@
 package io.trino.plugin.mongodb;
 
 import com.google.common.collect.ImmutableMap;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.TestInstance;
 
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 @TestInstance(PER_CLASS)
@@ -27,6 +29,18 @@ public class TestMongoSchemaDatabaseConnectorTest
     @Override
     protected Map<String, String> connectorProperties()
     {
-        return ImmutableMap.of("mongodb.schema-database", "_schema");
+        return ImmutableMap.of("mongodb.schema-database", "internal");
+    }
+
+    @AfterEach
+    void checkSchemaCollection()
+    {
+        if (client != null) {
+            for (String databaseName : client.listDatabaseNames()) {
+                // CREATE SCHEMA in createQueryRunner() method creates a _schema collection in the target database since MongoDB doesn't support a database without collections
+                assertThat(client.getDatabase(databaseName).getCollection("_schema").countDocuments())
+                        .isZero();
+            }
+        }
     }
 }
