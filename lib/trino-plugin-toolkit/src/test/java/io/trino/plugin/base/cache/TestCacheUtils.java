@@ -14,19 +14,20 @@
 package io.trino.plugin.base.cache;
 
 import com.google.common.collect.ImmutableMap;
+import io.trino.spi.block.Block;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.LongArrayBlock;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.SortedRangeSet;
 import io.trino.spi.predicate.ValueSet;
+import io.trino.spi.type.Type;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 import java.util.Optional;
 
 import static io.trino.plugin.base.cache.CacheUtils.normalizeTupleDomain;
-import static io.trino.spi.block.BlockTestUtils.assertBlockEquals;
 import static io.trino.spi.predicate.Domain.singleValue;
 import static io.trino.spi.predicate.TupleDomain.none;
 import static io.trino.spi.predicate.TupleDomain.withColumnDomains;
@@ -79,5 +80,12 @@ public class TestCacheUtils
                 .getValues();
         assertThat(doubleNormalizedValues.getSortedRanges()).isInstanceOf(LongArrayBlock.class);
         assertBlockEquals(BIGINT, doubleNormalizedValues.getSortedRanges(), normalizedValues.getSortedRanges());
+    }
+
+    public static void assertBlockEquals(Type type, Block actual, Block expected)
+    {
+        for (int position = 0; position < actual.getPositionCount(); position++) {
+            assertThat(type.getObjectValue(actual, position)).isEqualTo(type.getObjectValue(expected, position));
+        }
     }
 }

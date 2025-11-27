@@ -49,6 +49,7 @@
                 </exclusion>
             </exclusions>
         </dependency>
+
         <dependency>
             <groupId>io.starburst.schema-discovery</groupId>
             <artifactId>schema-discovery-core</artifactId>
@@ -80,13 +81,6 @@
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>junit-extensions</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>io.trino</groupId>
-            <artifactId>trino-plugin-toolkit</artifactId>
-            <type>test-jar</type>
             <scope>test</scope>
         </dependency>
 

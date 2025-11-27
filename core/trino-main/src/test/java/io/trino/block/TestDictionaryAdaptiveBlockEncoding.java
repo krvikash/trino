@@ -30,7 +30,7 @@ import org.junit.jupiter.api.parallel.Execution;
 
 import java.util.Arrays;
 
-import static io.trino.spi.block.BlockTestUtils.assertBlockEquals;
+import static io.trino.block.BlockAssertions.assertBlockEquals;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
 import static org.assertj.core.api.Assertions.assertThat;
