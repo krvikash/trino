@@ -39,7 +39,7 @@ runs:
         # Skip free-disk-space.sh. It was added for GHA and is not needed on Starburst fleet. And sometimes conflicts with apt-get.
         run: "true"
         #run: ./.github/bin/free-disk-space.sh
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         if: ${{ inputs.java-version != '' }}
         with:
           distribution: 'temurin' # use same JDK distro as in Trino docker images
