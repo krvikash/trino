@@ -147,6 +147,10 @@ public class WarpProxiedWarmer
                 return rowGroupData;
             }
 
+            if (!storageWarmerService.verifyNativeResourceForWarmup()) {
+                throw new RuntimeException("aborting warm no capacity on disk key " + rowGroupKey);
+            }
+
             WarmupElementWriteMetadata currWarmUpElementWriteMetadata;
             String rowGroupFilePath = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
             long[] fileCookieParams = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];

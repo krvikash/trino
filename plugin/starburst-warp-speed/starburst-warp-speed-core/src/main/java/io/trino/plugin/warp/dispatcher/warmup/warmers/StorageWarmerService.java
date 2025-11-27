@@ -291,6 +291,11 @@ public class StorageWarmerService
                 .get();
     }
 
+    public boolean verifyNativeResourceForWarmup()
+    {
+        return warmupDemoterService.canAllowWarmup();
+    }
+
     public boolean tryAllocateNativeResourceForWarmup()
     {
         boolean acquiredWarmup = warmupDemoterService.tryAllocateNativeResourceForWarmup();

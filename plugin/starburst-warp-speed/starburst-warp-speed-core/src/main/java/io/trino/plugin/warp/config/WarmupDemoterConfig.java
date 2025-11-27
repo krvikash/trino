@@ -23,8 +23,8 @@ public class WarmupDemoterConfig
 
     public static final int MAX_SUPPORTED_BATCH_SIZE = 100;
 
-    private double maxUsageThresholdPercentage = 90;
-    private double cleanupUsageThresholdPercentage = 85;
+    private double maxUsageThresholdPercentage = 92;
+    private double cleanupUsageThresholdPercentage = 90;
     private int batchSize = MAX_SUPPORTED_BATCH_SIZE;
     private int defaultRulePriority;
     private int defaultRuleTtlInSeconds = 1200;

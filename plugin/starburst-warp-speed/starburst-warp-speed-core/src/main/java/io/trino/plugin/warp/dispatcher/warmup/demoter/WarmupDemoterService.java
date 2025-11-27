@@ -406,7 +406,7 @@ public class WarmupDemoterService
         return priority >= (demoterSync.getHighestPriorityDemoted().get() - warmupDemoterConfig.getWarmingPriorityAllowThreshold());
     }
 
-    boolean canAllowWarmup()
+    public boolean canAllowWarmup()
     {
         return !aboveThreshold(warmupDemoterConfig.getMaxUsageThresholdPercentage());
     }

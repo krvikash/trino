@@ -400,11 +400,13 @@ public class WarpProxiedWarmerTest
                 storageWriterService,
                 new GlobalConfig(),
                 new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
+        WarmupDemoterService warmerDemoterService = mock(WarmupDemoterService.class);
+        when(warmerDemoterService.canAllowWarmup()).thenReturn(true);
         StorageWarmerService storageWarmerService = new StorageWarmerService(
                 rowGroupDataService,
                 storageEngine,
                 globalConfig,
-                mock(WarmupDemoterService.class),
+                warmerDemoterService,
                 storageEngineTxService,
                 mock(FlowsSequencer.class),
                 TestingTxService.createMetricsManager(),
