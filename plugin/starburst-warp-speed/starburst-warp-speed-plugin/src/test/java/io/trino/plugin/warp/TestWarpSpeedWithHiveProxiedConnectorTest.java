@@ -355,6 +355,14 @@ public class TestWarpSpeedWithHiveProxiedConnectorTest
                 .hasMessageContaining(MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE);
     }
 
+    @Test
+    @Override
+    public void verifySupportsMergeDeclaration()
+    {
+        assertThatThrownBy(super::verifySupportsMergeDeclaration)
+                .hasMessageContaining(MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE);
+    }
+
     @Override
     protected Session withoutSmallFileThreshold(Session session)
     {
