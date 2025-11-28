@@ -187,14 +187,14 @@ public class TestPagesSerde
         // empty page
         Page page = new Page(builder.build());
         int pageSize = serializedSize(ImmutableList.of(BIGINT), page);
-        assertThat(pageSize).isEqualTo(34);
+        assertThat(pageSize).isEqualTo(33);
 
         // page with one value
         BIGINT.writeLong(builder, 123);
         pageSize = 34; // Now we have moved to the normal block implementation so the page size overhead is 34
         page = new Page(builder.build());
         int firstValueSize = serializedSize(ImmutableList.of(BIGINT), page) - pageSize;
-        assertThat(firstValueSize).isEqualTo(6); // value size (adaptive encoding, VByte mode)
+        assertThat(firstValueSize).isEqualTo(5); // value size (adaptive encoding, VByte mode)
 
         // page with two values
         BIGINT.writeLong(builder, 456);
@@ -211,11 +211,11 @@ public class TestPagesSerde
         // empty page
         Page page = new Page(builder.build());
         int pageSize = serializedSize(ImmutableList.of(VARCHAR), page);
-        assertThat(pageSize).isEqualTo(44);
+        assertThat(pageSize).isEqualTo(45);
 
         // page with one value
         VARCHAR.writeString(builder, "alice");
-        pageSize = 46; // Now we have moved to the normal block implementation so the page size overhead is 46
+        pageSize = 45; // Now we have moved to the normal block implementation so the page size overhead is 43
         page = new Page(builder.build());
         int firstValueSize = serializedSize(ImmutableList.of(VARCHAR), page) - pageSize;
         assertThat(firstValueSize).isEqualTo(4 + 5); // ending offset + nonNullsCount + "alice"
@@ -224,7 +224,7 @@ public class TestPagesSerde
         VARCHAR.writeString(builder, "bob");
         page = new Page(builder.build());
         int secondValueSize = serializedSize(ImmutableList.of(VARCHAR), page) - (pageSize + firstValueSize);
-        assertThat(secondValueSize).isEqualTo(4 + 3); // one additional ending offset + "bob" (null shared with first entry)
+        assertThat(secondValueSize).isEqualTo(3 + 3); // one additional ending offset + "bob" (null shared with first entry)
     }
 
     private int serializedSize(List<? extends Type> types, Page expectedPage)
