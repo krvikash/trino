@@ -56,10 +56,10 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
+import static io.airlift.bootstrap.ClosingBinder.closingBinder;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
-import static io.trino.plugin.base.ClosingBinder.closingBinder;
 import static io.trino.server.InternalCommunicationHttpClientModule.internalHttpClientModule;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
 
