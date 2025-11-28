@@ -29,7 +29,7 @@ import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
-class TroubleshootingTestHelper
+public class TroubleshootingTestHelper
 {
     private static final Logger log = Logger.get(TroubleshootingTestHelper.class);
 

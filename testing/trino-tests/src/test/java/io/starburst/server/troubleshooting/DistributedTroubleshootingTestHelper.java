@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.zipInputStreamToMap;
 
-class DistributedTroubleshootingTestHelper
+public class DistributedTroubleshootingTestHelper
 {
     private DistributedTroubleshootingTestHelper() {}
 
