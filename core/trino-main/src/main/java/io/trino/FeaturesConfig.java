@@ -82,6 +82,14 @@ import static io.trino.sql.analyzer.RegexLibrary.JONI;
 })
 public class FeaturesConfig
 {
+    public enum DataIntegrityVerification
+    {
+        NONE,
+        ABORT,
+        RETRY,
+        /**/;
+    }
+
     @VisibleForTesting
     public static final String SPILLER_SPILL_PATH = "spiller-spill-path";
 
@@ -133,14 +141,6 @@ public class FeaturesConfig
     private boolean legacyArithmeticDecimalOperators;
 
     private boolean parallelizeLookupOuterOperator = true;
-
-    public enum DataIntegrityVerification
-    {
-        NONE,
-        ABORT,
-        RETRY,
-        /**/;
-    }
 
     public boolean isOmitDateTimeTypePrecision()
     {
