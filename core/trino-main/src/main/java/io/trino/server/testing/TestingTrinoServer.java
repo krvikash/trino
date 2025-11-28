@@ -165,6 +165,7 @@ import static java.lang.Integer.parseInt;
 import static java.nio.file.Files.createTempDirectory;
 import static java.nio.file.Files.isDirectory;
 import static java.util.Objects.requireNonNull;
+import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 public class TestingTrinoServer
@@ -194,6 +195,7 @@ public class TestingTrinoServer
         return new Builder();
     }
 
+    private final String instanceId;
     private final Injector injector;
     private final Path baseDataDir;
     private final boolean preserveData;
@@ -276,6 +278,7 @@ public class TestingTrinoServer
             Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader,
             boolean bindAllInterfaces)
     {
+        this.instanceId = randomUUID().toString();
         this.coordinator = coordinator;
 
         this.baseDataDir = baseDataDir.orElseGet(TestingTrinoServer::tempDirectory);
@@ -316,7 +319,7 @@ public class TestingTrinoServer
 
         ImmutableList.Builder<Module> modules = ImmutableList.<Module>builder()
                 .add(new TestingNodeModule(environment, bindAllInterfaces))
-                .add(new TestingHttpServerModule(httpPort))
+                .add(new TestingHttpServerModule("testing-trino-" + instanceId, httpPort))
                 .add(new JsonModule())
                 .add(new JaxrsModule())
                 .add(new MBeanModule())
