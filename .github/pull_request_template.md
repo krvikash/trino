@@ -19,3 +19,10 @@ More info at https://trino.io/development/process#release-note -->
 ## Section
 * When using X the user is now able to Y.
 ```
+
+<!--
+Checklist
+
+- Add `ai` label for changes affecting AI functionality. Specifically code residing in the `starburst-functions-client`, `starburst-functions`, and AI related code in 
+  `trino-iceberg` module.
+-->

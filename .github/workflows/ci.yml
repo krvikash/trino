@@ -1269,10 +1269,11 @@ jobs:
         run: |
           export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
           $MAVEN clean install ${MAVEN_FAST_INSTALL} ${MAVEN_GIB} -pl '!:trino-docs,!:trino-server'
-      - name: Maven Tests - Starburst Functions AI Tests
+      - name: Maven Tests - Starburst Functions and Iceberg embedding AI Tests
         id: tests
         run: |
           $MAVEN test ${MAVEN_TEST} -pl lib/starburst-functions-client,plugin/starburst-functions -Pai-tests
+          $MAVEN test ${MAVEN_TEST} -pl plugin/trino-iceberg -Pai-tests
       - name: Upload test results
         uses: ./.github/actions/process-test-results
         if: always()
@@ -1712,7 +1713,6 @@ jobs:
           DATABRICKS_AWS_ACCESS_KEY_ID: ${{ vars.GALAXY_TRINO_DATABRICKS_AWS_ACCESS_KEY_ID }}
           DATABRICKS_AWS_SECRET_ACCESS_KEY: ${{ secrets.GALAXY_TRINO_DATABRICKS_AWS_SECRET_ACCESS_KEY }}
           DATABRICKS_AWS_REGION: us-east-1
-          OPEN_AI_API_KEY: ${{ secrets.OPEN_AI_API_KEY }}
         if: >-
           contains(matrix.modules, 'trino-iceberg') && contains(matrix.profile, 'cloud-tests') &&
           (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || env.AWS_ACCESS_KEY_ID != '' || env.AWS_SECRET_ACCESS_KEY != '' || env.GCP_CREDENTIALS_KEY != '')
