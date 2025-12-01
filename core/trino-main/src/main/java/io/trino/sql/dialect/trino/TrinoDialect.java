@@ -66,7 +66,11 @@ import io.trino.sql.dialect.trino.operationmetadata.ValuesOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.WindowOperationMetadata;
 import io.trino.sql.newir.Dialect;
+import io.trino.sql.newir.Operation;
+import io.trino.sql.newir.Operation.AttributeKey;
+import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Type;
+import io.trino.sql.newir.Value;
 import io.trino.sql.planner.PartitioningHandle;
 
 import java.util.Arrays;
@@ -243,6 +247,14 @@ public class TrinoDialect
     public Type parseType(String type)
     {
         return irType(typeDeserializer.apply(type));
+    }
+
+    @Override
+    public Operation createOperation(String name, String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    {
+        // there are no overloads, so we can identify operation by name only
+        TrinoOperationMetadata operationMetadata = operations.get(name);
+        return operationMetadata.createOperation(resultName, arguments, regions, attributes);
     }
 
     private static Set<TrinoOperationMetadata> staticOperations()

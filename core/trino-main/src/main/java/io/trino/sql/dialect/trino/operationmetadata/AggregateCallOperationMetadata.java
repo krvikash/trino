@@ -13,21 +13,28 @@
  */
 package io.trino.sql.dialect.trino.operationmetadata;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.spi.type.Type;
+import io.trino.sql.dialect.trino.operation.AggregateCall;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
+import io.trino.sql.newir.Region;
+import io.trino.sql.newir.Value;
 import io.trino.sql.planner.plan.AggregationNode;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultDeriveFunctionCallIrLevelAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalBooleanAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalEnumAttributeMetadata;
@@ -35,6 +42,7 @@ import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadat
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalSortOrderListAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.prefixedName;
 import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.partitioningBy;
 
 public class AggregateCallOperationMetadata
         implements TrinoOperationMetadata
@@ -78,6 +86,32 @@ public class AggregateCallOperationMetadata
                 DISTINCT_ATTRIBUTE_METADATA,
                 AGGREGATION_STEP_ATTRIBUTE_METADATA,
                 resultTypeTrinoAttributeMetadata);
+    }
+
+    @Override
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    {
+        checkArgument(arguments.size() == 1, "AggregateCall operation must have exactly one argument: the input group");
+        checkArgument(regions.size() == 4, "AggregateCall operation must have exactly four regions");
+
+        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
+                .collect(partitioningBy(entry -> operationAttributeKeys().contains(entry.getKey())));
+        Map<AttributeKey, Object> operationAttributes = ImmutableMap.copyOf(partitionedAttributes.get(true));
+        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+
+        return new AggregateCall(
+                resultName,
+                getOnlyElement(arguments),
+                RESULT_TYPE.getAttribute(operationAttributes),
+                regions.get(0).getOnlyBlock(),
+                regions.get(1).getOnlyBlock(),
+                regions.get(2).getOnlyBlock(),
+                regions.get(3).getOnlyBlock(),
+                Optional.ofNullable(SORT_ORDERS.getAttribute(operationAttributes)),
+                RESOLVED_FUNCTION.getAttribute(operationAttributes),
+                DISTINCT.getAttribute(operationAttributes),
+                AGGREGATION_STEP.getAttribute(operationAttributes),
+                derivedAttributes);
     }
 
     @Override

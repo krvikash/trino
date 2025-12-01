@@ -16,8 +16,12 @@ package io.trino.sql.dialect.trino.operationmetadata;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.sql.dialect.ir.IrAttributeUtils;
+import io.trino.sql.dialect.trino.operation.Output;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
+import io.trino.sql.newir.Region;
+import io.trino.sql.newir.Value;
 
 import java.util.List;
 import java.util.Map;
@@ -25,11 +29,13 @@ import java.util.Set;
 import java.util.function.BiFunction;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.deterministic;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.hasSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.safe;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.unsafe;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalStringListAttributeMetadata;
+import static java.util.stream.Collectors.partitioningBy;
 
 public class OutputOperationMetadata
         implements TrinoOperationMetadata
@@ -53,6 +59,26 @@ public class OutputOperationMetadata
     {
         // note: Output operation also has the ir.terminal attribute, but it is not operation-specific.
         return ImmutableSet.of(COLUMN_NAMES_ATTRIBUTE_METADATA);
+    }
+
+    @Override
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    {
+        checkArgument(arguments.size() == 1, "Output operation must have exactly one argument: the input relation");
+        checkArgument(regions.size() == 1, "Output operation must have exactly one region: the field selector");
+
+        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
+                .collect(partitioningBy(entry -> operationAttributeKeys().contains(entry.getKey())));
+        Map<AttributeKey, Object> operationAttributes = ImmutableMap.copyOf(partitionedAttributes.get(true));
+        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+
+        return new Output(
+                resultName,
+                getOnlyElement(arguments),
+                getOnlyElement(regions).getOnlyBlock(),
+                COLUMN_NAMES.getAttribute(operationAttributes),
+                ImmutableMap.of(),
+                derivedAttributes);
     }
 
     @Override

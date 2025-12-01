@@ -17,10 +17,14 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.spi.Location;
 import io.trino.spi.TrinoException;
 import io.trino.sql.newir.Dialect;
+import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
+import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Type;
+import io.trino.sql.newir.Value;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
@@ -157,6 +161,12 @@ public class IrDialect
     public Type parseType(String type)
     {
         throw new UnsupportedOperationException("the ir dialect does not support any types");
+    }
+
+    @Override
+    public Operation createOperation(String name, String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    {
+        throw new UnsupportedOperationException("the ir dialect does not support any operations");
     }
 
     public enum Repeatability

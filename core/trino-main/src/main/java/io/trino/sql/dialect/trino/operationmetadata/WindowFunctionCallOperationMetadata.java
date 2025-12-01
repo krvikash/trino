@@ -13,24 +13,32 @@
  */
 package io.trino.sql.dialect.trino.operationmetadata;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.metadata.ResolvedFunction;
+import io.trino.sql.dialect.trino.operation.WindowFunctionCall;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
+import io.trino.sql.newir.Region;
+import io.trino.sql.newir.Value;
 import io.trino.sql.planner.plan.FrameBoundType;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultDeriveFunctionCallIrLevelAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalBooleanAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalEnumAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalResolvedFunctionAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalSortOrderListAttributeMetadata;
+import static java.util.stream.Collectors.partitioningBy;
 
 public class WindowFunctionCallOperationMetadata
         implements TrinoOperationMetadata
@@ -79,6 +87,36 @@ public class WindowFunctionCallOperationMetadata
                 FRAME_END_TYPE_ATTRIBUTE_METADATA,
                 IGNORE_NULLS_ATTRIBUTE_METADATA,
                 DISTINCT_ATTRIBUTE_METADATA);
+    }
+
+    @Override
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    {
+        checkArgument(arguments.size() == 1, "WindowFunctionCall operation must have exactly one argument: the window");
+        checkArgument(regions.size() == 6, "WindowFunctionCall operation must have exactly six regions");
+
+        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
+                .collect(partitioningBy(entry -> operationAttributeKeys().contains(entry.getKey())));
+        Map<AttributeKey, Object> operationAttributes = ImmutableMap.copyOf(partitionedAttributes.get(true));
+        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+
+        return new WindowFunctionCall(
+                resultName,
+                getOnlyElement(arguments),
+                regions.get(0).getOnlyBlock(),
+                regions.get(1).getOnlyBlock(),
+                regions.get(2).getOnlyBlock(),
+                regions.get(3).getOnlyBlock(),
+                regions.get(4).getOnlyBlock(),
+                regions.get(5).getOnlyBlock(),
+                RESOLVED_FUNCTION.getAttribute(operationAttributes),
+                Optional.ofNullable(SORT_ORDERS.getAttribute(operationAttributes)),
+                FRAME_TYPE.getAttribute(operationAttributes),
+                FRAME_START_TYPE.getAttribute(operationAttributes),
+                FRAME_END_TYPE.getAttribute(operationAttributes),
+                IGNORE_NULLS.getAttribute(operationAttributes),
+                DISTINCT.getAttribute(operationAttributes),
+                derivedAttributes);
     }
 
     @Override

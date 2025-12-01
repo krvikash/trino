@@ -13,9 +13,14 @@
  */
 package io.trino.sql.dialect.trino.operationmetadata;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.trino.sql.dialect.trino.operation.CorrelatedJoin;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
+import io.trino.sql.newir.Region;
+import io.trino.sql.newir.Value;
 
 import java.util.List;
 import java.util.Map;
@@ -23,8 +28,10 @@ import java.util.Set;
 import java.util.function.BiFunction;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultDeriveIrLevelAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalEnumAttributeMetadata;
+import static java.util.stream.Collectors.partitioningBy;
 
 public class CorrelatedJoinOperationMetadata
         implements TrinoOperationMetadata
@@ -47,6 +54,28 @@ public class CorrelatedJoinOperationMetadata
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of(JOIN_TYPE_ATTRIBUTE_METADATA);
+    }
+
+    @Override
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    {
+        checkArgument(arguments.size() == 1, "CorrelatedJoin operation must have exactly one argument: the input relation");
+        checkArgument(regions.size() == 3, "CorrelatedJoin operation must have exactly three regions");
+
+        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
+                .collect(partitioningBy(entry -> operationAttributeKeys().contains(entry.getKey())));
+        Map<AttributeKey, Object> operationAttributes = ImmutableMap.copyOf(partitionedAttributes.get(true));
+        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+
+        return new CorrelatedJoin(
+                resultName,
+                getOnlyElement(arguments),
+                regions.get(0).getOnlyBlock(),
+                regions.get(1).getOnlyBlock(),
+                regions.get(2).getOnlyBlock(),
+                JOIN_TYPE.getAttribute(operationAttributes),
+                ImmutableMap.of(),
+                derivedAttributes);
     }
 
     @Override

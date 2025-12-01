@@ -13,8 +13,13 @@
  */
 package io.trino.sql.dialect.trino.operationmetadata;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.trino.sql.dialect.trino.operation.Query;
+import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
+import io.trino.sql.newir.Region;
+import io.trino.sql.newir.Value;
 
 import java.util.List;
 import java.util.Map;
@@ -24,6 +29,7 @@ import java.util.function.BiFunction;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.passIrLevelAttributes;
+import static java.util.stream.Collectors.partitioningBy;
 
 public class QueryOperationMetadata
         implements TrinoOperationMetadata
@@ -41,6 +47,22 @@ public class QueryOperationMetadata
     {
         // note: Query operation has the ir.terminal attribute, but it is not operation-specific.
         return ImmutableSet.of();
+    }
+
+    @Override
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    {
+        checkArgument(arguments.isEmpty(), "Query operation does not have arguments");
+        checkArgument(regions.size() == 1, "Query operation must have exactly one region: the query");
+
+        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
+                .collect(partitioningBy(entry -> operationAttributeKeys().contains(entry.getKey())));
+        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+
+        return new Query(
+                resultName,
+                getOnlyElement(regions).getOnlyBlock(),
+                derivedAttributes);
     }
 
     @Override

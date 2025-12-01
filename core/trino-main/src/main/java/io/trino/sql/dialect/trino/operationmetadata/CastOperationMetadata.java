@@ -16,8 +16,12 @@ package io.trino.sql.dialect.trino.operationmetadata;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.spi.type.Type;
+import io.trino.sql.dialect.trino.operation.Cast;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
+import io.trino.sql.newir.Region;
+import io.trino.sql.newir.Value;
 
 import java.util.List;
 import java.util.Map;
@@ -25,6 +29,7 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.deterministic;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.hasNoSideEffects;
@@ -36,6 +41,7 @@ import static io.trino.sql.dialect.ir.IrAttributeUtils.isKnownUnsafe;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.unsafe;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.prefixedName;
 import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.partitioningBy;
 
 public class CastOperationMetadata
         implements TrinoOperationMetadata
@@ -65,6 +71,25 @@ public class CastOperationMetadata
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of(toTypeTrinoAttributeMetadata);
+    }
+
+    @Override
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    {
+        checkArgument(arguments.size() == 1, "Cast operation must have exactly one argument: the input value");
+        checkArgument(regions.isEmpty(), "Cast operation does not have regions");
+
+        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
+                .collect(partitioningBy(entry -> operationAttributeKeys().contains(entry.getKey())));
+        Map<AttributeKey, Object> operationAttributes = ImmutableMap.copyOf(partitionedAttributes.get(true));
+        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+
+        return new Cast(
+                resultName,
+                getOnlyElement(arguments),
+                TO_TYPE.getAttribute(operationAttributes),
+                ImmutableMap.of(),
+                derivedAttributes);
     }
 
     @Override

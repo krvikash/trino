@@ -16,16 +16,22 @@ package io.trino.sql.dialect.trino.operationmetadata;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.sql.dialect.ir.IrAttributeUtils;
+import io.trino.sql.dialect.trino.operation.Limit;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
+import io.trino.sql.newir.Region;
+import io.trino.sql.newir.Value;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.deterministic;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.hasNoSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.hasSideEffects;
@@ -38,6 +44,7 @@ import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadat
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalIntegerListAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalLongAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalSortOrderListAttributeMetadata;
+import static java.util.stream.Collectors.partitioningBy;
 
 public class LimitOperationMetadata
         implements TrinoOperationMetadata
@@ -70,6 +77,29 @@ public class LimitOperationMetadata
                 COUNT_ATTRIBUTE_METADATA,
                 PARTIAL_ATTRIBUTE_METADATA,
                 PRE_SORTED_INDEXES_ATTRIBUTE_METADATA);
+    }
+
+    @Override
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    {
+        checkArgument(arguments.size() == 1, "Limit operation must have exactly one argument: the input relation");
+        checkArgument(regions.size() == 1, "Limit operation must have exactly one region: the ordering selector");
+
+        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
+                .collect(partitioningBy(entry -> operationAttributeKeys().contains(entry.getKey())));
+        Map<AttributeKey, Object> operationAttributes = ImmutableMap.copyOf(partitionedAttributes.get(true));
+        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+
+        return new Limit(
+                resultName,
+                getOnlyElement(arguments),
+                getOnlyElement(regions).getOnlyBlock(),
+                Optional.ofNullable(SORT_ORDERS.getAttribute(operationAttributes)),
+                COUNT.getAttribute(operationAttributes),
+                PARTIAL.getAttribute(operationAttributes),
+                PRE_SORTED_INDEXES.getAttribute(operationAttributes),
+                ImmutableMap.of(),
+                derivedAttributes);
     }
 
     @Override

@@ -16,9 +16,13 @@ package io.trino.sql.dialect.trino.operationmetadata;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.json.JsonCodec;
+import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
+import io.trino.sql.newir.Region;
+import io.trino.sql.newir.Value;
 import org.assertj.core.util.VisibleForTesting;
 
 import java.util.List;
@@ -33,6 +37,7 @@ import static io.trino.sql.dialect.ir.IrAttributeUtils.hasNoSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.safe;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.prefixedName;
 import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.partitioningBy;
 
 public class ConstantOperationMetadata
         implements TrinoOperationMetadata
@@ -69,6 +74,26 @@ public class ConstantOperationMetadata
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of(constantValueTrinoAttributeMetadata);
+    }
+
+    @Override
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    {
+        checkArgument(arguments.isEmpty(), "Constant operation does not have arguments");
+        checkArgument(regions.isEmpty(), "Constant operation does not have regions");
+
+        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
+                .collect(partitioningBy(entry -> operationAttributeKeys().contains(entry.getKey())));
+        Map<AttributeKey, Object> operationAttributes = ImmutableMap.copyOf(partitionedAttributes.get(true));
+        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+
+        ConstantValue constantValue = CONSTANT_VALUE.getAttribute(operationAttributes);
+
+        return new Constant(
+                resultName,
+                constantValue.getType(),
+                constantValue.getValue(),
+                derivedAttributes);
     }
 
     @Override

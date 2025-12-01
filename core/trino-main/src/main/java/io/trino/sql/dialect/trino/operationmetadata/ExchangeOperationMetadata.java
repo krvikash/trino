@@ -17,10 +17,14 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.json.JsonCodec;
 import io.trino.sql.dialect.ir.IrAttributeUtils;
+import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
+import io.trino.sql.newir.Region;
+import io.trino.sql.newir.Value;
 import io.trino.sql.planner.PartitioningHandle;
 import io.trino.sql.planner.plan.ExchangeNode;
 import org.assertj.core.util.VisibleForTesting;
@@ -28,15 +32,20 @@ import org.assertj.core.util.VisibleForTesting;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.deterministic;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.hasNoSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.hasSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.safe;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.unsafe;
+import static io.trino.sql.dialect.trino.operation.TrinoOperation.emptySourceAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalBooleanAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalEnumAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalIntegerAttributeMetadata;
@@ -44,6 +53,7 @@ import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadat
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalSortOrderListAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.prefixedName;
 import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.partitioningBy;
 
 public class ExchangeOperationMetadata
         implements TrinoOperationMetadata
@@ -126,6 +136,37 @@ public class ExchangeOperationMetadata
                 SORT_ORDERS_ATTRIBUTE_METADATA,
                 partitioningHandleTrinoAttributeMetadata,
                 constantValuesTrinoAttributeMetadata);
+    }
+
+    @Override
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    {
+        checkArgument(regions.size() == arguments.size() + 2, "The number of regions Exchange operation must be equal to the number of arguments plus two: one for partitioning bound arguments and one for sorting keys");
+
+        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
+                .collect(partitioningBy(entry -> operationAttributeKeys().contains(entry.getKey())));
+        Map<AttributeKey, Object> operationAttributes = ImmutableMap.copyOf(partitionedAttributes.get(true));
+        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+
+        return new Exchange(
+                resultName,
+                arguments,
+                regions.subList(0, arguments.size()).stream()
+                        .map(Region::getOnlyBlock)
+                        .collect(toImmutableList()),
+                regions.get(regions.size() - 2).getOnlyBlock(),
+                regions.getLast().getOnlyBlock(),
+                EXCHANGE_TYPE.getAttribute(operationAttributes),
+                EXCHANGE_SCOPE.getAttribute(operationAttributes),
+                PARTITIONING_HANDLE.getAttribute(operationAttributes),
+                CONSTANT_VALUES.getAttribute(operationAttributes),
+                REPLICATE_NULLS_AND_ANY.getAttribute(operationAttributes),
+                Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(operationAttributes)),
+                Optional.ofNullable(PARTITION_COUNT.getAttribute(operationAttributes)).map(OptionalInt::of).orElse(OptionalInt.empty()),
+                Optional.ofNullable(BUCKET_COUNT.getAttribute(operationAttributes)).map(OptionalInt::of).orElse(OptionalInt.empty()),
+                Optional.ofNullable(SORT_ORDERS.getAttribute(operationAttributes)),
+                emptySourceAttributes(arguments.size()),
+                derivedAttributes);
     }
 
     @Override

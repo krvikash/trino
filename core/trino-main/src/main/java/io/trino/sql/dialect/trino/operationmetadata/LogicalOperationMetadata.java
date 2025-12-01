@@ -13,18 +13,25 @@
  */
 package io.trino.sql.dialect.trino.operationmetadata;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.trino.sql.dialect.trino.operation.Logical;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
-import io.trino.sql.ir.Logical;
+import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
+import io.trino.sql.newir.Region;
+import io.trino.sql.newir.Value;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.sql.dialect.trino.operation.TrinoOperation.emptySourceAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultDeriveIrLevelAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalEnumAttributeMetadata;
+import static java.util.stream.Collectors.partitioningBy;
 
 public class LogicalOperationMetadata
         implements TrinoOperationMetadata
@@ -50,6 +57,25 @@ public class LogicalOperationMetadata
     }
 
     @Override
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    {
+        checkArgument(arguments.size() >= 2, "Logical operation must have at least two arguments");
+        checkArgument(regions.isEmpty(), "Logical operation does not have regions");
+
+        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
+                .collect(partitioningBy(entry -> operationAttributeKeys().contains(entry.getKey())));
+        Map<AttributeKey, Object> operationAttributes = ImmutableMap.copyOf(partitionedAttributes.get(true));
+        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+
+        return new Logical(
+                resultName,
+                arguments,
+                LOGICAL_OPERATOR.getAttribute(operationAttributes),
+                emptySourceAttributes(arguments.size()),
+                derivedAttributes);
+    }
+
+    @Override
     public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> attributeDerivation()
     {
         return LogicalOperationMetadata::deriveAttributes;
@@ -65,7 +91,7 @@ public class LogicalOperationMetadata
         AND,
         OR;
 
-        public static LogicalOperator of(Logical.Operator operator)
+        public static LogicalOperator of(io.trino.sql.ir.Logical.Operator operator)
         {
             return switch (operator) {
                 case AND -> AND;

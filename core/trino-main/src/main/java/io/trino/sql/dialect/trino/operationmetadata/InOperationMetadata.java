@@ -13,15 +13,23 @@
  */
 package io.trino.sql.dialect.trino.operationmetadata;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.trino.sql.dialect.trino.operation.In;
+import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
+import io.trino.sql.newir.Region;
+import io.trino.sql.newir.Value;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.sql.dialect.trino.operation.TrinoOperation.emptySourceAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultDeriveIrLevelAttributes;
+import static java.util.stream.Collectors.partitioningBy;
 
 public class InOperationMetadata
         implements TrinoOperationMetadata
@@ -38,6 +46,24 @@ public class InOperationMetadata
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of();
+    }
+
+    @Override
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    {
+        checkArgument(!arguments.isEmpty(), "In operation arguments cannot be empty");
+        checkArgument(regions.isEmpty(), "In operation does not have regions");
+
+        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
+                .collect(partitioningBy(entry -> operationAttributeKeys().contains(entry.getKey())));
+        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+
+        return new In(
+                resultName,
+                arguments.getFirst(),
+                arguments.subList(1, arguments.size()),
+                emptySourceAttributes(arguments.size()),
+                derivedAttributes);
     }
 
     @Override

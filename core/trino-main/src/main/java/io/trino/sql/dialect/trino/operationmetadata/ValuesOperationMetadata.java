@@ -13,10 +13,16 @@
  */
 package io.trino.sql.dialect.trino.operationmetadata;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
+import io.trino.sql.dialect.trino.operation.Values;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
+import io.trino.sql.newir.Region;
+import io.trino.sql.newir.Value;
 
 import java.util.List;
 import java.util.Map;
@@ -24,10 +30,16 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
+import static io.trino.sql.dialect.trino.operation.Values.valuesWithoutFields;
 import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultComposeIrLevelAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalLongAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.prefixedName;
+import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.partitioningBy;
 
 public class ValuesOperationMetadata
         implements TrinoOperationMetadata
@@ -60,6 +72,32 @@ public class ValuesOperationMetadata
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of(CARDINALITY_ATTRIBUTE_METADATA, rowTypeTrinoAttributeMetadata);
+    }
+
+    @Override
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    {
+        checkArgument(arguments.isEmpty(), "Values operation does not have arguments");
+
+        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
+                .collect(partitioningBy(entry -> operationAttributeKeys().contains(entry.getKey())));
+        Map<AttributeKey, Object> operationAttributes = ImmutableMap.copyOf(partitionedAttributes.get(true));
+        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+
+        Values values;
+        Type rowType = ROW_TYPE.getAttribute(operationAttributes);
+        if (rowType.equals(EMPTY_ROW)) {
+            values = valuesWithoutFields(resultName, toIntExact(CARDINALITY.getAttribute(operationAttributes)), derivedAttributes);
+        }
+        else {
+            values = new Values(
+                    resultName,
+                    (RowType) rowType,
+                    regions.stream().map(Region::getOnlyBlock).collect(toImmutableList()),
+                    derivedAttributes);
+        }
+
+        return values;
     }
 
     @Override

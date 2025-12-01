@@ -22,14 +22,19 @@ import io.trino.metadata.TableHandle;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
+import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
+import io.trino.sql.newir.Region;
+import io.trino.sql.newir.Value;
 import org.assertj.core.util.VisibleForTesting;
 import org.pcollections.HashTreePMap;
 import org.pcollections.PMap;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -41,6 +46,7 @@ import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadat
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalObjectAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.prefixedName;
 import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.partitioningBy;
 
 public class TableScanOperationMetadata
         implements TrinoOperationMetadata
@@ -126,6 +132,29 @@ public class TableScanOperationMetadata
                 columnHandlesTrinoAttributeMetadata,
                 constraintTrinoAttributeMetadata,
                 rowTypeTrinoAttributeMetadata);
+    }
+
+    @Override
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    {
+        checkArgument(arguments.isEmpty(), "TableScan operation does not have arguments");
+        checkArgument(regions.isEmpty(), "TableScan operation does not have regions");
+
+        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
+                .collect(partitioningBy(entry -> operationAttributeKeys().contains(entry.getKey())));
+        Map<AttributeKey, Object> operationAttributes = ImmutableMap.copyOf(partitionedAttributes.get(true));
+        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+
+        return new TableScan(
+                resultName,
+                ROW_TYPE.getAttribute(operationAttributes),
+                TABLE_HANDLE.getAttribute(operationAttributes),
+                COLUMN_HANDLES.getAttribute(operationAttributes),
+                CONSTRAINT.getAttribute(operationAttributes),
+                Optional.ofNullable(STATISTICS.getAttribute(operationAttributes)),
+                UPDATE_TARGET.getAttribute(operationAttributes),
+                Optional.ofNullable(USE_CONNECTOR_NODE_PARTITIONING.getAttribute(operationAttributes)),
+                derivedAttributes);
     }
 
     @Override

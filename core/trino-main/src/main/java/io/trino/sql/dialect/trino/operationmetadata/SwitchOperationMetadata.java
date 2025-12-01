@@ -13,15 +13,23 @@
  */
 package io.trino.sql.dialect.trino.operationmetadata;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.trino.sql.dialect.trino.operation.Switch;
+import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
+import io.trino.sql.newir.Region;
+import io.trino.sql.newir.Value;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.sql.dialect.trino.operation.TrinoOperation.emptySourceAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultDeriveIrLevelAttributes;
+import static java.util.stream.Collectors.partitioningBy;
 
 public class SwitchOperationMetadata
         implements TrinoOperationMetadata
@@ -38,6 +46,27 @@ public class SwitchOperationMetadata
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
         return ImmutableSet.of();
+    }
+
+    @Override
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    {
+        checkArgument(arguments.size() >= 4, "Switch operation must have at least four arguments");
+        checkArgument(arguments.size() % 2 == 0, "Switch operation must have even number of arguments");
+        checkArgument(regions.isEmpty(), "Switch operation does not have regions");
+
+        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
+                .collect(partitioningBy(entry -> operationAttributeKeys().contains(entry.getKey())));
+        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+
+        return new Switch(
+                resultName,
+                arguments.getFirst(),
+                arguments.subList(1, arguments.size() / 2),
+                arguments.subList(arguments.size() / 2, arguments.size() - 1),
+                arguments.getLast(),
+                emptySourceAttributes(arguments.size()),
+                derivedAttributes);
     }
 
     @Override

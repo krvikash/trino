@@ -13,15 +13,21 @@
  */
 package io.trino.sql.dialect.trino.operationmetadata;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.json.JsonCodecFactory;
 import io.trino.cost.PlanNodeStatsAndCostSummary;
+import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
+import io.trino.sql.newir.Region;
+import io.trino.sql.newir.Value;
 import io.trino.sql.planner.plan.JoinNode;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
 
@@ -31,6 +37,7 @@ import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadat
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalEnumAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalObjectAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalStringListAttributeMetadata;
+import static java.util.stream.Collectors.partitioningBy;
 
 public class JoinOperationMetadata
         implements TrinoOperationMetadata
@@ -75,6 +82,38 @@ public class JoinOperationMetadata
                 SPILLABLE_ATTRIBUTE_METADATA,
                 DYNAMIC_FILTER_IDS_ATTRIBUTE_METADATA,
                 STATISTICS_AND_COST_SUMMARY_ATTRIBUTE_METADATA);
+    }
+
+    @Override
+    public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes)
+    {
+        checkArgument(arguments.size() == 2, "Join operation must have exactly two arguments");
+        checkArgument(regions.size() == 6, "Join operation must have exactly six regions");
+
+        Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
+                .collect(partitioningBy(entry -> operationAttributeKeys().contains(entry.getKey())));
+        Map<AttributeKey, Object> operationAttributes = ImmutableMap.copyOf(partitionedAttributes.get(true));
+        Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
+
+        return new Join(
+                resultName,
+                arguments.get(0),
+                arguments.get(1),
+                regions.get(0).getOnlyBlock(),
+                regions.get(1).getOnlyBlock(),
+                regions.get(2).getOnlyBlock(),
+                regions.get(3).getOnlyBlock(),
+                regions.get(4).getOnlyBlock(),
+                regions.get(5).getOnlyBlock(),
+                JOIN_TYPE.getAttribute(operationAttributes),
+                MAY_SKIP_OUTPUT_DUPLICATES.getAttribute(operationAttributes),
+                Optional.ofNullable(DISTRIBUTION_TYPE.getAttribute(operationAttributes)),
+                Optional.ofNullable(SPILLABLE.getAttribute(operationAttributes)),
+                DYNAMIC_FILTER_IDS.getAttribute(operationAttributes),
+                Optional.ofNullable(STATISTICS_AND_COST_SUMMARY.getAttribute(operationAttributes)),
+                ImmutableMap.of(),
+                ImmutableMap.of(),
+                derivedAttributes);
     }
 
     @Override
