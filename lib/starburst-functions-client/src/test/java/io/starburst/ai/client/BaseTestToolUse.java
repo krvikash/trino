@@ -66,23 +66,20 @@ public abstract class BaseTestToolUse
     }
 
     @ParameterizedTest
-    @MethodSource("modelIds")
-    public void testSimpleToolCall(String modelId)
+    @MethodSource("testParams")
+    public void testSimpleToolCall(String modelId, boolean useStreaming)
     {
         CalculatorTool tool = new CalculatorTool();
 
         List<LlmMessage> messages = ImmutableList.of(
                 new LlmMessage(USER, "What is 25 + 37? Use the calculator tool."));
 
-        StringBuilder streamedTokens = new StringBuilder();
-        ToolUseResponse response = modelClientProvider
-                .languageModelClient(utf8Slice(modelId))
-                .generateWithTools(
-                        "You are a helpful assistant with access to a calculator.",
-                        messages,
-                        ImmutableList.of(tool),
-                        streamedTokens::append);
-        assertThat(streamedTokens.toString()).isEqualTo(response.textResponse());
+        ToolUseResponse response = executeToolUse(
+                modelId,
+                "You are a helpful assistant with access to a calculator.",
+                messages,
+                ImmutableList.of(tool),
+                useStreaming);
 
         for (ToolUseResponse.ToolCall call : response.toolCalls()) {
             log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
@@ -101,8 +98,8 @@ public abstract class BaseTestToolUse
     }
 
     @ParameterizedTest
-    @MethodSource("modelIds")
-    public void testMultipleTools(String modelId)
+    @MethodSource("testParams")
+    public void testMultipleTools(String modelId, boolean useStreaming)
     {
         List<ToolDefinition<?>> tools = ImmutableList.of(
                 new CalculatorTool(),
@@ -112,15 +109,12 @@ public abstract class BaseTestToolUse
         List<LlmMessage> messages = ImmutableList.of(
                 new LlmMessage(USER, "What's the weather like in Paris?"));
 
-        StringBuilder streamedTokens = new StringBuilder();
-        ToolUseResponse response = modelClientProvider
-                .languageModelClient(utf8Slice(modelId))
-                .generateWithTools(
-                        "You are a helpful assistant. Use the appropriate tool to answer questions.",
-                        messages,
-                        tools,
-                        streamedTokens::append);
-        assertThat(streamedTokens.toString()).isEqualTo(response.textResponse());
+        ToolUseResponse response = executeToolUse(
+                modelId,
+                "You are a helpful assistant. Use the appropriate tool to answer questions.",
+                messages,
+                tools,
+                useStreaming);
         for (ToolUseResponse.ToolCall call : response.toolCalls()) {
             log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
         }
@@ -134,8 +128,8 @@ public abstract class BaseTestToolUse
     }
 
     @ParameterizedTest
-    @MethodSource("modelIds")
-    public void testToolCallWithConversationHistory(String modelId)
+    @MethodSource("testParams")
+    public void testToolCallWithConversationHistory(String modelId, boolean useStreaming)
     {
         ToolDefinition<Double> tool = new CalculatorTool();
 
@@ -144,15 +138,12 @@ public abstract class BaseTestToolUse
                 new LlmMessage(ASSISTANT, "I can use my calculator for that! What calculation do you need?"),
                 new LlmMessage(USER, "What's 42 times 13?"));
 
-        StringBuilder streamedTokens = new StringBuilder();
-        ToolUseResponse response = modelClientProvider
-                .languageModelClient(utf8Slice(modelId))
-                .generateWithTools(
-                        "You are a helpful math assistant.",
-                        messages,
-                        ImmutableList.of(tool),
-                        streamedTokens::append);
-        assertThat(streamedTokens.toString()).isEqualTo(response.textResponse());
+        ToolUseResponse response = executeToolUse(
+                modelId,
+                "You are a helpful math assistant.",
+                messages,
+                ImmutableList.of(tool),
+                useStreaming);
         for (ToolUseResponse.ToolCall call : response.toolCalls()) {
             log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
         }
@@ -164,23 +155,20 @@ public abstract class BaseTestToolUse
     }
 
     @ParameterizedTest
-    @MethodSource("modelIds")
-    public void testNoToolCallWhenNotNeeded(String modelId)
+    @MethodSource("testParams")
+    public void testNoToolCallWhenNotNeeded(String modelId, boolean useStreaming)
     {
         ToolDefinition<?> tool = new CalculatorTool();
 
         List<LlmMessage> messages = ImmutableList.of(
                 new LlmMessage(USER, "Hello, how are you?"));
 
-        StringBuilder streamedTokens = new StringBuilder();
-        ToolUseResponse response = modelClientProvider
-                .languageModelClient(utf8Slice(modelId))
-                .generateWithTools(
-                        "You are a helpful assistant",
-                        messages,
-                        ImmutableList.of(tool),
-                        streamedTokens::append);
-        assertThat(streamedTokens.toString()).isEqualTo(response.textResponse());
+        ToolUseResponse response = executeToolUse(
+                modelId,
+                "You are a helpful assistant",
+                messages,
+                ImmutableList.of(tool),
+                useStreaming);
         for (ToolUseResponse.ToolCall call : response.toolCalls()) {
             log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
         }
@@ -190,23 +178,20 @@ public abstract class BaseTestToolUse
     }
 
     @ParameterizedTest
-    @MethodSource("modelIds")
-    public void testToolCallWithNoParameters(String modelId)
+    @MethodSource("testParams")
+    public void testToolCallWithNoParameters(String modelId, boolean useStreaming)
     {
         ToolDefinition<?> tool = new ClockTool();
 
         List<LlmMessage> messages = ImmutableList.of(
                 new LlmMessage(USER, "What's the current time in UTC?"));
 
-        StringBuilder streamedTokens = new StringBuilder();
-        ToolUseResponse response = modelClientProvider
-                .languageModelClient(utf8Slice(modelId))
-                .generateWithTools(
-                        "You are a helpful assistant",
-                        messages,
-                        ImmutableList.of(tool),
-                        streamedTokens::append);
-        assertThat(streamedTokens.toString()).isEqualTo(response.textResponse());
+        ToolUseResponse response = executeToolUse(
+                modelId,
+                "You are a helpful assistant",
+                messages,
+                ImmutableList.of(tool),
+                useStreaming);
         for (ToolUseResponse.ToolCall call : response.toolCalls()) {
             log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
         }
@@ -215,6 +200,35 @@ public abstract class BaseTestToolUse
         ToolUseResponse.ToolCall toolCall = response.toolCalls().getFirst();
         assertThat(toolCall.name()).isEqualTo("clock");
         assertThat(toolCall.input().isNull() || toolCall.input().isEmpty()).isTrue();
+    }
+
+    private ToolUseResponse executeToolUse(
+            String modelId,
+            String systemPrompt,
+            List<LlmMessage> messages,
+            List<ToolDefinition<?>> tools,
+            boolean useStreaming)
+    {
+        if (useStreaming) {
+            StringBuilder streamedTokens = new StringBuilder();
+            ToolUseResponse response = modelClientProvider
+                    .languageModelClient(utf8Slice(modelId))
+                    .generateWithTools(
+                            systemPrompt,
+                            messages,
+                            tools,
+                            streamedTokens::append);
+            assertThat(streamedTokens.toString()).isEqualTo(response.textResponse());
+            return response;
+        }
+        else {
+            return modelClientProvider
+                    .languageModelClient(utf8Slice(modelId))
+                    .generateWithTools(
+                            systemPrompt,
+                            messages,
+                            tools);
+        }
     }
 
     private static class CalculatorTool
@@ -365,8 +379,22 @@ public abstract class BaseTestToolUse
         }
     }
 
-    public Object[][] modelIds()
+    protected String[] modelIds()
     {
-        return new Object[][] {};
+        return new String[] {};
+    }
+
+    public Object[][] testParams()
+    {
+        String[] models = modelIds();
+        Object[][] testCases = new Object[models.length * 2][2];
+
+        int index = 0;
+        for (String model : models) {
+            testCases[index++] = new Object[] {model, false};
+            testCases[index++] = new Object[] {model, true};
+        }
+
+        return testCases;
     }
 }

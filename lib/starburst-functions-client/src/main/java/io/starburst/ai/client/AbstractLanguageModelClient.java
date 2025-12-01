@@ -40,7 +40,6 @@ public abstract class AbstractLanguageModelClient
     protected static final Logger log = Logger.get(AbstractLanguageModelClient.class);
     private static final int MAX_BATCH_SIZE = 32;
     private static final int MAX_BATCH_TEXT_LENGTH = 64_000;
-    private static final Consumer<String> NO_OP_CONSUMER = _ -> {};
 
     private final Executor executor;
     protected final PromptDao promptDao;
@@ -152,7 +151,7 @@ public abstract class AbstractLanguageModelClient
                 .addAll(topLevelSystemPrompts)
                 .add(systemPrompt)
                 .build();
-        return generateCompletionWithTools(systemPrompts, messages, tools, NO_OP_CONSUMER);
+        return generateCompletionWithTools(systemPrompts, messages, tools);
     }
 
     @Override
@@ -237,6 +236,11 @@ public abstract class AbstractLanguageModelClient
     protected abstract String generateCompletion(List<String> systemPrompts, String prompt);
 
     protected abstract String generateCompletion(List<String> systemPrompts, List<LlmMessage> llmMessages);
+
+    protected abstract ToolUseResponse generateCompletionWithTools(
+            List<String> systemPrompts,
+            List<LlmMessage> messages,
+            List<ToolDefinition<?>> tools);
 
     protected abstract ToolUseResponse generateCompletionWithTools(
             List<String> systemPrompts,

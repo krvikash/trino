@@ -17,11 +17,9 @@ public class TestToolUse
         extends BaseTestToolUse
 {
     @Override
-    public Object[][] modelIds()
+    protected String[] modelIds()
     {
-        return new Object[][] {
-                {"gpt4o_mini"},
-                {"haiku35"}};
+        return new String[] {"gpt4o_mini", "haiku35"};
     }
 
     @Override

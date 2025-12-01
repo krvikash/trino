@@ -153,6 +153,35 @@ public class AwsBedrockLanguageModelClient
     protected ToolUseResponse generateCompletionWithTools(
             List<String> systemPrompts,
             List<LlmMessage> messages,
+            List<ToolDefinition<?>> tools)
+    {
+        List<SystemContentBlock> systemContentBlocks = systemPrompts.stream()
+                .map(SystemContentBlock::fromText)
+                .collect(toImmutableList());
+
+        List<Tool> bedrockTools = tools.stream()
+                .map(this::toBedrockTool)
+                .collect(toImmutableList());
+
+        ConverseResponse response = getConverseResponse(
+                CHAT + " " + modelName + " (with tools)",
+                modelName,
+                () -> client.converse(request -> initializeConverseRequestBuilder(request,
+                        systemContentBlocks,
+                        modelName,
+                        messages,
+                        bedrockTools)));
+        if (response.stopReason() != null && ERROR_STOP_REASONS.contains(response.stopReason())) {
+            throw new TrinoException(AI_CLIENT_ERROR, "AI model refused to generate response: " + response.stopReasonAsString());
+        }
+
+        return parseBedrockToolResponse(response);
+    }
+
+    @Override
+    protected ToolUseResponse generateCompletionWithTools(
+            List<String> systemPrompts,
+            List<LlmMessage> messages,
             List<ToolDefinition<?>> tools,
             Consumer<String> output)
     {

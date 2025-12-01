@@ -22,8 +22,8 @@ public class TestToolUseAzureOpenAi
     }
 
     @Override
-    public Object[][] modelIds()
+    protected String[] modelIds()
     {
-        return new Object[][] {{LANGUAGE_MODEL_ID}};
+        return new String[] {LANGUAGE_MODEL_ID};
     }
 }

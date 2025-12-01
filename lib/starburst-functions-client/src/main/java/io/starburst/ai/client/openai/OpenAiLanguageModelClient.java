@@ -136,10 +136,32 @@ public class OpenAiLanguageModelClient
     @Override
     protected ToolUseResponse generateCompletionWithTools(
             List<String> systemPrompts,
+            List<LlmMessage> messages,
+            List<ToolDefinition<?>> tools)
+    {
+        ChatCompletionCreateParams.Builder builder = buildChatCompletionCreateParams(systemPrompts, messages);
+        tools.forEach(tool -> builder.addTool(toOpenAiTool(tool)));
+
+        ChatCompletion response = getChatCompletion(() -> Failsafe.with(RATE_LIMIT_RETRY_POLICY).get(() -> client.chat().completions().create(builder.build())));
+
+        return parseOpenAiToolResponse(response);
+    }
+
+    @Override
+    protected ToolUseResponse generateCompletionWithTools(
+            List<String> systemPrompts,
             List<LlmMessage> llmMessages,
             List<ToolDefinition<?>> tools,
             Consumer<String> output)
     {
+        // This is necessary because Gemini's tool call streaming does not follow the OpenAI spec.
+        // See https://discuss.ai.google.dev/t/gemini-openai-compatibility-issue-with-tool-call-streaming/59886
+        // TODO: Remove this once LLM traits are merged: https://github.com/starburstdata/starburst-enterprise/pull/16310
+        if (isGeminiEndpoint) {
+            ToolUseResponse response = generateCompletionWithTools(systemPrompts, llmMessages, tools);
+            output.accept(response.textResponse());
+            return response;
+        }
         ChatCompletionCreateParams.Builder builder = buildChatCompletionCreateParams(systemPrompts, llmMessages);
         tools.forEach(tool -> builder.addTool(toOpenAiTool(tool)));
 
@@ -150,18 +172,6 @@ public class OpenAiLanguageModelClient
 
     private ChatCompletion stream(ChatCompletionCreateParams params, Consumer<String> output)
     {
-        // This is necessary because Gemini's tool call streaming does not follow the OpenAI spec.
-        // See https://discuss.ai.google.dev/t/gemini-openai-compatibility-issue-with-tool-call-streaming/59886
-        if (isGeminiEndpoint) {
-            ChatCompletion clientResponse = client.chat().completions().create(params);
-            clientResponse.choices().stream()
-                    .map(ChatCompletion.Choice::message)
-                    .findFirst()
-                    .flatMap(ChatCompletionMessage::content)
-                    .filter(content -> !content.isEmpty())
-                    .ifPresent(output);
-            return clientResponse;
-        }
         ChatCompletionAccumulator chatCompletionAccumulator = ChatCompletionAccumulator.create();
         try (StreamResponse<ChatCompletionChunk> streamResponse =
                      client.chat().completions().createStreaming(params)) {
