@@ -13,8 +13,10 @@
  */
 package io.trino.sql.newir;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.trino.spi.TrinoException;
+import io.trino.sql.dialect.ir.IrDialect.FunctionType;
 import io.trino.sql.newir.Block.Parameter;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 
@@ -23,7 +25,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
+import static io.trino.sql.dialect.ir.IrDialect.IR;
 import static io.trino.sql.newir.Dialect.validateDialectName;
 import static io.trino.sql.newir.FormatOptions.INDENT;
 import static io.trino.sql.newir.FormatOptions.TESTING_PRINT_OPTIONS;
@@ -82,6 +86,26 @@ public abstract non-sealed class Operation
         }
     }
 
+    public record OperationId(String name, List<Type> argumentTypes, List<Type> regionTypes)
+    {
+        public OperationId
+        {
+            requireNonNull(name, "name is null");
+            requireNonNull(argumentTypes, "argumentTypes is null");
+            requireNonNull(regionTypes, "regionTypes is null");
+
+            if (!isValidIdentifier(name)) {
+                throw new TrinoException(IR_ERROR, format("invalid operation name: \"%s\"", name));
+            }
+            if (!regionTypes.stream()
+                    .allMatch(regionType -> regionType.dialect().equals(IR) && regionType.dialectType() instanceof FunctionType)) {
+                throw new TrinoException(IR_ERROR, "all region types must be FunctionType");
+            }
+            argumentTypes = ImmutableList.copyOf(argumentTypes);
+            regionTypes = ImmutableList.copyOf(regionTypes);
+        }
+    }
+
     public final String dialect()
     {
         return dialect;
@@ -114,6 +138,21 @@ public abstract non-sealed class Operation
      * Each entry represents a constant property of the operation.
      */
     public abstract Map<AttributeKey, Object> attributes();
+
+    /**
+     * Return the id of this operation, consisting of its name, argument types and region types. Regions are seen as lambdas.
+     * The id must uniquely identify the operation within its dialect.
+     */
+    public final OperationId id()
+    {
+        List<Type> argumentTypes = arguments().stream()
+                .map(Value::type)
+                .collect(toImmutableList());
+        List<Type> regionTypes = regions().stream()
+                .map(Region::getFunctionType)
+                .collect(toImmutableList());
+        return new OperationId(name(), argumentTypes, regionTypes);
+    }
 
     /**
      * Return the set of all value names declared and used in this operation and its nested blocks.

@@ -15,12 +15,16 @@ package io.trino.sql.newir;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.spi.TrinoException;
+import io.trino.sql.dialect.ir.IrDialect.FunctionType;
+import io.trino.sql.newir.Block.Parameter;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 
 import java.util.List;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
+import static io.trino.sql.dialect.ir.IrDialect.IR;
 import static io.trino.sql.newir.FormatOptions.INDENT;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
@@ -56,6 +60,18 @@ public record Region(List<Block> blocks)
         }
 
         return getOnlyElement(blocks());
+    }
+
+    public Type getFunctionType()
+    {
+        Block block = getOnlyBlock();
+        return new Type(
+                IR,
+                new FunctionType(
+                        block.parameters().stream()
+                                .map(Parameter::type)
+                                .collect(toImmutableList()),
+                        block.getReturnedType()));
     }
 
     public String print(int indentLevel, PrintOptions printOptions)

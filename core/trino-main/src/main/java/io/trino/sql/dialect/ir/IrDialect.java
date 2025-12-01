@@ -13,6 +13,7 @@
  */
 package io.trino.sql.dialect.ir;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.Location;
 import io.trino.spi.TrinoException;
@@ -33,6 +34,7 @@ import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
 import static java.lang.Boolean.parseBoolean;
 import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 
 public class IrDialect
@@ -154,13 +156,16 @@ public class IrDialect
     @Override
     public String formatType(Type type)
     {
-        throw new UnsupportedOperationException("the ir dialect does not support any types");
+        if (!(type.dialectType() instanceof FunctionType)) {
+            throw new UnsupportedOperationException("the ir dialect does not support type " + type);
+        }
+        throw new UnsupportedOperationException("formatType is not yet implemented for FunctionType");
     }
 
     @Override
     public Type parseType(String type)
     {
-        throw new UnsupportedOperationException("the ir dialect does not support any types");
+        throw new UnsupportedOperationException("parseType is not yet implemented");
     }
 
     @Override
@@ -182,5 +187,14 @@ public class IrDialect
         // The operation shall produce different outputs for the same input on each invocation.
         // NON_DETERMINISTIC operations should not be inlined, re-used or constant folded.
         NON_DETERMINISTIC
+    }
+
+    public record FunctionType(List<Type> argumentTypes, Type returnType)
+    {
+        public FunctionType
+        {
+            argumentTypes = ImmutableList.copyOf(requireNonNull(argumentTypes, "argumentTypes is null"));
+            requireNonNull(returnType, "returnType is null");
+        }
     }
 }
