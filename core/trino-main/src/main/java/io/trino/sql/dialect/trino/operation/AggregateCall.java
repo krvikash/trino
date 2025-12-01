@@ -82,7 +82,29 @@ public class AggregateCall
             Optional<SortOrderList> sortOrders,
             ResolvedFunction function,
             boolean distinct,
-            AggregationStep step) // needed to verify argument count and validate output type
+            AggregationStep step) // step is needed to verify argument count and validate output type
+    {
+        this(resultName, group, outputType, arguments, filterSelector, maskSelector, orderingSelector, sortOrders, function, distinct, step, ImmutableMap.of());
+    }
+
+    public AggregateCall(
+            String resultName,
+            Value group,
+            // AggregateCall should derive its own output type based on the function and step.
+            // For SINGLE and FINAL step, the type can be derived from the ResolvedFunction.
+            // For PARTIAL and INTERMEDIATE step, the type can be obtained through a metadata call: AggregationFunctionMetadata.getIntermediateTypes().
+            // For now, we are passing the type at construction.
+            // TODO derive output type instead of passing
+            Type outputType,
+            Block arguments,
+            Block filterSelector,
+            Block maskSelector,
+            Block orderingSelector,
+            Optional<SortOrderList> sortOrders,
+            ResolvedFunction function,
+            boolean distinct,
+            AggregationStep step, // needed to verify argument count and validate output type
+            Map<AttributeKey, Object> enforcedAttributes)
     // we don't pass input attributes because the argument is always a Block Parameter
     {
         super(TRINO, NAME);
@@ -96,6 +118,7 @@ public class AggregateCall
         requireNonNull(sortOrders, "sortOrders is null");
         requireNonNull(function, "function is null");
         requireNonNull(step, "step is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         if (!IS_RELATION.test(trinoType(group.type()))) {
             throw new TrinoException(IR_ERROR, "group input of AggregateCall operation must be of relation type");
@@ -186,7 +209,9 @@ public class AggregateCall
                         maskSelector.getTerminalOperation().attributes(),
                         orderingSelector.getTerminalOperation().attributes())));
 
-        this.attributes = attributes.buildOrThrow();
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

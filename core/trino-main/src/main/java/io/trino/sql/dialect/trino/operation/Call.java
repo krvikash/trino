@@ -46,11 +46,17 @@ public final class Call
 
     public Call(String resultName, List<Value> arguments, ResolvedFunction function, List<Map<AttributeKey, Object>> sourceAttributes)
     {
+        this(resultName, arguments, function, sourceAttributes, ImmutableMap.of());
+    }
+
+    public Call(String resultName, List<Value> arguments, ResolvedFunction function, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(arguments, "arguments is null");
         requireNonNull(function, "function is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         if (function.signature().getArgumentTypes().size() != arguments.size()) {
             throw new TrinoException(IR_ERROR, format("expected %s arguments, found: %s", function.signature().getArgumentTypes().size(), arguments.size()));
@@ -77,7 +83,9 @@ public final class Call
         attributes.putAll(operationAttributes);
         attributes.putAll(CallOperationMetadata.deriveAttributes(operationAttributes, sourceAttributes));
 
-        this.attributes = attributes.buildOrThrow();
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

@@ -38,10 +38,16 @@ public final class Return
 
     public Return(String resultName, Value input, Map<AttributeKey, Object> sourceAttributes)
     {
+        this(resultName, input, sourceAttributes, ImmutableMap.of());
+    }
+
+    public Return(String resultName, Value input, Map<AttributeKey, Object> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(input, "input is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         this.result = new Result(resultName, input.type());
 
@@ -53,7 +59,9 @@ public final class Return
         attributes.putAll(operationAttributes);
         attributes.putAll(ReturnOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes)));
 
-        this.attributes = attributes.buildOrThrow();
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

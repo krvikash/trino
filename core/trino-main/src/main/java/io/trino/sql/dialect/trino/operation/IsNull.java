@@ -39,16 +39,26 @@ public final class IsNull
 
     public IsNull(String resultName, Value input, Map<AttributeKey, Object> sourceAttributes)
     {
+        this(resultName, input, sourceAttributes, ImmutableMap.of());
+    }
+
+    public IsNull(String resultName, Value input, Map<AttributeKey, Object> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(input, "input is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         this.result = new Result(resultName, irType(BOOLEAN));
 
         this.input = input;
 
-        this.attributes = IsNullOperationMetadata.deriveAttributes(ImmutableMap.of(), ImmutableList.of(sourceAttributes));
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(IsNullOperationMetadata.deriveAttributes(ImmutableMap.of(), ImmutableList.of(sourceAttributes)));
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

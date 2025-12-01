@@ -46,11 +46,17 @@ public final class Array
 
     public Array(String resultName, Type elementType, List<Value> elements, List<Map<AttributeKey, Object>> sourceAttributes)
     {
+        this(resultName, elementType, elements, sourceAttributes, ImmutableMap.of());
+    }
+
+    public Array(String resultName, Type elementType, List<Value> elements, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(elementType, "elementType is null");
         requireNonNull(elements, "elements is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         this.result = new Result(resultName, irType(new ArrayType(elementType)));
 
@@ -72,7 +78,9 @@ public final class Array
         attributes.putAll(operationAttributes);
         attributes.putAll(ArrayOperationMetadata.deriveAttributes(operationAttributes, sourceAttributes));
 
-        this.attributes = attributes.buildOrThrow();
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

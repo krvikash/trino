@@ -46,9 +46,15 @@ public final class Query
 
     public Query(String resultName, Block query)
     {
+        this(resultName, query, ImmutableMap.of());
+    }
+
+    public Query(String resultName, Block query, Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(query, "query is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         this.result = new Result(resultName, irType(BOOLEAN)); // returning boolean to avoid introducing type void
 
@@ -63,7 +69,9 @@ public final class Query
         attributes.putAll(operationAttributes);
         attributes.putAll(QueryOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(query.getTerminalOperation().attributes())));
 
-        this.attributes = attributes.buildOrThrow();
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

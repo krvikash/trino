@@ -85,6 +85,47 @@ public final class Join
             Map<AttributeKey, Object> leftAttributes,
             Map<AttributeKey, Object> rightAttributes)
     {
+        this(
+                resultName,
+                left,
+                right,
+                leftCriteriaSelector,
+                rightCriteriaSelector,
+                filter,
+                leftOutputSelector,
+                rightOutputSelector,
+                dynamicFilterTargetSelector,
+                joinType,
+                maySkipOutputDuplicates,
+                distributionType,
+                spillable,
+                dynamicFilterIds,
+                reorderJoinStatsAndCost,
+                leftAttributes,
+                rightAttributes,
+                ImmutableMap.of());
+    }
+
+    public Join(
+            String resultName,
+            Value left,
+            Value right,
+            Block leftCriteriaSelector,
+            Block rightCriteriaSelector,
+            Block filter,
+            Block leftOutputSelector,
+            Block rightOutputSelector,
+            Block dynamicFilterTargetSelector,
+            JoinType joinType,
+            boolean maySkipOutputDuplicates,
+            Optional<DistributionType> distributionType,
+            Optional<Boolean> spillable,
+            List<String> dynamicFilterIds,
+            Optional<PlanNodeStatsAndCostSummary> reorderJoinStatsAndCost,
+            Map<AttributeKey, Object> leftAttributes,
+            Map<AttributeKey, Object> rightAttributes,
+            Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(left, "left is null");
@@ -103,6 +144,7 @@ public final class Join
         requireNonNull(reorderJoinStatsAndCost, "reorderJoinStatsAndCost is null");
         requireNonNull(leftAttributes, "leftAttributes is null");
         requireNonNull(rightAttributes, "rightAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         if (!IS_RELATION.test(trinoType(left.type())) || !IS_RELATION.test(trinoType(right.type()))) {
             throw new TrinoException(IR_ERROR, "left and right sources of Join operation must be of relation type");
@@ -171,7 +213,9 @@ public final class Join
                         rightOutputSelector.getTerminalOperation().attributes(),
                         dynamicFilterTargetSelector.getTerminalOperation().attributes())));
 
-        this.attributes = attributes.buildOrThrow();
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

@@ -41,11 +41,17 @@ public final class NullIf
 
     public NullIf(String resultName, Value first, Value second, List<Map<AttributeKey, Object>> sourceAttributes)
     {
+        this(resultName, first, second, sourceAttributes, ImmutableMap.of());
+    }
+
+    public NullIf(String resultName, Value first, Value second, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(first, "first is null");
         requireNonNull(second, "second is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         // TODO: verify that first and second can be coerced to the same type
         this.result = new Result(resultName, first.type());
@@ -58,7 +64,11 @@ public final class NullIf
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: 2", sourceAttributes.size()));
         }
 
-        this.attributes = NullIfOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes);
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(NullIfOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes));
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

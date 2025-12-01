@@ -94,6 +94,43 @@ public class Exchange
             Optional<SortOrderList> sortOrders,
             List<Map<AttributeKey, Object>> sourceAttributes)
     {
+        this(
+                resultName,
+                inputs,
+                inputFieldSelectors,
+                partitioningBoundArguments,
+                orderingSelector,
+                type,
+                scope,
+                partitioningHandle,
+                partitioningBoundValues,
+                partitioningReplicateNullsAndAny,
+                partitioningBucketToPartition,
+                partitionCount,
+                bucketCount,
+                sortOrders,
+                sourceAttributes,
+                ImmutableMap.of());
+    }
+
+    public Exchange(
+            String resultName,
+            List<Value> inputs,
+            List<Block> inputFieldSelectors,
+            Block partitioningBoundArguments,
+            Block orderingSelector,
+            ExchangeType type,
+            ExchangeScope scope,
+            PartitioningHandle partitioningHandle,
+            ConstantValues partitioningBoundValues,
+            boolean partitioningReplicateNullsAndAny,
+            Optional<List<Integer>> partitioningBucketToPartition,
+            OptionalInt partitionCount,
+            OptionalInt bucketCount,
+            Optional<SortOrderList> sortOrders,
+            List<Map<AttributeKey, Object>> sourceAttributes,
+            Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(inputs, "inputs is null");
@@ -109,6 +146,7 @@ public class Exchange
         requireNonNull(bucketCount, "bucketCount is null");
         requireNonNull(sortOrders, "sortOrders is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         if (!inputs.stream()
                 .allMatch(input -> IS_RELATION.test(trinoType(input.type())))) {
@@ -207,7 +245,9 @@ public class Exchange
         childAttributes.add(orderingSelector.getTerminalOperation().attributes());
         attributes.putAll(ExchangeOperationMetadata.deriveAttributes(operationAttributes, childAttributes.build()));
 
-        this.attributes = attributes.buildOrThrow();
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

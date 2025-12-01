@@ -48,6 +48,11 @@ public final class Switch
 
     public Switch(String resultName, Value operand, List<Value> when, List<Value> then, Value defaultValue, List<Map<AttributeKey, Object>> sourceAttributes)
     {
+        this(resultName, operand, when, then, defaultValue, sourceAttributes, ImmutableMap.of());
+    }
+
+    public Switch(String resultName, Value operand, List<Value> when, List<Value> then, Value defaultValue, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(operand, "operand is null");
@@ -55,6 +60,7 @@ public final class Switch
         requireNonNull(then, "then is null");
         requireNonNull(defaultValue, "defaultValue is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         if (when.isEmpty()) {
             throw new TrinoException(IR_ERROR, "switch operation must have at least one branch");
@@ -99,7 +105,11 @@ public final class Switch
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), 1 + when.size() + then.size() + 1));
         }
 
-        this.attributes = SwitchOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes);
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(SwitchOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes));
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

@@ -48,12 +48,18 @@ public final class Case
 
     public Case(String resultName, List<Value> when, List<Value> then, Value defaultValue, List<Map<AttributeKey, Object>> sourceAttributes)
     {
+        this(resultName, when, then, defaultValue, sourceAttributes, ImmutableMap.of());
+    }
+
+    public Case(String resultName, List<Value> when, List<Value> then, Value defaultValue, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(when, "when is null");
         requireNonNull(then, "then is null");
         requireNonNull(defaultValue, "defaultValue is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         if (when.isEmpty()) {
             throw new TrinoException(IR_ERROR, "case operation must have at least one operand");
@@ -95,7 +101,11 @@ public final class Case
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), when.size() + then.size() + 1));
         }
 
-        this.attributes = CaseOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes);
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(CaseOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes));
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

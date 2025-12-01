@@ -49,9 +49,15 @@ public final class Lambda
 
     public Lambda(String resultName, Block lambda)
     {
+        this(resultName, lambda, ImmutableMap.of());
+    }
+
+    public Lambda(String resultName, Block lambda, Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(lambda, "lambda is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         if (lambda.parameters().size() != 1 ||
                 !(trinoType(lambda.parameters().getFirst().type()) instanceof RowType ||
@@ -66,7 +72,11 @@ public final class Lambda
 
         this.result = new Result(resultName, irType(resultType));
 
-        this.attributes = LambdaOperationMetadata.deriveAttributes(ImmutableMap.of(), ImmutableList.of(lambda.getTerminalOperation().attributes()));
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(LambdaOperationMetadata.deriveAttributes(ImmutableMap.of(), ImmutableList.of(lambda.getTerminalOperation().attributes())));
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

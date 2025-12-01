@@ -45,12 +45,18 @@ public final class Between
 
     public Between(String resultName, Value input, Value min, Value max, List<Map<AttributeKey, Object>> sourceAttributes)
     {
+        this(resultName, input, min, max, sourceAttributes, ImmutableMap.of());
+    }
+
+    public Between(String resultName, Value input, Value min, Value max, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(input, "input is null");
         requireNonNull(min, "min is null");
         requireNonNull(max, "max is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         this.result = new Result(resultName, irType(BOOLEAN));
 
@@ -69,7 +75,11 @@ public final class Between
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: 3", sourceAttributes.size()));
         }
 
-        this.attributes = BetweenOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes);
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(BetweenOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes));
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

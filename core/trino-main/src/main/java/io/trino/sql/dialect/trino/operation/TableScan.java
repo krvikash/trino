@@ -67,6 +67,20 @@ public class TableScan
             boolean updateTarget,
             Optional<Boolean> useConnectorNodePartitioning)
     {
+        this(resultName, rowType, tableHandle, columnHandles, enforcedConstraint, statistics, updateTarget, useConnectorNodePartitioning, ImmutableMap.of());
+    }
+
+    public TableScan(
+            String resultName,
+            Type rowType, // RowType or EMPTY_ROW
+            TableHandle tableHandle,
+            List<ColumnHandle> columnHandles, // list of ColumnHandle backing the output fields. It may contain duplicates
+            TupleDomain<ColumnHandle> enforcedConstraint, // TODO do not send to workers
+            Optional<Statistics> statistics, // TODO do not send to workers
+            boolean updateTarget,
+            Optional<Boolean> useConnectorNodePartitioning,
+            Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(tableHandle, "tableHandle is null");
@@ -75,6 +89,7 @@ public class TableScan
         requireNonNull(enforcedConstraint, "enforcedConstraint is null");
         requireNonNull(statistics, "statistics is null");
         requireNonNull(useConnectorNodePartitioning, "useConnectorNodePartitioning is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         checkArgument(IS_RELATION_ROW.test(rowType), "rowType must be a valid relation row type");
 
@@ -109,7 +124,9 @@ public class TableScan
         attributes.putAll(operationAttributes);
         attributes.putAll(TableScanOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of()));
 
-        this.attributes = attributes.buildOrThrow();
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     private static void validateEnforcedConstraint(TupleDomain<ColumnHandle> enforcedConstraint, List<ColumnHandle> columnHandles)

@@ -46,12 +46,18 @@ public final class Comparison
 
     public Comparison(String resultName, Value left, Value right, ComparisonOperator comparisonOperator, List<Map<AttributeKey, Object>> sourceAttributes)
     {
+        this(resultName, left, right, comparisonOperator, sourceAttributes, ImmutableMap.of());
+    }
+
+    public Comparison(String resultName, Value left, Value right, ComparisonOperator comparisonOperator, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(left, "left is null");
         requireNonNull(right, "right is null");
         requireNonNull(comparisonOperator, "comparisonOperator is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         this.result = new Result(resultName, irType(BOOLEAN));
 
@@ -73,7 +79,9 @@ public final class Comparison
         attributes.putAll(operationAttributes);
         attributes.putAll(ComparisonOperationMetadata.deriveAttributes(operationAttributes, sourceAttributes));
 
-        this.attributes = attributes.buildOrThrow();
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

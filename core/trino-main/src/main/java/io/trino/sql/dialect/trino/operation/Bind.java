@@ -46,11 +46,17 @@ public final class Bind
 
     public Bind(String resultName, List<Value> values, Value lambda, List<Map<AttributeKey, Object>> sourceAttributes)
     {
+        this(resultName, values, lambda, sourceAttributes, ImmutableMap.of());
+    }
+
+    public Bind(String resultName, List<Value> values, Value lambda, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(values, "values is null");
         requireNonNull(lambda, "lambda is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         List<Type> lambdaArgumentTypes = ((FunctionType) trinoType(lambda.type())).getArgumentTypes();
         if (values.size() > lambdaArgumentTypes.size()) {
@@ -74,7 +80,11 @@ public final class Bind
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), values.size() + 1));
         }
 
-        this.attributes = BindOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes);
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(BindOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes));
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

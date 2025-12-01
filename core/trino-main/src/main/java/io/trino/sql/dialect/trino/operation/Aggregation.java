@@ -72,6 +72,23 @@ public class Aggregation
             boolean isInputReducing, // note: potentially does not roundtrip to AggregationNode -- it has Optional<Boolean>, but the getter coalesces to false
             Map<AttributeKey, Object> sourceAttributes)
     {
+        this(resultName, input, aggregateCalls, groupingKeysSelector, groupingSetCount, globalGroupingSets, groupIdIndex, preGroupedIndexes, step, isInputReducing, sourceAttributes, ImmutableMap.of());
+    }
+
+    public Aggregation(
+            String resultName,
+            Value input,
+            Block aggregateCalls,
+            Block groupingKeysSelector,
+            int groupingSetCount,
+            List<Integer> globalGroupingSets,
+            OptionalInt groupIdIndex, // index in groupingKeysSelector
+            List<Integer> preGroupedIndexes, // indexes in groupingKeysSelector
+            AggregationStep step,
+            boolean isInputReducing, // note: potentially does not roundtrip to AggregationNode -- it has Optional<Boolean>, but the getter coalesces to false
+            Map<AttributeKey, Object> sourceAttributes,
+            Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(input, "input is null");
@@ -82,6 +99,7 @@ public class Aggregation
         requireNonNull(preGroupedIndexes, "preGroupedIndexes is null");
         requireNonNull(step, "step is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         if (!IS_RELATION.test(trinoType(input.type()))) {
             throw new TrinoException(IR_ERROR, "input to the Aggregation operation must be of relation type");
@@ -133,7 +151,9 @@ public class Aggregation
         attributes.putAll(operationAttributes);
         attributes.putAll(AggregationOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes, aggregateCalls.getTerminalOperation().attributes(), groupingKeysSelector.getTerminalOperation().attributes())));
 
-        this.attributes = attributes.buildOrThrow();
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

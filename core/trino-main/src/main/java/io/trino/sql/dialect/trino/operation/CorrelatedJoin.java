@@ -57,6 +57,11 @@ public final class CorrelatedJoin
     private final Map<AttributeKey, Object> attributes;
     // TODO the PlanNode has origin subquery for debug. skipping it for now
 
+    public CorrelatedJoin(String resultName, Value input, Block correlation, Block subquery, Block filter, JoinType joinType, Map<AttributeKey, Object> sourceAttributes)
+    {
+        this(resultName, input, correlation, subquery, filter, joinType, sourceAttributes, ImmutableMap.of());
+    }
+
     public CorrelatedJoin(
             String resultName,
             Value input,
@@ -64,7 +69,8 @@ public final class CorrelatedJoin
             Block subquery,
             Block filter,
             JoinType joinType,
-            Map<AttributeKey, Object> sourceAttributes)
+            Map<AttributeKey, Object> sourceAttributes,
+            Map<AttributeKey, Object> enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -74,6 +80,7 @@ public final class CorrelatedJoin
         requireNonNull(filter, "filter is null");
         requireNonNull(joinType, "joinType is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         if (!IS_RELATION.test(trinoType(input.type())) || !IS_RELATION.test(trinoType(subquery.getReturnedType()))) {
             throw new TrinoException(IR_ERROR, "input and subquery of CorrelatedJoin must be of relation type");
@@ -114,7 +121,9 @@ public final class CorrelatedJoin
                         subquery.getTerminalOperation().attributes(),
                         filter.getTerminalOperation().attributes())));
 
-        this.attributes = attributes.buildOrThrow();
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

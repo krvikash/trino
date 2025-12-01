@@ -53,9 +53,16 @@ public final class Values
 
     public Values(String resultName, RowType rowType, List<Block> rows)
     {
+        this(resultName, rowType, rows, ImmutableMap.of());
+    }
+
+    public Values(String resultName, RowType rowType, List<Block> rows, Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
+        requireNonNull(rowType, "rowType is null");
         requireNonNull(rows, "rows is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         // Create output type with anonymous fields.
         // This is consistent with the Trino behavior in StatementAnalyzer: the RelationType
@@ -92,13 +99,16 @@ public final class Values
         attributes.putAll(operationAttributes);
         attributes.putAll(ValuesOperationMetadata.deriveAttributes(operationAttributes, rows.stream().map(Block::getTerminalOperation).map(Operation::attributes).collect(toImmutableList())));
 
-        this.attributes = attributes.buildOrThrow();
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
-    private Values(String resultName, int rows)
+    private Values(String resultName, int rows, Map<AttributeKey, Object> enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         if (rows < 0) {
             throw new TrinoException(IR_ERROR, "negative row count: " + rows);
@@ -114,12 +124,19 @@ public final class Values
         attributes.putAll(operationAttributes);
         attributes.putAll(ValuesOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of()));
 
-        this.attributes = attributes.buildOrThrow();
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     public static Values valuesWithoutFields(String resultName, int rows)
     {
-        return new Values(resultName, rows);
+        return new Values(resultName, rows, ImmutableMap.of());
+    }
+
+    public static Values valuesWithoutFields(String resultName, int rows, Map<AttributeKey, Object> enforcedAttributes)
+    {
+        return new Values(resultName, rows, enforcedAttributes);
     }
 
     @Override

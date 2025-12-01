@@ -82,6 +82,43 @@ public class WindowFunctionCall
             WindowFrameBoundType frameEndType,
             boolean ignoreNulls,
             boolean distinct)
+    {
+        this(
+                resultName,
+                window,
+                arguments,
+                orderingSelector,
+                frameStartFieldSelector,
+                sortKeyCoercedForFrameStartComparisonSelector,
+                frameEndFieldSelector,
+                sortKeyCoercedForFrameEndComparisonSelector,
+                function,
+                sortOrders,
+                frameType,
+                frameStartType,
+                frameEndType,
+                ignoreNulls,
+                distinct,
+                ImmutableMap.of());
+    }
+
+    public WindowFunctionCall(
+            String resultName,
+            Value window,
+            Block arguments,
+            Block orderingSelector,
+            Block frameStartFieldSelector,
+            Block sortKeyCoercedForFrameStartComparisonSelector,
+            Block frameEndFieldSelector,
+            Block sortKeyCoercedForFrameEndComparisonSelector,
+            ResolvedFunction function,
+            Optional<SortOrderList> sortOrders,
+            WindowFrameType frameType,
+            WindowFrameBoundType frameStartType,
+            WindowFrameBoundType frameEndType,
+            boolean ignoreNulls,
+            boolean distinct,
+            Map<AttributeKey, Object> enforcedAttributes)
     // we don't pass input attributes because the argument is always a Block Parameter
     {
         super(TRINO, NAME);
@@ -98,6 +135,7 @@ public class WindowFunctionCall
         requireNonNull(frameType, "frameType is null");
         requireNonNull(frameStartType, "frameStartType is null");
         requireNonNull(frameEndType, "frameEndType is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         if (!IS_RELATION.test(trinoType(window.type()))) {
             throw new TrinoException(IR_ERROR, "window input of WindowFunctionCall operation must be of relation type");
@@ -162,7 +200,9 @@ public class WindowFunctionCall
                         frameEndFieldSelector.getTerminalOperation().attributes(),
                         sortKeyCoercedForFrameEndComparisonSelector.getTerminalOperation().attributes())));
 
-        this.attributes = attributes.buildOrThrow();
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

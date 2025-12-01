@@ -51,6 +51,11 @@ public class TopN
 
     public TopN(String resultName, Value input, Block orderingSelector, SortOrderList sortOrders, long limit, TopNStep step, Map<AttributeKey, Object> sourceAttributes)
     {
+        this(resultName, input, orderingSelector, sortOrders, limit, step, sourceAttributes, ImmutableMap.of());
+    }
+
+    public TopN(String resultName, Value input, Block orderingSelector, SortOrderList sortOrders, long limit, TopNStep step, Map<AttributeKey, Object> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(input, "input is null");
@@ -58,6 +63,7 @@ public class TopN
         requireNonNull(sortOrders, "sortOrders is null");
         requireNonNull(step, "step is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         if (!IS_RELATION.test(trinoType(input.type()))) {
             throw new TrinoException(IR_ERROR, "input to the TopN operation must be of relation type");
@@ -82,7 +88,9 @@ public class TopN
         attributes.putAll(operationAttributes);
         attributes.putAll(TopNOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes, orderingSelector.getTerminalOperation().attributes())));
 
-        this.attributes = attributes.buildOrThrow();
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

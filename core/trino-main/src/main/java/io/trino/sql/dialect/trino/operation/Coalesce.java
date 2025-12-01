@@ -45,10 +45,16 @@ public final class Coalesce
 
     public Coalesce(String resultName, List<Value> operands, List<Map<AttributeKey, Object>> sourceAttributes)
     {
+        this(resultName, operands, sourceAttributes, ImmutableMap.of());
+    }
+
+    public Coalesce(String resultName, List<Value> operands, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(operands, "operands is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         if (operands.size() < 2) {
             throw new TrinoException(IR_ERROR, "coalesce operation must have at least two operands");
@@ -70,7 +76,11 @@ public final class Coalesce
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), operands.size()));
         }
 
-        this.attributes = CoalesceOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes);
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(CoalesceOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes));
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

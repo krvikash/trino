@@ -46,11 +46,17 @@ public final class Logical
 
     public Logical(String resultName, List<Value> terms, LogicalOperator logicalOperator, List<Map<AttributeKey, Object>> sourceAttributes)
     {
+        this(resultName, terms, logicalOperator, sourceAttributes, ImmutableMap.of());
+    }
+
+    public Logical(String resultName, List<Value> terms, LogicalOperator logicalOperator, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(terms, "terms is null");
         requireNonNull(logicalOperator, "logicalOperator is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         this.result = new Result(resultName, irType(BOOLEAN));
 
@@ -75,7 +81,9 @@ public final class Logical
         attributes.putAll(operationAttributes);
         attributes.putAll(LogicalOperationMetadata.deriveAttributes(operationAttributes, sourceAttributes));
 
-        this.attributes = attributes.buildOrThrow();
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

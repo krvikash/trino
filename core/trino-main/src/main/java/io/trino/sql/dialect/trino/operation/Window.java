@@ -71,6 +71,21 @@ public class Window
             int preSortedPrefix,
             Map<AttributeKey, Object> sourceAttributes)
     {
+        this(resultName, input, windowFunctionCalls, partitioningSelector, orderingSelector, prePartitionedIndexes, sortOrders, preSortedPrefix, sourceAttributes, ImmutableMap.of());
+    }
+
+    public Window(
+            String resultName,
+            Value input,
+            Block windowFunctionCalls,
+            Block partitioningSelector,
+            Block orderingSelector,
+            List<Integer> prePartitionedIndexes, // indexes in partitioningSelector
+            Optional<SortOrderList> sortOrders,
+            int preSortedPrefix,
+            Map<AttributeKey, Object> sourceAttributes,
+            Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(input, "input is null");
@@ -80,6 +95,7 @@ public class Window
         requireNonNull(prePartitionedIndexes, "prePartitionedIndexes is null");
         requireNonNull(sortOrders, "sortOrders is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         if (!IS_RELATION.test(trinoType(input.type()))) {
             throw new TrinoException(IR_ERROR, "input to the Window operation must be of relation type");
@@ -146,7 +162,9 @@ public class Window
                         partitioningSelector.getTerminalOperation().attributes(),
                         orderingSelector.getTerminalOperation().attributes())));
 
-        this.attributes = attributes.buildOrThrow();
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

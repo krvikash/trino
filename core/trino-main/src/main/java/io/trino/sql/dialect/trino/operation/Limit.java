@@ -48,7 +48,7 @@ public class Limit
     private final Result result;
     private final Value input;
     private final Region orderingSelector;
-    private final Map<Operation.AttributeKey, Object> attributes;
+    private final Map<AttributeKey, Object> attributes;
 
     public Limit(
             String resultName,
@@ -58,7 +58,21 @@ public class Limit
             long count,
             boolean partial,
             List<Integer> preSortedIndexes, // indexes in orderingSelector
-            Map<Operation.AttributeKey, Object> sourceAttributes)
+            Map<AttributeKey, Object> sourceAttributes)
+    {
+        this(resultName, input, orderingSelector, sortOrders, count, partial, preSortedIndexes, sourceAttributes, ImmutableMap.of());
+    }
+
+    public Limit(
+            String resultName,
+            Value input,
+            Block orderingSelector,
+            Optional<SortOrderList> sortOrders,
+            long count,
+            boolean partial,
+            List<Integer> preSortedIndexes, // indexes in orderingSelector
+            Map<AttributeKey, Object> sourceAttributes,
+            Map<AttributeKey, Object> enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
@@ -67,6 +81,7 @@ public class Limit
         requireNonNull(sortOrders, "sortOrders is null");
         requireNonNull(preSortedIndexes, "preSortedIndexes is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         if (!IS_RELATION.test(trinoType(input.type()))) {
             throw new TrinoException(IR_ERROR, "input to the limit operation must be of relation type");
@@ -105,7 +120,9 @@ public class Limit
         attributes.putAll(operationAttributes);
         attributes.putAll(LimitOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes, orderingSelector.getTerminalOperation().attributes())));
 
-        this.attributes = attributes.buildOrThrow();
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

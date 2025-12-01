@@ -40,8 +40,14 @@ public final class Constant
 
     public Constant(String resultName, Type type, Object value)
     {
+        this(resultName, type, value, ImmutableMap.of());
+    }
+
+    public Constant(String resultName, Type type, Object value, Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         this.result = new Result(resultName, irType(type));
 
@@ -51,7 +57,9 @@ public final class Constant
         attributes.putAll(operationAttributes);
         attributes.putAll(ConstantOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of()));
 
-        this.attributes = attributes.buildOrThrow();
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

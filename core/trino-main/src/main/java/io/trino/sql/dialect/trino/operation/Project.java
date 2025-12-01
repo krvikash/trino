@@ -52,11 +52,17 @@ public final class Project
 
     public Project(String resultName, Value input, Block assignments, Map<AttributeKey, Object> sourceAttributes)
     {
+        this(resultName, input, assignments, sourceAttributes, ImmutableMap.of());
+    }
+
+    public Project(String resultName, Value input, Block assignments, Map<AttributeKey, Object> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(input, "input is null");
         requireNonNull(assignments, "assignments is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         if (!IS_RELATION.test(trinoType(input.type()))) {
             throw new TrinoException(IR_ERROR, "input to the Project operation must be of relation type");
@@ -75,7 +81,11 @@ public final class Project
         }
         this.result = new Result(resultName, irType(resultType));
 
-        this.attributes = ProjectOperationMetadata.deriveAttributes(ImmutableMap.of(), ImmutableList.of(sourceAttributes, assignments.getTerminalOperation().attributes()));
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(ProjectOperationMetadata.deriveAttributes(ImmutableMap.of(), ImmutableList.of(sourceAttributes, assignments.getTerminalOperation().attributes())));
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

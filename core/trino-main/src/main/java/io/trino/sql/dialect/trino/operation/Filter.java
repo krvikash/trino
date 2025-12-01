@@ -46,11 +46,17 @@ public final class Filter
 
     public Filter(String resultName, Value input, Block predicate, Map<AttributeKey, Object> sourceAttributes)
     {
+        this(resultName, input, predicate, sourceAttributes, ImmutableMap.of());
+    }
+
+    public Filter(String resultName, Value input, Block predicate, Map<AttributeKey, Object> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(input, "input is null");
         requireNonNull(predicate, "predicate is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         if (!IS_RELATION.test(trinoType(input.type()))) {
             throw new TrinoException(IR_ERROR, "input to the Filter operation must be of relation type");
@@ -64,7 +70,11 @@ public final class Filter
         validatePredicate(predicate, relationRowType(trinoType(input.type())), "invalid predicate for Filter operation");
         this.predicate = singleBlockRegion(predicate);
 
-        this.attributes = FilterOperationMetadata.deriveAttributes(ImmutableMap.of(), ImmutableList.of(sourceAttributes, predicate.getTerminalOperation().attributes()));
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(FilterOperationMetadata.deriveAttributes(ImmutableMap.of(), ImmutableList.of(sourceAttributes, predicate.getTerminalOperation().attributes())));
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

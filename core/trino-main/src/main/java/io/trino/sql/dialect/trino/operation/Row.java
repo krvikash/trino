@@ -46,10 +46,16 @@ public final class Row
 
     public Row(String resultName, List<Value> fields, List<Map<AttributeKey, Object>> sourceAttributes)
     {
+        this(resultName, fields, sourceAttributes, ImmutableMap.of());
+    }
+
+    public Row(String resultName, List<Value> fields, List<Map<AttributeKey, Object>> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(fields, "fields is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         // fails if there are no fields
         Type resultType = RowType.anonymous(
@@ -66,7 +72,11 @@ public final class Row
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), fields.size()));
         }
 
-        this.attributes = RowOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes);
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(RowOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes));
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

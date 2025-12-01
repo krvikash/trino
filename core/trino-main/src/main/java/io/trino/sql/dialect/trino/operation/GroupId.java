@@ -64,6 +64,18 @@ public class GroupId
             List<List<Integer>> groupingSets, // indexes in fields returned by groupingColumnsSelector
             Map<AttributeKey, Object> sourceAttributes)
     {
+        this(resultName, input, groupingColumnsSelector, aggregationArgumentsSelector, groupingSets, sourceAttributes, ImmutableMap.of());
+    }
+
+    public GroupId(
+            String resultName,
+            Value input,
+            Block groupingColumnsSelector,
+            Block aggregationArgumentsSelector,
+            List<List<Integer>> groupingSets, // indexes in fields returned by groupingColumnsSelector
+            Map<AttributeKey, Object> sourceAttributes,
+            Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(input, "input is null");
@@ -71,6 +83,7 @@ public class GroupId
         requireNonNull(aggregationArgumentsSelector, "aggregationArgumentsSelector is null");
         requireNonNull(groupingSets, "groupingSets is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         if (!IS_RELATION.test(trinoType(input.type()))) {
             throw new TrinoException(IR_ERROR, "input to the GroupId operation must be of relation type");
@@ -111,7 +124,9 @@ public class GroupId
         attributes.putAll(operationAttributes);
         attributes.putAll(GroupIdOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes, groupingColumnsSelector.getTerminalOperation().attributes(), aggregationArgumentsSelector.getTerminalOperation().attributes())));
 
-        this.attributes = attributes.buildOrThrow();
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override

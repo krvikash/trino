@@ -44,11 +44,17 @@ public final class FieldReference
 
     public FieldReference(String resultName, Value base, Integer fieldIndex, Map<AttributeKey, Object> sourceAttributes)
     {
+        this(resultName, base, fieldIndex, sourceAttributes, ImmutableMap.of());
+    }
+
+    public FieldReference(String resultName, Value base, Integer fieldIndex, Map<AttributeKey, Object> sourceAttributes, Map<AttributeKey, Object> enforcedAttributes)
+    {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(base, "base is null");
         requireNonNull(fieldIndex, "fieldIndex is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
+        requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         if (!(trinoType(base.type()) instanceof RowType baseRowType)) {
             throw new TrinoException(IR_ERROR, "input to the FieldReference operation must be of row type. actual: " + trinoType(base.type()).getDisplayName());
@@ -68,7 +74,9 @@ public final class FieldReference
         attributes.putAll(operationAttributes);
         attributes.putAll(FieldReferenceOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes)));
 
-        this.attributes = attributes.buildOrThrow();
+        // TODO check if new attributes are compatible with existing ones. In particular, internal attributes must not change
+        attributes.putAll(enforcedAttributes);
+        this.attributes = attributes.buildKeepingLast();
     }
 
     @Override
