@@ -64,10 +64,4 @@ public record ElasticsearchColumnHandle(
     {
         return name() + "::" + type();
     }
-
-    @Override
-    public Optional<String> delegatedField()
-    {
-        return delegatedField;
-    }
 }
