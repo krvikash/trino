@@ -23,6 +23,7 @@ public class JdbcConnectionPoolConfig
     private int maxPoolSize = 10;
     private Duration maxConnectionLifetime = new Duration(30, TimeUnit.MINUTES);
     private Duration poolCacheTtl = new Duration(30, TimeUnit.MINUTES);
+    private Duration connectionTimeout = new Duration(30, TimeUnit.SECONDS);
     private int poolCacheMaxSize = 1000;
 
     public boolean isConnectionPoolEnabled()
@@ -62,6 +63,20 @@ public class JdbcConnectionPoolConfig
     public JdbcConnectionPoolConfig setMaxConnectionLifetime(Duration maxConnectionLifetime)
     {
         this.maxConnectionLifetime = maxConnectionLifetime;
+        return this;
+    }
+
+    @NotNull
+    public Duration getConnectionTimeout()
+    {
+        return connectionTimeout;
+    }
+
+    @Config("connection-pool.connection-timeout")
+    @ConfigDescription("Connection timeout for JDBC connection pooling")
+    public JdbcConnectionPoolConfig setConnectionTimeout(Duration connectionTimeout)
+    {
+        this.connectionTimeout = connectionTimeout;
         return this;
     }
 

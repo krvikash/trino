@@ -19,6 +19,7 @@ import static io.airlift.configuration.testing.ConfigAssertions.assertFullMappin
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class TestJdbcConnectionPoolConfig
 {
@@ -28,6 +29,7 @@ public class TestJdbcConnectionPoolConfig
         assertRecordedDefaults(recordDefaults(JdbcConnectionPoolConfig.class)
                 .setConnectionPoolEnabled(false)
                 .setMaxConnectionLifetime(new Duration(30, MINUTES))
+                .setConnectionTimeout(new Duration(30, SECONDS))
                 .setMaxPoolSize(10)
                 .setPoolCacheTtl(new Duration(30, MINUTES))
                 .setPoolCacheMaxSize(1000));
@@ -39,6 +41,7 @@ public class TestJdbcConnectionPoolConfig
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("connection-pool.enabled", "true")
                 .put("connection-pool.max-connection-lifetime", "15m")
+                .put("connection-pool.connection-timeout", "15s")
                 .put("connection-pool.max-size", "13")
                 .put("connection-pool.pool-cache-ttl", "15m")
                 .put("connection-pool.pool-cache-max-size", "10")
@@ -47,6 +50,7 @@ public class TestJdbcConnectionPoolConfig
         JdbcConnectionPoolConfig expected = new JdbcConnectionPoolConfig()
                 .setConnectionPoolEnabled(true)
                 .setMaxConnectionLifetime(new Duration(15, MINUTES))
+                .setConnectionTimeout(new Duration(15, SECONDS))
                 .setMaxPoolSize(13)
                 .setPoolCacheTtl(new Duration(15, MINUTES))
                 .setPoolCacheMaxSize(10);

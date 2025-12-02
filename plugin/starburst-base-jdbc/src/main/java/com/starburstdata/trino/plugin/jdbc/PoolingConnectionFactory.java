@@ -58,6 +58,7 @@ public class PoolingConnectionFactory
     private final Class<? extends Driver> driverClass;
     private final Map<String, String> connectionProperties;
     private final Duration maxConnectionLifetime;
+    private final Duration connectionTimeout;
     private final int maxPoolSize;
     private final CredentialPropertiesProvider credentialPropertiesProvider;
     private final NonKeyEvictableCache<IdentityCacheKey, HikariDataSource> dataSourceCache;
@@ -102,6 +103,7 @@ public class PoolingConnectionFactory
         this.driverClass = requireNonNull(driverClass, "driverClass is null");
         this.connectionProperties = Maps.fromProperties(requireNonNull(connectionProperties, "connectionProperties is null"));
         this.maxConnectionLifetime = requireNonNull(poolConfig, "poolConfig is null").getMaxConnectionLifetime();
+        this.connectionTimeout = poolConfig.getConnectionTimeout();
         this.maxPoolSize = requireNonNull(poolConfig, "poolConfig is null").getMaxPoolSize();
         this.credentialPropertiesProvider = requireNonNull(credentialPropertiesProvider, "credentialPropertiesProvider is null");
         this.identityCacheMapping = requireNonNull(identityCacheMapping, "identityCacheMapping is null");
@@ -123,6 +125,7 @@ public class PoolingConnectionFactory
         hikariConfig.setMaximumPoolSize(maxPoolSize);
         hikariConfig.setMaxLifetime(maxConnectionLifetime.toMillis());
         hikariConfig.setDataSourceProperties(toProperties(properties));
+        hikariConfig.setConnectionTimeout(connectionTimeout.toMillis());
         return new HikariDataSource(hikariConfig);
     }
 
