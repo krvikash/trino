@@ -183,6 +183,36 @@ public abstract class BaseOpenSearchConnectorTest
     }
 
     @Test
+    public void testKeywordToBooleanDecoder()
+            throws IOException
+    {
+        String indexName = "keyword_with_bool_value";
+        @Language("JSON")
+        String properties = """
+                            {
+                              "properties": {
+                                "uuid": { "type": "keyword"},
+                                "custkey": { "type": "keyword" }
+                              }
+                            }
+                            """;
+        createIndex(indexName, properties);
+        index(indexName, ImmutableMap.<String, Object>builder()
+                .put("uuid",  true)
+                .put("custkey", 1301)
+                .buildOrThrow());
+
+        index(indexName, ImmutableMap.<String, Object>builder()
+                .put("uuid", "valid_string")
+                .put("custkey", 1302)
+                .buildOrThrow());
+        assertThat(query("SELECT * FROM keyword_with_bool_value"))
+                .matches("VALUES (VARCHAR '1301', VARCHAR 'true'), (VARCHAR '1302', VARCHAR 'valid_string')");
+        assertThat(query("SELECT * FROM keyword_with_bool_value WHERE uuid = 'true'"))
+                .matches("VALUES (VARCHAR '1301', VARCHAR 'true')");
+    }
+
+    @Test
     @Override
     public void testPredicateReflectedInExplain()
     {
