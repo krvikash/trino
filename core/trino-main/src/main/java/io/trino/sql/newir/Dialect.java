@@ -15,9 +15,12 @@ package io.trino.sql.newir;
 
 import io.trino.spi.TrinoException;
 import io.trino.sql.newir.Operation.AttributeKey;
+import io.trino.sql.newir.Operation.OperationId;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.BiFunction;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.newir.FormatValidation.isValidIdentifier;
@@ -54,6 +57,10 @@ public abstract class Dialect
     public abstract String formatType(Type type);
 
     public abstract Type parseType(String type);
+
+    public abstract BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> getAttributeDerivationForOperation(OperationId id);
+
+    public abstract Set<AttributeKey> getOperationAttributeKeys(OperationId id);
 
     public abstract Operation createOperation(String name, String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes);
 }

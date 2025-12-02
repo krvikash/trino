@@ -68,6 +68,7 @@ import io.trino.sql.dialect.trino.operationmetadata.WindowOperationMetadata;
 import io.trino.sql.newir.Dialect;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
+import io.trino.sql.newir.Operation.OperationId;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Type;
 import io.trino.sql.newir.Value;
@@ -78,6 +79,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
@@ -247,6 +249,23 @@ public class TrinoDialect
     public Type parseType(String type)
     {
         return irType(typeDeserializer.apply(type));
+    }
+
+    @Override
+    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> getAttributeDerivationForOperation(OperationId id)
+    {
+        // there are no overloads, so we can identify operation by name only
+        TrinoOperationMetadata operationMetadata = operations.get(id.name());
+        // TODO verify argumentTypes and regionTypes
+        return operationMetadata.attributeDerivation();
+    }
+
+    @Override
+    public Set<AttributeKey> getOperationAttributeKeys(OperationId id)
+    {
+        // there are no overloads, so we can identify operation by name only
+        TrinoOperationMetadata operationMetadata = operations.get(id.name());
+        return operationMetadata.operationAttributeKeys();
     }
 
     @Override

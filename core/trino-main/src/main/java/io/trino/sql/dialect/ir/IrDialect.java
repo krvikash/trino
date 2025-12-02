@@ -20,6 +20,7 @@ import io.trino.spi.TrinoException;
 import io.trino.sql.newir.Dialect;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
+import io.trino.sql.newir.Operation.OperationId;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Type;
 import io.trino.sql.newir.Value;
@@ -27,6 +28,8 @@ import io.trino.sql.newir.Value;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.BiFunction;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.ir.IrDialect.Repeatability.DETERMINISTIC;
@@ -166,6 +169,18 @@ public class IrDialect
     public Type parseType(String type)
     {
         throw new UnsupportedOperationException("parseType is not yet implemented");
+    }
+
+    @Override
+    public BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> getAttributeDerivationForOperation(OperationId id)
+    {
+        throw new UnsupportedOperationException("the ir dialect does not support any operations");
+    }
+
+    @Override
+    public Set<AttributeKey> getOperationAttributeKeys(OperationId id)
+    {
+        throw new UnsupportedOperationException("the ir dialect does not support any operations");
     }
 
     @Override
