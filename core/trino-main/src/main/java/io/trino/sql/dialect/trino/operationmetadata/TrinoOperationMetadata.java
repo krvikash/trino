@@ -13,12 +13,16 @@
  */
 package io.trino.sql.dialect.trino.operationmetadata;
 
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
 import io.trino.sql.newir.Operation.AttributeKey;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
+
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 
 public interface TrinoOperationMetadata
 {
@@ -30,6 +34,15 @@ public interface TrinoOperationMetadata
      * In the future, we might not consider these attributes for propagation.
      */
     Set<TrinoAttributeMetadata<?>> operationAttributes();
+
+    default Set<AttributeKey> operationAttributeKeys()
+    {
+        return operationAttributes().stream()
+                .map(TrinoAttributeMetadata::trinoAttributeSignature)
+                .map(TrinoAttributeSignature::name)
+                .map(name -> new AttributeKey(TRINO, name))
+                .collect(toImmutableSet());
+    }
 
     /**
      * Function that derives attributes for the operation based on its current attributes and its children's attributes.
