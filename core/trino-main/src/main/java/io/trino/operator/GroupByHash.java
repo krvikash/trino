@@ -78,7 +78,7 @@ public interface GroupByHash
         boolean batchedBigintGroupByHashEnabled = isAggregationOptimizedGroupByHashEnabled(session);
         return createGroupByHash(
                 types,
-                selectGroupByHashMode(spillable, types),
+                shouldCacheHashValue(spillable, types),
                 expectedSize,
                 dictionaryAggregationEnabled,
                 batchedBigintGroupByHashEnabled,
@@ -86,15 +86,15 @@ public interface GroupByHash
                 updateMemory);
     }
 
-    static GroupByHashMode selectGroupByHashMode(boolean spillable, List<Type> types)
+    static boolean shouldCacheHashValue(boolean spillable, List<Type> types)
     {
         // Spillable aggregations should always cache hash values since spilling requires sorting by the hash value
         if (spillable) {
-            return GroupByHashMode.CACHED;
+            return true;
         }
         // When 3 or more columns are present, always cache the hash value
         if (types.size() >= 3) {
-            return GroupByHashMode.CACHED;
+            return true;
         }
 
         int variableWidthTypes = 0;
@@ -102,23 +102,23 @@ public interface GroupByHash
             // The presence of any container types should trigger hash value caching since computing the hash and
             // checking valueIdentical is so much more expensive for these values
             if (type instanceof MapType || type instanceof ArrayType || type instanceof RowType) {
-                return GroupByHashMode.CACHED;
+                return true;
             }
             // Cache hash values when more than 2 or more variable width types are present
             if (type.isFlatVariableWidth()) {
                 variableWidthTypes++;
                 if (variableWidthTypes >= 2) {
-                    return GroupByHashMode.CACHED;
+                    return true;
                 }
             }
         }
-        // All remaining scenarios will use on-demand hashing
-        return GroupByHashMode.ON_DEMAND;
+        // All remaining scenarios will use re-compute the hash on-demand during rehashing
+        return false;
     }
 
     static GroupByHash createGroupByHash(
             List<Type> types,
-            GroupByHashMode hashMode,
+            boolean cacheHashValue,
             int expectedSize,
             boolean dictionaryAggregationEnabled,
             boolean batchedBigintGroupByHashEnabled,
@@ -140,7 +140,7 @@ public interface GroupByHash
         }
         return new FlatGroupByHash(
                 types,
-                hashMode,
+                cacheHashValue,
                 expectedSize,
                 dictionaryAggregationEnabled,
                 hashStrategyCompiler,

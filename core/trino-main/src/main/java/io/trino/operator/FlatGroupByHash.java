@@ -48,8 +48,6 @@ public class FlatGroupByHash
     private static final int BATCH_SIZE = 8192;
     // Max (page value count / cumulative dictionary size) to trigger the low cardinality case
     private static final double SMALL_DICTIONARIES_MAX_CARDINALITY_RATIO = 0.25;
-
-    private final GroupByHashMode hashMode;
     private final FlatHashStrategyCompiler hashStrategyCompiler;
     private final List<Type> hashTypes;
     // This object should only be used to call methods that do not accept Block as parameter
@@ -75,17 +73,16 @@ public class FlatGroupByHash
 
     public FlatGroupByHash(
             List<Type> hashTypes,
-            GroupByHashMode hashMode,
+            boolean cacheHashValue,
             int expectedSize,
             boolean processDictionary,
             FlatHashStrategyCompiler hashStrategyCompiler,
             UpdateMemory checkMemoryReservation)
     {
-        this.hashMode = requireNonNull(hashMode, "hashMode is null");
         this.hashStrategyCompiler = requireNonNull(hashStrategyCompiler, "flatHashStrategy is null");
         this.hashTypes = requireNonNull(hashTypes, "hashTypes is null");
         this.flatHashStrategy = hashStrategyCompiler.getFlatHashStrategy(hashTypes);
-        this.flatHash = new FlatHash(flatHashStrategy, hashMode, expectedSize, checkMemoryReservation);
+        this.flatHash = new FlatHash(hashStrategyCompiler.getFlatHashStrategy(hashTypes), cacheHashValue, expectedSize, checkMemoryReservation);
         this.groupByChannelCount = hashTypes.size();
 
         checkArgument(expectedSize > 0, "expectedSize must be greater than zero");
@@ -104,7 +101,6 @@ public class FlatGroupByHash
         this.flatHashStrategy = other.flatHashStrategy;
         this.hashTypes = other.hashTypes;
         groupByChannelCount = other.groupByChannelCount;
-        hashMode = other.hashMode;
         processDictionary = other.processDictionary;
         dictionaryLookBack = other.dictionaryLookBack == null ? null : other.dictionaryLookBack.copy();
         currentPageSizeInBytes = other.currentPageSizeInBytes;
