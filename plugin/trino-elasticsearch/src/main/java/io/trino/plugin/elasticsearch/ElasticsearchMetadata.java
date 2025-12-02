@@ -837,9 +837,9 @@ public class ElasticsearchMetadata
     private static Optional<String> pushDownDelegateMultiFields(IndexMetadata.Type elasticsearchType, Type projectedColumnType, List<IndexMetadata.Field> multiFields)
     {
         if (elasticsearchType instanceof PrimitiveType(String name) && name.equals("text")) {
-            for (IndexMetadata.Field index : multiFields) {
-                if (supportsPredicates(index.type(), projectedColumnType)) {
-                    return Optional.of(index.name());
+            for (IndexMetadata.Field multiField : multiFields) {
+                if (supportsPredicates(multiField.type(), projectedColumnType)) {
+                    return Optional.of(multiField.name());
                 }
             }
         }
