@@ -105,7 +105,7 @@ public class IoPlanPrinter
         // todo - support output table
         ImmutableSet.Builder<IoPlan.TableColumnInfo> builder = ImmutableSet.builder();
 
-        Block mainBlock = ((Query) program.getRoot()).query();
+        Block mainBlock = ((Query) program.root()).query();
 
         mainBlock.operations().stream()
                 .filter(TableScan.class::isInstance)

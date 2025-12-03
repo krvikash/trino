@@ -208,7 +208,7 @@ public class PlanFragmenter
         // The created NewIrPartitioningScheme will not be used in the context of the existing program, so there cannot be value name clashes.
         // The NewIrPartitioningScheme will be translated to old IR before it is incorporated into the fragmented plan.
         ProgramBuilder.ValueNameAllocator nameAllocator = new ProgramBuilder.ValueNameAllocator();
-        Output outputOperation = (Output) ((Query) program.getRoot()).query().getTerminalOperation();
+        Output outputOperation = (Output) ((Query) program.root()).query().getTerminalOperation();
         Type outputRowType = trinoType(outputOperation.outputFieldSelector().getReturnedType());
         NewIrPartitioningScheme outputPartitioningScheme = new NewIrPartitioningScheme(
                 getFullPassthroughFieldSelector("^outputLayoutSelector", outputRowType, nameAllocator),

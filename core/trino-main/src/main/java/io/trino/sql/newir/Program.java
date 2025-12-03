@@ -25,18 +25,11 @@ import static java.util.Objects.requireNonNull;
  * The top-level entity is an Operation which has a Block enclosing the logic of the program.
  */
 @Immutable
-public final class Program
+public record Program(Operation root)
 {
-    private final Operation root;
-
     public Program(Operation root)
     {
         this.root = requireNonNull(root, "root is null");
-    }
-
-    public Operation getRoot()
-    {
-        return root;
     }
 
     public String print(PrintOptions printOptions)

@@ -602,7 +602,7 @@ public class DynamicFilterService
 
     private static Set<DynamicFilterId> getReplicatedDynamicFilters(Program program)
     {
-        Block mainBlock = ((Query) program.getRoot()).query();
+        Block mainBlock = ((Query) program.root()).query();
         Map<Value, Operation> operations = mainBlock.operations().stream()
                 .collect(toImmutableMap(Operation::result, identity()));
         return mainBlock.operations().stream()
@@ -641,7 +641,7 @@ public class DynamicFilterService
 
     private static Set<DynamicFilterId> getProducedDynamicFilters(Program program)
     {
-        Block mainBlock = ((Query) program.getRoot()).query();
+        Block mainBlock = ((Query) program.root()).query();
         return mainBlock.operations().stream()
                 // TODO handle SemiJoin when we support it in new IR
                 .filter(operation -> operation instanceof Join || operation instanceof DynamicFilterSource)

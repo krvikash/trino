@@ -149,7 +149,7 @@ public class NewIrFragmenter
 
     public SubPlan fragmentProgram(Program program, FragmentProperties rootProperties)
     {
-        Block mainBlock = ((Query) program.getRoot()).query();
+        Block mainBlock = ((Query) program.root()).query();
 
         // build the result-to-operation map for top-level relational operations
         Map<Value, TrinoOperation> resultToOperation = mainBlock.operations().stream()

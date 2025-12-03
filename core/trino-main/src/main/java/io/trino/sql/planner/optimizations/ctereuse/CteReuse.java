@@ -237,13 +237,13 @@ public class CteReuse
         multiGroupMerger.flush(nameAllocator, newOperations);
 
         // create the new plan consisting of old and new operations
-        Block oldMainBlock = ((Query) program.getRoot()).query();
+        Block oldMainBlock = ((Query) program.root()).query();
         Block newMainBlock = layoutOperations(oldMainBlock, newOperations, false);
 
         // clean up dynamic filters
         newMainBlock = cleanUpDynamicFilters(newMainBlock, nameAllocator);
 
-        Program newProgram = new Program(((Query) program.getRoot()).withRegions(ImmutableList.of(singleBlockRegion(newMainBlock))));
+        Program newProgram = new Program(((Query) program.root()).withRegions(ImmutableList.of(singleBlockRegion(newMainBlock))));
 
         if (debugEnabled) {
             log.info("CTE reuse applied for query %s.\nQuery program before: %s\n\nQuery program after: %s", session.getQueryId(), program.print(printOptions), newProgram.print(printOptions));
@@ -254,7 +254,7 @@ public class CteReuse
 
     private static boolean hasUpdateTarget(Program program)
     {
-        Operation root = program.getRoot();
+        Operation root = program.root();
         return hasUpdateTarget(root);
     }
 
@@ -285,7 +285,7 @@ public class CteReuse
      */
     private static Set<TableScan> getTopLevelTableScanOperations(Program program)
     {
-        Block topLevelBlock = ((Query) program.getRoot()).query();
+        Block topLevelBlock = ((Query) program.root()).query();
 
         return topLevelBlock.operations().stream()
                 .filter(TableScan.class::isInstance)
@@ -388,7 +388,7 @@ public class CteReuse
     private static Map<Operation, Operation> buildOperationToDownstream(Program program)
     {
         Map<Operation, Operation> operationToDownstream = new IdentityHashMap<>();
-        Block mainBlock = ((Query) program.getRoot()).query();
+        Block mainBlock = ((Query) program.root()).query();
         buildOperationToDownstream(mainBlock, AccessibleValueMap.initialize(), operationToDownstream);
         return operationToDownstream;
     }
