@@ -1,4 +1,8 @@
 # Pull Request Labeler Github Action Configuration: https://github.com/marketplace/actions/labeler
+ai:
+  - changed-files:
+    - any-glob-to-any-file: ['lib/starburst-functions-client/**', 'plugin/starburst-functions/**']
+
 jdbc:
   - changed-files:
     - any-glob-to-any-file: 'client/trino-jdbc/**'
