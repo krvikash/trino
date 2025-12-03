@@ -89,6 +89,35 @@ public final class TestingUtils
                             "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
                             "region": "us-east-2"
                         }
+                    },
+                    {
+                        "id": "mistral_large",
+                        "modelName": "mistral.mistral-large-2402-v1:0",
+                        "kind": "GENERATE",
+                        "maxTokens": 2048,
+                        "temperature": 0.0,
+                        "connectionInfo": {
+                            "provider": "AWS_BEDROCK",
+                            "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
+                            "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
+                            "region": "us-east-1"
+                        }
+                    },
+                    {
+                        "id": "mistral_large_non_streaming",
+                        "modelName": "mistral.mistral-large-2402-v1:0",
+                        "kind": "GENERATE",
+                        "maxTokens": 2048,
+                        "temperature": 0.0,
+                        "connectionInfo": {
+                            "provider": "AWS_BEDROCK",
+                            "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
+                            "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
+                            "region": "us-east-1"
+                        },
+                        "traits": {
+                            "STREAMING_TOOL_CALL_SUPPORT": "STREAMING_TOOL_CALL_NOT_SUPPORTED"
+                        }
                     }
                 ]
             }""";

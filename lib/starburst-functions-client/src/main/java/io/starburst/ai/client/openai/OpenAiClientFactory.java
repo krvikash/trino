@@ -39,6 +39,8 @@ import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.starburst.ai.client.AiClientErrorCode.INVALID_MODEL_CONFIGURATION;
 import static io.starburst.ai.client.ModelSecretsResolver.resolveOpenAiSecrets;
 import static io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
+import static io.starburst.ai.model.LlmTrait.STREAMING_TOOL_CALL_SUPPORT;
+import static io.starburst.ai.model.StreamingToolCallSupportOption.STREAMING_TOOL_CALL_SUPPORTED;
 import static java.util.Locale.ROOT;
 import static java.util.Objects.requireNonNull;
 
@@ -82,6 +84,8 @@ public class OpenAiClientFactory
         boolean isGeminiEndpoint = updatedConnectionInfo.endpoint()
                 .map(endpoint -> endpoint.toLowerCase(ROOT).startsWith("https://generativelanguage.googleapis.com"))
                 .orElse(false);
+        boolean isStreamingToolCallSupported = spec.traits().getOrDefault(STREAMING_TOOL_CALL_SUPPORT, STREAMING_TOOL_CALL_SUPPORTED.name())
+                .equals(STREAMING_TOOL_CALL_SUPPORTED.name());
         return new OpenAiLanguageModelClient(
                 modelName,
                 spec.temperature(),
@@ -93,7 +97,8 @@ public class OpenAiClientFactory
                 batchParallelism,
                 tracer,
                 isGeminiEndpoint,
-                createOpenAiClient(updatedConnectionInfo, azureOpenAiConnectionInfo));
+                createOpenAiClient(updatedConnectionInfo, azureOpenAiConnectionInfo),
+                isStreamingToolCallSupported);
     }
 
     @Override

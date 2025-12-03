@@ -66,8 +66,8 @@ public abstract class BaseTestToolUse
     }
 
     @ParameterizedTest
-    @MethodSource("testParams")
-    public void testSimpleToolCall(String modelId, boolean useStreaming)
+    @MethodSource("modelIds")
+    public void testSimpleToolCall(String modelId)
     {
         CalculatorTool tool = new CalculatorTool();
 
@@ -78,8 +78,7 @@ public abstract class BaseTestToolUse
                 modelId,
                 "You are a helpful assistant with access to a calculator.",
                 messages,
-                ImmutableList.of(tool),
-                useStreaming);
+                ImmutableList.of(tool));
 
         for (ToolUseResponse.ToolCall call : response.toolCalls()) {
             log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
@@ -98,8 +97,8 @@ public abstract class BaseTestToolUse
     }
 
     @ParameterizedTest
-    @MethodSource("testParams")
-    public void testMultipleTools(String modelId, boolean useStreaming)
+    @MethodSource("modelIds")
+    public void testMultipleTools(String modelId)
     {
         List<ToolDefinition<?>> tools = ImmutableList.of(
                 new CalculatorTool(),
@@ -113,8 +112,7 @@ public abstract class BaseTestToolUse
                 modelId,
                 "You are a helpful assistant. Use the appropriate tool to answer questions.",
                 messages,
-                tools,
-                useStreaming);
+                tools);
         for (ToolUseResponse.ToolCall call : response.toolCalls()) {
             log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
         }
@@ -128,8 +126,8 @@ public abstract class BaseTestToolUse
     }
 
     @ParameterizedTest
-    @MethodSource("testParams")
-    public void testToolCallWithConversationHistory(String modelId, boolean useStreaming)
+    @MethodSource("modelIds")
+    public void testToolCallWithConversationHistory(String modelId)
     {
         ToolDefinition<Double> tool = new CalculatorTool();
 
@@ -142,8 +140,7 @@ public abstract class BaseTestToolUse
                 modelId,
                 "You are a helpful math assistant.",
                 messages,
-                ImmutableList.of(tool),
-                useStreaming);
+                ImmutableList.of(tool));
         for (ToolUseResponse.ToolCall call : response.toolCalls()) {
             log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
         }
@@ -155,8 +152,8 @@ public abstract class BaseTestToolUse
     }
 
     @ParameterizedTest
-    @MethodSource("testParams")
-    public void testNoToolCallWhenNotNeeded(String modelId, boolean useStreaming)
+    @MethodSource("modelIds")
+    public void testNoToolCallWhenNotNeeded(String modelId)
     {
         ToolDefinition<?> tool = new CalculatorTool();
 
@@ -167,8 +164,7 @@ public abstract class BaseTestToolUse
                 modelId,
                 "You are a helpful assistant",
                 messages,
-                ImmutableList.of(tool),
-                useStreaming);
+                ImmutableList.of(tool));
         for (ToolUseResponse.ToolCall call : response.toolCalls()) {
             log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
         }
@@ -178,8 +174,8 @@ public abstract class BaseTestToolUse
     }
 
     @ParameterizedTest
-    @MethodSource("testParams")
-    public void testToolCallWithNoParameters(String modelId, boolean useStreaming)
+    @MethodSource("modelIds")
+    public void testToolCallWithNoParameters(String modelId)
     {
         ToolDefinition<?> tool = new ClockTool();
 
@@ -190,8 +186,7 @@ public abstract class BaseTestToolUse
                 modelId,
                 "You are a helpful assistant",
                 messages,
-                ImmutableList.of(tool),
-                useStreaming);
+                ImmutableList.of(tool));
         for (ToolUseResponse.ToolCall call : response.toolCalls()) {
             log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
         }
@@ -202,36 +197,25 @@ public abstract class BaseTestToolUse
         assertThat(toolCall.input().isNull() || toolCall.input().isEmpty()).isTrue();
     }
 
-    private ToolUseResponse executeToolUse(
+    protected ToolUseResponse executeToolUse(
             String modelId,
             String systemPrompt,
             List<LlmMessage> messages,
-            List<ToolDefinition<?>> tools,
-            boolean useStreaming)
+            List<ToolDefinition<?>> tools)
     {
-        if (useStreaming) {
-            StringBuilder streamedTokens = new StringBuilder();
-            ToolUseResponse response = modelClientProvider
-                    .languageModelClient(utf8Slice(modelId))
-                    .generateWithTools(
-                            systemPrompt,
-                            messages,
-                            tools,
-                            streamedTokens::append);
-            assertThat(streamedTokens.toString()).isEqualTo(response.textResponse());
-            return response;
-        }
-        else {
-            return modelClientProvider
-                    .languageModelClient(utf8Slice(modelId))
-                    .generateWithTools(
-                            systemPrompt,
-                            messages,
-                            tools);
-        }
+        StringBuilder streamedTokens = new StringBuilder();
+        ToolUseResponse response = modelClientProvider
+                .languageModelClient(utf8Slice(modelId))
+                .generateWithTools(
+                        systemPrompt,
+                        messages,
+                        tools,
+                        streamedTokens::append);
+        assertThat(streamedTokens.toString()).isEqualTo(response.textResponse());
+        return response;
     }
 
-    private static class CalculatorTool
+    protected static class CalculatorTool
             extends InternalToolDefinition<Double>
     {
         public CalculatorTool()
@@ -379,22 +363,8 @@ public abstract class BaseTestToolUse
         }
     }
 
-    protected String[] modelIds()
+    public Object[][] modelIds()
     {
-        return new String[] {};
-    }
-
-    public Object[][] testParams()
-    {
-        String[] models = modelIds();
-        Object[][] testCases = new Object[models.length * 2][2];
-
-        int index = 0;
-        for (String model : models) {
-            testCases[index++] = new Object[] {model, false};
-            testCases[index++] = new Object[] {model, true};
-        }
-
-        return testCases;
+        return new Object[][] {};
     }
 }

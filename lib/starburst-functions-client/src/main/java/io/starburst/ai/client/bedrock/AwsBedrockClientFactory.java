@@ -54,6 +54,8 @@ import static io.starburst.ai.client.AiClientErrorCode.INVALID_MODEL_CONFIGURATI
 import static io.starburst.ai.client.AiClientErrorCode.UNSUPPORTED_MODEL;
 import static io.starburst.ai.client.ModelSecretsResolver.resolveBedrockSecrets;
 import static io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
+import static io.starburst.ai.model.LlmTrait.STREAMING_TOOL_CALL_SUPPORT;
+import static io.starburst.ai.model.StreamingToolCallSupportOption.STREAMING_TOOL_CALL_SUPPORTED;
 import static java.util.Objects.requireNonNull;
 
 public class AwsBedrockClientFactory
@@ -85,6 +87,8 @@ public class AwsBedrockClientFactory
     {
         requireNonNull(spec, "spec is null");
         requireNonNull(connectionInfo, "connectionInfo is null");
+        boolean isStreamingToolCallSupported = spec.traits().getOrDefault(STREAMING_TOOL_CALL_SUPPORT, STREAMING_TOOL_CALL_SUPPORTED.name())
+                .equals(STREAMING_TOOL_CALL_SUPPORTED.name());
         return new AwsBedrockLanguageModelClient(
                 spec.modelName(),
                 spec.maxTokens(),
@@ -95,7 +99,8 @@ public class AwsBedrockClientFactory
                 batchParallelism,
                 tracer,
                 createBedrockClient(connectionInfo),
-                createBedrockAsyncClient(connectionInfo));
+                createBedrockAsyncClient(connectionInfo),
+                isStreamingToolCallSupported);
     }
 
     @Override

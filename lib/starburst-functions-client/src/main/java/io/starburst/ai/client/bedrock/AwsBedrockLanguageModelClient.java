@@ -93,6 +93,7 @@ public class AwsBedrockLanguageModelClient
     private final String modelName;
     private final BedrockRuntimeClient client;
     private final BedrockRuntimeAsyncClient asyncClient;
+    private final boolean isToolStreamingSupported;
 
     public AwsBedrockLanguageModelClient(
             String modelName,
@@ -104,7 +105,8 @@ public class AwsBedrockLanguageModelClient
             int batchParallelism,
             Tracer tracer,
             BedrockRuntimeClient client,
-            BedrockRuntimeAsyncClient asyncClient)
+            BedrockRuntimeAsyncClient asyncClient,
+            boolean isToolStreamingSupported)
     {
         super(promptDao, executor, batchParallelism);
         this.maxTokens = requireNonNull(maxTokens, "maxTokens is null");
@@ -114,6 +116,7 @@ public class AwsBedrockLanguageModelClient
         this.modelName = requireNonNull(modelName, "modelName is null");
         this.client = requireNonNull(client, "client is null");
         this.asyncClient = requireNonNull(asyncClient, "asyncClient is null");
+        this.isToolStreamingSupported = isToolStreamingSupported;
     }
 
     @Override
@@ -185,6 +188,11 @@ public class AwsBedrockLanguageModelClient
             List<ToolDefinition<?>> tools,
             Consumer<String> output)
     {
+        if (!isToolStreamingSupported) {
+            ToolUseResponse response = generateCompletionWithTools(systemPrompts, messages, tools);
+            output.accept(response.textResponse());
+            return response;
+        }
         List<SystemContentBlock> systemContentBlocks = systemPrompts.stream()
                 .map(SystemContentBlock::fromText)
                 .collect(toImmutableList());

@@ -9,12 +9,36 @@
  */
 package io.starburst.ai.client;
 
+import com.google.common.collect.ImmutableList;
+import io.trino.spi.TrinoException;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static io.starburst.ai.client.MessageRole.USER;
 import static io.starburst.ai.client.VendorTestModels.GEMINI_MODEL_PROVIDERS;
 import static io.starburst.ai.client.VendorTestModels.LANGUAGE_MODEL_ID;
+import static io.starburst.ai.client.VendorTestModels.LANGUAGE_MODEL_ID_NON_STREAMING;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestToolUseGemini
         extends BaseTestToolUse
 {
+    @Test
+    public void testStreamingNonStreamingLLMsThrows()
+    {
+        CalculatorTool tool = new CalculatorTool();
+
+        List<LlmMessage> messages = ImmutableList.of(
+                new LlmMessage(USER, "What is 25 + 37? Use the calculator tool."));
+
+        assertThatThrownBy(() -> executeToolUse(
+                LANGUAGE_MODEL_ID,
+                "You are a helpful assistant with access to a calculator.",
+                messages,
+                ImmutableList.of(tool))).isInstanceOf(TrinoException.class);
+    }
+
     @Override
     protected String getLanguageModelProviders()
     {
@@ -22,8 +46,8 @@ public class TestToolUseGemini
     }
 
     @Override
-    protected String[] modelIds()
+    public Object[][] modelIds()
     {
-        return new String[] {LANGUAGE_MODEL_ID};
+        return new Object[][] {{LANGUAGE_MODEL_ID_NON_STREAMING}};
     }
 }

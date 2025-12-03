@@ -11,6 +11,7 @@ package io.starburst.ai.client;
 
 import static io.starburst.ai.client.VendorTestModels.AZURE_OPEN_AI_MODEL_PROVIDERS;
 import static io.starburst.ai.client.VendorTestModels.LANGUAGE_MODEL_ID;
+import static io.starburst.ai.client.VendorTestModels.LANGUAGE_MODEL_ID_NON_STREAMING;
 
 public class TestToolUseAzureOpenAi
         extends BaseTestToolUse
@@ -22,8 +23,10 @@ public class TestToolUseAzureOpenAi
     }
 
     @Override
-    protected String[] modelIds()
+    public Object[][] modelIds()
     {
-        return new String[] {LANGUAGE_MODEL_ID};
+        return new Object[][] {
+                {LANGUAGE_MODEL_ID},
+                {LANGUAGE_MODEL_ID_NON_STREAMING}};
     }
 }

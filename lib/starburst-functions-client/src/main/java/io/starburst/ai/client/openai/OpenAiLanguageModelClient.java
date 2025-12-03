@@ -86,6 +86,7 @@ public class OpenAiLanguageModelClient
     private final String modelName;
     private final boolean isGeminiEndpoint;
     private final OpenAIClient client;
+    private final boolean isToolStreamingSupported;
 
     public OpenAiLanguageModelClient(
             String modelName,
@@ -98,7 +99,8 @@ public class OpenAiLanguageModelClient
             int batchParallelism,
             Tracer tracer,
             boolean isGeminiEndpoint,
-            OpenAIClient client)
+            OpenAIClient client,
+            boolean isToolStreamingSupported)
     {
         super(promptDao, executor, batchParallelism);
         this.temperature = requireNonNull(temperature, "temperature is null");
@@ -109,6 +111,7 @@ public class OpenAiLanguageModelClient
         this.modelName = requireNonNull(modelName, "modelName is null");
         this.isGeminiEndpoint = isGeminiEndpoint;
         this.client = requireNonNull(client, "client is null");
+        this.isToolStreamingSupported = isToolStreamingSupported;
     }
 
     @Override
@@ -154,10 +157,7 @@ public class OpenAiLanguageModelClient
             List<ToolDefinition<?>> tools,
             Consumer<String> output)
     {
-        // This is necessary because Gemini's tool call streaming does not follow the OpenAI spec.
-        // See https://discuss.ai.google.dev/t/gemini-openai-compatibility-issue-with-tool-call-streaming/59886
-        // TODO: Remove this once LLM traits are merged: https://github.com/starburstdata/starburst-enterprise/pull/16310
-        if (isGeminiEndpoint) {
+        if (!isToolStreamingSupported) {
             ToolUseResponse response = generateCompletionWithTools(systemPrompts, llmMessages, tools);
             output.accept(response.textResponse());
             return response;

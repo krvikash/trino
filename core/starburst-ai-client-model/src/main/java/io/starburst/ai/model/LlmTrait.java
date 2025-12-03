@@ -11,5 +11,6 @@ package io.starburst.ai.model;
 
 public enum LlmTrait
 {
-    TOOL_CALL_SUPPORT
+    TOOL_CALL_SUPPORT,
+    STREAMING_TOOL_CALL_SUPPORT,
 }
