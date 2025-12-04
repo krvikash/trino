@@ -68,6 +68,7 @@
         <module>plugin/starburst-base-jdbc</module>
         <module>plugin/starburst-dynamodb</module>
         <module>plugin/starburst-functions</module>
+        <module>plugin/starburst-openapi</module>
         <module>plugin/starburst-oracle</module>
         <module>plugin/starburst-salesforce</module>
         <module>plugin/starburst-sap-hana</module>
@@ -116,7 +117,6 @@
         <module>plugin/trino-mysql</module>
         <module>plugin/trino-mysql-event-listener</module>
         <module>plugin/trino-opa</module>
-        <module>plugin/trino-openapi</module>
         <module>plugin/trino-openlineage</module>
         <module>plugin/trino-opensearch</module>
         <module>plugin/trino-oracle</module>

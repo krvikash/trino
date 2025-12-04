@@ -98,7 +98,7 @@ public class OpenApiClient
 {
     private static final Logger log = Logger.get(OpenApiRecordSetProvider.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final String USER_AGENT_VALUE = "trino-openapi/" + OpenApiClient.class.getPackage().getImplementationVersion();
+    private static final String USER_AGENT_VALUE = "starburst-openapi/" + OpenApiClient.class.getPackage().getImplementationVersion();
 
     private final URI baseUri;
 

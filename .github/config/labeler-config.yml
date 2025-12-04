@@ -97,7 +97,7 @@ mysql:
 
 openapi:
   - changed-files:
-    - any-glob-to-any-file: 'plugin/trino-openapi/**'
+    - any-glob-to-any-file: 'plugin/starburst-openapi/**'
 
 opensearch:
   - changed-files:

@@ -9,10 +9,10 @@
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <artifactId>trino-openapi</artifactId>
+    <artifactId>starburst-openapi</artifactId>
     <packaging>trino-plugin</packaging>
     <name>${project.artifactId}</name>
-    <description>Trino OpenAPI connector</description>
+    <description>Starburst OpenAPI connector</description>
 
     <properties>
         <dep.swagger-parser.version>2.1.36</dep.swagger-parser.version>

@@ -1,4 +1,4 @@
-Trino OpenAPI
+Starburst OpenAPI
 =============
 
 This is a [Trino](http://trino.io/) plugin that provides a connector to read
