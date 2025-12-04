@@ -139,7 +139,7 @@ public class TestCteReuseTpcdsPlan
         }
     }
 
-    public static void main(String[] args)
+    static void main()
     {
         new TestCteReuseTpcdsPlan().generate();
     }

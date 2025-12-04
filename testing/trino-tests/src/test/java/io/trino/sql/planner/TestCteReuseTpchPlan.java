@@ -137,7 +137,7 @@ public class TestCteReuseTpchPlan
         }
     }
 
-    public static void main(String[] args)
+    static void main()
     {
         new TestCteReuseTpchPlan().generate();
     }

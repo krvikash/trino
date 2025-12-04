@@ -102,7 +102,7 @@ public class TestCachingTpchCostBasedPlan
         return TPCH_SQL_FILES;
     }
 
-    public static void main(String[] args)
+    static void main()
     {
         new TestCachingTpchCostBasedPlan().generate();
     }
