@@ -167,7 +167,7 @@ public abstract class BaseIcebergOzoneS3GatewayConnectorSmokeTest
     }
 
     @Override
-    protected void dropTableFromMetastore(String tableName)
+    protected void dropTableFromCatalog(String tableName)
     {
         metastore.dropTable(getSession().getSchema().orElseThrow(), tableName, false);
         assertThat(metastore.getTable(getSession().getSchema().orElseThrow(), tableName)).as("Table in metastore should be dropped").isEmpty();

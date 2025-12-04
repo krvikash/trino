@@ -90,7 +90,7 @@ final class TestIcebergLakekeeperCatalogConnectorSmokeTest
     }
 
     @Override
-    protected void dropTableFromMetastore(String tableName)
+    protected void dropTableFromCatalog(String tableName)
     {
         lakekeeperCatalog.dropWithoutPurge(getSession().getSchema().orElseThrow(), tableName);
     }

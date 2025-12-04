@@ -226,7 +226,7 @@ public class TestIcebergGlueCatalogConnectorSmokeTest
     }
 
     @Override
-    protected void dropTableFromMetastore(String tableName)
+    protected void dropTableFromCatalog(String tableName)
     {
         glueClient.deleteTable(x -> x.databaseName(schemaName).name(tableName));
         assertThatThrownBy(() -> getGlueTable(tableName))
