@@ -2425,13 +2425,13 @@ public class LocalExecutionPlanner
 
         private PhysicalOperation visitTableScan(PlanNodeId planNodeId, TableScanNode node, Expression filterExpression, LocalExecutionPlanContext context)
         {
-            List<ColumnHandle> columns = new ArrayList<>();
+            ImmutableList.Builder<ColumnHandle> columns = ImmutableList.builder();
             for (Symbol symbol : node.getOutputSymbols()) {
                 columns.add(node.getAssignments().get(symbol));
             }
 
             InternalDynamicFilter dynamicFilter = getDynamicFilter(node, filterExpression, context);
-            OperatorFactory operatorFactory = new TableScanOperatorFactory(context.getNextOperatorId(), planNodeId, node.getId(), pageSourceManager, node.getTable(), columns, dynamicFilter);
+            OperatorFactory operatorFactory = new TableScanOperatorFactory(context.getNextOperatorId(), planNodeId, node.getId(), pageSourceManager, node.getTable(), columns.build(), dynamicFilter);
             return new PhysicalOperation(operatorFactory, makeLayout(node));
         }
 
