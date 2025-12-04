@@ -40,38 +40,28 @@ public final class OpenApiQueryRunner
 
     private OpenApiQueryRunner() {}
 
-    public static Builder builder(Map<String, Map<String, String>> openAPICatalogs)
+    public static Builder builder()
     {
-        if (openAPICatalogs.isEmpty()) {
-            throw new IllegalArgumentException("openAPICatalogs is empty, required at least one catalog for a default.");
-        }
-        String initialCatalogName = openAPICatalogs.keySet().iterator().next();
-        Builder builder = new Builder(initialCatalogName);
-        openAPICatalogs.forEach(builder::addOpenAPICatalog);
-        return builder;
+        return new Builder();
     }
 
     public static final class Builder
             extends DistributedQueryRunner.Builder<Builder>
     {
-        private final Map<String, Map<String, String>> openAPICatalogs = new HashMap<>();
+        private final Map<String, String> connectorProperties = new HashMap<>();
 
-        private Builder(String initialCatalogName)
+        private Builder()
         {
             super(testSessionBuilder()
-                    .setCatalog(initialCatalogName)
+                    .setCatalog("openapi")
                     .setSchema("default")
                     .build());
         }
 
         @CanIgnoreReturnValue
-        public Builder addOpenAPICatalog(String catalogName, Map<String, String> catalogProperties)
+        public Builder addConnectorProperties(Map<String, String> connectorProperties)
         {
-            verify(
-                    catalogProperties.containsKey("openapi.spec-location") &&
-                            catalogProperties.containsKey("openapi.base-uri"),
-                    "catalogProperties must include spec-location and base-uri");
-            openAPICatalogs.put(catalogName, catalogProperties);
+            this.connectorProperties.putAll(connectorProperties);
             return this;
         }
 
@@ -80,13 +70,16 @@ public final class OpenApiQueryRunner
                 throws Exception
         {
             DistributedQueryRunner queryRunner = super.build();
+            verify(
+                    connectorProperties.containsKey("openapi.spec-location") &&
+                            connectorProperties.containsKey("openapi.base-uri"),
+                    "connectorProperties must include spec-location and base-uri");
             try {
                 queryRunner.installPlugin(new MemoryPlugin());
                 queryRunner.createCatalog("memory", "memory");
 
                 queryRunner.installPlugin(new OpenApiPlugin());
-                openAPICatalogs.forEach((name, properties) ->
-                        queryRunner.createCatalog(name, "openapi", properties));
+                queryRunner.createCatalog("openapi", "openapi", connectorProperties);
 
                 return queryRunner;
             }
@@ -101,11 +94,12 @@ public final class OpenApiQueryRunner
             throws Exception
     {
         FastApiServer fastApiServer = new FastApiServer();
-        ImmutableMap<String, String> openapiProperties = ImmutableMap.of(
-                "openapi.http-client.log.enabled", "true",
-                "openapi.spec-location", fastApiServer.getSpecUrl(),
-                "openapi.base-uri", fastApiServer.getApiUrl());
-        QueryRunner queryRunner = builder(Map.of("openapi", openapiProperties))
+        QueryRunner queryRunner = builder()
+                .addConnectorProperties(ImmutableMap.<String, String>builder()
+                        .put("openapi.http-client.log.enabled", "true")
+                        .put("openapi.spec-location", fastApiServer.getSpecUrl())
+                        .put("openapi.base-uri", fastApiServer.getApiUrl())
+                        .buildOrThrow())
                 .addCoordinatorProperty("http-server.http.port", "8080")
                 .build();
         Logger log = Logger.get(OpenApiQueryRunner.class);

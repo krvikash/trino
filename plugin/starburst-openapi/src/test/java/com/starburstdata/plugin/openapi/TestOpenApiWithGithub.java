@@ -43,7 +43,9 @@ final class TestOpenApiWithGithub
                 .put("openapi.authentication.scheme", "bearer")
                 .put("openapi.authentication.bearer-token", requireNonNullElse(System.getenv("GITHUB_TOKEN"), ""))
                 .buildOrThrow();
-        return OpenApiQueryRunner.builder(Map.of("github", properties)).build();
+        return OpenApiQueryRunner.builder()
+                .addConnectorProperties(properties)
+                .build();
     }
 
     @Test

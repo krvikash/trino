@@ -24,7 +24,6 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -37,18 +36,17 @@ final class TestOpenApiWithFastApiServer
     {
         FastApiServer fastApiServer = closeAfterClass(new FastApiServer());
 
-        Map<String, String> fastApiProperties = ImmutableMap.<String, String>builder()
-                .put("openapi.spec-location", fastApiServer.getSpecUrl())
-                .put("openapi.base-uri", fastApiServer.getApiUrl())
-                .buildOrThrow();
-
-        return OpenApiQueryRunner.builder(Map.of("fastapi", fastApiProperties)).build();
+        return OpenApiQueryRunner.builder()
+                .addConnectorProperties(ImmutableMap.<String, String>builder()
+                        .put("openapi.spec-location", fastApiServer.getSpecUrl())
+                        .put("openapi.base-uri", fastApiServer.getApiUrl()).buildOrThrow())
+                .build();
     }
 
     @Test
     void testSelectItems()
     {
-        List<MaterializedRow> rows = getQueryRunner().execute("SELECT name, description, price, tax, tags, map_entries(properties), created_at, valid_until, revised_at FROM fastapi.default.items WHERE item_id = 1").getMaterializedRows();
+        List<MaterializedRow> rows = getQueryRunner().execute("SELECT name, description, price, tax, tags, map_entries(properties), created_at, valid_until, revised_at FROM openapi.default.items WHERE item_id = 1").getMaterializedRows();
         // can't use assertQuery, because array of dates read from H2 as not using LocalDate
         assertThat(rows).hasSize(1);
         assertThat(rows.getFirst().getFields()).containsExactly(
@@ -66,11 +64,11 @@ final class TestOpenApiWithFastApiServer
     @Test
     void testSearchItemsWithInPhrase()
     {
-        List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM fastapi.default.search WHERE item_ids IN (ARRAY['2'])").getMaterializedRows();
+        List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM openapi.default.search WHERE item_ids IN (ARRAY['2'])").getMaterializedRows();
         assertThat(rows).hasSize(1);
         assertThat(rows.getFirst().getFields()).first().isEqualTo("Plumbus");
 
-        rows = getQueryRunner().execute("SELECT name FROM fastapi.default.search WHERE item_ids IN (ARRAY['1', '2'])").getMaterializedRows();
+        rows = getQueryRunner().execute("SELECT name FROM openapi.default.search WHERE item_ids IN (ARRAY['1', '2'])").getMaterializedRows();
         assertThat(rows).hasSize(2);
     }
 
@@ -78,7 +76,7 @@ final class TestOpenApiWithFastApiServer
     void testSearchItemsWithSubQuery10k()
     {
         try (TestTable table = generateDataset("memory.default.test_items_10k", 10000)) {
-            List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM fastapi.default.search WHERE item_ids IN (select array_agg(item_id) from %s)".formatted(table.getName())).getMaterializedRows();
+            List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM openapi.default.search WHERE item_ids IN (select array_agg(item_id) from %s)".formatted(table.getName())).getMaterializedRows();
             assertThat(rows)
                     .extracting(row -> row.getFields().getFirst())
                     .containsExactly("Portal Gun", "Plumbus");
@@ -89,7 +87,7 @@ final class TestOpenApiWithFastApiServer
     void testSearchItemsWithSubQuery100k()
     {
         try (TestTable table = generateDataset("memory.default.test_items_100k", 100000)) {
-            List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM fastapi.default.search WHERE item_ids IN (select array_agg(item_id) from %s)".formatted(table.getName())).getMaterializedRows();
+            List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM openapi.default.search WHERE item_ids IN (select array_agg(item_id) from %s)".formatted(table.getName())).getMaterializedRows();
             assertThat(rows)
                     .extracting(row -> row.getFields().getFirst())
                     .containsExactly("Portal Gun", "Plumbus");
@@ -99,7 +97,7 @@ final class TestOpenApiWithFastApiServer
     @Test
     void testItemCategories()
     {
-        List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM fastapi.default.item_categories").getMaterializedRows();
+        List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM openapi.default.item_categories").getMaterializedRows();
         assertThat(rows).hasSize(1);
         assertThat(rows.getFirst().getFields()).first().isEqualTo("main");
     }
@@ -107,7 +105,7 @@ final class TestOpenApiWithFastApiServer
     @Test
     public void testItems()
     {
-        List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM fastapi.default.items").getMaterializedRows();
+        List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM openapi.default.items").getMaterializedRows();
         assertThat(rows)
                 .extracting(row -> row.getFields().getFirst())
                 .containsExactly("Portal Gun", "Plumbus");
@@ -116,7 +114,7 @@ final class TestOpenApiWithFastApiServer
     @Test
     void testErrors()
     {
-        assertQueryFails("SELECT * FROM fastapi.default.error", "Server responded with error 418: \"Oops! Inevitable error happened. There goes a rainbow...\"");
+        assertQueryFails("SELECT * FROM openapi.default.error", "Server responded with error 418: \"Oops! Inevitable error happened. There goes a rainbow...\"");
     }
 
     private TestTable generateDataset(String namePrefix, int elements)

@@ -13,11 +13,10 @@
  */
 package com.starburstdata.plugin.openapi;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.Test;
-
-import java.util.Map;
 
 final class TestOpenApiWithOpenMeteo
         extends AbstractTestQueryFramework
@@ -26,10 +25,11 @@ final class TestOpenApiWithOpenMeteo
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        return OpenApiQueryRunner.builder(Map.of(
-                "openmeteo", Map.of(
-                        "openapi.spec-location", "https://raw.githubusercontent.com/open-meteo/open-meteo/main/openapi.yml",
-                        "openapi.base-uri", "https://api.open-meteo.com")))
+        return OpenApiQueryRunner.builder()
+                .addConnectorProperties(ImmutableMap.<String, String>builder()
+                        .put("openapi.spec-location", "https://raw.githubusercontent.com/open-meteo/open-meteo/main/openapi.yml")
+                        .put("openapi.base-uri", "https://api.open-meteo.com")
+                        .buildOrThrow())
                 .build();
     }
 
@@ -37,10 +37,10 @@ final class TestOpenApiWithOpenMeteo
     void testSelectFromForecastTable()
     {
         assertQuery("SELECT elevation, timezone, current_weather.temperature BETWEEN -50 AND 100 AS is_livable " +
-                        "FROM openmeteo.default.v1_forecast WHERE latitude_req = 53.1325 AND longitude_req = 23.1688",
+                        "FROM openapi.default.v1_forecast WHERE latitude_req = 53.1325 AND longitude_req = 23.1688",
                 "VALUES (135.0, 'GMT', null)");
         assertQuery("SELECT elevation, timezone, current_weather.temperature BETWEEN -50 AND 100 AS is_livable " +
-                        "FROM openmeteo.default.v1_forecast WHERE latitude_req = 53.1325 AND longitude_req = 23.1688 AND current_weather_req = true",
+                        "FROM openapi.default.v1_forecast WHERE latitude_req = 53.1325 AND longitude_req = 23.1688 AND current_weather_req = true",
                 "VALUES (135.0, 'GMT', true)");
     }
 }
