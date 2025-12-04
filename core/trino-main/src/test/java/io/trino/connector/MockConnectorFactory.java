@@ -44,6 +44,7 @@ import io.trino.spi.connector.ConstraintApplicationResult;
 import io.trino.spi.connector.JoinApplicationResult;
 import io.trino.spi.connector.JoinStatistics;
 import io.trino.spi.connector.JoinType;
+import io.trino.spi.connector.MaterializedViewFreshness;
 import io.trino.spi.connector.ProjectionApplicationResult;
 import io.trino.spi.connector.RelationColumnsMetadata;
 import io.trino.spi.connector.SchemaTableName;
@@ -110,6 +111,7 @@ public class MockConnectorFactory
     private final BiFunction<ConnectorSession, SchemaTablePrefix, Map<SchemaTableName, ConnectorMaterializedViewDefinition>> getMaterializedViews;
     private final BiFunction<ConnectorSession, SchemaTableName, Boolean> delegateMaterializedViewRefreshToConnector;
     private final BiFunction<ConnectorSession, SchemaTableName, CompletableFuture<?>> refreshMaterializedView;
+    private final Optional<BiFunction<ConnectorSession, SchemaTableName, MaterializedViewFreshness>> getMaterializedViewFreshness;
     private final BiFunction<ConnectorSession, SchemaTableName, ConnectorTableHandle> getTableHandle;
     private final Function<SchemaTableName, List<ColumnMetadata>> getColumns;
     private final Function<SchemaTableName, Optional<String>> getComment;
@@ -172,6 +174,7 @@ public class MockConnectorFactory
             BiFunction<ConnectorSession, SchemaTablePrefix, Map<SchemaTableName, ConnectorMaterializedViewDefinition>> getMaterializedViews,
             BiFunction<ConnectorSession, SchemaTableName, Boolean> delegateMaterializedViewRefreshToConnector,
             BiFunction<ConnectorSession, SchemaTableName, CompletableFuture<?>> refreshMaterializedView,
+            Optional<BiFunction<ConnectorSession, SchemaTableName, MaterializedViewFreshness>> getMaterializedViewFreshness,
             BiFunction<ConnectorSession, SchemaTableName, ConnectorTableHandle> getTableHandle,
             Function<SchemaTableName, List<ColumnMetadata>> getColumns,
             Function<SchemaTableName, Optional<String>> getComment,
@@ -230,6 +233,7 @@ public class MockConnectorFactory
         this.getMaterializedViews = requireNonNull(getMaterializedViews, "getMaterializedViews is null");
         this.delegateMaterializedViewRefreshToConnector = requireNonNull(delegateMaterializedViewRefreshToConnector, "delegateMaterializedViewRefreshToConnector is null");
         this.refreshMaterializedView = requireNonNull(refreshMaterializedView, "refreshMaterializedView is null");
+        this.getMaterializedViewFreshness = requireNonNull(getMaterializedViewFreshness, "getMaterializedViewFreshness is null");
         this.getTableHandle = requireNonNull(getTableHandle, "getTableHandle is null");
         this.getColumns = requireNonNull(getColumns, "getColumns is null");
         this.getComment = requireNonNull(getComment, "getComment is null");
@@ -298,6 +302,7 @@ public class MockConnectorFactory
                 getMaterializedViews,
                 delegateMaterializedViewRefreshToConnector,
                 refreshMaterializedView,
+                getMaterializedViewFreshness,
                 getTableHandle,
                 getColumns,
                 getComment,
@@ -453,6 +458,7 @@ public class MockConnectorFactory
         private BiFunction<ConnectorSession, SchemaTablePrefix, Map<SchemaTableName, ConnectorMaterializedViewDefinition>> getMaterializedViews = defaultGetMaterializedViews();
         private BiFunction<ConnectorSession, SchemaTableName, Boolean> delegateMaterializedViewRefreshToConnector = (session, viewName) -> false;
         private BiFunction<ConnectorSession, SchemaTableName, CompletableFuture<?>> refreshMaterializedView = (session, viewName) -> CompletableFuture.completedFuture(null);
+        private Optional<BiFunction<ConnectorSession, SchemaTableName, MaterializedViewFreshness>> getMaterializedViewFreshness = Optional.empty();
         private BiFunction<ConnectorSession, SchemaTableName, ConnectorTableHandle> getTableHandle = defaultGetTableHandle();
         private Function<SchemaTableName, List<ColumnMetadata>> getColumns = defaultGetColumns();
         private Function<SchemaTableName, Optional<String>> getComment = schemaTableName -> Optional.empty();
@@ -594,6 +600,12 @@ public class MockConnectorFactory
         public Builder withRefreshMaterializedView(BiFunction<ConnectorSession, SchemaTableName, CompletableFuture<?>> refreshMaterializedView)
         {
             this.refreshMaterializedView = requireNonNull(refreshMaterializedView, "refreshMaterializedView is null");
+            return this;
+        }
+
+        public Builder withGetMaterializedViewsFreshness(BiFunction<ConnectorSession, SchemaTableName, MaterializedViewFreshness> getMaterializedViewFreshness)
+        {
+            this.getMaterializedViewFreshness = Optional.of(getMaterializedViewFreshness);
             return this;
         }
 
@@ -902,6 +914,7 @@ public class MockConnectorFactory
                     getMaterializedViews,
                     delegateMaterializedViewRefreshToConnector,
                     refreshMaterializedView,
+                    getMaterializedViewFreshness,
                     getTableHandle,
                     getColumns,
                     getComment,
