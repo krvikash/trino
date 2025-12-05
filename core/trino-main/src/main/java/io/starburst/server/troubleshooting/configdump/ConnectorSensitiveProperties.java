@@ -59,6 +59,15 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password"))
+            .put("datasketches",
+                    ImmutableSet.of(
+                            "http-server.authentication.oauth2.client-secret",
+                            "http-server.authentication.oauth2.refresh-tokens.secret-key",
+                            "internal-communication.https.keystore.key",
+                            "internal-communication.https.truststore.key",
+                            "internal-communication.shared-secret",
+                            "protocol.spooling.shared-secret-key",
+                            "web-ui.shared-secret"))
             .put("delta_lake",
                     ImmutableSet.of(
                             "azure.access-key",
