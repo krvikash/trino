@@ -782,7 +782,7 @@ public class LocalExecutionPlanner
             boolean inputDriver = context.isInputDriver();
             OptionalInt driverInstances = context.getDriverInstanceCount();
             List<OperatorFactory> operatorFactories = physicalOperation.pipelineTail;
-            addLookupOuterDrivers(outputDriver, operatorFactories, isParallelizeLookupOuterOperator(context.getTaskContext().getSession()) ? driverInstances : OptionalInt.of(1));
+            addLookupOuterDrivers(outputDriver, operatorFactories);
             if (physicalOperation.pipelineHeadAlternatives.isEmpty()) {
                 addDriverFactory(inputDriver, outputDriver, operatorFactories, driverInstances);
             }
@@ -826,7 +826,7 @@ public class LocalExecutionPlanner
             }
         }
 
-        private void addLookupOuterDrivers(boolean isOutputDriver, List<OperatorFactory> operatorFactories, OptionalInt driverInstanceCount)
+        private void addLookupOuterDrivers(boolean isOutputDriver, List<OperatorFactory> operatorFactories)
         {
             // For an outer join on the lookup side (RIGHT or FULL) add an additional
             // driver to output the unused rows in the lookup source
@@ -836,7 +836,7 @@ public class LocalExecutionPlanner
                     continue;
                 }
 
-                Optional<OperatorFactory> outerOperatorFactoryResult = lookupJoin.createOuterOperatorFactory();
+                Optional<JoinOperatorFactory.OuterOperatorFactory> outerOperatorFactoryResult = lookupJoin.createOuterOperatorFactory();
                 if (outerOperatorFactoryResult.isPresent()) {
                     // Add a new driver to output the unmatched rows in an outer join.
                     // We duplicate all of the factories above the JoinOperator (the ones reading from the joins),
@@ -847,7 +847,9 @@ public class LocalExecutionPlanner
                             .map(OperatorFactory::duplicate)
                             .forEach(newOperators::add);
 
-                    addDriverFactory(false, isOutputDriver, newOperators.build(), driverInstanceCount);
+                    int expectedOuterOperatorCount = outerOperatorFactoryResult.get().getPartitionCount().orElse(1);
+
+                    addDriverFactory(false, isOutputDriver, newOperators.build(), OptionalInt.of(expectedOuterOperatorCount));
                 }
             }
         }
@@ -2761,7 +2763,8 @@ public class LocalExecutionPlanner
                         Optional.empty(),
                         totalOperatorsCount,
                         unsupportedPartitioningSpillerFactory(),
-                        hashCompiler);
+                        hashCompiler,
+                        OptionalInt.empty());
                 case SOURCE_OUTER -> spillingJoin(
                         JoinOperatorType.probeOuterJoin(false),
                         context.getNextOperatorId(),
@@ -2772,7 +2775,8 @@ public class LocalExecutionPlanner
                         Optional.empty(),
                         totalOperatorsCount,
                         unsupportedPartitioningSpillerFactory(),
-                        hashCompiler);
+                        hashCompiler,
+                        OptionalInt.empty());
             };
             return new PhysicalOperation(lookupJoinOperatorFactory, outputMappings.buildOrThrow(), probeSource);
         }
@@ -3254,7 +3258,10 @@ public class LocalExecutionPlanner
                         Optional.of(probeOutputChannels),
                         totalOperatorsCount,
                         partitioningSpillerFactory,
-                        hashCompiler);
+                        hashCompiler,
+                        isParallelizeLookupOuterOperator(session)
+                                ? OptionalInt.of(partitionCount)
+                                : OptionalInt.empty());
             }
             else {
                 JoinBridgeManager<io.trino.operator.join.unspilled.PartitionedLookupSourceFactory> lookupSourceFactory = new JoinBridgeManager<>(
@@ -3302,7 +3309,10 @@ public class LocalExecutionPlanner
                         probeTypes,
                         probeJoinChannels,
                         Optional.of(probeOutputChannels),
-                        hashCompiler);
+                        hashCompiler,
+                        isParallelizeLookupOuterOperator(session)
+                                ? OptionalInt.of(partitionCount)
+                                : OptionalInt.empty());
             }
 
             ImmutableMap.Builder<Symbol, Integer> outputMappings = ImmutableMap.builder();

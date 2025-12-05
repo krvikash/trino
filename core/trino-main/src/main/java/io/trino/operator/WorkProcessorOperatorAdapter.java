@@ -77,7 +77,7 @@ public class WorkProcessorOperatorAdapter
         }
 
         @Override
-        public Optional<OperatorFactory> createOuterOperatorFactory()
+        public Optional<JoinOperatorFactory.OuterOperatorFactory> createOuterOperatorFactory()
         {
             if (!(operatorFactory instanceof JoinOperatorFactory lookupJoin)) {
                 return Optional.empty();

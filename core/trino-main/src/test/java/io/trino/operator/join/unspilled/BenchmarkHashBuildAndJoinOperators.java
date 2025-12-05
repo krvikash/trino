@@ -55,6 +55,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -231,7 +232,8 @@ public class BenchmarkHashBuildAndJoinOperators
                     types,
                     hashChannels,
                     Optional.of(outputChannels),
-                    HASH_COMPILER);
+                    HASH_COMPILER,
+                    OptionalInt.empty());
             buildHash(this, lookupSourceFactory, outputChannels, partitionCount);
             initializeProbePages();
         }

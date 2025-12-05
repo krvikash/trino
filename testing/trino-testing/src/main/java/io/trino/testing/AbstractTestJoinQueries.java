@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Timeout;
 import java.util.List;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.trino.SystemSessionProperties.JOIN_PARTITIONED_BUILD_MIN_ROW_COUNT;
 import static io.trino.SystemSessionProperties.JOIN_REORDERING_STRATEGY;
 import static io.trino.SystemSessionProperties.PARALLELIZE_LOOKUP_OUTER_OPERATOR;
 import static io.trino.SystemSessionProperties.TASK_CONCURRENCY;
@@ -2444,6 +2445,7 @@ public abstract class AbstractTestJoinQueries
         assertLookupOuterOperatorParallelization(
                 Session.builder(getSession())
                         .setSystemProperty(TASK_CONCURRENCY, Integer.toString(taskConcurrency))
+                        .setSystemProperty(JOIN_PARTITIONED_BUILD_MIN_ROW_COUNT, "0")  // This should ensure that we use partitioned hash table
                         .build(),
                 actual,
                 expected,
@@ -2452,6 +2454,7 @@ public abstract class AbstractTestJoinQueries
         assertLookupOuterOperatorParallelization(
                 Session.builder(getSession())
                         .setSystemProperty(TASK_CONCURRENCY, Integer.toString(taskConcurrency))
+                        .setSystemProperty(JOIN_PARTITIONED_BUILD_MIN_ROW_COUNT, "0") // This should ensure that we use partitioned hash table
                         .setSystemProperty(PARALLELIZE_LOOKUP_OUTER_OPERATOR, "false")
                         .build(),
                 actual,

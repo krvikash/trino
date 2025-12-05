@@ -16,8 +16,15 @@ package io.trino.operator.join;
 import io.trino.operator.OperatorFactory;
 
 import java.util.Optional;
+import java.util.OptionalInt;
 
 public interface JoinOperatorFactory
 {
-    Optional<OperatorFactory> createOuterOperatorFactory();
+    Optional<OuterOperatorFactory> createOuterOperatorFactory();
+
+    abstract class OuterOperatorFactory
+            implements OperatorFactory
+    {
+        public abstract OptionalInt getPartitionCount();
+    }
 }

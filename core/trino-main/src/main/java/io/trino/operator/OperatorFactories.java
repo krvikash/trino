@@ -44,7 +44,8 @@ public final class OperatorFactories
             List<Type> probeTypes,
             List<Integer> probeJoinChannel,
             Optional<List<Integer>> probeOutputChannelsOptional,
-            NullSafeHashCompiler hashCompiler)
+            NullSafeHashCompiler hashCompiler,
+            OptionalInt outerOperatorPartitionCount)
     {
         List<Integer> probeOutputChannels = probeOutputChannelsOptional.orElseGet(() -> rangeList(probeTypes.size()));
         List<Type> probeOutputChannelTypes = probeOutputChannels.stream()
@@ -63,7 +64,8 @@ public final class OperatorFactories
                 probeOutputChannelTypes,
                 lookupSourceFactory.getBuildOutputTypes(),
                 joinType,
-                new JoinProbe.JoinProbeFactory(probeOutputChannels, probeJoinChannel, hasFilter, hashGenerator)));
+                new JoinProbe.JoinProbeFactory(probeOutputChannels, probeJoinChannel, hasFilter, hashGenerator),
+                outerOperatorPartitionCount));
     }
 
     public static OperatorFactory spillingJoin(
@@ -76,7 +78,8 @@ public final class OperatorFactories
             Optional<List<Integer>> probeOutputChannelsOptional,
             OptionalInt totalOperatorsCount,
             PartitioningSpillerFactory partitioningSpillerFactory,
-            NullSafeHashCompiler hashCompiler)
+            NullSafeHashCompiler hashCompiler,
+            OptionalInt outerOperatorPartitionCount)
     {
         List<Integer> probeOutputChannels = probeOutputChannelsOptional.orElseGet(() -> rangeList(probeTypes.size()));
         List<Type> probeOutputChannelTypes = probeOutputChannels.stream()
@@ -95,7 +98,8 @@ public final class OperatorFactories
                 hashCompiler,
                 totalOperatorsCount,
                 probeJoinChannel,
-                partitioningSpillerFactory));
+                partitioningSpillerFactory,
+                outerOperatorPartitionCount));
     }
 
     private static List<Integer> rangeList(int endExclusive)

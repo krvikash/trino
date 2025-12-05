@@ -234,7 +234,8 @@ public class BenchmarkHashBuildAndJoinOperators
                     Optional.of(outputChannels),
                     OptionalInt.empty(),
                     unsupportedPartitioningSpillerFactory(),
-                    HASH_COMPILER);
+                    HASH_COMPILER,
+                    OptionalInt.empty());
             buildHash(this, lookupSourceFactory, outputChannels, partitionCount);
             initializeProbePages();
         }

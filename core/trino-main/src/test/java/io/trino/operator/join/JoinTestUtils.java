@@ -101,7 +101,8 @@ public final class JoinTestUtils
                 Optional.empty(),
                 OptionalInt.of(1),
                 partitioningSpillerFactory,
-                HASH_COMPILER);
+                HASH_COMPILER,
+                OptionalInt.empty());
     }
 
     public static void instantiateBuildDrivers(BuildSideSetup buildSideSetup, TaskContext taskContext)

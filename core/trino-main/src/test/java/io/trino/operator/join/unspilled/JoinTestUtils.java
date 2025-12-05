@@ -45,6 +45,7 @@ import io.trino.type.BlockTypeOperators;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.function.Function;
@@ -91,7 +92,8 @@ public final class JoinTestUtils
                 probePages.getTypes(),
                 probePages.getHashChannels().orElseThrow(),
                 Optional.empty(),
-                HASH_COMPILER);
+                HASH_COMPILER,
+                OptionalInt.empty());
     }
 
     public static void instantiateBuildDrivers(BuildSideSetup buildSideSetup, TaskContext taskContext)

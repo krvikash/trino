@@ -15,7 +15,6 @@ package io.trino.operator.join.unspilled;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.operator.JoinOperatorType;
-import io.trino.operator.OperatorFactory;
 import io.trino.operator.ProcessorContext;
 import io.trino.operator.WorkProcessor;
 import io.trino.operator.WorkProcessorOperator;
@@ -31,6 +30,7 @@ import io.trino.sql.planner.plan.PlanNodeId;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -49,7 +49,7 @@ public class LookupJoinOperatorFactory
     private final boolean outputSingleMatch;
     private final boolean waitForBuild;
     private final JoinProbeFactory joinProbeFactory;
-    private final Optional<OperatorFactory> outerOperatorFactory;
+    private final Optional<OuterOperatorFactory> outerOperatorFactory;
     private final JoinBridgeManager<? extends PartitionedLookupSourceFactory> joinBridgeManager;
 
     private boolean closed;
@@ -62,7 +62,8 @@ public class LookupJoinOperatorFactory
             List<Type> probeOutputTypes,
             List<Type> buildOutputTypes,
             JoinOperatorType joinOperatorType,
-            JoinProbeFactory joinProbeFactory)
+            JoinProbeFactory joinProbeFactory,
+            OptionalInt outerOperatorPartitionCount)
     {
         this.operatorId = operatorId;
         this.planNodeId = requireNonNull(planNodeId, "planNodeId is null");
@@ -85,7 +86,8 @@ public class LookupJoinOperatorFactory
                     planNodeId,
                     probeOutputTypes,
                     buildOutputTypes,
-                    lookupSourceFactoryManager));
+                    lookupSourceFactoryManager,
+                    outerOperatorPartitionCount));
         }
     }
 
@@ -110,7 +112,7 @@ public class LookupJoinOperatorFactory
     }
 
     @Override
-    public Optional<OperatorFactory> createOuterOperatorFactory()
+    public Optional<OuterOperatorFactory> createOuterOperatorFactory()
     {
         return outerOperatorFactory;
     }

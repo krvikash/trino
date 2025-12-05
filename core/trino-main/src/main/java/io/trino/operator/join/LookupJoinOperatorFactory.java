@@ -18,7 +18,6 @@ import com.google.common.primitives.Ints;
 import io.trino.operator.HashGenerator;
 import io.trino.operator.JoinOperatorType;
 import io.trino.operator.NullSafeHashCompiler;
-import io.trino.operator.OperatorFactory;
 import io.trino.operator.ProcessorContext;
 import io.trino.operator.WorkProcessor;
 import io.trino.operator.WorkProcessorOperator;
@@ -61,7 +60,7 @@ public class LookupJoinOperatorFactory
     private final boolean outputSingleMatch;
     private final boolean waitForBuild;
     private final JoinProbeFactory joinProbeFactory;
-    private final Optional<OperatorFactory> outerOperatorFactory;
+    private final Optional<OuterOperatorFactory> outerOperatorFactory;
     private final JoinBridgeManager<? extends LookupSourceFactory> joinBridgeManager;
     private final OptionalInt totalOperatorsCount;
     private final HashGenerator probeHashGenerator;
@@ -81,7 +80,8 @@ public class LookupJoinOperatorFactory
             NullSafeHashCompiler hashCompiler,
             OptionalInt totalOperatorsCount,
             List<Integer> probeJoinChannels,
-            PartitioningSpillerFactory partitioningSpillerFactory)
+            PartitioningSpillerFactory partitioningSpillerFactory,
+            OptionalInt outerOperatorPartitionCount)
     {
         this.operatorId = operatorId;
         this.planNodeId = requireNonNull(planNodeId, "planNodeId is null");
@@ -104,7 +104,8 @@ public class LookupJoinOperatorFactory
                     planNodeId,
                     probeOutputTypes,
                     buildOutputTypes,
-                    lookupSourceFactoryManager));
+                    lookupSourceFactoryManager,
+                    outerOperatorPartitionCount));
         }
         this.totalOperatorsCount = requireNonNull(totalOperatorsCount, "totalOperatorsCount is null");
 
@@ -141,7 +142,7 @@ public class LookupJoinOperatorFactory
     }
 
     @Override
-    public Optional<OperatorFactory> createOuterOperatorFactory()
+    public Optional<OuterOperatorFactory> createOuterOperatorFactory()
     {
         return outerOperatorFactory;
     }

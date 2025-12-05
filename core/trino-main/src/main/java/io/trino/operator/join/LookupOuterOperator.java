@@ -26,18 +26,18 @@ import io.trino.spi.type.Type;
 import io.trino.sql.planner.plan.PlanNodeId;
 
 import java.util.List;
+import java.util.OptionalInt;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.tryGetFutureValue;
-import static io.trino.SystemSessionProperties.isParallelizeLookupOuterOperator;
 import static java.util.Objects.requireNonNull;
 
 public class LookupOuterOperator
         implements Operator
 {
     public static class LookupOuterOperatorFactory
-            implements OperatorFactory
+            extends JoinOperatorFactory.OuterOperatorFactory
     {
         private final int operatorId;
         private final PlanNodeId planNodeId;
@@ -46,6 +46,7 @@ public class LookupOuterOperator
         private final JoinBridgeManager<?> joinBridgeManager;
 
         private int nextPartitionIndex;
+        private final OptionalInt partitionCount;
 
         private boolean closed;
 
@@ -54,7 +55,8 @@ public class LookupOuterOperator
                 PlanNodeId planNodeId,
                 List<Type> probeOutputTypes,
                 List<Type> buildOutputTypes,
-                JoinBridgeManager<?> joinBridgeManager)
+                JoinBridgeManager<?> joinBridgeManager,
+                OptionalInt outerOperatorPartition)
         {
             this.operatorId = operatorId;
             this.planNodeId = requireNonNull(planNodeId, "planNodeId is null");
@@ -62,6 +64,7 @@ public class LookupOuterOperator
             this.buildOutputTypes = ImmutableList.copyOf(requireNonNull(buildOutputTypes, "buildOutputTypes is null"));
             this.joinBridgeManager = joinBridgeManager;
             joinBridgeManager.incrementOuterFactoryCount();
+            this.partitionCount = requireNonNull(outerOperatorPartition, "partitionCount is null");
         }
 
         public int getOperatorId()
@@ -75,7 +78,7 @@ public class LookupOuterOperator
             checkState(!closed, "LookupOuterOperatorFactory is closed");
 
             ListenableFuture<OuterPositionIterator> outerPositionsFuture;
-            if (isParallelizeLookupOuterOperator(driverContext.getSession())) {
+            if (partitionCount.isPresent()) {
                 int partitionIndex = this.nextPartitionIndex++;
                 outerPositionsFuture = joinBridgeManager.getOuterPositionsFuture(partitionIndex);
             }
@@ -86,6 +89,12 @@ public class LookupOuterOperator
             OperatorContext operatorContext = driverContext.addOperatorContext(operatorId, planNodeId, LookupOuterOperator.class.getSimpleName());
             joinBridgeManager.outerOperatorCreated();
             return new LookupOuterOperator(operatorContext, outerPositionsFuture, probeOutputTypes, buildOutputTypes, joinBridgeManager::outerOperatorClosed);
+        }
+
+        @Override
+        public OptionalInt getPartitionCount()
+        {
+            return partitionCount;
         }
 
         @Override
