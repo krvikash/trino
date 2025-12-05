@@ -43,7 +43,8 @@ public class OracleTestUsers
         oracleServer.executeInOracle(format("GRANT SELECT ON user_context to %s", BOB_USER));
     }
 
-    public static void createUser(TestingStarburstOracleServer oracleServer, String user)
+    // Synchronized, because concurrent use of this method with the same DB instance and user may cause deadlocks
+    public static synchronized void createUser(TestingStarburstOracleServer oracleServer, String user)
     {
         try {
             oracleServer.executeInOracle(format("CREATE USER %s IDENTIFIED BY \"vier1Str0ngP@55vvord\"", user));
