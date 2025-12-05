@@ -16,7 +16,6 @@
     <properties>
         <air.main.basedir>${project.parent.parent.basedir}</air.main.basedir>
         <dep.jersey.version>3.1.9</dep.jersey.version>
-        <dep.swagger.version>2.2.27</dep.swagger.version>
     </properties>
 
     <dependencies>
