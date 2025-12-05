@@ -16,8 +16,6 @@ import com.google.common.collect.ImmutableList;
 import com.openai.client.OpenAIClient;
 import com.openai.core.JsonValue;
 import com.openai.core.http.StreamResponse;
-import com.openai.errors.InternalServerException;
-import com.openai.errors.RateLimitException;
 import com.openai.helpers.ChatCompletionAccumulator;
 import com.openai.models.FunctionDefinition;
 import com.openai.models.FunctionParameters;
@@ -28,65 +26,39 @@ import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import com.openai.models.chat.completions.ChatCompletionMessage;
 import com.openai.models.chat.completions.ChatCompletionTool;
 import com.openai.models.completions.CompletionUsage;
-import dev.failsafe.Failsafe;
-import dev.failsafe.RetryPolicy;
-import io.airlift.json.ObjectMapperProvider;
 import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
-import io.starburst.ai.client.AbstractLanguageModelClient;
 import io.starburst.ai.client.LlmMessage;
 import io.starburst.ai.client.PromptDao;
 import io.starburst.ai.client.ToolDefinition;
 import io.starburst.ai.client.ToolUseResponse;
 import io.trino.spi.TrinoException;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
-import static io.opentelemetry.api.trace.StatusCode.ERROR;
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_OPENAI_RESPONSE_SERVICE_TIER;
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_OPENAI_RESPONSE_SYSTEM_FINGERPRINT;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_OPERATION_NAME;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_REQUEST_MODEL;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_REQUEST_SEED;
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_RESPONSE_ID;
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_RESPONSE_MODEL;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_SYSTEM;
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_USAGE_INPUT_TOKENS;
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_USAGE_OUTPUT_TOKENS;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GenAiOperationNameIncubatingValues.CHAT;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GenAiSystemIncubatingValues.OPENAI;
 import static io.starburst.ai.client.AiClientErrorCode.AI_CLIENT_ERROR;
-import static io.starburst.ai.client.MessageRole.USER;
 import static java.util.Objects.requireNonNull;
 
 public class OpenAiLanguageModelClient
-        extends AbstractLanguageModelClient
+        extends AbstractOpenAiClient<ChatCompletion>
 {
-    private static final int SEED = 37;
-    private static final RetryPolicy<ChatCompletion> RATE_LIMIT_RETRY_POLICY = RetryPolicy.<ChatCompletion>builder()
-            .handleIf(OpenAiLanguageModelClient::isRetryable)
-            .withMaxRetries(4)
-            .withBackoff(Duration.ofMillis(500), Duration.ofMinutes(2))
-            .withJitter(0.25)
-            .build();
-
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapperProvider().get();
-
     private final Optional<Float> temperature;
     private final Optional<Integer> maxTokens;
     private final Optional<Float> topP;
     private final boolean useDeveloperForSystemRole;
-    private final Tracer tracer;
     private final String modelName;
     private final boolean isGeminiEndpoint;
     private final OpenAIClient client;
-    private final boolean isToolStreamingSupported;
+    private final ObjectMapper objectMapper;
 
     public OpenAiLanguageModelClient(
             String modelName,
@@ -95,6 +67,7 @@ public class OpenAiLanguageModelClient
             Optional<Float> topP,
             boolean useDeveloperForSystemRole,
             PromptDao promptDao,
+            ObjectMapper objectMapper,
             Executor executor,
             int batchParallelism,
             Tracer tracer,
@@ -102,28 +75,21 @@ public class OpenAiLanguageModelClient
             OpenAIClient client,
             boolean isToolStreamingSupported)
     {
-        super(promptDao, executor, batchParallelism);
+        super(modelName, promptDao, executor, batchParallelism, tracer, isToolStreamingSupported, true);
         this.temperature = requireNonNull(temperature, "temperature is null");
         this.maxTokens = requireNonNull(maxTokens, "maxTokens is null");
         this.topP = requireNonNull(topP, "topP is null");
         this.useDeveloperForSystemRole = useDeveloperForSystemRole;
-        this.tracer = requireNonNull(tracer, "tracer is null");
         this.modelName = requireNonNull(modelName, "modelName is null");
         this.isGeminiEndpoint = isGeminiEndpoint;
         this.client = requireNonNull(client, "client is null");
-        this.isToolStreamingSupported = isToolStreamingSupported;
-    }
-
-    @Override
-    protected String generateCompletion(List<String> systemPrompts, String prompt)
-    {
-        return generateCompletion(systemPrompts, ImmutableList.of(new LlmMessage(USER, prompt)));
+        this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
     }
 
     @Override
     protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> llmMessages)
     {
-        ChatCompletion response = getChatCompletion(() -> client.chat().completions().create(buildChatCompletionCreateParams(systemPrompts, llmMessages).build()));
+        ChatCompletion response = execute(() -> client.chat().completions().create(buildChatCompletionCreateParams(systemPrompts, llmMessages).build()));
         ChatCompletionMessage message = response.choices().stream()
                 .map(ChatCompletion.Choice::message)
                 .findFirst()
@@ -145,29 +111,17 @@ public class OpenAiLanguageModelClient
         ChatCompletionCreateParams.Builder builder = buildChatCompletionCreateParams(systemPrompts, messages);
         tools.forEach(tool -> builder.addTool(toOpenAiTool(tool)));
 
-        ChatCompletion response = getChatCompletion(() -> Failsafe.with(RATE_LIMIT_RETRY_POLICY).get(() -> client.chat().completions().create(builder.build())));
+        ChatCompletion response = execute(() -> client.chat().completions().create(builder.build()));
 
-        return parseOpenAiToolResponse(response);
+        return parseToolResponse(response);
     }
 
     @Override
-    protected ToolUseResponse generateCompletionWithTools(
-            List<String> systemPrompts,
-            List<LlmMessage> llmMessages,
-            List<ToolDefinition<?>> tools,
-            Consumer<String> output)
+    protected ChatCompletion streamToolResponse(List<String> systemPrompts, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output)
     {
-        if (!isToolStreamingSupported) {
-            ToolUseResponse response = generateCompletionWithTools(systemPrompts, llmMessages, tools);
-            output.accept(response.textResponse());
-            return response;
-        }
-        ChatCompletionCreateParams.Builder builder = buildChatCompletionCreateParams(systemPrompts, llmMessages);
+        ChatCompletionCreateParams.Builder builder = buildChatCompletionCreateParams(systemPrompts, messages);
         tools.forEach(tool -> builder.addTool(toOpenAiTool(tool)));
-
-        ChatCompletion response = getChatCompletion(() -> stream(builder.build(), output));
-
-        return parseOpenAiToolResponse(response);
+        return stream(builder.build(), output);
     }
 
     private ChatCompletion stream(ChatCompletionCreateParams params, Consumer<String> output)
@@ -216,39 +170,18 @@ public class OpenAiLanguageModelClient
         return builder;
     }
 
-    ChatCompletion getChatCompletion(Supplier<ChatCompletion> getOpenAiResponse)
+    @Override
+    protected void recordUsage(Span span, ChatCompletion chatCompletion)
     {
-        Span span = tracer.spanBuilder(CHAT + " " + modelName)
-                .setAttribute(GEN_AI_OPERATION_NAME, CHAT)
-                .setAttribute(GEN_AI_SYSTEM, OPENAI)
-                .setAttribute(GEN_AI_REQUEST_MODEL, modelName)
-                .setAttribute(GEN_AI_REQUEST_SEED, SEED)
-                .setSpanKind(SpanKind.CLIENT)
-                .startSpan();
-
-        try (var _ = span.makeCurrent()) {
-            ChatCompletion response = Failsafe.with(RATE_LIMIT_RETRY_POLICY).get(getOpenAiResponse::get);
-
-            span.setAttribute(GEN_AI_RESPONSE_ID, response.id());
-            span.setAttribute(GEN_AI_RESPONSE_MODEL, response.model());
-            span.setAttribute(GEN_AI_OPENAI_RESPONSE_SERVICE_TIER, response.serviceTier()
-                    .map(ChatCompletion.ServiceTier::value)
-                    .map(ChatCompletion.ServiceTier.Value::name)
-                    .orElse(""));
-            span.setAttribute(GEN_AI_OPENAI_RESPONSE_SYSTEM_FINGERPRINT, response.systemFingerprint().orElse(""));
-            span.setAttribute(GEN_AI_USAGE_INPUT_TOKENS, response.usage().map(CompletionUsage::promptTokens).orElse(0L));
-            span.setAttribute(GEN_AI_USAGE_OUTPUT_TOKENS, response.usage().map(CompletionUsage::completionTokens).orElse(0L));
-
-            return response;
-        }
-        catch (RuntimeException e) {
-            span.setStatus(ERROR, e.getMessage());
-            span.recordException(e);
-            throw new TrinoException(AI_CLIENT_ERROR, "Failed to execute AI request with tools", e);
-        }
-        finally {
-            span.end();
-        }
+        span.setAttribute(GEN_AI_RESPONSE_ID, chatCompletion.id());
+        span.setAttribute(GEN_AI_RESPONSE_MODEL, chatCompletion.model());
+        span.setAttribute(GEN_AI_OPENAI_RESPONSE_SERVICE_TIER, chatCompletion.serviceTier()
+                .map(ChatCompletion.ServiceTier::value)
+                .map(ChatCompletion.ServiceTier.Value::name)
+                .orElse(""));
+        span.setAttribute(GEN_AI_OPENAI_RESPONSE_SYSTEM_FINGERPRINT, chatCompletion.systemFingerprint().orElse(""));
+        span.setAttribute(GEN_AI_USAGE_INPUT_TOKENS, chatCompletion.usage().map(CompletionUsage::promptTokens).orElse(0L));
+        span.setAttribute(GEN_AI_USAGE_OUTPUT_TOKENS, chatCompletion.usage().map(CompletionUsage::completionTokens).orElse(0L));
     }
 
     private static ChatCompletionTool toOpenAiTool(ToolDefinition<?> toolDef)
@@ -280,7 +213,8 @@ public class OpenAiLanguageModelClient
         }
     }
 
-    private ToolUseResponse parseOpenAiToolResponse(ChatCompletion response)
+    @Override
+    protected ToolUseResponse parseToolResponse(ChatCompletion response)
     {
         ChatCompletionMessage message = response.choices().stream()
                 .map(ChatCompletion.Choice::message)
@@ -297,7 +231,7 @@ public class OpenAiLanguageModelClient
                     try {
                         // Parse the function arguments as JSON
                         String argumentsJson = toolCall.function().arguments();
-                        JsonNode inputNode = OBJECT_MAPPER.readTree(argumentsJson);
+                        JsonNode inputNode = objectMapper.readTree(argumentsJson);
 
                         toolCallBuilder.add(new ToolUseResponse.ToolCall(
                                 toolCall.id(),
@@ -318,10 +252,5 @@ public class OpenAiLanguageModelClient
                 .role(JsonValue.from("assistant"))
                 .content(content)
                 .build();
-    }
-
-    private static boolean isRetryable(Throwable t)
-    {
-        return t instanceof RateLimitException || t instanceof InternalServerException;
     }
 }

@@ -9,12 +9,14 @@
  */
 package io.starburst.ai.client.openai;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.openai.azure.AzureOpenAIServiceVersion;
 import com.openai.azure.credential.AzureApiKeyCredential;
 import com.openai.client.OpenAIClient;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
+import com.openai.models.ReasoningEffort;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
@@ -59,15 +61,17 @@ public class OpenAiClientFactory
     private final int batchParallelism;
     private final int maxRetries;
     private final Duration timeout;
+    private final ObjectMapper objectMapper;
 
     @Inject
-    public OpenAiClientFactory(SecretsResolver secretsResolver, AiClientConfig config, @ForAiClient Executor executor)
+    public OpenAiClientFactory(SecretsResolver secretsResolver, AiClientConfig config, @ForAiClient Executor executor, ObjectMapper objectMapper)
     {
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
         this.executor = requireNonNull(executor, "executor is null");
         batchParallelism = config.getBatchParallelism();
         maxRetries = config.getOpenAiMaxRetries();
         timeout = config.getOpenAiTimeout();
+        this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
     }
 
     @Override
@@ -86,6 +90,24 @@ public class OpenAiClientFactory
                 .orElse(false);
         boolean isStreamingToolCallSupported = spec.traits().getOrDefault(STREAMING_TOOL_CALL_SUPPORT, STREAMING_TOOL_CALL_SUPPORTED.name())
                 .equals(STREAMING_TOOL_CALL_SUPPORTED.name());
+
+        OpenAIClient openAiClient = createOpenAiClient(updatedConnectionInfo, azureOpenAiConnectionInfo);
+        if (spec.useResponsesApi()) {
+            return new OpenAiResponsesLanguageModelClient(
+                    modelName,
+                    spec.temperature(),
+                    spec.maxTokens(),
+                    spec.topP(),
+                    spec.useDeveloperForSystemRole(),
+                    promptDao,
+                    objectMapper,
+                    executor,
+                    batchParallelism,
+                    tracer,
+                    openAiClient,
+                    isStreamingToolCallSupported,
+                    spec.reasoningEffort().map(Enum::name).map(ReasoningEffort::of));
+        }
         return new OpenAiLanguageModelClient(
                 modelName,
                 spec.temperature(),
@@ -93,11 +115,12 @@ public class OpenAiClientFactory
                 spec.topP(),
                 spec.useDeveloperForSystemRole(),
                 promptDao,
+                objectMapper,
                 executor,
                 batchParallelism,
                 tracer,
                 isGeminiEndpoint,
-                createOpenAiClient(updatedConnectionInfo, azureOpenAiConnectionInfo),
+                openAiClient,
                 isStreamingToolCallSupported);
     }
 

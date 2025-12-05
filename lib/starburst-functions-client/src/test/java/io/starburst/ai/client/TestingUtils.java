@@ -12,6 +12,7 @@ package io.starburst.ai.client;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.configuration.secrets.env.EnvironmentVariableSecretProvider;
+import io.airlift.json.ObjectMapperProvider;
 import io.airlift.tracing.Tracing;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.bedrock.AwsBedrockClientFactory;
@@ -49,7 +50,8 @@ public final class TestingUtils
                             "provider": "OPENAI",
                             "endpoint": "https://api.openai.com/v1",
                             "apiKey": "${ENV:OPEN_AI_API_KEY}"
-                        }
+                        },
+                        "useResponsesApi": "true"
                     },
                     {
                         "id": "gpt4o_mini_auth_header",
@@ -118,6 +120,20 @@ public final class TestingUtils
                         "traits": {
                             "STREAMING_TOOL_CALL_SUPPORT": "STREAMING_TOOL_CALL_NOT_SUPPORTED"
                         }
+                    },
+                    {
+                        "id": "reasoning_effort_not_supported",
+                        "modelName": "gpt-4o-mini",
+                        "kind": "GENERATE",
+                        "maxTokens": 8192,
+                        "temperature": 0.0,
+                        "connectionInfo": {
+                            "provider": "OPENAI",
+                            "endpoint": "https://api.openai.com/v1",
+                            "apiKey": "${ENV:OPEN_AI_API_KEY}"
+                        },
+                        "useResponsesApi": "true",
+                        "reasoningEffort": "low"
                     }
                 ]
             }""";
@@ -198,7 +214,7 @@ public final class TestingUtils
         SecretsResolver secretsResolver = new SecretsResolver(ImmutableMap.of("env", new EnvironmentVariableSecretProvider()));
         AiClientConfig aiClientConfig = new AiClientConfig();
         AwsBedrockClientFactory bedrockClientFactory = new AwsBedrockClientFactory(awsEmbeddingCodecFactories, secretsResolver, aiClientConfig, llmExecutor);
-        OpenAiClientFactory openAiClientFactory = new OpenAiClientFactory(secretsResolver, aiClientConfig, llmExecutor);
+        OpenAiClientFactory openAiClientFactory = new OpenAiClientFactory(secretsResolver, aiClientConfig, llmExecutor, new ObjectMapperProvider().get());
         return new ReloadingModelClientProvider(
                 tracer,
                 promptDao,

@@ -106,7 +106,7 @@ public abstract class BaseTestToolUse
                 new SearchTool());
 
         List<LlmMessage> messages = ImmutableList.of(
-                new LlmMessage(USER, "What's the weather like in Paris?"));
+                new LlmMessage(USER, "What's the weather like in Paris, France?"));
 
         ToolUseResponse response = executeToolUse(
                 modelId,

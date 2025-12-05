@@ -25,7 +25,9 @@ public record LanguageModelConnectionSpec(
         boolean useDeveloperForSystemRole,
         Optional<PromptOverrides> prompts,
         Map<LlmTrait, String> traits,
-        ConnectionInfo connectionInfo)
+        ConnectionInfo connectionInfo,
+        Boolean useResponsesApi,
+        Optional<ReasoningEffort> reasoningEffort)
         implements ModelConnectionSpec
 {
     public LanguageModelConnectionSpec
@@ -48,5 +50,19 @@ public record LanguageModelConnectionSpec(
         if (!(topP.isEmpty() || (topP.get() >= 0 && topP.get() <= 1))) {
             throw new IllegalArgumentException("if present top_p must be between 0 and 1");
         }
+        useResponsesApi = useResponsesApi != null && useResponsesApi;
+        if (useResponsesApi && connectionInfo instanceof ConnectionInfo.AwsBedrockConnectionInfo) {
+            throw new IllegalArgumentException("Responses API is not supported for AWS Bedrock connections");
+        }
+        requireNonNull(reasoningEffort, "reasoningEffort is null");
+    }
+
+    public enum ReasoningEffort {
+        none,
+        minimal,
+        low,
+        medium,
+        high,
+        xhigh
     }
 }

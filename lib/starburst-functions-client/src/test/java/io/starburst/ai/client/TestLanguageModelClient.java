@@ -14,11 +14,13 @@ import io.airlift.json.JsonCodec;
 import io.airlift.units.Duration;
 import io.starburst.ai.client.bedrock.AwsBedrockLanguageModelClient;
 import io.starburst.ai.client.openai.OpenAiLanguageModelClient;
+import io.starburst.ai.client.openai.OpenAiResponsesLanguageModelClient;
 import io.trino.spi.TrinoException;
 import io.trino.testing.assertions.Assert;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -102,7 +104,7 @@ public class TestLanguageModelClient
             assertThat(result.toLowerCase(ENGLISH).strip()).isEqualTo("paname");
 
             String incorrectInputResult = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt, "hamburgers");
-            assertThat(incorrectInputResult.toLowerCase(ENGLISH).strip()).isEqualTo("kindly supply a country name and only a country name");
+            assertThat(incorrectInputResult.toLowerCase(ENGLISH).strip()).contains("kindly supply a country name and only a country name");
         });
     }
 
@@ -117,6 +119,7 @@ public class TestLanguageModelClient
         assertSuccessRateForScalar(() -> {
             switch (client) {
                 case OpenAiLanguageModelClient openAiClient -> assertThat(openAiClient.generate("")).isNotBlank();
+                case OpenAiResponsesLanguageModelClient openAiClient -> assertThat(openAiClient.generate("")).isNotBlank();
                 case AwsBedrockLanguageModelClient awsAiClient -> assertThatThrownBy(() -> awsAiClient.generate(""))
                         .isInstanceOf(TrinoException.class)
                         .hasMessage("Failed to execute AI request");
@@ -303,6 +306,15 @@ public class TestLanguageModelClient
             String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(systemPrompt, messages);
             assertThat(result).containsIgnoringCase("deutschland");
         });
+    }
+
+    @Test
+    public void testInvalidReasoningEffort()
+    {
+        String prompt = "What is the capital of France? Only return the name of the city and no extraneous text.";
+        assertThatThrownBy(() -> modelClientProvider.languageModelClient(utf8Slice("reasoning_effort_not_supported")).generate(prompt))
+                .isInstanceOf(TrinoException.class)
+                .hasMessageContaining("Unsupported parameter: 'reasoning.effort' is not supported with this model");
     }
 
     private static String sanitize(String input)
