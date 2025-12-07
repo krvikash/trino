@@ -22,24 +22,25 @@ local exchange (GATHER, SINGLE, [])
                                     load from cache
                                 local exchange (GATHER, SINGLE, [])
                                     remote exchange (REPLICATE, BROADCAST, [])
-                                        join (INNER, REPLICATED):
-                                            join (INNER, REPLICATED):
-                                                alternatives
-                                                    dynamic filter ([c_current_addr_sk::EQUAL], await [c_current_hdemo_sk::EQUAL])
-                                                        scan customer
-                                                    cache data
+                                        join (INNER, PARTITIONED):
+                                            remote exchange (REPARTITION, HASH, [c_current_hdemo_sk])
+                                                join (INNER, REPLICATED):
+                                                    alternatives
                                                         dynamic filter ([c_current_addr_sk::EQUAL], await [c_current_hdemo_sk::EQUAL])
                                                             scan customer
-                                                    load from cache
-                                                local exchange (GATHER, SINGLE, [])
-                                                    remote exchange (REPLICATE, BROADCAST, [])
-                                                        alternatives
-                                                            scan customer_address
-                                                            cache data
+                                                        cache data
+                                                            dynamic filter ([c_current_addr_sk::EQUAL], await [c_current_hdemo_sk::EQUAL])
+                                                                scan customer
+                                                        load from cache
+                                                    local exchange (GATHER, SINGLE, [])
+                                                        remote exchange (REPLICATE, BROADCAST, [])
+                                                            alternatives
                                                                 scan customer_address
-                                                            load from cache
+                                                                cache data
+                                                                    scan customer_address
+                                                                load from cache
                                             local exchange (GATHER, SINGLE, [])
-                                                remote exchange (REPLICATE, BROADCAST, [])
+                                                remote exchange (REPARTITION, HASH, [hd_demo_sk])
                                                     join (INNER, REPLICATED):
                                                         alternatives
                                                             dynamic filter (await [hd_income_band_sk::EQUAL])
