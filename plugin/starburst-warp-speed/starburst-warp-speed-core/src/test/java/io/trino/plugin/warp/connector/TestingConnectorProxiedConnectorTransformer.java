@@ -28,10 +28,11 @@ import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.type.Type;
-import org.apache.commons.collections4.CollectionUtils;
 
 import java.util.List;
 import java.util.Optional;
+
+import static io.trino.plugin.warp.dispatcher.warmup.WarmUtils.isEmptyCollection;
 
 @Singleton
 public class TestingConnectorProxiedConnectorTransformer
@@ -55,7 +56,7 @@ public class TestingConnectorProxiedConnectorTransformer
         DispatcherSplit dispatcherSplit = (DispatcherSplit) proxyConnectorSplit;
 
         List<HostAddress> splitAddresses = dispatcherSplit.getAddresses();
-        if (CollectionUtils.isEmpty(splitAddresses)) {
+        if (isEmptyCollection(splitAddresses)) {
             splitAddresses = getHostAddressForSplit(
                     getSplitKey(dispatcherSplit.getPath(), dispatcherSplit.getStart(), dispatcherSplit.getLength()),
                     connectorSplitNodeDistributor);

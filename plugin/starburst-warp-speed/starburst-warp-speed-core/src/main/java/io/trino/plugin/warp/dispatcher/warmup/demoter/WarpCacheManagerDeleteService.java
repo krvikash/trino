@@ -33,7 +33,6 @@ import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.warmup.model.CacheManagerRule;
-import org.apache.commons.collections4.CollectionUtils;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -46,6 +45,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import static io.trino.plugin.warp.dispatcher.warmup.WarmUtils.isEmptyCollection;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -109,7 +109,7 @@ public class WarpCacheManagerDeleteService
         List<TupleRank> immediateObjects = new ArrayList<>();
         List<TupleRank> failedObjects = new ArrayList<>();
         for (RowGroupData rowGroupData : rowGroupDataList) {
-            if (CollectionUtils.isNotEmpty(tupleFilters)) {
+            if (!isEmptyCollection(tupleFilters)) {
                 logger.info("TupleFilter is not supported in cacheManager");
             }
             CacheManagerRule rule = warmupRules.get(rowGroupData.getRowGroupKey().table());

@@ -43,7 +43,6 @@ import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.warmup.model.WarmupRule;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.SchemaTableName;
-import org.apache.commons.collections4.CollectionUtils;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -66,6 +65,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static io.trino.plugin.warp.dispatcher.warmup.WarmUtils.isEmptyCollection;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.mapping;
@@ -146,7 +146,7 @@ public class WarpConnectorDeleteService
                 if (WarmState.WARM.equals(warmUpElement.getWarmState())) {
                     continue; // already demoted
                 }
-                if (CollectionUtils.isNotEmpty(tupleFilters) &&
+                if (!isEmptyCollection(tupleFilters) &&
                         tupleFilters.stream().anyMatch(filter -> !filter.shouldHandle(warmUpElement, rowGroupKey))) {
                     continue;
                 }

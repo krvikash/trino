@@ -24,8 +24,8 @@ import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.warmup.model.WarmupRule;
 import io.trino.spi.connector.ConnectorSession;
-import org.apache.commons.collections4.CollectionUtils;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -78,9 +78,14 @@ public class WarmUtils
         return Objects.nonNull(rulesForWarmupElement) ?
                 rulesForWarmupElement.stream()
                         .filter(warmupRule -> warmUpElement.getWarmUpType() == warmupRule.getWarmUpType())
-                        .filter(warmupRule -> (CollectionUtils.isEmpty(warmupRule.getPredicates()) ||
+                        .filter(warmupRule -> (isEmptyCollection(warmupRule.getPredicates()) ||
                                 warmupRule.getPredicates().stream().allMatch(warmupPredicateRule -> warmupPredicateRule.test(partitionKeys))))
                         .max(WorkerWarmingService.warmupRuleComparator)
                 : Optional.empty();
+    }
+
+    public static boolean isEmptyCollection(Collection<?> collection)
+    {
+        return collection == null || collection.isEmpty();
     }
 }

@@ -13,12 +13,12 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup.demoter;
 
-import org.apache.commons.collections4.CollectionUtils;
-
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+
+import static io.trino.plugin.warp.dispatcher.warmup.WarmUtils.isEmptyCollection;
 
 public interface WarpDeleteService
 {
@@ -37,7 +37,7 @@ public interface WarpDeleteService
     {
         long lastUsedTimestamp = tupleRank.warmUpElement() != null ?
                 tupleRank.warmUpElement().getLastUsedTimestamp() : System.currentTimeMillis();
-        return CollectionUtils.isNotEmpty(tupleFilters) || // since tupleRanks were already filtered by tupleFilters
+        return !isEmptyCollection(tupleFilters) || // since tupleRanks were already filtered by tupleFilters
                 currentTime.isAfter(Instant.ofEpochMilli(lastUsedTimestamp)
                         .plus(tupleRank.warmupProperties().ttl(), ChronoUnit.SECONDS));
     }

@@ -33,7 +33,6 @@ import io.trino.spi.NodeManager;
 import io.trino.spi.TrinoException;
 import io.trino.spi.catalog.CatalogName;
 import jakarta.annotation.PreDestroy;
-import org.apache.commons.collections4.CollectionUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +41,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static io.trino.plugin.warp.dispatcher.warmup.WarmUtils.isEmptyCollection;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -141,7 +141,7 @@ public class WarmupDemoterService
     {
         globalStatsDemoter.incnumber_of_calls();
 
-        if (CollectionUtils.isEmpty(tupleFilters)
+        if (isEmptyCollection(tupleFilters)
                 && !warmupDemoterConfig.isForceDeleteDeadObjects()
                 && !warmupDemoterConfig.isForceDeleteFailedObjects()
                 && !aboveThreshold(warmupDemoterConfig.getMaxUsageThresholdPercentage())) {
