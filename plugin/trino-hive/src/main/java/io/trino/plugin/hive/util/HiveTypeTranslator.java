@@ -35,8 +35,8 @@ import io.trino.spi.type.MapType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeParameter;
 import io.trino.spi.type.TypeSignature;
-import io.trino.spi.type.TypeSignatureParameter;
 import io.trino.spi.type.VarcharType;
 import jakarta.annotation.Nullable;
 
@@ -80,10 +80,10 @@ import static io.trino.spi.type.StandardTypes.JSON;
 import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.TimestampWithTimeZoneType.createTimestampWithTimeZoneType;
 import static io.trino.spi.type.TinyintType.TINYINT;
+import static io.trino.spi.type.TypeParameter.typeParameter;
 import static io.trino.spi.type.TypeSignature.arrayType;
 import static io.trino.spi.type.TypeSignature.mapType;
 import static io.trino.spi.type.TypeSignature.rowType;
-import static io.trino.spi.type.TypeSignatureParameter.typeParameter;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static io.trino.spi.type.VarcharType.createVarcharType;
@@ -210,7 +210,7 @@ public final class HiveTypeTranslator
                         // TODO: This is a hack. Trino engine should be able to handle identifiers in a case insensitive way where necessary.
                         fieldNames.stream().map(s -> s.toLowerCase(Locale.US)),
                         fieldTypes.stream().map(type -> toTypeSignature(type, timestampPrecision)),
-                        TypeSignatureParameter::namedField)
+                        TypeParameter::namedField)
                         .collect(Collectors.toList()));
             case UNION:
                 // Use a row type to represent a union type in Hive for reading

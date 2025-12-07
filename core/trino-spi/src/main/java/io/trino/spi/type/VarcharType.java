@@ -78,7 +78,7 @@ public final class VarcharType
         super(
                 new TypeSignature(
                         StandardTypes.VARCHAR,
-                        singletonList(TypeSignatureParameter.numericParameter(length))),
+                        singletonList(TypeParameter.numericParameter(length))),
                 Slice.class);
 
         if (length < 0) {

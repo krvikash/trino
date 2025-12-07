@@ -30,7 +30,7 @@ public class MultisetType
     public MultisetType(Type elementType)
     {
         // TODO same as map type?
-        super(new TypeSignature(MULTISET, TypeSignatureParameter.typeParameter(elementType.getTypeSignature())), SqlMap.class, MapBlock.class);
+        super(new TypeSignature(MULTISET, TypeParameter.typeParameter(elementType.getTypeSignature())), SqlMap.class, MapBlock.class);
         this.elementType = elementType;
     }
 
