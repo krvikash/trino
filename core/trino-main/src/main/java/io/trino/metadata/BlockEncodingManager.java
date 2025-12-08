@@ -55,8 +55,8 @@ public final class BlockEncodingManager
     {
         // add the built-in BlockEncodings
         SimdSupport simdSupport = blockEncodingSimdSupport.getSimdSupport();
-        addBlockEncoding(new ByteArrayBlockEncoding(simdSupport.expandAndCompressByte()));
-        addBlockEncoding(new ShortArrayBlockEncoding(simdSupport.expandAndCompressShort()));
+        addBlockEncoding(new ByteArrayBlockEncoding(simdSupport.compressByte(), simdSupport.expandByte()));
+        addBlockEncoding(new ShortArrayBlockEncoding(simdSupport.compressShort(), simdSupport.expandShort()));
         addBlockEncoding(new Fixed12BlockEncoding());
         addBlockEncoding(new Int128ArrayBlockEncoding());
         addBlockEncoding(new ArrayBlockEncoding());
@@ -71,8 +71,8 @@ public final class BlockEncodingManager
             addBlockEncoding(new VariableWidthAdaptiveBlockEncoding());
         }
         else {
-            addBlockEncoding(new IntArrayBlockEncoding(simdSupport.expandAndCompressInt()));
-            addBlockEncoding(new LongArrayBlockEncoding(simdSupport.expandAndCompressLong()));
+            addBlockEncoding(new IntArrayBlockEncoding(simdSupport.compressInt(), simdSupport.expandInt()));
+            addBlockEncoding(new LongArrayBlockEncoding(simdSupport.compressLong(), simdSupport.expandLong()));
             addBlockEncoding(new DictionaryBlockEncoding());
             addBlockEncoding(new VariableWidthBlockEncoding());
         }
