@@ -30,16 +30,16 @@ public class WarpModules
         extends AbstractModule
         implements WarpBaseModule
 {
-    private final String connectorId;
+    private final String catalogName;
     private final Map<String, String> config;
     private final WarpConnectorContext context;
 
     private Optional<Module> cloudVendorModule = Optional.empty();
     private final Optional<List<ExtraModule>> extraModules = Optional.empty();
 
-    public WarpModules(String connectorId, Map<String, String> config, WarpConnectorContext context)
+    public WarpModules(String catalogName, Map<String, String> config, WarpConnectorContext context)
     {
-        this.connectorId = connectorId;
+        this.catalogName = catalogName;
         this.config = requireNonNull(config);
         this.context = requireNonNull(context);
     }
@@ -48,7 +48,7 @@ public class WarpModules
     protected void configure()
     {
         install(new MetricsModule());
-        install(cloudVendorModule.orElse(CloudVendorModule.getModule(context, ForWarp.class, connectorId, config)));
+        install(cloudVendorModule.orElse(CloudVendorModule.getModule(context, ForWarp.class, catalogName, config)));
         install(new WarpMainModule(context, config));
 
         extraModules.ifPresent(modules -> modules.stream()
