@@ -29,7 +29,6 @@ import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.spi.catalog.CatalogName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.opentest4j.AssertionFailedError;
 
 import java.time.Duration;
 import java.util.UUID;
@@ -150,7 +149,7 @@ public class WorkerTaskExecutorServiceTest
         TestSubmittableTask task1 = new TestSubmittableTask(key1, 1);
         taskExecutorService.delaySubmit(3, task1, this::handleConflict);
         Failsafe.with(RetryPolicy.builder()
-                        .handle(AssertionFailedError.class)
+                        .handle(AssertionError.class)
                         .withMaxRetries(10)
                         .withDelay(Duration.ofSeconds(1))
                         .build())
