@@ -249,6 +249,7 @@ public final class SystemSessionProperties
     public static final String SPOOLING_ENABLED = "spooling_enabled";
     public static final String SPOOLING_UNSUPPORTED_WARNING = "spooling_unsupported_warning";
     public static final String DEBUG_ADAPTIVE_PLANNER = "debug_adaptive_planner";
+    public static final String SOURCE_PAGES_VALIDATION_ENABLED = "output_pages_validation_enabled";
     public static final String DEBUG_CTE_REUSE = "debug_cte_reuse";
     public static final String SUPERSET_PREDICATE_PUSHDOWN_ENABLED = "superset_predicate_pushdown_enabled";
     public static final String REUSE_COMMON_SUBQUERIES = "reuse_common_subqueries";
@@ -1330,6 +1331,11 @@ public final class SystemSessionProperties
                         queryManagerConfig.isFaultTolerantExecutionDebugAdaptivePlanner(),
                         true),
                 booleanProperty(
+                        SOURCE_PAGES_VALIDATION_ENABLED,
+                        "Runtime validation of blocks in source pages",
+                        queryManagerConfig.isSourcePagesValidationEnabled(),
+                        true),
+                booleanProperty(
                         DEBUG_CTE_REUSE,
                         "Enable debug information for the common subquery reuse optimization",
                         false,
@@ -2391,6 +2397,11 @@ public final class SystemSessionProperties
     public static boolean isDebugAdaptivePlannerEnabled(Session session)
     {
         return session.getSystemProperty(DEBUG_ADAPTIVE_PLANNER, Boolean.class);
+    }
+
+    public static boolean isSourcePagesValidationEnabled(Session session)
+    {
+        return session.getSystemProperty(SOURCE_PAGES_VALIDATION_ENABLED, Boolean.class);
     }
 
     public static boolean isDebugCteReuseEnabled(Session session)
