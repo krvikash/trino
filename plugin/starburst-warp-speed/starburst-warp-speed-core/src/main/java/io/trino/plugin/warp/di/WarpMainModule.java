@@ -70,11 +70,13 @@ public class WarpMainModule
         implements WarpBaseModule
 {
     private final WarpConnectorContext context;
+    private final String catalogName;
     private final Map<String, String> config;
 
-    WarpMainModule(WarpConnectorContext context, Map<String, String> config)
+    WarpMainModule(WarpConnectorContext context, String catalogName, Map<String, String> config)
     {
         this.context = requireNonNull(context);
+        this.catalogName = requireNonNull(catalogName);
         this.config = requireNonNull(config);
     }
 
@@ -156,7 +158,7 @@ public class WarpMainModule
     @Singleton
     public CatalogNameProvider provideCatalogName()
     {
-        return new CatalogNameProvider("warp");
+        return new CatalogNameProvider(catalogName + "_" + context.getCatalogVersion());
     }
 
     @Provides

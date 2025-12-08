@@ -49,7 +49,7 @@ public class WarpModules
     {
         install(new MetricsModule());
         install(cloudVendorModule.orElse(CloudVendorModule.getModule(context, ForWarp.class, catalogName, config)));
-        install(new WarpMainModule(context, config));
+        install(new WarpMainModule(context, catalogName, config));
 
         extraModules.ifPresent(modules -> modules.stream()
                 .map(externalModule -> externalModule.withConfig(config).withContext(context))
