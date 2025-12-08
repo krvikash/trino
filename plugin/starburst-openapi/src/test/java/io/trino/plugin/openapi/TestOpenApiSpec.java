@@ -353,7 +353,7 @@ final class TestOpenApiSpec
                                 .setIsNullable(true)
                                 .setComment("""
                                             Whether GitHub Advanced Security is enabled for new repositories and repositories transferred to this organization.
-                                            
+
                                             This field is only visible to organization owners or members of a team with the security manager role.""")
                                 .build(),
                         OpenApiColumn.builder()
@@ -364,7 +364,7 @@ final class TestOpenApiSpec
                                 .setComment("""
                                             Whether GitHub Advanced Security is automatically enabled for new repositories and repositories transferred to
                                             this organization.
-                                            
+
                                             This field is only visible to organization owners or members of a team with the security manager role.""")
                                 .build(),
                         OpenApiColumn.builder()
@@ -375,7 +375,7 @@ final class TestOpenApiSpec
                                 .setComment("""
                                             Whether dependabot security updates are automatically enabled for new repositories and repositories transferred
                                             to this organization.
-                                            
+
                                             This field is only visible to organization owners or members of a team with the security manager role.""")
                                 .build(),
                         OpenApiColumn.builder()
@@ -386,7 +386,7 @@ final class TestOpenApiSpec
                                 .setComment("""
                                             Whether dependency graph is automatically enabled for new repositories and repositories transferred to this
                                             organization.
-                                            
+
                                             This field is only visible to organization owners or members of a team with the security manager role.""")
                                 .build(),
                         OpenApiColumn.builder()
@@ -397,7 +397,7 @@ final class TestOpenApiSpec
                                 .setComment("""
                                             Whether secret scanning is automatically enabled for new repositories and repositories transferred to this
                                             organization.
-                                            
+
                                             This field is only visible to organization owners or members of a team with the security manager role.""")
                                 .build(),
                         OpenApiColumn.builder()
@@ -408,7 +408,7 @@ final class TestOpenApiSpec
                                 .setComment("""
                                             Whether secret scanning push protection is automatically enabled for new repositories and repositories
                                             transferred to this organization.
-                                            
+
                                             This field is only visible to organization owners or members of a team with the security manager role.""")
                                 .build(),
                         OpenApiColumn.builder()
