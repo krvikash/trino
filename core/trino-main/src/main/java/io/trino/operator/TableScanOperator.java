@@ -67,7 +67,7 @@ public class TableScanOperator
                 PlanNodeId sourceId,
                 PageSourceProviderFactory pageSourceProvider,
                 TableHandle table,
-                Iterable<ColumnHandle> columns,
+                List<ColumnHandle> columns,
                 InternalDynamicFilter dynamicFilter)
         {
             this.operatorId = operatorId;
@@ -130,7 +130,7 @@ public class TableScanOperator
             PlanNodeId sourceId,
             PageSourceProvider pageSourceProvider,
             TableHandle table,
-            Iterable<ColumnHandle> columns,
+            List<ColumnHandle> columns,
             InternalDynamicFilter dynamicFilter)
     {
         this(operatorContext,
