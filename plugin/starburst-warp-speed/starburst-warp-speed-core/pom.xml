@@ -396,7 +396,7 @@
             <!-- this is needed by aws credentials -->
             <groupId>software.amazon.awssdk.crt</groupId>
             <artifactId>aws-crt</artifactId>
-            <version>0.34.0</version>
+            <version>0.40.3</version>
             <scope>runtime</scope>
         </dependency>
 
