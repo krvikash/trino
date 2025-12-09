@@ -4067,8 +4067,8 @@ public class HiveMetadata
             validateTimestampTypes(mapType.getKeyType(), precision, column);
             validateTimestampTypes(mapType.getValueType(), precision, column);
         }
-        else if (type instanceof RowType) {
-            for (Type fieldType : type.getTypeParameters()) {
+        else if (type instanceof RowType rowType) {
+            for (Type fieldType : rowType.getFieldTypes()) {
                 validateTimestampTypes(fieldType, precision, column);
             }
         }

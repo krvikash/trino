@@ -376,7 +376,7 @@ public final class DeltaLakeWriter
 
         public RowCoercer(RowType rowType)
         {
-            fieldCoercers = rowType.getTypeParameters().stream()
+            fieldCoercers = rowType.getFieldTypes().stream()
                     .map(DeltaLakeWriter::createCoercer)
                     .collect(toImmutableList());
         }

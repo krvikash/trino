@@ -171,7 +171,7 @@ public final class HiveTypeTranslator
             }
             return getStructTypeInfo(
                     fieldNames.build(),
-                    type.getTypeParameters().stream()
+                    rowType.getFieldTypes().stream()
                             .map(HiveTypeTranslator::toTypeInfo)
                             .collect(toImmutableList()));
         }
