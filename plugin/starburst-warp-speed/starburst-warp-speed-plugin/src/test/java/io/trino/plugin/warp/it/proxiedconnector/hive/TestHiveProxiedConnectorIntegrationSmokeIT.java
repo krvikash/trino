@@ -132,60 +132,6 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     }
 
     @Test
-    public void testWarmBooleanArray()
-    {
-        String table = "array_test";
-        createTable(DEFAULT_SCHEMA, table, "(dummy ARRAY(BOOLEAN))");
-        computeActual("INSERT INTO %s values (ARRAY [true, false, true, false])".formatted(table));
-        Session session = buildSession(true, false);
-        warmAndValidate("select * from %s".formatted(table),
-                session,
-                1,
-                1,
-                0);
-        Map<String, Long> expectedJmxQueryStats = Map.of(
-                "warp_match_columns", 0L,
-                "external_match_columns", 0L);
-        validateQueryStats("select * from %s where contains(dummy, false)".formatted(table),
-                session,
-                expectedJmxQueryStats);
-    }
-
-    @Test
-    public void testWarmDateArray()
-    {
-        String table = "array_test";
-        createTable(DEFAULT_SCHEMA, table, "(dummy ARRAY(DATE))");
-        computeActual("INSERT INTO %s values (ARRAY [DATE '2022-02-02'])".formatted(table));
-        Session session = buildSession(true, false);
-        warmAndValidate("select * from %s".formatted(table),
-                session,
-                1,
-                1,
-                0);
-        Map<String, Long> expectedJmxQueryStats = Map.of(
-                "warp_match_columns", 0L,
-                "external_match_columns", 0L);
-        validateQueryStats("select * from %s where contains(dummy, CAST('2002-04-29' as date))".formatted(table),
-                session,
-                expectedJmxQueryStats);
-    }
-
-    @Test
-    public void testWarmTimestampArray()
-    {
-        String table = "array_test";
-        createTable(DEFAULT_SCHEMA, table, "(dummy ARRAY(TIMESTAMP))");
-        computeActual("INSERT INTO %s values (ARRAY [current_timestamp])".formatted(table));
-        Session session = buildSession(true, false);
-        warmAndValidate("select * from %s".formatted(table),
-                session,
-                1,
-                1,
-                0);
-    }
-
-    @Test
     // TODO stuck in endless loop
     public void testRowDereference()
     {
@@ -209,31 +155,6 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 Map.of(C1, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))),
                 predicates2);
         assertThat(getWarmupRules().size()).isEqualTo(2);
-    }
-
-    @Test
-    public void testUTF8CharDataFail()
-            throws IOException
-    {
-        createTable(DEFAULT_SCHEMA, "char_128_table", "(cchar_128 char(1)) WITH (format='PARQUET', partitioned_by = ARRAY[])");
-
-        //each insert cmd is a single parquet file
-        computeActual(getSession(), "INSERT INTO char_128_table (cchar_128) VALUES ('G'), ('É')");
-
-        createWarmupRules(DEFAULT_SCHEMA,
-                "char_128_table",
-                Map.of("cchar_128",
-                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))));
-
-        warmAndValidate("select cchar_128 from char_128_table",
-                Session.builder(getSession()).build(),
-                0,
-                2,
-                2);
-
-        MaterializedResult materializedRows = computeActual(getSession(), "select cchar_128 from char_128_table where cchar_128 is not null");
-        // fetch from proxy since warmup failed
-        assertThat(materializedRows.getRowCount()).isEqualTo(2);
     }
 
     @Test
@@ -338,25 +259,6 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         assertThat(hiveColumnHandle.getBaseColumnName()).isEqualTo(C2);
         assertThat(likeConstant).isEqualTo(new WarpSliceConstant(Slices.utf8Slice(likePattern), VarcharType.createVarcharType(likePattern.length())));
         return hiveColumnHandle;
-    }
-
-    @Test
-    public void testWarmUnsupportedColTypes()
-    {
-        createTable("schema",
-                "test_table",
-                "(intCol integer, rowCol ROW(latitudedeg varchar, longitudedeg double), " +
-                        "mapCol MAP(varchar(3), integer), " +
-                        "arrayCol ARRAY(integer))");
-        computeActual("INSERT INTO schema.test_table select " +
-                "7, " +
-                "CAST(ROW('x', 4.5) AS ROW(latitudedeg varchar, longitudedeg double)), " +
-                "MAP(ARRAY['foo', 'bar'], ARRAY[1, 2]), " +
-                "ARRAY[1]");
-
-        Session session = Session.builder(getSession()).build();
-        warmAndValidate("select intCol, rowCol, mapCol, arrayCol from schema.test_table where rowCol.latitudedeg = 'x' and rowCol.longitudedeg > 2", session, 6, 1, 0);
-        computeActual("select count(rowCol.latitudedeg), count(rowCol.longitudedeg) from schema.test_table where rowCol.latitudedeg = 'x'");
     }
 
     /**

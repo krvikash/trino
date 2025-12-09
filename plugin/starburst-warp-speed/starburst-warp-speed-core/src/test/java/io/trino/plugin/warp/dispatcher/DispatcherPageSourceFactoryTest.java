@@ -75,8 +75,6 @@ import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.IntegerType;
-import io.trino.spi.type.MapType;
-import io.trino.spi.type.TypeOperators;
 import io.trino.spi.type.VarcharType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -417,53 +415,6 @@ public class DispatcherPageSourceFactoryTest
     }
 
     @Test
-    public void testCreateWarpConnectorPageSourceMixed()
-    {
-        List<ColumnHandle> columnHandleList = mockColumns(List.of(Pair.of("c1", VarcharType.VARCHAR)));
-
-        RowGroupKey rowGroupKey = createRowGroupKey(dispatcherSplit.getSchemaName(),
-                dispatcherSplit.getTableName(),
-                dispatcherSplit.getPath(),
-                dispatcherSplit.getStart(),
-                dispatcherSplit.getLength(),
-                dispatcherSplit.getFileModifiedTime(),
-                dispatcherSplit.getDeletedFilesHash());
-
-        List<ColumnHandle> warmedColumnHandleList = mockColumns(List.of(Pair.of("c2", VarcharType.VARCHAR)));
-        RowGroupData rowGroupDataToWarm = generateRowGroupData(rowGroupKey, warmedColumnHandleList);
-        when(rowGroupDataDao.get(rowGroupKey)).thenReturn(rowGroupDataToWarm);
-        when(rowGroupDataDao.getIfPresent(any(RowGroupKey.class))).thenReturn(rowGroupDataToWarm);
-        TestingConnectorPageSource proxiedPageSource = mock(TestingConnectorPageSource.class);
-        when(connectorPageSourceProvider.createPageSource(eq(proxiedTransactionHandle),
-                eq(connectorSession),
-                any(DispatcherSplit.class),
-                isA(ConnectorTableHandle.class),
-                anyList(),
-                any(DynamicFilter.class)))
-                .thenReturn(proxiedPageSource);
-        ConnectorPageSource pageSource = pageSourceFactory.createConnectorPageSource(connectorPageSourceProvider,
-                proxiedTransactionHandle,
-                connectorSession,
-                dispatcherSplit,
-                dispatcherTableHandle,
-                Stream.concat(columnHandleList.stream(), warmedColumnHandleList.stream()).collect(Collectors.toList()),
-                dynamicFilter,
-                customStatsContext);
-        verifyWarmCalled(connectorPageSourceProvider,
-                proxiedTransactionHandle,
-                connectorSession,
-                dispatcherSplit,
-                dispatcherTableHandle);
-
-        assertThat(pageSource).isInstanceOf(DispatcherPageSource.class);
-        DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
-        assertThat(stats.getexternal_collect_columns()).isEqualTo(columnHandleList.size());
-        assertThat(stats.getexternal_match_columns()).isZero();
-        assertThat(stats.getwarp_collect_columns()).isEqualTo(warmedColumnHandleList.size());
-        assertThat(stats.getwarp_match_columns()).isZero();
-    }
-
-    @Test
     public void testFailedRowGroupShouldUseProxied()
     {
         List<ColumnHandle> columnHandleList = mockColumns(List.of(Pair.of("c1", VarcharType.VARCHAR)));
@@ -620,49 +571,6 @@ public class DispatcherPageSourceFactoryTest
                 customStatsContext);
         assertThat(pageSource).isInstanceOf(PrefilledPageSource.class);
         assertThat(pageSource.getNextSourcePage()).isNotNull();
-    }
-
-    @Test
-    public void testPartitionUnknownType()
-    {
-        MapType mapType = new MapType(VarcharType.VARCHAR, VarcharType.VARCHAR, new TypeOperators());
-        List<ColumnHandle> partitionColumnHandleList = mockColumns(List.of(Pair.of("c1", mapType)));
-        List<ColumnHandle> regularColumnList = mockColumns(List.of(Pair.of("c2", IntegerType.INTEGER)));
-
-        RowGroupKey rowGroupKey = createRowGroupKey(dispatcherSplit.getSchemaName(),
-                dispatcherSplit.getTableName(),
-                dispatcherSplit.getPath(),
-                dispatcherSplit.getStart(),
-                dispatcherSplit.getLength(),
-                dispatcherSplit.getFileModifiedTime(),
-                dispatcherSplit.getDeletedFilesHash());
-
-        RowGroupData rowGroupDataToWarm = generateRowGroupData(rowGroupKey, regularColumnList);
-        rowGroupDataToWarm = RowGroupData.builder(rowGroupDataToWarm).partitionKeys(Map.of(new RegularColumn("c1"), "aaa")).build();
-        when(rowGroupDataDao.get(rowGroupKey)).thenReturn(rowGroupDataToWarm);
-        DispatcherTableHandle localDispatcherTableHandle = mock(DispatcherTableHandle.class);
-        when(localDispatcherTableHandle.getFullPredicate()).thenReturn(TupleDomain.all());
-        when(localDispatcherTableHandle.getSchemaName()).thenReturn(dispatcherSplit.getSchemaName());
-        when(localDispatcherTableHandle.getTableName()).thenReturn(dispatcherSplit.getTableName());
-        when(localDispatcherTableHandle.getSimplifiedColumns()).thenReturn(new SimplifiedColumns(Collections.emptySet()));
-
-        TestingConnectorPageSource proxiedPageSource = mock(TestingConnectorPageSource.class);
-        when(connectorPageSourceProvider.createPageSource(proxiedTransactionHandle,
-                connectorSession,
-                dispatcherSplit.getProxyConnectorSplit(),
-                null,
-                partitionColumnHandleList,
-                dynamicFilter)).thenReturn(proxiedPageSource);
-
-        ConnectorPageSource pageSource = pageSourceFactory.createConnectorPageSource(connectorPageSourceProvider,
-                proxiedTransactionHandle,
-                connectorSession,
-                dispatcherSplit,
-                localDispatcherTableHandle,
-                partitionColumnHandleList,
-                dynamicFilter,
-                customStatsContext);
-        assertThat(pageSource).isEqualTo(proxiedPageSource);
     }
 
     @Test

@@ -2009,17 +2009,6 @@ jobs:
             - config: default
               suite: suite-warp-speed-delta-lake
               runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest ]
-            - config: default
-              suite: suite-warp-speed-azure
-              if: >-
-                ${{ env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || vars.AZURE_ABFS_HIERARCHICAL_CONTAINER != '' ||
-                    vars.AZURE_ABFS_HIERARCHICAL_ACCOUNT != '' || secrets.AZURE_ABFS_HIERARCHICAL_ACCESS_KEY != '' }}
-              runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest ]
-            - config: default
-              suite: suite-warp-speed-gcs
-              if: >-
-                ${{ env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || secrets.GCP_CREDENTIALS_KEY != '' }}
-              runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest ]
 
           EOF
       - name: Build PT matrix (all)

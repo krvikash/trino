@@ -17,7 +17,6 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.SetMultimap;
-import com.google.common.collect.Sets;
 import com.google.common.eventbus.EventBus;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
@@ -57,14 +56,11 @@ import io.trino.spi.type.TimeType;
 import io.trino.spi.type.TimeWithTimeZoneType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
-import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
 import io.trino.spi.type.VarcharType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -268,91 +264,6 @@ public class WorkerWarmingServiceTest
 
     /**
      * Default warmup enabled!!
-     * Required: C1,  C2
-     * row group exist -> C1 (BASIC)
-     * result: warm C1 (DATA), C2(DATA)
-     */
-    @Test
-    public void testWarmOnlyDataWhenFlagIsOn()
-    {
-        WarmupDemoterService warmupDemoterService = mockWarmupDemoterService();
-        List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer, List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR),
-                Pair.of(COLUMN2.getName(), VarcharType.VARCHAR)));
-        SetMultimap<WarpColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
-        columnNameToWarmUpType.putAll(COLUMN1, List.of(WarmUpType.WARM_UP_TYPE_BASIC));
-
-        List<WarmupRule> warmupRules = createWarmupRules(columnNameToWarmUpType, defaultSchemaTableName);
-        List<WarmUpType> alreadyWarmupTypes = List.of(WarmUpType.WARM_UP_TYPE_BASIC);
-        List<ColumnHandle> alreadyWarmedColumn = columns.stream()
-                .filter(x -> ((TestingConnectorColumnHandle) x).name().equals(COLUMN1.getName()))
-                .collect(Collectors.toList());
-
-        RowGroupData rowGroupData = generateRowGroupData(alreadyWarmedColumn,
-                alreadyWarmupTypes,
-                rowGroupKey,
-                false);
-
-        globalConfig.setDataOnlyWarming(true);
-        globalConfig.setCreateIndexInDefaultWarming(true);
-        WarmData warmData = act(columns,
-                rowGroupData,
-                warmupDemoterService,
-                warmupRules);
-        assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.WARM);
-        assertThat(getActualColTypesToWarm(COLUMN1, warmData.requiredWarmUpTypeMap()))
-                .isEqualTo(Set.of(WarmUpType.WARM_UP_TYPE_DATA));
-        assertThat(getActualColTypesToWarm(COLUMN2, warmData.requiredWarmUpTypeMap()))
-                .isEqualTo(Set.of(WarmUpType.WARM_UP_TYPE_DATA));
-    }
-
-    /**
-     * Default warmup enabled!!
-     * Warm Only Data enabled!!
-     * Required: C1,  C2
-     * row group exist -> C1 (BASIC)
-     * result: warm C1 (DATA), C2(DATA)
-     */
-    @Test
-    public void testDefaultRulesWarmup()
-    {
-        WarmupDemoterService warmupDemoterService = mockWarmupDemoterService();
-        List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer, List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR),
-                Pair.of(COLUMN2.getName(), VarcharType.VARCHAR)));
-        SetMultimap<WarpColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
-        columnNameToWarmUpType.putAll(COLUMN1, List.of(WARM_UP_TYPE_BASIC));
-
-        List<WarmupRule> warmupRules = createWarmupRules(columnNameToWarmUpType, defaultSchemaTableName);
-        List<WarmUpType> alreadyWarmupTypes = List.of(WARM_UP_TYPE_BASIC);
-        List<ColumnHandle> alreadyWarmedColumn = columns.stream()
-                .filter(x -> ((TestingConnectorColumnHandle) x).name().equals(COLUMN1.getName()))
-                .collect(Collectors.toList());
-
-        RowGroupData rowGroupData = generateRowGroupData(alreadyWarmedColumn,
-                alreadyWarmupTypes,
-                rowGroupKey,
-                false);
-
-        WarmData warmData = act(columns,
-                rowGroupData,
-                warmupDemoterService,
-                warmupRules);
-        assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.WARM);
-        assertThat(getActualColTypesToWarm(COLUMN1, warmData.requiredWarmUpTypeMap()))
-                .isEqualTo(Set.of(WARM_UP_TYPE_DATA));
-        assertThat(getActualColTypesToWarm(COLUMN2, warmData.requiredWarmUpTypeMap()))
-                .isEqualTo(Set.of(WARM_UP_TYPE_DATA));
-        assertThat(warmData.columnHandleList()).isEqualTo(columns);
-        globalConfig.setCreateIndexInDefaultWarming(true);
-        warmData = act(columns,
-                rowGroupData,
-                warmupDemoterService,
-                warmupRules);
-        assertThat(getActualColTypesToWarm(COLUMN2, warmData.requiredWarmUpTypeMap()))
-                .isEqualTo(Set.of(WARM_UP_TYPE_DATA, WARM_UP_TYPE_BASIC));
-    }
-
-    /**
-     * Default warmup enabled!!
      * Required: C1
      * row group exist -> C1 (DATA)
      * result: warm C1 (BASIC)
@@ -398,31 +309,6 @@ public class WorkerWarmingServiceTest
                 arguments(RowType.rowType(RowType.field(VarcharType.VARCHAR), RowType.field(VarcharType.VARCHAR)), List.of()));
     }
 
-    @ParameterizedTest
-    @MethodSource("unsupportedTypes")
-    public void testUnsupportedTypes(Type type, List<WarmUpType> expectedWarmupTypes)
-    {
-        WarmupDemoterService warmupDemoterService = mockWarmupDemoterService();
-        globalConfig.setCreateIndexInDefaultWarming(true);
-        List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer, List.of(Pair.of(type.getBaseName(), type)));
-        List<WarmupRule> warmupRules = List.of();
-        WarmData warmData = act(columns,
-                ROW_GROUP_NOT_EXIST,
-                warmupDemoterService,
-                warmupRules);
-        if (expectedWarmupTypes.isEmpty()) {
-            assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.NOTHING_TO_WARM);
-            assertThat(warmData.requiredWarmUpTypeMap().size()).isZero();
-            assertThat(warmData.columnHandleList().size()).isZero();
-        }
-        else {
-            assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.WARM);
-            List<WarmUpType> actualWarmupTypes = warmData.requiredWarmUpTypeMap().values().stream().map(WarmupProperties::warmUpType).collect(Collectors.toList());
-            assertThat(actualWarmupTypes).containsAll(expectedWarmupTypes);
-            assertThat(warmData.columnHandleList().size()).isOne();
-        }
-    }
-
     /**
      * Required: C1 (DATA, BASIC)
      * row group exist -> C1 (DATA, BASIC)
@@ -451,72 +337,6 @@ public class WorkerWarmingServiceTest
                 warmupRules);
         assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.NOTHING_TO_WARM);
         assertThat(warmingServiceStats.getall_elements_warmed_or_skipped()).isEqualTo(1);
-    }
-
-    /**
-     * Required: C1 (DATA, BASIC), C2(DATA,BASIC)
-     * row group exist -> C1 (DATA, BASIC)
-     * result: warm C2 (DATA, BASIC)
-     */
-    @Test
-    public void testWarmOneColumnAlreadyWarm()
-    {
-        WarmupDemoterService warmupDemoterService = mockWarmupDemoterService();
-        List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer,
-                List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR),
-                        Pair.of(COLUMN2.getName(), VarcharType.VARCHAR)));
-
-        SetMultimap<WarpColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
-        columnNameToWarmUpType.putAll(COLUMN1, List.of(WARM_UP_TYPE_DATA,
-                WARM_UP_TYPE_BASIC));
-        columnNameToWarmUpType.putAll(COLUMN2, List.of(WARM_UP_TYPE_BASIC,
-                WARM_UP_TYPE_DATA));
-        List<WarmupRule> warmupRules = createWarmupRules(columnNameToWarmUpType, defaultSchemaTableName);
-        List<WarmUpType> alreadyWarmupTypes = List.of(WARM_UP_TYPE_DATA, WARM_UP_TYPE_BASIC);
-        List<ColumnHandle> warmedColumn = columns.stream().filter(x -> ((TestingConnectorColumnHandle) x).name().equals(COLUMN1.getName())).collect(Collectors.toList());
-        RowGroupData rowGroupData = generateRowGroupData(warmedColumn,
-                alreadyWarmupTypes,
-                rowGroupKey,
-                false);
-
-        WarmData warmData = act(columns,
-                rowGroupData,
-                warmupDemoterService,
-                warmupRules);
-        assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.WARM);
-        assertThat(getActualColTypesToWarm(COLUMN2, warmData.requiredWarmUpTypeMap()))
-                .isEqualTo(Sets.newHashSet(columnNameToWarmUpType.get(COLUMN2)));
-        assertThat(warmData.requiredWarmUpTypeMap().get(COLUMN1)).isEmpty();
-        assertThat(warmData.columnHandleList())
-                .isEqualTo(columns.stream().filter(x -> ((TestingConnectorColumnHandle) x).name().equals(COLUMN2.getName())).collect(Collectors.toList()));
-    }
-
-    /**
-     * Required: C1 > DATA, BASIC, LUCENE
-     * row group not exist
-     * return C1, (Data, Basic, LUCENE)
-     */
-    @Test
-    public void testRowGroupNotExist()
-    {
-        WarmupDemoterService warmupDemoterService = mockWarmupDemoterService();
-        List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer,
-                List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR)));
-        SetMultimap<WarpColumn, WarmUpType> columnNameToWarmUpType = HashMultimap.create();
-        columnNameToWarmUpType.putAll(COLUMN1, List.of(WARM_UP_TYPE_BASIC,
-                WARM_UP_TYPE_DATA,
-                WarmUpType.WARM_UP_TYPE_LUCENE));
-
-        List<WarmupRule> warmupRules = createWarmupRules(columnNameToWarmUpType, defaultSchemaTableName);
-        WarmData warmData = act(columns,
-                ROW_GROUP_NOT_EXIST,
-                warmupDemoterService,
-                warmupRules);
-        assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.WARM);
-        Set<WarmUpType> actualColTypesToWarm = getActualColTypesToWarm(COLUMN1, warmData.requiredWarmUpTypeMap());
-        Set<WarmUpType> expectedWarmUpTypes = Sets.newHashSet(columnNameToWarmUpType.get(COLUMN1));
-        assertThat(actualColTypesToWarm).isEqualTo(expectedWarmUpTypes);
-        assertThat(warmData.columnHandleList()).isEqualTo(columns);
     }
 
     @Test
@@ -679,40 +499,6 @@ public class WorkerWarmingServiceTest
         assertThat(warmData.requiredWarmUpTypeMap().size()).isEqualTo(1);
         assertThat(warmData.requiredWarmUpTypeMap().get(COLUMN1)).isEqualTo(Set.of(warmupProperties));
         assertThat(warmData.columnHandleList()).isEqualTo(columns);
-    }
-
-    /**
-     * C1 temporarily failed to warm BASIC 2 times and DATA 10 times, expect to retry all of them together
-     */
-    @Test
-    public void testRetryWarmTemporarilyFailed()
-    {
-        WarmupDemoterService warmupDemoterService = mockWarmupDemoterService();
-
-        List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer,
-                List.of(Pair.of(COLUMN1.getName(), VarcharType.VARCHAR)));
-        Map<WarmUpType, WarmUpElementState> warmUpTypeToState = Map.of(
-                WARM_UP_TYPE_BASIC,
-                new WarmUpElementState(WarmUpElementState.State.FAILED_TEMPORARILY, 2, 0),
-                WARM_UP_TYPE_DATA,
-                new WarmUpElementState(WarmUpElementState.State.FAILED_TEMPORARILY, 10, 0));
-
-        RowGroupData rowGroupData = generateRowGroupData(columns,
-                warmUpTypeToState,
-                rowGroupKey,
-                false);
-        WarmupProperties warmupPropertiesBasic = new WarmupProperties(WARM_UP_TYPE_BASIC, 2, 0, TransformFunction.NONE);
-        WarmupProperties warmupPropertiesData = new WarmupProperties(WARM_UP_TYPE_DATA, 2, 0, TransformFunction.NONE);
-
-        List<WarmupRule> warmupRules = List.of(createRule(COLUMN1, warmupPropertiesBasic),
-                createRule(COLUMN1, warmupPropertiesData));
-
-        WarmData warmData = act(columns,
-                rowGroupData,
-                warmupDemoterService,
-                warmupRules);
-        assertThat(warmData.warmExecutionState()).isEqualTo(WarmExecutionState.WARM);
-        assertThat(warmData.requiredWarmUpTypeMap().size()).isEqualTo(2);
     }
 
     @Test

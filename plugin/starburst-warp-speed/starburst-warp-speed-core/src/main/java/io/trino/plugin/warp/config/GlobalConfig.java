@@ -63,7 +63,7 @@ public class GlobalConfig
     private boolean debugNoPredicateBuffer;
     private boolean debugFailureGenerator;
 
-    private boolean enableFSCacheMode;
+    private boolean enableFSCacheMode = true;
     private boolean enableImportExport;
     private boolean enableExportAppendOnCloud = true;
     private boolean enableOrPushdown = true;

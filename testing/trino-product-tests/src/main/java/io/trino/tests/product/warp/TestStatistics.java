@@ -155,15 +155,6 @@ public class TestStatistics
     }
 
     @Test(groups = {WARP_SPEED_HIVE, PROFILE_SPECIFIC_TESTS})
-    public void testCustomMetrics()
-    {
-        QueryResult queryResult = onTrino().executeQuery(format("EXPLAIN ANALYZE VERBOSE SELECT * FROM %s.%s.%s", CATALOG_NAME, SCHEMA_NAME, TABLE_NAME));
-        logger.debug("queryResult=%s", queryResult.rows());
-
-        assertThat(queryResult.rows().toString().contains("warp-collect:string_col:WARM_UP_TYPE_DATA'")).isTrue();
-    }
-
-    @Test(groups = {WARP_SPEED_HIVE, PROFILE_SPECIFIC_TESTS})
     public void testShowStats()
     {
         onTrino().executeQuery(format("ANALYZE %s.%s.%s", CATALOG_NAME, SCHEMA_NAME, TABLE_NAME));

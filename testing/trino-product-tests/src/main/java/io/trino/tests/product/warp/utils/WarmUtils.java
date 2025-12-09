@@ -140,12 +140,7 @@ public class WarmUtils
                     QueryResult exportStatsAfter = JMXCachingManager.getExportStats();
                     QueryResult importRowAfter = JMXCachingManager.getImportStats();
 
-                    if (fastWarming != FastWarming.IMPORT) {
-                        assertThat(getDiffFromInitial(warmingStatsAfter, warmingStatsBefore, WARM_ACCOMPLISHED))
-                                .as("warm_accomplished must be positive during warm but was zero. tableName=%s", tableName)
-                                .isPositive();
-                    }
-                    else {
+                    if (fastWarming == FastWarming.IMPORT) {
                         assertThat(getDiffFromInitial(importRowAfter, importRowBefore, IMPORT_ELEMENTS_ACCOMPLISHED))
                                 .as("import_elements_accomplished must be positive. tableName=%s", tableName)
                                 .isPositive();
