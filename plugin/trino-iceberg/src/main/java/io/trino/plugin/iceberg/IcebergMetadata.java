@@ -4906,12 +4906,9 @@ public class IcebergMetadata
                     firstTableChange = firstTableChange
                             .map(epochMilli -> Math.min(epochMilli, snapshot.timestampMillis()));
                 }
-                case UnknownTableChange() -> {
+                case UnknownTableChange(), GoneOrCorruptedTableChange() -> {
                     hasStaleIcebergTables = true;
                     firstTableChange = Optional.empty();
-                }
-                case GoneOrCorruptedTableChange() -> {
-                    return new MaterializedViewFreshness(STALE, Optional.empty());
                 }
             }
         }
