@@ -62,6 +62,7 @@ import static com.google.common.collect.Maps.transformValues;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_BAD_DATA;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.maxPartitionsPerWriter;
 import static io.trino.plugin.iceberg.IcebergUtil.getLocationProvider;
+import static io.trino.plugin.iceberg.IcebergUtil.getProjectedColumns;
 import static io.trino.plugin.iceberg.IcebergUtil.supportsRowLineage;
 import static java.util.Objects.requireNonNull;
 
@@ -121,7 +122,7 @@ public class IcebergPageSinkProvider
     private ConnectorPageSink createPageSink(ConnectorSession session, IcebergWritableTableHandle tableHandle)
     {
         Schema schema = SchemaParser.fromJson(tableHandle.schemaAsJson());
-        return createPageSink(session, tableHandle, schema, tableHandle.inputColumns());
+        return createPageSink(session, tableHandle, schema, tableHandle.partitionColumns());
     }
 
     private ConnectorPageSink createPageSink(ConnectorSession session, IcebergWritableTableHandle tableHandle, Schema schema, List<IcebergColumnHandle> columns)
@@ -170,7 +171,7 @@ public class IcebergPageSinkProvider
                         fileWriterFactory,
                         pageIndexerFactory,
                         fileSystemFactory.create(session.getIdentity(), executeHandle.fileIoProperties()),
-                        optimizeHandle.tableColumns(),
+                        optimizeHandle.partitionColumns(),
                         jsonCodec,
                         session,
                         optimizeHandle.fileFormat(),
@@ -225,10 +226,10 @@ public class IcebergPageSinkProvider
         Schema newSchema = schema;
         Optional<ConnectorPageSink> updateInsertPageSink = Optional.empty();
         if (supportsRowLineage(tableHandle.formatVersion())) {
-            verifyExistingRowIdColumn(schema, tableHandle.inputColumns());
+            verifyExistingRowIdColumn(schema, tableHandle.partitionColumns());
             newSchema = TypeUtil.join(schema, new Schema(MetadataColumns.ROW_ID));
             ImmutableList.Builder<IcebergColumnHandle> columns = ImmutableList.builder();
-            columns.addAll(tableHandle.inputColumns());
+            columns.addAll(tableHandle.partitionColumns());
             columns.add(IcebergColumnHandle.rowIdColumnHandle());
 
             updateInsertPageSink = Optional.of(createPageSink(session, tableHandle, newSchema, columns.build()));
@@ -252,7 +253,7 @@ public class IcebergPageSinkProvider
                     updateInsertPageSink,
                     schema.columns().size(),
                     pageSourceProviderFactory,
-                    tableHandle.inputColumns(),
+                    tableHandle.partitionColumns(),
                     tableHandle.fileIoProperties(),
                     tableHandle.previousDeleteFiles().stream()
                             .collect(toImmutableMap(PositionDeleteFiles::dataFileLocation, PositionDeleteFiles::dataFileRecordCount)),
@@ -274,7 +275,7 @@ public class IcebergPageSinkProvider
                     updateInsertPageSink,
                     schema.columns().size(),
                     pageSourceProviderFactory,
-                    tableHandle.inputColumns(),
+                    getProjectedColumns(schema, typeManager),
                     tableHandle.fileIoProperties(),
                     tableHandle.previousDeleteFiles().stream()
                             .collect(toImmutableMap(PositionDeleteFiles::dataFileLocation, PositionDeleteFiles::dataFileRecordCount)),

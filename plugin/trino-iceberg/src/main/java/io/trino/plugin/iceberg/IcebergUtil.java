@@ -273,10 +273,17 @@ public final class IcebergUtil
         return new BaseTable(operations, quotedTableName(table), TRINO_METRICS_REPORTER);
     }
 
+    public static List<IcebergColumnHandle> getPartitionColumns(Table table, TypeManager typeManager)
+    {
+        Set<Integer> projectedIds = table.spec().fields().stream().map(PartitionField::sourceId).collect(toImmutableSet());
+        return getProjectedColumns(table.schema(), typeManager, projectedIds);
+    }
+
     public static List<IcebergColumnHandle> getProjectedColumns(Schema schema, TypeManager typeManager)
     {
         Map<Integer, NestedField> indexById = TypeUtil.indexById(schema.asStruct());
-        return getProjectedColumns(schema, typeManager, indexById, indexById.keySet() /* project all columns */);
+        Set<Integer> projectedIds = schema.columns().stream().map(NestedField::fieldId).collect(toImmutableSet());
+        return getProjectedColumns(schema, typeManager, indexById, projectedIds /* project all columns */);
     }
 
     public static List<IcebergColumnHandle> getProjectedColumns(Schema schema, TypeManager typeManager, Set<Integer> fieldIds)
