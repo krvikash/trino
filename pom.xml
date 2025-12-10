@@ -264,7 +264,6 @@
         <dep.tempto.version>202</dep.tempto.version>
         <dep.wire.version>5.2.1</dep.wire.version>
         <dep.zookeeper.version>3.9.4</dep.zookeeper.version>
-        <dep.erosb.json.skema.version>0.20.0</dep.erosb.json.skema.version>
         <dep.kjetland.jackson.schema.version>1.0.39</dep.kjetland.jackson.schema.version>
         <extraJavaVectorArgs>--add-modules=jdk.incubator.vector</extraJavaVectorArgs>
         <!--
@@ -506,7 +505,7 @@
             <dependency>
                 <groupId>com.github.erosb</groupId>
                 <artifactId>json-sKema</artifactId>
-                <version>${dep.erosb.json.skema.version}</version>
+                <version>0.20.0</version>
                 <exclusions>
                     <exclusion>
                         <groupId>commons-validator</groupId>
