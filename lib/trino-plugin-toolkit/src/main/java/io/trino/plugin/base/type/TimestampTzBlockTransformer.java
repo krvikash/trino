@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.iceberg;
+package io.trino.plugin.base.type;
 
 import io.trino.spi.block.ArrayBlock;
 import io.trino.spi.block.Block;
@@ -35,7 +35,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
-import static io.trino.plugin.iceberg.util.Timestamps.getTimestampTzNanos;
 import static io.trino.spi.block.ColumnarArray.toColumnarArray;
 import static io.trino.spi.block.ColumnarMap.toColumnarMap;
 import static io.trino.spi.block.RowBlock.getRowFieldsFromBlock;
@@ -191,5 +190,10 @@ public class TimestampTzBlockTransformer
             case MapType mapType -> timestampTzBlockTransformationRequired(mapType.getKeyType()) || timestampTzBlockTransformationRequired(mapType.getValueType());
             default -> false;
         };
+    }
+
+    private static LongTimestampWithTimeZone getTimestampTzNanos(Block block, int position)
+    {
+        return (LongTimestampWithTimeZone) TIMESTAMP_TZ_NANOS.getObject(block, position);
     }
 }
