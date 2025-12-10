@@ -39,7 +39,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Locale.ENGLISH;
 import static org.apache.iceberg.FileFormat.ORC;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestIcebergAbfsConnectorSmokeTest
         extends BaseIcebergConnectorSmokeTest
@@ -116,14 +115,6 @@ public class TestIcebergAbfsConnectorSmokeTest
         assertQueryFails(
                 format("ALTER SCHEMA %s RENAME TO %s", schemaName, schemaName + randomNameSuffix()),
                 "Hive metastore does not support renaming schemas");
-    }
-
-    @Test
-    @Override
-    public void testVariantType()
-    {
-        assertThatThrownBy(super::testVariantType)
-                .hasMessage("Unsupported Iceberg type: variant");
     }
 
     @Override

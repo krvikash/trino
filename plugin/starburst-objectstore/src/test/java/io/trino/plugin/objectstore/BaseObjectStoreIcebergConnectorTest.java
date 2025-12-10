@@ -651,11 +651,11 @@ public abstract class BaseObjectStoreIcebergConnectorTest
     @Test
     public void testVariantType()
     {
-        try (TestTable table = newTrinoTable("test_variant", "(x json) WITH (format_version = 3)")) {
-            assertUpdate("INSERT INTO " + table.getName() + " VALUES JSON 'true'", 1);
+        try (TestTable table = newTrinoTable("test_variant", "(x variant) WITH (format_version = 3)")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES VARIANT 'true'", 1);
 
             assertThat(query("SELECT * FROM " + table.getName()))
-                    .matches("VALUES JSON 'true'");
+                    .matches("VALUES VARIANT 'true'");
         }
     }
 

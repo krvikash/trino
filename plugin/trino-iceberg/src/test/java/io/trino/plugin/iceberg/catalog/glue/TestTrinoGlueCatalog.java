@@ -24,6 +24,7 @@ import io.trino.plugin.iceberg.CommitTaskData;
 import io.trino.plugin.iceberg.IcebergConfig;
 import io.trino.plugin.iceberg.IcebergMetadata;
 import io.trino.plugin.iceberg.IcebergScheduledMvRefreshConfig;
+import io.trino.plugin.iceberg.IcebergTypeManager;
 import io.trino.plugin.iceberg.NoopWorkScheduler;
 import io.trino.plugin.iceberg.TableStatisticsWriter;
 import io.trino.plugin.iceberg.catalog.BaseTrinoCatalogTest;
@@ -107,12 +108,12 @@ public class TestTrinoGlueCatalog
                 new NoopWorkScheduler(),
                 HDFS_FILE_SYSTEM_FACTORY,
                 FILE_IO_FACTORY,
-                TESTING_TYPE_MANAGER,
+                new IcebergTypeManager(TESTING_TYPE_MANAGER, new IcebergConfig().getLegacyVariantTypeMapping()),
                 catalogConfig.isCacheTableMetadata(),
                 new GlueIcebergTableOperationsProvider(
                         HDFS_FILE_SYSTEM_FACTORY,
                         FILE_IO_FACTORY,
-                        TESTING_TYPE_MANAGER,
+                        new IcebergTypeManager(TESTING_TYPE_MANAGER, new IcebergConfig().getLegacyVariantTypeMapping()),
                         catalogConfig,
                         new TestingGlueClientProvider(glueClient)),
                 "test",
@@ -271,12 +272,12 @@ public class TestTrinoGlueCatalog
                 new NoopWorkScheduler(),
                 fileSystemFactory,
                 FILE_IO_FACTORY,
-                TESTING_TYPE_MANAGER,
+                new IcebergTypeManager(TESTING_TYPE_MANAGER, new IcebergConfig().getLegacyVariantTypeMapping()),
                 catalogConfig.isCacheTableMetadata(),
                 new GlueIcebergTableOperationsProvider(
                         fileSystemFactory,
                         FILE_IO_FACTORY,
-                        TESTING_TYPE_MANAGER,
+                        new IcebergTypeManager(TESTING_TYPE_MANAGER, new IcebergConfig().getLegacyVariantTypeMapping()),
                         catalogConfig,
                         new TestingGlueClientProvider(glueClient)),
                 "test",

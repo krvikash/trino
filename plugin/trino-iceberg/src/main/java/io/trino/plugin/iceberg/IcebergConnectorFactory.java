@@ -88,7 +88,7 @@ public class IcebergConnectorFactory
                     new MBeanModule(),
                     new ConnectorObjectNameGeneratorModule("io.trino.plugin.iceberg", "trino.plugin.iceberg"),
                     new JsonModule(),
-                    new IcebergModule(),
+                    new IcebergModule(context),
                     new IcebergSecurityModule(),
                     icebergCatalogModule.orElse(new IcebergCatalogModule()),
                     new MBeanServerModule(),

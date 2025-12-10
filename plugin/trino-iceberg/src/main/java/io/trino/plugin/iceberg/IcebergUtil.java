@@ -586,7 +586,7 @@ public final class IcebergUtil
         }
 
         if (fieldType.isVariantType()) {
-            return Stream.of(Map.entry(nestedField.fieldId(), fieldType.asVariantType()));
+            return Stream.empty();
         }
 
         throw new IllegalStateException("Unsupported field type: " + nestedField);

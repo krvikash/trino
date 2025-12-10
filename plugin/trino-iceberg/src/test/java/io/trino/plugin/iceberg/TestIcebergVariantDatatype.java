@@ -107,6 +107,7 @@ final class TestIcebergVariantDatatype
         metastore = createTestingFileHiveMetastore(HDFS_FILE_SYSTEM_FACTORY, Location.of(metastoreDir.getAbsolutePath()));
         QueryRunner queryRunner = IcebergQueryRunner.builder()
                 .setIcebergProperties(ImmutableMap.<String, String>builder()
+                        .put("iceberg.legacy-variant-type-mapping", "JSON")
                         .put("iceberg.register-table-procedure.enabled", "true")
                         .put("iceberg.format-version", "3")
                         .put("hive.metastore.catalog.dir", metastoreDir.getPath())
@@ -589,7 +590,7 @@ final class TestIcebergVariantDatatype
                 .failure().hasMessageContaining("Cannot read SQL type 'json' from ORC stream '.var' of type STRUCT with attributes");
 
         assertThat(query(("INSERT INTO " + tableName + " VALUES (2, JSON '{\"a\":null,\"d\":\"trino\"}')")))
-                .failure().hasMessageContaining("Unsupported Iceberg type: variant");
+                .nonTrinoExceptionFailure().hasMessageContaining("io.trino.type.JsonType cannot be cast to class io.trino.spi.type.RowType");
         assertUpdate("DROP TABLE " + tableName);
     }
 

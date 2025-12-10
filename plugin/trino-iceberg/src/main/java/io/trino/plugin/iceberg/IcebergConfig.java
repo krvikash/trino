@@ -59,6 +59,12 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 })
 public class IcebergConfig
 {
+    public enum VariantMapping
+    {
+        JSON,
+        VARIANT,
+    }
+
     public static final int FORMAT_VERSION_SUPPORT_MIN = 1;
     private static final int FORMAT_VERSION_DEFAULT = 2;
     public static final int FORMAT_VERSION_SUPPORT_MAX = 3;
@@ -115,6 +121,7 @@ public class IcebergConfig
     private boolean bucketExecutionEnabled = true;
     private boolean fileBasedConflictDetectionEnabled = true;
     private String timeZone = "UTC";
+    private VariantMapping legacyVariantTypeMapping = VariantMapping.VARIANT;
 
     public CatalogType getCatalogType()
     {
@@ -778,6 +785,21 @@ public class IcebergConfig
     public IcebergConfig setTimeZone(String timeZone)
     {
         this.timeZone = timeZone;
+        return this;
+    }
+
+    @Deprecated
+    public VariantMapping getLegacyVariantTypeMapping()
+    {
+        return legacyVariantTypeMapping;
+    }
+
+    @Deprecated
+    @Config("iceberg.legacy-variant-type-mapping")
+    @ConfigDescription("Iceberg variant type mapping")
+    public IcebergConfig setLegacyVariantTypeMapping(VariantMapping legacyVariantTypeMapping)
+    {
+        this.legacyVariantTypeMapping = legacyVariantTypeMapping;
         return this;
     }
 }

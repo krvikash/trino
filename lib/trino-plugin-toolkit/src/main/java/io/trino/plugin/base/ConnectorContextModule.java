@@ -31,6 +31,7 @@ import io.trino.spi.connector.MetadataProvider;
 import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.type.TypeManager;
 
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static java.util.Objects.requireNonNull;
 
 public class ConnectorContextModule
@@ -57,7 +58,7 @@ public class ConnectorContextModule
         binder.bind(NodeVersion.class).toInstance(new NodeVersion(context.getCurrentNode().getVersion()));
         binder.bind(NodeManager.class).toInstance(context.getNodeManager());
         binder.bind(VersionEmbedder.class).toInstance(context.getVersionEmbedder());
-        binder.bind(TypeManager.class).toInstance(context.getTypeManager());
+        newOptionalBinder(binder, TypeManager.class).setDefault().toInstance(context.getTypeManager());
         binder.bind(MetadataProvider.class).toInstance(context.getMetadataProvider());
         binder.bind(PageSorter.class).toInstance(context.getPageSorter());
         binder.bind(PageIndexerFactory.class).toInstance(context.getPageIndexerFactory());

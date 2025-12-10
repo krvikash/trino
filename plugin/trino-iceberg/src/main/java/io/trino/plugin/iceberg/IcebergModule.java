@@ -15,9 +15,9 @@ package io.trino.plugin.iceberg;
 
 import com.google.inject.Binder;
 import com.google.inject.Key;
-import com.google.inject.Module;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
+import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.filesystem.cache.CacheKeyProvider;
 import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.RawHiveMetastoreFactory;
@@ -64,6 +64,7 @@ import io.trino.plugin.iceberg.procedure.RollbackToSnapshotTableProcedure;
 import io.trino.plugin.iceberg.procedure.UnregisterTableProcedure;
 import io.trino.plugin.iceberg.system.IcebergTablesSystemTable;
 import io.trino.spi.cache.ConnectorCacheMetadata;
+import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
 import io.trino.spi.connector.ConnectorPageSinkProvider;
 import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
@@ -73,19 +74,28 @@ import io.trino.spi.connector.TableProcedureMetadata;
 import io.trino.spi.function.FunctionProvider;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.procedure.Procedure;
+import io.trino.spi.type.TypeManager;
 import org.apache.iceberg.PartitionStatisticsWriter;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
+import static java.util.Objects.requireNonNull;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
 public class IcebergModule
-        implements Module
+        extends AbstractConfigurationAwareModule
 {
+    private final ConnectorContext context;
+
+    public IcebergModule(ConnectorContext context)
+    {
+        this.context = requireNonNull(context, "context is null");
+    }
+
     @Override
-    public void configure(Binder binder)
+    protected void setup(Binder binder)
     {
         binder.bind(IcebergTransactionManager.class).in(Scopes.SINGLETON);
 
@@ -188,5 +198,12 @@ public class IcebergModule
         binder.bind(SortTempFileFactory.class).in(Scopes.SINGLETON);
 
         binder.install(new IcebergExecutorModule());
+
+        // TODO Fix ConnectorContextModule when removing IcebergTypeManager
+        // newOptionalBinder(binder, TypeManager.class).setDefault().toInstance(context.getTypeManager());
+        // ↓
+        // binder.bind(TypeManager.class).toInstance(context.getTypeManager());
+        newOptionalBinder(binder, TypeManager.class).setBinding()
+                .toInstance(new IcebergTypeManager(context.getTypeManager(), buildConfigObject(IcebergConfig.class).getLegacyVariantTypeMapping()));
     }
 }

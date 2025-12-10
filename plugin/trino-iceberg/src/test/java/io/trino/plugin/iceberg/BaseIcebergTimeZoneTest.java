@@ -98,6 +98,7 @@ public abstract class BaseIcebergTimeZoneTest
                 .setIcebergProperties(ImmutableMap.<String, String>builder()
                         .put("iceberg.file-format", format.name())
                         .put("iceberg.format-version", Integer.toString(formatVersion))
+                        .put("iceberg.legacy-variant-type-mapping", "JSON")
                         .put("iceberg.register-table-procedure.enabled", "true")
                         .put("iceberg.time-zone", "Asia/Kolkata")
                         .put("hive.metastore.catalog.dir", dataDirectory.getPath())

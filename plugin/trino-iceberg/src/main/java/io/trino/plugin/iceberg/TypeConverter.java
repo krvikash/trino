@@ -56,6 +56,7 @@ import static io.trino.spi.type.TimestampType.TIMESTAMP_NANOS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MICROS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_NANOS;
 import static io.trino.spi.type.UuidType.UUID;
+import static io.trino.spi.type.VariantType.VARIANT;
 import static java.lang.String.format;
 import static java.util.Locale.ENGLISH;
 
@@ -108,7 +109,10 @@ public final class TypeConverter
                         .map(field -> new RowType.Field(Optional.of(field.name()), toTrinoType(field.type(), typeManager)))
                         .collect(toImmutableList()));
             case VARIANT:
-                return typeManager.getType(new TypeSignature(JSON));
+                return switch (((IcebergTypeManager) typeManager).variantTypeMapping()) {
+                    case JSON -> typeManager.getType(new TypeSignature(JSON));
+                    case VARIANT -> VARIANT;
+                };
             case GEOMETRY:
             case GEOGRAPHY:
             case UNKNOWN:
@@ -174,7 +178,7 @@ public final class TypeConverter
         if (type.equals(UUID)) {
             return Types.UUIDType.get();
         }
-        if (type.getTypeSignature().getBase().equals(JSON)) {
+        if (type.getTypeSignature().getBase().equals(JSON) || type.equals(VARIANT)) {
             return Types.VariantType.get();
         }
         if (type instanceof RowType rowType) {

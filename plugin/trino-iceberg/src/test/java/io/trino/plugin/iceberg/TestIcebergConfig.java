@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableSet;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.trino.plugin.hive.HiveCompressionOption;
+import io.trino.plugin.iceberg.IcebergConfig.VariantMapping;
 import jakarta.validation.constraints.AssertFalse;
 import jakarta.validation.constraints.AssertTrue;
 import org.junit.jupiter.api.Test;
@@ -93,7 +94,8 @@ public class TestIcebergConfig
                 .setMetadataParallelism(8)
                 .setBucketExecutionEnabled(true)
                 .setFileBasedConflictDetectionEnabled(true)
-                .setTimeZone("UTC"));
+                .setTimeZone("UTC")
+                .setLegacyVariantTypeMapping(VariantMapping.VARIANT));
     }
 
     @Test
@@ -146,6 +148,7 @@ public class TestIcebergConfig
                 .put("iceberg.bucket-execution", "false")
                 .put("iceberg.file-based-conflict-detection", "false")
                 .put("iceberg.time-zone", nonDefaultTimeZone().getID())
+                .put("iceberg.legacy-variant-type-mapping", "JSON")
                 .buildOrThrow();
 
         IcebergConfig expected = new IcebergConfig()
@@ -195,7 +198,8 @@ public class TestIcebergConfig
                 .setMetadataParallelism(10)
                 .setBucketExecutionEnabled(false)
                 .setFileBasedConflictDetectionEnabled(false)
-                .setTimeZone(nonDefaultTimeZone().getID());
+                .setTimeZone(nonDefaultTimeZone().getID())
+                .setLegacyVariantTypeMapping(VariantMapping.JSON);
 
         assertFullMapping(properties, expected);
     }

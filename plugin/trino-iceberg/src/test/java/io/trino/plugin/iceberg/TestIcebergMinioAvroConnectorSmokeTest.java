@@ -17,7 +17,6 @@ import io.trino.filesystem.Location;
 import org.junit.jupiter.api.Test;
 
 import static org.apache.iceberg.FileFormat.AVRO;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.abort;
 
 public class TestIcebergMinioAvroConnectorSmokeTest
@@ -40,14 +39,6 @@ public class TestIcebergMinioAvroConnectorSmokeTest
     public void testFileSortingWithLargerTable()
     {
         abort("Avro does not support file sorting");
-    }
-
-    @Test
-    @Override
-    public void testVariantType()
-    {
-        assertThatThrownBy(super::testVariantType)
-                .hasMessage("unsupported type: json");
     }
 
     @Override
