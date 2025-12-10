@@ -58,7 +58,7 @@ public class NativeLoggerTest
     {
         nativeConfig = new NativeConfig();
         nativeConfig.setTaskMaxWorkerThreads(3);
-        catalogName = new CatalogName("defaultCatalogName");
+        catalogName = new CatalogName("default_catalog_name");
 
         ShapingLoggerFactory shapingLoggerFactory = new ShapingLoggerFactory(catalogName, new SharedConfig());
         nativeLogger = new NativeLogger(nativeConfig, shapingLoggerFactory);

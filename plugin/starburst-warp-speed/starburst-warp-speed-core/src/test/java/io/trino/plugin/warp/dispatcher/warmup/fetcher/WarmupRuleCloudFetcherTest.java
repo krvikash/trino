@@ -44,7 +44,7 @@ import static org.mockito.Mockito.when;
 
 public class WarmupRuleCloudFetcherTest
 {
-    CatalogNameProvider catalogNameProvider = new CatalogNameProvider("testCatalog");
+    CatalogNameProvider catalogNameProvider = new CatalogNameProvider("test_catalog");
     private WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig;
     private CloudVendorService cloudVendorService;
     private WarmupRuleService warmupRuleService;

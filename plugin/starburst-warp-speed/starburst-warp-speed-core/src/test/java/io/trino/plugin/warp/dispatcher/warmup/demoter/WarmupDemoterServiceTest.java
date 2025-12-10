@@ -110,7 +110,7 @@ public class WarmupDemoterServiceTest
         });
         metricsManager = TestingTxService.createMetricsManager();
 
-        CatalogName catalogName = new CatalogName("catalogTest");
+        CatalogName catalogName = new CatalogName("catalog_test");
         NodeManager nodeManager = NodeUtils.mockNodeManager();
         FlowsSequencer flowsSequencer = new FlowsSequencer();
 
