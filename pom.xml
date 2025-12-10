@@ -264,7 +264,6 @@
         <dep.tempto.version>202</dep.tempto.version>
         <dep.wire.version>5.2.1</dep.wire.version>
         <dep.zookeeper.version>3.9.4</dep.zookeeper.version>
-        <dep.erosb.everit.json.version>1.14.6</dep.erosb.everit.json.version>
         <dep.erosb.json.skema.version>0.20.0</dep.erosb.json.skema.version>
         <dep.kjetland.jackson.schema.version>1.0.39</dep.kjetland.jackson.schema.version>
         <extraJavaVectorArgs>--add-modules=jdk.incubator.vector</extraJavaVectorArgs>
@@ -501,7 +500,7 @@
             <dependency>
                 <groupId>com.github.erosb</groupId>
                 <artifactId>everit-json-schema</artifactId>
-                <version>${dep.erosb.everit.json.version}</version>
+                <version>1.14.6</version>
             </dependency>
 
             <dependency>
