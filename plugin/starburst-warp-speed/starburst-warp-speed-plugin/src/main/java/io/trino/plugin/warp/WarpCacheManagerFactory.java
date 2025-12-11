@@ -24,9 +24,7 @@ import io.trino.spi.cache.CacheManagerContext;
 import io.trino.spi.cache.CacheManagerFactory;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static io.trino.plugin.warp.config.CacheManagerConfig.CONFIG_IS_CACHE;
 import static java.util.Objects.requireNonNull;
@@ -80,6 +78,6 @@ public class WarpCacheManagerFactory
                 configMap,
                 context,
                 warpCacheMgrConnectorContext,
-                Optional.of(List.of(WarpExtensionHandlerModule.class)));
+                WarpExtensionHandlerModule.class);
     }
 }

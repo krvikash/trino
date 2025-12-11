@@ -42,6 +42,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static io.starburst.stargate.buffer.BufferNodeState.ACTIVE;
@@ -58,7 +59,7 @@ public class TestingDataServer
     private final long nodeId;
 
     private TestingDataServer(long nodeId,
-            Optional<Module> discoveryApiModule,
+            Supplier<Optional<Module>> discoveryApiModule,
             Map<String, String> configProperties,
             boolean useBlackholeStorage)
     {
@@ -77,10 +78,10 @@ public class TestingDataServer
                 new StatusModule(),
                 DataServerMainModule.builder()
                         .withBufferNodeId(nodeId)
-                        .withDiscoveryBroadcast(discoveryApiModule.isPresent())
+                        .withDiscoveryBroadcast(discoveryApiModule.get().isPresent())
                         .build(),
                 useBlackholeStorage ? new BlackholeSpoolingStorageModule() : new SpoolingStorageModule(Optional.empty())));
-        discoveryApiModule.ifPresent(modules::add);
+        discoveryApiModule.get().ifPresent(modules::add);
 
         Bootstrap app = new Bootstrap(modules);
 
@@ -92,7 +93,7 @@ public class TestingDataServer
 
         BufferNodeStateManager stateManager = injector.getInstance(BufferNodeStateManager.class);
         stateManager.transitionState(STARTED);
-        if (!discoveryApiModule.isPresent()) {
+        if (!discoveryApiModule.get().isPresent()) {
             stateManager.transitionState(ACTIVE);
         }
         this.statusProvider = injector.getInstance(DataServerStatusProvider.class);
@@ -104,7 +105,7 @@ public class TestingDataServer
         baseUri = UriBuilder.fromUri(httpServerInfo.getHttpsUri() != null ? httpServerInfo.getHttpsUri() : httpServerInfo.getHttpUri())
                 .host("localhost")
                 .build();
-        if (discoveryApiModule.isPresent()) {
+        if (discoveryApiModule.get().isPresent()) {
             discovery = Optional.of(injector.getInstance(DiscoveryApi.class));
         }
         else {
@@ -129,19 +130,19 @@ public class TestingDataServer
 
     public static class Builder
     {
-        private Optional<Module> discoveryApiModule = Optional.empty();
+        private Supplier<Optional<Module>> discoveryApiModule = Optional::empty;
         private Map<String, String> configProperties = new HashMap<>();
         private boolean useBlackholeStorage;
 
         public Builder withDefaultDiscoveryApiModule()
         {
-            discoveryApiModule = Optional.of(new StandaloneDiscoveryApiModule());
+            discoveryApiModule = () -> Optional.of(new StandaloneDiscoveryApiModule());
             return this;
         }
 
         public Builder withDiscoveryApiModule(Module module)
         {
-            discoveryApiModule = Optional.of(requireNonNull(module, "module is not null"));
+            discoveryApiModule = () -> Optional.of(requireNonNull(module, "module is not null"));
             return this;
         }
 

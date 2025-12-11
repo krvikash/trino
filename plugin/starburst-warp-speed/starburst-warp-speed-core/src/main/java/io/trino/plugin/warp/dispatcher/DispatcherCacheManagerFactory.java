@@ -13,14 +13,14 @@
  */
 package io.trino.plugin.warp.dispatcher;
 
+import com.google.inject.Module;
 import io.trino.plugin.warp.di.InitializationModule;
 import io.trino.spi.cache.CacheManager;
 import io.trino.spi.cache.CacheManagerContext;
 
 import java.lang.reflect.InvocationTargetException;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.function.Supplier;
 
 import static com.google.common.base.Throwables.throwIfUnchecked;
 
@@ -35,38 +35,35 @@ public class DispatcherCacheManagerFactory
     public CacheManager create(Map<String, String> config,
             CacheManagerContext context,
             WarpCacheMgrConnectorContext warpCacheMgrConnectorContext,
-            Optional<List<Class<? extends InitializationModule>>> optionalModules)
+            Class<? extends InitializationModule> optionalModules)
     {
         try {
             ClassLoader classLoader = this.getClass().getClassLoader();
 
-            Optional<List<Object>> optionalModuleInstances =
-                    optionalModules.map(classes -> classes.stream()
-                            .map(aClass -> {
-                                try {
-                                    Class<?> initModuleClass = classLoader.loadClass(aClass.getName());
-                                    return InitializationModule.invokeCreateModule(initModuleClass,
-                                            config,
-                                            warpCacheMgrConnectorContext,
-                                            DISPATCHER_CACHE_MANAGER_NAME);
-                                }
-                                catch (ClassNotFoundException e) {
-                                    throw new RuntimeException(e);
-                                }
-                            }).toList());
+            Supplier<Module> optionalModule;
+            try {
+                Class<?> initModuleClass = classLoader.loadClass(optionalModules.getName());
+                optionalModule = InitializationModule.invokeCreateModule(initModuleClass,
+                        config,
+                        warpCacheMgrConnectorContext,
+                        DISPATCHER_CACHE_MANAGER_NAME);
+            }
+            catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
 
             return (CacheManager) classLoader.loadClass(InternalDispatcherCacheManagerFactory.class.getName())
                     .getMethod("createCacheManager",
                             String.class,
                             Map.class,
-                            Optional.class,
+                            Supplier.class,
                             CacheManagerContext.class,
                             WarpCacheMgrConnectorContext.class)
                     .invoke(
                             null,
                             DISPATCHER_CACHE_MANAGER_NAME,
                             config,
-                            optionalModuleInstances,
+                            optionalModule,
                             context,
                             warpCacheMgrConnectorContext);
         }

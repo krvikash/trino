@@ -73,7 +73,7 @@ public class TestLimitedWorkersCollected
                 .setCoordinatorProperties(Map.of(
                         "troubleshooting.jfr.max-collected-workers", String.valueOf(maxCollectedWorkers),
                         "troubleshooting.trace.max-collected-workers", String.valueOf(maxCollectedWorkers)))
-                .setAdditionalModule(new AbstractConfigurationAwareModule()
+                .setAdditionalModuleSupplier(() -> new AbstractConfigurationAwareModule()
                 {
                     @Override
                     protected void setup(Binder binder)

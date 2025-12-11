@@ -34,7 +34,7 @@ public class TestStarburstOdbc
             throws Exception
     {
         DistributedQueryRunner runner = TpchQueryRunnerBuilder.builder()
-                .setAdditionalModule(new StarburstProtocolModule())
+                .setAdditionalModuleSupplier(StarburstProtocolModule::new)
                 .build();
 
         try (runner; GenericContainer<?> container = new GenericContainer<>(buildTestsContainer())) {

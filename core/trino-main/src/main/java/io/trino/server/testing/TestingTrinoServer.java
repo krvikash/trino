@@ -146,6 +146,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -265,7 +266,7 @@ public class TestingTrinoServer
             boolean coordinator,
             Map<String, String> properties,
             Optional<String> environment,
-            Module additionalModule,
+            Supplier<Module> additionalModule,
             Optional<Path> baseDataDir,
             Optional<SpanProcessor> spanProcessor,
             Optional<FactoryConfiguration> systemAccessControlConfiguration,
@@ -378,7 +379,7 @@ public class TestingTrinoServer
         modules.add(aiModelAccessControlModule());
         modules.add(new ModelConnectionSpecsLoaderModule(modelConnectionSpecsLoader, coordinator));
 
-        modules.add(additionalModule);
+        modules.add(additionalModule.get());
 
         Bootstrap app = new Bootstrap("io.trino.bootstrap.engine", modules.build());
 
@@ -844,7 +845,7 @@ public class TestingTrinoServer
         private boolean coordinator = true;
         private Map<String, String> properties = ImmutableMap.of();
         private Optional<String> environment = Optional.empty();
-        private Module additionalModule = EMPTY_MODULE;
+        private Supplier<Module> additionalModule = () -> EMPTY_MODULE;
         private Optional<Path> baseDataDir = Optional.empty();
         private Optional<SpanProcessor> spanProcessor = Optional.empty();
         private Optional<FactoryConfiguration> systemAccessControlConfiguration = Optional.empty();
@@ -903,6 +904,14 @@ public class TestingTrinoServer
         }
 
         public Builder setAdditionalModule(Module additionalModule)
+        {
+            this.additionalModule = () -> requireNonNull(additionalModule, "additionalModule is null");
+            return this;
+        }
+
+        // TODO: Adding this method temporarily since TroubleshootingModule requires ConfigurationFactory.
+        //  Change the above setAdditionalModule to Supplier in OS Trino, and remove this method.
+        public Builder setAdditionalModuleSupplier(Supplier<Module> additionalModule)
         {
             this.additionalModule = requireNonNull(additionalModule, "additionalModule is null");
             return this;

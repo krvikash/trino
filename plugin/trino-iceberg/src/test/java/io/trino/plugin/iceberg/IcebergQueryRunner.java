@@ -187,7 +187,7 @@ public final class IcebergQueryRunner
                 }
 
                 Path dataDir = metastoreDirectory.map(File::toPath).orElseGet(() -> queryRunner.getCoordinator().getBaseDataDir().resolve("iceberg_data"));
-                queryRunner.installPlugin(new TestingIcebergPlugin(dataDir, Optional.empty(), workScheduler));
+                queryRunner.installPlugin(new TestingIcebergPlugin(dataDir, Optional::empty, workScheduler));
                 queryRunner.createCatalog(ICEBERG_CATALOG, "iceberg", icebergProperties.buildOrThrow());
 
                 queryRunner.getServers().forEach(TestingTrinoServer::getCacheManagerRegistry);

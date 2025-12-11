@@ -14,6 +14,7 @@
 package io.trino.plugin.warp.di;
 
 import com.google.inject.Binder;
+import com.google.inject.Module;
 import com.google.inject.TypeLiteral;
 import io.airlift.configuration.ConfigurationFactory;
 import io.trino.plugin.warp.annotation.ForWarmupRuleCloudFetcher;
@@ -31,6 +32,7 @@ import io.trino.plugin.warp.warmup.model.WarmupRule;
 import io.trino.spi.connector.ConnectorContext;
 
 import java.util.Map;
+import java.util.function.Supplier;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.plugin.warp.di.WarpBaseModule.isSingle;
@@ -56,12 +58,12 @@ public class WarmupCloudFetcherModule
 
     @SuppressWarnings("unused")
     @Override
-    public InitializationModule createModule(
+    public Supplier<Module> createModule(
             Map<String, String> config,
             ConnectorContext context,
             String catalogName)
     {
-        return new WarmupCloudFetcherModule(config, context, catalogName);
+        return () -> new WarmupCloudFetcherModule(config, context, catalogName);
     }
 
     @Override

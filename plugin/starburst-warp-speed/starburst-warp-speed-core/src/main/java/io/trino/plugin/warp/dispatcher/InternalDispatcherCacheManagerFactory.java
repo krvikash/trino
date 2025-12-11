@@ -37,7 +37,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.function.Supplier;
 
 import static java.util.Arrays.asList;
 
@@ -52,7 +52,7 @@ public class InternalDispatcherCacheManagerFactory
     @SuppressWarnings("unused")
     public static CacheManager createCacheManager(String cacheManagerName,
             Map<String, String> config,
-            Optional<List<Module>> optionalModules,
+            Supplier<Module> optionalModule,
             CacheManagerContext context,
             WarpCacheMgrConnectorContext warpCacheMgrConnectorContext)
     {
@@ -78,7 +78,7 @@ public class InternalDispatcherCacheManagerFactory
                     }
                 }));
 
-        optionalModules.ifPresent(modules::addAll);
+        modules.add(optionalModule.get());
 
         Bootstrap app = new Bootstrap(
                 "io.trino.bootstrap.cache." + cacheManagerName,

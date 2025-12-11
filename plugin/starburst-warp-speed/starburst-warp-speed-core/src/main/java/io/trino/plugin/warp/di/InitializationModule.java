@@ -19,6 +19,7 @@ import io.trino.spi.connector.ConnectorContext;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * SubClasses of this class must have a private constructor and implement a static method
@@ -31,7 +32,7 @@ import java.util.Map;
 public interface InitializationModule
         extends WarpBaseModule
 {
-    static Object invokeCreateModule(
+    static Supplier<Module> invokeCreateModule(
             Class<?> clazz,
             Map<String, String> config,
             ConnectorContext context,
@@ -40,7 +41,7 @@ public interface InitializationModule
         try {
             Constructor<?> constructor = clazz.getConstructor();
             Object initModule = constructor.newInstance();
-            return clazz
+            return (Supplier<Module>) clazz
                     .getMethod("createModule", Map.class, ConnectorContext.class, String.class)
                     .invoke(initModule, config, context, catalogName);
         }
@@ -50,5 +51,5 @@ public interface InitializationModule
     }
 
     @SuppressWarnings("unused")
-    Module createModule(Map<String, String> config, ConnectorContext connectorContext, String catalogName);
+    Supplier<Module> createModule(Map<String, String> config, ConnectorContext connectorContext, String catalogName);
 }

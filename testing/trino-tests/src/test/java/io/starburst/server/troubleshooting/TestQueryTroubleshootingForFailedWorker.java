@@ -104,7 +104,7 @@ public class TestQueryTroubleshootingForFailedWorker
     {
         DistributedQueryRunner queryRunner = TpchQueryRunner.builder()
                 .setWorkerCount(workerCount)
-                .setAdditionalModule(new AbstractConfigurationAwareModule()
+                .setAdditionalModuleSupplier(() -> new AbstractConfigurationAwareModule()
                 {
                     @Override
                     protected void setup(Binder binder)

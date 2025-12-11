@@ -16,7 +16,6 @@ package io.trino.plugin.warp;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.airlift.configuration.ConfigurationFactory;
 import io.trino.plugin.warp.di.InitializationModule;
 import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
 import io.trino.plugin.warp.extension.di.WarpEmptyExtensionModule;
@@ -24,6 +23,7 @@ import io.trino.plugin.warp.extension.di.WarpExtensionModule;
 import io.trino.spi.connector.ConnectorContext;
 
 import java.util.Map;
+import java.util.function.Supplier;
 
 import static java.util.Objects.requireNonNull;
 
@@ -46,16 +46,15 @@ public class WarpExtensionHandlerModule
     }
 
     @Override
-    public Module createModule(Map<String, String> config, ConnectorContext connectorContext, String catalogName)
+    public Supplier<Module> createModule(Map<String, String> config, ConnectorContext connectorContext, String catalogName)
     {
-        return new WarpExtensionHandlerModule(config, connectorContext, catalogName);
+        return () -> new WarpExtensionHandlerModule(config, connectorContext, catalogName);
     }
 
     @Override
     public void setup(Binder binder)
     {
-        ConfigurationFactory configFactory = new ConfigurationFactory(config);
-        WarpExtensionConfig warpExtensionConfig = configFactory.build(WarpExtensionConfig.class);
+        WarpExtensionConfig warpExtensionConfig = buildConfigObject(WarpExtensionConfig.class);
         if (warpExtensionConfig.isEnabled()) {
             install(new WarpExtensionModule(config, connectorContext, catalogName));
         }

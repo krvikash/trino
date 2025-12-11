@@ -21,6 +21,7 @@ import io.trino.plugin.warp.dispatcher.connectors.ConnectorTaskExecutor;
 import io.trino.spi.connector.ConnectorContext;
 
 import java.util.Map;
+import java.util.function.Supplier;
 
 import static java.util.Objects.requireNonNull;
 
@@ -55,9 +56,9 @@ public class WarpEmptyExtensionModule
     }
 
     @Override
-    public Module createModule(Map<String, String> config, ConnectorContext connectorContext, String catalogName)
+    public Supplier<Module> createModule(Map<String, String> config, ConnectorContext connectorContext, String catalogName)
     {
-        return new WarpEmptyExtensionModule(config, connectorContext, catalogName);
+        return () -> new WarpEmptyExtensionModule(config, connectorContext, catalogName);
     }
 
     static class EmptyTaskExecutor

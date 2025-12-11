@@ -47,6 +47,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
@@ -62,9 +63,9 @@ public class InternalDispatcherConnectorFactory
     public static Connector createConnector(
             String catalogName,
             Map<String, String> config,
-            Optional<List<Module>> optionalModules,
+            Supplier<Module> optionalModules,
             Map<String, ProxiedConnectorInitializer> proxiedConnectorInitializerMap,
-            Optional<Module> optionalProxyModule,
+            Supplier<Optional<Module>> optionalProxyModule,
             WarpConnectorContext warpConnectorContext)
     {
         config = ConfigurationUtils.replaceEnvironmentVariables(config);
@@ -84,7 +85,7 @@ public class InternalDispatcherConnectorFactory
 
         String proxiedConnectorName = warpConfig.get(ProxiedConnectorConfig.PROXIED_CONNECTOR);
         ProxiedConnectorInitializer proxiedConnectorInitializer = getProxiedConnectorInitializer(proxiedConnectorName, proxiedConnectorInitializerMap);
-        Connector proxiedConnector = proxiedConnectorInitializer.create(catalogName, config, warpConnectorContext, optionalProxyModule);
+        Connector proxiedConnector = proxiedConnectorInitializer.create(catalogName, config, warpConnectorContext, optionalProxyModule.get());
         List<Module> modules = new ArrayList<>();
         modules.addAll(asList(
                 new WarpModules(catalogName, warpConfig, warpConnectorContext),
@@ -100,9 +101,9 @@ public class InternalDispatcherConnectorFactory
                     startupStatus.startupComplete();
                     binder.bind(StartupStatus.class).toInstance(startupStatus);
                 }));
-        modules.addAll(proxiedConnectorInitializer.getModules(warpConnectorContext));
+        modules.addAll(proxiedConnectorInitializer.getModules(warpConnectorContext).get());
         modules.add(proxiedConnectorModule(proxiedConnector));
-        optionalModules.ifPresent(modules::addAll);
+        modules.add(optionalModules.get());
         Bootstrap app = new Bootstrap("io.trino.bootstrap.catalog." + catalogName, modules);
 
         Injector injector = app

@@ -16,7 +16,6 @@ package io.trino.plugin.warp;
 import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.airlift.configuration.ConfigurationFactory;
 import io.trino.plugin.warp.config.ProxiedConnectorConfig;
-import io.trino.plugin.warp.di.InitializationModule;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.dispatcher.WarpConnectorContext;
 import io.trino.plugin.warp.dispatcher.WarpPluginSharedInstancesFactory;
@@ -31,9 +30,7 @@ import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -43,18 +40,15 @@ public class WarpConnectorFactory
     private final WarpPluginSharedInstancesFactory warpPluginSharedInstancesFactory;
     private final DispatcherConnectorFactory dispatcherConnectorFactory;
     private final LicenseVerifier licenseVerifier;
-    private final List<Class<? extends InitializationModule>> extraModules;
 
     public WarpConnectorFactory(
             WarpPluginSharedInstancesFactory warpPluginSharedInstancesFactory,
             DispatcherConnectorFactory dispatcherConnectorFactory,
-            LicenseVerifier licenseVerifier,
-            List<Class<? extends InitializationModule>> extraModules)
+            LicenseVerifier licenseVerifier)
     {
         this.warpPluginSharedInstancesFactory = requireNonNull(warpPluginSharedInstancesFactory);
         this.dispatcherConnectorFactory = requireNonNull(dispatcherConnectorFactory);
         this.licenseVerifier = requireNonNull(licenseVerifier, "licenseManager is null");
-        this.extraModules = requireNonNull(extraModules, "extraModules is null");
     }
 
     @Override
@@ -87,15 +81,11 @@ public class WarpConnectorFactory
         WarpConnectorContext warpConnectorContext = new WarpConnectorContext(context,
                 warpPluginSharedInstancesFactory.create("io.trino.bootstrap.catalog." + catalogName, context.getCurrentNode().isCoordinator(), configMap));
 
-        List<Class<? extends InitializationModule>> extraModules = !this.extraModules.isEmpty() ?
-                this.extraModules :
-                List.of(WarpExtensionHandlerModule.class);
-
         return new StarburstWarpConnector(dispatcherConnectorFactory.create(
                 catalogName,
                 configMap,
                 warpConnectorContext,
-                Optional.of(extraModules),
+                WarpExtensionHandlerModule.class,
                 Map.of(ProxiedConnectorConfig.DELTA_LAKE_CONNECTOR_NAME, DeltaLakeProxiedConnectorInitializer.class.getName(),
                         ProxiedConnectorConfig.HIVE_CONNECTOR_NAME, HiveProxiedConnectorInitializer.class.getName(),
                         ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME, IcebergProxiedConnectorInitializer.class.getName())));

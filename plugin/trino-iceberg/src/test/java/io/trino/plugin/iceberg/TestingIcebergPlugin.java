@@ -20,6 +20,7 @@ import io.trino.spi.connector.ConnectorFactory;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static com.google.common.base.Verify.verify;
 import static java.util.Objects.requireNonNull;
@@ -28,21 +29,21 @@ public class TestingIcebergPlugin
         extends IcebergPlugin
 {
     private final Path localFileSystemRootPath;
-    private final Optional<Module> icebergCatalogModule;
+    private final Supplier<Optional<Module>> icebergCatalogModule;
     private final Optional<WorkScheduler> workScheduler;
 
     public TestingIcebergPlugin(Path localFileSystemRootPath)
     {
-        this(localFileSystemRootPath, Optional.empty());
+        this(localFileSystemRootPath, Optional::empty);
     }
 
     @Deprecated
-    public TestingIcebergPlugin(Path localFileSystemRootPath, Optional<Module> icebergCatalogModule)
+    public TestingIcebergPlugin(Path localFileSystemRootPath, Supplier<Optional<Module>> icebergCatalogModule)
     {
         this(localFileSystemRootPath, icebergCatalogModule, Optional.empty());
     }
 
-    public TestingIcebergPlugin(Path localFileSystemRootPath, Optional<Module> icebergCatalogModule, Optional<WorkScheduler> workScheduler)
+    public TestingIcebergPlugin(Path localFileSystemRootPath, Supplier<Optional<Module>> icebergCatalogModule, Optional<WorkScheduler> workScheduler)
     {
         this.localFileSystemRootPath = requireNonNull(localFileSystemRootPath, "localFileSystemRootPath is null");
         this.icebergCatalogModule = requireNonNull(icebergCatalogModule, "icebergCatalogModule is null");

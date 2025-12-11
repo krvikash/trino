@@ -24,7 +24,6 @@ import io.trino.spi.cache.CacheManagerFactory;
 import io.trino.spi.connector.ConnectorFactory;
 import org.weakref.jmx.$internal.guava.annotations.VisibleForTesting;
 
-import java.util.Collections;
 import java.util.List;
 
 import static io.trino.plugin.warp.WarpErrorCode.WARP_SETUP;
@@ -64,8 +63,7 @@ public class WarpPlugin
         WarpConnectorFactory warpConnectorFactory = new WarpConnectorFactory(
                 getSharedInstancesFactory(),
                 this.getConnectorFactory(),
-                licenseVerifier,
-                Collections.emptyList());
+                licenseVerifier);
         return List.of(warpConnectorFactory);
     }
 

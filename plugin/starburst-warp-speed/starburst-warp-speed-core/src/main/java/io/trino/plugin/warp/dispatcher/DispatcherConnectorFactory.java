@@ -18,9 +18,9 @@ import io.trino.plugin.warp.di.InitializationModule;
 import io.trino.spi.connector.Connector;
 
 import java.lang.reflect.InvocationTargetException;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Throwables.throwIfUnchecked;
@@ -40,41 +40,39 @@ public class DispatcherConnectorFactory
             String catalogName,
             Map<String, String> config,
             WarpConnectorContext context,
-            Optional<List<Class<? extends InitializationModule>>> optionalModules,
+            Class<? extends InitializationModule> optionalModules,
             Map<String, String> proxiedConnectorInitializerMap)
     {
         try {
             ClassLoader classLoader = this.getClass().getClassLoader();
             // use the class instance from InternalDispatcherConnectorFactory's classloader
-            Class<?> optionalClass = classLoader.loadClass(Optional.class.getName());
+            Class<?> supplierClass = classLoader.loadClass(Supplier.class.getName());
+            Supplier<Optional<Module>> optionalProxyModule = () -> Optional.ofNullable(proxyModule);
 
-            Optional<List<Object>> optionalModuleInstances =
-                    optionalModules.map(classes -> classes.stream()
-                            .map(aClass -> {
-                                try {
-                                    Class<?> initModuleClass = classLoader.loadClass(aClass.getName());
-                                    return InitializationModule.invokeCreateModule(initModuleClass,
-                                            config,
-                                            context,
-                                            catalogName);
-                                }
-                                catch (ClassNotFoundException e) {
-                                    throw new RuntimeException(e);
-                                }
-                            }).toList());
+            Supplier<Module> optionalModule;
+            try {
+                Class<?> initModuleClass = classLoader.loadClass(optionalModules.getName());
+                optionalModule = InitializationModule.invokeCreateModule(initModuleClass,
+                        config,
+                        context,
+                        catalogName);
+            }
+            catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
 
             return (Connector) classLoader.loadClass(InternalDispatcherConnectorFactory.class.getName())
                     .getMethod("createConnector",
                             String.class,
                             Map.class,
-                            Optional.class,
+                            supplierClass,
                             Map.class,
-                            optionalClass,
+                            supplierClass,
                             WarpConnectorContext.class)
                     .invoke(null,
                             catalogName,
                             config,
-                            optionalModuleInstances,
+                            optionalModule,
                             proxiedConnectorInitializerMap.entrySet()
                                     .stream()
                                     .collect(Collectors.toMap(Map.Entry::getKey, entry -> {
@@ -85,7 +83,7 @@ public class DispatcherConnectorFactory
                                             throw new RuntimeException(e);
                                         }
                                     })),
-                            Optional.ofNullable(proxyModule),
+                            optionalProxyModule,
                             context);
         }
         catch (InvocationTargetException e) {

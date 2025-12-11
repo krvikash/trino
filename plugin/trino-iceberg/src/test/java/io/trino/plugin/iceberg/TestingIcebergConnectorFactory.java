@@ -25,6 +25,7 @@ import io.trino.spi.connector.ConnectorFactory;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static com.google.inject.multibindings.MapBinder.newMapBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
@@ -36,18 +37,18 @@ public class TestingIcebergConnectorFactory
         implements ConnectorFactory
 {
     private final Path localFileSystemRootPath;
-    private final Optional<Module> icebergCatalogModule;
+    private final Supplier<Optional<Module>> icebergCatalogModule;
     private final Optional<WorkScheduler> workScheduler;
 
     public TestingIcebergConnectorFactory(Path localFileSystemRootPath)
     {
-        this(localFileSystemRootPath, Optional.empty(), Optional.empty());
+        this(localFileSystemRootPath, Optional::empty, Optional.empty());
     }
 
     @Deprecated
     public TestingIcebergConnectorFactory(
             Path localFileSystemRootPath,
-            Optional<Module> icebergCatalogModule,
+            Supplier<Optional<Module>> icebergCatalogModule,
             Optional<WorkScheduler> workScheduler)
     {
         this.localFileSystemRootPath = requireNonNull(localFileSystemRootPath, "localFileSystemRootPath is null");
@@ -82,6 +83,6 @@ public class TestingIcebergConnectorFactory
                 newOptionalBinder(binder, WorkScheduler.class).setBinding().toInstance(workScheduler.get());
             }
         };
-        return createConnector(catalogName, config, context, module, icebergCatalogModule);
+        return createConnector(catalogName, config, context, module, icebergCatalogModule.get());
     }
 }

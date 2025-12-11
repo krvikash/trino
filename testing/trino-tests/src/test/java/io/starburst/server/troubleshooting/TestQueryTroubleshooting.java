@@ -75,7 +75,7 @@ public class TestQueryTroubleshooting
                 .addExtraProperty("troubleshooting.jfr.max-recording-size", "8MB")
                 .setCoordinatorProperties(Map.of(
                         "troubleshooting.max-access-duration", "20s"))
-                .setAdditionalModule(new AbstractConfigurationAwareModule()
+                .setAdditionalModuleSupplier(() -> new AbstractConfigurationAwareModule()
                 {
                     @Override
                     protected void setup(Binder binder)
