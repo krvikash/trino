@@ -1818,7 +1818,7 @@ jobs:
   build-pt:
     needs: path-filters
     if: github.event_name != 'pull_request' || needs.path-filters.outputs.non_docs == 'true'
-    runs-on: [self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest]
+    runs-on: [self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest]
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       product-tests-changed: ${{ steps.filter.outputs.product-tests }}
