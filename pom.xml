@@ -504,7 +504,7 @@
             <dependency>
                 <groupId>com.github.erosb</groupId>
                 <artifactId>json-sKema</artifactId>
-                <version>0.20.0</version>
+                <version>0.28.0</version>
                 <exclusions>
                     <exclusion>
                         <groupId>commons-validator</groupId>
