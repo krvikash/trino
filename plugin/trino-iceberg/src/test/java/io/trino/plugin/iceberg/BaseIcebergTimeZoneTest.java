@@ -751,147 +751,30 @@ public abstract class BaseIcebergTimeZoneTest
     @Test
     void testSelectTimestampTzDateTrunc()
     {
-        assertSelectTimestampTzDateTrunc("millisecond", "TIMESTAMP '2020-05-10 12:34:56 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("millisecond", "TIMESTAMP '2020-05-10 12:34:56.1 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.100000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("millisecond", "TIMESTAMP '2020-05-10 12:34:56.12 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.120000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("millisecond", "TIMESTAMP '2020-05-10 12:34:56.123 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.123000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("millisecond", "TIMESTAMP '2020-05-10 12:34:56.1234 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.123000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("millisecond", "TIMESTAMP '2020-05-10 12:34:56.12345 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.123000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("millisecond", "TIMESTAMP '2020-05-10 12:34:56.123456 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.123000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("millisecond", "TIMESTAMP '2020-05-10 12:34:56.1234567 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.123000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("millisecond", "TIMESTAMP '2020-05-10 12:34:56.12345678 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.123000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("millisecond", "TIMESTAMP '2020-05-10 12:34:56.123456789 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.123000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("millisecond", "TIMESTAMP '2020-05-10 12:34:56.1234567890 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.123000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("millisecond", "TIMESTAMP '2020-05-10 12:34:56.12345678901 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.123000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("millisecond", "TIMESTAMP '2020-05-10 12:34:56.123456789012 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.123000 Asia/Kolkata'");
-
-        assertSelectTimestampTzDateTrunc("second", "TIMESTAMP '2020-05-10 12:34:56 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("second", "TIMESTAMP '2020-05-10 12:34:56.1 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("second", "TIMESTAMP '2020-05-10 12:34:56.12 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("second", "TIMESTAMP '2020-05-10 12:34:56.123 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("second", "TIMESTAMP '2020-05-10 12:34:56.1234 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("second", "TIMESTAMP '2020-05-10 12:34:56.12345 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("second", "TIMESTAMP '2020-05-10 12:34:56.123456 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("second", "TIMESTAMP '2020-05-10 12:34:56.1234567 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("second", "TIMESTAMP '2020-05-10 12:34:56.12345678 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("second", "TIMESTAMP '2020-05-10 12:34:56.123456789 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("second", "TIMESTAMP '2020-05-10 12:34:56.1234567890 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("second", "TIMESTAMP '2020-05-10 12:34:56.12345678901 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("second", "TIMESTAMP '2020-05-10 12:34:56.123456789012 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:56.000000 Asia/Kolkata'");
-
-        assertSelectTimestampTzDateTrunc("minute", "TIMESTAMP '2020-05-10 12:34:56 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("minute", "TIMESTAMP '2020-05-10 12:34:56.1 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("minute", "TIMESTAMP '2020-05-10 12:34:56.12 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("minute", "TIMESTAMP '2020-05-10 12:34:56.123 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("minute", "TIMESTAMP '2020-05-10 12:34:56.1234 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("minute", "TIMESTAMP '2020-05-10 12:34:56.12345 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("minute", "TIMESTAMP '2020-05-10 12:34:56.123456 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("minute", "TIMESTAMP '2020-05-10 12:34:56.1234567 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("minute", "TIMESTAMP '2020-05-10 12:34:56.12345678 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("minute", "TIMESTAMP '2020-05-10 12:34:56.123456789 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("minute", "TIMESTAMP '2020-05-10 12:34:56.1234567890 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("minute", "TIMESTAMP '2020-05-10 12:34:56.12345678901 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("minute", "TIMESTAMP '2020-05-10 12:34:56.123456789012 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:19:00.000000 Asia/Kolkata'");
-
-        assertSelectTimestampTzDateTrunc("hour", "TIMESTAMP '2020-05-10 12:34:56 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("hour", "TIMESTAMP '2020-05-10 12:34:56.1 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("hour", "TIMESTAMP '2020-05-10 12:34:56.12 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("hour", "TIMESTAMP '2020-05-10 12:34:56.123 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("hour", "TIMESTAMP '2020-05-10 12:34:56.1234 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("hour", "TIMESTAMP '2020-05-10 12:34:56.12345 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("hour", "TIMESTAMP '2020-05-10 12:34:56.123456 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("hour", "TIMESTAMP '2020-05-10 12:34:56.1234567 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("hour", "TIMESTAMP '2020-05-10 12:34:56.12345678 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("hour", "TIMESTAMP '2020-05-10 12:34:56.123456789 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("hour", "TIMESTAMP '2020-05-10 12:34:56.1234567890 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("hour", "TIMESTAMP '2020-05-10 12:34:56.12345678901 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("hour", "TIMESTAMP '2020-05-10 12:34:56.123456789012 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 12:00:00.000000 Asia/Kolkata'");
-
-        assertSelectTimestampTzDateTrunc("day", "TIMESTAMP '2020-05-10 12:34:56 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("day", "TIMESTAMP '2020-05-10 12:34:56.1 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("day", "TIMESTAMP '2020-05-10 12:34:56.12 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("day", "TIMESTAMP '2020-05-10 12:34:56.123 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("day", "TIMESTAMP '2020-05-10 12:34:56.1234 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("day", "TIMESTAMP '2020-05-10 12:34:56.12345 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("day", "TIMESTAMP '2020-05-10 12:34:56.123456 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("day", "TIMESTAMP '2020-05-10 12:34:56.1234567 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("day", "TIMESTAMP '2020-05-10 12:34:56.12345678 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("day", "TIMESTAMP '2020-05-10 12:34:56.123456789 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("day", "TIMESTAMP '2020-05-10 12:34:56.1234567890 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("day", "TIMESTAMP '2020-05-10 12:34:56.12345678901 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("day", "TIMESTAMP '2020-05-10 12:34:56.123456789012 Asia/Kathmandu'", "TIMESTAMP '2020-05-10 00:00:00.000000 Asia/Kolkata'");
-
-        assertSelectTimestampTzDateTrunc("week", "TIMESTAMP '2020-05-10 12:34:56 Asia/Kathmandu'", "TIMESTAMP '2020-05-04 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("week", "TIMESTAMP '2020-05-10 12:34:56.1 Asia/Kathmandu'", "TIMESTAMP '2020-05-04 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("week", "TIMESTAMP '2020-05-10 12:34:56.12 Asia/Kathmandu'", "TIMESTAMP '2020-05-04 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("week", "TIMESTAMP '2020-05-10 12:34:56.123 Asia/Kathmandu'", "TIMESTAMP '2020-05-04 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("week", "TIMESTAMP '2020-05-10 12:34:56.1234 Asia/Kathmandu'", "TIMESTAMP '2020-05-04 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("week", "TIMESTAMP '2020-05-10 12:34:56.12345 Asia/Kathmandu'", "TIMESTAMP '2020-05-04 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("week", "TIMESTAMP '2020-05-10 12:34:56.123456 Asia/Kathmandu'", "TIMESTAMP '2020-05-04 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("week", "TIMESTAMP '2020-05-10 12:34:56.1234567 Asia/Kathmandu'", "TIMESTAMP '2020-05-04 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("week", "TIMESTAMP '2020-05-10 12:34:56.12345678 Asia/Kathmandu'", "TIMESTAMP '2020-05-04 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("week", "TIMESTAMP '2020-05-10 12:34:56.123456789 Asia/Kathmandu'", "TIMESTAMP '2020-05-04 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("week", "TIMESTAMP '2020-05-10 12:34:56.1234567890 Asia/Kathmandu'", "TIMESTAMP '2020-05-04 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("week", "TIMESTAMP '2020-05-10 12:34:56.12345678901 Asia/Kathmandu'", "TIMESTAMP '2020-05-04 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("week", "TIMESTAMP '2020-05-10 12:34:56.123456789012 Asia/Kathmandu'", "TIMESTAMP '2020-05-04 00:00:00.000000 Asia/Kolkata'");
-
-        assertSelectTimestampTzDateTrunc("month", "TIMESTAMP '2020-05-10 12:34:56 Asia/Kathmandu'", "TIMESTAMP '2020-05-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("month", "TIMESTAMP '2020-05-10 12:34:56.1 Asia/Kathmandu'", "TIMESTAMP '2020-05-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("month", "TIMESTAMP '2020-05-10 12:34:56.12 Asia/Kathmandu'", "TIMESTAMP '2020-05-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("month", "TIMESTAMP '2020-05-10 12:34:56.123 Asia/Kathmandu'", "TIMESTAMP '2020-05-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("month", "TIMESTAMP '2020-05-10 12:34:56.1234 Asia/Kathmandu'", "TIMESTAMP '2020-05-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("month", "TIMESTAMP '2020-05-10 12:34:56.12345 Asia/Kathmandu'", "TIMESTAMP '2020-05-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("month", "TIMESTAMP '2020-05-10 12:34:56.123456 Asia/Kathmandu'", "TIMESTAMP '2020-05-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("month", "TIMESTAMP '2020-05-10 12:34:56.1234567 Asia/Kathmandu'", "TIMESTAMP '2020-05-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("month", "TIMESTAMP '2020-05-10 12:34:56.12345678 Asia/Kathmandu'", "TIMESTAMP '2020-05-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("month", "TIMESTAMP '2020-05-10 12:34:56.123456789 Asia/Kathmandu'", "TIMESTAMP '2020-05-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("month", "TIMESTAMP '2020-05-10 12:34:56.1234567890 Asia/Kathmandu'", "TIMESTAMP '2020-05-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("month", "TIMESTAMP '2020-05-10 12:34:56.12345678901 Asia/Kathmandu'", "TIMESTAMP '2020-05-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("month", "TIMESTAMP '2020-05-10 12:34:56.123456789012 Asia/Kathmandu'", "TIMESTAMP '2020-05-01 00:00:00.000000 Asia/Kolkata'");
-
-        assertSelectTimestampTzDateTrunc("quarter", "TIMESTAMP '2020-05-10 12:34:56 Asia/Kathmandu'", "TIMESTAMP '2020-04-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("quarter", "TIMESTAMP '2020-05-10 12:34:56.1 Asia/Kathmandu'", "TIMESTAMP '2020-04-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("quarter", "TIMESTAMP '2020-05-10 12:34:56.12 Asia/Kathmandu'", "TIMESTAMP '2020-04-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("quarter", "TIMESTAMP '2020-05-10 12:34:56.123 Asia/Kathmandu'", "TIMESTAMP '2020-04-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("quarter", "TIMESTAMP '2020-05-10 12:34:56.1234 Asia/Kathmandu'", "TIMESTAMP '2020-04-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("quarter", "TIMESTAMP '2020-05-10 12:34:56.12345 Asia/Kathmandu'", "TIMESTAMP '2020-04-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("quarter", "TIMESTAMP '2020-05-10 12:34:56.123456 Asia/Kathmandu'", "TIMESTAMP '2020-04-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("quarter", "TIMESTAMP '2020-05-10 12:34:56.1234567 Asia/Kathmandu'", "TIMESTAMP '2020-04-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("quarter", "TIMESTAMP '2020-05-10 12:34:56.12345678 Asia/Kathmandu'", "TIMESTAMP '2020-04-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("quarter", "TIMESTAMP '2020-05-10 12:34:56.123456789 Asia/Kathmandu'", "TIMESTAMP '2020-04-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("quarter", "TIMESTAMP '2020-05-10 12:34:56.1234567890 Asia/Kathmandu'", "TIMESTAMP '2020-04-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("quarter", "TIMESTAMP '2020-05-10 12:34:56.12345678901 Asia/Kathmandu'", "TIMESTAMP '2020-04-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("quarter", "TIMESTAMP '2020-05-10 12:34:56.123456789012 Asia/Kathmandu'", "TIMESTAMP '2020-04-01 00:00:00.000000 Asia/Kolkata'");
-
-        assertSelectTimestampTzDateTrunc("year", "TIMESTAMP '2020-05-10 12:34:56 Asia/Kathmandu'", "TIMESTAMP '2020-01-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("year", "TIMESTAMP '2020-05-10 12:34:56.1 Asia/Kathmandu'", "TIMESTAMP '2020-01-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("year", "TIMESTAMP '2020-05-10 12:34:56.12 Asia/Kathmandu'", "TIMESTAMP '2020-01-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("year", "TIMESTAMP '2020-05-10 12:34:56.123 Asia/Kathmandu'", "TIMESTAMP '2020-01-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("year", "TIMESTAMP '2020-05-10 12:34:56.1234 Asia/Kathmandu'", "TIMESTAMP '2020-01-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("year", "TIMESTAMP '2020-05-10 12:34:56.12345 Asia/Kathmandu'", "TIMESTAMP '2020-01-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("year", "TIMESTAMP '2020-05-10 12:34:56.123456 Asia/Kathmandu'", "TIMESTAMP '2020-01-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("year", "TIMESTAMP '2020-05-10 12:34:56.1234567 Asia/Kathmandu'", "TIMESTAMP '2020-01-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("year", "TIMESTAMP '2020-05-10 12:34:56.12345678 Asia/Kathmandu'", "TIMESTAMP '2020-01-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("year", "TIMESTAMP '2020-05-10 12:34:56.123456789 Asia/Kathmandu'", "TIMESTAMP '2020-01-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("year", "TIMESTAMP '2020-05-10 12:34:56.1234567890 Asia/Kathmandu'", "TIMESTAMP '2020-01-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("year", "TIMESTAMP '2020-05-10 12:34:56.12345678901 Asia/Kathmandu'", "TIMESTAMP '2020-01-01 00:00:00.000000 Asia/Kolkata'");
-        assertSelectTimestampTzDateTrunc("year", "TIMESTAMP '2020-05-10 12:34:56.123456789012 Asia/Kathmandu'", "TIMESTAMP '2020-01-01 00:00:00.000000 Asia/Kolkata'");
-    }
-
-    void assertSelectTimestampTzDateTrunc(String unit, String actual, String expected)
-    {
-        try (TestTable testTable = new TestTable(
-                getQueryRunner()::execute,
+        try (TestTable testTable = newTrinoTable(
                 "test_timestamp_tz_with_date_trunc_",
                 "(id int, timestamp_tz timestamp with time zone)",
                 ImmutableList.<String>builder()
-                        .add("1, %s".formatted(actual))
+                        .add("1, TIMESTAMP '2020-05-10 12:34:56.987654 Asia/Kathmandu'")
                         .build())) {
-            assertThat(query("SELECT id, date_trunc('%s', timestamp_tz) FROM %s".formatted(unit, testTable.getName())))
-                    .matches("VALUES (1, %s)".formatted(expected));
-            assertThat(query("SELECT id FROM %s WHERE date_trunc('%s', timestamp_tz) = %s".formatted(testTable.getName(), unit, expected)))
-                    .matches("VALUES 1");
+            assertSelectTimestampTzDateTrunc(testTable.getName(), "millisecond", "TIMESTAMP '2020-05-10 12:19:56.987000 Asia/Kolkata'");
+            assertSelectTimestampTzDateTrunc(testTable.getName(), "second", "TIMESTAMP '2020-05-10 12:19:56.000000 Asia/Kolkata'");
+            assertSelectTimestampTzDateTrunc(testTable.getName(), "minute", "TIMESTAMP '2020-05-10 12:19:00.000000 Asia/Kolkata'");
+            assertSelectTimestampTzDateTrunc(testTable.getName(), "hour", "TIMESTAMP '2020-05-10 12:00:00.000000 Asia/Kolkata'");
+            assertSelectTimestampTzDateTrunc(testTable.getName(), "day", "TIMESTAMP '2020-05-10 00:00:00.000000 Asia/Kolkata'");
+            assertSelectTimestampTzDateTrunc(testTable.getName(), "week", "TIMESTAMP '2020-05-04 00:00:00.000000 Asia/Kolkata'");
+            assertSelectTimestampTzDateTrunc(testTable.getName(), "month", "TIMESTAMP '2020-05-01 00:00:00.000000 Asia/Kolkata'");
+            assertSelectTimestampTzDateTrunc(testTable.getName(), "quarter", "TIMESTAMP '2020-04-01 00:00:00.000000 Asia/Kolkata'");
+            assertSelectTimestampTzDateTrunc(testTable.getName(), "year", "TIMESTAMP '2020-01-01 00:00:00.000000 Asia/Kolkata'");
         }
+    }
+
+    void assertSelectTimestampTzDateTrunc(String tableName, String unit, String expected)
+    {
+        assertThat(query("SELECT id, date_trunc('%s', timestamp_tz) FROM %s".formatted(unit, tableName)))
+                .matches("VALUES (1, %s)".formatted(expected));
+        assertThat(query("SELECT id FROM %s WHERE date_trunc('%s', timestamp_tz) = %s".formatted(tableName, unit, expected)))
+                .matches("VALUES 1");
     }
 
     @Test
