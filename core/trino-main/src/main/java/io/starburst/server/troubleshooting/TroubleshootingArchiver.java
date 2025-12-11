@@ -14,7 +14,6 @@ import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
 import jakarta.annotation.PreDestroy;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import java.io.IOException;
 import java.io.InputStream;

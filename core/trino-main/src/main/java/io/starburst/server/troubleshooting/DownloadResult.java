@@ -15,9 +15,9 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.starburst.server.troubleshooting.ExceptionUtils.getStackTrace;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
-import static org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace;
 
 public class DownloadResult
 {

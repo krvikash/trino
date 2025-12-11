@@ -12,9 +12,9 @@ package io.starburst.server.troubleshooting.jmx;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
+import io.starburst.server.troubleshooting.TriConsumer;
 import io.starburst.server.troubleshooting.TroubleshootingContext;
 import io.starburst.server.troubleshooting.providers.TroubleshootingProvider;
-import org.apache.commons.lang3.function.TriConsumer;
 
 import javax.management.InstanceNotFoundException;
 import javax.management.IntrospectionException;
