@@ -83,7 +83,6 @@ public abstract class BaseTestObjectStoreProperties
                         ('objectstore.collect_column_statistics_on_write', 'true', 'boolean'),
                         ('objectstore.collect_extended_statistics_on_write', 'true', 'boolean'),
                         ('objectstore.columns_to_hide', '[]', 'array(varchar)'),
-                        ('objectstore.checkpoint_filtering_enabled', 'true', 'boolean'),
                         ('objectstore.compression_codec', 'null', 'varchar'),
                         ('objectstore.create_empty_bucket_files', 'false', 'boolean'),
                         ('objectstore.dynamic_filtering_wait_timeout', 'null', 'varchar'),
