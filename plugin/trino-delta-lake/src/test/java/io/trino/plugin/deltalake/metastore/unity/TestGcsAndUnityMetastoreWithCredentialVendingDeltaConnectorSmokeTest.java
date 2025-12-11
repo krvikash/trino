@@ -32,6 +32,7 @@ class TestGcsAndUnityMetastoreWithCredentialVendingDeltaConnectorSmokeTest
     {
         return ImmutableMap.<String, String>builder()
                 .put("hive.metastore.unity.vended-credentials-enabled", "true")
+                .put("gcs.auth-type", "APPLICATION_DEFAULT")
                 .buildOrThrow();
     }
 }
