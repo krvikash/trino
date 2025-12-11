@@ -23,6 +23,8 @@ import org.opensearch.client.RestHighLevelClient;
 
 import java.util.List;
 
+import static io.trino.testing.TestingNames.randomNameSuffix;
+
 final class TestOpensearchSearchAfterConnectorTest
         extends BaseOpenSearchConnectorTest
 {
@@ -34,8 +36,10 @@ final class TestOpensearchSearchAfterConnectorTest
         HostAndPort address = opensearch.getAddress();
         client = new RestHighLevelClient(RestClient.builder(new HttpHost(address.getHost(), address.getPort())));
 
+        jmxBaseName = randomNameSuffix();
+
         return OpenSearchQueryRunner.builder(opensearch.getAddress())
-                .addConnectorProperties(ImmutableMap.of("opensearch.search-strategy", "SEARCH_AFTER"))
+                .addConnectorProperties(ImmutableMap.of("opensearch.search-strategy", "SEARCH_AFTER", "jmx.base-name", jmxBaseName))
                 .setInitialTables(REQUIRED_TPCH_TABLES)
                 .build();
     }

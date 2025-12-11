@@ -64,6 +64,7 @@ public abstract class BaseOpenSearchConnectorTest
 {
     protected static final String DEFAULT_LATEST_IMAGE = "opensearchproject/opensearch:latest";
     private final String image;
+    protected String jmxBaseName;
     protected OpenSearchServer opensearch;
     protected RestHighLevelClient client;
 
@@ -85,10 +86,13 @@ public abstract class BaseOpenSearchConnectorTest
         HostAndPort address = opensearch.getAddress();
         client = new RestHighLevelClient(RestClient.builder(new HttpHost(address.getHost(), address.getPort())));
 
+        jmxBaseName = randomNameSuffix();
+
         return OpenSearchQueryRunner.builder(opensearch.getAddress())
                 .setInitialTables(REQUIRED_TPCH_TABLES)
                 .setIndexSettings(ImmutableMap.of("number_of_shards", "5", "number_of_replicas", "1"))
                 .addConnectorProperties(ImmutableMap.of("opensearch.sharded-scrollable-query-passthrough-enabled", "true"))
+                .addConnectorProperties(Map.of("jmx.base-name", jmxBaseName))
                 .build();
     }
 
@@ -152,8 +156,8 @@ public abstract class BaseOpenSearchConnectorTest
         String catalogName = getSession().getCatalog().orElseThrow();
         assertQuerySucceeds("SELECT * FROM orders");
         // Check that JMX stats show no sign of backpressure
-        assertQueryReturnsEmptyResult(format("SELECT 1 FROM jmx.current.\"trino.plugin.opensearch.client:*name=%s*\" WHERE \"backpressurestats.alltime.count\" > 0", catalogName));
-        assertQueryReturnsEmptyResult(format("SELECT 1 FROM jmx.current.\"trino.plugin.opensearch.client:*name=%s*\" WHERE \"backpressurestats.alltime.max\" > 0", catalogName));
+        assertQueryReturnsEmptyResult(format("SELECT 1 FROM jmx.current.\"%s.client:*name=%s*\" WHERE \"backpressurestats.alltime.count\" > 0", jmxBaseName, catalogName));
+        assertQueryReturnsEmptyResult(format("SELECT 1 FROM jmx.current.\"%s.client:*name=%s*\" WHERE \"backpressurestats.alltime.max\" > 0", jmxBaseName, catalogName));
     }
 
     @Test
