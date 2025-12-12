@@ -134,7 +134,7 @@ public sealed interface FilterEvaluator
                 }
                 yield createCallExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, call, layout, classNameSuffix);
             }
-            case IsNull isNull -> createIsNullExpressionEvaluator(compiler, isNull, layout);
+            case IsNull isNull -> createIsNullExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, isNull, layout, classNameSuffix);
             case Logical logical when logical.operator() == Logical.Operator.AND -> createAndExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, logical, layout, classNameSuffix);
             case Logical logical when logical.operator() == Logical.Operator.OR -> createOrExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, logical, layout, classNameSuffix);
             case Between between -> createBetweenEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, between, layout, classNameSuffix);
@@ -271,13 +271,18 @@ public sealed interface FilterEvaluator
         return compiledFilter.map(filterSupplier -> () -> createDictionaryAwareEvaluator(filterSupplier.get()));
     }
 
-    private static Optional<Supplier<FilterEvaluator>> createIsNullExpressionEvaluator(ColumnarFilterCompiler compiler, IsNull isNull, Map<Symbol, Integer> layout)
+    private static Optional<Supplier<FilterEvaluator>> createIsNullExpressionEvaluator(
+            boolean columnarFilterSubexpressionEvaluationEnabled,
+            boolean isDebugOutputEnabled,
+            ColumnarFilterCompiler compiler,
+            PageFunctionCompiler pageFunctionCompiler,
+            IsNull isNull,
+            Map<Symbol, Integer> layout,
+            Optional<String> classNameSuffix)
     {
         Type argumentType = isNull.value().type();
         checkArgument(!argumentType.equals(UNKNOWN), "argumentType %s should not be UNKNOWN", argumentType);
-
-        Optional<Supplier<ColumnarFilter>> compiledFilter = compiler.generateFilter(isNull, layout);
-        return compiledFilter.map(filterSupplier -> () -> createDictionaryAwareEvaluator(filterSupplier.get()));
+        return createReferenceValueFilterEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, isNull.value(), IsNull::new, layout, classNameSuffix);
     }
 
     private static Optional<Supplier<FilterEvaluator>> createComparisonExpressionEvaluator(

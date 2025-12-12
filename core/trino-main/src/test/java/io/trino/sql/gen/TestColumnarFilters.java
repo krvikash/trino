@@ -178,7 +178,31 @@ public class TestColumnarFilters
     public void testIsNull(NullsProvider nullsProvider, boolean dictionaryEncoded)
     {
         List<Page> inputPages = createInputPages(nullsProvider, dictionaryEncoded);
+        // colA IS NULL
         Expression isNullFilter = new IsNull(new Reference(INTEGER, COL_INT_A));
+        assertThatColumnarFilterEvaluationIsSupported(isNullFilter);
+        verifyFilter(inputPages, isNullFilter);
+
+        // colA + colB IS NULL
+        isNullFilter = new IsNull(call(
+                FUNCTION_RESOLUTION.resolveOperator(ADD, ImmutableList.of(INTEGER, INTEGER)),
+                new Reference(INTEGER, COL_INT_A),
+                new Reference(INTEGER, COL_INT_B)));
+        assertThatColumnarFilterEvaluationIsSupported(isNullFilter);
+        verifyFilter(inputPages, isNullFilter);
+    }
+
+    @Test
+    public void testConstantIsNull()
+    {
+        List<Page> inputPages = createInputPages(NullsProvider.RANDOM_NULLS, false);
+        // constant IS NULL
+        Expression isNullFilter = new IsNull(new Constant(INTEGER, CONSTANT));
+        assertThatColumnarFilterEvaluationIsSupported(isNullFilter);
+        verifyFilter(inputPages, isNullFilter);
+
+        // null IS NULL
+        isNullFilter = new IsNull(constantNull(INTEGER));
         assertThatColumnarFilterEvaluationIsSupported(isNullFilter);
         verifyFilter(inputPages, isNullFilter);
     }
