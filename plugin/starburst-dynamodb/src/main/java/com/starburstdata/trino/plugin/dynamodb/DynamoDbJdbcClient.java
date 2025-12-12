@@ -29,8 +29,6 @@ import io.trino.plugin.jdbc.PredicatePushdownController;
 import io.trino.plugin.jdbc.PredicatePushdownController.DomainPushdownResult;
 import io.trino.plugin.jdbc.QueryBuilder;
 import io.trino.plugin.jdbc.RemoteTableName;
-import io.trino.plugin.jdbc.SliceReadFunction;
-import io.trino.plugin.jdbc.SliceWriteFunction;
 import io.trino.plugin.jdbc.WriteMapping;
 import io.trino.plugin.jdbc.logging.RemoteQueryModifier;
 import io.trino.spi.TrinoException;
@@ -43,7 +41,6 @@ import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
-import org.apache.commons.net.util.Base64;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -82,11 +79,9 @@ import static com.starburstdata.trino.plugin.dynamodb.DynamoDbTableProperties.ge
 import static com.starburstdata.trino.plugin.dynamodb.DynamoDbTableProperties.getReadCapacityUnits;
 import static com.starburstdata.trino.plugin.dynamodb.DynamoDbTableProperties.getSortKeyAttribute;
 import static com.starburstdata.trino.plugin.dynamodb.DynamoDbTableProperties.getWriteCapacityUnits;
-import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.trino.plugin.jdbc.ColumnMapping.booleanMapping;
 import static io.trino.plugin.jdbc.ColumnMapping.doubleMapping;
 import static io.trino.plugin.jdbc.ColumnMapping.longMapping;
-import static io.trino.plugin.jdbc.ColumnMapping.sliceMapping;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 import static io.trino.plugin.jdbc.PredicatePushdownController.DISABLE_PUSHDOWN;
 import static io.trino.plugin.jdbc.PredicatePushdownController.FULL_PUSHDOWN;
@@ -97,6 +92,8 @@ import static io.trino.plugin.jdbc.StandardColumnMappings.integerWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.realWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.smallintWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.tinyintWriteFunction;
+import static io.trino.plugin.jdbc.StandardColumnMappings.varbinaryColumnMapping;
+import static io.trino.plugin.jdbc.StandardColumnMappings.varbinaryWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.varcharReadFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.varcharWriteFunction;
 import static io.trino.plugin.jdbc.TypeHandlingJdbcSessionProperties.getUnsupportedTypeHandling;
@@ -113,7 +110,6 @@ import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TinyintType.TINYINT;
-import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.UNBOUNDED_LENGTH;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static io.trino.spi.type.VarcharType.createVarcharType;
@@ -474,7 +470,7 @@ public class DynamoDbJdbcClient
             case Types.BINARY:
             case Types.VARBINARY:
             case Types.LONGVARBINARY:
-                return Optional.of(sliceMapping(VARBINARY, varbinaryReadFunction(), varbinaryWriteFunction(), DISABLE_PUSHDOWN));
+                return Optional.of(varbinaryColumnMapping());
             case Types.DATE:
                 return Optional.of(longMapping(DATE, dateReadFunctionUsingString(), dateWriteFunctionUsingLocalDate(), DISABLE_PUSHDOWN));
         }
@@ -497,11 +493,6 @@ public class DynamoDbJdbcClient
     public ColumnMapping varcharColumnMapping(ConnectorSession session, VarcharType varcharType)
     {
         return ColumnMapping.sliceMapping(varcharType, varcharReadFunction(varcharType), varcharWriteFunction(), isPredicatePushdownEnabled(session) ? DYNAMODB_PARTIAL_PUSHDOWN : DISABLE_PUSHDOWN);
-    }
-
-    public static SliceReadFunction varbinaryReadFunction()
-    {
-        return (resultSet, columnIndex) -> wrappedBuffer(resultSet.getBytes(columnIndex));
     }
 
     @Override
@@ -551,11 +542,6 @@ public class DynamoDbJdbcClient
         }
 
         throw new TrinoException(NOT_SUPPORTED, "Unsupported column type: " + type.getDisplayName());
-    }
-
-    public static SliceWriteFunction varbinaryWriteFunction()
-    {
-        return (statement, index, value) -> statement.setString(index, Base64.encodeBase64String(value.getBytes()));
     }
 
     @Override
