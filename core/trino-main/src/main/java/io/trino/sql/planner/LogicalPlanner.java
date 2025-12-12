@@ -357,6 +357,9 @@ public class LogicalPlanner
             try (var _ = scopedSpan(plannerContext.getTracer(), "reuse-common-subqueries")) {
                 optimizedProgram = CteReuse.reuseCommonSubqueries(plan, plannerContext, session, formatOptions);
             }
+            catch (RuntimeException e) {
+                LOG.warn(e, "Exception thrown during CTE reuse, falling back to old IR plan");
+            }
         }
         return new PlanOptions(plan, optimizedProgram);
     }

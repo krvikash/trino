@@ -116,6 +116,8 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public class SqlQueryExecution
         implements QueryExecution
 {
+    private static final Logger LOG = Logger.get(SqlQueryExecution.class);
+
     private final QueryStateMachine stateMachine;
     private final Slug slug;
     private final Tracer tracer;
@@ -513,21 +515,23 @@ public class SqlQueryExecution
         // fragment the plan
         SubPlan fragmentedPlan = null;
         if (planOptions.newIrProgram().isPresent()) {
-            Optional<SubPlan> optionalFragmentedPlan;
+            Optional<SubPlan> optionalFragmentedPlan = Optional.empty();
             try (var _ = scopedSpan(tracer, "fragment-plan-new-ir")) {
                 optionalFragmentedPlan = planFragmenter.createSubPlans(stateMachine.getSession(), planOptions.newIrProgram().get(), false, stateMachine.getWarningCollector());
             }
+            catch (RuntimeException e) {
+                LOG.warn(e, "Exception thrown while fragmenting the new IR plan, falling back to old IR plan");
+            }
             boolean debugEnabled = isDebugCteReuseEnabled(stateMachine.getSession());
-            Logger log = Logger.get(SqlQueryExecution.class);
             if (optionalFragmentedPlan.isPresent()) {
                 if (debugEnabled) {
-                    log.info("Successfully fragmented the new IR plan for query: " + stateMachine.getSession().getQueryId());
+                    LOG.info("Successfully fragmented the new IR plan for query: " + stateMachine.getSession().getQueryId());
                 }
                 fragmentedPlan = optionalFragmentedPlan.get();
                 queryPlan.set(new EffectivePlan(planOptions.newIrProgram().get()));
             }
             else if (debugEnabled) {
-                log.info("Failed to fragment the new IR plan for query: %s. The old IR plan will be used.", stateMachine.getSession().getQueryId());
+                LOG.info("Failed to fragment the new IR plan for query: %s. The old IR plan will be used.", stateMachine.getSession().getQueryId());
             }
         }
         if (fragmentedPlan == null) {
