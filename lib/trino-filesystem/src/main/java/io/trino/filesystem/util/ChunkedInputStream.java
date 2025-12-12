@@ -11,9 +11,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.hive.formats.line.text;
+package io.trino.filesystem.util;
 
 import io.trino.filesystem.TrinoInput;
+import io.trino.filesystem.TrinoInputStream;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,12 +25,11 @@ import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
 /**
- * This class is a wrapper around {@link TrinoInput} that reads data in chunks.
- * It is a workaround for the abort in S3InputStream on a large file not completing quickly,
- * that is potentially caused by reading too much data after the end of a split that ends
- * in the middle of a large file.
+ * Adapts {@link TrinoInput} to {@link InputStream} by reading data in large chunks
+ * using {@link TrinoInput#readFully(long, int)}. This is more efficient than {@link TrinoInputStream}
+ * when many small reads would cause excessive filesystem calls or when keeping streams open
+ * exhausts resources (e.g., S3 connection pool exhaustion when many files are open).
  */
-// TODO: https://starburstdata.atlassian.net/browse/INTAKE-797 When the original issue is fixed, this class should be removed.
 public final class ChunkedInputStream
         extends InputStream
 {

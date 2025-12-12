@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.hive.formats.line.text;
+package io.trino.filesystem.util;
 
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;

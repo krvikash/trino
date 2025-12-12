@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableSet;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoInputFile;
+import io.trino.filesystem.util.ChunkedInputStream;
 import io.trino.hive.formats.compression.Codec;
 import io.trino.hive.formats.compression.CompressionKind;
 import io.trino.hive.formats.line.FooterAwareLineReader;
@@ -75,6 +76,10 @@ public class TextLineReaderFactory
         InputStream inputStream;
         LongSupplier inputStreamRetainedSize;
         if (rangeReadsEnabled) {
+            // This is a workaround for the abort in S3InputStream on a large file not completing quickly,
+            // that is potentially caused by reading too much data after the end of a split that ends in the
+            // middle of a large file.
+            // TODO: https://starburstdata.atlassian.net/browse/INTAKE-797 When the original issue is fixed, this should be removed.
             ChunkedInputStream chunkedInputStream = new ChunkedInputStream(inputFile.newInput(), inputFile.length());
             inputStream = chunkedInputStream;
             inputStreamRetainedSize = chunkedInputStream::getRetainedSize;
