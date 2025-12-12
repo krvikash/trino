@@ -19,6 +19,7 @@ import io.trino.spi.Node;
 import io.trino.spi.NodeManager;
 import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.PageSorter;
+import io.trino.spi.PageStreamFactory;
 import io.trino.spi.VersionEmbedder;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 import io.trino.spi.security.AiModelAccessControl;
@@ -79,6 +80,11 @@ public interface ConnectorContext
     }
 
     default PageIndexerFactory getPageIndexerFactory()
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    default PageStreamFactory getPageStreamFactory()
     {
         throw new UnsupportedOperationException();
     }

@@ -29,6 +29,7 @@ import io.trino.node.InternalNodeManager;
 import io.trino.security.AccessControl;
 import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.PageSorter;
+import io.trino.spi.PageStreamFactory;
 import io.trino.spi.VersionEmbedder;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.catalog.CatalogProperties;
@@ -66,6 +67,7 @@ public class DefaultCatalogFactory
     private final InternalNodeManager nodeManager;
     private final PageSorter pageSorter;
     private final PageIndexerFactory pageIndexerFactory;
+    private final PageStreamFactory pageStreamFactory;
     private final VersionEmbedder versionEmbedder;
     private final OpenTelemetry openTelemetry;
     private final TransactionManager transactionManager;
@@ -88,6 +90,7 @@ public class DefaultCatalogFactory
             InternalNodeManager nodeManager,
             PageSorter pageSorter,
             PageIndexerFactory pageIndexerFactory,
+            PageStreamFactory pageStreamFactory,
             VersionEmbedder versionEmbedder,
             OpenTelemetry openTelemetry,
             TransactionManager transactionManager,
@@ -105,6 +108,7 @@ public class DefaultCatalogFactory
         this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
         this.pageSorter = requireNonNull(pageSorter, "pageSorter is null");
         this.pageIndexerFactory = requireNonNull(pageIndexerFactory, "pageIndexerFactory is null");
+        this.pageStreamFactory = requireNonNull(pageStreamFactory, "pageStreamFactory is null");
         this.versionEmbedder = requireNonNull(versionEmbedder, "versionEmbedder is null");
         this.openTelemetry = requireNonNull(openTelemetry, "openTelemetry is null");
         this.transactionManager = requireNonNull(transactionManager, "transactionManager is null");
@@ -210,6 +214,7 @@ public class DefaultCatalogFactory
                 modelConnectionSpecsLoader,
                 pageSorter,
                 pageIndexerFactory,
+                pageStreamFactory,
                 catalogVersion);
 
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(connectorFactory.getClass().getClassLoader())) {

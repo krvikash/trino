@@ -16,7 +16,11 @@ package io.trino.testing;
 import io.airlift.tracing.Tracing;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
+import io.trino.FeaturesConfig;
 import io.trino.client.NodeVersion;
+import io.trino.execution.buffer.PagesSerdeStreamFactory;
+import io.trino.metadata.BlockEncodingManager;
+import io.trino.metadata.InternalBlockEncodingSerde;
 import io.trino.operator.FlatHashStrategyCompiler;
 import io.trino.operator.GroupByHashPageIndexerFactory;
 import io.trino.operator.NullSafeHashCompiler;
@@ -25,6 +29,7 @@ import io.trino.operator.PagesIndexPageSorter;
 import io.trino.spi.NodeManager;
 import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.PageSorter;
+import io.trino.spi.PageStreamFactory;
 import io.trino.spi.VersionEmbedder;
 import io.trino.spi.connector.CatalogVersion;
 import io.trino.spi.connector.ConnectorContext;
@@ -133,6 +138,12 @@ public final class TestingConnectorContext
     public PageIndexerFactory getPageIndexerFactory()
     {
         return pageIndexerFactory;
+    }
+
+    @Override
+    public PageStreamFactory getPageStreamFactory()
+    {
+        return new PagesSerdeStreamFactory(new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig()), TESTING_TYPE_MANAGER));
     }
 
     @Override

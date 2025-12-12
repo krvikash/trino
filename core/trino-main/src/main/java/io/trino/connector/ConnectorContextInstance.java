@@ -18,6 +18,7 @@ import io.opentelemetry.api.trace.Tracer;
 import io.trino.spi.NodeManager;
 import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.PageSorter;
+import io.trino.spi.PageStreamFactory;
 import io.trino.spi.VersionEmbedder;
 import io.trino.spi.connector.CatalogVersion;
 import io.trino.spi.connector.ConnectorContext;
@@ -39,6 +40,7 @@ public class ConnectorContextInstance
     private final MetadataProvider metadataProvider;
     private final PageSorter pageSorter;
     private final PageIndexerFactory pageIndexerFactory;
+    private final PageStreamFactory pageStreamFactory;
     private final AiModelAccessControl aiModelAccessControl;
     private final ModelConnectionSpecsLoader modelConnectionSpecsLoader;
     private final CatalogVersion catalogVersion;
@@ -54,6 +56,7 @@ public class ConnectorContextInstance
             ModelConnectionSpecsLoader modelConnectionSpecsLoader,
             PageSorter pageSorter,
             PageIndexerFactory pageIndexerFactory,
+            PageStreamFactory pageStreamFactory,
             CatalogVersion catalogVersion)
     {
         this.openTelemetry = requireNonNull(openTelemetry, "openTelemetry is null");
@@ -66,6 +69,7 @@ public class ConnectorContextInstance
         this.modelConnectionSpecsLoader = requireNonNull(modelConnectionSpecsLoader, "modelConnectionSpecsLoader is null");
         this.pageSorter = requireNonNull(pageSorter, "pageSorter is null");
         this.pageIndexerFactory = requireNonNull(pageIndexerFactory, "pageIndexerFactory is null");
+        this.pageStreamFactory = requireNonNull(pageStreamFactory, "pageStreamFactory is null");
         this.catalogVersion = requireNonNull(catalogVersion, "catalogVersion is null");
     }
 
@@ -115,6 +119,12 @@ public class ConnectorContextInstance
     public PageIndexerFactory getPageIndexerFactory()
     {
         return pageIndexerFactory;
+    }
+
+    @Override
+    public PageStreamFactory getPageStreamFactory()
+    {
+        return pageStreamFactory;
     }
 
     @Override

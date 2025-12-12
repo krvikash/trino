@@ -54,6 +54,7 @@ import io.trino.execution.SqlTaskManager;
 import io.trino.execution.TableExecuteContextManager;
 import io.trino.execution.TaskManagementExecutor;
 import io.trino.execution.TaskManagerConfig;
+import io.trino.execution.buffer.PagesSerdeStreamFactory;
 import io.trino.execution.executor.TaskExecutor;
 import io.trino.execution.executor.dedicated.ThreadPerDriverTaskExecutor;
 import io.trino.execution.executor.timesharing.MultilevelSplitQueue;
@@ -109,6 +110,7 @@ import io.trino.server.protocol.spooling.SpoolingServerModule;
 import io.trino.server.remotetask.HttpLocationFactory;
 import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.PageSorter;
+import io.trino.spi.PageStreamFactory;
 import io.trino.spi.VersionEmbedder;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockEncodingSerde;
@@ -508,6 +510,7 @@ public class ServerMainModule
         newExporter(binder).export(SpillerStats.class).withGeneratedName();
         binder.bind(LocalSpillManager.class).in(Scopes.SINGLETON);
         configBinder(binder).bindConfig(NodeSpillConfig.class);
+        binder.bind(PageStreamFactory.class).to(PagesSerdeStreamFactory.class).in(Scopes.SINGLETON);
 
         // Dynamic Filtering
         configBinder(binder).bindConfig(DynamicFilterConfig.class);
