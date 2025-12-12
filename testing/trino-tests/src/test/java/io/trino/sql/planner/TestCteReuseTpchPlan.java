@@ -22,7 +22,6 @@ import io.trino.tpch.TpchTable;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.SystemSessionProperties.IGNORE_STATS_CALCULATOR_FAILURES;
@@ -34,7 +33,6 @@ import static io.trino.execution.warnings.WarningCollector.NOOP;
 import static io.trino.sql.newir.FormatOptions.TESTING_PRINT_OPTIONS;
 import static io.trino.sql.planner.LogicalPlanner.Stage.OPTIMIZED_AND_VALIDATED;
 import static io.trino.testing.TestingSession.testSessionBuilder;
-import static java.lang.String.format;
 
 /**
  * This class tests the full planning and optimization result with CTE reuse enabled.
@@ -48,15 +46,6 @@ public class TestCteReuseTpchPlan
         extends BaseCostBasedPlanTest
 {
     private static final String SCHEMA_NAME = "tpch_sf1000_parquet";
-
-    // q02 fails at the moment
-    // TODO fix q02
-    protected static final List<String> SUPPORTED_TPCH_SQL_FILES = IntStream.concat(
-                    IntStream.of(1),
-                    IntStream.rangeClosed(3, 22))
-            .mapToObj(i -> format("q%02d", i))
-            .map(queryId -> format("/sql/trino/tpch/%s.sql", queryId))
-            .collect(toImmutableList());
 
     protected TestCteReuseTpchPlan()
     {
@@ -107,7 +96,7 @@ public class TestCteReuseTpchPlan
     @Override
     protected List<String> getQueryResourcePaths()
     {
-        return SUPPORTED_TPCH_SQL_FILES;
+        return TPCH_SQL_FILES;
     }
 
     @Override
