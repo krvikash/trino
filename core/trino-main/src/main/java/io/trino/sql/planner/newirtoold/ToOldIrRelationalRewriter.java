@@ -556,7 +556,9 @@ public class ToOldIrRelationalRewriter
                 .boxed()
                 .map(columnIndex -> {
                     ColumnHandle columnHandle = columnHandles.get(columnIndex);
-                    return symbolAllocator.newSymbol(columnHandleToName.get(columnHandle), outputTypes.get(columnIndex));
+                    // use actual column name if available or generic name "col" in case of computed columns
+                    String columnName = Optional.ofNullable(columnHandleToName.get(columnHandle)).orElse("col");
+                    return symbolAllocator.newSymbol(columnName, outputTypes.get(columnIndex));
                 })
                 .collect(toImmutableList());
 
