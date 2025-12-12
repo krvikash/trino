@@ -276,6 +276,29 @@ public class TestColumnarFilters
         Expression isNotNullFilter = createNotExpression(new IsNull(new Reference(INTEGER, COL_INT_A)));
         assertThatColumnarFilterEvaluationIsSupported(isNotNullFilter);
         verifyFilter(inputPages, isNotNullFilter);
+
+        // colA + colB IS NOT NULL
+        isNotNullFilter = createNotExpression(new IsNull(call(
+                FUNCTION_RESOLUTION.resolveOperator(ADD, ImmutableList.of(INTEGER, INTEGER)),
+                new Reference(INTEGER, COL_INT_A),
+                new Reference(INTEGER, COL_INT_B))));
+        assertThatColumnarFilterEvaluationIsSupported(isNotNullFilter);
+        verifyFilter(inputPages, isNotNullFilter);
+    }
+
+    @Test
+    public void testConstantIsNotNull()
+    {
+        List<Page> inputPages = createInputPages(NullsProvider.RANDOM_NULLS, false);
+        // constant IS NOT NULL
+        Expression isNotNullFilter = createNotExpression(new IsNull(new Constant(INTEGER, CONSTANT)));
+        assertThatColumnarFilterEvaluationIsSupported(isNotNullFilter);
+        verifyFilter(inputPages, isNotNullFilter);
+
+        // null IS NOT NULL
+        isNotNullFilter = createNotExpression(new IsNull(constantNull(INTEGER)));
+        assertThatColumnarFilterEvaluationIsSupported(isNotNullFilter);
+        verifyFilter(inputPages, isNotNullFilter);
     }
 
     @Test

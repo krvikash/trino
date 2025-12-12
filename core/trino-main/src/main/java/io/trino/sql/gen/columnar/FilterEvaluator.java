@@ -130,7 +130,7 @@ public sealed interface FilterEvaluator
                 }
                 if (isNotExpression(call) && call.arguments().getFirst() instanceof IsNull isNull) {
                     // "not(is_null(reference))" is handled explicitly as it is easy.
-                    yield createIsNotNullExpressionEvaluator(compiler, call, isNull, layout);
+                    yield createIsNotNullExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, call, isNull, layout, classNameSuffix);
                 }
                 yield createCallExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, call, layout, classNameSuffix);
             }
@@ -260,15 +260,29 @@ public sealed interface FilterEvaluator
         return toFilterEvaluator(compiler.generateFilter(rewrittenCall, arguments.rewrittenLayout()), arguments, isDeterministic(call), layout, rewrittenCall, isDebugOutputEnabled);
     }
 
-    private static Optional<Supplier<FilterEvaluator>> createIsNotNullExpressionEvaluator(ColumnarFilterCompiler compiler, Call call, IsNull isNull, Map<Symbol, Integer> layout)
+    private static Optional<Supplier<FilterEvaluator>> createIsNotNullExpressionEvaluator(
+            boolean columnarFilterSubexpressionEvaluationEnabled,
+            boolean isDebugOutputEnabled,
+            ColumnarFilterCompiler compiler,
+            PageFunctionCompiler pageFunctionCompiler,
+            Call call,
+            IsNull isNull,
+            Map<Symbol, Integer> layout,
+            Optional<String> classNameSuffix)
     {
         checkArgument(isNotExpression(call), "call %s should be not", call);
         checkArgument(call.arguments().size() == 1);
         Type argumentType = isNull.value().type();
         checkArgument(!argumentType.equals(UNKNOWN), "argumentType %s should not be UNKNOWN", argumentType);
-
-        Optional<Supplier<ColumnarFilter>> compiledFilter = compiler.generateFilter(call, layout);
-        return compiledFilter.map(filterSupplier -> () -> createDictionaryAwareEvaluator(filterSupplier.get()));
+        return createReferenceValueFilterEvaluator(
+                columnarFilterSubexpressionEvaluationEnabled,
+                isDebugOutputEnabled,
+                compiler,
+                pageFunctionCompiler,
+                isNull.value(),
+                value -> new Call(call.function(), ImmutableList.of(new IsNull(value))),
+                layout,
+                classNameSuffix);
     }
 
     private static Optional<Supplier<FilterEvaluator>> createIsNullExpressionEvaluator(
