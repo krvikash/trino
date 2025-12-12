@@ -59,10 +59,10 @@ public class TestMemoryConnectorTest
                         // Adjust DF limits to test edge cases
                         .put("dynamic-filtering.partitioned-bloom-filter.max-distinct-values-per-driver", "2000")
                         .put("dynamic-filtering.bloom-filter.max-distinct-values-per-driver", "4000")
-                        .put("dynamic-filtering.large.max-distinct-values-per-driver", "100")
-                        .put("dynamic-filtering.large.max-size-per-driver", "100kB")
-                        .put("dynamic-filtering.large-partitioned.max-distinct-values-per-driver", "100")
-                        .put("dynamic-filtering.large-partitioned.max-size-per-driver", "50kB")
+                        .put("dynamic-filtering.max-distinct-values-per-driver", "100")
+                        .put("dynamic-filtering.max-size-per-driver", "100kB")
+                        .put("dynamic-filtering.partitioned.max-distinct-values-per-driver", "100")
+                        .put("dynamic-filtering.partitioned.max-size-per-driver", "50kB")
                         // disable semi join to inner join rewrite to test semi join operators explicitly
                         .put("optimizer.rewrite-filtering-semi-join-to-inner-join", "false")
                         // enable CREATE FUNCTION

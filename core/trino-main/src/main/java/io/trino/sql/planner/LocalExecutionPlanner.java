@@ -469,14 +469,14 @@ public class LocalExecutionPlanner
     private final JoinCompiler joinCompiler;
     private final FlatHashStrategyCompiler hashStrategyCompiler;
     private final OrderingCompiler orderingCompiler;
-    private final int largeMaxDistinctValuesPerDriver;
-    private final int largePartitionedMaxDistinctValuesPerDriver;
+    private final int maxDistinctValuesPerDriver;
+    private final int partitionedMaxDistinctValuesPerDriver;
     private final int bloomFilterMaxDistinctValuesPerDriver;
     private final int partitionedBloomFilterMaxDistinctValuesPerDriver;
-    private final DataSize largeMaxSizePerDriver;
-    private final DataSize largePartitionedMaxSizePerDriver;
-    private final DataSize largeMaxSizePerOperator;
-    private final DataSize largePartitionedMaxSizePerOperator;
+    private final DataSize maxSizePerDriver;
+    private final DataSize partitionedMaxSizePerDriver;
+    private final DataSize maxSizePerOperator;
+    private final DataSize partitionedMaxSizePerOperator;
     private final BlockTypeOperators blockTypeOperators;
     private final TypeOperators typeOperators;
     private final NullSafeHashCompiler hashCompiler;
@@ -559,12 +559,12 @@ public class LocalExecutionPlanner
         this.joinCompiler = requireNonNull(joinCompiler, "joinCompiler is null");
         this.hashStrategyCompiler = requireNonNull(hashStrategyCompiler, "hashStrategyCompiler is null");
         this.orderingCompiler = requireNonNull(orderingCompiler, "orderingCompiler is null");
-        this.largeMaxDistinctValuesPerDriver = dynamicFilterConfig.getLargeMaxDistinctValuesPerDriver();
-        this.largeMaxSizePerDriver = dynamicFilterConfig.getLargeMaxSizePerDriver();
-        this.largePartitionedMaxSizePerDriver = dynamicFilterConfig.getLargePartitionedMaxSizePerDriver();
-        this.largeMaxSizePerOperator = dynamicFilterConfig.getLargeMaxSizePerOperator();
-        this.largePartitionedMaxSizePerOperator = dynamicFilterConfig.getLargePartitionedMaxSizePerOperator();
-        this.largePartitionedMaxDistinctValuesPerDriver = dynamicFilterConfig.getLargePartitionedMaxDistinctValuesPerDriver();
+        this.maxDistinctValuesPerDriver = dynamicFilterConfig.getMaxDistinctValuesPerDriver();
+        this.maxSizePerDriver = dynamicFilterConfig.getMaxSizePerDriver();
+        this.partitionedMaxSizePerDriver = dynamicFilterConfig.getPartitionedMaxSizePerDriver();
+        this.maxSizePerOperator = dynamicFilterConfig.getMaxSizePerOperator();
+        this.partitionedMaxSizePerOperator = dynamicFilterConfig.getPartitionedMaxSizePerOperator();
+        this.partitionedMaxDistinctValuesPerDriver = dynamicFilterConfig.getPartitionedMaxDistinctValuesPerDriver();
         this.bloomFilterMaxDistinctValuesPerDriver = dynamicFilterConfig.getBloomFilterMaxDistinctValuesPerDriver();
         this.partitionedBloomFilterMaxDistinctValuesPerDriver = dynamicFilterConfig.getPartitionedBloomFilterMaxDistinctValuesPerDriver();
         this.blockTypeOperators = requireNonNull(blockTypeOperators, "blockTypeOperators is null");
@@ -4375,9 +4375,9 @@ public class LocalExecutionPlanner
     private int getDynamicFilteringMaxDistinctValuesPerDriver(boolean partitioned)
     {
         if (partitioned) {
-            return largePartitionedMaxDistinctValuesPerDriver;
+            return partitionedMaxDistinctValuesPerDriver;
         }
-        return largeMaxDistinctValuesPerDriver;
+        return maxDistinctValuesPerDriver;
     }
 
     private int getBloomFilterMaxDistinctValuesPerDriver(boolean partitioned)
@@ -4391,17 +4391,17 @@ public class LocalExecutionPlanner
     private DataSize getDynamicFilteringMaxSizePerDriver(boolean partitioned)
     {
         if (partitioned) {
-            return largePartitionedMaxSizePerDriver;
+            return partitionedMaxSizePerDriver;
         }
-        return largeMaxSizePerDriver;
+        return maxSizePerDriver;
     }
 
     private DataSize getDynamicFilteringMaxSizePerOperator(boolean partitioned)
     {
         if (partitioned) {
-            return largePartitionedMaxSizePerOperator;
+            return partitionedMaxSizePerOperator;
         }
-        return largeMaxSizePerOperator;
+        return maxSizePerOperator;
     }
 
     private static List<Type> getTypes(List<Expression> expressions)

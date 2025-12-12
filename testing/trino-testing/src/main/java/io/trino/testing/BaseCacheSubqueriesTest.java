@@ -127,10 +127,10 @@ public abstract class BaseCacheSubqueriesTest
             "cache.enabled", "true",
             "dynamic-filtering.bloom-filter.max-distinct-values-per-driver", "1000",
             "dynamic-filtering.partitioned-bloom-filter.max-distinct-values-per-driver", "100",
-            "dynamic-filtering.large.max-distinct-values-per-driver", "100",
-            "dynamic-filtering.large.max-size-per-driver", "100kB",
-            "dynamic-filtering.large-partitioned.max-distinct-values-per-driver", "100",
-            "dynamic-filtering.large-partitioned.max-size-per-driver", "50kB");
+            "dynamic-filtering.max-distinct-values-per-driver", "100",
+            "dynamic-filtering.max-size-per-driver", "100kB",
+            "dynamic-filtering.partitioned.max-distinct-values-per-driver", "100",
+            "dynamic-filtering.partitioned.max-size-per-driver", "50kB");
 
     @BeforeEach
     public void flushCache()

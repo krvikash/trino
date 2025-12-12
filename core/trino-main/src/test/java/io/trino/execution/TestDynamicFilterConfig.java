@@ -39,15 +39,15 @@ public class TestDynamicFilterConfig
                 .setSmallDynamicFilterWaitTimeout(new Duration(20, TimeUnit.SECONDS))
                 .setSmallDynamicFilterMaxRowCount(100_000)
                 .setSmallDynamicFilterMaxNdvCount(500)
-                .setLargeMaxDistinctValuesPerDriver(50_000)
-                .setLargeMaxSizePerDriver(DataSize.of(4, MEGABYTE))
-                .setLargeMaxSizePerOperator(DataSize.of(5, MEGABYTE))
-                .setLargePartitionedMaxDistinctValuesPerDriver(20_000)
-                .setLargePartitionedMaxSizePerDriver(DataSize.of(200, KILOBYTE))
-                .setLargePartitionedMaxSizePerOperator(DataSize.of(5, MEGABYTE))
-                .setLargeMaxSizePerFilter(DataSize.of(10, MEGABYTE))
                 .setBloomFilterMaxDistinctValuesPerDriver(100_000)
-                .setPartitionedBloomFilterMaxDistinctValuesPerDriver(25_000));
+                .setPartitionedBloomFilterMaxDistinctValuesPerDriver(25_000)
+                .setMaxDistinctValuesPerDriver(50_000)
+                .setMaxSizePerDriver(DataSize.of(4, MEGABYTE))
+                .setMaxSizePerOperator(DataSize.of(5, MEGABYTE))
+                .setPartitionedMaxDistinctValuesPerDriver(20_000)
+                .setPartitionedMaxSizePerDriver(DataSize.of(200, KILOBYTE))
+                .setPartitionedMaxSizePerOperator(DataSize.of(5, MEGABYTE))
+                .setMaxSizePerFilter(DataSize.of(10, MEGABYTE)));
     }
 
     @Test
@@ -60,15 +60,15 @@ public class TestDynamicFilterConfig
                 .put("small-dynamic-filter.wait-timeout", "50s")
                 .put("small-dynamic-filter.max-row-count", "500000")
                 .put("small-dynamic-filter.max-ndv-count", "2000")
-                .put("dynamic-filtering.large.max-distinct-values-per-driver", "256")
-                .put("dynamic-filtering.large.max-size-per-driver", "64kB")
-                .put("dynamic-filtering.large.max-size-per-operator", "642kB")
-                .put("dynamic-filtering.large-partitioned.max-distinct-values-per-driver", "256")
-                .put("dynamic-filtering.large-partitioned.max-size-per-driver", "64kB")
-                .put("dynamic-filtering.large-partitioned.max-size-per-operator", "643kB")
-                .put("dynamic-filtering.large.max-size-per-filter", "3411kB")
                 .put("dynamic-filtering.bloom-filter.max-distinct-values-per-driver", "15000")
                 .put("dynamic-filtering.partitioned-bloom-filter.max-distinct-values-per-driver", "5000")
+                .put("dynamic-filtering.max-distinct-values-per-driver", "256")
+                .put("dynamic-filtering.max-size-per-driver", "64kB")
+                .put("dynamic-filtering.max-size-per-operator", "642kB")
+                .put("dynamic-filtering.partitioned.max-distinct-values-per-driver", "256")
+                .put("dynamic-filtering.partitioned.max-size-per-driver", "64kB")
+                .put("dynamic-filtering.partitioned.max-size-per-operator", "643kB")
+                .put("dynamic-filtering.max-size-per-filter", "3411kB")
                 .buildOrThrow();
 
         DynamicFilterConfig expected = new DynamicFilterConfig()
@@ -78,15 +78,15 @@ public class TestDynamicFilterConfig
                 .setSmallDynamicFilterMaxRowCount(500_000)
                 .setSmallDynamicFilterMaxNdvCount(2000)
                 .setSmallDynamicFilterWaitTimeout(new Duration(50, TimeUnit.SECONDS))
-                .setLargeMaxDistinctValuesPerDriver(256)
-                .setLargeMaxSizePerDriver(DataSize.of(64, KILOBYTE))
-                .setLargeMaxSizePerOperator(DataSize.of(642, KILOBYTE))
-                .setLargePartitionedMaxDistinctValuesPerDriver(256)
-                .setLargePartitionedMaxSizePerDriver(DataSize.of(64, KILOBYTE))
-                .setLargePartitionedMaxSizePerOperator(DataSize.of(643, KILOBYTE))
-                .setLargeMaxSizePerFilter(DataSize.of(3411, KILOBYTE))
                 .setBloomFilterMaxDistinctValuesPerDriver(15000)
-                .setPartitionedBloomFilterMaxDistinctValuesPerDriver(5000);
+                .setPartitionedBloomFilterMaxDistinctValuesPerDriver(5000)
+                .setMaxDistinctValuesPerDriver(256)
+                .setMaxSizePerDriver(DataSize.of(64, KILOBYTE))
+                .setMaxSizePerOperator(DataSize.of(642, KILOBYTE))
+                .setPartitionedMaxDistinctValuesPerDriver(256)
+                .setPartitionedMaxSizePerDriver(DataSize.of(64, KILOBYTE))
+                .setPartitionedMaxSizePerOperator(DataSize.of(643, KILOBYTE))
+                .setMaxSizePerFilter(DataSize.of(3411, KILOBYTE));
 
         assertFullMapping(properties, expected);
     }
