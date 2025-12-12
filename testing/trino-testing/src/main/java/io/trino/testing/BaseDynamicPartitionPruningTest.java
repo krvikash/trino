@@ -37,7 +37,6 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static io.trino.SystemSessionProperties.ENABLE_LARGE_DYNAMIC_FILTERS;
 import static io.trino.SystemSessionProperties.JOIN_DISTRIBUTION_TYPE;
 import static io.trino.SystemSessionProperties.JOIN_REORDERING_STRATEGY;
 import static io.trino.spi.predicate.Domain.none;
@@ -63,7 +62,7 @@ public abstract class BaseDynamicPartitionPruningTest
     private static final long LINEITEM_COUNT = 60175;
     protected static final Set<TpchTable<?>> REQUIRED_TABLES = ImmutableSet.of(LINE_ITEM, ORDERS, SUPPLIER);
     protected static final Map<String, String> EXTRA_PROPERTIES = ImmutableMap.of(
-            // Reduced partitioned join limit for large DF to enable DF min/max collection with ENABLE_LARGE_DYNAMIC_FILTERS
+            // Reduced partitioned join limit for large DF to enable DF min/max collection
             "dynamic-filtering.large-partitioned.max-distinct-values-per-driver", "100",
             // disable semi join to inner join rewrite to test semi join operators explicitly
             "optimizer.rewrite-filtering-semi-join-to-inner-join", "false");
@@ -88,8 +87,6 @@ public abstract class BaseDynamicPartitionPruningTest
         return Session.builder(super.getSession())
                 .setSystemProperty(JOIN_REORDERING_STRATEGY, NONE.name())
                 .setSystemProperty(JOIN_DISTRIBUTION_TYPE, PARTITIONED.name()) // Avoid node local DF
-                // Enabled large dynamic filters to verify min/max DF collection in testJoinLargeBuildSideRangeDynamicFiltering
-                .setSystemProperty(ENABLE_LARGE_DYNAMIC_FILTERS, "true")
                 .build();
     }
 

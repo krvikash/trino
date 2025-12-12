@@ -87,7 +87,6 @@ import static io.trino.SystemSessionProperties.CACHE_COMMON_SUBQUERIES_ENABLED;
 import static io.trino.SystemSessionProperties.CACHE_DATA_REDUCTION_THRESHOLD;
 import static io.trino.SystemSessionProperties.CACHE_PROJECTIONS_ENABLED;
 import static io.trino.SystemSessionProperties.ENABLE_DYNAMIC_ROW_FILTERING;
-import static io.trino.SystemSessionProperties.ENABLE_LARGE_DYNAMIC_FILTERS;
 import static io.trino.SystemSessionProperties.JOIN_DISTRIBUTION_TYPE;
 import static io.trino.SystemSessionProperties.JOIN_REORDERING_STRATEGY;
 import static io.trino.cache.CacheDriverFactory.getDynamicRowFilteringUnenforcedPredicate;
@@ -127,7 +126,11 @@ public abstract class BaseCacheSubqueriesTest
     protected static final Map<String, String> EXTRA_PROPERTIES = ImmutableMap.of(
             "cache.enabled", "true",
             "dynamic-filtering.bloom-filter.max-distinct-values-per-driver", "1000",
-            "dynamic-filtering.partitioned-bloom-filter.max-distinct-values-per-driver", "100");
+            "dynamic-filtering.partitioned-bloom-filter.max-distinct-values-per-driver", "100",
+            "dynamic-filtering.large.max-distinct-values-per-driver", "100",
+            "dynamic-filtering.large.max-size-per-driver", "100kB",
+            "dynamic-filtering.large-partitioned.max-distinct-values-per-driver", "100",
+            "dynamic-filtering.large-partitioned.max-size-per-driver", "50kB");
 
     @BeforeEach
     public void flushCache()
@@ -917,7 +920,6 @@ public abstract class BaseCacheSubqueriesTest
     protected Session withCacheEnabled()
     {
         return Session.builder(getSession())
-                .setSystemProperty(ENABLE_LARGE_DYNAMIC_FILTERS, "false")
                 .setSystemProperty(CACHE_COMMON_SUBQUERIES_ENABLED, "true")
                 .setSystemProperty(CACHE_AGGREGATIONS_ENABLED, "true")
                 .setSystemProperty(CACHE_PROJECTIONS_ENABLED, "true")
@@ -928,7 +930,6 @@ public abstract class BaseCacheSubqueriesTest
     protected Session withCommonSubqueryCacheEnabled()
     {
         return Session.builder(getSession())
-                .setSystemProperty(ENABLE_LARGE_DYNAMIC_FILTERS, "false")
                 .setSystemProperty(CACHE_COMMON_SUBQUERIES_ENABLED, "true")
                 .setSystemProperty(CACHE_AGGREGATIONS_ENABLED, "false")
                 .setSystemProperty(CACHE_PROJECTIONS_ENABLED, "false")
@@ -939,7 +940,6 @@ public abstract class BaseCacheSubqueriesTest
     protected Session withCacheDisabled()
     {
         return Session.builder(getSession())
-                .setSystemProperty(ENABLE_LARGE_DYNAMIC_FILTERS, "false")
                 .setSystemProperty(CACHE_COMMON_SUBQUERIES_ENABLED, "false")
                 .setSystemProperty(CACHE_AGGREGATIONS_ENABLED, "false")
                 .setSystemProperty(CACHE_PROJECTIONS_ENABLED, "false")

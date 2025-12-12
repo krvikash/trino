@@ -50,10 +50,9 @@ public class TestFaultTolerantExecutionDynamicFiltering
         return DistributedQueryRunner.builder(getDefaultSession())
                 .setExtraProperties(FaultTolerantExecutionConnectorTestHelper.getExtraProperties())
                 // keep limits lower to test edge cases
-                .addExtraProperty("enable-large-dynamic-filters", "false")
-                .addExtraProperty("dynamic-filtering.small.max-distinct-values-per-driver", "10")
                 .addExtraProperty("dynamic-filtering.partitioned-bloom-filter.max-distinct-values-per-driver", "50")
                 .addExtraProperty("dynamic-filtering.bloom-filter.max-distinct-values-per-driver", "75")
+                .addExtraProperty("dynamic-filtering.large.max-distinct-values-per-driver", "10")
                 .withExchange("filesystem")
                 .build();
     }

@@ -37,7 +37,6 @@ import java.util.Comparator;
 import java.util.List;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.trino.SystemSessionProperties.ENABLE_LARGE_DYNAMIC_FILTERS;
 import static io.trino.sql.planner.OptimizerConfig.JoinDistributionType;
 import static io.trino.sql.planner.OptimizerConfig.JoinDistributionType.BROADCAST;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -58,13 +57,12 @@ public class TestMemoryConnectorTest
         return MemoryQueryRunner.builder()
                 .addExtraProperties(ImmutableMap.<String, String>builder()
                         // Adjust DF limits to test edge cases
-                        .put("enable-large-dynamic-filters", "false")
-                        .put("dynamic-filtering.small.max-distinct-values-per-driver", "100")
+                        .put("dynamic-filtering.partitioned-bloom-filter.max-distinct-values-per-driver", "2000")
+                        .put("dynamic-filtering.bloom-filter.max-distinct-values-per-driver", "4000")
                         .put("dynamic-filtering.large.max-distinct-values-per-driver", "100")
-                        .put("dynamic-filtering.small-partitioned.max-distinct-values-per-driver", "100")
+                        .put("dynamic-filtering.large.max-size-per-driver", "100kB")
                         .put("dynamic-filtering.large-partitioned.max-distinct-values-per-driver", "100")
-                        .put("dynamic-filtering.partitioned-bloom-filter.max-distinct-values-per-driver", "1000")
-                        .put("dynamic-filtering.bloom-filter.max-distinct-values-per-driver", "3000")
+                        .put("dynamic-filtering.large-partitioned.max-size-per-driver", "50kB")
                         // disable semi join to inner join rewrite to test semi join operators explicitly
                         .put("optimizer.rewrite-filtering-semi-join-to-inner-join", "false")
                         // enable CREATE FUNCTION
@@ -228,18 +226,14 @@ public class TestMemoryConnectorTest
     public void testJoinLargeBuildSideDynamicFiltering()
     {
         for (JoinDistributionType joinDistributionType : JoinDistributionType.values()) {
-            // Probe-side is fully scanned because the build-side is too large for dynamic filtering:
-            assertDynamicFiltering(
-                    "SELECT * FROM lineitem JOIN orders ON lineitem.orderkey = orders.orderkey and orders.custkey BETWEEN 200 AND 1400",
-                    noJoinReordering(joinDistributionType),
-                    48090,
-                    LINEITEM_COUNT, ORDERS_COUNT);
+            @Language("SQL") String sql = "SELECT * FROM lineitem JOIN orders ON lineitem.orderkey = orders.orderkey and orders.custkey BETWEEN 300 AND 700";
+            int expectedRowCount = 15793;
             // Probe-side is partially scanned because we extract min/max from large build-side for dynamic filtering
             assertDynamicFiltering(
-                    "SELECT * FROM lineitem JOIN orders ON lineitem.orderkey = orders.orderkey and orders.custkey BETWEEN 200 AND 1200",
-                    withLargeDynamicFilters(joinDistributionType),
-                    39874,
-                    60169, ORDERS_COUNT);
+                    sql,
+                    noJoinReordering(joinDistributionType),
+                    expectedRowCount,
+                    60139, ORDERS_COUNT);
         }
     }
 
@@ -318,22 +312,14 @@ public class TestMemoryConnectorTest
     {
         for (JoinDistributionType joinDistributionType : JoinDistributionType.values()) {
             // Probe-side is fully scanned because the build-side is too large for dynamic filtering:
-            assertDynamicFiltering(
-                    """
-                            SELECT * FROM lineitem WHERE lineitem.orderkey IN
-                                (SELECT orders.orderkey FROM orders WHERE orders.custkey BETWEEN 300 AND 800)
-                            """,
-                    noJoinReordering(joinDistributionType),
-                    19875,
-                    LINEITEM_COUNT, ORDERS_COUNT);
+            @Language("SQL") String sql = "SELECT * FROM lineitem WHERE lineitem.orderkey IN " +
+                    "(SELECT orders.orderkey FROM orders WHERE orders.custkey BETWEEN 300 AND 700)";
+            int expectedRowCount = 15793;
             // Probe-side is partially scanned because we extract min/max from large build-side for dynamic filtering
             assertDynamicFiltering(
-                    """
-                            SELECT * FROM lineitem WHERE lineitem.orderkey IN
-                                (SELECT orders.orderkey FROM orders WHERE orders.custkey BETWEEN 300 AND 500)
-                            """,
-                    withLargeDynamicFilters(joinDistributionType),
-                    7936,
+                    sql,
+                    noJoinReordering(joinDistributionType),
+                    expectedRowCount,
                     60139, ORDERS_COUNT);
         }
     }
@@ -444,12 +430,12 @@ public class TestMemoryConnectorTest
     @Test
     public void testCrossJoinLargeBuildSideDynamicFiltering()
     {
-        // Probe-side is fully scanned because the build-side is too large for dynamic filtering:
+        // Probe-side is partially scanned because we extract min/max from large build-side for dynamic filtering
         assertDynamicFiltering(
-                "SELECT COUNT(*) FROM orders o, customer c WHERE o.custkey < c.custkey AND c.name < 'Customer#000002000' AND o.custkey > 1000",
+                "SELECT * FROM orders o, customer c WHERE o.custkey < c.custkey AND c.name < 'Customer#000001000' AND o.custkey > 1000",
                 noJoinReordering(BROADCAST),
-                1,
-                ORDERS_COUNT, CUSTOMER_COUNT);
+                0,
+                9894, CUSTOMER_COUNT);
     }
 
     @Test
@@ -480,13 +466,6 @@ public class TestMemoryConnectorTest
 
         assertThat(result.result().getRowCount()).isEqualTo(expectedRowCount);
         assertThat(getOperatorRowsRead(getDistributedQueryRunner(), result.queryId())).isEqualTo(Ints.asList(expectedOperatorRowsRead));
-    }
-
-    private Session withLargeDynamicFilters(JoinDistributionType joinDistributionType)
-    {
-        return Session.builder(noJoinReordering(joinDistributionType))
-                .setSystemProperty(ENABLE_LARGE_DYNAMIC_FILTERS, "true")
-                .build();
     }
 
     private static List<Integer> getOperatorRowsRead(QueryRunner runner, QueryId queryId)

@@ -41,15 +41,26 @@ import static java.util.concurrent.TimeUnit.SECONDS;
         "experimental.enable-dynamic-filtering",
         "enable-coordinator-dynamic-filters-distribution",
         "dynamic-row-filtering.wait-timeout",
-        "dynamic-filtering.small-partitioned.range-row-limit-per-driver",
         "dynamic-filtering.large-partitioned.range-row-limit-per-driver",
-        "dynamic-filtering.small-broadcast.range-row-limit-per-driver",
         "dynamic-filtering.large-broadcast.range-row-limit-per-driver",
+        "dynamic-filtering.small.max-distinct-values-per-driver",
+        "dynamic-filtering.small.max-size-per-driver",
+        "dynamic-filtering.small.range-row-limit-per-driver",
+        "dynamic-filtering.small.max-size-per-operator",
+        "dynamic-filtering.small.max-size-per-filter",
+        "dynamic-filtering.small-broadcast.max-distinct-values-per-driver",
+        "dynamic-filtering.small-broadcast.max-size-per-driver",
+        "dynamic-filtering.small-broadcast.range-row-limit-per-driver",
+        "dynamic-filtering.small-broadcast.max-size-per-operator",
+        "dynamic-filtering.small-partitioned.max-distinct-values-per-driver",
+        "dynamic-filtering.small-partitioned.max-size-per-driver",
+        "dynamic-filtering.small-partitioned.range-row-limit-per-driver",
+        "dynamic-filtering.small-partitioned.max-size-per-operator",
+        "enable-large-dynamic-filters",
 })
 public class DynamicFilterConfig
 {
     private boolean enableDynamicFiltering = true;
-    private boolean enableLargeDynamicFilters = true;
     private boolean enableDynamicRowFiltering = true;
     private double dynamicRowFilterSelectivityThreshold = 0.7;
 
@@ -57,25 +68,17 @@ public class DynamicFilterConfig
     private long smallDynamicFilterMaxRowCount = 100_000;
     private long smallDynamicFilterMaxNdvCount = 500;
     /*
-     * dynamic-filtering.small.* and dynamic-filtering.large.* limits are applied when
+     * dynamic-filtering.large.* limits are applied when
      * collected over a not pre-partitioned source (when join distribution type is
      * REPLICATED or when FTE is enabled).
      *
-     * dynamic-filtering.small-partitioned.* and dynamic-filtering.large-partitioned.*
+     * dynamic-filtering.large-partitioned.*
      * limits are applied when collected over a pre-partitioned source (when join
      * distribution type is PARTITIONED and FTE is disabled).
      *
      * When FTE is enabled dynamic filters are always collected over non partitioned data,
-     * hence the dynamic-filtering.small.* and dynamic-filtering.large.* limits applied.
+     * hence the dynamic-filtering.large.* limits applied.
      */
-    private int smallMaxDistinctValuesPerDriver = 1_000;
-    private DataSize smallMaxSizePerDriver = DataSize.of(100, KILOBYTE);
-    private DataSize smallMaxSizePerOperator = DataSize.of(1, MEGABYTE);
-    private int smallPartitionedMaxDistinctValuesPerDriver = 100;
-    private DataSize smallPartitionedMaxSizePerDriver = DataSize.of(50, KILOBYTE);
-    private DataSize smallPartitionedMaxSizePerOperator = DataSize.of(500, KILOBYTE);
-    private DataSize smallMaxSizePerFilter = DataSize.of(5, MEGABYTE);
-
     private int largeMaxDistinctValuesPerDriver = 50_000;
     private DataSize largeMaxSizePerDriver = DataSize.of(4, MEGABYTE);
     private DataSize largeMaxSizePerOperator = DataSize.of(5, MEGABYTE);
@@ -95,18 +98,6 @@ public class DynamicFilterConfig
     public DynamicFilterConfig setEnableDynamicFiltering(boolean enableDynamicFiltering)
     {
         this.enableDynamicFiltering = enableDynamicFiltering;
-        return this;
-    }
-
-    public boolean isEnableLargeDynamicFilters()
-    {
-        return enableLargeDynamicFilters;
-    }
-
-    @Config("enable-large-dynamic-filters")
-    public DynamicFilterConfig setEnableLargeDynamicFilters(boolean enableLargeDynamicFilters)
-    {
-        this.enableLargeDynamicFilters = enableLargeDynamicFilters;
         return this;
     }
 
@@ -178,101 +169,6 @@ public class DynamicFilterConfig
     public DynamicFilterConfig setSmallDynamicFilterMaxNdvCount(long smallDynamicFilterMaxNdvCount)
     {
         this.smallDynamicFilterMaxNdvCount = smallDynamicFilterMaxNdvCount;
-        return this;
-    }
-
-    @Min(0)
-    public int getSmallMaxDistinctValuesPerDriver()
-    {
-        return smallMaxDistinctValuesPerDriver;
-    }
-
-    @LegacyConfig("dynamic-filtering.small-broadcast.max-distinct-values-per-driver")
-    @Config("dynamic-filtering.small.max-distinct-values-per-driver")
-    public DynamicFilterConfig setSmallMaxDistinctValuesPerDriver(int smallMaxDistinctValuesPerDriver)
-    {
-        this.smallMaxDistinctValuesPerDriver = smallMaxDistinctValuesPerDriver;
-        return this;
-    }
-
-    @MaxDataSize("1MB")
-    public DataSize getSmallMaxSizePerDriver()
-    {
-        return smallMaxSizePerDriver;
-    }
-
-    @LegacyConfig("dynamic-filtering.small-broadcast.max-size-per-driver")
-    @Config("dynamic-filtering.small.max-size-per-driver")
-    public DynamicFilterConfig setSmallMaxSizePerDriver(DataSize smallMaxSizePerDriver)
-    {
-        this.smallMaxSizePerDriver = smallMaxSizePerDriver;
-        return this;
-    }
-
-    @MaxDataSize("10MB")
-    public DataSize getSmallMaxSizePerOperator()
-    {
-        return smallMaxSizePerOperator;
-    }
-
-    @LegacyConfig("dynamic-filtering.small-broadcast.max-size-per-operator")
-    @Config("dynamic-filtering.small.max-size-per-operator")
-    public DynamicFilterConfig setSmallMaxSizePerOperator(DataSize smallMaxSizePerOperator)
-    {
-        this.smallMaxSizePerOperator = smallMaxSizePerOperator;
-        return this;
-    }
-
-    @Min(0)
-    public int getSmallPartitionedMaxDistinctValuesPerDriver()
-    {
-        return smallPartitionedMaxDistinctValuesPerDriver;
-    }
-
-    @Config("dynamic-filtering.small-partitioned.max-distinct-values-per-driver")
-    public DynamicFilterConfig setSmallPartitionedMaxDistinctValuesPerDriver(int smallPartitionedMaxDistinctValuesPerDriver)
-    {
-        this.smallPartitionedMaxDistinctValuesPerDriver = smallPartitionedMaxDistinctValuesPerDriver;
-        return this;
-    }
-
-    @MaxDataSize("1MB")
-    public DataSize getSmallPartitionedMaxSizePerDriver()
-    {
-        return smallPartitionedMaxSizePerDriver;
-    }
-
-    @Config("dynamic-filtering.small-partitioned.max-size-per-driver")
-    public DynamicFilterConfig setSmallPartitionedMaxSizePerDriver(DataSize smallPartitionedMaxSizePerDriver)
-    {
-        this.smallPartitionedMaxSizePerDriver = smallPartitionedMaxSizePerDriver;
-        return this;
-    }
-
-    @MaxDataSize("10MB")
-    public DataSize getSmallPartitionedMaxSizePerOperator()
-    {
-        return smallPartitionedMaxSizePerOperator;
-    }
-
-    @Config("dynamic-filtering.small-partitioned.max-size-per-operator")
-    public DynamicFilterConfig setSmallPartitionedMaxSizePerOperator(DataSize smallPartitionedMaxSizePerOperator)
-    {
-        this.smallPartitionedMaxSizePerOperator = smallPartitionedMaxSizePerOperator;
-        return this;
-    }
-
-    @NotNull
-    @MaxDataSize("10MB")
-    public DataSize getSmallMaxSizePerFilter()
-    {
-        return smallMaxSizePerFilter;
-    }
-
-    @Config("dynamic-filtering.small.max-size-per-filter")
-    public DynamicFilterConfig setSmallMaxSizePerFilter(DataSize smallMaxSizePerFilter)
-    {
-        this.smallMaxSizePerFilter = smallMaxSizePerFilter;
         return this;
     }
 
