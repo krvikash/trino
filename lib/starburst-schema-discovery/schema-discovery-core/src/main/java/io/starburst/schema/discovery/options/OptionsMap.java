@@ -122,7 +122,7 @@ public class OptionsMap
     public char firstChar(String key)
     {
         String value = get(key);
-        checkArgument(value.length() == 1, "Value must be a single character: " + value);
+        checkArgument(value.length() == 1, "Value must be a single character: %s", value);
         return value.charAt(0);
     }
 

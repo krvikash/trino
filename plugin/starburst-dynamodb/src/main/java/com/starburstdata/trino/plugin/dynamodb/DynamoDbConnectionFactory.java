@@ -80,7 +80,7 @@ public class DynamoDbConnectionFactory
 
     public static String getConnectionUrl(DynamoDbConfig dynamoDbConfig)
     {
-        checkArgument(AWS_REGION_TO_CDATA_REGION.containsKey(dynamoDbConfig.getAwsRegion()), "No mapping of AWS region to location for value: " + dynamoDbConfig.getAwsRegion());
+        checkArgument(AWS_REGION_TO_CDATA_REGION.containsKey(dynamoDbConfig.getAwsRegion()), "No mapping of AWS region to location for value: %s", dynamoDbConfig.getAwsRegion());
 
         StringBuilder builder = new StringBuilder("jdbc:amazondynamodb:")
                 .append("AWS Region=\"").append(AWS_REGION_TO_CDATA_REGION.get(dynamoDbConfig.getAwsRegion())).append("\";")

@@ -101,7 +101,7 @@ public class HttpDiscoveryClient
     {
         URI baseUri = baseUriSupplier.get();
         requireNonNull(baseUri, "baseUri is null");
-        checkArgument(baseUri.getPath().isBlank(), "expected base URI with no path; got " + baseUri);
+        checkArgument(baseUri.getPath().isBlank(), "expected base URI with no path; got %s", baseUri);
         return uriBuilderFrom(baseUri)
                 .replacePath("/api/v1/buffer/discovery")
                 .build();

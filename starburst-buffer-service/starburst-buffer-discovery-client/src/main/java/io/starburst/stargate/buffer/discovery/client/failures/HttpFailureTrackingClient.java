@@ -42,7 +42,7 @@ public class HttpFailureTrackingClient
     public HttpFailureTrackingClient(URI baseUri, HttpClient httpClient)
     {
         requireNonNull(baseUri, "baseUri is null");
-        checkArgument(baseUri.getPath().isBlank(), "expected base URI with no path; got " + baseUri);
+        checkArgument(baseUri.getPath().isBlank(), "expected base URI with no path; got %s", baseUri);
         this.baseUri = HttpUriBuilder.uriBuilderFrom(baseUri)
                 .replacePath("/api/v1/buffer/failures")
                 .build();

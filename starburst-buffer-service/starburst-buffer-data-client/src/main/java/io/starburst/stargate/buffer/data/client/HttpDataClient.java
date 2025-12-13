@@ -111,7 +111,7 @@ public class HttpDataClient
         this.httpIdleTimeout = httpIdleTimeout;
         requireNonNull(baseUri, "baseUri is null");
         requireNonNull(httpClient, "httpClient is null");
-        checkArgument(baseUri.getPath().isBlank(), "expected base URI with no path; got " + baseUri);
+        checkArgument(baseUri.getPath().isBlank(), "expected base URI with no path; got %s", baseUri);
         this.baseUri = uriBuilderFrom(requireNonNull(baseUri, "baseUri is null"))
                 .replacePath("/api/v1/buffer/data")
                 .build();

@@ -52,7 +52,7 @@ public class TestDynamoDbNestedAttributeTypeMapping
             throws Exception
     {
         File schemaDirectory = Paths.get("src/test/resources/complex-type-schemas").toFile();
-        checkState(schemaDirectory.exists() && schemaDirectory.isDirectory(), "Test schema directory " + schemaDirectory + " does not exist or is not a directory");
+        checkState(schemaDirectory.exists() && schemaDirectory.isDirectory(), "Test schema directory %s does not exist or is not a directory", schemaDirectory);
 
         TestingDynamoDbServer server = closeAfterClass(new TestingDynamoDbServer());
 

@@ -114,7 +114,7 @@ public final class TestingLakekeeperCatalog
                 .setHeader(CONTENT_TYPE, "application/json")
                 .build();
         StatusResponseHandler.StatusResponse statusResponse = HTTP_CLIENT.execute(request, createStatusResponseHandler());
-        checkState(statusResponse.getStatusCode() == 204, "Failed to drop table. Status: " + statusResponse.getStatusCode());
+        checkState(statusResponse.getStatusCode() == 204, "Failed to drop table. Status: %s", statusResponse.getStatusCode());
     }
 
     public String restUri()
@@ -177,7 +177,7 @@ public final class TestingLakekeeperCatalog
                 request,
                 createStatusResponseHandler());
 
-        checkState(response.getStatusCode() == 201, "Failed to create catalog. Status: " + response.getStatusCode());
+        checkState(response.getStatusCode() == 201, "Failed to create catalog. Status: %s", response.getStatusCode());
     }
 
     private static Minio startMinio(Network network)

@@ -37,7 +37,6 @@ public class ShapingLogger
 {
     private static final String CATALOG_FORMAT = "catalog[%s]: ";
     private static final String QUERY_FORMAT = CATALOG_FORMAT + "queryId[%s]: ";
-    private static final String FORMAT = "%s - skipped %d times";
     private final Map<Pair<String, List<Object>>, ShapingLoggerState> shapingLoggerStateMap = new ConcurrentHashMap<>();
 
     private final String catalog;
@@ -185,7 +184,7 @@ public class ShapingLogger
     private String getOccurrencesMessage(Pair<String, List<Object>> key, int count)
     {
         String message = key.getValue().isEmpty() ? key.getKey() : key.getKey().formatted(key.getValue().toArray());
-        return FORMAT.formatted(message, count);
+        return "%s - skipped %d times".formatted(message, count);
     }
 
     private record ShapingLoggerState(int count, long lastLogTime) {}

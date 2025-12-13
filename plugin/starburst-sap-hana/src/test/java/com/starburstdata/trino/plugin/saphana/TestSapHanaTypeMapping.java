@@ -873,7 +873,7 @@ public class TestSapHanaTypeMapping
         for (int precision = 0; precision <= 12; precision++) {
             String tableName = "test_create_table_with_timestamp_with_time_zone";
             assertQueryFails(
-                    format("CREATE TABLE " + tableName + " (a timestamp(%s) with time zone)", precision),
+                    format("CREATE TABLE %s (a timestamp(%s) with time zone)", tableName, precision),
                     format("Unsupported column type: timestamp\\(%s\\) with time zone", precision));
         }
     }

@@ -62,14 +62,14 @@ public class TableChangesBuilder
     public void addPreviousTable(DiscoveredTable table)
     {
         TablePathName tablePathName = table.extractTablePathName();
-        checkArgument(!previousTables.containsKey(tablePathName), "Previous table has already been added: " + tablePathName);
+        checkArgument(!previousTables.containsKey(tablePathName), "Previous table has already been added: %s", tablePathName);
         previousTables.put(tablePathName, table);
     }
 
     public void addCurrentTable(DiscoveredTable table)
     {
         TablePathName tablePathName = table.extractTablePathName();
-        checkArgument(!currentTables.containsKey(tablePathName), "Current table has already been added: " + tablePathName);
+        checkArgument(!currentTables.containsKey(tablePathName), "Current table has already been added: %s", tablePathName);
         currentTables.put(tablePathName, table);
     }
 

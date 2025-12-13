@@ -128,10 +128,10 @@ public class SourceBenchmarkDriver
             ExchangeSourceHandleSource sourceHandlesSource = exchange.getSourceHandles();
             ExchangeSourceHandleSource.ExchangeSourceHandleBatch sourceHandlesBatch = sourceHandlesSource.getNextBatch().get();
             checkState(sourceHandlesBatch.lastBatch(), "expected only single source handles batch");
-            checkState(sourceHandlesBatch.handles().size() == 1, "expected only single source handle; got" + sourceHandlesBatch.handles());
+            checkState(sourceHandlesBatch.handles().size() == 1, "expected only single source handle; got %s", sourceHandlesBatch.handles());
             BufferExchangeSourceHandle receivedSourceHandle = (BufferExchangeSourceHandle) sourceHandlesBatch.handles().get(0);
             sourceHandlesSource.close();
-            checkState(receivedSourceHandle.getChunksCount() == 1, "expected single chunk in source handle; got " + receivedSourceHandle.getChunksCount());
+            checkState(receivedSourceHandle.getChunksCount() == 1, "expected single chunk in source handle; got %s", receivedSourceHandle.getChunksCount());
             checkState(receivedSourceHandle.getPartitionId() == 0, "expected partition 0");
 
             ExchangeSource source = exchangeManager.createSource();

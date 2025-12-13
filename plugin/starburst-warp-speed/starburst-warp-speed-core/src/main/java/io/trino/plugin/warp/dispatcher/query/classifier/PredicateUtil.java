@@ -66,7 +66,7 @@ public class PredicateUtil
         int predicateSize = PREDICATE_HEADER_SIZE;
         Domain domain = nativeExpression.domain();
         ValueSet values = domain.getValues();
-        checkArgument(values instanceof SortedRangeSet, "unsupported ValueSet " + values.getClass());
+        checkArgument(values instanceof SortedRangeSet, "unsupported ValueSet %s", values.getClass());
         SortedRangeSet sortedRangeSet = (SortedRangeSet) values;
         numMatchElements = sortedRangeSet.getRangeCount();
         Type type = domain.getType();
@@ -141,7 +141,7 @@ public class PredicateUtil
     static PredicateData calcPredicateData(Domain domain, int recTypeLength, boolean transformAllowed, Type columnType)
     {
         ValueSet values = domain.getValues();
-        checkArgument(values instanceof SortedRangeSet, "unsupported ValueSet " + values.getClass());
+        checkArgument(values instanceof SortedRangeSet, "unsupported ValueSet %s", values.getClass());
         SortedRangeSet sortedRangeSet = (SortedRangeSet) values;
         Block sortedRanges = sortedRangeSet.getSortedRanges();
         boolean[] inclusive = sortedRangeSet.getInclusive();

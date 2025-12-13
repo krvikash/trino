@@ -1316,7 +1316,7 @@ public class TestSalesforceConnectorTest
 
         assertQuery("WITH " + salesforceOrdersTableName + " AS (SELECT * FROM " + salesforceOrdersTableName + " LIMIT 0) SELECT * FROM " + testView, query);
 
-        String name = format("%s.%s." + testView, getSession().getCatalog().get(), getSession().getSchema().get());
+        String name = format("%s.%s.%s", getSession().getCatalog().get(), getSession().getSchema().get(), testView);
         assertQuery("SELECT * FROM " + name, query);
 
         assertUpdate("DROP VIEW " + testView);
@@ -2686,7 +2686,7 @@ public class TestSalesforceConnectorTest
 
             // varchar equality predicate
             assertThat(query(session, "SELECT n.name__c, n2.regionkey__c FROM " + salesforceNationTableName + " n JOIN " + salesforceNationTableName + " n2 ON n.name__c = n2.name__c")).isFullyPushedDown();
-            assertThat(query(session, format("SELECT n.name__c, nl.regionkey__c FROM " + salesforceNationTableName + " n JOIN %s nl ON n.name__c = nl.name__c", nationLowercaseTable.getName())))
+            assertThat(query(session, format("SELECT n.name__c, nl.regionkey__c FROM %s n JOIN %s nl ON n.name__c = nl.name__c", salesforceNationTableName, nationLowercaseTable.getName())))
                     .isFullyPushedDown();
 
             // multiple bigint predicates
@@ -2696,12 +2696,12 @@ public class TestSalesforceConnectorTest
             // inequality
             for (String operator : nonEqualities) {
                 // bigint inequality predicate
-                assertThat(query(withoutDynamicFiltering, format("SELECT r.name__c, n.name__c FROM " + salesforceNationTableName + " n JOIN " + salesforceRegionTableName + " r ON n.regionkey__c %s r.regionkey__c", operator)))
+                assertThat(query(withoutDynamicFiltering, format("SELECT r.name__c, n.name__c FROM %s n JOIN %s r ON n.regionkey__c %s r.regionkey__c", salesforceNationTableName, salesforceRegionTableName, operator)))
                         // Currently no pushdown as inequality predicate is removed from Join to maintain Cross Join and Filter as separate nodes
                         .isNotFullyPushedDown(broadcastJoinOverTableScans);
 
                 // varchar inequality predicate
-                assertThat(query(withoutDynamicFiltering, format("SELECT n.name__c, nl.name__c FROM " + salesforceNationTableName + " n JOIN %s nl ON n.name__c %s nl.name__c", nationLowercaseTable.getName(), operator)))
+                assertThat(query(withoutDynamicFiltering, format("SELECT n.name__c, nl.name__c FROM %s n JOIN %s nl ON n.name__c %s nl.name__c", salesforceNationTableName, nationLowercaseTable.getName(), operator)))
                         // Currently no pushdown as inequality predicate is removed from Join to maintain Cross Join and Filter as separate nodes
                         .isNotFullyPushedDown(broadcastJoinOverTableScans);
             }
@@ -2710,7 +2710,7 @@ public class TestSalesforceConnectorTest
             for (String operator : nonEqualities) {
                 assertConditionallyPushedDown(
                         session,
-                        format("SELECT n.name__c, c.name__c FROM " + salesforceNationTableName + " n JOIN " + salesforceCustomerTableName + " c ON n.nationkey__c = c.nationkey__c AND n.regionkey__c %s c.custkey__c", operator),
+                        format("SELECT n.name__c, c.name__c FROM %s n JOIN %s c ON n.nationkey__c = c.nationkey__c AND n.regionkey__c %s c.custkey__c", salesforceNationTableName, salesforceCustomerTableName, operator),
                         expectJoinPushdown(operator),
                         joinOverTableScans);
             }
@@ -2719,7 +2719,7 @@ public class TestSalesforceConnectorTest
             for (String operator : nonEqualities) {
                 assertConditionallyPushedDown(
                         session,
-                        format("SELECT n.name__c, nl.name__c FROM " + salesforceNationTableName + " n JOIN %s nl ON n.regionkey__c = nl.regionkey__c AND n.name__c %s nl.name__c", nationLowercaseTable.getName(), operator),
+                        format("SELECT n.name__c, nl.name__c FROM %s n JOIN %s nl ON n.regionkey__c = nl.regionkey__c AND n.name__c %s nl.name__c", salesforceNationTableName, nationLowercaseTable.getName(), operator),
                         expectVarcharJoinPushdown(operator),
                         joinOverTableScans);
             }

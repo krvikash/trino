@@ -38,7 +38,7 @@ public class ProgramBuilder
 
     public static Program buildProgram(PlanNode root)
     {
-        checkArgument(root instanceof OutputNode, "Expected root to be an OutputNode. Actual: " + root.getClass().getSimpleName());
+        checkArgument(root instanceof OutputNode, "Expected root to be an OutputNode. Actual: %s", root.getClass().getSimpleName());
 
         ValueNameAllocator nameAllocator = new ValueNameAllocator();
 

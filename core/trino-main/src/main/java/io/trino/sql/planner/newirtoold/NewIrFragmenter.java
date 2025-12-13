@@ -397,7 +397,7 @@ public class NewIrFragmenter
         public PlanNode visitJoin(Join operation, FragmentProperties context)
         {
             List<TrinoOperation> sources = getSources(operation);
-            checkState(sources.size() == 2, "Expected two sources for " + operation.name());
+            checkState(sources.size() == 2, "Expected two sources for %s", operation.name());
             List<PlanNode> rewrittenSources = sources.stream()
                     .map(source -> source.accept(this, context))
                     .collect(toImmutableList());

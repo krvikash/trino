@@ -649,7 +649,7 @@ final class TestIcebergVariantDatatype
 
     private BaseTable createTableWithVariantColumn(String tableName, String fileFormat)
     {
-        assertUpdate(format("CREATE TABLE %s (%s int) WITH (format = '" + fileFormat + "', format_version = 3)", tableName, INT_COL_NAME));
+        assertUpdate(format("CREATE TABLE %s (%s int) WITH (format = '%s', format_version = 3)", tableName, INT_COL_NAME, fileFormat));
         BaseTable table = loadTable(tableName);
         addVariantColumn(table);
         return table;
