@@ -9,12 +9,10 @@
  */
 package com.starburstdata.trino.plugin.synapse.faulttolerant;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.inject.Module;
 import com.starburstdata.trino.plugin.synapse.SynapseServer;
 import io.trino.execution.FailureInjector;
 import io.trino.operator.RetryPolicy;
-import io.trino.plugin.exchange.filesystem.FileSystemExchangePlugin;
 import io.trino.plugin.jdbc.BaseJdbcFailureRecoveryTest;
 import io.trino.testing.QueryRunner;
 import io.trino.tpch.TpchTable;
@@ -57,11 +55,7 @@ public abstract class BaseSynapseFailureRecoveryTest
                 coordinatorProperties,
                 requiredTpchTables,
                 Optional.of(failureInjectionModule),
-                runner -> {
-                    runner.installPlugin(new FileSystemExchangePlugin());
-                    runner.loadExchangeManager("filesystem", ImmutableMap.of(
-                            "exchange.base-directories", System.getProperty("java.io.tmpdir") + "/trino-local-file-system-exchange-manager"));
-                });
+                runnerBuilder -> runnerBuilder.withExchange("filesystem"));
     }
 
     @Test

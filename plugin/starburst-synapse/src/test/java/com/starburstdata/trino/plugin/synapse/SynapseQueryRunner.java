@@ -89,14 +89,14 @@ public final class SynapseQueryRunner
             Map<String, String> coordinatorProperties,
             Iterable<TpchTable<?>> tables,
             Optional<Module> failureInjectionModule,
-            Consumer<QueryRunner> moreSetup)
+            Consumer<DistributedQueryRunner.Builder<?>> moreSetup)
             throws Exception
     {
         Session session = createSession(USERNAME, catalogName);
         DistributedQueryRunner.Builder<?> queryRunnerBuilder = DistributedQueryRunner.builder(session)
                 .setExtraProperties(extraProperties)
-                .setCoordinatorProperties(coordinatorProperties)
-                .setAdditionalSetup(moreSetup);
+                .setCoordinatorProperties(coordinatorProperties);
+        moreSetup.accept(queryRunnerBuilder);
         failureInjectionModule.ifPresent(queryRunnerBuilder::setAdditionalModule);
         DistributedQueryRunner queryRunner = queryRunnerBuilder.build();
         try {

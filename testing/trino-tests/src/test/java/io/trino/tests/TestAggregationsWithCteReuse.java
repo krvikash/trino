@@ -13,12 +13,9 @@
  */
 package io.trino.tests;
 
-import com.google.common.collect.ImmutableMap;
 import io.trino.testing.AbstractTestAggregations;
 import io.trino.testing.QueryRunner;
 import io.trino.tests.tpch.TpchQueryRunner;
-
-import java.util.Map;
 
 public class TestAggregationsWithCteReuse
         extends AbstractTestAggregations
@@ -27,16 +24,9 @@ public class TestAggregationsWithCteReuse
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        Map<String, String> exchangeManagerProperties = ImmutableMap.<String, String>builder()
-                .put("exchange.base-directories", System.getProperty("java.io.tmpdir") + "/trino-local-file-system-exchange-manager")
-                .buildOrThrow();
-
         return TpchQueryRunner.builder()
                 .addExtraProperty("optimizer.reuse-common-subqueries", "true")
-                .setAdditionalSetup(runner -> {
-                    runner.installPlugin(new io.trino.plugin.exchange.filesystem.FileSystemExchangePlugin());
-                    runner.loadExchangeManager("filesystem", exchangeManagerProperties);
-                })
+                .withExchange("filesystem")
                 .build();
     }
 }

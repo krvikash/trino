@@ -13,7 +13,6 @@
  */
 package io.trino.tests;
 
-import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.connector.MockConnectorFactory;
 import io.trino.connector.MockConnectorPlugin;
@@ -23,8 +22,6 @@ import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
-
-import java.util.Map;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.airlift.testing.Closeables.closeAllSuppress;
@@ -43,17 +40,10 @@ public class TestDistributedEngineOnlyQueriesWithCteReuse
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        Map<String, String> exchangeManagerProperties = ImmutableMap.<String, String>builder()
-                .put("exchange.base-directories", System.getProperty("java.io.tmpdir") + "/trino-local-file-system-exchange-manager")
-                .buildOrThrow();
-
         QueryRunner queryRunner = MemoryQueryRunner.builder()
                 .addExtraProperty("optimizer.reuse-common-subqueries", "true")
                 .setInitialTables(REQUIRED_TPCH_TABLES)
-                .setAdditionalSetup(runner -> {
-                    runner.installPlugin(new io.trino.plugin.exchange.filesystem.FileSystemExchangePlugin());
-                    runner.loadExchangeManager("filesystem", exchangeManagerProperties);
-                })
+                .withExchange("filesystem")
                 .build();
         try {
             queryRunner.getCoordinator().getSessionPropertyManager().addSystemSessionProperties(TEST_SYSTEM_PROPERTIES);

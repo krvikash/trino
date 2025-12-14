@@ -9,7 +9,6 @@
  */
 package com.starburstdata.trino.plugin.snowflake.faulttolerant;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Closer;
 import com.google.inject.Module;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner;
@@ -17,7 +16,6 @@ import com.starburstdata.trino.plugin.snowflake.SnowflakeServer;
 import com.starburstdata.trino.plugin.snowflake.TestDatabase;
 import io.trino.Session;
 import io.trino.operator.RetryPolicy;
-import io.trino.plugin.exchange.filesystem.FileSystemExchangePlugin;
 import io.trino.plugin.jdbc.BaseJdbcFailureRecoveryTest;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.SqlExecutor;
@@ -67,11 +65,7 @@ public abstract class BaseSnowflakeFailureRecoveryTest
                 .addCoordinatorProperties(coordinatorProperties)
                 .withTpchTables(requiredTpchTables)
                 .setAdditionalModule(failureInjectionModule)
-                .setAdditionalSetup(runner -> {
-                    runner.installPlugin(new FileSystemExchangePlugin());
-                    runner.loadExchangeManager("filesystem", ImmutableMap.of(
-                            "exchange.base-directories", System.getProperty("java.io.tmpdir") + "/trino-local-file-system-exchange-manager"));
-                })
+                .withExchange("filesystem")
                 .build();
     }
 

@@ -636,10 +636,7 @@ public final class IcebergQueryRunner
             QueryRunner queryRunner = icebergQueryRunnerMainBuilder()
                     .addIcebergProperty("hive.metastore.catalog.dir", metastoreDir.toURI().toString())
                     .setInitialTables(TpchTable.getTables())
-                    .setAdditionalSetup(runner -> {
-                        runner.installPlugin(new FileSystemExchangePlugin());
-                        runner.loadExchangeManager("filesystem", exchangeManagerProperties);
-                    })
+                    .withExchange("filesystem", exchangeManagerProperties)
                     .build();
             log.info("======== SERVER STARTED ========");
             log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());

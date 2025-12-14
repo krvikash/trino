@@ -13,10 +13,8 @@
  */
 package io.trino.faulttolerant;
 
-import com.google.common.collect.ImmutableMap;
 import io.airlift.units.DataSize;
 import io.trino.Session;
-import io.trino.plugin.exchange.filesystem.FileSystemExchangePlugin;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.FaultTolerantExecutionConnectorTestHelper;
 import io.trino.testing.QueryRunner;
@@ -60,11 +58,7 @@ public class TestTaskSplitting
 
         return TpchQueryRunnerBuilder.builder()
                 .setExtraProperties(extraProperties)
-                .setAdditionalSetup(runner -> {
-                    runner.installPlugin(new FileSystemExchangePlugin());
-                    runner.loadExchangeManager("filesystem", ImmutableMap.of("exchange.base-directories",
-                                    System.getProperty("java.io.tmpdir") + "/trino-local-file-system-exchange-manager"));
-                })
+                .withExchange("filesystem")
                 .withConnectorProperties(Map.of("tpch.partitioning-enabled", "false"))
                 .build();
     }
