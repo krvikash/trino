@@ -33,6 +33,7 @@ public final class MockBufferServiceExchangeMemoryRunner
 
         MemoryQueryRunner.builder()
                 .setExtraProperties(properties)
+                .withoutExchange() // configured below
                 .setAdditionalSetup(runner -> {
                     runner.installPlugin(new MockBufferExchangePlugin(mockBufferService));
                     runner.loadExchangeManager(

@@ -54,6 +54,7 @@ public class TestMockBufferDistributedFaultTolerantEngineOnlyQueries
         extraProperties.put("query.executor-pool-size", "100");
         DistributedQueryRunner queryRunner = MemoryQueryRunner.builder()
                 .setExtraProperties(extraProperties)
+                .withoutExchange() // configured below
                 .setAdditionalSetup(runner -> {
                     runner.installPlugin(new MockBufferExchangePlugin(mockBufferService));
                     runner.loadExchangeManager("mockbuffer", exchangeManagerProperties);

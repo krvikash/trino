@@ -768,7 +768,7 @@ public final class DistributedQueryRunner
     {
         private Session defaultSession;
         private boolean withTracing;
-        private Optional<String> exchangeType = Optional.empty();
+        private Optional<String> exchangeType = Optional.of("filesystem");
         private Optional<Map<String, String>> exchangeProperties = Optional.empty();
         private int workerCount = 2;
         private Map<String, String> extraProperties = ImmutableMap.of();

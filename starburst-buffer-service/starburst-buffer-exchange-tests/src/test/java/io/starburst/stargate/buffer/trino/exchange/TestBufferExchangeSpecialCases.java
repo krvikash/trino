@@ -157,6 +157,7 @@ public class TestBufferExchangeSpecialCases
 
             queryRunner = MemoryQueryRunner.builder()
                     .setExtraProperties(extraProperties)
+                    .withoutExchange() // configured below
                     .setAdditionalSetup(runner -> {
                         runner.installPlugin(new MockBufferExchangePlugin(mockBufferService));
                         runner.loadExchangeManager("mockbuffer", exchangeManagerProperties);
