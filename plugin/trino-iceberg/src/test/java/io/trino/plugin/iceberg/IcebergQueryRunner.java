@@ -665,12 +665,9 @@ public final class IcebergQueryRunner
                     .addIcebergProperty("hive.metastore.catalog.dir", metastoreDir.toURI().toString())
                     .setInitialTables(TpchTable.getTables())
                     .addExtraProperties(extraProperties.buildOrThrow())
-                    .setAdditionalSetup(runner -> {
-                        runner.loadExchangeManager("buffer",
-                                ImmutableMap.of(
-                                        "exchange.use-embedded-buffer-service", "true",
-                                        "exchange.partition-node-mapping-mode", "LOCAL_PRIORITY"));
-                    })
+                    .withExchange("buffer", ImmutableMap.of(
+                            "exchange.use-embedded-buffer-service", "true",
+                            "exchange.partition-node-mapping-mode", "LOCAL_PRIORITY"))
                     .build();
             log.info("======== SERVER STARTED ========");
             log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());

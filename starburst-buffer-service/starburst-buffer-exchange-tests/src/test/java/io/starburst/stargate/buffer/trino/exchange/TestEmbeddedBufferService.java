@@ -66,9 +66,7 @@ public class TestEmbeddedBufferService
 
         DistributedQueryRunner queryRunner = MemoryQueryRunner.builder()
                 .setExtraProperties(extraProperties)
-                .setAdditionalSetup(runner -> {
-                    runner.loadExchangeManager("buffer", exchangeManagerProperties);
-                })
+                .withExchange("buffer", exchangeManagerProperties)
                 .build();
         return queryRunner;
     }

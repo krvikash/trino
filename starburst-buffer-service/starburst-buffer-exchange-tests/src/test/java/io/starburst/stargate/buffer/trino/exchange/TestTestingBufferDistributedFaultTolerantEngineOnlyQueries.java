@@ -78,9 +78,7 @@ public class TestTestingBufferDistributedFaultTolerantEngineOnlyQueries
         extraProperties.put("query.executor-pool-size", "100");
         DistributedQueryRunner queryRunner = MemoryQueryRunner.builder()
                 .setExtraProperties(extraProperties)
-                .setAdditionalSetup(runner -> {
-                    runner.loadExchangeManager("buffer", exchangeManagerProperties);
-                })
+                .withExchange("buffer", exchangeManagerProperties)
                 .setInitialTables(REQUIRED_TPCH_TABLES)
                 .build();
 

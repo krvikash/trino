@@ -79,9 +79,7 @@ public class SplitTestingBufferServiceSetup
             MemoryQueryRunner.builder()
                     .setExtraProperties(properties)
                     .setWorkerCount(0)
-                    .setAdditionalSetup(runner -> {
-                        runner.loadExchangeManager("buffer", exchangeManagerProperties);
-                    })
+                    .withExchange("buffer", exchangeManagerProperties)
                     .setInitialTables(TpchTable.getTables())
                     .build();
         }

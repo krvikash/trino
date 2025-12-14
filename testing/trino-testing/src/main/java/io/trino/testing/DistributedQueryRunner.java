@@ -986,7 +986,7 @@ public final class DistributedQueryRunner
 
         private SELF withExchange(String exchangeType, Optional<Map<String, String>> properties)
         {
-            if (!exchangeType.equals("filesystem")) {
+            if (!exchangeType.equals("filesystem") && !exchangeType.equals("buffer")) {
                 throw new IllegalArgumentException("Unknow exchange type: " + exchangeType);
             }
             this.exchangeType = Optional.of(exchangeType);
@@ -1085,6 +1085,11 @@ public final class DistributedQueryRunner
                             Map<String, String> properties = exchangeProperties.orElse(
                                     ImmutableMap.of("exchange.base-directories", System.getProperty("java.io.tmpdir") + "/trino-local-file-system-exchange-manager"));
                             queryRunner.loadExchangeManager("filesystem", properties);
+                        }
+                        case "buffer" -> {
+                            Map<String, String> properties = exchangeProperties
+                                    .orElseThrow(() -> new IllegalStateException("exchangeProperties must be set for buffer service exchange"));
+                            queryRunner.loadExchangeManager("buffer", properties);
                         }
                         default -> throw new IllegalArgumentException("Unknow exchange type: " + exchangeType);
                     }

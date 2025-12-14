@@ -66,9 +66,7 @@ public class TestTestingBufferIcebergQueryFailureRecoveryTest
                 .setInitialTables(requiredTpchTables)
                 .setCoordinatorProperties(coordinatorProperties)
                 .setExtraProperties(configProperties)
-                .setAdditionalSetup(runner -> {
-                    runner.loadExchangeManager("buffer", exchangeManagerProperties);
-                })
+                .withExchange("buffer", exchangeManagerProperties)
                 .setAdditionalModule(failureInjectionModule)
                 .build();
     }

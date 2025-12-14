@@ -47,9 +47,7 @@ public final class TestingBufferServiceExchangeMemoryRunner
         MemoryQueryRunner.builder()
                 .setExtraProperties(properties)
                 .addCoordinatorProperty("http-server.http.port", "8080")
-                .setAdditionalSetup(runner -> {
-                    runner.loadExchangeManager("buffer", exchangeManagerProperties);
-                })
+                .withExchange("buffer", exchangeManagerProperties)
                 .setInitialTables(TpchTable.getTables())
                 .build();
     }

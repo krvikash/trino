@@ -144,9 +144,7 @@ public class TestDrain
 
         DistributedQueryRunner queryRunner = MemoryQueryRunner.builder()
                 .setExtraProperties(runnerExtraProperties)
-                .setAdditionalSetup(runner -> {
-                    runner.loadExchangeManager("buffer", exchangeManagerProperties);
-                })
+                .withExchange("buffer", exchangeManagerProperties)
                 .setInitialTables(ImmutableList.of())
                 .build();
 
