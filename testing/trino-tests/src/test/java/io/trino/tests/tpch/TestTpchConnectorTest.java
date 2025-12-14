@@ -52,6 +52,7 @@ public class TestTpchConnectorTest
     protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
     {
         return switch (connectorBehavior) {
+            case SUPPORTS_CTE_REUSE -> true;
             case SUPPORTS_ADD_COLUMN,
                  SUPPORTS_ARRAY,
                  SUPPORTS_COMMENT_ON_COLUMN,

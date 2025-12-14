@@ -77,6 +77,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -130,6 +131,7 @@ import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_CREATE_TABLE_WI
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_CREATE_TABLE_WITH_DATA;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_CREATE_TABLE_WITH_TABLE_COMMENT;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_CREATE_VIEW;
+import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_CTE_REUSE;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_DEFAULT_COLUMN_VALUE;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_DELETE;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_DEREFERENCE_PUSHDOWN;
@@ -179,6 +181,7 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.regex.Pattern.MULTILINE;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -7110,6 +7113,48 @@ public abstract class BaseConnectorTest
         assertQuery("SELECT * FROM " + viewName, "VALUES ('sample value', 'abc')");
 
         assertUpdate("DROP MATERIALIZED VIEW " + viewName);
+    }
+
+    @Test
+    public void testCteReuse()
+    {
+        Session cteReuse = Session.builder(getQueryRunner().getDefaultSession())
+                .setSystemProperty("reuse_common_subqueries", "true")
+                .build();
+
+        String query = """
+                       WITH t as (SELECT * FROM nation WHERE nationkey > 3)
+                       SELECT count(regionkey) FROM t UNION ALL SELECT max(nationkey) FROM t
+                       """;
+        String explainQuery = "EXPLAIN " + query;
+
+        String planWithoutCteReuse = (String) computeActual(explainQuery).getOnlyValue();
+        String planWithCteReuse = (String) computeActual(cteReuse, explainQuery).getOnlyValue();
+
+        if (!hasBehavior(SUPPORTS_CTE_REUSE)) {
+            assertThat(planWithoutCteReuse).isEqualTo(planWithCteReuse);
+            assertThat(countRegexOccurences(planWithCteReuse, "^Fragment ")).isEqualTo(3);
+            return;
+        }
+
+        assertThat(planWithoutCteReuse).isNotEqualTo(planWithCteReuse);
+        assertThat(countRegexOccurences(planWithoutCteReuse, "^Fragment ")).isEqualTo(3);
+        // plan with CTE reuse has just 2 fragments and leaf fragment is accessed twice
+        assertThat(countRegexOccurences(planWithCteReuse, "^Fragment ")).isEqualTo(2);
+        assertThat(countRegexOccurences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [1]]\\E")).isEqualTo(2);
+        // results are ok
+        assertQuery(cteReuse, query, "VALUES 21, 24");
+    }
+
+    private int countRegexOccurences(String value, String regex)
+    {
+        Pattern pattern = Pattern.compile(regex, MULTILINE);
+        Matcher matcher = pattern.matcher(value);
+        int result = 0;
+        while (matcher.find()) {
+            result++;
+        }
+        return result;
     }
 
     @Test

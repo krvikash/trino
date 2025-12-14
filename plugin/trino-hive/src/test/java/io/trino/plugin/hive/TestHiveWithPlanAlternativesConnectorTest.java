@@ -18,6 +18,7 @@ import io.trino.connector.alternatives.MockPlanAlternativeTableHandle;
 import io.trino.sql.planner.Plan;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.TestingConnectorBehavior;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
@@ -39,6 +40,15 @@ public class TestHiveWithPlanAlternativesConnectorTest
     {
         return BaseHiveConnectorTest.createHiveQueryRunner(HiveQueryRunner.builder()
                 .withPlanAlternatives());
+    }
+
+    @Override
+    protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
+    {
+        return switch (connectorBehavior) {
+            case SUPPORTS_CTE_REUSE -> false; // not supported for MockPlanAlternativePlugin
+            default -> super.hasBehavior(connectorBehavior);
+        };
     }
 
     @Test

@@ -285,6 +285,7 @@ public abstract class BaseIcebergConnectorTest
     {
         return switch (connectorBehavior) {
             case SUPPORTS_CREATE_OR_REPLACE_TABLE,
+                 SUPPORTS_CTE_REUSE,
                  SUPPORTS_DEFAULT_COLUMN_VALUE,
                  SUPPORTS_REPORTING_WRITTEN_BYTES -> true;
             case SUPPORTS_ADD_COLUMN_NOT_NULL_CONSTRAINT,

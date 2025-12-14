@@ -172,7 +172,8 @@ public class TestDeltaLakeConnectorTest
     protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
     {
         return switch (connectorBehavior) {
-            case SUPPORTS_CREATE_OR_REPLACE_TABLE,
+            case SUPPORTS_CTE_REUSE,
+                 SUPPORTS_CREATE_OR_REPLACE_TABLE,
                  SUPPORTS_REPORTING_WRITTEN_BYTES -> true;
             case SUPPORTS_ADD_COLUMN_WITH_POSITION,
                  SUPPORTS_ADD_FIELD,
