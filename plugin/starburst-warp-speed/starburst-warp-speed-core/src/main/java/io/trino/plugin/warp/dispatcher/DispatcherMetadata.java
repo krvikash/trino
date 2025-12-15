@@ -1278,9 +1278,16 @@ public class DispatcherMetadata
     }
 
     @Override
+    public MaterializedViewFreshness getMaterializedViewFreshness(ConnectorSession session, SchemaTableName name, boolean considerGracePeriod)
+    {
+        return proxiedConnectorMetadata.getMaterializedViewFreshness(session, name, considerGracePeriod);
+    }
+
+    @SuppressWarnings("removal")
+    @Override
     public MaterializedViewFreshness getMaterializedViewFreshness(ConnectorSession session, SchemaTableName name)
     {
-        return proxiedConnectorMetadata.getMaterializedViewFreshness(session, name);
+        throw new UnsupportedOperationException("getMaterializedViewFreshness(session, name, considerGracePeriod) should be called instead");
     }
 
     @Override

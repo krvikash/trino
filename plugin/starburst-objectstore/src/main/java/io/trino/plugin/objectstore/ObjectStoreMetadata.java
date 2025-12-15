@@ -533,9 +533,9 @@ public class ObjectStoreMetadata
     }
 
     @Override
-    public MaterializedViewFreshness getMaterializedViewFreshness(ConnectorSession session, SchemaTableName name)
+    public MaterializedViewFreshness getMaterializedViewFreshness(ConnectorSession session, SchemaTableName name, boolean considerGracePeriod)
     {
-        return icebergMetadata.getMaterializedViewFreshness(unwrap(ICEBERG, session), name);
+        return icebergMetadata.getMaterializedViewFreshness(unwrap(ICEBERG, session), name, considerGracePeriod);
     }
 
     @Override

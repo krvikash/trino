@@ -768,7 +768,7 @@ public class MockConnector
         }
 
         @Override
-        public MaterializedViewFreshness getMaterializedViewFreshness(ConnectorSession session, SchemaTableName viewName)
+        public MaterializedViewFreshness getMaterializedViewFreshness(ConnectorSession session, SchemaTableName viewName, boolean considerGracePeriod)
         {
             return getMaterializedViewFreshness.apply(session, viewName);
         }

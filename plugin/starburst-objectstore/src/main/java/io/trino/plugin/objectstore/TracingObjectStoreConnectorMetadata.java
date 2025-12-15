@@ -1368,6 +1368,16 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     }
 
     @Override
+    public MaterializedViewFreshness getMaterializedViewFreshness(ConnectorSession session, SchemaTableName name, boolean considerGracePeriod)
+    {
+        Span span = startSpan("getMaterializedViewFreshness", name);
+        try (var _ = scopedSpan(span)) {
+            return delegate.getMaterializedViewFreshness(session, name, considerGracePeriod);
+        }
+    }
+
+    @SuppressWarnings("removal")
+    @Override
     public MaterializedViewFreshness getMaterializedViewFreshness(ConnectorSession session, SchemaTableName name)
     {
         Span span = startSpan("getMaterializedViewFreshness", name);

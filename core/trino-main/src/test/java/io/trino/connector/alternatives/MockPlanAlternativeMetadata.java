@@ -1057,9 +1057,9 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
-    public MaterializedViewFreshness getMaterializedViewFreshness(ConnectorSession session, SchemaTableName name)
+    public MaterializedViewFreshness getMaterializedViewFreshness(ConnectorSession session, SchemaTableName name, boolean considerGracePeriod)
     {
-        return delegate.getMaterializedViewFreshness(session, name);
+        return delegate.getMaterializedViewFreshness(session, name, considerGracePeriod);
     }
 
     @Override
