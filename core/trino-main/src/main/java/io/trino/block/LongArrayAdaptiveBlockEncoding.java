@@ -30,8 +30,8 @@ import static io.trino.block.LongArrayAdaptiveBlockEncoding.EncodingMethod.RAW;
 import static io.trino.block.LongArrayAdaptiveBlockEncoding.EncodingMethod.RLE;
 import static io.trino.block.LongArrayAdaptiveBlockEncoding.EncodingMethod.fromByte;
 import static io.trino.spi.block.BlockShim.getRawValueIsNull;
-import static io.trino.spi.block.EncoderUtil.decodeNullBits;
-import static io.trino.spi.block.EncoderUtil.encodeNullsAsBits;
+import static io.trino.spi.block.EncoderUtil.decodeNullBitsScalar;
+import static io.trino.spi.block.EncoderUtil.encodeNullsAsBitsScalar;
 import static io.trino.spi.block.EncoderUtil.retrieveNullBits;
 import static java.lang.System.arraycopy;
 
@@ -76,7 +76,7 @@ public class LongArrayAdaptiveBlockEncoding
             decodeLongs(input, values, positionCount);
             return new LongArrayBlock(positionCount, Optional.empty(), values);
         }
-        boolean[] valueIsNull = decodeNullBits(valueIsNullPacked, positionCount);
+        boolean[] valueIsNull = decodeNullBitsScalar(valueIsNullPacked, positionCount);
 
         int nonNullPositionCount = input.readInt();
         decodeLongs(input, values, nonNullPositionCount);
@@ -145,7 +145,7 @@ public class LongArrayAdaptiveBlockEncoding
         int positionCount = arrayBlock.getPositionCount();
         output.appendInt(positionCount);
 
-        encodeNullsAsBits(output, getRawValueIsNull(arrayBlock), arrayBlock.getRawValuesOffset(), positionCount);
+        encodeNullsAsBitsScalar(output, getRawValueIsNull(arrayBlock), arrayBlock.getRawValuesOffset(), positionCount);
 
         if (!arrayBlock.mayHaveNull()) {
             encodeLongs(output, arrayBlock.getRawValues(), arrayBlock.getRawValuesOffset(), positionCount);

@@ -23,8 +23,8 @@ import io.trino.spi.block.IntArrayBlock;
 import java.util.Optional;
 
 import static io.trino.spi.block.BlockShim.getRawValueIsNull;
-import static io.trino.spi.block.EncoderUtil.decodeNullBits;
-import static io.trino.spi.block.EncoderUtil.encodeNullsAsBits;
+import static io.trino.spi.block.EncoderUtil.decodeNullBitsScalar;
+import static io.trino.spi.block.EncoderUtil.encodeNullsAsBitsScalar;
 import static io.trino.spi.block.EncoderUtil.retrieveNullBits;
 import static java.lang.System.arraycopy;
 
@@ -69,7 +69,7 @@ public class IntArrayAdaptiveBlockEncoding
             AdaptiveIntEncoding.decode(input, values, positionCount);
             return new IntArrayBlock(positionCount, Optional.empty(), values);
         }
-        boolean[] valueIsNull = decodeNullBits(valueIsNullPacked, positionCount);
+        boolean[] valueIsNull = decodeNullBitsScalar(valueIsNullPacked, positionCount);
 
         int nonNullPositionCount = input.readInt();
 
@@ -117,7 +117,7 @@ public class IntArrayAdaptiveBlockEncoding
         int positionCount = intArrayBlock.getPositionCount();
         output.appendInt(positionCount);
 
-        encodeNullsAsBits(output, getRawValueIsNull(intArrayBlock), intArrayBlock.getRawValuesOffset(), positionCount);
+        encodeNullsAsBitsScalar(output, getRawValueIsNull(intArrayBlock), intArrayBlock.getRawValuesOffset(), positionCount);
 
         if (!intArrayBlock.mayHaveNull()) {
             AdaptiveIntEncoding.encode(output, intArrayBlock.getRawValues(), intArrayBlock.getRawValuesOffset(), positionCount);
