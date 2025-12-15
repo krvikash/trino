@@ -46,7 +46,7 @@ import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.values.ValuesWriter;
-import org.apache.parquet.column.values.bloomfilter.BlockSplitBloomFilter;
+import org.apache.parquet.column.values.bloomfilter.AdaptiveBlockSplitBloomFilter;
 import org.apache.parquet.column.values.bloomfilter.BloomFilter;
 import org.apache.parquet.format.CompressionCodec;
 import org.apache.parquet.schema.GroupType;
@@ -97,7 +97,7 @@ import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT64;
 final class ParquetWriters
 {
     private static final int DEFAULT_DICTIONARY_PAGE_SIZE = 1024 * 1024;
-    static final int BLOOM_FILTER_EXPECTED_ENTRIES = 100_000;
+    private static final int BLOOM_FILTER_CANDIDATES_NUMBER = 5;
 
     private ParquetWriters() {}
 
@@ -337,11 +337,9 @@ final class ParquetWriters
             if (!SUPPORTED_BLOOM_FILTER_TYPES.contains(colummType)) {
                 return Optional.empty();
             }
-            // TODO: Enable use of AdaptiveBlockSplitBloomFilter once parquet-mr 1.14.0 is released
             String dotPath = Joiner.on('.').join(columnDescriptor.getPath());
             if (bloomFilterColumns.contains(dotPath)) {
-                int optimalNumOfBits = BlockSplitBloomFilter.optimalNumOfBits(BLOOM_FILTER_EXPECTED_ENTRIES, bloomFilterFpp);
-                return Optional.of(new BlockSplitBloomFilter(optimalNumOfBits / 8, maxBloomFilterSize));
+                return Optional.of(new AdaptiveBlockSplitBloomFilter(maxBloomFilterSize, BLOOM_FILTER_CANDIDATES_NUMBER, bloomFilterFpp, columnDescriptor));
             }
             return Optional.empty();
         }
