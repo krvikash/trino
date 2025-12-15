@@ -984,6 +984,13 @@ public final class DistributedQueryRunner
             return withExchange(exchangeType, Optional.of(ImmutableMap.copyOf(properties)));
         }
 
+        public SELF withoutExchange()
+        {
+            this.exchangeType = Optional.empty();
+            this.exchangeProperties = Optional.empty();
+            return self();
+        }
+
         private SELF withExchange(String exchangeType, Optional<Map<String, String>> properties)
         {
             if (!exchangeType.equals("filesystem") && !exchangeType.equals("buffer")) {
