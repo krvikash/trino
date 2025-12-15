@@ -42,6 +42,7 @@ import io.trino.sql.planner.OptimizerConfig.JoinDistributionType;
 import io.trino.sql.planner.Plan;
 import io.trino.sql.planner.assertions.PlanMatchPattern;
 import io.trino.sql.planner.plan.AggregationNode;
+import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.LimitNode;
 import io.trino.sql.planner.plan.OutputNode;
 import io.trino.sql.planner.plan.ProjectNode;
@@ -7118,10 +7119,6 @@ public abstract class BaseConnectorTest
     @Test
     public void testCteReuse()
     {
-        Session cteReuse = Session.builder(getQueryRunner().getDefaultSession())
-                .setSystemProperty("reuse_common_subqueries", "true")
-                .build();
-
         String query = """
                        WITH t as (SELECT * FROM nation WHERE nationkey > 3)
                        SELECT count(regionkey) FROM t UNION ALL SELECT max(nationkey) FROM t
@@ -7129,7 +7126,7 @@ public abstract class BaseConnectorTest
         String explainQuery = "EXPLAIN " + query;
 
         String planWithoutCteReuse = (String) computeActual(explainQuery).getOnlyValue();
-        String planWithCteReuse = (String) computeActual(cteReuse, explainQuery).getOnlyValue();
+        String planWithCteReuse = (String) computeActual(enableCteReuse(), explainQuery).getOnlyValue();
 
         if (!hasBehavior(SUPPORTS_CTE_REUSE)) {
             assertThat(planWithoutCteReuse).isEqualTo(planWithCteReuse);
@@ -7143,7 +7140,60 @@ public abstract class BaseConnectorTest
         assertThat(countRegexOccurences(planWithCteReuse, "^Fragment ")).isEqualTo(2);
         assertThat(countRegexOccurences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [1]]\\E")).isEqualTo(2);
         // results are ok
-        assertQuery(cteReuse, query, "VALUES 21, 24");
+        assertQuery(enableCteReuse(), query, "VALUES 21, 24");
+    }
+
+    private Session enableCteReuse()
+    {
+        Session cteReuse = Session.builder(getQueryRunner().getDefaultSession())
+                .setSystemProperty("reuse_common_subqueries", "true")
+                .build();
+        return cteReuse;
+    }
+
+    @Test
+    public void testCteReuseWithDereferencePushdown()
+    {
+        skipTestUnless(hasBehavior(SUPPORTS_CTE_REUSE) && hasBehavior(SUPPORTS_DEREFERENCE_PUSHDOWN) && hasBehavior(SUPPORTS_ROW_TYPE));
+
+        String tableName = "test_dup_deref_" + randomNameSuffix();
+        String createTable = "CREATE TABLE " + tableName + " AS SELECT nationkey, CAST(ROW(regionkey, nationkey) AS row(regionkey bigint, x bigint)) r FROM nation";
+        assertUpdate(createTable, 25);
+
+        String query = """
+                       WITH t as (SELECT * FROM %s)
+                       SELECT count(r.regionkey) FROM t UNION ALL SELECT max(nationkey) FROM t
+                       """.formatted(tableName);
+        String explainQuery = "EXPLAIN " + query;
+
+        String planWithoutCteReuse = (String) computeActual(explainQuery).getOnlyValue();
+        String planWithCteReuse = (String) computeActual(enableCteReuse(), explainQuery).getOnlyValue();
+
+        assertThat(planWithoutCteReuse).isNotEqualTo(planWithCteReuse);
+        assertThat(countRegexOccurences(planWithoutCteReuse, "^Fragment ")).isEqualTo(3);
+        // plan with CTE reuse has just 2 fragments and leaf fragment is accessed twice
+        assertThat(countRegexOccurences(planWithCteReuse, "^Fragment ")).isEqualTo(2);
+        assertThat(countRegexOccurences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [1]]\\E")).isEqualTo(2);
+
+        // results are ok
+        assertQuery(enableCteReuse(), query, "VALUES 25, 24");
+
+        // dereference pushdown really happens
+        // TODO: ideally we should use enableCteReuse() here but then .isFullyPushedDown() does not work as it depends on plan in old IR shape
+        PlanMatchPattern expectedPlan =
+                node(OutputNode.class,
+                        node(ExchangeNode.class,
+                                node(AggregationNode.class,
+                                        node(ExchangeNode.class,
+                                                node(ExchangeNode.class,
+                                                        node(AggregationNode.class,
+                                                                tableScan(tableName))))), // no projection
+                                node(AggregationNode.class,
+                                        node(ExchangeNode.class,
+                                                node(ExchangeNode.class,
+                                                        node(AggregationNode.class,
+                                                                tableScan(tableName))))))); // no projection
+        assertThat(query(query)).matches(expectedPlan);
     }
 
     private int countRegexOccurences(String value, String regex)
