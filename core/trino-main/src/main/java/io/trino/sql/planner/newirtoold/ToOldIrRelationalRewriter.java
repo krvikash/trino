@@ -20,6 +20,7 @@ import io.trino.Session;
 import io.trino.cost.PlanNodeStatsEstimate;
 import io.trino.metadata.Metadata;
 import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.type.Type;
@@ -95,7 +96,6 @@ import io.trino.sql.planner.plan.WindowFrameType;
 import io.trino.sql.planner.plan.WindowNode;
 import jakarta.annotation.Nullable;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -546,19 +546,14 @@ public class ToOldIrRelationalRewriter
 
         List<Type> outputTypes = relationRowType(trinoType(tableScan.result().type())).getTypeParameters();
         List<ColumnHandle> columnHandles = COLUMN_HANDLES.getAttribute(tableScan.attributes());
-        Map<String, ColumnHandle> nameToColumnHandle = metadata.getColumnHandles(session, TABLE_HANDLE.getAttribute(tableScan.attributes()));
-        Map<ColumnHandle, String> columnHandleToName = new HashMap<>();
-        nameToColumnHandle.entrySet().stream()
-                .forEach(entry -> columnHandleToName.put(entry.getValue(), entry.getKey()));
 
         // allocate output symbols
         List<Symbol> outputSymbols = IntStream.range(0, columnHandles.size())
                 .boxed()
                 .map(columnIndex -> {
                     ColumnHandle columnHandle = columnHandles.get(columnIndex);
-                    // use actual column name if available or generic name "col" in case of computed columns
-                    String columnName = Optional.ofNullable(columnHandleToName.get(columnHandle)).orElse("col");
-                    return symbolAllocator.newSymbol(columnName, outputTypes.get(columnIndex));
+                    ColumnMetadata columnMetadata = metadata.getColumnMetadata(session, TABLE_HANDLE.getAttribute(tableScan.attributes()), columnHandle);
+                    return symbolAllocator.newSymbol(columnMetadata.getName(), outputTypes.get(columnIndex));
                 })
                 .collect(toImmutableList());
 
