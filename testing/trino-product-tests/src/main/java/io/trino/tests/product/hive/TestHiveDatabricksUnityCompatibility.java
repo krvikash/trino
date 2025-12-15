@@ -158,7 +158,7 @@ public class TestHiveDatabricksUnityCompatibility
                         row("bool_col", "boolean", "", ""),
                         row("array_int_col", "array(integer)", "", ""),
                         row("map_col", "map(timestamp(3), integer)", "", ""),
-                        row("struct_col", "row(a bigint, b varchar)", "", ""));
+                        row("struct_col", "row(\"a\" bigint, \"b\" varchar)", "", ""));
     }
 
     @Test(groups = {HIVE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})

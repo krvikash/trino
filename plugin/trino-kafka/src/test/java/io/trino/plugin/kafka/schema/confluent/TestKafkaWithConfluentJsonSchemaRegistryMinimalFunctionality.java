@@ -234,7 +234,7 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
                 .skippingTypesCheck()
                 .matches("VALUES ('%s-key', 'varchar', '', ''), ".formatted(topic.toLowerCase(ENGLISH)) +
                          "('str', 'varchar', '', ''), " +
-                         "('nestedobj', 'row(nestedString varchar, arrObject array(row(nestedArrayString varchar, arrInt array(bigint))))', '', '')");
+                         "('nestedobj', 'row(\"nestedString\" varchar, \"arrObject\" array(row(\"nestedArrayString\" varchar, \"arrInt\" array(bigint))))', '', '')");
 
         assertThat(query("SELECT nestedObj.arrObject[1].arrInt[1], nestedObj.arrObject[1].arrInt[2], nestedObj.arrObject[1].arrInt[3] FROM " + toDoubleQuoted(topic)))
                 .matches("VALUES (BIGINT '1', BIGINT '2', BIGINT '3')");
@@ -449,11 +449,11 @@ final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
         waitUntilTableExists(topicName);
         assertCount(topicName, 1);
 
-        String dataColumnType = "row(fxRate double, dayCount bigint, settledQuantity double, postingAccountIdentifier varchar, accountIdentifier varchar, " +
-                                "accrualRate double, securityStatus varchar, postingAccountIdentifierType varchar, price double, accrualId varchar, accrualDate date, " +
-                                "tradeIdentifier bigint, dayCountMethod varchar, accrualBenchmarkRate double, accrualKey varchar, valuationCurrency varchar, priceType varchar, " +
-                                "accountIdentifierType varchar, submarket varchar, accrualStatus varchar, accrualType varchar, accrualCurrency varchar, market varchar, accrualAmount double, " +
-                                "settlementCurrency varchar, securityIdentifier varchar, accrualSpread double, securityIdentifierType varchar, productTypeCode varchar, payDate date)";
+        String dataColumnType = "row(\"fxRate\" double, \"dayCount\" bigint, \"settledQuantity\" double, \"postingAccountIdentifier\" varchar, \"accountIdentifier\" varchar, " +
+                                "\"accrualRate\" double, \"securityStatus\" varchar, \"postingAccountIdentifierType\" varchar, \"price\" double, \"accrualId\" varchar, \"accrualDate\" date, " +
+                                "\"tradeIdentifier\" bigint, \"dayCountMethod\" varchar, \"accrualBenchmarkRate\" double, \"accrualKey\" varchar, \"valuationCurrency\" varchar, \"priceType\" varchar, " +
+                                "\"accountIdentifierType\" varchar, \"submarket\" varchar, \"accrualStatus\" varchar, \"accrualType\" varchar, \"accrualCurrency\" varchar, \"market\" varchar, \"accrualAmount\" double, " +
+                                "\"settlementCurrency\" varchar, \"securityIdentifier\" varchar, \"accrualSpread\" double, \"securityIdentifierType\" varchar, \"productTypeCode\" varchar, \"payDate\" date)";
         assertThat(query("SHOW COLUMNS FROM " + toDoubleQuoted(topicName)))
                 .skippingTypesCheck()
                 .matches("VALUES ('%s-key', 'bigint', '', ''), ".formatted(topicName.toLowerCase(ENGLISH)) +
