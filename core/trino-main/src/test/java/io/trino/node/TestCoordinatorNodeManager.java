@@ -267,6 +267,7 @@ class TestCoordinatorNodeManager
                 inactiveNode.isCoordinator(),
                 Optional.empty(),
                 false,
-                Duration.ZERO);
+                Duration.ZERO,
+                inactiveNode.getNodeIdentifier());
     }
 }

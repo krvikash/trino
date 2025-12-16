@@ -52,6 +52,7 @@ public class ServerInfoResource
     private final StartupStatus startupStatus;
     private final Optional<QueryIdGenerator> queryIdGenerator;
     private final long startTime = System.nanoTime();
+    private final String instanceId;
 
     @Inject
     public ServerInfoResource(
@@ -69,6 +70,7 @@ public class ServerInfoResource
         this.nodeStateManager = requireNonNull(nodeStateManager, "nodeStateManager is null");
         this.startupStatus = requireNonNull(startupStatus, "startupStatus is null");
         this.queryIdGenerator = requireNonNull(queryIdGenerator, "queryIdGenerator is null");
+        this.instanceId = nodeInfo.getInstanceId();
     }
 
     @ResourceSecurity(PUBLIC)
@@ -85,7 +87,8 @@ public class ServerInfoResource
                 coordinator,
                 queryIdGenerator.map(QueryIdGenerator::getCoordinatorId),
                 starting,
-                nanosSince(startTime));
+                nanosSince(startTime),
+                instanceId);
     }
 
     @ResourceSecurity(MANAGEMENT_WRITE)

@@ -29,7 +29,8 @@ public record ServerInfo(
         boolean coordinator,
         Optional<String> coordinatorId,
         boolean starting,
-        Duration uptime)
+        Duration uptime,
+        String instanceId)
 {
     public ServerInfo
     {
@@ -39,5 +40,6 @@ public record ServerInfo(
         requireNonNull(environment, "environment is null");
         requireNonNull(coordinatorId, "coordinatorId is null");
         requireNonNull(uptime, "uptime is null");
+        requireNonNull(instanceId, "instanceId is null");
     }
 }
