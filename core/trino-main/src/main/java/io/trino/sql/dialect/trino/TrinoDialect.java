@@ -121,9 +121,13 @@ public class TrinoDialect
         this.typeDeserializer = serializedType -> typeManager.getType(TypeId.of(serializedType));
 
         List<TrinoOperationMetadata> operationMetadata = ImmutableList.of(
+                new AggregateCallOperationMetadata(typeDeserializer),
+                new ArrayOperationMetadata(typeDeserializer),
+                new CastOperationMetadata(typeDeserializer),
                 new ConstantOperationMetadata(nullableValueCodec),
                 new ExchangeOperationMetadata(partitioningHandleCodec, nullableValueArrayCodec),
-                new TableScanOperationMetadata(tableHandleCodec, columnHandleCodec, tupleDomainCodec));
+                new TableScanOperationMetadata(tableHandleCodec, columnHandleCodec, tupleDomainCodec, typeDeserializer),
+                new ValuesOperationMetadata(typeDeserializer));
 
         ImmutableMap.Builder<String, TrinoOperationMetadata> operationsBuilder = ImmutableMap.builder();
         STATIC_OPERATIONS.forEach(operation -> operationsBuilder.put(operation.name(), operation));
@@ -146,6 +150,9 @@ public class TrinoDialect
         };
 
         List<TrinoOperationMetadata> operationMetadata = ImmutableList.of(
+                new AggregateCallOperationMetadata(typeDeserializer),
+                new ArrayOperationMetadata(typeDeserializer),
+                new CastOperationMetadata(typeDeserializer),
                 new ConstantOperationMetadata(
                         _ -> {
                             throw new UnsupportedOperationException(format("cannot parse %s attribute", CONSTANT_VALUE.name()));
@@ -180,7 +187,9 @@ public class TrinoDialect
                         _ -> {
                             throw new UnsupportedOperationException(format("cannot parse %s attribute", CONSTRAINT.name()));
                         },
-                        _ -> format("[test: %s attribute]", CONSTRAINT.name())));
+                        _ -> format("[test: %s attribute]", CONSTRAINT.name()),
+                        typeDeserializer),
+                new ValuesOperationMetadata(typeDeserializer));
 
         ImmutableMap.Builder<String, TrinoOperationMetadata> operationsBuilder = ImmutableMap.builder();
         STATIC_OPERATIONS.forEach(operation -> operationsBuilder.put(operation.name(), operation));
@@ -253,14 +262,11 @@ public class TrinoDialect
     private static Set<TrinoOperationMetadata> staticOperations()
     {
         return ImmutableSet.of(
-                new AggregateCallOperationMetadata(),
                 new AggregationOperationMetadata(),
-                new ArrayOperationMetadata(),
                 new BetweenOperationMetadata(),
                 new BindOperationMetadata(),
                 new CallOperationMetadata(),
                 new CaseOperationMetadata(),
-                new CastOperationMetadata(),
                 new CoalesceOperationMetadata(),
                 new ComparisonOperationMetadata(),
                 new CorrelatedJoinOperationMetadata(),
@@ -284,7 +290,6 @@ public class TrinoDialect
                 new SortOperationMetadata(),
                 new SwitchOperationMetadata(),
                 new TopNOperationMetadata(),
-                new ValuesOperationMetadata(),
                 new WindowFunctionCallOperationMetadata(),
                 new WindowOperationMetadata());
     }

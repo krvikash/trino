@@ -307,6 +307,9 @@ final class TestRelationalProgramBuilder
                         .put(
                                 new AttributeKey(TRINO, "aggregate_call:step"),
                                 AggregateCallOperationMetadata.AggregationStep.SINGLE)
+                        .put(
+                                new AttributeKey(TRINO, "aggregate_call:result_type"),
+                                BIGINT)
                         .buildOrThrow());
 
         assertThat(aggregationOperation.operationAttributes())
@@ -1433,6 +1436,9 @@ final class TestRelationalProgramBuilder
                         .put(
                                 new AttributeKey(TRINO, "table_scan:use_connector_node_partitioning"),
                                 true)
+                        .put(
+                                new AttributeKey(TRINO, "table_scan:row_type"),
+                                anonymousRow(BIGINT, BOOLEAN))
                         .buildOrThrow());
     }
 

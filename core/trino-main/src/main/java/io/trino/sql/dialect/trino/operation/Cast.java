@@ -29,6 +29,7 @@ import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operationmetadata.CastOperationMetadata.NAME;
+import static io.trino.sql.dialect.trino.operationmetadata.CastOperationMetadata.TO_TYPE;
 import static java.util.Objects.requireNonNull;
 
 public final class Cast
@@ -50,7 +51,13 @@ public final class Cast
 
         this.input = input;
 
-        this.attributes = CastOperationMetadata.deriveAttributes(ImmutableMap.of(), ImmutableList.of(sourceAttributes));
+        Map<AttributeKey, Object> operationAttributes = TO_TYPE.asMap(type);
+
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(CastOperationMetadata.deriveAttributes(operationAttributes, ImmutableList.of(sourceAttributes)));
+
+        this.attributes = attributes.buildOrThrow();
     }
 
     @Override
@@ -103,7 +110,7 @@ public final class Cast
     @Override
     public Map<AttributeKey, Object> operationAttributes()
     {
-        return ImmutableMap.of();
+        return filterAttributes(CastOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     public Value argument()

@@ -37,6 +37,7 @@ import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operationmetadata.ValuesOperationMetadata.CARDINALITY;
 import static io.trino.sql.dialect.trino.operationmetadata.ValuesOperationMetadata.NAME;
+import static io.trino.sql.dialect.trino.operationmetadata.ValuesOperationMetadata.ROW_TYPE;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -82,7 +83,10 @@ public final class Values
                 .collect(toImmutableList());
         // TODO all Blocks representing rows could be combined into one Block returning a multiset<Row>
 
-        Map<AttributeKey, Object> operationAttributes = CARDINALITY.asMap((long) rows.size());
+        ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
+        CARDINALITY.putAttribute(operationAttributesBuilder, (long) rows.size());
+        ROW_TYPE.putAttribute(operationAttributesBuilder, outputType);
+        Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
 
         ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
         attributes.putAll(operationAttributes);

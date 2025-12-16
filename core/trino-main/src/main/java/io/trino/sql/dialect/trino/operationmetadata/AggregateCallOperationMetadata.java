@@ -15,6 +15,7 @@ package io.trino.sql.dialect.trino.operationmetadata;
 
 import com.google.common.collect.ImmutableSet;
 import io.trino.metadata.ResolvedFunction;
+import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
 import io.trino.sql.newir.Operation.AttributeKey;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultDeriveFunctionCallIrLevelAttributes;
@@ -31,6 +33,8 @@ import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadat
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalEnumAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalResolvedFunctionAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalSortOrderListAttributeMetadata;
+import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.prefixedName;
+import static java.util.Objects.requireNonNull;
 
 public class AggregateCallOperationMetadata
         implements TrinoOperationMetadata
@@ -46,8 +50,18 @@ public class AggregateCallOperationMetadata
     public static final TrinoAttributeSignature<ResolvedFunction> RESOLVED_FUNCTION = RESOLVED_FUNCTION_ATTRIBUTE_METADATA.trinoAttributeSignature();
     public static final TrinoAttributeSignature<Boolean> DISTINCT = DISTINCT_ATTRIBUTE_METADATA.trinoAttributeSignature();
     public static final TrinoAttributeSignature<AggregationStep> AGGREGATION_STEP = AGGREGATION_STEP_ATTRIBUTE_METADATA.trinoAttributeSignature();
+    public static final TrinoAttributeSignature<Type> RESULT_TYPE = new TrinoAttributeSignature<>(prefixedName(NAME, "result_type"), false);
 
-    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(SORT_ORDERS, RESOLVED_FUNCTION, DISTINCT, AGGREGATION_STEP);
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(SORT_ORDERS, RESOLVED_FUNCTION, DISTINCT, AGGREGATION_STEP, RESULT_TYPE);
+
+    private final TrinoAttributeMetadata<Type> resultTypeTrinoAttributeMetadata;
+
+    public AggregateCallOperationMetadata(Function<String, Type> typeDeserializer)
+    {
+        requireNonNull(typeDeserializer, "typeDeserializer is null");
+
+        this.resultTypeTrinoAttributeMetadata = new TrinoAttributeMetadata<>(RESULT_TYPE, typeDeserializer, type -> type.getTypeId().getId());
+    }
 
     @Override
     public String name()
@@ -62,7 +76,8 @@ public class AggregateCallOperationMetadata
                 SORT_ORDERS_ATTRIBUTE_METADATA,
                 RESOLVED_FUNCTION_ATTRIBUTE_METADATA,
                 DISTINCT_ATTRIBUTE_METADATA,
-                AGGREGATION_STEP_ATTRIBUTE_METADATA);
+                AGGREGATION_STEP_ATTRIBUTE_METADATA,
+                resultTypeTrinoAttributeMetadata);
     }
 
     @Override

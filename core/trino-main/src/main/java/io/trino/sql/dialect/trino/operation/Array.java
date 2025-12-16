@@ -32,6 +32,7 @@ import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operationmetadata.ArrayOperationMetadata.ELEMENT_TYPE;
 import static io.trino.sql.dialect.trino.operationmetadata.ArrayOperationMetadata.NAME;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -65,7 +66,13 @@ public final class Array
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), elements.size()));
         }
 
-        this.attributes = ArrayOperationMetadata.deriveAttributes(ImmutableMap.of(), sourceAttributes);
+        Map<AttributeKey, Object> operationAttributes = ELEMENT_TYPE.asMap(elementType);
+
+        ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
+        attributes.putAll(operationAttributes);
+        attributes.putAll(ArrayOperationMetadata.deriveAttributes(operationAttributes, sourceAttributes));
+
+        this.attributes = attributes.buildOrThrow();
     }
 
     @Override
@@ -120,7 +127,7 @@ public final class Array
     @Override
     public Map<AttributeKey, Object> operationAttributes()
     {
-        return ImmutableMap.of();
+        return filterAttributes(ArrayOperationMetadata.OPERATION_ATTRIBUTES);
     }
 
     @Override

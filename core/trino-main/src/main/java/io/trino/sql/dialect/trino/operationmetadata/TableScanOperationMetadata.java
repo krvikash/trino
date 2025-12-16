@@ -21,6 +21,7 @@ import io.trino.cost.SymbolStatsEstimate;
 import io.trino.metadata.TableHandle;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
 import io.trino.sql.newir.Operation.AttributeKey;
 import org.assertj.core.util.VisibleForTesting;
@@ -56,6 +57,7 @@ public class TableScanOperationMetadata
     public static final TrinoAttributeSignature<TableHandle> TABLE_HANDLE = new TrinoAttributeSignature<>(prefixedName(NAME, "table_handle"), false);
     public static final TrinoAttributeSignature<List<ColumnHandle>> COLUMN_HANDLES = new TrinoAttributeSignature<>(prefixedName(NAME, "column_handles"), false);
     public static final TrinoAttributeSignature<TupleDomain<ColumnHandle>> CONSTRAINT = new TrinoAttributeSignature<>(prefixedName(NAME, "constraint"), false);
+    public static final TrinoAttributeSignature<Type> ROW_TYPE = new TrinoAttributeSignature<>(prefixedName(NAME, "row_type"), false);
 
     public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(
             STATISTICS,
@@ -63,13 +65,15 @@ public class TableScanOperationMetadata
             USE_CONNECTOR_NODE_PARTITIONING,
             TABLE_HANDLE,
             COLUMN_HANDLES,
-            CONSTRAINT);
+            CONSTRAINT,
+            ROW_TYPE);
 
     private final TrinoAttributeMetadata<TableHandle> tableHandleTrinoAttributeMetadata;
     private final TrinoAttributeMetadata<List<ColumnHandle>> columnHandlesTrinoAttributeMetadata;
     private final TrinoAttributeMetadata<TupleDomain<ColumnHandle>> constraintTrinoAttributeMetadata;
+    private final TrinoAttributeMetadata<Type> rowTypeTrinoAttributeMetadata;
 
-    public TableScanOperationMetadata(JsonCodec<TableHandle> tableHandleCodec, JsonCodec<List<ColumnHandle>> columnHandleCodec, JsonCodec<TupleDomain<ColumnHandle>> tupleDomainCodec)
+    public TableScanOperationMetadata(JsonCodec<TableHandle> tableHandleCodec, JsonCodec<List<ColumnHandle>> columnHandleCodec, JsonCodec<TupleDomain<ColumnHandle>> tupleDomainCodec, Function<String, Type> typeDeserializer)
     {
         this(
                 tableHandleCodec::fromJson,
@@ -77,7 +81,8 @@ public class TableScanOperationMetadata
                 columnHandleCodec::fromJson,
                 columnHandleCodec::toJson,
                 tupleDomainCodec::fromJson,
-                tupleDomainCodec::toJson);
+                tupleDomainCodec::toJson,
+                typeDeserializer);
     }
 
     @VisibleForTesting
@@ -87,7 +92,8 @@ public class TableScanOperationMetadata
             Function<String, List<ColumnHandle>> columnHandlesParseMethod,
             Function<List<ColumnHandle>, String> columnHandlesPrintMethod,
             Function<String, TupleDomain<ColumnHandle>> constraintParseMethod,
-            Function<TupleDomain<ColumnHandle>, String> constraintPrintMethod)
+            Function<TupleDomain<ColumnHandle>, String> constraintPrintMethod,
+            Function<String, Type> typeDeserializer)
     {
         requireNonNull(tableHandleParseMethod, "tableHandleParseMethod is null");
         requireNonNull(tableHandlePrintMethod, "tableHandlePrintMethod is null");
@@ -95,10 +101,12 @@ public class TableScanOperationMetadata
         requireNonNull(columnHandlesPrintMethod, "columnHandlesPrintMethod is null");
         requireNonNull(constraintParseMethod, "constraintParseMethod is null");
         requireNonNull(constraintPrintMethod, "constraintPrintMethod is null");
+        requireNonNull(typeDeserializer, "typeDeserializer is null");
 
         this.tableHandleTrinoAttributeMetadata = new TrinoAttributeMetadata<>(TABLE_HANDLE, tableHandleParseMethod, tableHandlePrintMethod);
         this.columnHandlesTrinoAttributeMetadata = new TrinoAttributeMetadata<>(COLUMN_HANDLES, columnHandlesParseMethod, columnHandlesPrintMethod);
         this.constraintTrinoAttributeMetadata = new TrinoAttributeMetadata<>(CONSTRAINT, constraintParseMethod, constraintPrintMethod);
+        this.rowTypeTrinoAttributeMetadata = new TrinoAttributeMetadata<>(ROW_TYPE, typeDeserializer, type -> type.getTypeId().getId());
     }
 
     @Override
@@ -116,7 +124,8 @@ public class TableScanOperationMetadata
                 USE_CONNECTOR_NODE_PARTITIONING_ATTRIBUTE_METADATA,
                 tableHandleTrinoAttributeMetadata,
                 columnHandlesTrinoAttributeMetadata,
-                constraintTrinoAttributeMetadata);
+                constraintTrinoAttributeMetadata,
+                rowTypeTrinoAttributeMetadata);
     }
 
     @Override

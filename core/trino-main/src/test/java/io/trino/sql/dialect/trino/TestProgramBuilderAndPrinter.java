@@ -109,7 +109,7 @@ final class TestProgramBuilderAndPrinter
                                         %9 = return(%8) : ("row(bigint,boolean)") -> "row(bigint,boolean)" ()
                                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                     })
-                                    {values:cardinality = "2", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                    {values:cardinality = "2", values:row_type = "row(bigint,boolean)", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                 %10 = filter(%1) : ("multiset(row(bigint,boolean))") -> "multiset(row(bigint,boolean))" ({
                                     ^predicate (%11 : "row(bigint,boolean)")
                                         %12 = constant() : () -> "boolean" ()
@@ -201,7 +201,7 @@ final class TestProgramBuilderAndPrinter
                                         %9 = return(%8) : ("row(bigint,boolean)") -> "row(bigint,boolean)" ()
                                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                     })
-                                    {values:cardinality = "2", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                    {values:cardinality = "2", values:row_type = "row(bigint,boolean)", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                 %10 = correlated_join(%1) : ("multiset(row(bigint,boolean))") -> "multiset(row(bigint,boolean,bigint,boolean,bigint,boolean))" ({
                                     ^correlationSelector (%11 : "row(bigint,boolean)")
                                         %12 = field_reference(%11) : ("row(bigint,boolean)") -> "bigint" ()
@@ -235,7 +235,7 @@ final class TestProgramBuilderAndPrinter
                                                 %25 = return(%24) : ("row(bigint,boolean)") -> "row(bigint,boolean)" ()
                                                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                             })
-                                            {values:cardinality = "2", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                            {values:cardinality = "2", values:row_type = "row(bigint,boolean)", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %26 = correlated_join(%17) : ("multiset(row(bigint,boolean))") -> "multiset(row(bigint,boolean,bigint,boolean))" ({
                                             ^correlationSelector (%27 : "row(bigint,boolean)")
                                                 %28 = field_reference(%27) : ("row(bigint,boolean)") -> "bigint" ()
@@ -269,7 +269,7 @@ final class TestProgramBuilderAndPrinter
                                                         %41 = return(%40) : ("row(bigint,boolean)") -> "row(bigint,boolean)" ()
                                                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                                     })
-                                                    {values:cardinality = "2", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                                    {values:cardinality = "2", values:row_type = "row(bigint,boolean)", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                                 %42 = filter(%33) : ("multiset(row(bigint,boolean))") -> "multiset(row(bigint,boolean))" ({
                                                     ^predicate (%43 : "row(bigint,boolean)")
                                                         %44 = field_reference(%16) : ("row(bigint,boolean)") -> "boolean" ()
@@ -396,7 +396,7 @@ final class TestProgramBuilderAndPrinter
                                         %5 = return(%4) : ("row(bigint,boolean)") -> "row(bigint,boolean)" ()
                                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                     })
-                                    {values:cardinality = "1", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                    {values:cardinality = "1", values:row_type = "row(bigint,boolean)", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                 %6 = project(%1) : ("multiset(row(bigint,boolean))") -> "multiset(row(bigint,boolean,bigint))" ({
                                     ^assignments (%7 : "row(bigint,boolean)")
                                         %8 = field_reference(%7) : ("row(bigint,boolean)") -> "bigint" ()
@@ -440,7 +440,7 @@ final class TestProgramBuilderAndPrinter
                                                 %28 = return(%27) : ("empty row") -> "empty row" ()
                                                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                             })
-                                            {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""count""},""returnType"":""bigint"",""argumentTypes"":[]},""catalogHandle"":""system:normal:system"",""functionId"":""count():bigint"",""functionKind"":""AGGREGATE"",""deterministic"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "true", aggregate_call:step = "SINGLE", ir.repeatability = "DETERMINISTIC", ir.has_side_effects = "false"}
+                                            {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""count""},""returnType"":""bigint"",""argumentTypes"":[]},""catalogHandle"":""system:normal:system"",""functionId"":""count():bigint"",""functionKind"":""AGGREGATE"",""deterministic"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "true", aggregate_call:step = "SINGLE", aggregate_call:result_type = "bigint", ir.repeatability = "DETERMINISTIC", ir.has_side_effects = "false"}
                                         %29 = aggregate_call(%14) : ("multiset(row(bigint,boolean,bigint))") -> "bigint" ({
                                             ^arguments (%30 : "row(bigint,boolean,bigint)")
                                                 %31 = field_reference(%30) : ("row(bigint,boolean,bigint)") -> "bigint" ()
@@ -472,7 +472,7 @@ final class TestProgramBuilderAndPrinter
                                                 %44 = return(%43) : ("row(bigint)") -> "row(bigint)" ()
                                                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                             })
-                                            {aggregate_call:sort_orders = "[""ASC_NULLS_LAST""]", aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""bigint"",""argumentTypes"":[""bigint""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(bigint):bigint"",""functionKind"":""AGGREGATE"",""deterministic"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "SINGLE", ir.repeatability = "DETERMINISTIC", ir.has_side_effects = "false"}
+                                            {aggregate_call:sort_orders = "[""ASC_NULLS_LAST""]", aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""sum""},""returnType"":""bigint"",""argumentTypes"":[""bigint""]},""catalogHandle"":""system:normal:system"",""functionId"":""sum(bigint):bigint"",""functionKind"":""AGGREGATE"",""deterministic"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "SINGLE", aggregate_call:result_type = "bigint", ir.repeatability = "DETERMINISTIC", ir.has_side_effects = "false"}
                                         %45 = row(%15, %29) : ("bigint", "bigint") -> "row(bigint,bigint)" ()
                                             {ir.repeatability = "DETERMINISTIC", ir.has_side_effects = "false"}
                                         %46 = return(%45) : ("row(bigint,bigint)") -> "row(bigint,bigint)" ()
@@ -537,7 +537,7 @@ final class TestProgramBuilderAndPrinter
                         %0 = query() : () -> "boolean" ({
                             ^query
                                 %1 = table_scan() : () -> "multiset(row(bigint,boolean))" ()
-                                    {table_scan:table_handle = "[test: table_scan:table_handle attribute]", table_scan:column_handles = "[test: table_scan:column_handles attribute]", table_scan:constraint = "[test: table_scan:constraint attribute]", table_scan:statistics = "{""outputRowCount"":""NaN"",""fieldStatistics"":{}}", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "true", ir.safe = "true", ir.has_side_effects = "false"}
+                                    {table_scan:table_handle = "[test: table_scan:table_handle attribute]", table_scan:column_handles = "[test: table_scan:column_handles attribute]", table_scan:constraint = "[test: table_scan:constraint attribute]", table_scan:statistics = "{""outputRowCount"":""NaN"",""fieldStatistics"":{}}", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "true", table_scan:row_type = "row(bigint,boolean)", ir.safe = "true", ir.has_side_effects = "false"}
                                 %2 = output(%1) : ("multiset(row(bigint,boolean))") -> "boolean" ({
                                     ^outputFieldSelector (%3 : "row(bigint,boolean)")
                                         %4 = field_reference(%3) : ("row(bigint,boolean)") -> "bigint" ()
@@ -610,9 +610,9 @@ final class TestProgramBuilderAndPrinter
                                         %5 = return(%4) : ("row(bigint,boolean)") -> "row(bigint,boolean)" ()
                                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                     })
-                                    {values:cardinality = "1", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                    {values:cardinality = "1", values:row_type = "row(bigint,boolean)", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                 %6 = values() : () -> "multiset(row(smallint,bigint,boolean))" ()
-                                    {values:cardinality = "0", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                    {values:cardinality = "0", values:row_type = "row(smallint,bigint,boolean)", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                 %7 = exchange(%1, %6) : ("multiset(row(bigint,boolean))", "multiset(row(smallint,bigint,boolean))") -> "multiset(row(bigint,boolean))" ({
                                     ^inputSelector (%8 : "row(bigint,boolean)")
                                         %9 = field_reference(%8) : ("row(bigint,boolean)") -> "bigint" ()

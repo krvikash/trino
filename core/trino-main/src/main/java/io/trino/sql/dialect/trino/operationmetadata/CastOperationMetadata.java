@@ -15,12 +15,15 @@ package io.trino.sql.dialect.trino.operationmetadata;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.trino.spi.type.Type;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
 import io.trino.sql.newir.Operation.AttributeKey;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.deterministic;
@@ -31,11 +34,26 @@ import static io.trino.sql.dialect.ir.IrAttributeUtils.isKnownHasNoSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.isKnownHasSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.isKnownUnsafe;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.unsafe;
+import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.prefixedName;
+import static java.util.Objects.requireNonNull;
 
 public class CastOperationMetadata
         implements TrinoOperationMetadata
 {
     public static final String NAME = "cast";
+
+    public static final TrinoAttributeSignature<Type> TO_TYPE = new TrinoAttributeSignature<>(prefixedName(NAME, "to_type"), false);
+
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(TO_TYPE);
+
+    private final TrinoAttributeMetadata<Type> toTypeTrinoAttributeMetadata;
+
+    public CastOperationMetadata(Function<String, Type> typeDeserializer)
+    {
+        requireNonNull(typeDeserializer, "typeDeserializer is null");
+
+        this.toTypeTrinoAttributeMetadata = new TrinoAttributeMetadata<>(TO_TYPE, typeDeserializer, type -> type.getTypeId().getId());
+    }
 
     @Override
     public String name()
@@ -46,7 +64,7 @@ public class CastOperationMetadata
     @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
-        return ImmutableSet.of();
+        return ImmutableSet.of(toTypeTrinoAttributeMetadata);
     }
 
     @Override

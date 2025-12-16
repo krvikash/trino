@@ -44,6 +44,7 @@ import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION_ROW;
 import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.COLUMN_HANDLES;
 import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.CONSTRAINT;
 import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.NAME;
+import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.ROW_TYPE;
 import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.STATISTICS;
 import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.TABLE_HANDLE;
 import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.UPDATE_TARGET;
@@ -83,12 +84,15 @@ public class TableScan
 
         validateEnforcedConstraint(enforcedConstraint, columnHandles);
 
+        Type anonymousRowType;
         List<Type> outputTypes = rowType.getTypeParameters();
         if (outputTypes.isEmpty()) {
+            anonymousRowType = EMPTY_ROW;
             this.result = new Result(resultName, irType(new MultisetType(EMPTY_ROW)));
         }
         else {
-            this.result = new Result(resultName, irType(new MultisetType(RowType.anonymous(outputTypes))));
+            anonymousRowType = RowType.anonymous(outputTypes);
+            this.result = new Result(resultName, irType(new MultisetType(anonymousRowType)));
         }
 
         ImmutableMap.Builder<AttributeKey, Object> operationAttributesBuilder = ImmutableMap.builder();
@@ -98,6 +102,7 @@ public class TableScan
         statistics.ifPresent(estimate -> STATISTICS.putAttribute(operationAttributesBuilder, estimate));
         UPDATE_TARGET.putAttribute(operationAttributesBuilder, updateTarget);
         useConnectorNodePartitioning.ifPresent(usePartitioning -> USE_CONNECTOR_NODE_PARTITIONING.putAttribute(operationAttributesBuilder, usePartitioning));
+        ROW_TYPE.putAttribute(operationAttributesBuilder, anonymousRowType);
         Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
 
         ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();

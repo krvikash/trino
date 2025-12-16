@@ -49,6 +49,7 @@ import static io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperatio
 import static io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata.DISTINCT;
 import static io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata.NAME;
 import static io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata.RESOLVED_FUNCTION;
+import static io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata.RESULT_TYPE;
 import static io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata.SORT_ORDERS;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.lang.String.format;
@@ -171,6 +172,7 @@ public class AggregateCall
         RESOLVED_FUNCTION.putAttribute(operationAttributesBuilder, function);
         DISTINCT.putAttribute(operationAttributesBuilder, distinct);
         AGGREGATION_STEP.putAttribute(operationAttributesBuilder, step);
+        RESULT_TYPE.putAttribute(operationAttributesBuilder, outputType);
         Map<AttributeKey, Object> operationAttributes = operationAttributesBuilder.buildOrThrow();
 
         ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();

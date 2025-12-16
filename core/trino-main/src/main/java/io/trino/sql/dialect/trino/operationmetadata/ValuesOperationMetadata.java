@@ -14,6 +14,7 @@
 package io.trino.sql.dialect.trino.operationmetadata;
 
 import com.google.common.collect.ImmutableSet;
+import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
 import io.trino.sql.newir.Operation.AttributeKey;
 
@@ -21,9 +22,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultComposeIrLevelAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalLongAttributeMetadata;
+import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.prefixedName;
+import static java.util.Objects.requireNonNull;
 
 public class ValuesOperationMetadata
         implements TrinoOperationMetadata
@@ -33,8 +37,18 @@ public class ValuesOperationMetadata
     private static final TrinoAttributeMetadata<Long> CARDINALITY_ATTRIBUTE_METADATA = internalLongAttributeMetadata(NAME, "cardinality");
 
     public static final TrinoAttributeSignature<Long> CARDINALITY = CARDINALITY_ATTRIBUTE_METADATA.trinoAttributeSignature();
+    public static final TrinoAttributeSignature<Type> ROW_TYPE = new TrinoAttributeSignature<>(prefixedName(NAME, "row_type"), false);
 
-    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(CARDINALITY);
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(CARDINALITY, ROW_TYPE);
+
+    private final TrinoAttributeMetadata<Type> rowTypeTrinoAttributeMetadata;
+
+    public ValuesOperationMetadata(Function<String, Type> typeDeserializer)
+    {
+        requireNonNull(typeDeserializer, "typeDeserializer is null");
+
+        this.rowTypeTrinoAttributeMetadata = new TrinoAttributeMetadata<>(ROW_TYPE, typeDeserializer, type -> type.getTypeId().getId());
+    }
 
     @Override
     public String name()
@@ -45,7 +59,7 @@ public class ValuesOperationMetadata
     @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
-        return ImmutableSet.of(CARDINALITY_ATTRIBUTE_METADATA);
+        return ImmutableSet.of(CARDINALITY_ATTRIBUTE_METADATA, rowTypeTrinoAttributeMetadata);
     }
 
     @Override

@@ -15,13 +15,16 @@ package io.trino.sql.dialect.trino.operationmetadata;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.trino.spi.type.Type;
 import io.trino.sql.dialect.ir.IrAttributeUtils;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
 import io.trino.sql.newir.Operation.AttributeKey;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import static io.trino.sql.dialect.ir.IrAttributeUtils.deterministic;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.hasNoSideEffects;
@@ -29,11 +32,26 @@ import static io.trino.sql.dialect.ir.IrAttributeUtils.hasSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.nonDeterministic;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.nonIdempotent;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.unsafe;
+import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.prefixedName;
+import static java.util.Objects.requireNonNull;
 
 public class ArrayOperationMetadata
         implements TrinoOperationMetadata
 {
     public static final String NAME = "array";
+
+    public static final TrinoAttributeSignature<Type> ELEMENT_TYPE = new TrinoAttributeSignature<>(prefixedName(NAME, "element_type"), false);
+
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(ELEMENT_TYPE);
+
+    private final TrinoAttributeMetadata<Type> elementTypeTrinoAttributeMetadata;
+
+    public ArrayOperationMetadata(Function<String, Type> typeDeserializer)
+    {
+        requireNonNull(typeDeserializer, "typeDeserializer is null");
+
+        this.elementTypeTrinoAttributeMetadata = new TrinoAttributeMetadata<>(ELEMENT_TYPE, typeDeserializer, type -> type.getTypeId().getId());
+    }
 
     @Override
     public String name()
@@ -44,7 +62,7 @@ public class ArrayOperationMetadata
     @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
-        return ImmutableSet.of();
+        return ImmutableSet.of(elementTypeTrinoAttributeMetadata);
     }
 
     @Override
