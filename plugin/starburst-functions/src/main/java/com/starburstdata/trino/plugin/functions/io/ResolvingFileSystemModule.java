@@ -46,6 +46,8 @@ import io.trino.filesystem.gcs.GcsFileSystemFactory;
 import io.trino.filesystem.gcs.GcsServiceAccountAuth;
 import io.trino.filesystem.gcs.GcsServiceAccountAuthConfig;
 import io.trino.filesystem.gcs.GcsStorageFactory;
+import io.trino.filesystem.local.LocalFileSystemConfig;
+import io.trino.filesystem.local.LocalFileSystemFactory;
 import io.trino.filesystem.memory.MemoryFileSystemCache;
 import io.trino.filesystem.s3.S3FileSystemConfig;
 import io.trino.filesystem.s3.S3FileSystemFactory;
@@ -200,6 +202,10 @@ public class ResolvingFileSystemModule
                     case DEFAULT -> new AzureAuthDefault(configFactory.build(AzureAuthManagedIdentityConfig.class));
                 };
                 yield new AzureFileSystemFactory(openTelemetry, azureAuth, config);
+            }
+            case "local", "file" -> {
+                LocalFileSystemConfig config = configFactory.build(LocalFileSystemConfig.class);
+                yield new LocalFileSystemFactory(config);
             }
             default -> throw new IllegalArgumentException("Unsupported file system: " + location);
         };

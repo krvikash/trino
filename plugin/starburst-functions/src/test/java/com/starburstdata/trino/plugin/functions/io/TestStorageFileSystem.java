@@ -25,6 +25,9 @@ import io.trino.filesystem.gcs.GcsFileSystemFactory;
 import io.trino.filesystem.gcs.GcsServiceAccountAuth;
 import io.trino.filesystem.gcs.GcsServiceAccountAuthConfig;
 import io.trino.filesystem.gcs.GcsStorageFactory;
+import io.trino.filesystem.local.LocalFileSystem;
+import io.trino.filesystem.local.LocalFileSystemConfig;
+import io.trino.filesystem.local.LocalFileSystemFactory;
 import io.trino.filesystem.s3.S3FileSystem;
 import io.trino.filesystem.s3.S3FileSystemConfig;
 import io.trino.filesystem.s3.S3FileSystemFactory;
@@ -33,11 +36,14 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Path;
 import java.util.Base64;
 import java.util.stream.Stream;
 
@@ -63,9 +69,13 @@ final class TestStorageFileSystem
     private static final String ABFS_ACCOUNT = requireEnv("ABFS_ACCOUNT");
     private static final String ABFS_ACCESS_KEY = requireEnv("ABFS_ACCESS_KEY");
 
+    @TempDir
+    private static Path localLocation;
+
     private S3FileSystem s3FileSystem;
     private GcsFileSystem gcsFileSystem;
     private AzureFileSystem azureFileSystem;
+    private LocalFileSystem localFileSystem;
 
     @Override
     protected QueryRunner createQueryRunner()
@@ -81,6 +91,7 @@ final class TestStorageFileSystem
         s3FileSystem = s3FileSystem(session);
         gcsFileSystem = gcsFileSystem(session);
         azureFileSystem = azureFileSystem(session);
+        localFileSystem = localFileSystem(session);
 
         return queryRunner;
     }
@@ -93,7 +104,9 @@ final class TestStorageFileSystem
         try {
             Location filePath = location.appendPath("region.orc");
             byte[] bytes = Resources.toByteArray(Resources.getResource("tpch_tiny_region.orc"));
-            fileSystem.newOutputFile(filePath).createExclusive(bytes);
+            try (OutputStream outputStream = fileSystem.newOutputFile(filePath).create()) {
+                outputStream.write(bytes);
+            }
 
             assertThat(query("SELECT * FROM TABLE(load('" + location + "/', 'ORC', DESCRIPTOR(\"regionkey\" BIGINT, \"name\" VARCHAR(25), \"comment\" VARCHAR(152))))"))
                     .matches("SELECT * FROM tpch.tiny.region");
@@ -111,7 +124,8 @@ final class TestStorageFileSystem
         return Stream.of(
                 Arguments.of(s3FileSystem, Location.of("s3://%s/%s".formatted(S3_BUCKET, suffix))),
                 Arguments.of(gcsFileSystem, Location.of("gs://%s/%s".formatted(GCP_STORAGE_BUCKET, suffix))),
-                Arguments.of(azureFileSystem, Location.of("abfs://%s@%s.dfs.core.windows.net/%s".formatted(ABFS_CONTAINER, ABFS_ACCOUNT, suffix))));
+                Arguments.of(azureFileSystem, Location.of("abfs://%s@%s.dfs.core.windows.net/%s".formatted(ABFS_CONTAINER, ABFS_ACCOUNT, suffix))),
+                Arguments.of(localFileSystem, Location.of("local://%s/%s".formatted(localLocation, suffix))));
     }
 
     private static S3FileSystem s3FileSystem(ConnectorSession session)
@@ -138,6 +152,13 @@ final class TestStorageFileSystem
         AzureFileSystemConfig config = new AzureFileSystemConfig().setAuthType(AzureFileSystemConfig.AuthType.ACCESS_KEY);
         AzureFileSystemFactory fileSystemFactory = new AzureFileSystemFactory(OpenTelemetry.noop(), new AzureAuthAccessKey(ABFS_ACCESS_KEY), config);
         return (AzureFileSystem) fileSystemFactory.create(session);
+    }
+
+    private static LocalFileSystem localFileSystem(ConnectorSession session)
+    {
+        LocalFileSystemConfig config = new LocalFileSystemConfig().setLocation(localLocation);
+        LocalFileSystemFactory fileSystemFactory = new LocalFileSystemFactory(config);
+        return (LocalFileSystem) fileSystemFactory.create(session);
     }
 
     private static String credentialsKey()
@@ -173,9 +194,17 @@ final class TestStorageFileSystem
                                 "azure.auth-type": "ACCESS_KEY",
                                 "azure.access-key": "%s"
                             }
+                        },
+                        {
+                            "id": "local",
+                            "location": "local://%10$s",
+                            "configuration": {
+                                "fs.native-local.enabled": "true",
+                                "local.location": "%10$s"
+                            }
                         }
                     ]
                 }
-                """.formatted(S3_BUCKET, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, GCP_STORAGE_BUCKET, gcsJsonKey, ABFS_CONTAINER, ABFS_ACCOUNT, ABFS_ACCESS_KEY).stripIndent();
+                """.formatted(S3_BUCKET, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, GCP_STORAGE_BUCKET, gcsJsonKey, ABFS_CONTAINER, ABFS_ACCOUNT, ABFS_ACCESS_KEY, localLocation).stripIndent();
     }
 }
