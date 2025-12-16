@@ -24,6 +24,7 @@
             <groupId>com.azure</groupId>
             <artifactId>azure-storage-common</artifactId>
         </dependency>
+
         <dependency>
             <groupId>com.clearspring.analytics</groupId>
             <artifactId>stream</artifactId>
@@ -432,6 +433,11 @@
         </dependency>
 
         <dependency>
+            <groupId>org.antlr</groupId>
+            <artifactId>antlr4-runtime</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>org.apache.arrow</groupId>
             <artifactId>arrow-memory-core</artifactId>
         </dependency>
@@ -763,6 +769,10 @@
                         <ignoredNonTestScopedDependency>io.opentelemetry:opentelemetry-exporter-common</ignoredNonTestScopedDependency>
                     </ignoredNonTestScopedDependencies>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.antlr</groupId>
+                <artifactId>antlr4-maven-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
