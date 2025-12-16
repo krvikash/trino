@@ -41,6 +41,8 @@ import static java.util.Collections.singletonList;
 public final class CharType
         extends AbstractVariableWidthType
 {
+    public static final String NAME = "char";
+
     private static final TypeOperatorDeclaration TYPE_OPERATOR_DECLARATION = TypeOperatorDeclaration.builder(Slice.class)
             .addOperators(DEFAULT_READ_OPERATORS)
             .addOperators(DEFAULT_COMPARABLE_OPERATORS)
@@ -71,7 +73,7 @@ public final class CharType
     {
         super(
                 new TypeSignature(
-                        StandardTypes.CHAR,
+                        NAME,
                         singletonList(TypeParameter.numericParameter(length))),
                 Slice.class);
 
@@ -84,6 +86,12 @@ public final class CharType
     public int getLength()
     {
         return length;
+    }
+
+    @Override
+    public String getDisplayName()
+    {
+        return NAME + "(" + length + ")";
     }
 
     @Override

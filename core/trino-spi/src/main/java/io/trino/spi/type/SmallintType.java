@@ -54,6 +54,7 @@ public final class SmallintType
         extends AbstractType
         implements FixedWidthType
 {
+    public static final String NAME = "smallint";
     private static final TypeOperatorDeclaration TYPE_OPERATOR_DECLARATION = extractOperatorDeclaration(SmallintType.class, lookup(), long.class);
     private static final VarHandle SHORT_HANDLE = MethodHandles.byteArrayViewVarHandle(short[].class, ByteOrder.LITTLE_ENDIAN);
 
@@ -61,7 +62,7 @@ public final class SmallintType
 
     private SmallintType()
     {
-        super(new TypeSignature(StandardTypes.SMALLINT), long.class, ShortArrayBlock.class);
+        super(new TypeSignature(NAME), long.class, ShortArrayBlock.class);
     }
 
     @Override
@@ -95,6 +96,12 @@ public final class SmallintType
     public PreSizedBlockBuilder createPreSizedBlockBuilder(int positionCount)
     {
         return new ShortArrayPreSizedBlockBuilder(positionCount);
+    }
+
+    @Override
+    public String getDisplayName()
+    {
+        return NAME;
     }
 
     @Override

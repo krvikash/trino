@@ -51,6 +51,7 @@ import static java.lang.invoke.MethodHandles.lookup;
 public final class RealType
         extends AbstractIntType
 {
+    public static final String NAME = "real";
     private static final TypeOperatorDeclaration TYPE_OPERATOR_DECLARATION = extractOperatorDeclaration(RealType.class, lookup(), long.class);
     private static final VarHandle INT_HANDLE = MethodHandles.byteArrayViewVarHandle(int[].class, ByteOrder.LITTLE_ENDIAN);
 
@@ -59,6 +60,12 @@ public final class RealType
     private RealType()
     {
         super(new TypeSignature(StandardTypes.REAL));
+    }
+
+    @Override
+    public String getDisplayName()
+    {
+        return NAME;
     }
 
     @Override

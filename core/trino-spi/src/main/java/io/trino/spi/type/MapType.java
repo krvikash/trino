@@ -58,6 +58,7 @@ import static java.util.Arrays.asList;
 public class MapType
         extends AbstractType
 {
+    public static final String NAME = "map";
     private static final VarHandle INT_HANDLE = MethodHandles.byteArrayViewVarHandle(int[].class, ByteOrder.LITTLE_ENDIAN);
 
     private static final InvocationConvention READ_FLAT_CONVENTION = simpleConvention(FAIL_ON_NULL, FLAT);
@@ -117,7 +118,7 @@ public class MapType
     {
         super(
                 new TypeSignature(
-                        StandardTypes.MAP,
+                        NAME,
                         TypeParameter.typeParameter(keyType.getTypeSignature()),
                         TypeParameter.typeParameter(valueType.getTypeSignature())),
                 SqlMap.class,
@@ -417,7 +418,7 @@ public class MapType
     @Override
     public String getDisplayName()
     {
-        return "map(" + keyType.getDisplayName() + ", " + valueType.getDisplayName() + ")";
+        return NAME + "(" + keyType.getDisplayName() + ", " + valueType.getDisplayName() + ")";
     }
 
     public MapBlock createBlockFromKeyValue(Optional<boolean[]> mapIsNull, int[] offsets, Block keyBlock, Block valueBlock)
