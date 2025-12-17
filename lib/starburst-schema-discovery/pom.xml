@@ -33,7 +33,7 @@
         <air.main.basedir>${project.parent.basedir}</air.main.basedir>
         <air.license.header-file>${starburst-license.header-file}</air.license.header-file>
 
-        <dep.univocity-parsers.version>2.8.3</dep.univocity-parsers.version>
+        <dep.univocity-parsers.version>2.9.1</dep.univocity-parsers.version>
         <dep.flatten-maven-plugin.version>1.2.7</dep.flatten-maven-plugin.version>
     </properties>
 
