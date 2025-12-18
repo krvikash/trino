@@ -15,7 +15,7 @@
     <description>Starburst OpenAPI connector</description>
 
     <properties>
-        <dep.swagger-parser.version>2.1.36</dep.swagger-parser.version>
+        <dep.swagger-parser.version>2.1.37</dep.swagger-parser.version>
     </properties>
 
     <dependencies>
