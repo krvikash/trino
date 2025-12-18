@@ -32,8 +32,8 @@ public class OpenApiMergeSink
     public OpenApiMergeSink(OpenApiClient client, OpenApiTableHandle table)
     {
         super(client, table);
-        deleteMethod = table.getDeleteMethod();
-        deletePaths = table.getDeletePaths();
+        deleteMethod = table.deleteMethod();
+        deletePaths = table.deletePaths();
     }
 
     @Override

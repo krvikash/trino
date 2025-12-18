@@ -13,8 +13,6 @@
  */
 package com.starburstdata.plugin.openapi;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import io.swagger.v3.oas.models.PathItem;
 import io.trino.spi.TrinoException;
@@ -35,103 +33,31 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.starburstdata.plugin.openapi.OpenApiErrorCode.OPENAPI_INVALID_FILTER;
 import static java.util.Objects.requireNonNull;
 
-public class OpenApiTableHandle
+public record OpenApiTableHandle(
+        SchemaTableName schemaTableName,
+        List<String> selectPaths,
+        PathItem.HttpMethod selectMethod,
+        List<String> insertPaths,
+        PathItem.HttpMethod insertMethod,
+        List<String> updatePaths,
+        PathItem.HttpMethod updateMethod,
+        List<String> deletePaths,
+        PathItem.HttpMethod deleteMethod,
+        TupleDomain<ColumnHandle> constraint)
         implements ConnectorTableHandle
 {
-    private final SchemaTableName schemaTableName;
-    private final List<String> selectPaths;
-    private final PathItem.HttpMethod selectMethod;
-    private final List<String> insertPaths;
-    private final PathItem.HttpMethod insertMethod;
-    private final List<String> updatePaths;
-    private final PathItem.HttpMethod updateMethod;
-    private final List<String> deletePaths;
-    private final PathItem.HttpMethod deleteMethod;
-    private final TupleDomain<ColumnHandle> constraint;
-
-    @JsonCreator
-    public OpenApiTableHandle(
-            SchemaTableName schemaTableName,
-            List<String> selectPaths,
-            PathItem.HttpMethod selectMethod,
-            List<String> insertPaths,
-            PathItem.HttpMethod insertMethod,
-            List<String> updatePaths,
-            PathItem.HttpMethod updateMethod,
-            List<String> deletePaths,
-            PathItem.HttpMethod deleteMethod,
-            TupleDomain<ColumnHandle> constraint)
+    public OpenApiTableHandle
     {
-        this.schemaTableName = schemaTableName;
-        this.selectPaths = ImmutableList.copyOf(selectPaths);
-        this.selectMethod = requireNonNull(selectMethod, "selectMethod is null");
-        this.insertPaths = ImmutableList.copyOf(insertPaths);
-        this.insertMethod = requireNonNull(insertMethod, "insertMethod is null");
-        this.updatePaths = ImmutableList.copyOf(updatePaths);
-        this.updateMethod = requireNonNull(updateMethod, "updateMethod is null");
-        this.deletePaths = ImmutableList.copyOf(deletePaths);
-        this.deleteMethod = requireNonNull(deleteMethod, "deleteMethod is null");
-        this.constraint = requireNonNull(constraint, "constraint is null");
-    }
-
-    @JsonProperty
-    public SchemaTableName getSchemaTableName()
-    {
-        return schemaTableName;
-    }
-
-    @JsonProperty
-    public List<String> getSelectPaths()
-    {
-        return selectPaths;
-    }
-
-    @JsonProperty
-    public PathItem.HttpMethod getSelectMethod()
-    {
-        return selectMethod;
-    }
-
-    @JsonProperty
-    public List<String> getInsertPaths()
-    {
-        return insertPaths;
-    }
-
-    @JsonProperty
-    public PathItem.HttpMethod getInsertMethod()
-    {
-        return insertMethod;
-    }
-
-    @JsonProperty
-    public List<String> getUpdatePaths()
-    {
-        return updatePaths;
-    }
-
-    @JsonProperty
-    public PathItem.HttpMethod getUpdateMethod()
-    {
-        return updateMethod;
-    }
-
-    @JsonProperty
-    public List<String> getDeletePaths()
-    {
-        return deletePaths;
-    }
-
-    @JsonProperty
-    public PathItem.HttpMethod getDeleteMethod()
-    {
-        return deleteMethod;
-    }
-
-    @JsonProperty("constraint")
-    public TupleDomain<ColumnHandle> getConstraint()
-    {
-        return constraint;
+        requireNonNull(schemaTableName, "schemaTableName is null");
+        selectPaths = ImmutableList.copyOf(selectPaths);
+        requireNonNull(selectMethod, "selectMethod is null");
+        insertPaths = ImmutableList.copyOf(insertPaths);
+        requireNonNull(insertMethod, "insertMethod is null");
+        updatePaths = ImmutableList.copyOf(updatePaths);
+        requireNonNull(updateMethod, "updateMethod is null");
+        deletePaths = ImmutableList.copyOf(deletePaths);
+        requireNonNull(deleteMethod, "deleteMethod is null");
+        requireNonNull(constraint, "constraint is null");
     }
 
     @Override
@@ -163,7 +89,7 @@ public class OpenApiTableHandle
             return Optional.empty();
         }
 
-        TupleDomain<ColumnHandle> currentConstraint = getConstraint();
+        TupleDomain<ColumnHandle> currentConstraint = constraint();
 
         boolean found = false;
         for (OpenApiColumn column : columns.values()) {

@@ -91,7 +91,7 @@ public class OpenApiMetadata
             ConnectorTableHandle connectorTableHandle)
     {
         OpenApiTableHandle tableHandle = (OpenApiTableHandle) connectorTableHandle;
-        return spec.getTableMetadata(tableHandle.getSchemaTableName());
+        return spec.getTableMetadata(tableHandle.schemaTableName());
     }
 
     @Override
@@ -110,21 +110,21 @@ public class OpenApiMetadata
             ConnectorTableHandle connectorTableHandle)
     {
         OpenApiTableHandle tableHandle = (OpenApiTableHandle) connectorTableHandle;
-        return spec.getTables().get(tableHandle.getSchemaTableName().getTableName()).stream()
+        return spec.getTables().get(tableHandle.schemaTableName().getTableName()).stream()
                 .collect(toMap(OpenApiColumn::getName, OpenApiColumn::getHandle));
     }
 
     public Map<String, OpenApiColumnHandle> getColumnHandles(ConnectorTableHandle connectorTableHandle)
     {
         OpenApiTableHandle tableHandle = (OpenApiTableHandle) connectorTableHandle;
-        return spec.getTables().get(tableHandle.getSchemaTableName().getTableName()).stream()
+        return spec.getTables().get(tableHandle.schemaTableName().getTableName()).stream()
                 .collect(toMap(OpenApiColumn::getName, OpenApiColumn::getHandle));
     }
 
     public Map<String, OpenApiColumn> getColumns(ConnectorTableHandle connectorTableHandle)
     {
         OpenApiTableHandle tableHandle = (OpenApiTableHandle) connectorTableHandle;
-        return spec.getTables().get(tableHandle.getSchemaTableName().getTableName()).stream()
+        return spec.getTables().get(tableHandle.schemaTableName().getTableName()).stream()
                 .collect(toMap(OpenApiColumn::getName, identity()));
     }
 

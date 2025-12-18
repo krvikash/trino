@@ -204,10 +204,10 @@ public class OpenApiSpec
         this.handles.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
                 .flatMap(entry -> Stream.concat(Stream.of(
-                        "SELECT FROM " + entry.getKey() + " maps to: " + pathsToString(entry.getValue().getSelectMethod(), entry.getValue().getSelectPaths()),
-                        "INSERT INTO " + entry.getKey() + " maps to: " + pathsToString(entry.getValue().getInsertMethod(), entry.getValue().getInsertPaths()),
-                        "UPDATE " + entry.getKey() + " maps to: " + pathsToString(entry.getValue().getUpdateMethod(), entry.getValue().getUpdatePaths()),
-                        "DELETE FROM " + entry.getKey() + " maps to: " + pathsToString(entry.getValue().getDeleteMethod(), entry.getValue().getDeletePaths())),
+                        "SELECT FROM " + entry.getKey() + " maps to: " + pathsToString(entry.getValue().selectMethod(), entry.getValue().selectPaths()),
+                        "INSERT INTO " + entry.getKey() + " maps to: " + pathsToString(entry.getValue().insertMethod(), entry.getValue().insertPaths()),
+                        "UPDATE " + entry.getKey() + " maps to: " + pathsToString(entry.getValue().updateMethod(), entry.getValue().updatePaths()),
+                        "DELETE FROM " + entry.getKey() + " maps to: " + pathsToString(entry.getValue().deleteMethod(), entry.getValue().deletePaths())),
                         this.tables.get(entry.getKey()).stream().filter(column -> !column.getRequiresPredicate().isEmpty() || !column.getOptionalPredicate().isEmpty())
                                 .map(column -> entry.getKey() + "." + column.getName() + " is " +
                                         (column.isPageNumber() ? "the page number, " : "") +

@@ -42,11 +42,11 @@ public class OpenApiPageSink
     public OpenApiPageSink(OpenApiClient client, OpenApiTableHandle table)
     {
         this.client = requireNonNull(client, "client is null");
-        tableName = table.getSchemaTableName();
-        updateMethod = table.getUpdateMethod();
-        insertPaths = table.getInsertPaths();
-        updatePaths = table.getUpdatePaths();
-        constraint = table.getConstraint();
+        tableName = table.schemaTableName();
+        updateMethod = table.updateMethod();
+        insertPaths = table.insertPaths();
+        updatePaths = table.updatePaths();
+        constraint = table.constraint();
     }
 
     @Override

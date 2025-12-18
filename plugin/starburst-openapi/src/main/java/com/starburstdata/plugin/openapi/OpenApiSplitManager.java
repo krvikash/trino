@@ -146,7 +146,7 @@ public class OpenApiSplitManager
             DynamicFilter dynamicFilter)
     {
         OpenApiTableHandle table = (OpenApiTableHandle) tableHandle;
-        Map<String, OpenApiColumn> columns = spec.getTables().get(table.getSchemaTableName().getTableName()).stream()
+        Map<String, OpenApiColumn> columns = spec.getTables().get(table.schemaTableName().getTableName()).stream()
                 .collect(toMap(OpenApiColumn::getName, identity()));
         // merge in constraints from dynamicFilter, which may contain multivalued domains
         Optional<ConstraintApplicationResult<ConnectorTableHandle>> result = table.applyFilter(new Constraint(dynamicFilter.getCurrentPredicate()), columns, domainExpansionLimit);
@@ -154,7 +154,7 @@ public class OpenApiSplitManager
             table = (OpenApiTableHandle) result.get().getHandle();
         }
 
-        TupleDomain<ColumnHandle> constraint = table.getConstraint();
+        TupleDomain<ColumnHandle> constraint = table.constraint();
         if (constraint.getDomains().isEmpty()) {
             List<OpenApiSplit> splits = List.of(new OpenApiSplit(constraint));
             return getSplitSource(splits);

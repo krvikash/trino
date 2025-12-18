@@ -60,7 +60,7 @@ public class OpenApiRecordSetProvider
             List<? extends ColumnHandle> columnHandles)
     {
         OpenApiTableHandle tableHandle = (OpenApiTableHandle) table;
-        ConnectorTableMetadata tableMetadata = spec.getTableMetadata(tableHandle.getSchemaTableName());
+        ConnectorTableMetadata tableMetadata = spec.getTableMetadata(tableHandle.schemaTableName());
         Map<String, Integer> columnIndexByName = IntStream.range(0, tableMetadata.getColumns().size()).boxed()
                 .collect(Collectors.toMap(i -> tableMetadata.getColumns().get(i).getName(), i -> i));
 
@@ -75,7 +75,7 @@ public class OpenApiRecordSetProvider
         }
 
         OpenApiSplit split = (OpenApiSplit) connectorSplit;
-        Iterable<List<?>> rows = client.getRows(tableHandle.getSchemaTableName(), tableHandle.getSelectPaths(), tableHandle.getSelectMethod(), split.getConstraint());
+        Iterable<List<?>> rows = client.getRows(tableHandle.schemaTableName(), tableHandle.selectPaths(), tableHandle.selectMethod(), split.getConstraint());
         Iterable<List<?>> mappedRows = Iterables.transform(rows, row -> columnIndexes
                 .stream()
                 .map(row::get)
