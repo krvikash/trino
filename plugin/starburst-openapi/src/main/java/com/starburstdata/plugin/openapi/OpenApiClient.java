@@ -388,15 +388,6 @@ public class OpenApiClient
         return optionalIn != null && (in == null || optionalIn.equals(in));
     }
 
-    private static Object getRequiredFilter(OpenApiColumn column, TupleDomain<ColumnHandle> constraint)
-    {
-        Object value = getFilter(column, constraint);
-        if (value == null) {
-            throw new TrinoException(INVALID_ROW_FILTER, "Missing required constraint for " + column.getName());
-        }
-        return value;
-    }
-
     private static Object getFilter(OpenApiColumn column, TupleDomain<ColumnHandle> constraint)
     {
         requireNonNull(column, "column is null");
