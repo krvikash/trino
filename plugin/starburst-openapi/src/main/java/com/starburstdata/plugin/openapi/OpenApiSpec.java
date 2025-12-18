@@ -39,6 +39,7 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.parser.OpenAPIV3Parser;
 import io.swagger.v3.parser.core.models.ParseOptions;
 import io.swagger.v3.parser.core.models.SwaggerParseResult;
+import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.SchemaNotFoundException;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.TableNotFoundException;
@@ -272,6 +273,15 @@ public class OpenApiSpec
     public Map<String, List<OpenApiColumn>> getTables()
     {
         return tables;
+    }
+
+    public ConnectorTableMetadata getTableMetadata(SchemaTableName name)
+    {
+        List<OpenApiColumn> columns = getTables().get(name.getTableName());
+        if (columns == null) {
+            throw new TableNotFoundException(name);
+        }
+        return new ConnectorTableMetadata(name, columns.stream().map(OpenApiColumn::getMetadata).toList());
     }
 
     public OpenApiTableHandle getTableHandle(SchemaTableName name)

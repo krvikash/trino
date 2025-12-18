@@ -36,12 +36,12 @@ public class OpenApiRecordSetProvider
         implements ConnectorRecordSetProvider
 {
     private final OpenApiClient client;
-    private final OpenApiMetadata metadata;
+    private final OpenApiSpec spec;
 
     @Inject
-    public OpenApiRecordSetProvider(OpenApiMetadata metadata, OpenApiClient client)
+    public OpenApiRecordSetProvider(OpenApiSpec spec, OpenApiClient client)
     {
-        this.metadata = requireNonNull(metadata, "metadata is null");
+        this.spec = requireNonNull(spec, "spec is null");
         this.client = requireNonNull(client, "client is null");
     }
 
@@ -56,7 +56,8 @@ public class OpenApiRecordSetProvider
         List<OpenApiColumnHandle> columnHandles = list.stream()
                 .map(c -> (OpenApiColumnHandle) c)
                 .toList();
-        ConnectorTableMetadata tableMetadata = metadata.getTableMetadata(connectorSession, table);
+        OpenApiTableHandle tableHandle = (OpenApiTableHandle) table;
+        ConnectorTableMetadata tableMetadata = spec.getTableMetadata(tableHandle.getSchemaTableName());
 
         List<Integer> columnIndexes = columnHandles.stream()
                 .map(column -> {

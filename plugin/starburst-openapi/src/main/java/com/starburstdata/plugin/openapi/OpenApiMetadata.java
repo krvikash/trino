@@ -34,7 +34,6 @@ import io.trino.spi.connector.RowChangeParadigm;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.connector.TableColumnsMetadata;
-import io.trino.spi.connector.TableNotFoundException;
 import io.trino.spi.statistics.ComputedStatistics;
 
 import java.util.Collection;
@@ -91,18 +90,8 @@ public class OpenApiMetadata
             ConnectorSession connectorSession,
             ConnectorTableHandle connectorTableHandle)
     {
-        return getTableMetadata(connectorTableHandle);
-    }
-
-    public ConnectorTableMetadata getTableMetadata(ConnectorTableHandle connectorTableHandle)
-    {
         OpenApiTableHandle tableHandle = (OpenApiTableHandle) connectorTableHandle;
-        SchemaTableName schemaTableName = tableHandle.getSchemaTableName();
-        List<OpenApiColumn> columns = spec.getTables().get(schemaTableName.getTableName());
-        if (columns == null) {
-            throw new TableNotFoundException(schemaTableName);
-        }
-        return new ConnectorTableMetadata(schemaTableName, columns.stream().map(OpenApiColumn::getMetadata).toList());
+        return spec.getTableMetadata(tableHandle.getSchemaTableName());
     }
 
     @Override
