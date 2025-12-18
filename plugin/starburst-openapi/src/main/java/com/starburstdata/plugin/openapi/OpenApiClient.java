@@ -56,7 +56,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.text.NumberFormat;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -266,13 +265,7 @@ public class OpenApiClient
         for (Map.Entry<String, Object> entry : parameters.entrySet()) {
             uriPath = uriPath.replace(format("{%s}", entry.getKey()), entry.getValue().toString());
         }
-        URI uri;
-        try {
-            uri = buildUri(baseUri, uriPath, getFilterValues(table, httpPath, ParameterLocation.QUERY));
-        }
-        catch (URISyntaxException e) {
-            throw new TrinoException(GENERIC_INTERNAL_ERROR, format("Failed to construct the API URL: %s", e));
-        }
+        URI uri = buildUri(baseUri, uriPath, getFilterValues(table, httpPath, ParameterLocation.QUERY));
         Request.Builder builder = new Request.Builder()
                 .setMethod(httpPath.method().name())
                 .setBodyGenerator(bodyGenerator)
@@ -334,7 +327,6 @@ public class OpenApiClient
     }
 
     private static URI buildUri(URI uri, String path, Map<String, Object> queryParams)
-            throws URISyntaxException
     {
         URI oldUri = uri.resolve(uri.getPath() + path);
         HttpUriBuilder builder = HttpUriBuilder.uriBuilderFrom(oldUri);
