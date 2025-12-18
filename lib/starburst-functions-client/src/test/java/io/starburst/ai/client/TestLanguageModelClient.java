@@ -122,7 +122,7 @@ public class TestLanguageModelClient
                 case OpenAiResponsesLanguageModelClient openAiClient -> assertThat(openAiClient.generate("")).isNotBlank();
                 case AwsBedrockLanguageModelClient awsAiClient -> assertThatThrownBy(() -> awsAiClient.generate(""))
                         .isInstanceOf(TrinoException.class)
-                        .hasMessage("Failed to execute AI request");
+                        .hasMessage("Bedrock request failed validation");
                 default -> throw new UnsupportedOperationException("Unknown client");
             }
         });
@@ -314,7 +314,24 @@ public class TestLanguageModelClient
         String prompt = "What is the capital of France? Only return the name of the city and no extraneous text.";
         assertThatThrownBy(() -> modelClientProvider.languageModelClient(utf8Slice("reasoning_effort_not_supported")).generate(prompt))
                 .isInstanceOf(TrinoException.class)
-                .hasMessageContaining("Unsupported parameter: 'reasoning.effort' is not supported with this model");
+                .hasMessageContaining("OpenAI request failed validation");
+    }
+
+    @ParameterizedTest
+    @MethodSource("errorModelIds")
+    public void testErrorHandling(String modelId)
+    {
+        String text = "The food was great, but service was terrible";
+        LanguageModelClient client = modelClientProvider.languageModelClient(utf8Slice(modelId));
+        switch (client) {
+            case OpenAiLanguageModelClient openAiClient -> assertThatThrownBy(() -> openAiClient.analyzeSentiment(text))
+                    .isInstanceOf(TrinoException.class)
+                    .hasMessage("OpenAI model not found");
+            case AwsBedrockLanguageModelClient awsAiClient -> assertThatThrownBy(() -> awsAiClient.analyzeSentiment(text))
+                    .isInstanceOf(TrinoException.class)
+                    .hasMessage("Bedrock request failed validation");
+            default -> throw new UnsupportedOperationException("Unknown client");
+        }
     }
 
     private static String sanitize(String input)
@@ -334,6 +351,14 @@ public class TestLanguageModelClient
                 // gpt4o_mini_auth_header tests header secret resolution end-to-end. It relies on the OpenAI client overwriting the
                 // Authorization header set via the credential. It could fail if the client behavior changes
                 {"gpt4o_mini_auth_header"}
+        };
+    }
+
+    public static Object[][] errorModelIds()
+    {
+        return new Object[][] {
+                {"openai_error"},
+                {"bedrock_error"}
         };
     }
 

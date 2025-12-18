@@ -138,7 +138,7 @@ public class OpenAiLanguageModelClient
                     .forEach(output);
         }
         catch (Exception e) {
-            throw new TrinoException(AI_CLIENT_ERROR, "Error occurred during streaming chat completion", e);
+            throw toTrinoException(e);
         }
         return chatCompletionAccumulator.chatCompletion();
     }

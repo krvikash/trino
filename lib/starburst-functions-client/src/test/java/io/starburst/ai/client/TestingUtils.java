@@ -134,6 +134,31 @@ public final class TestingUtils
                         },
                         "useResponsesApi": "true",
                         "reasoningEffort": "low"
+                    },
+                    {
+                        "id": "openai_error",
+                        "modelName": "error",
+                        "kind": "GENERATE",
+                        "maxTokens": 8192,
+                        "temperature": 0.0,
+                        "connectionInfo": {
+                            "provider": "OPENAI",
+                            "endpoint": "https://api.openai.com/v1",
+                            "apiKey": "${ENV:OPEN_AI_API_KEY}"
+                        }
+                    },
+                    {
+                        "id": "bedrock_error",
+                        "modelName": "error",
+                        "kind": "GENERATE",
+                        "maxTokens": 8192,
+                        "temperature": 0.0,
+                        "connectionInfo": {
+                            "provider": "AWS_BEDROCK",
+                            "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
+                            "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
+                            "region": "us-east-2"
+                        }
                     }
                 ]
             }""";

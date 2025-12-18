@@ -29,6 +29,7 @@ import software.amazon.awssdk.core.document.Document;
 import software.amazon.awssdk.protocols.json.internal.unmarshall.document.DocumentUnmarshaller;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeAsyncClient;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
+import software.amazon.awssdk.services.bedrockruntime.model.AccessDeniedException;
 import software.amazon.awssdk.services.bedrockruntime.model.ContentBlock;
 import software.amazon.awssdk.services.bedrockruntime.model.ContentBlockDeltaEvent;
 import software.amazon.awssdk.services.bedrockruntime.model.ContentBlockStartEvent;
@@ -39,16 +40,26 @@ import software.amazon.awssdk.services.bedrockruntime.model.ConverseResponse;
 import software.amazon.awssdk.services.bedrockruntime.model.ConverseStreamMetadataEvent;
 import software.amazon.awssdk.services.bedrockruntime.model.ConverseStreamRequest;
 import software.amazon.awssdk.services.bedrockruntime.model.ConverseStreamResponseHandler;
+import software.amazon.awssdk.services.bedrockruntime.model.InternalServerException;
 import software.amazon.awssdk.services.bedrockruntime.model.Message;
 import software.amazon.awssdk.services.bedrockruntime.model.MessageStopEvent;
+import software.amazon.awssdk.services.bedrockruntime.model.ModelErrorException;
+import software.amazon.awssdk.services.bedrockruntime.model.ModelNotReadyException;
+import software.amazon.awssdk.services.bedrockruntime.model.ModelTimeoutException;
+import software.amazon.awssdk.services.bedrockruntime.model.ResourceNotFoundException;
+import software.amazon.awssdk.services.bedrockruntime.model.ServiceQuotaExceededException;
+import software.amazon.awssdk.services.bedrockruntime.model.ServiceUnavailableException;
 import software.amazon.awssdk.services.bedrockruntime.model.StopReason;
 import software.amazon.awssdk.services.bedrockruntime.model.SystemContentBlock;
+import software.amazon.awssdk.services.bedrockruntime.model.ThrottlingException;
 import software.amazon.awssdk.services.bedrockruntime.model.Tool;
 import software.amazon.awssdk.services.bedrockruntime.model.ToolInputSchema;
 import software.amazon.awssdk.services.bedrockruntime.model.ToolSpecification;
 import software.amazon.awssdk.services.bedrockruntime.model.ToolUseBlock;
 import software.amazon.awssdk.services.bedrockruntime.model.ToolUseBlockDelta;
 import software.amazon.awssdk.services.bedrockruntime.model.ToolUseBlockStart;
+import software.amazon.awssdk.services.bedrockruntime.model.ValidationException;
+import software.amazon.awssdk.services.sts.model.StsException;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -72,7 +83,9 @@ import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GenAiOperationNameIncubatingValues.CHAT;
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GenAiSystemIncubatingValues.AWS_BEDROCK;
 import static io.starburst.ai.client.AiClientErrorCode.AI_CLIENT_ERROR;
+import static io.starburst.ai.client.AiClientErrorCode.INVALID_MODEL_CONFIGURATION;
 import static io.starburst.ai.client.MessageRole.USER;
+import static io.trino.spi.StandardErrorCode.PERMISSION_DENIED;
 import static java.util.Objects.requireNonNull;
 
 public class AwsBedrockLanguageModelClient
@@ -219,10 +232,13 @@ public class AwsBedrockLanguageModelClient
                                 messages,
                                 bedrockTools), responseStreamHandler).get();
                     }
-                    catch (InterruptedException | ExecutionException e) {
-                        if (e instanceof InterruptedException) {
-                            Thread.currentThread().interrupt();
-                            throw new TrinoException(AI_CLIENT_ERROR, "Streaming was interrupted", e);
+                    catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new TrinoException(AI_CLIENT_ERROR, "Streaming was interrupted", e);
+                    }
+                    catch (ExecutionException e) {
+                        if (e.getCause() instanceof RuntimeException) {
+                            throw toTrinoException((RuntimeException) e.getCause());
                         }
                         throw new TrinoException(AI_CLIENT_ERROR, "Failed to stream response from Bedrock model", e);
                     }
@@ -261,11 +277,30 @@ public class AwsBedrockLanguageModelClient
         catch (RuntimeException e) {
             span.setStatus(ERROR, e.getMessage());
             span.recordException(e);
-            throw new TrinoException(AI_CLIENT_ERROR, "Failed to execute AI request", e);
+            throw toTrinoException(e);
         }
         finally {
             span.end();
         }
+    }
+
+    private static TrinoException toTrinoException(RuntimeException ex)
+    {
+        return switch (ex) {
+            case AccessDeniedException e -> new TrinoException(PERMISSION_DENIED, "Bedrock access denied", e);
+            case ResourceNotFoundException e -> new TrinoException(AI_CLIENT_ERROR, "Bedrock model not found", e);
+            case ValidationException e -> new TrinoException(INVALID_MODEL_CONFIGURATION, "Bedrock request failed validation", e);
+            case ServiceQuotaExceededException e -> new TrinoException(AI_CLIENT_ERROR, "Bedrock service quota exceeded", e);
+            case ModelNotReadyException e -> new TrinoException(AI_CLIENT_ERROR, "Bedrock model not ready", e);
+            case ModelErrorException e -> new TrinoException(AI_CLIENT_ERROR, "Bedrock model error", e);
+            case StsException e -> new TrinoException(AI_CLIENT_ERROR, "AWS STS error occurred", e);
+            case ThrottlingException e -> new TrinoException(AI_CLIENT_ERROR, "Bedrock request was throttled", e);
+            case ModelTimeoutException e -> new TrinoException(AI_CLIENT_ERROR, "Request to Bedrock model timed out", e);
+            case ServiceUnavailableException e -> new TrinoException(AI_CLIENT_ERROR, "Bedrock service unavailable", e);
+            case InternalServerException e -> new TrinoException(AI_CLIENT_ERROR, "Bedrock internal server error", e);
+            case TrinoException e -> e;
+            default -> new TrinoException(AI_CLIENT_ERROR, "Failed to execute AI request", ex);
+        };
     }
 
     private void initializeConverseRequestBuilder(

@@ -12,7 +12,10 @@ package io.starburst.ai.client.openai;
 import com.google.common.collect.ImmutableList;
 import com.openai.errors.BadRequestException;
 import com.openai.errors.InternalServerException;
+import com.openai.errors.NotFoundException;
+import com.openai.errors.PermissionDeniedException;
 import com.openai.errors.RateLimitException;
+import com.openai.errors.UnauthorizedException;
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
 import io.opentelemetry.api.trace.Span;
@@ -40,7 +43,9 @@ import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GenAiOperationNameIncubatingValues.CHAT;
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GenAiProviderNameIncubatingValues.OPENAI;
 import static io.starburst.ai.client.AiClientErrorCode.AI_CLIENT_ERROR;
+import static io.starburst.ai.client.AiClientErrorCode.INVALID_MODEL_CONFIGURATION;
 import static io.starburst.ai.client.MessageRole.USER;
+import static io.trino.spi.StandardErrorCode.PERMISSION_DENIED;
 import static java.util.Objects.requireNonNull;
 
 public abstract class AbstractOpenAiClient<ResponseType>
@@ -111,15 +116,10 @@ public abstract class AbstractOpenAiClient<ResponseType>
             recordUsage(span, response);
             return response;
         }
-        catch (BadRequestException e) {
-            span.setStatus(ERROR, e.getMessage());
-            span.recordException(e);
-            throw new TrinoException(AI_CLIENT_ERROR, "OpenAI request failed validation: " + e.getMessage(), e);
-        }
         catch (RuntimeException e) {
             span.setStatus(ERROR, e.getMessage());
             span.recordException(e);
-            throw new TrinoException(AI_CLIENT_ERROR, "Failed to execute AI request", e);
+            throw toTrinoException(e);
         }
         finally {
             span.end();
@@ -133,5 +133,17 @@ public abstract class AbstractOpenAiClient<ResponseType>
     private static boolean isRetryable(Throwable t)
     {
         return t instanceof RateLimitException || t instanceof InternalServerException;
+    }
+
+    protected static TrinoException toTrinoException(Exception ex)
+    {
+        return switch (ex) {
+            case BadRequestException e -> new TrinoException(INVALID_MODEL_CONFIGURATION, "OpenAI request failed validation", e);
+            case NotFoundException e -> new TrinoException(AI_CLIENT_ERROR, "OpenAI model not found", e);
+            case UnauthorizedException e -> new TrinoException(AI_CLIENT_ERROR, "Unauthorized response from OpenAI", e);
+            case PermissionDeniedException e -> new TrinoException(PERMISSION_DENIED, "Permission to OpenAI API denied", e);
+            case TrinoException e -> e;
+            default -> new TrinoException(AI_CLIENT_ERROR, "Failed to execute AI request", ex);
+        };
     }
 }
