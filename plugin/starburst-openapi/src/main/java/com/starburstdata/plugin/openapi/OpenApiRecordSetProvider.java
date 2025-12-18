@@ -13,10 +13,10 @@
  */
 package com.starburstdata.plugin.openapi;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
 import io.trino.spi.connector.ColumnHandle;
-import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.connector.ConnectorRecordSetProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
@@ -27,7 +27,11 @@ import io.trino.spi.connector.InMemoryRecordSet;
 import io.trino.spi.connector.RecordSet;
 import io.trino.spi.type.Type;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
@@ -51,26 +55,20 @@ public class OpenApiRecordSetProvider
             ConnectorSession connectorSession,
             ConnectorSplit connectorSplit,
             ConnectorTableHandle table,
-            List<? extends ColumnHandle> list)
+            List<? extends ColumnHandle> columnHandles)
     {
-        List<OpenApiColumnHandle> columnHandles = list.stream()
-                .map(c -> (OpenApiColumnHandle) c)
-                .toList();
         OpenApiTableHandle tableHandle = (OpenApiTableHandle) table;
         ConnectorTableMetadata tableMetadata = spec.getTableMetadata(tableHandle.getSchemaTableName());
+        Map<String, Integer> columnIndexByName = IntStream.range(0, tableMetadata.getColumns().size()).boxed()
+                .collect(Collectors.toMap(i -> tableMetadata.getColumns().get(i).getName(), i -> i));
 
-        List<Integer> columnIndexes = columnHandles.stream()
-                .map(column -> {
-                    int index = 0;
-                    for (ColumnMetadata columnMetadata : tableMetadata.getColumns()) {
-                        if (columnMetadata.getName().equalsIgnoreCase(column.name())) {
-                            return index;
-                        }
-                        index++;
-                    }
-                    throw new IllegalStateException("Unknown column: " + column.name());
-                })
-                .toList();
+        List<Integer> columnIndexes = new ArrayList<>();
+        ImmutableList.Builder<Type> mappedTypes = ImmutableList.builderWithExpectedSize(columnHandles.size());
+        for (ColumnHandle columnHandle : columnHandles) {
+            OpenApiColumnHandle column = (OpenApiColumnHandle) columnHandle;
+            columnIndexes.add(columnIndexByName.get(column.name()));
+            mappedTypes.add(column.type());
+        }
 
         Iterable<List<?>> rows = client.getRows(((OpenApiSplit) connectorSplit).getTableHandle());
         Iterable<List<?>> mappedRows = Iterables.transform(rows, row -> columnIndexes
@@ -78,9 +76,6 @@ public class OpenApiRecordSetProvider
                 .map(row::get)
                 .collect(toList()));
 
-        List<Type> mappedTypes = columnHandles.stream()
-                .map(OpenApiColumnHandle::type)
-                .toList();
-        return new InMemoryRecordSet(mappedTypes, mappedRows);
+        return new InMemoryRecordSet(mappedTypes.build(), mappedRows);
     }
 }
