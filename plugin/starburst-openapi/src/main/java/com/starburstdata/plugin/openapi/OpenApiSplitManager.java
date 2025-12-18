@@ -156,7 +156,7 @@ public class OpenApiSplitManager
 
         TupleDomain<ColumnHandle> constraint = table.getConstraint();
         if (constraint.getDomains().isEmpty()) {
-            List<OpenApiSplit> splits = List.of(new OpenApiSplit(table));
+            List<OpenApiSplit> splits = List.of(new OpenApiSplit(constraint));
             return getSplitSource(splits);
         }
 
@@ -201,7 +201,7 @@ public class OpenApiSplitManager
             for (Map.Entry<ColumnHandle, Domain> entry : splitDomains) {
                 newDomains.put(entry.getKey(), entry.getValue());
             }
-            splits.add(new OpenApiSplit(table.cloneWithConstraint(TupleDomain.withColumnDomains(newDomains))));
+            splits.add(new OpenApiSplit(TupleDomain.withColumnDomains(newDomains)));
         }
         // TODO when implementing limits, this is where we'd break down splits more
         return getSplitSource(splits.build());

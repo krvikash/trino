@@ -40,18 +40,21 @@ public class OpenApiPageSinkProvider
     @Override
     public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorOutputTableHandle tableHandle, ConnectorPageSinkId pageSinkId)
     {
-        return new OpenApiPageSink(client, (OpenApiOutputTableHandle) tableHandle);
+        OpenApiOutputTableHandle outputTableHandle = (OpenApiOutputTableHandle) tableHandle;
+        return new OpenApiPageSink(client, outputTableHandle.getTableHandle());
     }
 
     @Override
     public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorInsertTableHandle tableHandle, ConnectorPageSinkId pageSinkId)
     {
-        return new OpenApiPageSink(client, (OpenApiOutputTableHandle) tableHandle);
+        OpenApiOutputTableHandle outputTableHandle = (OpenApiOutputTableHandle) tableHandle;
+        return new OpenApiPageSink(client, outputTableHandle.getTableHandle());
     }
 
     @Override
     public ConnectorMergeSink createMergeSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorMergeTableHandle tableHandle, ConnectorPageSinkId pageSinkId)
     {
-        return new OpenApiMergeSink(client, (OpenApiOutputTableHandle) tableHandle);
+        OpenApiOutputTableHandle outputTableHandle = (OpenApiOutputTableHandle) tableHandle;
+        return new OpenApiMergeSink(client, outputTableHandle.getTableHandle());
     }
 }

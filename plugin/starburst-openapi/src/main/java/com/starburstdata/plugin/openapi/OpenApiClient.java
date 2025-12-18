@@ -42,6 +42,7 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.SqlMap;
 import io.trino.spi.block.SqlRow;
 import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
@@ -135,25 +136,24 @@ public class OpenApiClient
         }
     }
 
-    public Iterable<List<?>> getRows(OpenApiTableHandle table)
+    public Iterable<List<?>> getRows(SchemaTableName tableName, List<String> selectPaths, PathItem.HttpMethod method, TupleDomain<ColumnHandle> constraint)
     {
-        PathItem.HttpMethod method = table.getSelectMethod();
-        List<String> selectPaths = table.getSelectPaths();
         checkState(!selectPaths.isEmpty(), "paths are empty");
-        Map.Entry<String, Map<String, Object>> pathWithParams = selectPath(table, method, selectPaths, (column) -> getFilter(column, table.getConstraint()));
+        Map.Entry<String, Map<String, Object>> pathWithParams = selectPath(tableName, method, selectPaths, (column) -> getFilter(column, constraint));
         HttpPath httpPath = new HttpPath(method, pathWithParams.getKey());
-        BodyGenerator bodyGenerator = getBodyGenerator(table, httpPath);
+        BodyGenerator bodyGenerator = getBodyGenerator(tableName, constraint, httpPath);
         JsonResponseHandler responseHandler = new JsonResponseHandler(
-                table,
+                tableName,
+                constraint,
                 httpPath,
-                openApiSpec.getErrorPointers(table.getSchemaTableName()).get(httpPath),
-                openApiSpec.getResultsPointers(table.getSchemaTableName()).get(httpPath));
-        Optional<OpenApiColumn> pageColumn = openApiSpec.getTables().get(table.getSchemaTableName().getTableName()).stream()
+                openApiSpec.getErrorPointers(tableName).get(httpPath),
+                openApiSpec.getResultsPointers(tableName).get(httpPath));
+        Optional<OpenApiColumn> pageColumn = openApiSpec.getTables().get(tableName.getTableName()).stream()
                 .filter(OpenApiColumn::isPageNumber)
                 .filter(column -> column.getRequiresPredicate().containsKey(httpPath) || column.getOptionalPredicate().containsKey(httpPath))
                 .findFirst();
-        if (pageColumn.isEmpty() || getFilter(pageColumn.get(), table.getConstraint()) != null) {
-            return makeRequest(table, httpPath, pathWithParams.getValue(), bodyGenerator, responseHandler);
+        if (pageColumn.isEmpty() || getFilter(pageColumn.get(), constraint) != null) {
+            return makeRequest(tableName, constraint, httpPath, pathWithParams.getValue(), bodyGenerator, responseHandler);
         }
         return pageIterator(
                 page -> {
@@ -162,97 +162,101 @@ public class OpenApiClient
                             NullableValue.of(
                                     pageColumn.get().getType(),
                                     pageColumn.get().getType() instanceof BigintType ? (long) page : page)));
-                    OpenApiTableHandle pageTable = table.cloneWithConstraint(table.getConstraint().isNone() ? pageConstraint : table.getConstraint().intersect(pageConstraint));
-                    return makeRequest(pageTable, httpPath, pathWithParams.getValue(), bodyGenerator, responseHandler);
+                    TupleDomain<ColumnHandle> newTupleDomain = constraint.isNone() ? pageConstraint : constraint.intersect(pageConstraint);
+                    return makeRequest(tableName, newTupleDomain, httpPath, pathWithParams.getValue(), bodyGenerator, responseHandler);
                 });
     }
 
-    private BodyGenerator getBodyGenerator(OpenApiTableHandle table, HttpPath httpPath)
+    private BodyGenerator getBodyGenerator(SchemaTableName tableName, TupleDomain<ColumnHandle> constraint, HttpPath httpPath)
     {
         if (httpPath.method() != PathItem.HttpMethod.POST) {
             return null;
         }
         try {
-            return createStaticBodyGenerator(toBytes(serializeMap(table, httpPath)));
+            return createStaticBodyGenerator(toBytes(serializeMap(tableName, constraint, httpPath)));
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
     }
 
-    public void postRows(OpenApiOutputTableHandle table, Page page, int position)
+    public void postRows(SchemaTableName tableName, List<String> insertPaths, TupleDomain<ColumnHandle> constraint, Page page, int position)
     {
-        List<OpenApiColumn> columns = openApiSpec.getTables().get(table.getTableHandle().getSchemaTableName().getTableName());
+        List<OpenApiColumn> columns = openApiSpec.getTables().get(tableName.getTableName());
         Map.Entry<String, Map<String, Object>> pathWithParams = selectPath(
-                table.getTableHandle(),
+                tableName,
                 PathItem.HttpMethod.POST,
-                table.getTableHandle().getInsertPaths(),
+                insertPaths,
                 (column) -> getFilter(column, page, position, columns.indexOf(column)));
         HttpPath httpPath = new HttpPath(PathItem.HttpMethod.POST, pathWithParams.getKey());
-        postRows(table, httpPath, pathWithParams.getValue(), serializePage(table.getTableHandle(), httpPath, page, position));
+        postRows(tableName, constraint, httpPath, pathWithParams.getValue(), serializePage(tableName, httpPath, page, position));
     }
 
-    public void postRows(OpenApiOutputTableHandle table, HttpPath httpPath, Map<String, Object> pathParams, JsonNode data)
+    public void postRows(SchemaTableName tableName, TupleDomain<ColumnHandle> constraint, HttpPath httpPath, Map<String, Object> pathParams, JsonNode data)
     {
         try {
             makeRequest(
-                    table.getTableHandle(),
+                    tableName,
+                    constraint,
                     httpPath,
                     pathParams,
                     createStaticBodyGenerator(toBytes(data)),
-                    new AnyResponseHandler(openApiSpec.getErrorPointers(table.getTableHandle().getSchemaTableName()).get(httpPath)));
+                    new AnyResponseHandler(openApiSpec.getErrorPointers(tableName).get(httpPath)));
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
     }
 
-    public void putRows(OpenApiOutputTableHandle table, Page page, int position)
+    public void putRows(SchemaTableName tableName, List<String> updatePaths, TupleDomain<ColumnHandle> constraint, Page page, int position)
     {
-        List<OpenApiColumn> columns = openApiSpec.getTables().get(table.getTableHandle().getSchemaTableName().getTableName());
+        List<OpenApiColumn> columns = openApiSpec.getTables().get(tableName.getTableName());
         Map.Entry<String, Map<String, Object>> pathWithParams = selectPath(
-                table.getTableHandle(),
+                tableName,
                 PathItem.HttpMethod.PUT,
-                table.getTableHandle().getUpdatePaths(),
+                updatePaths,
                 (column) -> getFilter(column, page, position, columns.indexOf(column)));
         HttpPath httpPath = new HttpPath(PathItem.HttpMethod.PUT, pathWithParams.getKey());
-        putRows(table, httpPath, pathWithParams.getValue(), serializePage(table.getTableHandle(), httpPath, page, position));
+        putRows(tableName, constraint, httpPath, pathWithParams.getValue(), serializePage(tableName, httpPath, page, position));
     }
 
-    public void putRows(OpenApiOutputTableHandle table, HttpPath httpPath, Map<String, Object> pathParams, JsonNode data)
+    public void putRows(SchemaTableName tableName, TupleDomain<ColumnHandle> constraint, HttpPath httpPath, Map<String, Object> pathParams, JsonNode data)
     {
         try {
             makeRequest(
-                    table.getTableHandle(),
+                    tableName,
+                    constraint,
                     httpPath,
                     pathParams,
                     createStaticBodyGenerator(toBytes(data)),
-                    new AnyResponseHandler(openApiSpec.getErrorPointers(table.getTableHandle().getSchemaTableName()).get(httpPath)));
+                    new AnyResponseHandler(openApiSpec.getErrorPointers(tableName).get(httpPath)));
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
     }
 
-    public void deleteRows(OpenApiOutputTableHandle table)
+    public void deleteRows(SchemaTableName tableName, List<String> deletePaths, TupleDomain<ColumnHandle> constraint)
     {
         // don't have to decode the rowId since it's value is copied from the predicate that's still present in the table handle
         Map.Entry<String, Map<String, Object>> pathWithParams = selectPath(
-                table.getTableHandle(),
+                tableName,
                 PathItem.HttpMethod.DELETE,
-                table.getTableHandle().getDeletePaths(),
-                (column) -> getFilter(column, table.getTableHandle().getConstraint()));
+                deletePaths,
+                (column) -> getFilter(column, constraint));
         HttpPath httpPath = new HttpPath(PathItem.HttpMethod.DELETE, pathWithParams.getKey());
         makeRequest(
-                table.getTableHandle(),
+                tableName,
+                constraint,
                 httpPath,
                 pathWithParams.getValue(),
                 null,
-                new AnyResponseHandler(openApiSpec.getErrorPointers(table.getTableHandle().getSchemaTableName()).get(httpPath)));
+                new AnyResponseHandler(openApiSpec.getErrorPointers(tableName).get(httpPath)));
     }
 
     public <T> T makeRequest(
-            OpenApiTableHandle table,
+            SchemaTableName tableName,
+            TupleDomain<ColumnHandle> constraint,
             HttpPath httpPath,
             Map<String, Object> parameters,
             BodyGenerator bodyGenerator,
@@ -262,7 +266,7 @@ public class OpenApiClient
         for (Map.Entry<String, Object> entry : parameters.entrySet()) {
             uriPath = uriPath.replace(format("{%s}", entry.getKey()), entry.getValue().toString());
         }
-        URI uri = buildUri(baseUri, uriPath, getFilterValues(table, httpPath, ParameterLocation.QUERY));
+        URI uri = buildUri(baseUri, uriPath, getFilterValues(tableName, constraint, httpPath, ParameterLocation.QUERY));
         Request.Builder builder = new Request.Builder()
                 .setMethod(httpPath.method().name())
                 .setBodyGenerator(bodyGenerator)
@@ -271,7 +275,7 @@ public class OpenApiClient
                 .addHeader(CONTENT_TYPE, JSON_UTF_8.toString())
                 .addHeader(ACCEPT, JSON_UTF_8.toString())
                 .addHeader("X-Trino-OpenAPI-Path", httpPath.path());
-        getFilterValues(table, httpPath, ParameterLocation.HEADER)
+        getFilterValues(tableName, constraint, httpPath, ParameterLocation.HEADER)
                 .forEach((key, value) -> builder.addHeader(key, value.toString()));
 
         Request request = builder.build();
@@ -282,10 +286,9 @@ public class OpenApiClient
         return httpClient.execute(request, responseHandler);
     }
 
-    private Map.Entry<String, Map<String, Object>> selectPath(OpenApiTableHandle table, PathItem.HttpMethod method, List<String> paths, Function<OpenApiColumn, Object> valueProvider)
+    private Map.Entry<String, Map<String, Object>> selectPath(SchemaTableName tableName, PathItem.HttpMethod method, List<String> paths, Function<OpenApiColumn, Object> valueProvider)
     {
-        String tableName = table.getSchemaTableName().getTableName();
-        List<OpenApiColumn> columns = openApiSpec.getTables().get(tableName);
+        List<OpenApiColumn> columns = openApiSpec.getTables().get(tableName.getTableName());
         // ignore paths where required params are not present
         List<String> invalidPaths = columns.stream()
                 .flatMap(column -> column.getRequiresPredicate().entrySet().stream()
@@ -342,15 +345,14 @@ public class OpenApiClient
         return List.of(value.toString());
     }
 
-    private Map<String, Object> getFilterValues(OpenApiTableHandle table, HttpPath httpPath, ParameterLocation in)
+    private Map<String, Object> getFilterValues(SchemaTableName tableName, TupleDomain<ColumnHandle> constraint, HttpPath httpPath, ParameterLocation in)
     {
         checkState(!ParameterLocation.PATH.equals(in), "getFilterValues cannot be used for path parameters");
-        String tableName = table.getSchemaTableName().getTableName();
-        List<OpenApiColumn> columns = openApiSpec.getTables().get(tableName);
+        List<OpenApiColumn> columns = openApiSpec.getTables().get(tableName.getTableName());
         return columns.stream()
                 .filter(column -> isPredicate(column, httpPath, in))
                 .map(column -> {
-                    Object value = getFilter(column, table.getConstraint());
+                    Object value = getFilter(column, constraint);
                     if (value == null && isRequiredPredicate(column, httpPath, in)) {
                         throw new TrinoException(OPENAPI_INVALID_FILTER, "Missing required constraint for " + column.getName());
                     }
@@ -446,11 +448,10 @@ public class OpenApiClient
         return dateFormatter.format(Instant.ofEpochMilli(millis));
     }
 
-    public ObjectNode serializePage(OpenApiTableHandle table, HttpPath httpPath, Page page, int position)
+    public ObjectNode serializePage(SchemaTableName tableName, HttpPath httpPath, Page page, int position)
     {
         ObjectNode node = OBJECT_MAPPER.createObjectNode();
-        String tableName = table.getSchemaTableName().getTableName();
-        List<OpenApiColumn> columns = openApiSpec.getTables().get(tableName).stream()
+        List<OpenApiColumn> columns = openApiSpec.getTables().get(tableName.getTableName()).stream()
                 .filter(column -> !column.getName().equals(ROW_ID))
                 .toList();
         for (int channel = 0; channel < columns.size(); channel++) {
@@ -470,17 +471,16 @@ public class OpenApiClient
         return node;
     }
 
-    public ObjectNode serializeMap(OpenApiTableHandle table, HttpPath httpPath)
+    public ObjectNode serializeMap(SchemaTableName tableName, TupleDomain<ColumnHandle> constraint, HttpPath httpPath)
     {
-        String tableName = table.getSchemaTableName().getTableName();
-        List<OpenApiColumn> columns = openApiSpec.getTables().get(tableName);
+        List<OpenApiColumn> columns = openApiSpec.getTables().get(tableName.getTableName());
 
         ObjectNode node = OBJECT_MAPPER.createObjectNode();
         for (OpenApiColumn column : columns) {
             if (!isPredicate(column, httpPath, ParameterLocation.BODY)) {
                 continue;
             }
-            Object value = getFilter(column, table.getConstraint());
+            Object value = getFilter(column, constraint);
             if (value == null) {
                 if (isRequiredPredicate(column, httpPath, ParameterLocation.BODY)) {
                     throw new TrinoException(OPENAPI_INVALID_FILTER, "Missing required constraint for " + column.getName());
@@ -534,14 +534,16 @@ public class OpenApiClient
     private class JsonResponseHandler
             implements ResponseHandler<Iterable<List<?>>, RuntimeException>
     {
-        private final OpenApiTableHandle table;
+        private final SchemaTableName tableName;
+        private final TupleDomain<ColumnHandle> constraint;
         private final HttpPath httpPath;
         private final JsonPointer errorPointer;
         private final JsonPointer resultsPointer;
 
-        JsonResponseHandler(OpenApiTableHandle table, HttpPath httpPath, JsonPointer errorPointer, JsonPointer resultsPointer)
+        JsonResponseHandler(SchemaTableName tableName, TupleDomain<ColumnHandle> constraint, HttpPath httpPath, JsonPointer errorPointer, JsonPointer resultsPointer)
         {
-            this.table = requireNonNull(table, "table is null");
+            this.tableName = requireNonNull(tableName, "tableName is null");
+            this.constraint = requireNonNull(constraint, "constraint is null");
             this.httpPath = requireNonNull(httpPath, "httpPath is null");
             this.errorPointer = errorPointer;
             this.resultsPointer = resultsPointer;
@@ -572,7 +574,7 @@ public class OpenApiClient
             }
 
             try {
-                return convertJson(table, httpPath, resultsPointer, OBJECT_MAPPER.readTree(result));
+                return convertJson(tableName, constraint, httpPath, resultsPointer, OBJECT_MAPPER.readTree(result));
             }
             catch (JsonProcessingException ex) {
                 String message = format("Could not marshal JSON from API response: %s", result);
@@ -597,32 +599,32 @@ public class OpenApiClient
         throw new TrinoException(GENERIC_INTERNAL_ERROR, message, new IllegalArgumentException(result));
     }
 
-    private Iterable<List<?>> convertJson(OpenApiTableHandle table, HttpPath httpPath, JsonPointer resultsPointer, JsonNode jsonNode)
+    private Iterable<List<?>> convertJson(SchemaTableName tableName, TupleDomain<ColumnHandle> constraint, HttpPath httpPath, JsonPointer resultsPointer, JsonNode jsonNode)
     {
         ImmutableList.Builder<List<?>> resultRecordsBuilder = ImmutableList.builder();
 
-        Map<String, Object> params = getFilterValues(table, httpPath, null);
+        Map<String, Object> params = getFilterValues(tableName, constraint, httpPath, null);
 
         if (jsonNode instanceof ArrayNode arrayNode) {
             for (JsonNode jsonRecord : arrayNode) {
-                resultRecordsBuilder.addAll(convertJsonToRecords(table, httpPath, resultsPointer, params, jsonRecord));
+                resultRecordsBuilder.addAll(convertJsonToRecords(tableName, httpPath, resultsPointer, params, jsonRecord));
             }
         }
         else {
-            resultRecordsBuilder.addAll(convertJsonToRecords(table, httpPath, resultsPointer, params, jsonNode));
+            resultRecordsBuilder.addAll(convertJsonToRecords(tableName, httpPath, resultsPointer, params, jsonNode));
         }
 
         return resultRecordsBuilder.build();
     }
 
-    private Iterable<List<?>> convertJsonToRecords(OpenApiTableHandle table, HttpPath httpPath, JsonPointer resultsPointer, Map<String, Object> params, JsonNode jsonNode)
+    private Iterable<List<?>> convertJsonToRecords(SchemaTableName tableName, HttpPath httpPath, JsonPointer resultsPointer, Map<String, Object> params, JsonNode jsonNode)
     {
         if (!jsonNode.isObject()) {
             throw new TrinoException(GENERIC_INTERNAL_ERROR, format("JsonNode is not an object: %s", jsonNode));
         }
 
         Iterable<JsonNode> resultNodes = List.of(jsonNode);
-        List<OpenApiColumn> columns = openApiSpec.getTables().get(table.getSchemaTableName().getTableName());
+        List<OpenApiColumn> columns = openApiSpec.getTables().get(tableName.getTableName());
         if (resultsPointer != null && !JsonPointer.empty().equals(resultsPointer)) {
             JsonNode resultNode = jsonNode.at(resultsPointer);
             if (!(resultNode instanceof ArrayNode)) {

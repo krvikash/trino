@@ -17,7 +17,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.airlift.slice.SizeOf;
 import io.trino.spi.HostAddress;
+import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSplit;
+import io.trino.spi.predicate.TupleDomain;
 
 import java.util.List;
 
@@ -28,13 +30,13 @@ public class OpenApiSplit
 {
     private static final int INSTANCE_SIZE = SizeOf.instanceSize(OpenApiSplit.class);
 
-    private final OpenApiTableHandle tableHandle;
+    private final TupleDomain<ColumnHandle> constraint;
 
     @JsonCreator
     public OpenApiSplit(
-            @JsonProperty("tableHandle") OpenApiTableHandle tableHandle)
+            @JsonProperty("constraint") TupleDomain<ColumnHandle> constraint)
     {
-        this.tableHandle = requireNonNull(tableHandle, "tableHandle is null");
+        this.constraint = requireNonNull(constraint, "constraint is null");
     }
 
     @Override
@@ -50,15 +52,15 @@ public class OpenApiSplit
         return List.of();
     }
 
-    @JsonProperty("tableHandle")
-    public OpenApiTableHandle getTableHandle()
+    @JsonProperty
+    public TupleDomain<ColumnHandle> getConstraint()
     {
-        return tableHandle;
+        return constraint;
     }
 
     @Override
     public long getRetainedSizeInBytes()
     {
-        return (long) INSTANCE_SIZE + tableHandle.getRetainedSizeInBytes();
+        return (long) INSTANCE_SIZE + constraint.getRetainedSizeInBytes(column -> ((OpenApiColumnHandle) column).getRetainedSizeInBytes());
     }
 }

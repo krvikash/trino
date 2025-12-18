@@ -18,15 +18,22 @@ import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorMergeSink;
 
+import java.util.List;
+
 import static io.trino.spi.type.TinyintType.TINYINT;
 
 public class OpenApiMergeSink
         extends OpenApiPageSink
         implements ConnectorMergeSink
 {
-    public OpenApiMergeSink(OpenApiClient client, OpenApiOutputTableHandle table)
+    private final PathItem.HttpMethod deleteMethod;
+    private final List<String> deletePaths;
+
+    public OpenApiMergeSink(OpenApiClient client, OpenApiTableHandle table)
     {
         super(client, table);
+        deleteMethod = table.getDeleteMethod();
+        deletePaths = table.getDeletePaths();
     }
 
     @Override
@@ -46,22 +53,20 @@ public class OpenApiMergeSink
 
     private void updatedPage(Page page, int position)
     {
-        PathItem.HttpMethod method = this.table.getTableHandle().getUpdateMethod();
-        switch (method) {
-            case PUT -> client.putRows(table, page, position);
-            case POST -> client.postRows(table, page, position);
-            default -> throw new IllegalArgumentException("Unsupported UPDATE method: " + method);
+        switch (updateMethod) {
+            case PUT -> client.putRows(tableName, updatePaths, constraint, page, position);
+            case POST -> client.postRows(tableName, insertPaths, constraint, page, position);
+            default -> throw new IllegalArgumentException("Unsupported UPDATE method: " + updateMethod);
         }
     }
 
     private void deletedPage()
     {
-        PathItem.HttpMethod method = this.table.getTableHandle().getDeleteMethod();
-        if (method == PathItem.HttpMethod.DELETE) {
-            client.deleteRows(table);
+        if (deleteMethod == PathItem.HttpMethod.DELETE) {
+            client.deleteRows(tableName, deletePaths, constraint);
         }
         else {
-            throw new IllegalArgumentException("Unsupported DELETE method: " + method);
+            throw new IllegalArgumentException("Unsupported DELETE method: " + deleteMethod);
         }
     }
 }

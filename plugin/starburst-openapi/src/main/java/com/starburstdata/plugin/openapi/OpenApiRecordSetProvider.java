@@ -33,6 +33,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static com.google.common.base.Verify.verify;
+import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
@@ -62,15 +64,18 @@ public class OpenApiRecordSetProvider
         Map<String, Integer> columnIndexByName = IntStream.range(0, tableMetadata.getColumns().size()).boxed()
                 .collect(Collectors.toMap(i -> tableMetadata.getColumns().get(i).getName(), i -> i));
 
-        List<Integer> columnIndexes = new ArrayList<>();
+        List<Integer> columnIndexes = new ArrayList<>(columnHandles.size());
         ImmutableList.Builder<Type> mappedTypes = ImmutableList.builderWithExpectedSize(columnHandles.size());
         for (ColumnHandle columnHandle : columnHandles) {
             OpenApiColumnHandle column = (OpenApiColumnHandle) columnHandle;
-            columnIndexes.add(columnIndexByName.get(column.name()));
+            Integer index = columnIndexByName.get(column.name().toLowerCase(ENGLISH));
+            verify(index != null, "Column %s not found in %s", column.name(), columnIndexByName.keySet());
+            columnIndexes.add(index);
             mappedTypes.add(column.type());
         }
 
-        Iterable<List<?>> rows = client.getRows(((OpenApiSplit) connectorSplit).getTableHandle());
+        OpenApiSplit split = (OpenApiSplit) connectorSplit;
+        Iterable<List<?>> rows = client.getRows(tableHandle.getSchemaTableName(), tableHandle.getSelectPaths(), tableHandle.getSelectMethod(), split.getConstraint());
         Iterable<List<?>> mappedRows = Iterables.transform(rows, row -> columnIndexes
                 .stream()
                 .map(row::get)

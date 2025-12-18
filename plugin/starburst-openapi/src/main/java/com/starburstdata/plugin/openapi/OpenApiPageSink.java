@@ -17,9 +17,13 @@ import com.google.common.collect.ImmutableList;
 import io.airlift.slice.Slice;
 import io.swagger.v3.oas.models.PathItem;
 import io.trino.spi.Page;
+import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSink;
+import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.predicate.TupleDomain;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static java.util.Objects.requireNonNull;
@@ -29,12 +33,20 @@ public class OpenApiPageSink
         implements ConnectorPageSink
 {
     protected final OpenApiClient client;
-    protected final OpenApiOutputTableHandle table;
+    protected final SchemaTableName tableName;
+    protected final PathItem.HttpMethod updateMethod;
+    protected final List<String> insertPaths;
+    protected final List<String> updatePaths;
+    protected final TupleDomain<ColumnHandle> constraint;
 
-    public OpenApiPageSink(OpenApiClient client, OpenApiOutputTableHandle table)
+    public OpenApiPageSink(OpenApiClient client, OpenApiTableHandle table)
     {
         this.client = requireNonNull(client, "client is null");
-        this.table = requireNonNull(table, "table is null");
+        tableName = table.getSchemaTableName();
+        updateMethod = table.getUpdateMethod();
+        insertPaths = table.getInsertPaths();
+        updatePaths = table.getUpdatePaths();
+        constraint = table.getConstraint();
     }
 
     @Override
@@ -48,11 +60,10 @@ public class OpenApiPageSink
 
     protected void insertedPage(Page page, int position)
     {
-        PathItem.HttpMethod method = this.table.getTableHandle().getUpdateMethod();
-        switch (method) {
-            case POST -> client.postRows(table, page, position);
-            case PUT -> client.putRows(table, page, position);
-            default -> throw new IllegalArgumentException("Unsupported INSERT method: " + method);
+        switch (updateMethod) {
+            case POST -> client.postRows(tableName, insertPaths, constraint, page, position);
+            case PUT -> client.putRows(tableName, updatePaths, constraint, page, position);
+            default -> throw new IllegalArgumentException("Unsupported INSERT method: " + updateMethod);
         }
     }
 

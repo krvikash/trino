@@ -16,7 +16,6 @@ package com.starburstdata.plugin.openapi;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
-import io.airlift.slice.SizeOf;
 import io.swagger.v3.oas.models.PathItem;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
@@ -39,8 +38,6 @@ import static java.util.Objects.requireNonNull;
 public class OpenApiTableHandle
         implements ConnectorTableHandle, Cloneable
 {
-    private static final int INSTANCE_SIZE = SizeOf.instanceSize(OpenApiTableHandle.class);
-
     private final SchemaTableName schemaTableName;
     private final List<String> selectPaths;
     private final PathItem.HttpMethod selectMethod;
@@ -141,21 +138,6 @@ public class OpenApiTableHandle
     public String toString()
     {
         return schemaTableName.getTableName();
-    }
-
-    public long getRetainedSizeInBytes()
-    {
-        return (long) INSTANCE_SIZE
-                + schemaTableName.getRetainedSizeInBytes()
-                + SizeOf.estimatedSizeOf(selectPaths, String::length)
-                + SizeOf.estimatedSizeOf(insertPaths, String::length)
-                + SizeOf.estimatedSizeOf(updatePaths, String::length)
-                + SizeOf.estimatedSizeOf(deletePaths, String::length)
-                + SizeOf.estimatedSizeOf(selectMethod.toString())
-                + SizeOf.estimatedSizeOf(insertMethod.toString())
-                + SizeOf.estimatedSizeOf(updateMethod.toString())
-                + SizeOf.estimatedSizeOf(deleteMethod.toString())
-                + constraint.getRetainedSizeInBytes(column -> ((OpenApiColumnHandle) column).getRetainedSizeInBytes());
     }
 
     @Override
