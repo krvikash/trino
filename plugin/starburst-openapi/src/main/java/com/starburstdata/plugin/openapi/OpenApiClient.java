@@ -164,10 +164,7 @@ public class OpenApiClient
                                     pageColumn.get().getType() instanceof BigintType ? (long) page : page)));
                     OpenApiTableHandle pageTable = table.cloneWithConstraint(table.getConstraint().isNone() ? pageConstraint : table.getConstraint().intersect(pageConstraint));
                     return makeRequest(pageTable, httpPath, pathWithParams.getValue(), bodyGenerator, responseHandler);
-                },
-                0,
-                Integer.MAX_VALUE,
-                1);
+                });
     }
 
     private BodyGenerator getBodyGenerator(OpenApiTableHandle table, HttpPath httpPath)
@@ -721,16 +718,12 @@ public class OpenApiClient
         }
     }
 
-    private Iterable<List<?>> pageIterator(
-            IntFunction<Iterable<List<?>>> getter,
-            int offset,
-            final int limit,
-            int pageIncrement)
+    private Iterable<List<?>> pageIterator(IntFunction<Iterable<List<?>>> getter)
     {
         return () -> new Iterator<>()
         {
             int resultSize;
-            int page = offset + 1;
+            int page = 1;
             Iterator<List<?>> rows;
 
             @Override
@@ -739,11 +732,11 @@ public class OpenApiClient
                 if (rows != null && rows.hasNext()) {
                     return true;
                 }
-                if (resultSize >= limit) {
+                if (resultSize >= Integer.MAX_VALUE) {
                     return false;
                 }
                 Iterable<List<?>> items = getter.apply(page);
-                page += pageIncrement;
+                page += 1;
                 rows = items.iterator();
                 return rows.hasNext();
             }
