@@ -78,10 +78,10 @@ import static com.google.common.net.HttpHeaders.ACCEPT;
 import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
 import static com.google.common.net.HttpHeaders.USER_AGENT;
 import static com.google.common.net.MediaType.JSON_UTF_8;
+import static com.starburstdata.plugin.openapi.OpenApiErrorCode.OPENAPI_INVALID_FILTER;
 import static com.starburstdata.plugin.openapi.OpenApiSpec.ROW_ID;
 import static io.airlift.http.client.StaticBodyGenerator.createStaticBodyGenerator;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
-import static io.trino.spi.StandardErrorCode.INVALID_ROW_FILTER;
 import static io.trino.spi.type.DecimalConversions.longDecimalToDouble;
 import static io.trino.spi.type.DecimalConversions.shortDecimalToDouble;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -363,7 +363,7 @@ public class OpenApiClient
                 .map(column -> {
                     Object value = getFilter(column, table.getConstraint());
                     if (value == null && isRequiredPredicate(column, httpPath, in)) {
-                        throw new TrinoException(INVALID_ROW_FILTER, "Missing required constraint for " + column.getName());
+                        throw new TrinoException(OPENAPI_INVALID_FILTER, "Missing required constraint for " + column.getName());
                     }
                     return new SimpleEntry<>(column.getSourceName(), value);
                 })
@@ -410,7 +410,7 @@ public class OpenApiClient
             case StandardTypes.MAP -> (SqlMap) domain.getSingleValue();
             case StandardTypes.ARRAY -> (Block) domain.getSingleValue();
             case StandardTypes.ROW -> (SqlRow) domain.getSingleValue();
-            default -> throw new TrinoException(INVALID_ROW_FILTER, "Unexpected constraint for " + column.getName() + "(" + column.getType().getBaseName() + ")");
+            default -> throw new TrinoException(OPENAPI_INVALID_FILTER, "Unexpected constraint for " + column.getName() + "(" + column.getType().getBaseName() + ")");
         };
     }
 
@@ -494,7 +494,7 @@ public class OpenApiClient
             Object value = getFilter(column, table.getConstraint());
             if (value == null) {
                 if (isRequiredPredicate(column, httpPath, ParameterLocation.BODY)) {
-                    throw new TrinoException(INVALID_ROW_FILTER, "Missing required constraint for " + column.getName());
+                    throw new TrinoException(OPENAPI_INVALID_FILTER, "Missing required constraint for " + column.getName());
                 }
                 continue;
             }

@@ -33,7 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.trino.spi.StandardErrorCode.INVALID_ROW_FILTER;
+import static com.starburstdata.plugin.openapi.OpenApiErrorCode.OPENAPI_INVALID_FILTER;
 import static java.util.Objects.requireNonNull;
 
 public class OpenApiTableHandle
@@ -260,6 +260,6 @@ public class OpenApiTableHandle
             return false;
         }
         // can push down only the first predicate against this column
-        throw new TrinoException(INVALID_ROW_FILTER, "Already pushed down a predicate for " + column.name() + " which only supports a single value");
+        throw new TrinoException(OPENAPI_INVALID_FILTER, "Already pushed down a predicate for " + column.name() + " which only supports a single value");
     }
 }
