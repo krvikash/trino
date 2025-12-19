@@ -323,7 +323,7 @@ public final class DeltaLakeParquetSchemas
             case "array" -> buildArrayType(typeNode, typeManager, repetition, name, id, columnMappingMode, parent, primitiveTypesBuilder);
             case "map" -> buildMapType(typeNode, typeManager, repetition, name, id, columnMappingMode, parent, primitiveTypesBuilder);
             case "struct" -> buildRowType(typeNode, typeManager, repetition, name, id, columnMappingMode, parent, primitiveTypesBuilder);
-            default -> throw new TypeNotFoundException(new TypeSignature(containerType));
+            default -> throw new TypeNotFoundException(containerType);
         };
     }
 
