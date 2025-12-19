@@ -36,7 +36,7 @@ import static com.starburstdata.plugin.openapi.OpenApiErrorCode.OPENAPI_INVALID_
 import static java.util.Objects.requireNonNull;
 
 public class OpenApiTableHandle
-        implements ConnectorTableHandle, Cloneable
+        implements ConnectorTableHandle
 {
     private final SchemaTableName schemaTableName;
     private final List<String> selectPaths;
@@ -47,7 +47,7 @@ public class OpenApiTableHandle
     private final PathItem.HttpMethod updateMethod;
     private final List<String> deletePaths;
     private final PathItem.HttpMethod deleteMethod;
-    private TupleDomain<ColumnHandle> constraint;
+    private final TupleDomain<ColumnHandle> constraint;
 
     @JsonCreator
     public OpenApiTableHandle(
@@ -140,22 +140,19 @@ public class OpenApiTableHandle
         return schemaTableName.getTableName();
     }
 
-    @Override
-    public OpenApiTableHandle clone()
+    public OpenApiTableHandle withConstraint(TupleDomain<ColumnHandle> constraint)
     {
-        try {
-            return (OpenApiTableHandle) super.clone();
-        }
-        catch (CloneNotSupportedException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public OpenApiTableHandle cloneWithConstraint(TupleDomain<ColumnHandle> constraint)
-    {
-        OpenApiTableHandle tableHandle = this.clone();
-        tableHandle.constraint = constraint;
-        return tableHandle;
+        return new OpenApiTableHandle(
+                schemaTableName,
+                selectPaths,
+                selectMethod,
+                insertPaths,
+                insertMethod,
+                updatePaths,
+                updateMethod,
+                deletePaths,
+                deleteMethod,
+                constraint);
     }
 
     public Optional<ConstraintApplicationResult<ConnectorTableHandle>> applyFilter(Constraint constraint, Map<String, OpenApiColumn> columns, int domainExpansionLimit)
@@ -204,7 +201,7 @@ public class OpenApiTableHandle
         }
 
         return Optional.of(new ConstraintApplicationResult<>(
-                cloneWithConstraint(currentConstraint),
+                withConstraint(currentConstraint),
                 summary,
                 constraint.getExpression(),
                 true));
