@@ -28,6 +28,7 @@ import java.util.Map;
 import static com.google.common.base.Verify.verify;
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.trino.testing.TestingSession.testSessionBuilder;
+import static java.util.Objects.requireNonNullElse;
 
 public final class OpenApiQueryRunner
 {
@@ -105,5 +106,59 @@ public final class OpenApiQueryRunner
         Logger log = Logger.get(OpenApiQueryRunner.class);
         log.info("======== SERVER STARTED ========");
         log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
+    }
+
+    /**
+     * Run with GitHub OpenAPI 3.0.3 spec
+     *
+     * @see <a href="https://spec.openapis.org/oas/v3.0.3.html>Open API v3.0.3 spec</a>
+     */
+    public static class OpenApi30GithubQueryRunnerMain
+    {
+        public static void main()
+                throws Exception
+        {
+            QueryRunner queryRunner = builder()
+                    .addConnectorProperties(ImmutableMap.<String, String>builder()
+                            .put("openapi.http-client.log.enabled", "true")
+                            .put("openapi.spec-location", "https://raw.githubusercontent.com/github/rest-api-description/refs/heads/main/descriptions/ghes-3.19/ghes-3.19.json")
+                            .put("openapi.base-uri", "https://api.github.com")
+                            .put("openapi.authentication.type", "http")
+                            .put("openapi.authentication.scheme", "bearer")
+                            .put("openapi.authentication.bearer-token", requireNonNullElse(System.getenv("GITHUB_TOKEN"), ""))
+                            .buildOrThrow())
+                    .addCoordinatorProperty("http-server.http.port", "8080")
+                    .build();
+            Logger log = Logger.get(OpenApi30GithubQueryRunnerMain.class);
+            log.info("======== SERVER STARTED ========");
+            log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
+        }
+    }
+
+    /**
+     * Run with GitHub OpenAPI 3.1.0 spec
+     *
+     * @see <a href="https://spec.openapis.org/oas/v3.1.0.html">Open API v3.1.0 spec</a>
+     */
+    public static class OpenApi31GithubQueryRunnerMain
+    {
+        public static void main()
+                throws Exception
+        {
+            QueryRunner queryRunner = builder()
+                    .addConnectorProperties(ImmutableMap.<String, String>builder()
+                            .put("openapi.http-client.log.enabled", "true")
+                            .put("openapi.spec-location", "https://raw.githubusercontent.com/github/rest-api-description/refs/heads/main/descriptions-next/ghes-3.19/ghes-3.19.json")
+                            .put("openapi.base-uri", "https://api.github.com")
+                            .put("openapi.authentication.type", "http")
+                            .put("openapi.authentication.scheme", "bearer")
+                            .put("openapi.authentication.bearer-token", requireNonNullElse(System.getenv("GITHUB_TOKEN"), ""))
+                            .buildOrThrow())
+                    .addCoordinatorProperty("http-server.http.port", "8080")
+                    .build();
+            Logger log = Logger.get(OpenApi31GithubQueryRunnerMain.class);
+            log.info("======== SERVER STARTED ========");
+            log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
+        }
     }
 }
