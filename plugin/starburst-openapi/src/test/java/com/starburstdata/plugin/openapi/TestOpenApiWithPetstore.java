@@ -65,18 +65,4 @@ final class TestOpenApiWithPetstore
         assertQuery("SELECT name FROM openapi.default.pet WHERE pet_id = 1",
                 "VALUES ('Cat 1')");
     }
-
-    @Test
-    void testInsertPet()
-    {
-        assertQueryReturnsEmptyResult("SELECT name FROM openapi.default.pet WHERE pet_id = 100");
-        assertQuerySucceeds("INSERT INTO openapi.default.pet (id, name, photo_urls, status) VALUES (100, 'Cat X', ARRAY[], 'available')");
-        assertQuery("SELECT name FROM openapi.default.pet WHERE pet_id = 100",
-                "VALUES ('Cat X')");
-        assertUpdate("UPDATE openapi.default.pet SET name = 'Cat Y' WHERE pet_id = 100", 1);
-        assertQuery("SELECT name FROM openapi.default.pet WHERE pet_id = 100",
-                "VALUES ('Cat Y')");
-        assertUpdate("DELETE FROM openapi.default.pet WHERE pet_id = 100", 1);
-        assertQueryReturnsEmptyResult("SELECT name FROM openapi.default.pet WHERE pet_id = 100");
-    }
 }

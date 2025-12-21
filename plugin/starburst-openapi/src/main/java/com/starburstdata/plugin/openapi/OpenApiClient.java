@@ -36,7 +36,6 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.media.Schema;
-import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.SqlMap;
@@ -178,80 +177,6 @@ public class OpenApiClient
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-    }
-
-    public void postRows(SchemaTableName tableName, List<String> insertPaths, TupleDomain<ColumnHandle> constraint, Page page, int position)
-    {
-        List<OpenApiColumn> columns = openApiSpec.getTables().get(tableName.getTableName());
-        Map.Entry<String, Map<String, Object>> pathWithParams = selectPath(
-                tableName,
-                PathItem.HttpMethod.POST,
-                insertPaths,
-                (column) -> getFilter(column, page, position, columns.indexOf(column)));
-        HttpPath httpPath = new HttpPath(PathItem.HttpMethod.POST, pathWithParams.getKey());
-        postRows(tableName, constraint, httpPath, pathWithParams.getValue(), serializePage(tableName, httpPath, page, position));
-    }
-
-    public void postRows(SchemaTableName tableName, TupleDomain<ColumnHandle> constraint, HttpPath httpPath, Map<String, Object> pathParams, JsonNode data)
-    {
-        try {
-            makeRequest(
-                    tableName,
-                    constraint,
-                    httpPath,
-                    pathParams,
-                    createStaticBodyGenerator(toBytes(data)),
-                    new AnyResponseHandler(openApiSpec.getErrorPointers(tableName).get(httpPath)));
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    public void putRows(SchemaTableName tableName, List<String> updatePaths, TupleDomain<ColumnHandle> constraint, Page page, int position)
-    {
-        List<OpenApiColumn> columns = openApiSpec.getTables().get(tableName.getTableName());
-        Map.Entry<String, Map<String, Object>> pathWithParams = selectPath(
-                tableName,
-                PathItem.HttpMethod.PUT,
-                updatePaths,
-                (column) -> getFilter(column, page, position, columns.indexOf(column)));
-        HttpPath httpPath = new HttpPath(PathItem.HttpMethod.PUT, pathWithParams.getKey());
-        putRows(tableName, constraint, httpPath, pathWithParams.getValue(), serializePage(tableName, httpPath, page, position));
-    }
-
-    public void putRows(SchemaTableName tableName, TupleDomain<ColumnHandle> constraint, HttpPath httpPath, Map<String, Object> pathParams, JsonNode data)
-    {
-        try {
-            makeRequest(
-                    tableName,
-                    constraint,
-                    httpPath,
-                    pathParams,
-                    createStaticBodyGenerator(toBytes(data)),
-                    new AnyResponseHandler(openApiSpec.getErrorPointers(tableName).get(httpPath)));
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    public void deleteRows(SchemaTableName tableName, List<String> deletePaths, TupleDomain<ColumnHandle> constraint)
-    {
-        // don't have to decode the rowId since it's value is copied from the predicate that's still present in the table handle
-        Map.Entry<String, Map<String, Object>> pathWithParams = selectPath(
-                tableName,
-                PathItem.HttpMethod.DELETE,
-                deletePaths,
-                (column) -> getFilter(column, constraint));
-        HttpPath httpPath = new HttpPath(PathItem.HttpMethod.DELETE, pathWithParams.getKey());
-        makeRequest(
-                tableName,
-                constraint,
-                httpPath,
-                pathWithParams.getValue(),
-                null,
-                new AnyResponseHandler(openApiSpec.getErrorPointers(tableName).get(httpPath)));
     }
 
     public <T> T makeRequest(
@@ -405,17 +330,6 @@ public class OpenApiClient
         };
     }
 
-    private static Object getFilter(OpenApiColumn column, Page page, int position, int channel)
-    {
-        requireNonNull(column, "column is null");
-        requireNonNull(page, "page is null");
-        Block block = page.getBlock(channel);
-        if (block.isNull(position)) {
-            return null;
-        }
-        return JsonTrinoConverter.convert(block, position, column.getType(), column.getSourceType(), OBJECT_MAPPER);
-    }
-
     private static String toDecimal(Object object, DecimalType type)
     {
         double value;
@@ -446,29 +360,6 @@ public class OpenApiClient
         }
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(format);
         return dateFormatter.format(Instant.ofEpochMilli(millis));
-    }
-
-    public ObjectNode serializePage(SchemaTableName tableName, HttpPath httpPath, Page page, int position)
-    {
-        ObjectNode node = OBJECT_MAPPER.createObjectNode();
-        List<OpenApiColumn> columns = openApiSpec.getTables().get(tableName.getTableName()).stream()
-                .filter(column -> !column.getName().equals(ROW_ID))
-                .toList();
-        for (int channel = 0; channel < columns.size(); channel++) {
-            Block block = page.getBlock(channel);
-            if (block.isNull(position)) {
-                continue;
-            }
-
-            OpenApiColumn column = columns.get(channel);
-            // all fields from a request object param should be marked as predicates
-            if (!isPredicate(column, httpPath, ParameterLocation.BODY)) {
-                continue;
-            }
-            Object value = JsonTrinoConverter.convert(block, position, column.getType(), column.getSourceType(), OBJECT_MAPPER);
-            nodePut(node, column.getSourceName(), value);
-        }
-        return node;
     }
 
     public ObjectNode serializeMap(SchemaTableName tableName, TupleDomain<ColumnHandle> constraint, HttpPath httpPath)
@@ -684,40 +575,6 @@ public class OpenApiClient
         byte[] output = baos.toByteArray();
         log.debug("Request body: " + new String(output, UTF_8));
         return output;
-    }
-
-    private static class AnyResponseHandler
-            implements ResponseHandler<Void, RuntimeException>
-    {
-        private final JsonPointer errorPointer;
-
-        AnyResponseHandler(JsonPointer errorPointer)
-        {
-            this.errorPointer = errorPointer;
-        }
-
-        @Override
-        public Void handleException(Request request, Exception exception)
-        {
-            throw new RuntimeException(exception);
-        }
-
-        @Override
-        public Void handle(Request request, Response response)
-        {
-            String result = "";
-            try {
-                result = CharStreams.toString(new InputStreamReader(response.getInputStream(), UTF_8));
-            }
-            catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            log.debug("Received response code " + response.getStatusCode() + ": " + result);
-            if (response.getStatusCode() != HttpStatus.OK.code()) {
-                errorResponse(response.getStatusCode(), result, errorPointer);
-            }
-            return null;
-        }
     }
 
     private Iterable<List<?>> pageIterator(IntFunction<Iterable<List<?>>> getter)

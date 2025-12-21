@@ -14,37 +14,26 @@
 package com.starburstdata.plugin.openapi;
 
 import com.google.inject.Inject;
-import io.airlift.slice.Slice;
 import io.trino.spi.StandardErrorCode;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ColumnMetadata;
-import io.trino.spi.connector.ConnectorInsertTableHandle;
-import io.trino.spi.connector.ConnectorMergeTableHandle;
 import io.trino.spi.connector.ConnectorMetadata;
-import io.trino.spi.connector.ConnectorOutputMetadata;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.ConnectorTableVersion;
 import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.ConstraintApplicationResult;
-import io.trino.spi.connector.RetryMode;
-import io.trino.spi.connector.RowChangeParadigm;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.connector.TableColumnsMetadata;
-import io.trino.spi.statistics.ComputedStatistics;
 
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.starburstdata.plugin.openapi.OpenApiSpec.ROW_ID;
-import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
-import static io.trino.spi.connector.RowChangeParadigm.CHANGE_ONLY_UPDATED_COLUMNS;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.UnaryOperator.identity;
 import static java.util.stream.Collectors.toList;
@@ -156,71 +145,5 @@ public class OpenApiMetadata
     {
         OpenApiTableHandle openApiTable = (OpenApiTableHandle) table;
         return openApiTable.applyFilter(constraint, getColumns(table), domainExpansionLimit);
-    }
-
-    @Override
-    public ConnectorInsertTableHandle beginInsert(
-            ConnectorSession session,
-            ConnectorTableHandle tableHandle,
-            List<ColumnHandle> columns,
-            RetryMode retryMode)
-    {
-        if (retryMode != RetryMode.NO_RETRIES) {
-            throw new TrinoException(NOT_SUPPORTED, "This connector does not support query retries");
-        }
-        return new OpenApiOutputTableHandle((OpenApiTableHandle) tableHandle);
-    }
-
-    @Override
-    public Optional<ConnectorOutputMetadata> finishInsert(
-            ConnectorSession session,
-            ConnectorInsertTableHandle insertHandle,
-            List<ConnectorTableHandle> sourceTableHandles,
-            Collection<Slice> fragments,
-            Collection<ComputedStatistics> computedStatistics)
-    {
-        return Optional.empty();
-    }
-
-    @Override
-    public RowChangeParadigm getRowChangeParadigm(ConnectorSession session, ConnectorTableHandle tableHandle)
-    {
-        return CHANGE_ONLY_UPDATED_COLUMNS;
-    }
-
-    @Override
-    public ColumnHandle getMergeRowIdColumnHandle(
-            ConnectorSession session,
-            ConnectorTableHandle tableHandle)
-    {
-        OpenApiTableHandle table = (OpenApiTableHandle) tableHandle;
-        Map<String, OpenApiColumnHandle> columns = getColumnHandles(table);
-        return columns.values().stream()
-                .filter(column -> column.name().equals(ROW_ID))
-                .findFirst()
-                .orElseThrow(() -> new TrinoException(NOT_SUPPORTED, MODIFYING_ROWS_MESSAGE));
-    }
-
-    @Override
-    public ConnectorMergeTableHandle beginMerge(
-            ConnectorSession session,
-            ConnectorTableHandle tableHandle,
-            Map<Integer, Collection<ColumnHandle>> updateCaseColumns,
-            RetryMode retryMode)
-    {
-        if (retryMode != RetryMode.NO_RETRIES) {
-            throw new TrinoException(NOT_SUPPORTED, "This connector does not support query retries");
-        }
-        return new OpenApiOutputTableHandle((OpenApiTableHandle) tableHandle);
-    }
-
-    @Override
-    public void finishMerge(
-            ConnectorSession session,
-            ConnectorMergeTableHandle tableHandle,
-            List<ConnectorTableHandle> sourceTableHandles,
-            Collection<Slice> fragments,
-            Collection<ComputedStatistics> computedStatistics)
-    {
     }
 }
