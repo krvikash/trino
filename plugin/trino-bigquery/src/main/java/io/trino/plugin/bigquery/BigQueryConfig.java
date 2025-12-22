@@ -29,6 +29,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.Optional;
 
 import static io.trino.plugin.base.logging.FormatInterpolator.hasValidPlaceholders;
+import static io.trino.plugin.bigquery.BigQueryWriteStreamType.PENDING;
 import static java.util.concurrent.TimeUnit.HOURS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
@@ -66,6 +67,7 @@ public class BigQueryConfig
     private boolean projectionPushDownEnabled = true;
     private int metadataParallelism = Math.min(Runtime.getRuntime().availableProcessors(), MAX_METADATA_PARALLELISM);
     private Optional<Integer> maxParallelism = Optional.empty();
+    private BigQueryWriteStreamType writeStreamType = PENDING;
 
     public Optional<String> getProjectId()
     {
@@ -397,6 +399,20 @@ public class BigQueryConfig
     public BigQueryConfig setMaxParallelism(Integer maxParallelism)
     {
         this.maxParallelism = Optional.ofNullable(maxParallelism);
+        return this;
+    }
+
+    @NotNull
+    public BigQueryWriteStreamType getWriteStreamType()
+    {
+        return writeStreamType;
+    }
+
+    @Config("bigquery.write-stream-type")
+    @ConfigDescription("The write stream type for writing data to BigQuery")
+    public BigQueryConfig setWriteStreamType(BigQueryWriteStreamType writeStreamType)
+    {
+        this.writeStreamType = writeStreamType;
         return this;
     }
 

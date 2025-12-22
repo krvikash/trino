@@ -36,6 +36,7 @@ public final class BigQuerySessionProperties
     private static final String CREATE_DISPOSITION_TYPE = "create_disposition_type";
     private static final String PROJECTION_PUSHDOWN_ENABLED = "projection_pushdown_enabled";
     private static final String MAX_PARALLELISM = "max_parallelism";
+    private static final String WRITE_STREAM_TYPE = "write_stream_type";
 
     private final List<PropertyMetadata<?>> sessionProperties;
 
@@ -74,6 +75,12 @@ public final class BigQuerySessionProperties
                         "The max number of partitions to split the data into.",
                         config.getMaxParallelism().orElse(null),
                         false))
+                .add(enumProperty(
+                        WRITE_STREAM_TYPE,
+                        "The write stream type for writing data to BigQuery",
+                        BigQueryWriteStreamType.class,
+                        config.getWriteStreamType(),
+                        false))
                 .build();
     }
 
@@ -111,5 +118,10 @@ public final class BigQuerySessionProperties
     public static Optional<Integer> getMaxParallelism(ConnectorSession session)
     {
         return Optional.ofNullable(session.getProperty(MAX_PARALLELISM, Integer.class));
+    }
+
+    public static BigQueryWriteStreamType getWriteStreamType(ConnectorSession session)
+    {
+        return session.getProperty(WRITE_STREAM_TYPE, BigQueryWriteStreamType.class);
     }
 }

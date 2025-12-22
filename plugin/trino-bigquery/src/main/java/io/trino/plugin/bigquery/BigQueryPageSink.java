@@ -13,18 +13,12 @@
  */
 package io.trino.plugin.bigquery;
 
-import com.google.api.core.ApiFuture;
-import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
-import com.google.cloud.bigquery.storage.v1.CreateWriteStreamRequest;
-import com.google.cloud.bigquery.storage.v1.JsonStreamWriter;
 import com.google.cloud.bigquery.storage.v1.TableName;
-import com.google.cloud.bigquery.storage.v1.WriteStream;
 import com.google.common.collect.ImmutableList;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.spi.Page;
-import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSinkId;
 import io.trino.spi.type.Type;
@@ -35,22 +29,16 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
 
-import static com.google.cloud.bigquery.storage.v1.WriteStream.Type.COMMITTED;
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.plugin.bigquery.BigQueryErrorCode.BIGQUERY_BAD_WRITE;
 import static io.trino.plugin.bigquery.BigQueryTypeUtils.readNativeValue;
-import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
 public class BigQueryPageSink
         implements ConnectorPageSink
 {
-    private final BigQueryWriteClient client;
-    private final CreateWriteStreamRequest createWriteStreamRequest;
-    private final AtomicReference<WriteStream> writeStream = new AtomicReference<>();
+    private final BigQueryWriter bigQueryWriter;
     private final List<String> columnNames;
     private final List<Type> columnTypes;
     private final ConnectorPageSinkId pageSinkId;
@@ -63,9 +51,9 @@ public class BigQueryPageSink
             List<Type> columnTypes,
             ConnectorPageSinkId pageSinkId,
             Optional<String> temporaryTableName,
-            Optional<String> pageSinkIdColumnName)
+            Optional<String> pageSinkIdColumnName,
+            BigQueryWriteStreamType writeStreamType)
     {
-        this.client = requireNonNull(client, "client is null");
         requireNonNull(remoteTableName, "remoteTableName is null");
         this.columnNames = ImmutableList.copyOf(requireNonNull(columnNames, "columnNames is null"));
         this.columnTypes = ImmutableList.copyOf(requireNonNull(columnTypes, "columnTypes is null"));
@@ -78,12 +66,11 @@ public class BigQueryPageSink
         TableName tableName = temporaryTableName
                 .map(table -> TableName.of(remoteTableName.projectId(), remoteTableName.datasetName(), table))
                 .orElseGet(remoteTableName::toTableName);
-        // TODO: Consider using PENDING mode
-        WriteStream stream = WriteStream.newBuilder().setType(COMMITTED).build();
-        createWriteStreamRequest = CreateWriteStreamRequest.newBuilder()
-                .setParent(tableName.toString())
-                .setWriteStream(stream)
-                .build();
+
+        this.bigQueryWriter = switch (writeStreamType) {
+            case COMMITTED -> new BigQueryCommittedWriter(client, tableName.toString());
+            case PENDING -> new BigQueryPendingWriter(client, tableName.toString());
+        };
     }
 
     @Override
@@ -99,37 +86,14 @@ public class BigQueryPageSink
             batch.put(row);
         }
 
-        insertWithCommitted(batch);
+        bigQueryWriter.appendBatch(batch);
         return NOT_BLOCKED;
-    }
-
-    private void insertWithCommitted(JSONArray batch)
-    {
-        WriteStream stream = writeStream.updateAndGet(this::getOrCreateWriteStream);
-        try (JsonStreamWriter writer = JsonStreamWriter.newBuilder(stream.getName(), stream.getTableSchema(), client).build()) {
-            ApiFuture<AppendRowsResponse> future = writer.append(batch);
-            AppendRowsResponse response = future.get(); // Throw error
-            if (response.hasError()) {
-                throw new TrinoException(BIGQUERY_BAD_WRITE, format("Response has error: %s", response.getError().getMessage()));
-            }
-        }
-        catch (Exception e) {
-            throw new TrinoException(BIGQUERY_BAD_WRITE, "Failed to insert rows", e);
-        }
-    }
-
-    private WriteStream getOrCreateWriteStream(WriteStream current)
-    {
-        if (current == null) {
-            return client.createWriteStream(createWriteStreamRequest);
-        }
-        return current;
     }
 
     @Override
     public CompletableFuture<Collection<Slice>> finish()
     {
-        client.close();
+        bigQueryWriter.finish();
         Slice value = Slices.allocate(Long.BYTES);
         value.setLong(0, pageSinkId.getId());
         return completedFuture(ImmutableList.of(value));
@@ -138,6 +102,6 @@ public class BigQueryPageSink
     @Override
     public void abort()
     {
-        client.close();
+        bigQueryWriter.abort();
     }
 }

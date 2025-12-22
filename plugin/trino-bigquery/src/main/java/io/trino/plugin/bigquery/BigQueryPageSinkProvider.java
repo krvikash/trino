@@ -24,6 +24,7 @@ import io.trino.spi.connector.ConnectorTransactionHandle;
 
 import java.util.Optional;
 
+import static io.trino.plugin.bigquery.BigQuerySessionProperties.getWriteStreamType;
 import static java.util.Objects.requireNonNull;
 
 public class BigQueryPageSinkProvider
@@ -48,7 +49,8 @@ public class BigQueryPageSinkProvider
                 handle.columnTypes(),
                 pageSinkId,
                 handle.temporaryTableName(),
-                handle.pageSinkIdColumnName());
+                handle.pageSinkIdColumnName(),
+                getWriteStreamType(session));
     }
 
     @Override
@@ -62,6 +64,7 @@ public class BigQueryPageSinkProvider
                 handle.columnTypes(),
                 pageSinkId,
                 Optional.of(handle.temporaryTableName()),
-                Optional.of(handle.pageSinkIdColumnName()));
+                Optional.of(handle.pageSinkIdColumnName()),
+                getWriteStreamType(session));
     }
 }
