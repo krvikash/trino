@@ -7121,7 +7121,7 @@ public abstract class BaseConnectorTest
     {
         String query = """
                        WITH t as (SELECT * FROM nation WHERE nationkey > 3)
-                       SELECT count(regionkey) FROM t UNION ALL SELECT max(nationkey) FROM t
+                       SELECT cardinality(histogram(regionkey)) FROM t UNION ALL SELECT cardinality(histogram(nationkey)) FROM t
                        """;
         String explainQuery = "EXPLAIN " + query;
 
@@ -7140,7 +7140,7 @@ public abstract class BaseConnectorTest
         assertThat(countRegexOccurences(planWithCteReuse, "^Fragment ")).isEqualTo(2);
         assertThat(countRegexOccurences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [1]]\\E")).isEqualTo(2);
         // results are ok
-        assertQuery(enableCteReuse(), query, "VALUES 21, 24");
+        assertQuery(enableCteReuse(), query, "VALUES 5, 21");
     }
 
     private Session enableCteReuse()
