@@ -21,8 +21,10 @@ import io.opentelemetry.instrumentation.awssdk.v2_2.AwsSdkTelemetry;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.s3.S3Context.S3SseContext;
+import io.trino.filesystem.s3.S3FileSystemConfig.S3AuthType;
 import io.trino.filesystem.s3.S3FileSystemConfig.SignerType;
 import jakarta.annotation.PreDestroy;
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsProvider;
 import software.amazon.awssdk.core.checksums.RequestChecksumCalculation;
@@ -172,7 +174,7 @@ public final class S3FileSystemLoader
         Optional<String> staticRegion = Optional.ofNullable(config.getRegion());
         Optional<String> staticEndpoint = Optional.ofNullable(config.getEndpoint());
         boolean pathStyleAccess = config.isPathStyleAccess();
-        boolean useWebIdentityTokenCredentialsProvider = config.isUseWebIdentityTokenCredentialsProvider();
+        S3AuthType authType = config.getAuthType();
         Optional<String> staticIamRole = Optional.ofNullable(config.getIamRole());
         String staticRoleSessionName = config.getRoleSessionName();
         String externalId = config.getExternalId();
@@ -208,23 +210,27 @@ public final class S3FileSystemLoader
                 s3.disableMultiRegionAccessPoints(true);
             }
 
-            if (useWebIdentityTokenCredentialsProvider) {
-                s3.credentialsProvider(WebIdentityTokenFileCredentialsProvider.builder()
+            switch (authType) {
+                case ANONYMOUS -> s3.credentialsProvider(AnonymousCredentialsProvider.create());
+                case WEB_IDENTITY -> s3.credentialsProvider(WebIdentityTokenFileCredentialsProvider.builder()
                         .asyncCredentialUpdateEnabled(true)
                         .build());
-            }
-            else if (iamRole.isPresent()) {
-                s3.credentialsProvider(StsAssumeRoleCredentialsProvider.builder()
-                        .refreshRequest(request -> request
-                                .roleArn(iamRole.get())
-                                .roleSessionName(roleSessionName)
-                                .externalId(externalId))
-                        .stsClient(createStsClient(config, credentialsProvider))
-                        .asyncCredentialUpdateEnabled(true)
-                        .build());
-            }
-            else {
-                credentialsProvider.ifPresent(s3::credentialsProvider);
+                case IAM_ROLE, DEFAULT -> {
+                    // A security mapping may supply a per-request IAM role even when the static auth type is DEFAULT.
+                    if (iamRole.isPresent()) {
+                        s3.credentialsProvider(StsAssumeRoleCredentialsProvider.builder()
+                                .refreshRequest(request -> request
+                                        .roleArn(iamRole.get())
+                                        .roleSessionName(roleSessionName)
+                                        .externalId(externalId))
+                                .stsClient(createStsClient(config, credentialsProvider))
+                                .asyncCredentialUpdateEnabled(true)
+                                .build());
+                    }
+                    else {
+                        credentialsProvider.ifPresent(s3::credentialsProvider);
+                    }
+                }
             }
 
             return s3.build();

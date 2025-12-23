@@ -45,7 +45,10 @@ import static software.amazon.awssdk.awscore.retry.AwsRetryStrategy.adaptiveRetr
 import static software.amazon.awssdk.awscore.retry.AwsRetryStrategy.legacyRetryStrategy;
 import static software.amazon.awssdk.awscore.retry.AwsRetryStrategy.standardRetryStrategy;
 
-@DefunctConfig("s3.exclusive-create")
+@DefunctConfig({
+        "s3.exclusive-create",
+        "s3.use-web-identity-token-credentials-provider",
+})
 public class S3FileSystemConfig
 {
     private static final MapSplitter MAP_SPLITTER = Splitter.on(",").trimResults().omitEmptyStrings().withKeyValueSeparator("=");
@@ -120,6 +123,14 @@ public class S3FileSystemConfig
         }
     }
 
+    public enum S3AuthType
+    {
+        DEFAULT,
+        IAM_ROLE,
+        WEB_IDENTITY,
+        ANONYMOUS,
+    }
+
     public enum RetryMode
     {
         STANDARD,
@@ -153,7 +164,7 @@ public class S3FileSystemConfig
     private S3SseType sseType = S3SseType.NONE;
     private String sseKmsKeyId;
     private String sseCustomerKey;
-    private boolean useWebIdentityTokenCredentialsProvider;
+    private S3AuthType authType = S3AuthType.DEFAULT;
     private SignerType signerType;
     private DataSize streamingPartSize = DataSize.of(32, MEGABYTE);
     private boolean requesterPays;
@@ -422,15 +433,16 @@ public class S3FileSystemConfig
         return this;
     }
 
-    public boolean isUseWebIdentityTokenCredentialsProvider()
+    public S3AuthType getAuthType()
     {
-        return useWebIdentityTokenCredentialsProvider;
+        return authType;
     }
 
-    @Config("s3.use-web-identity-token-credentials-provider")
-    public S3FileSystemConfig setUseWebIdentityTokenCredentialsProvider(boolean useWebIdentityTokenCredentialsProvider)
+    @Config("s3.auth-type")
+    @ConfigDescription("Authentication mode for accessing S3")
+    public S3FileSystemConfig setAuthType(S3AuthType authType)
     {
-        this.useWebIdentityTokenCredentialsProvider = useWebIdentityTokenCredentialsProvider;
+        this.authType = authType;
         return this;
     }
 
@@ -453,6 +465,26 @@ public class S3FileSystemConfig
     {
         if (sseType == S3SseType.CUSTOMER) {
             return sseCustomerKey != null;
+        }
+        return true;
+    }
+
+    @AssertTrue(message = "s3.iam-role must be set when, and only when, s3.auth-type=IAM_ROLE")
+    public boolean isIamRolePresenceValid()
+    {
+        return (authType == S3AuthType.IAM_ROLE) == (iamRole != null);
+    }
+
+    @AssertTrue(message = "s3.auth-type=ANONYMOUS and s3.auth-type=WEB_IDENTITY cannot be used with other authentication properties (s3.aws-access-key, s3.aws-secret-key, s3.external-id, s3.sts.endpoint, s3.sts.region)")
+    public boolean isCredentialFreeAuthTypeValid()
+    {
+        // s3.external-id and s3.sts.* remain allowed under DEFAULT for security-mapping roles.
+        if (authType == S3AuthType.ANONYMOUS || authType == S3AuthType.WEB_IDENTITY) {
+            return awsAccessKey == null &&
+                    awsSecretKey == null &&
+                    externalId == null &&
+                    stsEndpoint == null &&
+                    stsRegion == null;
         }
         return true;
     }

@@ -19,12 +19,14 @@ import com.google.common.net.HostAndPort;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.trino.filesystem.s3.S3FileSystemConfig.ObjectCannedAcl;
+import io.trino.filesystem.s3.S3FileSystemConfig.S3AuthType;
 import io.trino.filesystem.s3.S3FileSystemConfig.S3SseType;
 import io.trino.filesystem.s3.S3FileSystemConfig.StorageClassType;
 import jakarta.validation.constraints.AssertTrue;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.Set;
 
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
@@ -64,7 +66,7 @@ public class TestS3FileSystemConfig
                 .setRetryMode(LEGACY)
                 .setMaxErrorRetries(20)
                 .setSseKmsKeyId(null)
-                .setUseWebIdentityTokenCredentialsProvider(false)
+                .setAuthType(S3AuthType.DEFAULT)
                 .setSseCustomerKey(null)
                 .setStreamingPartSize(DataSize.of(32, MEGABYTE))
                 .setRequesterPays(false)
@@ -89,21 +91,13 @@ public class TestS3FileSystemConfig
                 .setMultiRegionAccessPointsEnabled(false));
     }
 
-    @Test
-    public void testExplicitPropertyMappings()
+    private static void addCommonProperties(ImmutableMap.Builder<String, String> builder)
     {
-        Map<String, String> properties = ImmutableMap.<String, String>builder()
-                .put("s3.aws-access-key", "abc123")
-                .put("s3.aws-secret-key", "secret")
-                .put("s3.endpoint", "endpoint.example.com")
+        builder.put("s3.endpoint", "endpoint.example.com")
                 .put("s3.region", "eu-central-1")
                 .put("s3.path-style-access", "true")
                 .put("s3.expect-continue-enabled", "false")
-                .put("s3.iam-role", "myrole")
                 .put("s3.role-session-name", "mysession")
-                .put("s3.external-id", "myid")
-                .put("s3.sts.endpoint", "sts.example.com")
-                .put("s3.sts.region", "us-west-2")
                 .put("s3.storage-class", "STANDARD_IA")
                 .put("s3.signer-type", "Aws4Signer")
                 .put("s3.canned-acl", "BUCKET_OWNER_FULL_CONTROL")
@@ -112,7 +106,6 @@ public class TestS3FileSystemConfig
                 .put("s3.sse.type", "KMS")
                 .put("s3.sse.kms-key-id", "mykey")
                 .put("s3.sse.customer-key", "customerKey")
-                .put("s3.use-web-identity-token-credentials-provider", "true")
                 .put("s3.streaming.part-size", "42MB")
                 .put("s3.requester-pays", "true")
                 .put("s3.max-connections", "42")
@@ -132,21 +125,17 @@ public class TestS3FileSystemConfig
                 .put("s3.custom-credential-provider-class", "SampleClass")
                 .put("s3.custom-credential-provider-class.arguments", "argument1=value1,argument2=value2")
                 .put("s3.api-call-attempt-timeout", "1m")
-                .put("s3.api-call-timeout", "2m")
-                .buildOrThrow();
+                .put("s3.api-call-timeout", "2m");
+    }
 
-        S3FileSystemConfig expected = new S3FileSystemConfig()
-                .setAwsAccessKey("abc123")
-                .setAwsSecretKey("secret")
+    private static S3FileSystemConfig setCommonConfig(S3FileSystemConfig config)
+    {
+        return config
                 .setEndpoint("endpoint.example.com")
                 .setRegion("eu-central-1")
                 .setPathStyleAccess(true)
                 .setExpectContinueEnabled(false)
-                .setIamRole("myrole")
                 .setRoleSessionName("mysession")
-                .setExternalId("myid")
-                .setStsEndpoint("sts.example.com")
-                .setStsRegion("us-west-2")
                 .setStorageClass(STANDARD_IA)
                 .setSignerType(Aws4Signer)
                 .setCannedAcl(ObjectCannedAcl.BUCKET_OWNER_FULL_CONTROL)
@@ -155,7 +144,6 @@ public class TestS3FileSystemConfig
                 .setMaxErrorRetries(12)
                 .setSseType(S3SseType.KMS)
                 .setSseKmsKeyId("mykey")
-                .setUseWebIdentityTokenCredentialsProvider(true)
                 .setSseCustomerKey("customerKey")
                 .setRequesterPays(true)
                 .setMaxConnections(42)
@@ -176,6 +164,30 @@ public class TestS3FileSystemConfig
                 .setCustomCredentialProviderArguments("argument1=value1,argument2=value2")
                 .setApiCallAttemptTimeout(new Duration(1, MINUTES))
                 .setApiCallTimeout(new Duration(2, MINUTES));
+    }
+
+    @Test
+    public void testExplicitPropertyMappings()
+    {
+        ImmutableMap.Builder<String, String> builder = ImmutableMap.<String, String>builder()
+                .put("s3.auth-type", "IAM_ROLE")
+                .put("s3.aws-access-key", "abc123")
+                .put("s3.aws-secret-key", "secret")
+                .put("s3.iam-role", "myrole")
+                .put("s3.external-id", "myid")
+                .put("s3.sts.endpoint", "sts.example.com")
+                .put("s3.sts.region", "us-west-2");
+        addCommonProperties(builder);
+        Map<String, String> properties = builder.buildOrThrow();
+
+        S3FileSystemConfig expected = setCommonConfig(new S3FileSystemConfig()
+                .setAuthType(S3AuthType.IAM_ROLE)
+                .setAwsAccessKey("abc123")
+                .setAwsSecretKey("secret")
+                .setIamRole("myrole")
+                .setExternalId("myid")
+                .setStsEndpoint("sts.example.com")
+                .setStsRegion("us-west-2"));
 
         // Skip s3.multi-region-access-points-enabled because it is incompatible with s3.path-style-access.
         assertFullMapping(properties, expected, ImmutableSet.of("s3.multi-region-access-points-enabled"));
@@ -186,6 +198,28 @@ public class TestS3FileSystemConfig
     }
 
     @Test
+    public void testAnonymousAuthTypeMapping()
+    {
+        ImmutableMap.Builder<String, String> builder = ImmutableMap.<String, String>builder()
+                .put("s3.auth-type", "ANONYMOUS");
+        addCommonProperties(builder);
+        Map<String, String> properties = builder.buildOrThrow();
+
+        S3FileSystemConfig expected = setCommonConfig(new S3FileSystemConfig()
+                .setAuthType(S3AuthType.ANONYMOUS));
+
+        assertFullMapping(properties, expected, Set.of(
+                "s3.aws-access-key",
+                "s3.aws-secret-key",
+                "s3.iam-role",
+                "s3.external-id",
+                "s3.sts.endpoint",
+                "s3.sts.region",
+                // Skipped because it is incompatible with s3.path-style-access.
+                "s3.multi-region-access-points-enabled"));
+    }
+
+    @Test
     public void testSSEWithCustomerKeyValidation()
     {
         assertFailsValidation(new S3FileSystemConfig()
@@ -193,6 +227,128 @@ public class TestS3FileSystemConfig
                 "sseWithCustomerKeyConfigValid",
                 "s3.sse.customer-key has to be set for server-side encryption with customer-provided key",
                 AssertTrue.class);
+    }
+
+    private static final String CREDENTIAL_FREE_MESSAGE = "s3.auth-type=ANONYMOUS and s3.auth-type=WEB_IDENTITY cannot be used with other authentication properties (s3.aws-access-key, s3.aws-secret-key, s3.external-id, s3.sts.endpoint, s3.sts.region)";
+    private static final String IAM_ROLE_MESSAGE = "s3.iam-role must be set when, and only when, s3.auth-type=IAM_ROLE";
+
+    @Test
+    public void testAnonymousAuthTypeWithAccessKey()
+    {
+        assertFailsValidation(
+                new S3FileSystemConfig()
+                        .setAuthType(S3AuthType.ANONYMOUS)
+                        .setAwsAccessKey("test-key"),
+                "credentialFreeAuthTypeValid",
+                CREDENTIAL_FREE_MESSAGE,
+                AssertTrue.class);
+    }
+
+    @Test
+    public void testAnonymousAuthTypeWithSecretKey()
+    {
+        assertFailsValidation(
+                new S3FileSystemConfig()
+                        .setAuthType(S3AuthType.ANONYMOUS)
+                        .setAwsSecretKey("test-secret"),
+                "credentialFreeAuthTypeValid",
+                CREDENTIAL_FREE_MESSAGE,
+                AssertTrue.class);
+    }
+
+    @Test
+    public void testAnonymousAuthTypeWithExternalId()
+    {
+        assertFailsValidation(
+                new S3FileSystemConfig()
+                        .setAuthType(S3AuthType.ANONYMOUS)
+                        .setExternalId("external-id"),
+                "credentialFreeAuthTypeValid",
+                CREDENTIAL_FREE_MESSAGE,
+                AssertTrue.class);
+    }
+
+    @Test
+    public void testAnonymousAuthTypeWithStsEndpoint()
+    {
+        assertFailsValidation(
+                new S3FileSystemConfig()
+                        .setAuthType(S3AuthType.ANONYMOUS)
+                        .setStsEndpoint("sts.example.com"),
+                "credentialFreeAuthTypeValid",
+                CREDENTIAL_FREE_MESSAGE,
+                AssertTrue.class);
+    }
+
+    @Test
+    public void testAnonymousAuthTypeWithStsRegion()
+    {
+        assertFailsValidation(
+                new S3FileSystemConfig()
+                        .setAuthType(S3AuthType.ANONYMOUS)
+                        .setStsRegion("us-west-2"),
+                "credentialFreeAuthTypeValid",
+                CREDENTIAL_FREE_MESSAGE,
+                AssertTrue.class);
+    }
+
+    @Test
+    public void testWebIdentityAuthTypeWithAccessKey()
+    {
+        assertFailsValidation(
+                new S3FileSystemConfig()
+                        .setAuthType(S3AuthType.WEB_IDENTITY)
+                        .setAwsAccessKey("test-key"),
+                "credentialFreeAuthTypeValid",
+                CREDENTIAL_FREE_MESSAGE,
+                AssertTrue.class);
+    }
+
+    @Test
+    public void testAnonymousAuthTypeWithIamRole()
+    {
+        assertFailsValidation(
+                new S3FileSystemConfig()
+                        .setAuthType(S3AuthType.ANONYMOUS)
+                        .setIamRole("arn:aws:iam::123456789012:role/test"),
+                "iamRolePresenceValid",
+                IAM_ROLE_MESSAGE,
+                AssertTrue.class);
+    }
+
+    @Test
+    public void testIamRoleAuthTypeWithoutIamRole()
+    {
+        assertFailsValidation(
+                new S3FileSystemConfig()
+                        .setAuthType(S3AuthType.IAM_ROLE),
+                "iamRolePresenceValid",
+                IAM_ROLE_MESSAGE,
+                AssertTrue.class);
+    }
+
+    @Test
+    public void testDefaultAuthTypeWithIamRole()
+    {
+        assertFailsValidation(
+                new S3FileSystemConfig()
+                        .setAuthType(S3AuthType.DEFAULT)
+                        .setIamRole("arn:aws:iam::123456789012:role/test"),
+                "iamRolePresenceValid",
+                IAM_ROLE_MESSAGE,
+                AssertTrue.class);
+    }
+
+    @Test
+    public void testDefaultAuthTypeAllowsStsOverridesForMappedRoles()
+    {
+        // s3.external-id and s3.sts.* support security-mapping roles in the DEFAULT branch.
+        assertValidates(
+                new S3FileSystemConfig()
+                        .setAuthType(S3AuthType.DEFAULT)
+                        .setExternalId("external-id")
+                        .setStsEndpoint("sts.example.com")
+                        .setStsRegion("us-west-2"));
     }
 
     @Test

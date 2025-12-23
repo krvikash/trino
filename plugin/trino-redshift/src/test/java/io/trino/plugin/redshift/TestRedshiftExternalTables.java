@@ -74,6 +74,7 @@ public class TestRedshiftExternalTables
                 .put("s3.aws-access-key", AWS_ACCESS_KEY)
                 .put("s3.aws-secret-key", AWS_SECRET_KEY)
                 .put("s3.sts.region", AWS_REGION)
+                .put("s3.auth-type", "IAM_ROLE")
                 .put("s3.iam-role", IAM_ROLE)
                 // Redshift Spectrum does not support DELTA_LENGTH_BYTE_ARRAY encoding
                 .put("parquet.writer.delta-length-byte-array-encoding-enabled", "false")
@@ -94,6 +95,7 @@ public class TestRedshiftExternalTables
                 .put("s3.aws-access-key", AWS_ACCESS_KEY)
                 .put("s3.aws-secret-key", AWS_SECRET_KEY)
                 .put("s3.sts.region", AWS_REGION)
+                .put("s3.auth-type", "IAM_ROLE")
                 .put("s3.iam-role", IAM_ROLE)
                 // Redshift Spectrum does not support DELTA_LENGTH_BYTE_ARRAY encoding
                 .put("parquet.writer.delta-length-byte-array-encoding-enabled", "false")
