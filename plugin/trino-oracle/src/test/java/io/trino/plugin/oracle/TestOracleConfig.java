@@ -44,7 +44,9 @@ public class TestOracleConfig
                 .setConnectionPoolMaxSize(30)
                 .setInactiveConnectionTimeout(new Duration(20, MINUTES))
                 .setFetchSize(null)
-                .setAllowUnsafeTimestampRead(false));
+                .setAllowUnsafeTimestampRead(false)
+                .setConnectionPoolWaitDuration(new Duration(3, SECONDS))
+                .setFetchSize(null));
     }
 
     @Test
@@ -59,6 +61,7 @@ public class TestOracleConfig
                 .put("oracle.connection-pool.min-size", "10")
                 .put("oracle.connection-pool.max-size", "20")
                 .put("oracle.connection-pool.inactive-timeout", "30s")
+                .put("oracle.connection-pool.wait-duration", "10s")
                 .put("oracle.fetch-size", "2000")
                 .put("oracle.allow-unsafe-timestamp-read", "true")
                 .buildOrThrow();
@@ -73,7 +76,9 @@ public class TestOracleConfig
                 .setConnectionPoolMaxSize(20)
                 .setInactiveConnectionTimeout(new Duration(30, SECONDS))
                 .setFetchSize(2000)
-                .setAllowUnsafeTimestampRead(true);
+                .setAllowUnsafeTimestampRead(true)
+                .setConnectionPoolWaitDuration(new Duration(10, SECONDS))
+                .setFetchSize(2000);
 
         assertFullMapping(properties, expected);
     }
