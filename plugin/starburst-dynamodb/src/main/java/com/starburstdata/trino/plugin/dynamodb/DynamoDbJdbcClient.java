@@ -70,6 +70,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -179,7 +180,7 @@ public class DynamoDbJdbcClient
     }
 
     @Override
-    public JdbcOutputTableHandle beginCreateTable(ConnectorSession session, ConnectorTableMetadata tableMetadata)
+    public JdbcOutputTableHandle beginCreateTable(ConnectorSession session, ConnectorTableMetadata tableMetadata, Consumer<Runnable> rollbackActionConsumer)
     {
         if (!enableWrites) {
             throw new TrinoException(NOT_SUPPORTED, "This connector does not support creating tables with data");
@@ -187,7 +188,9 @@ public class DynamoDbJdbcClient
 
         try {
             // DynamoDB does not support temporary table names
-            return this.createTable(session, tableMetadata, tableMetadata.getTable().getTableName());
+            JdbcOutputTableHandle destinationTableHandle = createTable(session, tableMetadata, tableMetadata.getTable().getTableName());
+            rollbackActionConsumer.accept(() -> rollbackCreateDestinationTable(session, destinationTableHandle.getRemoteTableName()));
+            return destinationTableHandle;
         }
         catch (SQLException e) {
             throw new TrinoException(JDBC_ERROR, e);

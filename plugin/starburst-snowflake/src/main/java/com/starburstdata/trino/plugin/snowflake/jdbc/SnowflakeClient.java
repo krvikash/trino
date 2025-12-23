@@ -116,6 +116,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Throwables.getRootCause;
@@ -853,10 +854,10 @@ public class SnowflakeClient
     }
 
     @Override
-    public JdbcOutputTableHandle beginCreateTable(ConnectorSession session, ConnectorTableMetadata tableMetadata)
+    public JdbcOutputTableHandle beginCreateTable(ConnectorSession session, ConnectorTableMetadata tableMetadata, Consumer<Runnable> rollbackActionConsumer)
     {
         checkColumnsForInvalidCharacters(tableMetadata.getColumns());
-        return super.beginCreateTable(session, tableMetadata);
+        return super.beginCreateTable(session, tableMetadata, rollbackActionConsumer);
     }
 
     @Override

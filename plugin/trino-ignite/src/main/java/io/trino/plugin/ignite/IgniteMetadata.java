@@ -221,7 +221,7 @@ public class IgniteMetadata
         if (saveMode == REPLACE) {
             throw new TrinoException(NOT_SUPPORTED, "This connector does not support replacing tables");
         }
-        igniteClient.beginCreateTable(session, tableMetadata);
+        igniteClient.beginCreateTable(session, tableMetadata, _ -> {});
     }
 
     @Override
@@ -233,7 +233,7 @@ public class IgniteMetadata
         if (replace) {
             throw new TrinoException(NOT_SUPPORTED, "This connector does not support replacing tables");
         }
-        return igniteClient.beginCreateTable(session, tableMetadata);
+        return igniteClient.beginCreateTable(session, tableMetadata, rollbackActions::add);
     }
 
     @Override

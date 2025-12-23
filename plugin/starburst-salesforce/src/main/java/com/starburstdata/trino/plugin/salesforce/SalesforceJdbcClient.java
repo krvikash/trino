@@ -51,6 +51,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.function.Consumer;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
@@ -145,7 +146,7 @@ public class SalesforceJdbcClient
     }
 
     @Override
-    public JdbcOutputTableHandle beginCreateTable(ConnectorSession session, ConnectorTableMetadata tableMetadata)
+    public JdbcOutputTableHandle beginCreateTable(ConnectorSession session, ConnectorTableMetadata tableMetadata, Consumer<Runnable> rollbackActionConsumer)
     {
         if (!enableWrites) {
             throw new TrinoException(NOT_SUPPORTED, "This connector does not support creating tables with data");
@@ -153,7 +154,9 @@ public class SalesforceJdbcClient
 
         try {
             // Salesforce does not support ALTER TABLE so we cannot use a temporary table then alter it
-            return createTable(session, tableMetadata, tableMetadata.getTable().getTableName());
+            JdbcOutputTableHandle destinationTableHandle = createTable(session, tableMetadata, tableMetadata.getTable().getTableName());
+            rollbackActionConsumer.accept(() -> rollbackCreateDestinationTable(session, destinationTableHandle.getRemoteTableName()));
+            return destinationTableHandle;
         }
         catch (SQLException e) {
             throw new TrinoException(JDBC_ERROR, e);
