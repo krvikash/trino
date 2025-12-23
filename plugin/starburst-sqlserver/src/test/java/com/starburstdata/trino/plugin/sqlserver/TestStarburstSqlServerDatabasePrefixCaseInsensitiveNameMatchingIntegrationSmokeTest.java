@@ -23,9 +23,14 @@ public class TestStarburstSqlServerDatabasePrefixCaseInsensitiveNameMatchingInte
             throws Exception
     {
         sqlServer = closeAfterClass(new TestingSqlServer());
+        this.sqlServer.execute("CREATE LOGIN %s WITH PASSWORD = '%s'".formatted(ANOTHER_USER, ANOTHER_PASSWORD));
+        this.sqlServer.execute("CREATE USER %1$s FROM LOGIN %1$s".formatted(ANOTHER_USER));
+        this.sqlServer.execute("GRANT CONTROL ON DATABASE::%s TO %s".formatted(sqlServer.getDatabaseName(), ANOTHER_USER));
         sqlServerDatabaseName = sqlServer.getDatabaseName().toLowerCase(ENGLISH);
         return StarburstSqlServerQueryRunner.builder(sqlServer)
                 .withConnectorProperties(ImmutableMap.of(
+                        "connection-user", ANOTHER_USER,
+                        "connection-password", ANOTHER_PASSWORD,
                         "sqlserver.database-prefix-for-schema.enabled", "true",
                         "case-insensitive-name-matching", "true"))
                 .build();

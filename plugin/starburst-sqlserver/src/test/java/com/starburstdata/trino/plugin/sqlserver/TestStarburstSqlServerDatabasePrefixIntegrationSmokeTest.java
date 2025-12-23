@@ -36,8 +36,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TestStarburstSqlServerDatabasePrefixIntegrationSmokeTest
         extends AbstractTestQueryFramework
 {
-    private static final String ANOTHER_USER = "another_user";
-    private static final String ANOTHER_PASSWORD = "AnotherPassword@1234";
+    static final String ANOTHER_USER = "another_user";
+    static final String ANOTHER_PASSWORD = "AnotherPassword@1234";
 
     protected TestingSqlServer sqlServer;
     protected String sqlServerDatabaseName;
@@ -152,6 +152,24 @@ public class TestStarburstSqlServerDatabasePrefixIntegrationSmokeTest
         assertQuery(
                 format("SELECT schema_name FROM information_schema.schemata WHERE schema_name = '%s'", availableSchema),
                 format("VALUES '%s'", availableSchema));
+    }
+
+    @Test
+    public void testSchemaInSeparateDatabase()
+    {
+        String databaseName = "test_db_" + randomNameSuffix();
+        sqlServer.execute("CREATE DATABASE " + databaseName);
+        sqlServer.execute(databaseName, "CREATE USER %1$s FROM LOGIN %1$s".formatted(ANOTHER_USER));
+        sqlServer.execute(databaseName, "GRANT CONTROL ON DATABASE::%s TO %s".formatted(databaseName, ANOTHER_USER));
+        sqlServer.execute(databaseName, "CREATE SCHEMA test_schema");
+        // Enable snapshot isolation by default to reduce flakiness on CI
+        sqlServer.execute("ALTER DATABASE " + databaseName + " SET ALLOW_SNAPSHOT_ISOLATION ON");
+        sqlServer.execute("ALTER DATABASE " + databaseName + " SET READ_COMMITTED_SNAPSHOT ON");
+
+        assertThat(computeActual("SHOW SCHEMAS").getOnlyColumnAsSet())
+                .contains(databaseName + ".test_schema");
+
+        sqlServer.execute("DROP DATABASE " + databaseName);
     }
 
     @Test

@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.sqlserver;
 
+import com.microsoft.sqlserver.jdbc.SQLServerDriver;
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
 import dev.failsafe.Timeout;
@@ -30,6 +31,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.Properties;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 
@@ -172,6 +174,24 @@ public final class TestingSqlServer
     public void execute(String sql)
     {
         sqlExecutorForContainer(container).execute(sql);
+    }
+
+    public void execute(String databaseName, String sql)
+    {
+        Properties properties = new Properties();
+        properties.put("user", getUsername());
+        properties.put("password", getPassword());
+
+        // Replacing a connection URL because Testcontainers JdbcDatabaseContainer.createConnection method ignores the provided properties
+        // https://github.com/testcontainers/testcontainers-java/pull/11371
+        String jdbcUrl = container.getJdbcUrl().replace(this.databaseName, databaseName);
+        try (Connection connection = new SQLServerDriver().connect(jdbcUrl, properties);
+                Statement statement = connection.createStatement()) {
+            statement.execute(sql);
+        }
+        catch (Exception e) {
+            throw new RuntimeException("Failed to execute statement: " + sql, e);
+        }
     }
 
     private static SqlExecutor sqlExecutorForContainer(MSSQLServerContainer container)

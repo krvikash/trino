@@ -77,13 +77,14 @@ public class StarburstSqlServerMultiDatabaseClient
         Collection<String> catalogNames = listCatalogs(connection);
         ImmutableSet.Builder<String> schemaNames = ImmutableSet.builder();
         for (String catalogName : catalogNames) {
+            String catalogId = escapeSQLId(catalogName);
             // Avoid using DatabaseMetaData.getSchemas method because
             // https://github.com/microsoft/mssql-jdbc/commit/351c2bec2ed88249cf9d68804224b717015d1625 introduced a filtering
             // of internal (predefined) schemas.
-            try (PreparedStatement statement = connection.prepareStatement("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA");
+            try (PreparedStatement statement = connection.prepareStatement("SELECT name FROM " + catalogId + ".sys.schemas");
                     ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
-                    String schemaName = resultSet.getString("SCHEMA_NAME");
+                    String schemaName = resultSet.getString("name");
                     // skip internal schemas
                     if (filterSchema(schemaName)) {
                         schemaNames.add(format("%s%s%s", catalogName, DATABASE_SEPARATOR, schemaName));
@@ -95,6 +96,37 @@ public class StarburstSqlServerMultiDatabaseClient
             }
         }
         return schemaNames.build();
+    }
+
+    /**
+     * Copy of com.microsoft.sqlserver.jdbc.Util.escapeSQLId
+     */
+    private static String escapeSQLId(String inID)
+    {
+        // SQL bracket escaping rules.
+        // Given <identifier> yields -> [<identifier>]
+        // Where <identifier> is first escaped to replace all
+        // instances of "]" with "]]".
+        // For example, column name "abc" -> "[abc]"
+        // For example, column name "]" -> "[]]]"
+        // For example, column name "]ab]cd" -> "[]]ab]]cd]"
+        char ch;
+
+        // Add 2 extra chars for open and closing brackets.
+        StringBuilder outID = new StringBuilder(inID.length() + 2);
+
+        outID.append('[');
+        for (int i = 0; i < inID.length(); i++) {
+            ch = inID.charAt(i);
+            if (']' == ch) {
+                outID.append("]]");
+            }
+            else {
+                outID.append(ch);
+            }
+        }
+        outID.append(']');
+        return outID.toString();
     }
 
     private Collection<String> listCatalogs(Connection connection)
