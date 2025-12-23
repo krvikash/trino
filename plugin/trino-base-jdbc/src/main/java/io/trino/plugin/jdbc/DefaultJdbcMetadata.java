@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableSet;
 import io.airlift.slice.Slice;
 import io.trino.plugin.base.filter.UtcConstraintExtractor;
 import io.trino.plugin.base.filter.UtcConstraintExtractor.ExtractionResult;
+import io.trino.plugin.base.util.ConnectorExpressionUtil;
 import io.trino.plugin.base.util.ConnectorExpressionUtil.ExpressionAndAssignments;
 import io.trino.plugin.jdbc.JdbcProcedureHandle.ProcedureQuery;
 import io.trino.plugin.jdbc.PredicatePushdownController.DomainPushdownResult;
@@ -64,6 +65,7 @@ import io.trino.spi.connector.TableFunctionApplicationResult;
 import io.trino.spi.connector.TableNotFoundException;
 import io.trino.spi.connector.TableScanRedirectApplicationResult;
 import io.trino.spi.connector.TopNApplicationResult;
+import io.trino.spi.connector.UnificationResult;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.expression.Constant;
 import io.trino.spi.expression.Variable;
@@ -83,15 +85,19 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.google.common.base.Functions.identity;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -105,6 +111,7 @@ import static com.google.common.collect.Streams.stream;
 import static io.trino.plugin.base.expression.ConnectorExpressions.and;
 import static io.trino.plugin.base.expression.ConnectorExpressions.extractConjuncts;
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.replaceWithNewVariables;
+import static io.trino.plugin.base.util.ConnectorExpressionUtil.or;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_NON_TRANSIENT_ERROR;
 import static io.trino.plugin.jdbc.JdbcMetadata.getColumns;
@@ -120,8 +127,13 @@ import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.connector.RetryMode.NO_RETRIES;
 import static io.trino.spi.connector.RowChangeParadigm.CHANGE_ONLY_UPDATED_COLUMNS;
 import static io.trino.spi.connector.SaveMode.REPLACE;
+import static io.trino.spi.expression.Constant.TRUE;
+import static io.trino.spi.predicate.TupleDomain.columnWiseUnion;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static java.lang.Math.max;
+import static java.lang.String.format;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.emptySet;
 import static java.util.Objects.requireNonNull;
 
 public class DefaultJdbcMetadata
@@ -227,7 +239,7 @@ public class DefaultJdbcMetadata
             newConstraintExpressions = ImmutableList.of();
             constraintOriginalExpressions = ImmutableList.of();
             remainingFilter = TupleDomain.all();
-            remainingExpression = Constant.TRUE;
+            remainingExpression = TRUE;
         }
         else {
             Map<ColumnHandle, Domain> domains = newDomain.getDomains().orElseThrow();
@@ -300,6 +312,163 @@ public class DefaultJdbcMetadata
                 handle.getUpdateAssignments());
 
         return Optional.of(new ConstraintApplicationResult<>(handle, remainingFilter, remainingExpression, precalculateStatisticsForPushdown));
+    }
+
+    @Override
+    public Optional<UnificationResult<ConnectorTableHandle>> unifyTables(
+            ConnectorSession session,
+            ConnectorTableHandle first,
+            ConnectorTableHandle second)
+    {
+        JdbcTableHandle firstTable = (JdbcTableHandle) first;
+        JdbcTableHandle secondTable = (JdbcTableHandle) second;
+
+        if (!similar(firstTable, secondTable)) {
+            return Optional.empty();
+        }
+        if (jdbcClient.supportsLimit() && jdbcClient.isLimitGuaranteed(session) && !firstTable.getLimit().equals(secondTable.getLimit())) {
+            // Limit is not compensated by the engine
+            return Optional.empty();
+        }
+
+        JdbcTableHandle unified = new JdbcTableHandle(
+                firstTable.getRelationHandle(),
+                TupleDomain.all(),
+                ImmutableList.of(),
+                ImmutableList.of(),
+                firstTable.getSortOrder(),
+                OptionalLong.empty(),
+                Optional.of(Stream.concat(
+                                getColumns(session, jdbcClient, firstTable).stream(),
+                                getColumns(session, jdbcClient, secondTable).stream())
+                        .distinct()
+                        .toList()),
+                firstTable.getAllReferencedTables(),
+                firstTable.getNextSyntheticColumnId(),
+                firstTable.getAuthorization(),
+                firstTable.getUpdateAssignments());
+
+        // union and push enforced predicates from the first and second table handles
+        // it doesn't matter if the unioned TupleDomain is abundant or if pushdown is incomplete
+        // the original enforced predicates for both tables will be returned to the caller to re-apply
+        TupleDomain<ColumnHandle> unionedConstraint = columnWiseUnion(firstTable.getConstraint(), secondTable.getConstraint());
+
+        ExpressionAndAssignments firstExpression = ConnectorExpressionUtil.and(firstTable.getConstraintOriginalExpressions());
+        ExpressionAndAssignments secondExpression = ConnectorExpressionUtil.and(secondTable.getConstraintOriginalExpressions());
+        ExpressionAndAssignments unionExpression = or(firstExpression, secondExpression);
+        Optional<ConstraintApplicationResult<ConnectorTableHandle>> constraintResult = applyFilter(
+                session,
+                unified,
+                new Constraint(unionedConstraint,
+                        unionExpression.expression(),
+                        unionExpression.assignments(),
+                        unionedConstraint.asPredicate(),
+                        unionedConstraint.getDomains().map(Map::keySet).orElse(ImmutableSet.of())));
+        if (constraintResult.isPresent()) {
+            unified = (JdbcTableHandle) constraintResult.get().getHandle();
+        }
+
+        Compensation firstCompensation = getCompensation(firstTable.getConstraint(), firstExpression, unified);
+        Compensation secondCompensation = getCompensation(secondTable.getConstraint(), secondExpression, unified);
+
+        // push the limit (equal on both table handles)
+        // we can do this only if we're not extracting and returning to the engine any compensating filters for the unified table handles
+        // the compensating filters are applied later by the engine, which would mean that we pulled filter above limit
+        if (firstCompensation.isAll() && secondCompensation.isAll() && firstTable.getLimit().isPresent()) {
+            Optional<LimitApplicationResult<ConnectorTableHandle>> limitResult = applyLimit(
+                    session,
+                    unified,
+                    firstTable.getLimit().getAsLong());
+            if (limitResult.isPresent()) {
+                unified = (JdbcTableHandle) limitResult.get().getHandle();
+            }
+        }
+        if (jdbcClient.supportsLimit() && jdbcClient.isLimitGuaranteed(session) && !unified.getLimit().equals(firstTable.getLimit())) {
+            // Limit is not compensated by the engine
+            return Optional.empty();
+        }
+
+        // expose all columns necessary to support the compensation filters
+        if (!firstCompensation.getColumns().isEmpty() || !secondCompensation.getColumns().isEmpty()) {
+            List<JdbcColumnHandle> columns = Stream.of(
+                            firstCompensation.getColumns(),
+                            secondCompensation.getColumns(),
+                            unified.getColumns().orElse(emptyList()))
+                    .flatMap(Collection::stream)
+                    .distinct()
+                    .toList();
+            unified = unified.withColumns(columns);
+        }
+
+        ExpressionAndAssignments expressionAndAssignments = ConnectorExpressionUtil.and(unified.getConstraintOriginalExpressions());
+        return Optional.of(new UnificationResult<>(
+                unified,
+                firstCompensation.tupleDomain(),
+                firstCompensation.expression(),
+                firstCompensation.assignments(),
+                secondCompensation.tupleDomain(),
+                secondCompensation.expression(),
+                secondCompensation.assignments(),
+                new UnificationResult.Properties(
+                        unified.getConstraint(),
+                        expressionAndAssignments.expression(),
+                        createAssignments(expressionAndAssignments.assignments()),
+                        unified.getLimit())));
+    }
+
+    /**
+     * Check if tables can be unified. For unification, all properties compared in equals() must match,
+     * except for: constraint, constraintExpressions, limit and columns.
+     */
+    private boolean similar(JdbcTableHandle first, JdbcTableHandle second)
+    {
+        return Objects.equals(first.getRelationHandle(), second.getRelationHandle()) &&
+                Objects.equals(first.getSortOrder(), second.getSortOrder()) &&
+                Objects.equals(first.getAllReferencedTables(), second.getAllReferencedTables()) &&
+                first.getNextSyntheticColumnId() == second.getNextSyntheticColumnId() &&
+                Objects.equals(first.getAuthorization(), second.getAuthorization()) &&
+                Objects.equals(first.getUpdateAssignments(), second.getUpdateAssignments());
+    }
+
+    private static Compensation getCompensation(TupleDomain<ColumnHandle> tupleDomain, ExpressionAndAssignments expressionAndAssignments, JdbcTableHandle unified)
+    {
+        return new Compensation(
+                tupleDomain.contains(unified.getConstraint()) ? TupleDomain.all() : tupleDomain,
+                expressionAndAssignments.expression(),
+                createAssignments(expressionAndAssignments.assignments()));
+    }
+
+    private record Compensation(TupleDomain<ColumnHandle> tupleDomain, ConnectorExpression expression, Map<String, Assignment> assignments)
+    {
+        private List<JdbcColumnHandle> getColumns()
+        {
+            return Stream.concat(
+                            tupleDomain.getDomains()
+                                    .map(Map::keySet)
+                                    .orElse(emptySet())
+                                    .stream(),
+                            assignments.values()
+                                    .stream()
+                                    .map(Assignment::getColumn))
+                    .map(JdbcColumnHandle.class::cast)
+                    .distinct()
+                    .toList();
+        }
+
+        private boolean isAll()
+        {
+            return tupleDomain.isAll() && TRUE.equals(expression);
+        }
+    }
+
+    private static Map<String, Assignment> createAssignments(Map<String, ColumnHandle> assignmentMapping)
+    {
+        return assignmentMapping.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Entry::getKey,
+                        entry -> new Assignment(entry.getKey(), entry.getValue(), ((JdbcColumnHandle) entry.getValue()).getColumnType()),
+                        (k, v) -> { throw new IllegalStateException(format("Duplicate values for a key: %s and %s", k, v)); },
+                        LinkedHashMap::new));
     }
 
     private JdbcTableHandle flushAttributesAsQuery(ConnectorSession session, JdbcTableHandle handle)

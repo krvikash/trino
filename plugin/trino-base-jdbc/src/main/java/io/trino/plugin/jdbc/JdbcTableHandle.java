@@ -202,6 +202,22 @@ public final class JdbcTableHandle
                         .collect(toImmutableList()));
     }
 
+    public JdbcTableHandle withColumns(List<JdbcColumnHandle> columns)
+    {
+        return new JdbcTableHandle(
+                relationHandle,
+                constraint,
+                constraintExpressions,
+                constraintOriginalExpressions,
+                sortOrder,
+                limit,
+                Optional.of(columns),
+                otherReferencedTables,
+                nextSyntheticColumnId,
+                authorization,
+                updateAssignments);
+    }
+
     public JdbcNamedRelationHandle asPlainTable()
     {
         checkState(!isSynthetic(), "The table handle does not represent a plain table: %s", this);

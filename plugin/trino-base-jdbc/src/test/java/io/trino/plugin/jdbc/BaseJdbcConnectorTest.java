@@ -148,7 +148,8 @@ public abstract class BaseJdbcConnectorTest
     protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
     {
         return switch (connectorBehavior) {
-            case SUPPORTS_UPDATE -> true;
+            case SUPPORTS_CTE_REUSE,
+                 SUPPORTS_UPDATE -> true;
             case SUPPORTS_ADD_COLUMN_WITH_POSITION,
                  SUPPORTS_CREATE_MATERIALIZED_VIEW,
                  SUPPORTS_CREATE_VIEW,
