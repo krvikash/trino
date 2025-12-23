@@ -58,7 +58,11 @@ public class GcsCloudStorageModule
         GcsFileSystemConfig config = configFactory.build(GcsFileSystemConfig.class);
         switch (config.getAuthType()) {
             case ACCESS_TOKEN -> binder.bind(GcsAuth.class).to(GcsAccessTokenAuth.class).in(Scopes.SINGLETON);
-            case SERVICE_ACCOUNT -> binder.install(new GcsServiceAccountModule());
+            case SERVICE_ACCOUNT -> {
+                GcsServiceAccountModule serviceAccountModule = new GcsServiceAccountModule();
+                serviceAccountModule.setConfigurationFactory(configFactory);
+                binder.install(serviceAccountModule);
+            }
             case APPLICATION_DEFAULT -> binder.bind(GcsAuth.class).to(ApplicationDefaultAuth.class).in(Scopes.SINGLETON);
         }
 
