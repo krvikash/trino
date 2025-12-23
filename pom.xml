@@ -356,6 +356,14 @@
             </dependency>
 
             <dependency>
+                <!-- Clickhouse client will by default use LZ4 compression, which requires this dependency -->
+                <!-- https://github.com/ClickHouse/clickhouse-docs/pull/2408/files -->
+                <groupId>at.yawk.lz4</groupId>
+                <artifactId>lz4-java</artifactId>
+                <version>1.8.1</version>
+            </dependency>
+
+            <dependency>
                 <groupId>com.adobe.testing</groupId>
                 <artifactId>s3mock-testcontainers</artifactId>
                 <version>4.9.1</version>
@@ -2579,14 +2587,6 @@
                         <artifactId>junit</artifactId>
                     </exclusion>
                 </exclusions>
-            </dependency>
-
-            <dependency>
-                <!-- Clickhouse client will by default use LZ4 compression, which requires this dependency -->
-                <!-- https://github.com/ClickHouse/clickhouse-docs/pull/2408/files -->
-                <groupId>org.lz4</groupId>
-                <artifactId>lz4-java</artifactId>
-                <version>1.8.1</version>
             </dependency>
 
             <dependency>
