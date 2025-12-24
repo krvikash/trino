@@ -31,6 +31,7 @@ import io.trino.spi.type.MapType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
+import io.trino.spi.variant.Variant;
 import io.trino.type.BlockTypeOperators.BlockPositionEqual;
 import io.trino.type.BlockTypeOperators.BlockPositionHashCode;
 import io.trino.type.BlockTypeOperators.BlockPositionIsIdentical;
@@ -718,6 +719,9 @@ public abstract class AbstractTestType
         }
         if (type.getJavaType() == LongTimestampWithTimeZone.class) {
             return LongTimestampWithTimeZone.fromEpochSecondsAndFraction(1, 0, UTC_KEY);
+        }
+        if (type.getJavaType() == Variant.class) {
+            return Variant.ofString(Slices.utf8Slice("_"));
         }
         switch (type) {
             case ArrayType arrayType -> {

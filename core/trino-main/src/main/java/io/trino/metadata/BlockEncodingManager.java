@@ -35,6 +35,7 @@ import io.trino.spi.block.RowBlockEncoding;
 import io.trino.spi.block.RunLengthBlockEncoding;
 import io.trino.spi.block.ShortArrayBlockEncoding;
 import io.trino.spi.block.VariableWidthBlockEncoding;
+import io.trino.spi.block.VariantBlockEncoding;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -59,6 +60,7 @@ public final class BlockEncodingManager
         addBlockEncoding(new ShortArrayBlockEncoding(simdSupport.vectorizeNullBitPacking(), simdSupport.compressShort(), simdSupport.expandShort()));
         addBlockEncoding(new Fixed12BlockEncoding(simdSupport.vectorizeNullBitPacking()));
         addBlockEncoding(new Int128ArrayBlockEncoding(simdSupport.vectorizeNullBitPacking()));
+        addBlockEncoding(new VariantBlockEncoding(simdSupport.vectorizeNullBitPacking()));
         addBlockEncoding(new ArrayBlockEncoding(simdSupport.vectorizeNullBitPacking()));
         addBlockEncoding(new MapBlockEncoding(simdSupport.vectorizeNullBitPacking()));
         addBlockEncoding(new RowBlockEncoding(simdSupport.vectorizeNullBitPacking()));
