@@ -40,7 +40,7 @@ public class TableChangesFunctionProcessorProviderFactory
     @Override
     public TableFunctionProcessorProvider createTableFunctionProcessorProvider()
     {
-        IcebergPageSourceProvider pageSourceProvider = (IcebergPageSourceProvider) icebergPageSourceProviderFactory.createPageSourceProvider();
+        IcebergPageSourceProvider pageSourceProvider = icebergPageSourceProviderFactory.createPageSourceProvider();
         return new TableChangesFunctionProcessorProvider(pageSourceProvider);
     }
 

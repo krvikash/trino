@@ -16,11 +16,8 @@ package io.trino.plugin.iceberg.delete;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.slice.Slice;
-import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
-import io.trino.filesystem.TrinoInput;
 import io.trino.plugin.iceberg.IcebergColumnHandle;
-import io.trino.plugin.iceberg.delete.DeleteManager.DeletePageSourceProvider;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.SourcePage;
@@ -30,13 +27,13 @@ import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.predicate.ValueSet;
 import io.trino.spi.type.TypeManager;
-import org.apache.iceberg.FileFormat;
-import org.roaringbitmap.longlong.Roaring64Bitmap;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BiConsumer;
+import java.util.function.LongConsumer;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
@@ -84,24 +81,9 @@ public final class PositionDeleteReader
                 if (deleteFile.computedDeletionRowPositions().isPresent()) {
                     deleteFile.computedDeletionRowPositions().get().forEach(deletionVector::add);
                 }
-                else if (deleteFile.format() == FileFormat.PUFFIN) {
-                    try (TrinoInput input = fileSystem.newInputFile(Location.of(deleteFile.path()), deleteFile.fileSizeInBytes()).newInput()) {
-                        Roaring64Bitmap bitmap = new Roaring64Bitmap();
-                        DeletionVectors.readDeletionVector(
-                                input,
-                                deleteFile.recordCount(),
-                                deleteFile.contentOffset(),
-                                deleteFile.contentSizeInBytes(),
-                                bitmap);
-                        bitmap.forEach(deletionVector::add);
-                    }
-                    catch (IOException e) {
-                        throw new UncheckedIOException(e);
-                    }
-                }
                 else {
                     try (ConnectorPageSource pageSource = deletePageSourceProvider.openDeletes(deleteFile, deleteColumns, deleteDomain)) {
-                        readPositionDeletes(pageSource, targetPath, deletionVector);
+                        readMultiFilePositionDeletes(pageSource, targetPath, deletionVector::add);
                     }
                     catch (IOException e) {
                         throw new UncheckedIOException(e);
@@ -125,7 +107,23 @@ public final class PositionDeleteReader
                 (positionUpperBound.isEmpty() || positionUpperBound.get() >= startRowPosition.get());
     }
 
-    private static void readPositionDeletes(ConnectorPageSource pageSource, Slice targetPath, DeletionVector.Builder deletionVector)
+    public static void readSingleFilePositionDeletes(ConnectorPageSource pageSource, LongConsumer filePositionConsumer)
+    {
+        while (!pageSource.isFinished()) {
+            SourcePage page = pageSource.getNextSourcePage();
+            if (page == null) {
+                continue;
+            }
+
+            Block block = page.getBlock(0);
+
+            for (int position = 0; position < page.getPositionCount(); position++) {
+                filePositionConsumer.accept(BIGINT.getLong(block, position));
+            }
+        }
+    }
+
+    private static void readMultiFilePositionDeletes(ConnectorPageSource pageSource, Slice targetPath, LongConsumer filePositionConsumer)
     {
         // Use a linear search since we expect most deletion files to only contain
         // entries for a single path. The comparison cost is minimal if the
@@ -140,14 +138,43 @@ public final class PositionDeleteReader
             Block pathBlock = page.getBlock(0);
             Block block = page.getBlock(1);
 
+            // TODO: add specialized code for RLE and dictionary blocks
             for (int position = 0; position < page.getPositionCount(); position++) {
                 int result = comparator.compare(pathBlock, position);
                 if (result > 0) {
+                    // deletion files are sorted by path, so we're done
                     return;
                 }
                 if (result == 0) {
-                    deletionVector.add(BIGINT.getLong(block, position));
+                    filePositionConsumer.accept(BIGINT.getLong(block, position));
                 }
+            }
+        }
+    }
+
+    public static void readMultiFilePositionDeletes(ConnectorPageSource pageSource, BiConsumer<String, Long> filePositionConsumer)
+    {
+        while (!pageSource.isFinished()) {
+            SourcePage page = pageSource.getNextSourcePage();
+            if (page == null) {
+                continue;
+            }
+
+            Block pathBlock = page.getBlock(0);
+            Block posBlock = page.getBlock(1);
+
+            Slice lastPath = null;
+            String pathString = null;
+            for (int position = 0; position < page.getPositionCount(); position++) {
+                Slice path = VARCHAR.getSlice(pathBlock, position);
+                // We expect that paths are dictionary or RLE encoded, and thus getSlice()
+                // will return the same object for each delete position for a data file,
+                // so this caches the conversion to string.
+                if (lastPath != path) {
+                    lastPath = path;
+                    pathString = path.toStringUtf8();
+                }
+                filePositionConsumer.accept(pathString, BIGINT.getLong(posBlock, position));
             }
         }
     }
@@ -168,6 +195,11 @@ public final class PositionDeleteReader
         {
             checkArgument(!block.isNull(position), "position is null");
             Slice next = VARCHAR.getSlice(block, position);
+            return compare(next);
+        }
+
+        public int compare(Slice next)
+        {
             // The expected case is a dictionary block with many entries for the
             // same path. Only perform a comparison if the object has changed.
             if (value != next) {

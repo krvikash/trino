@@ -23,6 +23,7 @@ import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.RawHiveMetastoreFactory;
 import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.iceberg.catalog.TrinoCatalogFactory;
+import io.trino.plugin.iceberg.delete.DeletionVectorWriter;
 import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.TypeManager;
@@ -59,6 +60,7 @@ public class IcebergMetadataFactory
     private final ExecutorService icebergFileDeleteExecutor;
     private final int materializedViewRefreshMaxSnapshotsToExpire;
     private final Duration materializedViewRefreshSnapshotRetentionPeriod;
+    private final DeletionVectorWriter deletionVectorWriter;
 
     @Inject
     public IcebergMetadataFactory(
@@ -71,6 +73,7 @@ public class IcebergMetadataFactory
             TableStatisticsReader tableStatisticsReader,
             TableStatisticsWriter tableStatisticsWriter,
             PartitionStatisticsWriter partitionStatisticsWriter,
+            DeletionVectorWriter deletionVectorWriter,
             @RawHiveMetastoreFactory Optional<HiveMetastoreFactory> metastoreFactory,
             @ForIcebergSplitManager ExecutorService icebergScanExecutor,
             @ForIcebergMetadata ExecutorService metadataExecutorService,
@@ -87,6 +90,7 @@ public class IcebergMetadataFactory
         this.tableStatisticsReader = requireNonNull(tableStatisticsReader, "tableStatisticsReader is null");
         this.tableStatisticsWriter = requireNonNull(tableStatisticsWriter, "tableStatisticsWriter is null");
         this.partitionStatisticsWriter = requireNonNull(partitionStatisticsWriter, "partitionStatisticsWriter is null");
+        this.deletionVectorWriter = requireNonNull(deletionVectorWriter, "deletionVectorWriter is null");
         this.metastoreFactory = requireNonNull(metastoreFactory, "metastoreFactory is null");
         this.icebergScanExecutor = requireNonNull(icebergScanExecutor, "icebergScanExecutor is null");
         this.maxFormatVersion = config.getMaxFormatVersion();
@@ -123,6 +127,7 @@ public class IcebergMetadataFactory
                 tableStatisticsReader,
                 tableStatisticsWriter,
                 partitionStatisticsWriter,
+                deletionVectorWriter,
                 metastoreFactory,
                 maxFormatVersion,
                 addFilesProcedureEnabled,

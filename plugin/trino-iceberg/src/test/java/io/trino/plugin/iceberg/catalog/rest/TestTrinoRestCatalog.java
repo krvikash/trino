@@ -53,6 +53,7 @@ import static io.trino.plugin.hive.HiveTestUtils.HDFS_FILE_SYSTEM_STATS;
 import static io.trino.plugin.iceberg.IcebergTestUtils.TABLE_STATISTICS_READER;
 import static io.trino.plugin.iceberg.catalog.rest.IcebergRestCatalogConfig.SessionType.NONE;
 import static io.trino.plugin.iceberg.catalog.rest.RestCatalogTestUtils.backendCatalog;
+import static io.trino.plugin.iceberg.delete.DeletionVectorWriter.UNSUPPORTED_DELETION_VECTOR_WRITER;
 import static io.trino.sql.planner.TestingPlannerContext.PLANNER_CONTEXT;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
@@ -149,6 +150,7 @@ public class TestTrinoRestCatalog
                     TABLE_STATISTICS_READER,
                     new TableStatisticsWriter(new NodeVersion("test-version")),
                     PARTITION_STATISTICS_WRITER,
+                    UNSUPPORTED_DELETION_VECTOR_WRITER,
                     Optional.empty(),
                     3,
                     false,

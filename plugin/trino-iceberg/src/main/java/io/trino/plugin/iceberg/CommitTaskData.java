@@ -13,14 +13,12 @@
  */
 package io.trino.plugin.iceberg;
 
-import com.google.common.collect.ImmutableList;
 import org.apache.iceberg.FileContent;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.SortOrder;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.OptionalLong;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
@@ -34,11 +32,9 @@ public record CommitTaskData(
         Optional<String> partitionDataJson,
         FileContent content,
         Optional<String> referencedDataFile,
-        List<String> deletionVectorFiles,
-        OptionalLong deletionVectorContentOffset,
-        OptionalLong deletionVectorContentSize,
         Optional<List<Long>> fileSplitOffsets,
-        int sortOrderId)
+        int sortOrderId,
+        Optional<byte[]> serializedDeletionVector)
 {
     public CommitTaskData
     {
@@ -49,10 +45,8 @@ public record CommitTaskData(
         requireNonNull(partitionDataJson, "partitionDataJson is null");
         requireNonNull(content, "content is null");
         requireNonNull(referencedDataFile, "referencedDataFile is null");
-        deletionVectorFiles = ImmutableList.copyOf(deletionVectorFiles);
         requireNonNull(fileSplitOffsets, "fileSplitOffsets is null");
-        requireNonNull(deletionVectorContentOffset, "deletionVectorContentOffset is null");
-        requireNonNull(deletionVectorContentSize, "deletionVectorContentSize is null");
         checkArgument(content == FileContent.DATA || sortOrderId == SortOrder.unsorted().orderId(), "Sorted order id can be present only for data files");
+        requireNonNull(serializedDeletionVector, "serializedDeletionVector is null");
     }
 }

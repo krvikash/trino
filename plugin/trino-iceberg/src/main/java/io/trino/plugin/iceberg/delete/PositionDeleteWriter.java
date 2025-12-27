@@ -21,27 +21,22 @@ import io.trino.plugin.iceberg.IcebergFileWriter;
 import io.trino.plugin.iceberg.IcebergFileWriterFactory;
 import io.trino.plugin.iceberg.MetricsWrapper;
 import io.trino.plugin.iceberg.PartitionData;
-import io.trino.plugin.iceberg.delete.DeleteManager.DeletePageSourceProvider;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.LongArrayBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.connector.ConnectorSession;
-import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.FileContent;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionSpecParser;
 import org.apache.iceberg.SortOrder;
-import org.apache.iceberg.io.DeleteWriteResult;
 import org.apache.iceberg.io.LocationProvider;
 import org.apache.iceberg.util.DeleteFileSet;
 
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalLong;
 
-import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.spi.predicate.Utils.nativeValueToBlock;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -85,7 +80,6 @@ public class PositionDeleteWriter
                 .map(partitionData -> locationProvider.newDataLocation(partitionSpec, partitionData, fileName))
                 .orElseGet(() -> locationProvider.newDataLocation(fileName));
         this.writer = fileWriterFactory.createPositionDeleteWriter(
-                deletePageSourceProvider,
                 fileSystem,
                 Location.of(outputPath),
                 session,
@@ -101,15 +95,6 @@ public class PositionDeleteWriter
     {
         writeDeletes(rowsToDelete);
         writer.commit();
-        OptionalLong contentOffset = OptionalLong.empty();
-        OptionalLong contentSize = OptionalLong.empty();
-        if (writer instanceof DeletionVectorWriter deletionVectorWriter) {
-            checkState(writer.fileFormat() == PUFFIN, "File format must be PUFFIN for deletion vector");
-            DeleteWriteResult result = deletionVectorWriter.result();
-            DeleteFile deleteFile = result.deleteFiles().getLast();
-            contentOffset = OptionalLong.of(deleteFile.contentOffset());
-            contentSize = OptionalLong.of(deleteFile.contentSizeInBytes());
-        }
 
         return new CommitTaskData(
                 writer.location(),
@@ -120,11 +105,9 @@ public class PositionDeleteWriter
                 partition.map(PartitionData::toJson),
                 FileContent.POSITION_DELETES,
                 Optional.of(dataFilePath),
-                writer.rewrittenDeleteFiles(),
-                contentOffset,
-                contentSize,
                 writer.getFileMetrics().splitOffsets(),
-                SortOrder.unsorted().orderId());
+                SortOrder.unsorted().orderId(),
+                Optional.empty());
     }
 
     public void abort()

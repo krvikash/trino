@@ -36,13 +36,13 @@ public record DeleteFile(
         FileFormat format,
         long recordCount,
         long fileSizeInBytes,
-        Long contentOffset,
-        Long contentSizeInBytes,
         List<Integer> equalityFieldIds,
         Optional<Long> rowPositionLowerBound,
         Optional<Long> rowPositionUpperBound,
+        Optional<Roaring64Bitmap> computedDeletionRowPositions,
         Long dataSequenceNumber,
-        Optional<Roaring64Bitmap> computedDeletionRowPositions)
+        Optional<Long> contentOffset,
+        Optional<Integer> contentSizeInBytes)
 {
     private static final long INSTANCE_SIZE = instanceSize(DeleteFile.class);
 
@@ -55,19 +55,22 @@ public record DeleteFile(
                 .map(bounds -> bounds.get(DELETE_FILE_POS.fieldId()))
                 .map(bytes -> Conversions.fromByteBuffer(DELETE_FILE_POS.type(), bytes));
 
+        Optional<Long> contentOffset = Optional.ofNullable(deleteFile.contentOffset());
+        Optional<Integer> contentSizeInBytes = Optional.ofNullable(deleteFile.contentSizeInBytes()).map(Math::toIntExact);
+
         return new DeleteFile(
                 deleteFile.content(),
                 deleteFile.location(),
                 deleteFile.format(),
                 deleteFile.recordCount(),
                 deleteFile.fileSizeInBytes(),
-                deleteFile.contentOffset(),
-                deleteFile.contentSizeInBytes(),
                 Optional.ofNullable(deleteFile.equalityFieldIds()).orElseGet(ImmutableList::of),
                 rowPositionLowerBound,
                 rowPositionUpperBound,
+                Optional.empty(),
                 deleteFile.dataSequenceNumber(),
-                Optional.empty());
+                contentOffset,
+                contentSizeInBytes);
     }
 
     public static DeleteFile fromDeletionVector(DeletionVector deletionVector)
@@ -85,13 +88,13 @@ public record DeleteFile(
                 FileFormat.PARQUET,
                 0,
                 0,
-                null,
-                null,
                 ImmutableList.of(),
                 Optional.empty(),
                 Optional.empty(),
+                Optional.of(computedDeletionRowPositions),
                 null,
-                Optional.of(computedDeletionRowPositions));
+                Optional.empty(),
+                Optional.empty());
     }
 
     public DeleteFile withDataSequenceNumber(Long dataSequenceNumber)
@@ -102,13 +105,13 @@ public record DeleteFile(
                 format,
                 recordCount,
                 fileSizeInBytes,
-                contentOffset,
-                contentSizeInBytes,
                 equalityFieldIds,
                 rowPositionLowerBound,
                 rowPositionUpperBound,
+                computedDeletionRowPositions,
                 dataSequenceNumber,
-                computedDeletionRowPositions);
+                contentOffset,
+                contentSizeInBytes);
     }
 
     public DeleteFile
@@ -119,6 +122,16 @@ public record DeleteFile(
         equalityFieldIds = ImmutableList.copyOf(requireNonNull(equalityFieldIds, "equalityFieldIds is null"));
         requireNonNull(rowPositionLowerBound, "rowPositionLowerBound is null");
         requireNonNull(rowPositionUpperBound, "rowPositionUpperBound is null");
+        requireNonNull(contentOffset, "contentOffset is null");
+        requireNonNull(contentSizeInBytes, "contentSizeInBytes is null");
+    }
+
+    public boolean isDeletionVector()
+    {
+        return content == FileContent.POSITION_DELETES
+                && format == FileFormat.PUFFIN
+                && contentOffset.isPresent()
+                && contentSizeInBytes.isPresent();
     }
 
     public long retainedSizeInBytes()
@@ -133,7 +146,11 @@ public record DeleteFile(
     public String toString()
     {
         return toStringHelper(this)
-                .addValue(path)
+                .omitEmptyValues()
+                .add("format", format)
+                .add("path", path)
+                .add("offset", contentOffset)
+                .add("size", contentSizeInBytes)
                 .add("records", recordCount)
                 .toString();
     }

@@ -1063,8 +1063,7 @@ public class TestIcebergFileOperations
                         .add(new FileOperationUtils.FileOperation(SNAPSHOT, "OutputFile.create"))
                         .addCopies(new FileOperationUtils.FileOperation(SNAPSHOT, "InputFile.newStream"), 3)
                         .addCopies(new FileOperationUtils.FileOperation(SNAPSHOT, "InputFile.length"), 3)
-                        .add(new FileOperationUtils.FileOperation(PUFFIN, "InputFile.newInput"))
-                        .add(new FileOperationUtils.FileOperation(PUFFIN, "InputFile.newStream"))
+                        .addCopies(new FileOperationUtils.FileOperation(PUFFIN, "InputFile.newInput"), 2)
                         .add(new FileOperationUtils.FileOperation(PUFFIN, "OutputFile.create"))
                         .build());
 

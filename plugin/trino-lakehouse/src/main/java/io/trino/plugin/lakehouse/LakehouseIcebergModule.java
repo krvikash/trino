@@ -45,6 +45,8 @@ import io.trino.plugin.iceberg.WorkScheduler;
 import io.trino.plugin.iceberg.catalog.file.IcebergFileMetastoreCatalogModule;
 import io.trino.plugin.iceberg.catalog.glue.IcebergGlueCatalogModule;
 import io.trino.plugin.iceberg.catalog.hms.IcebergHiveMetastoreCatalogModule;
+import io.trino.plugin.iceberg.delete.DefaultDeletionVectorWriter;
+import io.trino.plugin.iceberg.delete.DeletionVectorWriter;
 import io.trino.plugin.iceberg.fileio.ForwardingFileIoFactory;
 import org.apache.iceberg.PartitionStatisticsWriter;
 
@@ -69,6 +71,7 @@ public class LakehouseIcebergModule
         binder.bind(IcebergMaterializedViewProperties.class).in(Scopes.SINGLETON);
 
         binder.bind(IcebergTransactionManager.class).in(Scopes.SINGLETON);
+        binder.bind(DeletionVectorWriter.class).to(DefaultDeletionVectorWriter.class).in(Scopes.SINGLETON);
         binder.bind(IcebergMetadataFactory.class).in(Scopes.SINGLETON);
         binder.bind(IcebergFileWriterFactory.class).in(Scopes.SINGLETON);
         binder.bind(TableStatisticsReader.class).in(Scopes.SINGLETON);

@@ -48,7 +48,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 
 import static io.airlift.slice.Slices.wrappedBuffer;
@@ -185,11 +184,9 @@ public class CopyOnWriteIcebergMergeSink
                 Optional.of(deletion.partitionDataJson()),
                 FileContent.DATA,
                 Optional.of(dataFilePath.toString()),
-                writer.rewrittenDeleteFiles(),
-                OptionalLong.empty(),
-                OptionalLong.empty(),
                 writer.getFileMetrics().splitOffsets(),
-                SortOrder.unsorted().orderId());
+                SortOrder.unsorted().orderId(),
+                Optional.empty());
 
         return Optional.of(wrappedBuffer(jsonCodec.toJsonBytes(task)));
     }
@@ -205,11 +202,9 @@ public class CopyOnWriteIcebergMergeSink
                 partitionDataJson,
                 FileContent.DATA,
                 Optional.of(dataFilePath),
-                ImmutableList.of(),
-                OptionalLong.empty(),
-                OptionalLong.empty(),
                 Optional.empty(),
-                SortOrder.unsorted().orderId());
+                SortOrder.unsorted().orderId(),
+                Optional.empty());
     }
 
     private ConnectorPageSource createPageSource(Location path, FileDeletion deletion, PartitionSpec partitionSpec, PartitionData partitionData)
@@ -222,7 +217,7 @@ public class CopyOnWriteIcebergMergeSink
                 .map(DeleteFile::fromIceberg)
                 .map(deleteFile -> deleteFile.withDataSequenceNumber(dataSequenceNumbers.get(deleteFile.path())))
                 .forEach(deleteFiles::add);
-        IcebergPageSourceProvider icebergPageSourceProvider = (IcebergPageSourceProvider) pageSourceProviderFactory.createPageSourceProvider();
+        IcebergPageSourceProvider icebergPageSourceProvider = pageSourceProviderFactory.createPageSourceProvider();
         TrinoInputFile inputFile = fileSystem.newInputFile(path);
         long fileSize = inputFile.length();
         return icebergPageSourceProvider.createPageSource(

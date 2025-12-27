@@ -71,6 +71,7 @@ import static io.trino.plugin.hive.HiveTestUtils.HDFS_FILE_SYSTEM_FACTORY;
 import static io.trino.plugin.iceberg.ColumnIdentity.primitiveColumnIdentity;
 import static io.trino.plugin.iceberg.IcebergTestUtils.FILE_IO_FACTORY;
 import static io.trino.plugin.iceberg.IcebergTestUtils.TABLE_STATISTICS_READER;
+import static io.trino.plugin.iceberg.delete.DeletionVectorWriter.UNSUPPORTED_DELETION_VECTOR_WRITER;
 import static io.trino.spi.predicate.Domain.singleValue;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
@@ -134,6 +135,7 @@ public class TestIcebergCacheIds
                 TABLE_STATISTICS_READER,
                 new TableStatisticsWriter(new NodeVersion("test-version")),
                 PARTITION_STATISTICS_WRITER,
+                UNSUPPORTED_DELETION_VECTOR_WRITER,
                 Optional.of(metastoreFactory),
                 newDirectExecutorService(),
                 newDirectExecutorService(),

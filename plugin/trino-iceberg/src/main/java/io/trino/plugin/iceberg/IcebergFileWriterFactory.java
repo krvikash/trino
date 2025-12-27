@@ -33,8 +33,6 @@ import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.HiveCompressionCodec;
 import io.trino.plugin.hive.HiveCompressionOption;
 import io.trino.plugin.hive.orc.OrcWriterConfig;
-import io.trino.plugin.iceberg.delete.DeleteManager.DeletePageSourceProvider;
-import io.trino.plugin.iceberg.delete.DeletionVectorWriter;
 import io.trino.plugin.iceberg.fileio.ForwardingOutputFile;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.TrinoException;
@@ -45,7 +43,6 @@ import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.MetricsConfig;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
-import org.apache.iceberg.deletes.PositionDeleteIndex;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.DeleteFileSet;
 import org.weakref.jmx.Managed;
@@ -56,12 +53,10 @@ import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.plugin.hive.HiveCompressionCodecs.toCompressionCodec;
 import static io.trino.plugin.hive.HiveMetadata.TRINO_QUERY_ID_NAME;
@@ -95,7 +90,6 @@ import static io.trino.plugin.iceberg.util.PrimitiveTypeMapBuilder.makeTypeMap;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-import static org.apache.iceberg.MetadataColumns.DELETE_FILE_POS;
 import static org.apache.iceberg.TableProperties.DEFAULT_WRITE_METRICS_MODE;
 import static org.apache.iceberg.io.DeleteSchemaUtil.pathPosSchema;
 import static org.apache.iceberg.parquet.ParquetSchemaUtil.convert;
@@ -153,7 +147,6 @@ public class IcebergFileWriterFactory
     }
 
     public IcebergFileWriter createPositionDeleteWriter(
-            DeletePageSourceProvider deletePageSourceProvider,
             TrinoFileSystem fileSystem,
             Location outputPath,
             ConnectorSession session,
@@ -165,29 +158,11 @@ public class IcebergFileWriterFactory
             Map<String, DeleteFileSet> previousDeleteFiles)
     {
         return switch (fileFormat) {
-            case PUFFIN -> createDeletionVectorWriter(typeManager, nodeVersion, deletePageSourceProvider, fileSystem, outputPath, dataFilePath, partitionSpec, partition, previousDeleteFiles);
             case PARQUET -> createParquetWriter(FULL_METRICS_CONFIG, fileSystem, outputPath, POSITION_DELETE_SCHEMA, session, storageProperties);
             case ORC -> createOrcWriter(FULL_METRICS_CONFIG, fileSystem, outputPath, POSITION_DELETE_SCHEMA, session, storageProperties, DataSize.ofBytes(Integer.MAX_VALUE));
             case AVRO -> createAvroWriter(fileSystem, outputPath, POSITION_DELETE_SCHEMA, storageProperties);
-            case METADATA -> throw new IllegalArgumentException("Unexpected METADATA file format");
+            case PUFFIN, METADATA -> throw new IllegalArgumentException("Unexpected METADATA file format");
         };
-    }
-
-    private static DeletionVectorWriter createDeletionVectorWriter(
-            TypeManager typeManager,
-            NodeVersion nodeVersion,
-            DeletePageSourceProvider pageSourceProvider,
-            TrinoFileSystem fileSystem,
-            Location outputPath,
-            String dataFilePath,
-            PartitionSpec partitionSpec,
-            Optional<PartitionData> partition,
-            Map<String, DeleteFileSet> previousDeleteFiles)
-    {
-        Function<CharSequence, PositionDeleteIndex> previousDeleteLoader = DeletionVectorWriter.create(typeManager, pageSourceProvider, fileSystem, previousDeleteFiles);
-        int positionChannel = POSITION_DELETE_SCHEMA.columns().indexOf(DELETE_FILE_POS);
-        checkState(positionChannel != -1, "positionChannel not found");
-        return new DeletionVectorWriter(nodeVersion, fileSystem, outputPath, dataFilePath, partitionSpec, partition, previousDeleteLoader::apply, positionChannel);
     }
 
     private IcebergFileWriter createParquetWriter(

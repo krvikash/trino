@@ -70,7 +70,7 @@ public final class PartitionStatisticsReader
     public PartitionStatsIterator readPartitionStats(ConnectorSession session, Table table, Schema schema, InputFile inputFile)
     {
         FileFormat fileFormat = FileFormat.fromFileName(inputFile.location());
-        IcebergPageSourceProvider pageSourceProvider = (IcebergPageSourceProvider) pageSourceProviderFactory.createPageSourceProvider();
+        IcebergPageSourceProvider pageSourceProvider = pageSourceProviderFactory.createPageSourceProvider();
         // IcebergUtil.getProjectedColumns method adds partition columns. It leads to failure when reading the page
         List<IcebergColumnHandle> projectedColumns = schema.columns().stream()
                 .map(column -> getColumnHandle(column, typeManager))

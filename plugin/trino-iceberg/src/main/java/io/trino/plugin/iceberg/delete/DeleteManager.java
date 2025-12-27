@@ -18,11 +18,8 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.plugin.iceberg.IcebergColumnHandle;
-import io.trino.plugin.iceberg.IcebergPageSourceProvider.ReaderPageSourceWithRowPositions;
 import io.trino.plugin.iceberg.delete.EqualityDeleteFilter.EqualityDeleteFilterBuilder;
 import io.trino.spi.TrinoException;
-import io.trino.spi.connector.ConnectorPageSource;
-import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.TypeManager;
 import org.apache.iceberg.Schema;
 
@@ -63,26 +60,41 @@ public class DeleteManager
             List<DeleteFile> deleteFiles,
             List<IcebergColumnHandle> readColumns,
             Schema tableSchema,
-            ReaderPageSourceWithRowPositions readerPageSourceWithRowPositions,
+            Optional<Long> startRowPosition,
+            Optional<Long> endRowPosition,
+            DeletionVectorReader deletionVectorReader,
             DeletePageSourceProvider deletePageSourceProvider)
     {
         if (deleteFiles.isEmpty()) {
             return Optional.empty();
         }
 
+        Optional<DeleteFile> deletionVectorFile = Optional.empty();
         List<DeleteFile> positionDeleteFiles = new ArrayList<>();
         List<DeleteFile> equalityDeleteFiles = new ArrayList<>();
         for (DeleteFile deleteFile : deleteFiles) {
             switch (deleteFile.content()) {
-                case POSITION_DELETES -> positionDeleteFiles.add(deleteFile);
+                case POSITION_DELETES -> {
+                    if (deleteFile.isDeletionVector()) {
+                        if (deletionVectorFile.isPresent()) {
+                            throw new TrinoException(ICEBERG_BAD_DATA, "Multiple deletion vector files found for data file: " + dataFilePath);
+                        }
+                        deletionVectorFile = Optional.of(deleteFile);
+                    }
+                    else {
+                        positionDeleteFiles.add(deleteFile);
+                    }
+                }
                 case EQUALITY_DELETES -> equalityDeleteFiles.add(deleteFile);
                 case DATA -> throw new VerifyException("DATA is not delete file type");
             }
         }
 
-        Optional<Long> startRowPosition = readerPageSourceWithRowPositions.startRowPosition();
-        Optional<Long> endRowPosition = readerPageSourceWithRowPositions.endRowPosition();
-        Optional<DeletionVector> deletionVector = PositionDeleteReader.readPositionDeletes(
+        // in the copy_on_write mode, it is possible to have both position delete and deletion vector for a data file,
+        // that is we pass the computed deletion positions in the delete file and this information should be considered.
+        Optional<DeletionVector> deletionVector = deletionVectorFile
+                .map(deletionVectorReader::read);
+        Optional<DeletionVector> positionDeleteVector = PositionDeleteReader.readPositionDeletes(
                 dataFilePath,
                 positionDeleteFiles,
                 startRowPosition,
@@ -90,8 +102,11 @@ public class DeleteManager
                 deletePageSourceProvider,
                 fileSystem,
                 typeManager);
+        if (deletionVector.isPresent() && positionDeleteVector.isPresent()) {
+            deletionVector = DeletionVector.builder().addAll(deletionVector.get()).addAll(positionDeleteVector.get()).build();
+        }
 
-        Optional<RowPredicate> positionDeletes = deletionVector
+        Optional<RowPredicate> positionDeletes = deletionVector.or(() -> positionDeleteVector)
                 .map(vector -> {
                     int filePositionChannel = IntStream.range(0, readColumns.size())
                             .filter(i -> readColumns.get(i).isRowPositionColumn())
@@ -113,12 +128,9 @@ public class DeleteManager
         return positionDeletes.or(() -> equalityDeletes);
     }
 
-    public interface DeletePageSourceProvider
+    public interface DeletionVectorReader
     {
-        ConnectorPageSource openDeletes(
-                DeleteFile delete,
-                List<IcebergColumnHandle> deleteColumns,
-                TupleDomain<IcebergColumnHandle> tupleDomain);
+        DeletionVector read(DeleteFile deleteFile);
     }
 
     private List<EqualityDeleteFilter> createEqualityDeleteFilter(List<DeleteFile> equalityDeleteFiles, Schema schema, DeletePageSourceProvider deletePageSourceProvider)

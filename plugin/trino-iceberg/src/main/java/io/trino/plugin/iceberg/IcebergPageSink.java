@@ -56,7 +56,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
@@ -455,11 +454,9 @@ public class IcebergPageSink
                 writeContext.getPartitionData().map(PartitionData::toJson),
                 DATA,
                 Optional.empty(),
-                writer.rewrittenDeleteFiles(),
-                OptionalLong.empty(),
-                OptionalLong.empty(),
                 writer.getFileMetrics().splitOffsets(),
-                sortOrderId);
+                sortOrderId,
+                Optional.empty());
 
         commitTasks.add(wrappedBuffer(jsonCodec.toJsonBytes(task)));
     }

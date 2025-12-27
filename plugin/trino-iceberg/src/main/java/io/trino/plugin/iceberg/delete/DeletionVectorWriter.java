@@ -13,216 +13,40 @@
  */
 package io.trino.plugin.iceberg.delete;
 
-import com.google.common.collect.ImmutableMap;
-import io.trino.filesystem.Location;
-import io.trino.filesystem.TrinoFileSystem;
-import io.trino.plugin.iceberg.IcebergFileWriter;
+import io.airlift.slice.Slice;
+import io.trino.plugin.iceberg.IcebergTableHandle;
 import io.trino.plugin.iceberg.PartitionData;
-import io.trino.plugin.iceberg.delete.DeleteManager.DeletePageSourceProvider;
-import io.trino.plugin.iceberg.fileio.ForwardingInputFile;
-import io.trino.spi.NodeVersion;
-import io.trino.spi.Page;
-import io.trino.spi.TrinoException;
-import io.trino.spi.block.LongArrayBlock;
-import io.trino.spi.type.TypeManager;
-import org.apache.iceberg.ContentFileParser;
-import org.apache.iceberg.DeleteFile;
-import org.apache.iceberg.FileFormat;
-import org.apache.iceberg.Metrics;
+import io.trino.spi.connector.ConnectorSession;
 import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.data.DeleteLoader;
-import org.apache.iceberg.deletes.PositionDeleteIndex;
-import org.apache.iceberg.io.DeleteWriteResult;
-import org.apache.iceberg.util.DeleteFileSet;
+import org.apache.iceberg.RowDelta;
+import org.apache.iceberg.Table;
 
-import java.io.Closeable;
-import java.io.IOException;
 import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
-import java.util.function.Function;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.airlift.slice.SizeOf.instanceSize;
-import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_WRITER_CLOSE_ERROR;
-import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_WRITER_OPEN_ERROR;
 import static java.util.Objects.requireNonNull;
-import static org.apache.iceberg.FileFormat.PUFFIN;
 
-public class DeletionVectorWriter
-        implements IcebergFileWriter
+public interface DeletionVectorWriter
 {
-    private static final int INSTANCE_SIZE = instanceSize(DeletionVectorWriter.class);
+    DeletionVectorWriter UNSUPPORTED_DELETION_VECTOR_WRITER = (session, icebergTable, table, deletionVectorInfos, rowDelta) -> {
+        throw new UnsupportedOperationException("Deletion Vectors are not supported");
+    };
 
-    private final DeletionVectorFileWriter writer;
-    private final String dataFilePath;
-    private final PartitionSpec partitionSpec;
-    private final PartitionData partition;
-    private final int positionChannel;
-    private final Closeable rollbackAction;
-    private DeleteWriteResult result;
+    void writeDeletionVectors(
+            ConnectorSession session,
+            Table icebergTable,
+            IcebergTableHandle table,
+            List<DeletionVectorInfo> deletionVectorInfos,
+            RowDelta rowDelta);
 
-    public DeletionVectorWriter(
-            NodeVersion nodeVersion,
-            TrinoFileSystem fileSystem,
-            Location outputPath,
-            String dataFilePath,
-            PartitionSpec partitionSpec,
-            Optional<PartitionData> partition,
-            Function<String, PositionDeleteIndex> loadPreviousDeletes,
-            int positionChannel)
+    record DeletionVectorInfo(String dataFilePath, Slice serializedDeletionVector, PartitionSpec partitionSpec, Optional<PartitionData> partitionData)
     {
-        writer = new DeletionVectorFileWriter(nodeVersion, fileSystem, outputPath, loadPreviousDeletes);
-        this.dataFilePath = requireNonNull(dataFilePath, "dataFilePath is null");
-        this.partitionSpec = requireNonNull(partitionSpec, "partitionSpec is null");
-        this.partition = requireNonNull(partition, "partition is null").orElse(null);
-        checkArgument(positionChannel >= 0, "positionChannel is negative");
-        this.positionChannel = positionChannel;
-        rollbackAction = () -> fileSystem.deleteFile(outputPath);
-    }
-
-    public static Function<CharSequence, PositionDeleteIndex> create(TypeManager typeManager, DeletePageSourceProvider pageSourceProvider, TrinoFileSystem fileSystem, Map<String, DeleteFileSet> deleteFiles)
-    {
-        if (deleteFiles == null) {
-            return _ -> null;
-        }
-        return new PreviousDeleteLoader(typeManager, pageSourceProvider, fileSystem, deleteFiles);
-    }
-
-    private static class PreviousDeleteLoader
-            implements Function<CharSequence, PositionDeleteIndex>
-    {
-        private final Map<String, DeleteFileSet> deleteFiles;
-        private final DeleteLoader deleteLoader;
-
-        private PreviousDeleteLoader(TypeManager typeManager, DeletePageSourceProvider pageSourceProvider, TrinoFileSystem fileSystem, Map<String, DeleteFileSet> deleteFiles)
+        public DeletionVectorInfo
         {
-            requireNonNull(fileSystem, "fileSystem is null");
-            this.deleteFiles = ImmutableMap.copyOf(deleteFiles);
-            this.deleteLoader = new BaseDeleteLoader(typeManager, pageSourceProvider, deleteFile -> new ForwardingInputFile(fileSystem.newInputFile(Location.of(deleteFile.location()))));
+            requireNonNull(dataFilePath, "dataFilePath is null");
+            requireNonNull(serializedDeletionVector, "serializedDeletionVector is null");
+            requireNonNull(partitionSpec, "partitionSpec is null");
+            requireNonNull(partitionData, "partitionData is null");
         }
-
-        @Override
-        public PositionDeleteIndex apply(CharSequence path)
-        {
-            DeleteFileSet deleteFileSet = deleteFiles.get(path.toString());
-            if (deleteFileSet == null) {
-                return null;
-            }
-
-            return deleteLoader.loadPositionDeletes(deleteFileSet, path);
-        }
-    }
-
-    @Override
-    public FileFormat fileFormat()
-    {
-        return PUFFIN;
-    }
-
-    @Override
-    public String location()
-    {
-        return deleteFile().location();
-    }
-
-    @Override
-    public List<String> rewrittenDeleteFiles()
-    {
-        return result.rewrittenDeleteFiles().stream()
-                .map(file -> ContentFileParser.toJson(file, partitionSpec))
-                .collect(toImmutableList());
-    }
-
-    @Override
-    public FileMetrics getFileMetrics()
-    {
-        DeleteFile deleteFile = deleteFile();
-        Metrics metrics = new Metrics(
-                deleteFile.recordCount(),
-                deleteFile.columnSizes(),
-                deleteFile.valueCounts(),
-                deleteFile.nullValueCounts(),
-                deleteFile.nanValueCounts(),
-                deleteFile.lowerBounds(),
-                deleteFile.upperBounds());
-        return new FileMetrics(metrics, Optional.ofNullable(deleteFile.splitOffsets()));
-    }
-
-    @Override
-    public long getWrittenBytes()
-    {
-        return deleteFile().fileSizeInBytes();
-    }
-
-    @Override
-    public long getMemoryUsage()
-    {
-        return INSTANCE_SIZE;
-    }
-
-    @Override
-    public void appendRows(Page dataPage)
-    {
-        LongArrayBlock block = (LongArrayBlock) dataPage.getBlock(positionChannel);
-        for (int i = 0; i < block.getPositionCount(); i++) {
-            writer.delete(dataFilePath, block.getLong(i), partitionSpec, partition);
-        }
-    }
-
-    private DeleteFile deleteFile()
-    {
-        try {
-            return result.deleteFiles().getLast();
-        }
-        catch (NoSuchElementException e) {
-            throw new TrinoException(ICEBERG_WRITER_OPEN_ERROR, "Delete file must exist", e);
-        }
-    }
-
-    public DeleteWriteResult result()
-    {
-        return writer.result();
-    }
-
-    @Override
-    public Closeable commit()
-    {
-        try {
-            writer.close();
-            result = writer.result();
-        }
-        catch (IOException e) {
-            try {
-                rollbackAction.close();
-            }
-            catch (Exception ex) {
-                if (!e.equals(ex)) {
-                    e.addSuppressed(ex);
-                }
-            }
-            throw new TrinoException(ICEBERG_WRITER_OPEN_ERROR, "Error closing Deletion Vector file", e);
-        }
-        return rollbackAction;
-    }
-
-    @Override
-    public void rollback()
-    {
-        try (rollbackAction) {
-            writer.close();
-            result = writer.result();
-        }
-        catch (Exception e) {
-            throw new TrinoException(ICEBERG_WRITER_CLOSE_ERROR, "Error rolling back write to Deletion Vector file", e);
-        }
-    }
-
-    @Override
-    public long getValidationCpuNanos()
-    {
-        return 0;
     }
 }
