@@ -864,6 +864,11 @@ public abstract class BaseIcebergTimeZoneTest
         testDefaultValue("TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP '2024-08-01 03:00:00.987654 UTC'", "TIMESTAMP '2024-08-01 08:30:00.987654 Asia/Kolkata'");
         testDefaultValue("TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP '2024-07-31 23:59:59.987654 America/New_York'", "TIMESTAMP '2024-08-01 09:29:59.987654 Asia/Kolkata'");
         testDefaultValue("TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP '2025-07-03 04:00:00.000000 Asia/Kolkata'", "TIMESTAMP '2025-07-03 04:00:00.000000 Asia/Kolkata'");
+
+        testDefaultValue("TIMESTAMP(9) WITH TIME ZONE", null, "CAST (null as TIMESTAMP(9) WITH TIME ZONE)");
+        testDefaultValue("TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2024-08-01 03:00:00.987654321 UTC'", "TIMESTAMP '2024-08-01 08:30:00.987654321 Asia/Kolkata'");
+        testDefaultValue("TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2024-07-31 23:59:59.987654321 America/New_York'", "TIMESTAMP '2024-08-01 09:29:59.987654321 Asia/Kolkata'");
+        testDefaultValue("TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-07-03 04:00:00.000000000 Asia/Kolkata'", "TIMESTAMP '2025-07-03 04:00:00.000000000 Asia/Kolkata'");
     }
 
     private void testDefaultValue(String type, String defaultValue, String expectedValue)

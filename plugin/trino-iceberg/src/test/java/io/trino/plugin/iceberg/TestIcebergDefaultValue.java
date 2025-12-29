@@ -156,10 +156,16 @@ final class TestIcebergDefaultValue
     @EnumSource(IcebergFileFormat.class)
     void testTimestampNanos(IcebergFileFormat format)
     {
-        // TODO Iceberg does not support timestamp nanos as default values
-        assertQueryFails(
-                "CREATE TABLE test_default_value_timestamp_ns (id int, data TIMESTAMP(9) DEFAULT TIMESTAMP '2025-01-23 12:34:56.123456789') WITH (format='" + format + "')",
-                "Timestamp nanos is not supported as default values");
+        testDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56'", "TIMESTAMP '2025-01-23 12:34:56.000000000'");
+        testDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.1'", "TIMESTAMP '2025-01-23 12:34:56.100000000'");
+        testDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.12'", "TIMESTAMP '2025-01-23 12:34:56.120000000'");
+        testDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.123'", "TIMESTAMP '2025-01-23 12:34:56.123000000'");
+        testDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.1234'", "TIMESTAMP '2025-01-23 12:34:56.123400000'");
+        testDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.12345'", "TIMESTAMP '2025-01-23 12:34:56.123450000'");
+        testDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.123456'", "TIMESTAMP '2025-01-23 12:34:56.123456000'");
+        testDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.1234567'", "TIMESTAMP '2025-01-23 12:34:56.123456700'");
+        testDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.12345678'", "TIMESTAMP '2025-01-23 12:34:56.123456780'");
+        testDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.123456789'", "TIMESTAMP '2025-01-23 12:34:56.123456789'");
     }
 
     @ParameterizedTest
@@ -185,10 +191,16 @@ final class TestIcebergDefaultValue
     @EnumSource(IcebergFileFormat.class)
     void testTimestampWithTimeZoneNanos(IcebergFileFormat format)
     {
-        // TODO Iceberg does not support timestamp nanos as default values
-        assertQueryFails(
-                "CREATE TABLE test_default_value_timestamptz_ns (id int, data TIMESTAMP(9) DEFAULT TIMESTAMP '2025-01-23 12:34:56.123456789') WITH (format='" + format + "')",
-                "Timestamp nanos is not supported as default values");
+        testDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.000000000 UTC'");
+        testDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.1 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.100000000 UTC'");
+        testDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.12 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.120000000 UTC'");
+        testDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.123 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123000000 UTC'");
+        testDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.1234 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123400000 UTC'");
+        testDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.12345 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123450000 UTC'");
+        testDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.123456 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123456000 UTC'");
+        testDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.1234567 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123456700 UTC'");
+        testDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.12345678 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123456780 UTC'");
+        testDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.123456789 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123456789 UTC'");
     }
 
     @ParameterizedTest

@@ -69,6 +69,16 @@ public final class IcebergDefaultValues
 
     public static String toTrinoDefaultValue(Type type, Object value)
     {
+        if (type instanceof Types.TimestampNanoType timestampNanoType) {
+            // Avoid using the following Literal code because Iceberg library has an overflow issue https://github.com/apache/iceberg/issues/13160
+            boolean shouldAdjustToUtc = timestampNanoType.shouldAdjustToUTC();
+            LocalDateTime timestamp = DateTimeUtil.timestampFromNanos(Long.parseLong(String.valueOf(value)));
+            if (shouldAdjustToUtc) {
+                return "TIMESTAMP '%s UTC'".formatted(TIMESTAMP_TZ_FORMATTER.format(timestamp));
+            }
+            return "TIMESTAMP '%s'".formatted(TIMESTAMP_FORMATTER.format(timestamp));
+        }
+
         Literal<Object> literal = Expressions.lit(value).to(type);
         return switch (type.typeId()) {
             case BOOLEAN, INTEGER, LONG -> String.valueOf(value);
@@ -145,8 +155,15 @@ public final class IcebergDefaultValues
                             LocalDateTime timestamp = TIMESTAMP_FORMATTER.parse(literal.getValue(), LocalDateTime::from);
                             yield Literal.of(timestamp.toString());
                         }
-                        if (type instanceof Types.TimestampNanoType) {
-                            throw new TrinoException(NOT_SUPPORTED, "Timestamp nanos is not supported as default values");
+                        if (type instanceof Types.TimestampNanoType timestampNanoType) {
+                            boolean shouldAdjustToUtc = timestampNanoType.shouldAdjustToUTC();
+                            if (shouldAdjustToUtc) {
+                                ZonedDateTime timestamp = TIMESTAMP_TZ_FORMATTER.parse(literal.getValue(), ZonedDateTime::from);
+                                ZonedDateTime zonedDateTime = timestamp.withZoneSameInstant(UTC);
+                                yield Literal.of(zonedDateTime.toString());
+                            }
+                            LocalDateTime timestamp = TIMESTAMP_FORMATTER.parse(literal.getValue(), LocalDateTime::from);
+                            yield Literal.of(timestamp.toString());
                         }
                     }
                     case "json" -> {
