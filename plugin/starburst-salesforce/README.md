@@ -140,6 +140,7 @@ A new password will need to be created upon expiration, which generates a new se
    Wojciech Biela, Piotr Findeisen, Mateusz Gajewski, Ashhar Hasan, Grzegorz Kokosinski, Anu Sudarsan, Mayank Vadariya,
    Mathias Kools
 3. You will be prompted to create a new password. Once created, another email is sent to the distribution list containing the new security token
+   It's recommended to avoid using spaces in these passwords to avoid string interpolation mishaps cross-product.
 4. Update the GH secret `SALESFORCE_BASIC_AUTH_USER_PASSWORD` and `SALESFORCE_BASIC_AUTH_USER_SECURITY_TOKEN` in `cork`, `galaxy-trino` and `starburst-enterprise-trino`.
    Additionally, update GH variable `SALESFORCE_BASIC_AUTH_USER_USERNAME` if it has changed.
 5. Update `SALESFORCE_BASIC_AUTH_USER_PASSWORD`, `SALESFORCE_BASIC_AUTH_USER_SECURITY_TOKEN` and `SALESFORCE_BASIC_AUTH_USER_USERNAME`(if applicable) with new values
