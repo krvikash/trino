@@ -108,7 +108,7 @@ public final class IcebergDefaultValues
                 }
                 yield "TIMESTAMP '%s'".formatted(TIMESTAMP_FORMATTER.format(timestamp));
             }
-            default -> throw new TrinoException(NOT_SUPPORTED, "Cannot convert Iceberg value to string literal %s %s ".formatted(type, value));
+            default -> throw new TrinoException(NOT_SUPPORTED, "Cannot convert Iceberg value to string literal %s %s".formatted(type, value));
         };
     }
 
