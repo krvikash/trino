@@ -671,7 +671,7 @@
                                     <artifactId>ozone-filesystem-hadoop3</artifactId>
                                     <version>1.4.0</version>
                                     <type>jar</type>
-                                    <outputDirectory>${project.build.testResources[0].directory}</outputDirectory>
+                                    <outputDirectory>${project.build.directory}</outputDirectory>
                                 </artifactItem>
                             </artifactItems>
                         </configuration>

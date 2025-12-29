@@ -18,9 +18,12 @@ import io.trino.plugin.base.util.AutoCloseableCloser;
 import io.trino.plugin.hive.containers.HiveHadoop;
 import org.testcontainers.containers.Network;
 
+import java.nio.file.Path;
 import java.util.Map;
 
+import static com.google.common.base.Preconditions.checkState;
 import static io.trino.testing.containers.TestContainers.getPathFromClassPathResource;
+import static java.nio.file.Files.exists;
 
 public class HiveOzoneDataLake
         implements AutoCloseable
@@ -42,16 +45,11 @@ public class HiveOzoneDataLake
 
     private static String resolvePathToOzoneLibrary()
     {
-        try {
-            return getPathFromClassPathResource("ozone-filesystem-hadoop3-1.4.0.jar");
-        }
-        catch (IllegalArgumentException e) {
-            throw new IllegalStateException("""
-                    Build project with MAVEN.
-                    Resource itself is resolved by maven-dependency-plugin.
-                    Therefore, it requires the project to be built by MAVEN, not IDE.
-                    """, e);
-        }
+        String path = "target/ozone-filesystem-hadoop3-1.4.0.jar";
+        checkState(
+                exists(Path.of(path)),
+                "Build project with MAVEN. Resource itself is resolved by maven-dependency-plugin. Therefore, it requires the project to be built by MAVEN, not IDE");
+        return path;
     }
 
     public HiveOzoneDataLake(String hiveHadoopImage, Map<String, String> hiveHadoopFilesToMount)
