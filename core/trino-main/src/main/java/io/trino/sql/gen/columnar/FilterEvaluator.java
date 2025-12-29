@@ -138,7 +138,7 @@ public sealed interface FilterEvaluator
             case Logical logical when logical.operator() == Logical.Operator.AND -> createAndExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, logical, layout, classNameSuffix);
             case Logical logical when logical.operator() == Logical.Operator.OR -> createOrExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, logical, layout, classNameSuffix);
             case Between between -> createBetweenEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, between, layout, classNameSuffix);
-            case In in -> createInExpressionEvaluator(compiler, in, layout);
+            case In in -> createInExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, compiler, pageFunctionCompiler, in, layout, classNameSuffix);
             default -> Optional.empty();
         };
     }
@@ -232,10 +232,25 @@ public sealed interface FilterEvaluator
                         createDictionaryAwareEvaluator(supplier.get())));
     }
 
-    private static Optional<Supplier<FilterEvaluator>> createInExpressionEvaluator(ColumnarFilterCompiler compiler, In in, Map<Symbol, Integer> layout)
+    private static Optional<Supplier<FilterEvaluator>> createInExpressionEvaluator(
+            boolean columnarFilterSubexpressionEvaluationEnabled,
+            boolean isDebugOutputEnabled,
+            ColumnarFilterCompiler compiler,
+            PageFunctionCompiler pageFunctionCompiler,
+            In in,
+            Map<Symbol, Integer> layout,
+            Optional<String> classNameSuffix)
     {
-        Optional<Supplier<ColumnarFilter>> compiledFilter = compiler.generateFilter(in, layout);
-        return compiledFilter.map(filterSupplier -> () -> createDictionaryAwareEvaluator(filterSupplier.get()));
+        checkArgument(!in.valueList().isEmpty(), "valueList must not be empty");
+        return createReferenceValueFilterEvaluator(
+                columnarFilterSubexpressionEvaluationEnabled,
+                isDebugOutputEnabled,
+                compiler,
+                pageFunctionCompiler,
+                in.value(),
+                value -> new In(value, in.valueList()),
+                layout,
+                classNameSuffix);
     }
 
     private static Optional<Supplier<FilterEvaluator>> createCallExpressionEvaluator(

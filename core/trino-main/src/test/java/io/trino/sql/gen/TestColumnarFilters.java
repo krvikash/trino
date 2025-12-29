@@ -651,6 +651,23 @@ public class TestColumnarFilters
         inFilter = new In(new Reference(VARCHAR, COL_STRING), valueList);
         assertThatColumnarFilterEvaluationIsSupported(inFilter);
         verifyFilter(inputPages, inFilter);
+
+        // substr(col_string, 1, 5) IN (...)
+        Expression substrValue = call(
+                FUNCTION_RESOLUTION.resolveFunction("substr", fromTypes(VARCHAR, BIGINT, BIGINT)),
+                new Reference(VARCHAR, COL_STRING),
+                new Constant(BIGINT, 1L),
+                new Constant(BIGINT, 5L));
+        valueList = ImmutableList.of(
+                constantNull(VARCHAR),
+                new Constant(VARCHAR, Slices.utf8Slice("64990")),
+                new Constant(VARCHAR, Slices.utf8Slice("64991")),
+                new Constant(VARCHAR, Slices.utf8Slice("64992")),
+                new Constant(VARCHAR, Slices.utf8Slice("64993")),
+                new Constant(VARCHAR, Slices.utf8Slice("64994")));
+        inFilter = new In(substrValue, valueList);
+        assertThatColumnarFilterEvaluationIsSupported(inFilter);
+        verifyFilter(inputPages, inFilter);
     }
 
     @ParameterizedTest
