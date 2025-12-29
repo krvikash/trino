@@ -25,7 +25,7 @@ import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.LongArrayBlock;
 import io.trino.spi.type.TypeManager;
-import org.apache.iceberg.ContentFileParsers;
+import org.apache.iceberg.ContentFileParser;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.Metrics;
@@ -132,7 +132,7 @@ public class DeletionVectorWriter
     public List<String> rewrittenDeleteFiles()
     {
         return result.rewrittenDeleteFiles().stream()
-                .map(file -> ContentFileParsers.toJson(file, partitionSpec))
+                .map(file -> ContentFileParser.toJson(file, partitionSpec))
                 .collect(toImmutableList());
     }
 

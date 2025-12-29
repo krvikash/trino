@@ -40,7 +40,6 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableExecuteHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.type.TypeManager;
-import org.apache.iceberg.ContentFileParsers;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.MetadataColumns;
 import org.apache.iceberg.PartitionSpec;
@@ -62,6 +61,7 @@ import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.Maps.transformValues;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_BAD_DATA;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.maxPartitionsPerWriter;
+import static io.trino.plugin.iceberg.IcebergUtil.contentFileFromJson;
 import static io.trino.plugin.iceberg.IcebergUtil.getLocationProvider;
 import static io.trino.plugin.iceberg.IcebergUtil.getProjectedColumns;
 import static io.trino.plugin.iceberg.IcebergUtil.supportsRowLineage;
@@ -215,7 +215,7 @@ public class IcebergPageSinkProvider
         ConnectorPageSink pageSink = createPageSink(session, tableHandle);
         Map<String, DeleteFileSet> previousDeleteFiles = tableHandle.previousDeleteFiles().stream()
                 .collect(toImmutableMap(PositionDeleteFiles::dataFileLocation, file -> DeleteFileSet.of(file.deletes().stream()
-                        .map(delete -> (DeleteFile) ContentFileParsers.fromJson(delete, partitionsSpecs.get(file.partitionSpecId())))
+                        .map(delete -> (DeleteFile) contentFileFromJson(delete, partitionsSpecs.get(file.partitionSpecId())))
                         .collect(toImmutableList()))));
         // TODO: remove once the DeleteFile supporting the dataSequenceNumber in serialization and deserialization
         //  https://github.com/apache/iceberg/issues/13320

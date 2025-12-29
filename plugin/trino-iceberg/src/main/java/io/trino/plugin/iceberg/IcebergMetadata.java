@@ -166,7 +166,7 @@ import org.apache.datasketches.theta.CompactSketch;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.ContentFile;
-import org.apache.iceberg.ContentFileParsers;
+import org.apache.iceberg.ContentFileParser;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.DeleteFile;
@@ -372,6 +372,7 @@ import static io.trino.plugin.iceberg.IcebergUtil.buildPath;
 import static io.trino.plugin.iceberg.IcebergUtil.canEnforceColumnConstraintInSpecs;
 import static io.trino.plugin.iceberg.IcebergUtil.checkFormatForProperty;
 import static io.trino.plugin.iceberg.IcebergUtil.commit;
+import static io.trino.plugin.iceberg.IcebergUtil.contentFileFromJson;
 import static io.trino.plugin.iceberg.IcebergUtil.createColumnHandle;
 import static io.trino.plugin.iceberg.IcebergUtil.deserializePartitionValue;
 import static io.trino.plugin.iceberg.IcebergUtil.fileName;
@@ -3788,7 +3789,7 @@ public class IcebergMetadata
                         file.firstRowId(),
                         file.specId(),
                         task.deletes().stream()
-                                .map(deleteFile -> ContentFileParsers.toJson(deleteFile, task.spec()))
+                                .map(deleteFile -> ContentFileParser.toJson(deleteFile, task.spec()))
                                 .collect(toImmutableList()),
                         task.deletes().stream().collect(toImmutableMap(DeleteFile::location, DeleteFile::dataSequenceNumber))));
 
@@ -3898,7 +3899,7 @@ public class IcebergMetadata
                         deleteBuilder.withContentSizeInBytes(task.deletionVectorContentSize().orElseThrow(() -> new IllegalStateException("deletionVectorContentSize is missing while constructing deletion vector")));
                         deleteBuilder.withReferencedDataFile(task.referencedDataFile().orElseThrow(() -> new IllegalStateException("referencedDataFile is missing while constructing deletion vector")));
                         for (String rewrittenDeleteFile : task.deletionVectorFiles()) {
-                            rowDelta.removeDeletes((DeleteFile) ContentFileParsers.fromJson(rewrittenDeleteFile, partitionSpec));
+                            rowDelta.removeDeletes((DeleteFile) contentFileFromJson(rewrittenDeleteFile, partitionSpec));
                         }
                     }
 

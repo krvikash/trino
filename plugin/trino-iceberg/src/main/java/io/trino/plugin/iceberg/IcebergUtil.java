@@ -13,12 +13,15 @@
  */
 package io.trino.plugin.iceberg;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import io.airlift.json.ObjectMapperProvider;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceUtf8;
 import io.airlift.slice.Slices;
@@ -58,6 +61,7 @@ import io.trino.spi.type.VarcharType;
 import jakarta.annotation.Nullable;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.ContentFile;
+import org.apache.iceberg.ContentFileParser;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.HistoryEntry;
@@ -240,6 +244,8 @@ public final class IcebergUtil
     //  - v0.gz.metadata.json
     //  - v0.metadata.json.gz
     private static final Pattern HADOOP_GENERATED_METADATA_FILE_NAME_PATTERN = Pattern.compile("v(?<version>\\d+)(?<compression>\\.[a-zA-Z0-9]+)?" + Pattern.quote(METADATA_FILE_EXTENSION) + "(?<compression2>\\.[a-zA-Z0-9]+)?");
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapperProvider().get();
 
     private IcebergUtil() {}
 
@@ -1310,5 +1316,15 @@ public final class IcebergUtil
             case DATA -> ManifestFiles.read(manifest, fileIO);
             case DELETES -> ManifestFiles.readDeleteManifest(manifest, fileIO, specsById);
         };
+    }
+
+    public static ContentFile<?> contentFileFromJson(String jsonNode, PartitionSpec spec)
+    {
+        try {
+            return ContentFileParser.fromJson(OBJECT_MAPPER.readTree(jsonNode), spec);
+        }
+        catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
