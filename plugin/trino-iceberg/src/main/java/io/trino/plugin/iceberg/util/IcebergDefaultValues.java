@@ -25,7 +25,7 @@ import io.trino.sql.tree.LongLiteral;
 import io.trino.sql.tree.NullLiteral;
 import io.trino.sql.tree.StringLiteral;
 import jakarta.annotation.Nullable;
-import org.apache.iceberg.expressions.IcebergLiterals;
+import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.expressions.Literal;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
@@ -69,7 +69,7 @@ public final class IcebergDefaultValues
 
     public static String toTrinoDefaultValue(Type type, Object value)
     {
-        Literal<Object> literal = IcebergLiterals.from(value).to(type);
+        Literal<Object> literal = Expressions.lit(value).to(type);
         return switch (type.typeId()) {
             case BOOLEAN, INTEGER, LONG -> String.valueOf(value);
             case FLOAT -> "REAL '%s'".formatted(String.valueOf(value));
