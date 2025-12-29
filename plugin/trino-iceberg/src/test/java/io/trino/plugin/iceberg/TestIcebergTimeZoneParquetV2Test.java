@@ -51,9 +51,9 @@ public class TestIcebergTimeZoneParquetV2Test
 
     @Override
     @Test
-    void testDefaultValue()
+    void testWriteDefaultValue()
     {
-        assertThatThrownBy(super::testDefaultValue)
+        assertThatThrownBy(super::testWriteDefaultValue)
                 .hasMessageContaining("Default values are not supported for format version < 3");
     }
 

@@ -41,171 +41,171 @@ final class TestIcebergDefaultValue
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
-    void testBoolean(IcebergFileFormat format)
+    void testBooleanWriteDefault(IcebergFileFormat format)
     {
-        testDefaultValue(format, "BOOLEAN", "true", "true");
-        testDefaultValue(format, "BOOLEAN", "false", "false");
+        testWriteDefaultValue(format, "BOOLEAN", "true", "true");
+        testWriteDefaultValue(format, "BOOLEAN", "false", "false");
         // Boolean NULL is disallowed at the engine level
     }
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
-    void testInteger(IcebergFileFormat format)
+    void testIntegerWriteDefault(IcebergFileFormat format)
     {
-        testDefaultValue(format, "INTEGER", "-2147483648", "-2147483648");
-        testDefaultValue(format, "INTEGER", "2147483647", "2147483647");
-        testDefaultValue(format, "INTEGER", "NULL", "CAST(NULL AS INTEGER)");
+        testWriteDefaultValue(format, "INTEGER", "-2147483648", "-2147483648");
+        testWriteDefaultValue(format, "INTEGER", "2147483647", "2147483647");
+        testWriteDefaultValue(format, "INTEGER", "NULL", "CAST(NULL AS INTEGER)");
     }
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
-    void testBigint(IcebergFileFormat format)
+    void testBigintWriteDefault(IcebergFileFormat format)
     {
-        testDefaultValue(format, "BIGINT", "-9223372036854775808", "BIGINT '-9223372036854775808'");
-        testDefaultValue(format, "BIGINT", "9223372036854775807", "BIGINT '9223372036854775807'");
-        testDefaultValue(format, "BIGINT", "NULL", "CAST(NULL AS BIGINT)");
+        testWriteDefaultValue(format, "BIGINT", "-9223372036854775808", "BIGINT '-9223372036854775808'");
+        testWriteDefaultValue(format, "BIGINT", "9223372036854775807", "BIGINT '9223372036854775807'");
+        testWriteDefaultValue(format, "BIGINT", "NULL", "CAST(NULL AS BIGINT)");
     }
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
-    void testReal(IcebergFileFormat format)
+    void testRealWriteDefault(IcebergFileFormat format)
     {
-        testDefaultValue(format, "REAL", "REAL '3.14'", "REAL '3.14'");
-        testDefaultValue(format, "REAL", "REAL '10.3e0'", "REAL '10.3e0'");
-        testDefaultValue(format, "REAL", "123", "REAL '123'");
-        testDefaultValue(format, "REAL", "NULL", "CAST(NULL AS REAL)");
+        testWriteDefaultValue(format, "REAL", "REAL '3.14'", "REAL '3.14'");
+        testWriteDefaultValue(format, "REAL", "REAL '10.3e0'", "REAL '10.3e0'");
+        testWriteDefaultValue(format, "REAL", "123", "REAL '123'");
+        testWriteDefaultValue(format, "REAL", "NULL", "CAST(NULL AS REAL)");
     }
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
-    void testDouble(IcebergFileFormat format)
+    void testDoubleWriteDefault(IcebergFileFormat format)
     {
-        testDefaultValue(format, "DOUBLE", "DOUBLE '3.14'", "DOUBLE '3.14'");
-        testDefaultValue(format, "DOUBLE", "DOUBLE '1.0E100'", "DOUBLE '1.0E100'");
-        testDefaultValue(format, "DOUBLE", "DOUBLE '1.23456E12'", "DOUBLE '1.23456E12'");
-        testDefaultValue(format, "DOUBLE", "123", "DOUBLE '123'");
-        testDefaultValue(format, "DOUBLE", "NULL", "CAST(NULL AS DOUBLE)");
+        testWriteDefaultValue(format, "DOUBLE", "DOUBLE '3.14'", "DOUBLE '3.14'");
+        testWriteDefaultValue(format, "DOUBLE", "DOUBLE '1.0E100'", "DOUBLE '1.0E100'");
+        testWriteDefaultValue(format, "DOUBLE", "DOUBLE '1.23456E12'", "DOUBLE '1.23456E12'");
+        testWriteDefaultValue(format, "DOUBLE", "123", "DOUBLE '123'");
+        testWriteDefaultValue(format, "DOUBLE", "NULL", "CAST(NULL AS DOUBLE)");
     }
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
-    void testDecimal(IcebergFileFormat format)
+    void testDecimalWriteDefault(IcebergFileFormat format)
     {
-        testDefaultValue(format, "DECIMAL(3,0)", "DECIMAL '193'", "DECIMAL '193'");
-        testDefaultValue(format, "DECIMAL(3,0)", "DECIMAL '-193'", "DECIMAL '-193'");
-        testDefaultValue(format, "DECIMAL(3,1)", "DECIMAL '10.0'", "DECIMAL '10.0'");
-        testDefaultValue(format, "DECIMAL(3,1)", "DECIMAL '-10.1'", "DECIMAL '-10.1'");
-        testDefaultValue(format, "DECIMAL(30,5)", "DECIMAL '3141592653589793238462643.38327'", "DECIMAL '3141592653589793238462643.38327'");
-        testDefaultValue(format, "DECIMAL(30,5)", "DECIMAL '-3141592653589793238462643.38327'", "DECIMAL '-3141592653589793238462643.38327'");
-        testDefaultValue(format, "DECIMAL(38,0)", "DECIMAL '27182818284590452353602874713526624977'", "DECIMAL '27182818284590452353602874713526624977'");
-        testDefaultValue(format, "DECIMAL(38,0)", "DECIMAL '-27182818284590452353602874713526624977'", "DECIMAL '-27182818284590452353602874713526624977'");
-        testDefaultValue(format, "DECIMAL(3,0)", "NULL", "CAST(NULL AS DECIMAL(3,0))");
-        testDefaultValue(format, "DECIMAL(38,0)", "NULL", "CAST(NULL AS DECIMAL(38,0))");
+        testWriteDefaultValue(format, "DECIMAL(3,0)", "DECIMAL '193'", "DECIMAL '193'");
+        testWriteDefaultValue(format, "DECIMAL(3,0)", "DECIMAL '-193'", "DECIMAL '-193'");
+        testWriteDefaultValue(format, "DECIMAL(3,1)", "DECIMAL '10.0'", "DECIMAL '10.0'");
+        testWriteDefaultValue(format, "DECIMAL(3,1)", "DECIMAL '-10.1'", "DECIMAL '-10.1'");
+        testWriteDefaultValue(format, "DECIMAL(30,5)", "DECIMAL '3141592653589793238462643.38327'", "DECIMAL '3141592653589793238462643.38327'");
+        testWriteDefaultValue(format, "DECIMAL(30,5)", "DECIMAL '-3141592653589793238462643.38327'", "DECIMAL '-3141592653589793238462643.38327'");
+        testWriteDefaultValue(format, "DECIMAL(38,0)", "DECIMAL '27182818284590452353602874713526624977'", "DECIMAL '27182818284590452353602874713526624977'");
+        testWriteDefaultValue(format, "DECIMAL(38,0)", "DECIMAL '-27182818284590452353602874713526624977'", "DECIMAL '-27182818284590452353602874713526624977'");
+        testWriteDefaultValue(format, "DECIMAL(3,0)", "NULL", "CAST(NULL AS DECIMAL(3,0))");
+        testWriteDefaultValue(format, "DECIMAL(38,0)", "NULL", "CAST(NULL AS DECIMAL(38,0))");
     }
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
-    void testDate(IcebergFileFormat format)
+    void testDateWriteDefault(IcebergFileFormat format)
     {
-        testDefaultValue(format, "DATE", "DATE '0001-01-01'", "DATE '0001-01-01'");
-        testDefaultValue(format, "DATE", "DATE '1969-12-31'", "DATE '1969-12-31'");
-        testDefaultValue(format, "DATE", "DATE '1970-01-01'", "DATE '1970-01-01'");
-        testDefaultValue(format, "DATE", "DATE '9999-12-31'", "DATE '9999-12-31'");
-        testDefaultValue(format, "DATE", "NULL", "CAST(NULL AS DATE)");
+        testWriteDefaultValue(format, "DATE", "DATE '0001-01-01'", "DATE '0001-01-01'");
+        testWriteDefaultValue(format, "DATE", "DATE '1969-12-31'", "DATE '1969-12-31'");
+        testWriteDefaultValue(format, "DATE", "DATE '1970-01-01'", "DATE '1970-01-01'");
+        testWriteDefaultValue(format, "DATE", "DATE '9999-12-31'", "DATE '9999-12-31'");
+        testWriteDefaultValue(format, "DATE", "NULL", "CAST(NULL AS DATE)");
     }
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
-    void testTime(IcebergFileFormat format)
+    void testTimeWriteDefault(IcebergFileFormat format)
     {
-        testDefaultValue(format, "TIME", "TIME '00:00:00'", "TIME '00:00:00.000000'");
-        testDefaultValue(format, "TIME", "TIME '00:00:00.1'", "TIME '00:00:00.100000'");
-        testDefaultValue(format, "TIME", "TIME '00:00:00.12'", "TIME '00:00:00.120000'");
-        testDefaultValue(format, "TIME", "TIME '00:00:00.123'", "TIME '00:00:00.123000'");
-        testDefaultValue(format, "TIME", "TIME '00:00:00.1234'", "TIME '00:00:00.123400'");
-        testDefaultValue(format, "TIME", "TIME '00:00:00.12345'", "TIME '00:00:00.123450'");
-        testDefaultValue(format, "TIME", "TIME '00:00:00.123456'", "TIME '00:00:00.123456'");
-        testDefaultValue(format, "TIME", "TIME '23:59:59.999999'", "TIME '23:59:59.999999'");
-        testDefaultValue(format, "TIME", "NULL", "CAST(NULL AS TIME(6))");
+        testWriteDefaultValue(format, "TIME", "TIME '00:00:00'", "TIME '00:00:00.000000'");
+        testWriteDefaultValue(format, "TIME", "TIME '00:00:00.1'", "TIME '00:00:00.100000'");
+        testWriteDefaultValue(format, "TIME", "TIME '00:00:00.12'", "TIME '00:00:00.120000'");
+        testWriteDefaultValue(format, "TIME", "TIME '00:00:00.123'", "TIME '00:00:00.123000'");
+        testWriteDefaultValue(format, "TIME", "TIME '00:00:00.1234'", "TIME '00:00:00.123400'");
+        testWriteDefaultValue(format, "TIME", "TIME '00:00:00.12345'", "TIME '00:00:00.123450'");
+        testWriteDefaultValue(format, "TIME", "TIME '00:00:00.123456'", "TIME '00:00:00.123456'");
+        testWriteDefaultValue(format, "TIME", "TIME '23:59:59.999999'", "TIME '23:59:59.999999'");
+        testWriteDefaultValue(format, "TIME", "NULL", "CAST(NULL AS TIME(6))");
     }
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
-    void testTimestamp(IcebergFileFormat format)
+    void testTimestampWriteDefault(IcebergFileFormat format)
     {
-        testDefaultValue(format, "TIMESTAMP", "TIMESTAMP '2025-01-23 12:34:56'", "TIMESTAMP '2025-01-23 12:34:56.000000'");
-        testDefaultValue(format, "TIMESTAMP", "TIMESTAMP '2025-01-23 12:34:56.1'", "TIMESTAMP '2025-01-23 12:34:56.100000'");
-        testDefaultValue(format, "TIMESTAMP", "TIMESTAMP '2025-01-23 12:34:56.12'", "TIMESTAMP '2025-01-23 12:34:56.120000'");
-        testDefaultValue(format, "TIMESTAMP", "TIMESTAMP '2025-01-23 12:34:56.123'", "TIMESTAMP '2025-01-23 12:34:56.123000'");
-        testDefaultValue(format, "TIMESTAMP", "TIMESTAMP '2025-01-23 12:34:56.1234'", "TIMESTAMP '2025-01-23 12:34:56.123400'");
-        testDefaultValue(format, "TIMESTAMP", "TIMESTAMP '2025-01-23 12:34:56.12345'", "TIMESTAMP '2025-01-23 12:34:56.123450'");
-        testDefaultValue(format, "TIMESTAMP", "TIMESTAMP '2025-01-23 12:34:56.123456'", "TIMESTAMP '2025-01-23 12:34:56.123456'");
+        testWriteDefaultValue(format, "TIMESTAMP", "TIMESTAMP '2025-01-23 12:34:56'", "TIMESTAMP '2025-01-23 12:34:56.000000'");
+        testWriteDefaultValue(format, "TIMESTAMP", "TIMESTAMP '2025-01-23 12:34:56.1'", "TIMESTAMP '2025-01-23 12:34:56.100000'");
+        testWriteDefaultValue(format, "TIMESTAMP", "TIMESTAMP '2025-01-23 12:34:56.12'", "TIMESTAMP '2025-01-23 12:34:56.120000'");
+        testWriteDefaultValue(format, "TIMESTAMP", "TIMESTAMP '2025-01-23 12:34:56.123'", "TIMESTAMP '2025-01-23 12:34:56.123000'");
+        testWriteDefaultValue(format, "TIMESTAMP", "TIMESTAMP '2025-01-23 12:34:56.1234'", "TIMESTAMP '2025-01-23 12:34:56.123400'");
+        testWriteDefaultValue(format, "TIMESTAMP", "TIMESTAMP '2025-01-23 12:34:56.12345'", "TIMESTAMP '2025-01-23 12:34:56.123450'");
+        testWriteDefaultValue(format, "TIMESTAMP", "TIMESTAMP '2025-01-23 12:34:56.123456'", "TIMESTAMP '2025-01-23 12:34:56.123456'");
 
         // short timestamp literal on long timestamp type
-        testDefaultValue(format, "TIMESTAMP(6)", "TIMESTAMP '2025-01-23 12:34:56'", "TIMESTAMP '2025-01-23 12:34:56.000000'");
-        testDefaultValue(format, "TIMESTAMP(6)", "TIMESTAMP '2025-01-23 12:34:56.1'", "TIMESTAMP '2025-01-23 12:34:56.100000'");
-        testDefaultValue(format, "TIMESTAMP(6)", "TIMESTAMP '2025-01-23 12:34:56.12'", "TIMESTAMP '2025-01-23 12:34:56.120000'");
-        testDefaultValue(format, "TIMESTAMP(6)", "TIMESTAMP '2025-01-23 12:34:56.123'", "TIMESTAMP '2025-01-23 12:34:56.123000'");
-        testDefaultValue(format, "TIMESTAMP(6)", "TIMESTAMP '2025-01-23 12:34:56.1234'", "TIMESTAMP '2025-01-23 12:34:56.123400'");
-        testDefaultValue(format, "TIMESTAMP(6)", "TIMESTAMP '2025-01-23 12:34:56.12345'", "TIMESTAMP '2025-01-23 12:34:56.123450'");
+        testWriteDefaultValue(format, "TIMESTAMP(6)", "TIMESTAMP '2025-01-23 12:34:56'", "TIMESTAMP '2025-01-23 12:34:56.000000'");
+        testWriteDefaultValue(format, "TIMESTAMP(6)", "TIMESTAMP '2025-01-23 12:34:56.1'", "TIMESTAMP '2025-01-23 12:34:56.100000'");
+        testWriteDefaultValue(format, "TIMESTAMP(6)", "TIMESTAMP '2025-01-23 12:34:56.12'", "TIMESTAMP '2025-01-23 12:34:56.120000'");
+        testWriteDefaultValue(format, "TIMESTAMP(6)", "TIMESTAMP '2025-01-23 12:34:56.123'", "TIMESTAMP '2025-01-23 12:34:56.123000'");
+        testWriteDefaultValue(format, "TIMESTAMP(6)", "TIMESTAMP '2025-01-23 12:34:56.1234'", "TIMESTAMP '2025-01-23 12:34:56.123400'");
+        testWriteDefaultValue(format, "TIMESTAMP(6)", "TIMESTAMP '2025-01-23 12:34:56.12345'", "TIMESTAMP '2025-01-23 12:34:56.123450'");
 
-        testDefaultValue(format, "TIMESTAMP", "NULL", "CAST(NULL AS TIMESTAMP(6))");
+        testWriteDefaultValue(format, "TIMESTAMP", "NULL", "CAST(NULL AS TIMESTAMP(6))");
     }
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
-    void testTimestampNanos(IcebergFileFormat format)
+    void testTimestampNanosWriteDefault(IcebergFileFormat format)
     {
-        testDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56'", "TIMESTAMP '2025-01-23 12:34:56.000000000'");
-        testDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.1'", "TIMESTAMP '2025-01-23 12:34:56.100000000'");
-        testDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.12'", "TIMESTAMP '2025-01-23 12:34:56.120000000'");
-        testDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.123'", "TIMESTAMP '2025-01-23 12:34:56.123000000'");
-        testDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.1234'", "TIMESTAMP '2025-01-23 12:34:56.123400000'");
-        testDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.12345'", "TIMESTAMP '2025-01-23 12:34:56.123450000'");
-        testDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.123456'", "TIMESTAMP '2025-01-23 12:34:56.123456000'");
-        testDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.1234567'", "TIMESTAMP '2025-01-23 12:34:56.123456700'");
-        testDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.12345678'", "TIMESTAMP '2025-01-23 12:34:56.123456780'");
-        testDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.123456789'", "TIMESTAMP '2025-01-23 12:34:56.123456789'");
+        testWriteDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56'", "TIMESTAMP '2025-01-23 12:34:56.000000000'");
+        testWriteDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.1'", "TIMESTAMP '2025-01-23 12:34:56.100000000'");
+        testWriteDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.12'", "TIMESTAMP '2025-01-23 12:34:56.120000000'");
+        testWriteDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.123'", "TIMESTAMP '2025-01-23 12:34:56.123000000'");
+        testWriteDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.1234'", "TIMESTAMP '2025-01-23 12:34:56.123400000'");
+        testWriteDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.12345'", "TIMESTAMP '2025-01-23 12:34:56.123450000'");
+        testWriteDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.123456'", "TIMESTAMP '2025-01-23 12:34:56.123456000'");
+        testWriteDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.1234567'", "TIMESTAMP '2025-01-23 12:34:56.123456700'");
+        testWriteDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.12345678'", "TIMESTAMP '2025-01-23 12:34:56.123456780'");
+        testWriteDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.123456789'", "TIMESTAMP '2025-01-23 12:34:56.123456789'");
     }
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
-    void testTimestampWithTimeZone(IcebergFileFormat format)
+    void testTimestampWithTimeZoneWriteDefault(IcebergFileFormat format)
     {
-        testDefaultValue(format, "TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP '0000-01-01 00:00:00 UTC'", "TIMESTAMP '0000-01-01 00:00:00.000000 UTC'");
-        testDefaultValue(format, "TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP '9999-12-31 23:59:59.999999 UTC'", "TIMESTAMP '9999-12-31 23:59:59.999999 UTC'");
+        testWriteDefaultValue(format, "TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP '0000-01-01 00:00:00 UTC'", "TIMESTAMP '0000-01-01 00:00:00.000000 UTC'");
+        testWriteDefaultValue(format, "TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP '9999-12-31 23:59:59.999999 UTC'", "TIMESTAMP '9999-12-31 23:59:59.999999 UTC'");
 
         // short timestamptz literal on long timestamptz type
-        testDefaultValue(format, "TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.000000 UTC'");
-        testDefaultValue(format, "TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.1 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.100000 UTC'");
-        testDefaultValue(format, "TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.12 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.120000 UTC'");
-        testDefaultValue(format, "TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.123 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123000 UTC'");
-        testDefaultValue(format, "TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.1234 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123400 UTC'");
-        testDefaultValue(format, "TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.12345 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123450 UTC'");
-        testDefaultValue(format, "TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.123456 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123456 UTC'");
+        testWriteDefaultValue(format, "TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.000000 UTC'");
+        testWriteDefaultValue(format, "TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.1 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.100000 UTC'");
+        testWriteDefaultValue(format, "TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.12 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.120000 UTC'");
+        testWriteDefaultValue(format, "TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.123 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123000 UTC'");
+        testWriteDefaultValue(format, "TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.1234 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123400 UTC'");
+        testWriteDefaultValue(format, "TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.12345 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123450 UTC'");
+        testWriteDefaultValue(format, "TIMESTAMP(6) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.123456 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123456 UTC'");
 
-        testDefaultValue(format, "TIMESTAMP WITH TIME ZONE", "NULL", "CAST(NULL AS TIMESTAMP(6) WITH TIME ZONE)");
+        testWriteDefaultValue(format, "TIMESTAMP WITH TIME ZONE", "NULL", "CAST(NULL AS TIMESTAMP(6) WITH TIME ZONE)");
     }
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
-    void testTimestampWithTimeZoneNanos(IcebergFileFormat format)
+    void testTimestampWithTimeZoneNanosWriteDefault(IcebergFileFormat format)
     {
-        testDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.000000000 UTC'");
-        testDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.1 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.100000000 UTC'");
-        testDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.12 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.120000000 UTC'");
-        testDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.123 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123000000 UTC'");
-        testDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.1234 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123400000 UTC'");
-        testDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.12345 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123450000 UTC'");
-        testDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.123456 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123456000 UTC'");
-        testDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.1234567 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123456700 UTC'");
-        testDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.12345678 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123456780 UTC'");
-        testDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.123456789 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123456789 UTC'");
+        testWriteDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.000000000 UTC'");
+        testWriteDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.1 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.100000000 UTC'");
+        testWriteDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.12 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.120000000 UTC'");
+        testWriteDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.123 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123000000 UTC'");
+        testWriteDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.1234 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123400000 UTC'");
+        testWriteDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.12345 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123450000 UTC'");
+        testWriteDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.123456 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123456000 UTC'");
+        testWriteDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.1234567 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123456700 UTC'");
+        testWriteDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.12345678 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123456780 UTC'");
+        testWriteDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.123456789 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123456789 UTC'");
     }
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
-    void testVariantTypeFails(IcebergFileFormat format)
+    void testVariantTypeFailsWriteDefault(IcebergFileFormat format)
     {
         assertQueryFails(
                 "CREATE TABLE test_default_value_variant (id int, variant JSON DEFAULT JSON '{\"id\":3}') WITH (format='" + format + "')",
@@ -214,36 +214,36 @@ final class TestIcebergDefaultValue
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
-    void testVarchar(IcebergFileFormat format)
+    void testVarcharWriteDefault(IcebergFileFormat format)
     {
-        testDefaultValue(format, "VARCHAR", "'test varchar'", "VARCHAR 'test varchar'");
-        testDefaultValue(format, "VARCHAR", "''", "VARCHAR ''");
-        testDefaultValue(format, "VARCHAR", "'攻殻機動隊'", "VARCHAR '攻殻機動隊'");
-        testDefaultValue(format, "VARCHAR", "'😂'", "VARCHAR '😂'");
-        testDefaultValue(format, "VARCHAR", "'a''singlequote'", "VARCHAR 'a''singlequote'");
+        testWriteDefaultValue(format, "VARCHAR", "'test varchar'", "VARCHAR 'test varchar'");
+        testWriteDefaultValue(format, "VARCHAR", "''", "VARCHAR ''");
+        testWriteDefaultValue(format, "VARCHAR", "'攻殻機動隊'", "VARCHAR '攻殻機動隊'");
+        testWriteDefaultValue(format, "VARCHAR", "'😂'", "VARCHAR '😂'");
+        testWriteDefaultValue(format, "VARCHAR", "'a''singlequote'", "VARCHAR 'a''singlequote'");
 
-        testDefaultValue(format, "VARCHAR", "NULL", "CAST(NULL AS VARCHAR)");
-        testDefaultValue(format, "VARCHAR(255)", "NULL", "CAST(NULL AS VARCHAR)");
+        testWriteDefaultValue(format, "VARCHAR", "NULL", "CAST(NULL AS VARCHAR)");
+        testWriteDefaultValue(format, "VARCHAR(255)", "NULL", "CAST(NULL AS VARCHAR)");
     }
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
-    void testUuid(IcebergFileFormat format)
+    void testUuidWriteDefault(IcebergFileFormat format)
     {
-        testDefaultValue(format, "UUID", "UUID '406caec7-68b9-4778-81b2-a12ece70c8b1'", "UUID '406caec7-68b9-4778-81b2-a12ece70c8b1'");
-        testDefaultValue(format, "UUID", "NULL", "CAST(NULL AS UUID)");
+        testWriteDefaultValue(format, "UUID", "UUID '406caec7-68b9-4778-81b2-a12ece70c8b1'", "UUID '406caec7-68b9-4778-81b2-a12ece70c8b1'");
+        testWriteDefaultValue(format, "UUID", "NULL", "CAST(NULL AS UUID)");
     }
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
-    void testVarbinary(IcebergFileFormat format)
+    void testVarbinaryWriteDefault(IcebergFileFormat format)
     {
-        testDefaultValue(format, "VARBINARY", "X'65683F'", "X'65683F'");
-        testDefaultValue(format, "VARBINARY", "NULL", "CAST(NULL AS VARBINARY)");
+        testWriteDefaultValue(format, "VARBINARY", "X'65683F'", "X'65683F'");
+        testWriteDefaultValue(format, "VARBINARY", "NULL", "CAST(NULL AS VARBINARY)");
     }
 
     @Test
-    void testUnsupportedDefaultColumnValue()
+    void testUnsupportedDefaultColumnValueWriteDefault()
     {
         assertQueryFails(
                 "CREATE TABLE test_unsupported_default_column_value(x int DEFAULT 1) WITH (format_version=2)",
@@ -270,7 +270,7 @@ final class TestIcebergDefaultValue
                 "tpch");
     }
 
-    private void testDefaultValue(IcebergFileFormat format, @Language("SQL") String type, @Language("SQL") String defaultValue, @Language("SQL") String expectedValue)
+    private void testWriteDefaultValue(IcebergFileFormat format, @Language("SQL") String type, @Language("SQL") String defaultValue, @Language("SQL") String expectedValue)
     {
         try (TestTable table = newTrinoTable("test_default_value", "(id int, data %s DEFAULT %s) WITH (format='%s')".formatted(type, defaultValue, format))) {
             assertUpdate("INSERT INTO " + table.getName() + "(id) VALUES 1", 1);

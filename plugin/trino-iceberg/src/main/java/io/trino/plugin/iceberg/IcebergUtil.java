@@ -490,7 +490,7 @@ public final class IcebergUtil
         return IcebergColumnHandle.builder(createColumnIdentity(baseColumn))
                 .fieldType(toTrinoType(baseColumn.type(), typeManager), toTrinoType(childColumn.type(), typeManager))
                 .path(path)
-                .defaultValue(baseColumn.writeDefault() == null ? null : toTrinoDefaultValue(childColumn.type(), childColumn.writeDefault()))
+                .writeDefaultValue(baseColumn.writeDefault() == null ? null : toTrinoDefaultValue(childColumn.type(), childColumn.writeDefault()))
                 .nullable(childColumn.isOptional())
                 .comment(childColumn.doc())
                 .build();
