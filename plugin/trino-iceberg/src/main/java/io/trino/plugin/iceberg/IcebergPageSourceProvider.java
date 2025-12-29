@@ -89,6 +89,7 @@ import io.trino.spi.type.MapType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
+import jakarta.annotation.Nullable;
 import org.apache.avro.file.DataFileStream;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.iceberg.MetadataColumns;
@@ -103,6 +104,7 @@ import org.apache.iceberg.mapping.MappedFields;
 import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.parquet.ParquetSchemaUtil;
+import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.StructLikeWrapper;
@@ -115,6 +117,7 @@ import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -176,12 +179,14 @@ import static io.trino.plugin.iceberg.IcebergSessionProperties.isUseFileSizeFrom
 import static io.trino.plugin.iceberg.IcebergSessionProperties.useParquetBloomFilter;
 import static io.trino.plugin.iceberg.IcebergSplitManager.ICEBERG_DOMAIN_COMPACTION_THRESHOLD;
 import static io.trino.plugin.iceberg.IcebergSplitSource.partitionMatchesPredicate;
+import static io.trino.plugin.iceberg.IcebergTypes.convertIcebergValueToTrino;
 import static io.trino.plugin.iceberg.IcebergUtil.deserializePartitionValue;
 import static io.trino.plugin.iceberg.IcebergUtil.getColumnHandle;
 import static io.trino.plugin.iceberg.IcebergUtil.getPartitionKeys;
 import static io.trino.plugin.iceberg.IcebergUtil.getPartitionValues;
 import static io.trino.plugin.iceberg.IcebergUtil.schemaFromHandles;
 import static io.trino.plugin.iceberg.IcebergUtil.supportsRowLineage;
+import static io.trino.plugin.iceberg.TypeConverter.toIcebergType;
 import static io.trino.plugin.iceberg.util.OrcIcebergIds.fileColumnsByIcebergId;
 import static io.trino.plugin.iceberg.util.OrcTypeConverter.ORC_ICEBERG_ID_KEY;
 import static io.trino.spi.block.PageBuilderStatus.DEFAULT_MAX_PAGE_SIZE_IN_BYTES;
@@ -847,7 +852,7 @@ public class IcebergPageSourceProvider
                     transforms.transform(new GetRowPositionFromSource());
                 }
                 else if (!fileColumnsByIcebergId.containsKey(column.getBaseColumnIdentity().getId())) {
-                    transforms.constantValue(column.getType().createNullBlock());
+                    transforms.constantValue(nativeValueToBlock(column.getType(), getInitialDefaultValue(column)));
                 }
                 else {
                     IcebergColumnHandle baseColumn = column.getBaseColumn();
@@ -1158,7 +1163,7 @@ public class IcebergPageSourceProvider
                     transforms.transform(new GetRowPositionFromSource());
                 }
                 else if (!parquetIdToFieldName.containsKey(column.getBaseColumn().getId())) {
-                    transforms.constantValue(column.getType().createNullBlock());
+                    transforms.constantValue(nativeValueToBlock(column.getType(), getInitialDefaultValue(column)));
                 }
                 else {
                     IcebergColumnHandle baseColumn = column.getBaseColumn();
@@ -1391,7 +1396,7 @@ public class IcebergPageSourceProvider
                     transforms.transform(new GetRowPositionFromSource());
                 }
                 else if (!fileColumnsByIcebergId.containsKey(column.getBaseColumn().getId())) {
-                    transforms.constantValue(nativeValueToBlock(column.getType(), null));
+                    transforms.constantValue(nativeValueToBlock(column.getType(), getInitialDefaultValue(column)));
                 }
                 else {
                     IcebergColumnHandle baseColumn = column.getBaseColumn();
@@ -1458,6 +1463,19 @@ public class IcebergPageSourceProvider
         catch (IOException | UncheckedIOException e) {
             throw new TrinoException(ICEBERG_CANNOT_OPEN_SPLIT, e);
         }
+    }
+
+    @Nullable
+    private static Object getInitialDefaultValue(IcebergColumnHandle column)
+    {
+        if (column.getInitialDefaultValue().isEmpty()) {
+            return null;
+        }
+
+        org.apache.iceberg.types.Type icebergType = toIcebergType(column.getType(), column.getColumnIdentity());
+        ByteBuffer byteBuffer = column.getInitialDefaultValue().get();
+        Object value = Conversions.fromByteBuffer(icebergType, byteBuffer);
+        return convertIcebergValueToTrino(icebergType, value);
     }
 
     private static void checkForNonMetadataRowId(List<IcebergColumnHandle> columns, int formatVersion)

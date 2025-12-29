@@ -23,6 +23,7 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.type.Type;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -67,6 +68,8 @@ public class IcebergColumnHandle
     private final List<Integer> path;
     private final Type type;
     private final Optional<String> writeDefaultValue;
+    // Use ByteBuffer because Literal isn't serializable, and the original type of Object can be changed during deserialization (e.g. from Long to Integer)
+    private final Optional<ByteBuffer> initialDefaultValue;
     private final boolean nullable;
     private final Optional<String> comment;
     // Cache of ColumnIdentity#getId to ensure quick access, even with dereferences
@@ -84,6 +87,7 @@ public class IcebergColumnHandle
             @JsonProperty("path") List<Integer> path,
             @JsonProperty("type") Type type,
             @JsonProperty("writeDefaultValue") Optional<String> writeDefaultValue,
+            @JsonProperty("initialDefaultValue") Optional<ByteBuffer> initialDefaultValue,
             @JsonProperty("nullable") boolean nullable,
             @JsonProperty("comment") Optional<String> comment)
     {
@@ -92,6 +96,7 @@ public class IcebergColumnHandle
         this.path = ImmutableList.copyOf(requireNonNull(path, "path is null"));
         this.type = requireNonNull(type, "type is null");
         this.writeDefaultValue = requireNonNull(writeDefaultValue, "writeDefaultValue is null");
+        this.initialDefaultValue = requireNonNull(initialDefaultValue, "initialDefaultValue is null");
         this.nullable = nullable;
         this.comment = requireNonNull(comment, "comment is null");
         this.id = path.isEmpty() ? baseColumnIdentity.getId() : Iterables.getLast(path);
@@ -128,13 +133,19 @@ public class IcebergColumnHandle
     @JsonIgnore
     public IcebergColumnHandle getBaseColumn()
     {
-        return new IcebergColumnHandle(getBaseColumnIdentity(), getBaseType(), ImmutableList.of(), getBaseType(), getWriteDefaultValue(), isNullable(), Optional.empty());
+        return new IcebergColumnHandle(getBaseColumnIdentity(), getBaseType(), ImmutableList.of(), getBaseType(), getWriteDefaultValue(), getInitialDefaultValue(), isNullable(), Optional.empty());
     }
 
     @JsonProperty
     public Optional<String> getWriteDefaultValue()
     {
         return writeDefaultValue;
+    }
+
+    @JsonProperty
+    public Optional<ByteBuffer> getInitialDefaultValue()
+    {
+        return initialDefaultValue;
     }
 
     @JsonProperty
@@ -393,6 +404,7 @@ public class IcebergColumnHandle
         private List<Integer> path = ImmutableList.of();
         private Type type;
         private Optional<String> writeDefaultValue = Optional.empty();
+        private Optional<ByteBuffer> initialDefaultValue = Optional.empty();
         private boolean nullable = true;
         private Optional<String> comment = Optional.empty();
 
@@ -409,6 +421,7 @@ public class IcebergColumnHandle
             this.path = handle.getPath();
             this.type = handle.getType();
             this.writeDefaultValue = handle.getWriteDefaultValue();
+            this.initialDefaultValue = handle.getInitialDefaultValue();
             this.nullable = handle.isNullable();
             this.comment = handle.getComment();
         }
@@ -451,6 +464,12 @@ public class IcebergColumnHandle
             return this;
         }
 
+        public Builder initialDefaultValue(ByteBuffer initialDefaultValue)
+        {
+            this.initialDefaultValue = Optional.ofNullable(initialDefaultValue);
+            return this;
+        }
+
         public Builder nullable(boolean nullable)
         {
             this.nullable = nullable;
@@ -465,7 +484,7 @@ public class IcebergColumnHandle
 
         public IcebergColumnHandle build()
         {
-            return new IcebergColumnHandle(baseColumnIdentity, baseType, path, type, writeDefaultValue, nullable, comment);
+            return new IcebergColumnHandle(baseColumnIdentity, baseType, path, type, writeDefaultValue, initialDefaultValue, nullable, comment);
         }
     }
 }

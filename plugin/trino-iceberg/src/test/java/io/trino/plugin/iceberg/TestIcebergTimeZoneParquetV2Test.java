@@ -58,6 +58,14 @@ public class TestIcebergTimeZoneParquetV2Test
     }
 
     @Override
+    @Test
+    void testInitialDefaultValue()
+    {
+        assertThatThrownBy(super::testInitialDefaultValue)
+                .hasMessageContaining("Invalid schema for v2");
+    }
+
+    @Override
     protected void writeVariantDataToIcebergTable(String outputFilePath, DataFiles.Builder fileBuilder, Table table, Variant... variantValues)
             throws IOException
     {

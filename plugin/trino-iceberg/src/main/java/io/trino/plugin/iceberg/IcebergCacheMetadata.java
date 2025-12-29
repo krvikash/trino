@@ -104,6 +104,7 @@ public class IcebergCacheMetadata
                 icebergColumnHandle.getPath(),
                 icebergColumnHandle.getType(),
                 icebergColumnHandle.getWriteDefaultValue(),
+                icebergColumnHandle.getInitialDefaultValue(),
                 icebergColumnHandle.isNullable(),
                 // comment is irrelevant
                 Optional.empty());

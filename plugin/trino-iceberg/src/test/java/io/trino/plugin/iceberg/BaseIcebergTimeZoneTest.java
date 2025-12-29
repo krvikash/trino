@@ -26,6 +26,9 @@ import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.expressions.Literal;
+import org.apache.iceberg.types.Type;
+import org.apache.iceberg.types.Types;
 import org.apache.iceberg.variants.Variant;
 import org.apache.iceberg.variants.VariantMetadata;
 import org.apache.iceberg.variants.VariantTestUtil;
@@ -878,6 +881,30 @@ public abstract class BaseIcebergTimeZoneTest
 
             assertThat(query("SELECT data FROM " + table.getName()))
                     .as("%s type expected %s", type, defaultValue)
+                    .matches("VALUES " + expectedValue);
+        }
+    }
+
+    @Test
+    void testInitialDefaultValue()
+    {
+        testInitialDefaultValue(format, Types.TimestampType.withZone(), Literal.of("2024-08-01T03:00:00.987654+00:00"), "TIMESTAMP '2024-08-01 08:30:00.987654 Asia/Kolkata'");
+        testInitialDefaultValue(format, Types.TimestampType.withZone(), Literal.of("2024-07-31T23:59:59.987654-04:00"), "TIMESTAMP '2024-08-01 09:29:59.987654 Asia/Kolkata'");
+        testInitialDefaultValue(format, Types.TimestampType.withZone(), Literal.of("2025-07-03T04:00:00.000000+05:30"), "TIMESTAMP '2025-07-03 04:00:00.000000 Asia/Kolkata'");
+
+        testInitialDefaultValue(format, Types.TimestampNanoType.withZone(), Literal.of("2024-08-01T03:00:00.987654321+00:00"), "TIMESTAMP '2024-08-01 08:30:00.987654321 Asia/Kolkata'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withZone(), Literal.of("2024-07-31T23:59:59.987654321-04:00"), "TIMESTAMP '2024-08-01 09:29:59.987654321 Asia/Kolkata'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withZone(), Literal.of("2025-07-03T04:00:00.000000000+05:30"), "TIMESTAMP '2025-07-03 04:00:00.000000000 Asia/Kolkata'");
+    }
+
+    private void testInitialDefaultValue(IcebergFileFormat format, Type type, Literal<?> defaultValue, @Language("SQL") String expectedValue)
+    {
+        try (TestTable table = newTrinoTable("test_initial_default", "WITH (format='" + format + "') AS SELECT 1 id")) {
+            loadTable(table.getName()).updateSchema()
+                    .addColumn("data", type, defaultValue)
+                    .commit();
+
+            assertThat(query("SELECT data FROM " + table.getName()))
                     .matches("VALUES " + expectedValue);
         }
     }

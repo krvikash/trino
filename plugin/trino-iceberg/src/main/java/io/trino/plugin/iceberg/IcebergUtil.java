@@ -491,6 +491,7 @@ public final class IcebergUtil
                 .fieldType(toTrinoType(baseColumn.type(), typeManager), toTrinoType(childColumn.type(), typeManager))
                 .path(path)
                 .writeDefaultValue(baseColumn.writeDefault() == null ? null : toTrinoDefaultValue(childColumn.type(), childColumn.writeDefault()))
+                .initialDefaultValue(baseColumn.initialDefault() == null ? null : baseColumn.initialDefaultLiteral().toByteBuffer())
                 .nullable(childColumn.isOptional())
                 .comment(childColumn.doc())
                 .build();

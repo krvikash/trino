@@ -18,14 +18,21 @@ import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.expressions.Literal;
+import org.apache.iceberg.types.Type;
+import org.apache.iceberg.types.Types;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
+
 import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getHiveMetastore;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 final class TestIcebergDefaultValue
         extends AbstractTestQueryFramework
@@ -50,6 +57,14 @@ final class TestIcebergDefaultValue
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
+    void testBooleanInitialDefault(IcebergFileFormat format)
+    {
+        testInitialDefaultValue(format, Types.BooleanType.get(), Literal.of(true), "true");
+        testInitialDefaultValue(format, Types.BooleanType.get(), Literal.of(false), "false");
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
     void testIntegerWriteDefault(IcebergFileFormat format)
     {
         testWriteDefaultValue(format, "INTEGER", "-2147483648", "-2147483648");
@@ -59,11 +74,27 @@ final class TestIcebergDefaultValue
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
+    void testIntegerInitialDefault(IcebergFileFormat format)
+    {
+        testInitialDefaultValue(format, Types.IntegerType.get(), Literal.of(-2147483648), "-2147483648");
+        testInitialDefaultValue(format, Types.IntegerType.get(), Literal.of(2147483647), "2147483647");
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
     void testBigintWriteDefault(IcebergFileFormat format)
     {
         testWriteDefaultValue(format, "BIGINT", "-9223372036854775808", "BIGINT '-9223372036854775808'");
         testWriteDefaultValue(format, "BIGINT", "9223372036854775807", "BIGINT '9223372036854775807'");
         testWriteDefaultValue(format, "BIGINT", "NULL", "CAST(NULL AS BIGINT)");
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
+    void testBigintInitialDefault(IcebergFileFormat format)
+    {
+        testInitialDefaultValue(format, Types.LongType.get(), Literal.of(-9223372036854775808L), "BIGINT '-9223372036854775808'");
+        testInitialDefaultValue(format, Types.LongType.get(), Literal.of(9223372036854775807L), "BIGINT '9223372036854775807'");
     }
 
     @ParameterizedTest
@@ -78,6 +109,15 @@ final class TestIcebergDefaultValue
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
+    void testRealInitialDefault(IcebergFileFormat format)
+    {
+        testInitialDefaultValue(format, Types.FloatType.get(), Literal.of(3.14), "REAL '3.14'");
+        testInitialDefaultValue(format, Types.FloatType.get(), Literal.of(10.3e0), "REAL '10.3e0'");
+        testInitialDefaultValue(format, Types.FloatType.get(), Literal.of(123), "REAL '123'");
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
     void testDoubleWriteDefault(IcebergFileFormat format)
     {
         testWriteDefaultValue(format, "DOUBLE", "DOUBLE '3.14'", "DOUBLE '3.14'");
@@ -85,6 +125,16 @@ final class TestIcebergDefaultValue
         testWriteDefaultValue(format, "DOUBLE", "DOUBLE '1.23456E12'", "DOUBLE '1.23456E12'");
         testWriteDefaultValue(format, "DOUBLE", "123", "DOUBLE '123'");
         testWriteDefaultValue(format, "DOUBLE", "NULL", "CAST(NULL AS DOUBLE)");
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
+    void testDoubleInitialDefault(IcebergFileFormat format)
+    {
+        testInitialDefaultValue(format, Types.DoubleType.get(), Literal.of(3.14), "DOUBLE '3.14'");
+        testInitialDefaultValue(format, Types.DoubleType.get(), Literal.of(1.0E100), "DOUBLE '1.0E100'");
+        testInitialDefaultValue(format, Types.DoubleType.get(), Literal.of(1.23456E12), "DOUBLE '1.23456E12'");
+        testInitialDefaultValue(format, Types.DoubleType.get(), Literal.of(123), "DOUBLE '123'");
     }
 
     @ParameterizedTest
@@ -105,6 +155,20 @@ final class TestIcebergDefaultValue
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
+    void testDecimalInitialDefault(IcebergFileFormat format)
+    {
+        testInitialDefaultValue(format, Types.DecimalType.of(3, 0), Literal.of(new BigDecimal("193")), "DECIMAL '193'");
+        testInitialDefaultValue(format, Types.DecimalType.of(3, 0), Literal.of(new BigDecimal("-193")), "DECIMAL '-193'");
+        testInitialDefaultValue(format, Types.DecimalType.of(3, 1), Literal.of(new BigDecimal("10.0")), "DECIMAL '10.0'");
+        testInitialDefaultValue(format, Types.DecimalType.of(3, 1), Literal.of(new BigDecimal("-10.1")), "DECIMAL '-10.1'");
+        testInitialDefaultValue(format, Types.DecimalType.of(30, 5), Literal.of(new BigDecimal("3141592653589793238462643.38327")), "DECIMAL '3141592653589793238462643.38327'");
+        testInitialDefaultValue(format, Types.DecimalType.of(30, 5), Literal.of(new BigDecimal("-3141592653589793238462643.38327")), "DECIMAL '-3141592653589793238462643.38327'");
+        testInitialDefaultValue(format, Types.DecimalType.of(38, 0), Literal.of(new BigDecimal("27182818284590452353602874713526624977")), "DECIMAL '27182818284590452353602874713526624977'");
+        testInitialDefaultValue(format, Types.DecimalType.of(38, 0), Literal.of(new BigDecimal("-27182818284590452353602874713526624977")), "DECIMAL '-27182818284590452353602874713526624977'");
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
     void testDateWriteDefault(IcebergFileFormat format)
     {
         testWriteDefaultValue(format, "DATE", "DATE '0001-01-01'", "DATE '0001-01-01'");
@@ -112,6 +176,16 @@ final class TestIcebergDefaultValue
         testWriteDefaultValue(format, "DATE", "DATE '1970-01-01'", "DATE '1970-01-01'");
         testWriteDefaultValue(format, "DATE", "DATE '9999-12-31'", "DATE '9999-12-31'");
         testWriteDefaultValue(format, "DATE", "NULL", "CAST(NULL AS DATE)");
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
+    void testDateInitialDefault(IcebergFileFormat format)
+    {
+        testInitialDefaultValue(format, Types.DateType.get(), Literal.of("1970-01-01").to(Types.DateType.get()), "DATE '1970-01-01'");
+        testInitialDefaultValue(format, Types.DateType.get(), Literal.of("1969-12-31").to(Types.DateType.get()), "DATE '1969-12-31'");
+        testInitialDefaultValue(format, Types.DateType.get(), Literal.of("1970-01-01").to(Types.DateType.get()), "DATE '1970-01-01'");
+        testInitialDefaultValue(format, Types.DateType.get(), Literal.of("9999-12-31").to(Types.DateType.get()), "DATE '9999-12-31'");
     }
 
     @ParameterizedTest
@@ -127,6 +201,20 @@ final class TestIcebergDefaultValue
         testWriteDefaultValue(format, "TIME", "TIME '00:00:00.123456'", "TIME '00:00:00.123456'");
         testWriteDefaultValue(format, "TIME", "TIME '23:59:59.999999'", "TIME '23:59:59.999999'");
         testWriteDefaultValue(format, "TIME", "NULL", "CAST(NULL AS TIME(6))");
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
+    void testTimeInitialDefault(IcebergFileFormat format)
+    {
+        testInitialDefaultValue(format, Types.TimeType.get(), Literal.of("00:00:00").to(Types.TimeType.get()), "TIME '00:00:00.000000'");
+        testInitialDefaultValue(format, Types.TimeType.get(), Literal.of("00:00:00.1").to(Types.TimeType.get()), "TIME '00:00:00.100000'");
+        testInitialDefaultValue(format, Types.TimeType.get(), Literal.of("00:00:00.12").to(Types.TimeType.get()), "TIME '00:00:00.120000'");
+        testInitialDefaultValue(format, Types.TimeType.get(), Literal.of("00:00:00.123").to(Types.TimeType.get()), "TIME '00:00:00.123000'");
+        testInitialDefaultValue(format, Types.TimeType.get(), Literal.of("00:00:00.1234").to(Types.TimeType.get()), "TIME '00:00:00.123400'");
+        testInitialDefaultValue(format, Types.TimeType.get(), Literal.of("00:00:00.12345").to(Types.TimeType.get()), "TIME '00:00:00.123450'");
+        testInitialDefaultValue(format, Types.TimeType.get(), Literal.of("00:00:00.123456").to(Types.TimeType.get()), "TIME '00:00:00.123456'");
+        testInitialDefaultValue(format, Types.TimeType.get(), Literal.of("23:59:59.999999").to(Types.TimeType.get()), "TIME '23:59:59.999999'");
     }
 
     @ParameterizedTest
@@ -154,6 +242,19 @@ final class TestIcebergDefaultValue
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
+    void testTimestampInitialDefault(IcebergFileFormat format)
+    {
+        testInitialDefaultValue(format, Types.TimestampType.withoutZone(), Literal.of("2025-01-23T12:34:56"), "TIMESTAMP '2025-01-23 12:34:56.000000'");
+        testInitialDefaultValue(format, Types.TimestampType.withoutZone(), Literal.of("2025-01-23T12:34:56.1"), "TIMESTAMP '2025-01-23 12:34:56.100000'");
+        testInitialDefaultValue(format, Types.TimestampType.withoutZone(), Literal.of("2025-01-23T12:34:56.12"), "TIMESTAMP '2025-01-23 12:34:56.120000'");
+        testInitialDefaultValue(format, Types.TimestampType.withoutZone(), Literal.of("2025-01-23T12:34:56.123"), "TIMESTAMP '2025-01-23 12:34:56.123000'");
+        testInitialDefaultValue(format, Types.TimestampType.withoutZone(), Literal.of("2025-01-23T12:34:56.1234"), "TIMESTAMP '2025-01-23 12:34:56.123400'");
+        testInitialDefaultValue(format, Types.TimestampType.withoutZone(), Literal.of("2025-01-23T12:34:56.12345"), "TIMESTAMP '2025-01-23 12:34:56.123450'");
+        testInitialDefaultValue(format, Types.TimestampType.withoutZone(), Literal.of("2025-01-23T12:34:56.123456"), "TIMESTAMP '2025-01-23 12:34:56.123456'");
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
     void testTimestampNanosWriteDefault(IcebergFileFormat format)
     {
         testWriteDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56'", "TIMESTAMP '2025-01-23 12:34:56.000000000'");
@@ -166,6 +267,35 @@ final class TestIcebergDefaultValue
         testWriteDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.1234567'", "TIMESTAMP '2025-01-23 12:34:56.123456700'");
         testWriteDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.12345678'", "TIMESTAMP '2025-01-23 12:34:56.123456780'");
         testWriteDefaultValue(format, "TIMESTAMP(9)", "TIMESTAMP '2025-01-23 12:34:56.123456789'", "TIMESTAMP '2025-01-23 12:34:56.123456789'");
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
+    void testTimestampNanosInitialDefault(IcebergFileFormat format)
+    {
+        testInitialDefaultValue(format, Types.TimestampNanoType.withoutZone(), Literal.of("1677-09-21T00:12:43.145224192"), "TIMESTAMP '1677-09-21 00:12:43.145224192'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withoutZone(), Literal.of("2262-04-11T23:47:16.854775807"), "TIMESTAMP '2262-04-11 23:47:16.854775807'");
+
+        testInitialDefaultValue(format, Types.TimestampNanoType.withoutZone(), Literal.of("2025-01-23T12:34:56"), "TIMESTAMP '2025-01-23 12:34:56.000000000'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withoutZone(), Literal.of("2025-01-23T12:34:56.1"), "TIMESTAMP '2025-01-23 12:34:56.100000000'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withoutZone(), Literal.of("2025-01-23T12:34:56.12"), "TIMESTAMP '2025-01-23 12:34:56.120000000'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withoutZone(), Literal.of("2025-01-23T12:34:56.123"), "TIMESTAMP '2025-01-23 12:34:56.123000000'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withoutZone(), Literal.of("2025-01-23T12:34:56.1234"), "TIMESTAMP '2025-01-23 12:34:56.123400000'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withoutZone(), Literal.of("2025-01-23T12:34:56.12345"), "TIMESTAMP '2025-01-23 12:34:56.123450000'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withoutZone(), Literal.of("2025-01-23T12:34:56.123456"), "TIMESTAMP '2025-01-23 12:34:56.123456000'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withoutZone(), Literal.of("2025-01-23T12:34:56.1234567"), "TIMESTAMP '2025-01-23 12:34:56.123456700'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withoutZone(), Literal.of("2025-01-23T12:34:56.12345678"), "TIMESTAMP '2025-01-23 12:34:56.123456780'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withoutZone(), Literal.of("2025-01-23T12:34:56.123456789"), "TIMESTAMP '2025-01-23 12:34:56.123456789'");
+    }
+
+    @Test
+    void testTimestampNanosLiteralUnsupportedRange()
+    {
+        // Update the above test once this test starts passing
+        assertThatThrownBy(() -> Literal.of("1677-09-21T00:12:43.145224191").to(Types.TimestampNanoType.withoutZone()))
+                .hasMessage("long overflow");
+        assertThatThrownBy(() -> Literal.of("2262-04-11T23:47:16.854775808").to(Types.TimestampNanoType.withoutZone()))
+                .hasMessage("long overflow");
     }
 
     @ParameterizedTest
@@ -189,6 +319,22 @@ final class TestIcebergDefaultValue
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
+    void testTimestampWithTimeZoneInitialDefault(IcebergFileFormat format)
+    {
+        testInitialDefaultValue(format, Types.TimestampType.withZone(), Literal.of("0000-01-01T00:00:00+00:00"), "TIMESTAMP '0000-01-01 00:00:00.000000 UTC'");
+        testInitialDefaultValue(format, Types.TimestampType.withZone(), Literal.of("9999-12-31T23:59:59.999999+00:00"), "TIMESTAMP '9999-12-31 23:59:59.999999 UTC'");
+
+        testInitialDefaultValue(format, Types.TimestampType.withZone(), Literal.of("2025-01-23T12:34:56+01:00"), "TIMESTAMP '2025-01-23 11:34:56.000000 UTC'");
+        testInitialDefaultValue(format, Types.TimestampType.withZone(), Literal.of("2025-01-23T12:34:56.1+01:00"), "TIMESTAMP '2025-01-23 11:34:56.100000 UTC'");
+        testInitialDefaultValue(format, Types.TimestampType.withZone(), Literal.of("2025-01-23T12:34:56.12+01:00"), "TIMESTAMP '2025-01-23 11:34:56.120000 UTC'");
+        testInitialDefaultValue(format, Types.TimestampType.withZone(), Literal.of("2025-01-23T12:34:56.123+01:00"), "TIMESTAMP '2025-01-23 11:34:56.123000 UTC'");
+        testInitialDefaultValue(format, Types.TimestampType.withZone(), Literal.of("2025-01-23T12:34:56.1234+01:00"), "TIMESTAMP '2025-01-23 11:34:56.123400 UTC'");
+        testInitialDefaultValue(format, Types.TimestampType.withZone(), Literal.of("2025-01-23T12:34:56.12345+01:00"), "TIMESTAMP '2025-01-23 11:34:56.123450 UTC'");
+        testInitialDefaultValue(format, Types.TimestampType.withZone(), Literal.of("2025-01-23T12:34:56.123456+01:00"), "TIMESTAMP '2025-01-23 11:34:56.123456 UTC'");
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
     void testTimestampWithTimeZoneNanosWriteDefault(IcebergFileFormat format)
     {
         testWriteDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.000000000 UTC'");
@@ -201,6 +347,35 @@ final class TestIcebergDefaultValue
         testWriteDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.1234567 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123456700 UTC'");
         testWriteDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.12345678 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123456780 UTC'");
         testWriteDefaultValue(format, "TIMESTAMP(9) WITH TIME ZONE", "TIMESTAMP '2025-01-23 12:34:56.123456789 Europe/Warsaw'", "TIMESTAMP '2025-01-23 11:34:56.123456789 UTC'");
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
+    void testTimestampWithTimeZoneNanosInitialDefault(IcebergFileFormat format)
+    {
+        testInitialDefaultValue(format, Types.TimestampNanoType.withZone(), Literal.of("1677-09-21T00:12:43.145224192+00:00"), "TIMESTAMP '1677-09-21 00:12:43.145224192 UTC'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withZone(), Literal.of("2262-04-11T23:47:16.854775807+00:00"), "TIMESTAMP '2262-04-11 23:47:16.854775807 UTC'");
+
+        testInitialDefaultValue(format, Types.TimestampNanoType.withZone(), Literal.of("2025-01-23T12:34:56+01:00"), "TIMESTAMP '2025-01-23 11:34:56.000000000 UTC'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withZone(), Literal.of("2025-01-23T12:34:56.1+01:00"), "TIMESTAMP '2025-01-23 11:34:56.100000000 UTC'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withZone(), Literal.of("2025-01-23T12:34:56.12+01:00"), "TIMESTAMP '2025-01-23 11:34:56.120000000 UTC'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withZone(), Literal.of("2025-01-23T12:34:56.123+01:00"), "TIMESTAMP '2025-01-23 11:34:56.123000000 UTC'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withZone(), Literal.of("2025-01-23T12:34:56.1234+01:00"), "TIMESTAMP '2025-01-23 11:34:56.123400000 UTC'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withZone(), Literal.of("2025-01-23T12:34:56.12345+01:00"), "TIMESTAMP '2025-01-23 11:34:56.123450000 UTC'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withZone(), Literal.of("2025-01-23T12:34:56.123456+01:00"), "TIMESTAMP '2025-01-23 11:34:56.123456000 UTC'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withZone(), Literal.of("2025-01-23T12:34:56.1234567+01:00"), "TIMESTAMP '2025-01-23 11:34:56.123456700 UTC'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withZone(), Literal.of("2025-01-23T12:34:56.12345678+01:00"), "TIMESTAMP '2025-01-23 11:34:56.123456780 UTC'");
+        testInitialDefaultValue(format, Types.TimestampNanoType.withZone(), Literal.of("2025-01-23T12:34:56.123456789+01:00"), "TIMESTAMP '2025-01-23 11:34:56.123456789 UTC'");
+    }
+
+    @Test
+    void testTimestampWithTimeZoneNanosLiteralUnsupportedRange()
+    {
+        // Update the above test once this test starts passing
+        assertThatThrownBy(() -> Literal.of("1677-09-21T00:12:43.145224191+00:00").to(Types.TimestampNanoType.withZone()))
+                .hasMessage("long overflow");
+        assertThatThrownBy(() -> Literal.of("2262-04-11T23:47:16.854775808+00:00").to(Types.TimestampNanoType.withZone()))
+                .hasMessage("long overflow");
     }
 
     @ParameterizedTest
@@ -228,6 +403,17 @@ final class TestIcebergDefaultValue
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
+    void testVarcharInitialDefault(IcebergFileFormat format)
+    {
+        testInitialDefaultValue(format, Types.StringType.get(), Literal.of("test varchar"), "VARCHAR 'test varchar'");
+        testInitialDefaultValue(format, Types.StringType.get(), Literal.of(""), "VARCHAR ''");
+        testInitialDefaultValue(format, Types.StringType.get(), Literal.of("攻殻機動隊"), "VARCHAR '攻殻機動隊'");
+        testInitialDefaultValue(format, Types.StringType.get(), Literal.of("😂"), "VARCHAR '😂'");
+        testInitialDefaultValue(format, Types.StringType.get(), Literal.of("a'singlequote"), "VARCHAR 'a''singlequote'");
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
     void testUuidWriteDefault(IcebergFileFormat format)
     {
         testWriteDefaultValue(format, "UUID", "UUID '406caec7-68b9-4778-81b2-a12ece70c8b1'", "UUID '406caec7-68b9-4778-81b2-a12ece70c8b1'");
@@ -236,10 +422,24 @@ final class TestIcebergDefaultValue
 
     @ParameterizedTest
     @EnumSource(IcebergFileFormat.class)
+    void testUuidInitialDefault(IcebergFileFormat format)
+    {
+        testInitialDefaultValue(format, Types.UUIDType.get(), Literal.of("406caec7-68b9-4778-81b2-a12ece70c8b1"), "UUID '406caec7-68b9-4778-81b2-a12ece70c8b1'");
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
     void testVarbinaryWriteDefault(IcebergFileFormat format)
     {
         testWriteDefaultValue(format, "VARBINARY", "X'65683F'", "X'65683F'");
         testWriteDefaultValue(format, "VARBINARY", "NULL", "CAST(NULL AS VARBINARY)");
+    }
+
+    @ParameterizedTest
+    @EnumSource(IcebergFileFormat.class)
+    void testVarbinaryInitialDefault(IcebergFileFormat format)
+    {
+        testInitialDefaultValue(format, Types.BinaryType.get(), Literal.of(ByteBuffer.wrap("eh?".getBytes(UTF_8))), "X'65683F'");
     }
 
     @Test
@@ -278,6 +478,23 @@ final class TestIcebergDefaultValue
             assertThat(query("SELECT data FROM " + table.getName()))
                     .as("%s type expected %s", type, defaultValue)
                     .matches("VALUES " + expectedValue);
+        }
+    }
+
+    private void testInitialDefaultValue(IcebergFileFormat format, Type type, Literal<?> defaultValue, @Language("SQL") String expectedValue)
+    {
+        try (TestTable table = newTrinoTable("test_initial_default", "WITH (format='" + format + "') AS SELECT 1 id")) {
+            BaseTable icebergTable = loadTable(table.getName());
+            icebergTable.updateSchema()
+                    .addColumn("data", type, defaultValue)
+                    .addColumn("part", type, defaultValue)
+                    .commit();
+            icebergTable.updateSpec()
+                    .addField("part")
+                    .commit();
+
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES (1, " + expectedValue + ", " + expectedValue + ")");
         }
     }
 }
