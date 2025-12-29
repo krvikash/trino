@@ -17,17 +17,21 @@ import io.trino.plugin.hive.coercions.DateCoercer.DateHybridToProlepticGregorian
 import io.trino.plugin.hive.coercions.IntegerNumberToDoubleCoercer;
 import io.trino.plugin.hive.coercions.IntegerNumberToVarcharCoercer;
 import io.trino.plugin.hive.coercions.TimestampCoercer.LongTimestampHybridToProlepticGregorianCoercer;
+import io.trino.plugin.hive.coercions.TimestampCoercer.LongTimestampWithTimeZoneHybridToProlepticGregorianCoercer;
 import io.trino.plugin.hive.coercions.TimestampCoercer.ShortTimestampHybridToProlepticGregorianCoercer;
+import io.trino.plugin.hive.coercions.TimestampCoercer.ShortTimestampWithTimeZoneHybridToProlepticGregorianCoercer;
 import io.trino.plugin.hive.coercions.TypeCoercer;
 import io.trino.spi.type.DateType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import org.apache.parquet.schema.LogicalTypeAnnotation;
 import org.apache.parquet.schema.LogicalTypeAnnotation.DateLogicalTypeAnnotation;
 import org.apache.parquet.schema.LogicalTypeAnnotation.DecimalLogicalTypeAnnotation;
+import org.apache.parquet.schema.LogicalTypeAnnotation.TimestampLogicalTypeAnnotation;
 
 import java.util.Optional;
 
@@ -99,9 +103,28 @@ public final class ParquetTypeTranslator
             }
 
             if (fromParquetType == INT64 && coercionContext.convertSparkTimestampToProleptic()) {
+                if (typeAnnotation instanceof TimestampLogicalTypeAnnotation timestampLogicalTypeAnnotation) {
+                    // according to spark.sql.parquet.inferTimestampNTZ.enabled, https://spark.apache.org/docs/latest/configuration.html#runtime-sql-configuration
+                    if (!timestampLogicalTypeAnnotation.isAdjustedToUTC()) {
+                        return Optional.empty();
+                    }
+                }
                 return Optional.of(timestampType.isShort()
                         ? new ShortTimestampHybridToProlepticGregorianCoercer(timestampType)
                         : new LongTimestampHybridToProlepticGregorianCoercer(timestampType));
+            }
+        }
+        if (toTrinoType instanceof TimestampWithTimeZoneType timestampType) {
+            if (fromParquetType == INT96 && coercionContext.convertSparkTimestampInt96ToProleptic()) {
+                return Optional.of(timestampType.isShort()
+                        ? new ShortTimestampWithTimeZoneHybridToProlepticGregorianCoercer(timestampType)
+                        : new LongTimestampWithTimeZoneHybridToProlepticGregorianCoercer(timestampType));
+            }
+
+            if (fromParquetType != INT96 && coercionContext.convertSparkTimestampToProleptic()) {
+                return Optional.of(timestampType.isShort()
+                        ? new ShortTimestampWithTimeZoneHybridToProlepticGregorianCoercer(timestampType)
+                        : new LongTimestampWithTimeZoneHybridToProlepticGregorianCoercer(timestampType));
             }
         }
         return Optional.empty();

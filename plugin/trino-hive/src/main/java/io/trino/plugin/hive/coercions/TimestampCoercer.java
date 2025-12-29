@@ -20,7 +20,10 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.type.DateType;
 import io.trino.spi.type.LongTimestamp;
+import io.trino.spi.type.LongTimestampWithTimeZone;
+import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.VarcharType;
 
 import java.time.LocalDate;
@@ -32,7 +35,13 @@ import java.time.format.DateTimeParseException;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.plugin.base.util.CalendarUtils.convertHybridMicrosToProlepticGregorian;
+import static io.trino.plugin.base.util.CalendarUtils.convertHybridMillisToProlepticGregorian;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_INVALID_TIMESTAMP_COERCION;
+import static io.trino.spi.type.DateTimeEncoding.packDateTimeWithZone;
+import static io.trino.spi.type.DateTimeEncoding.unpackMillisUtc;
+import static io.trino.spi.type.DateTimeEncoding.unpackZoneKey;
+import static io.trino.spi.type.LongTimestampWithTimeZone.fromEpochMillisAndFraction;
+import static io.trino.spi.type.TimeZoneKey.getTimeZoneKey;
 import static io.trino.spi.type.TimestampType.MAX_PRECISION;
 import static io.trino.spi.type.TimestampType.MAX_SHORT_PRECISION;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_SECOND;
@@ -197,6 +206,27 @@ public final class TimestampCoercer
         }
     }
 
+    public static class ShortTimestampWithTimeZoneHybridToProlepticGregorianCoercer
+            extends TypeCoercer<TimestampWithTimeZoneType, TimestampWithTimeZoneType>
+    {
+        public ShortTimestampWithTimeZoneHybridToProlepticGregorianCoercer(TimestampWithTimeZoneType timestampType)
+        {
+            super(timestampType, timestampType);
+            checkArgument(timestampType.isShort(), "Short TIMESTAMP WITH TIME ZONE precision must be in range [0, %s]: %s", TimestampWithTimeZoneType.MAX_SHORT_PRECISION, toType.getPrecision());
+        }
+
+        @Override
+        protected void applyCoercedValue(BlockBuilder blockBuilder, Block block, int position)
+        {
+            long hybridMillis = fromType.getLong(block, position);
+            long hybridMillisUtc = unpackMillisUtc(hybridMillis);
+            TimeZoneKey zoneKey = unpackZoneKey(hybridMillis);
+            long prolepticMillisUtc = convertHybridMillisToProlepticGregorian(hybridMillisUtc);
+            long prolepticMillis = packDateTimeWithZone(prolepticMillisUtc, zoneKey);
+            toType.writeLong(blockBuilder, prolepticMillis);
+        }
+    }
+
     public static class LongTimestampHybridToProlepticGregorianCoercer
             extends TypeCoercer<TimestampType, TimestampType>
     {
@@ -212,6 +242,28 @@ public final class TimestampCoercer
             LongTimestamp timestamp = (LongTimestamp) fromType.getObject(block, position);
             long prolepticMicros = convertHybridMicrosToProlepticGregorian(timestamp.getEpochMicros());
             toType.writeObject(blockBuilder, new LongTimestamp(prolepticMicros, timestamp.getPicosOfMicro()));
+        }
+    }
+
+    public static class LongTimestampWithTimeZoneHybridToProlepticGregorianCoercer
+            extends TypeCoercer<TimestampWithTimeZoneType, TimestampWithTimeZoneType>
+    {
+        public LongTimestampWithTimeZoneHybridToProlepticGregorianCoercer(TimestampWithTimeZoneType timestampType)
+        {
+            super(timestampType, timestampType);
+            checkArgument(!timestampType.isShort(), "Precision must be in the range [%s, %s]", TimestampWithTimeZoneType.MAX_SHORT_PRECISION + 1, TimestampWithTimeZoneType.MAX_PRECISION);
+        }
+
+        @Override
+        protected void applyCoercedValue(BlockBuilder blockBuilder, Block block, int position)
+        {
+            LongTimestampWithTimeZone timestamp = (LongTimestampWithTimeZone) fromType.getObject(block, position);
+            long hybridMillis = timestamp.getEpochMillis();
+            int picosOfMilli = timestamp.getPicosOfMilli();
+            TimeZoneKey timeZoneKey = getTimeZoneKey(timestamp.getTimeZoneKey());
+            long prolepticMillis = convertHybridMillisToProlepticGregorian(hybridMillis);
+
+            toType.writeObject(blockBuilder, fromEpochMillisAndFraction(prolepticMillis, picosOfMilli, timeZoneKey));
         }
     }
 }
