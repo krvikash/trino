@@ -50,6 +50,14 @@ public class TestIcebergTimeZoneParquetV2Test
     }
 
     @Override
+    @Test
+    void testDefaultValue()
+    {
+        assertThatThrownBy(super::testDefaultValue)
+                .hasMessageContaining("Default values are not supported for format version < 3");
+    }
+
+    @Override
     protected void writeVariantDataToIcebergTable(String outputFilePath, DataFiles.Builder fileBuilder, Table table, Variant... variantValues)
             throws IOException
     {
