@@ -416,7 +416,7 @@ public abstract class AbstractTestQueryFramework
 
     protected void assertUpdate(Session session, @Language("SQL") String sql)
     {
-        QueryAssertions.assertUpdate(queryRunner, session, sql, OptionalLong.empty(), Optional.empty());
+        QueryAssertions.assertUpdate(queryRunner, session, sql, OptionalLong.empty());
     }
 
     protected void assertUpdate(@Language("SQL") String sql, long count)
@@ -426,7 +426,7 @@ public abstract class AbstractTestQueryFramework
 
     protected void assertUpdate(Session session, @Language("SQL") String sql, long count)
     {
-        QueryAssertions.assertUpdate(queryRunner, session, sql, OptionalLong.of(count), Optional.empty());
+        QueryAssertions.assertUpdate(queryRunner, session, sql, OptionalLong.of(count));
     }
 
     protected void assertUpdate(Session session, @Language("SQL") String sql, long count, Consumer<Plan> planAssertion)
