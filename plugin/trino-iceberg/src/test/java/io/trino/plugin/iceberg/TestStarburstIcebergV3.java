@@ -65,6 +65,7 @@ import static org.apache.iceberg.TableUtil.formatVersion;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
+// TODO Merge this test into TestIcebergV3
 @TestInstance(PER_CLASS)
 public class TestStarburstIcebergV3
         extends AbstractTestQueryFramework

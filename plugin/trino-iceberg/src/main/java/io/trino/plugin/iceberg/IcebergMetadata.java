@@ -203,6 +203,7 @@ import org.apache.iceberg.SortField;
 import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.StatisticsFile;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.TableScan;
 import org.apache.iceberg.Transaction;
@@ -777,6 +778,32 @@ public class IcebergMetadata
         return tableHandleForCurrentSnapshot(session, tableName, table, Optional.empty());
     }
 
+    private static void validateTableForTrino(BaseTable table, Optional<Long> tableSnapshotId)
+    {
+        Snapshot snapshot = tableSnapshotId
+                .map(table::snapshot)
+                .orElse(table.currentSnapshot());
+        if (snapshot == null) {
+            // empty table, nothing to validate
+            return;
+        }
+
+        TableMetadata metadata = table.operations().current();
+        if (metadata.formatVersion() < 3) {
+            return;
+        }
+
+        Schema schema = metadata.schemasById().get(snapshot.schemaId());
+        if (schema == null) {
+            schema = metadata.schema();
+        }
+
+        // Reject Iceberg table encryption
+        if (!metadata.encryptionKeys().isEmpty() || snapshot.keyId() != null || metadata.properties().containsKey("encryption.key-id")) {
+            throw new TrinoException(NOT_SUPPORTED, "Iceberg table encryption is not supported");
+        }
+    }
+
     private IcebergTableHandle tableHandleForCurrentSnapshot(ConnectorSession session, SchemaTableName tableName, BaseTable table, Optional<String> branch)
     {
         return tableHandleForSnapshot(
@@ -798,6 +825,7 @@ public class IcebergMetadata
             Optional<PartitionSpec> partitionSpec,
             Optional<String> branch)
     {
+        validateTableForTrino(table, tableSnapshotId);
         Map<String, String> tableProperties = table.properties();
         return new IcebergTableHandle(
                 tableName.getSchemaName(),
@@ -1610,12 +1638,14 @@ public class IcebergMetadata
     public ConnectorInsertTableHandle beginInsert(ConnectorSession session, ConnectorTableHandle tableHandle, List<ColumnHandle> columns, RetryMode retryMode)
     {
         IcebergTableHandle table = (IcebergTableHandle) tableHandle;
-        Table icebergTable = catalog.loadTable(session, table.getSchemaTableName());
+        BaseTable icebergTable = catalog.loadTable(session, table.getSchemaTableName());
         Optional<String> branch = table.getBranch();
 
         branch.ifPresentOrElse(
                 name -> checkBranch(icebergTable, name),
                 () -> validateNotModifyingOldSnapshot(table, icebergTable));
+
+        validateTableForTrino(icebergTable, Optional.ofNullable(icebergTable.currentSnapshot()).map(Snapshot::snapshotId));
 
         beginTransaction(icebergTable);
 
@@ -1974,6 +2004,8 @@ public class IcebergMetadata
         Map<String, String> partitionFilter = (Map<String, String>) executeProperties.get("partition_filter");
         RecursiveDirectory recursiveDirectory = (RecursiveDirectory) executeProperties.getOrDefault("recursive_directory", "fail");
 
+        Table icebergTable = catalog.loadTable(session, tableHandle.getSchemaTableName());
+
         HiveMetastore metastore = metastoreFactory.orElseThrow(() -> new TrinoException(NOT_SUPPORTED, "This catalog does not support add_files_from_table procedure"))
                 .createMetastore(Optional.of(session.getIdentity()));
         SchemaTableName sourceName = new SchemaTableName(schemaName, tableName);
@@ -1981,8 +2013,6 @@ public class IcebergMetadata
         accessControl.checkCanSelectFromColumns(null, sourceName, Stream.concat(sourceTable.getDataColumns().stream(), sourceTable.getPartitionColumns().stream())
                 .map(Column::getName)
                 .collect(toImmutableSet()));
-
-        Table icebergTable = catalog.loadTable(session, tableHandle.getSchemaTableName());
 
         if (supportsRowLineage(tableHandle.getFormatVersion()) && icebergTable.schema().findField("_row_id") != null) {
             // https://github.com/apache/iceberg/issues/13232
@@ -2194,16 +2224,6 @@ public class IcebergMetadata
         BaseTable icebergTable = catalog.loadTable(session, table.getSchemaTableName());
 
         validateNotModifyingOldSnapshot(table, icebergTable);
-
-        int tableFormatVersion = formatVersion(icebergTable);
-        if (tableFormatVersion > OPTIMIZE_MAX_SUPPORTED_TABLE_VERSION) {
-            throw new TrinoException(NOT_SUPPORTED, format(
-                    "%s is not supported for Iceberg table format version > %d. Table %s format version is %s.",
-                    OPTIMIZE.name(),
-                    OPTIMIZE_MAX_SUPPORTED_TABLE_VERSION,
-                    table.getSchemaTableName(),
-                    tableFormatVersion));
-        }
 
         beginTransaction(icebergTable);
 
@@ -3942,7 +3962,8 @@ public class IcebergMetadata
 
     private static void verifyTableVersionForUpdate(IcebergTableHandle table)
     {
-        if (table.getFormatVersion() < 2) {
+        int formatVersion = table.getFormatVersion();
+        if (formatVersion < 2) {
             throw new TrinoException(NOT_SUPPORTED, "Iceberg table updates require at least format version 2");
         }
     }
