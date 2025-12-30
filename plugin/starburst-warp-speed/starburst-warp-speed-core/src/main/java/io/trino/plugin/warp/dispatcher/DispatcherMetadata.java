@@ -16,6 +16,7 @@ package io.trino.plugin.warp.dispatcher;
 import com.google.common.collect.Sets;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
+import io.trino.plugin.base.util.ConnectorExpressionUtil.ExpressionAndAssignments;
 import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.expression.rewrite.ExpressionService;
@@ -109,6 +110,7 @@ import java.util.Set;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
+import static io.trino.plugin.base.util.ConnectorExpressionUtil.or;
 import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.createFixedStatKey;
 import static io.trino.spi.expression.Constant.TRUE;
 import static io.trino.spi.predicate.TupleDomain.columnWiseUnion;
@@ -1118,16 +1120,12 @@ public class DispatcherMetadata
         // the unenforced predicate is "best effort", and there is no guarantee it is effective
         TupleDomain<ColumnHandle> unifiedFullPredicate = columnWiseUnion(firstTable.getFullPredicate(), secondTable.getFullPredicate());
 
-        // TODO: Add support for WarpExpression unification (see earlier TODO).
-        // Current approach: drop the expressions if they are not equal
-        // (expression is "best effort", and there is no guarantee it is effective).
-        // Alternative: return Optional.empty() to skip table unification.
-        // Although the second option could be better if the expressions are very selective,
-        // we stick with the first to stay aligned with proxy connector performance.
-        Optional<WarpExpression> unifiedWarpExpression =
-                firstTable.getWarpExpression().equals(secondTable.getWarpExpression()) ?
-                        firstTable.getWarpExpression() :
-                        Optional.empty();
+        ExpressionAndAssignments unionExpression = or(firstTable.getOriginalExpression().orElseThrow(), secondTable.getOriginalExpression().orElseThrow());
+        Optional<WarpExpression> unionWarpExpression = expressionService.convertToWarpExpression(
+                session,
+                unionExpression.expression(),
+                unionExpression.assignments(),
+                new HashMap<>()); // stats will be collected from the individual tables
 
         List<CustomStat> unifiedCustomStats = mergeCustomStats(firstTable.getCustomStats(), secondTable.getCustomStats());
         DispatcherTableHandle unified = new DispatcherTableHandle(
@@ -1137,10 +1135,11 @@ public class DispatcherMetadata
                 unifiedFullPredicate,
                 new SimplifiedColumns(Sets.union(firstTable.getSimplifiedColumns().simplifiedColumns(), secondTable.getSimplifiedColumns().simplifiedColumns())),
                 unifiedProxyResult.get().unifiedHandle(),
-                unifiedWarpExpression,
+                unionWarpExpression,
                 unifiedCustomStats,
                 false,
-                Sets.union(firstTable.getColumnsNotFitForDictionary(), secondTable.getColumnsNotFitForDictionary()));
+                Sets.union(firstTable.getColumnsNotFitForDictionary(), secondTable.getColumnsNotFitForDictionary()),
+                Optional.of(unionExpression));
 
         // union limits from the first and second table handles
         // we can do this only if we're not extracting and returning to the engine any compensating filters for the unified table handles
