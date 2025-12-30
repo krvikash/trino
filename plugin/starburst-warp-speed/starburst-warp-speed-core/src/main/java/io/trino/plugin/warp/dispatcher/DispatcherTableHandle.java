@@ -16,6 +16,7 @@ package io.trino.plugin.warp.dispatcher;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.trino.plugin.base.util.ConnectorExpressionUtil.ExpressionAndAssignments;
 import io.trino.plugin.warp.expression.rewrite.WarpExpression;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorTableHandle;
@@ -44,6 +45,10 @@ public class DispatcherTableHandle
     private final List<CustomStat> customStats;
     private final boolean subsumedPredicates;
     private final Set<String> columnsNotFitForDictionary;
+
+    // used for re-constructing warpExpression
+    private final Optional<ExpressionAndAssignments> originalExpression;
+
     private final FilteringStats filteringStats;
 
     @JsonCreator
@@ -58,6 +63,33 @@ public class DispatcherTableHandle
             @JsonProperty("subsumedPredicates") boolean subsumedPredicates,
             @JsonProperty("columnsNotFitForDictionary") Set<String> columnsNotFitForDictionary)
     {
+        this(
+                schemaName,
+                tableName,
+                limit,
+                fullPredicate,
+                simplifiedColumns,
+                proxyConnectorTableHandle,
+                warpExpression,
+                customStats,
+                subsumedPredicates,
+                columnsNotFitForDictionary,
+                Optional.empty()); // constraintOriginalExpressions is not serialized (not needed in workers)
+    }
+
+    public DispatcherTableHandle(
+            String schemaName,
+            String tableName,
+            OptionalLong limit,
+            TupleDomain<ColumnHandle> fullPredicate,
+            SimplifiedColumns simplifiedColumns,
+            ConnectorTableHandle proxyConnectorTableHandle,
+            Optional<WarpExpression> warpExpression,
+            List<CustomStat> customStats,
+            boolean subsumedPredicates,
+            Set<String> columnsNotFitForDictionary,
+            Optional<ExpressionAndAssignments> originalExpression)
+    {
         this.schemaTableName = new SchemaTableName(requireNonNull(schemaName), requireNonNull(tableName));
         this.limit = limit;
         this.fullPredicate = requireNonNull(fullPredicate);
@@ -67,6 +99,8 @@ public class DispatcherTableHandle
         this.customStats = customStats;
         this.subsumedPredicates = subsumedPredicates;
         this.columnsNotFitForDictionary = columnsNotFitForDictionary;
+        this.originalExpression = requireNonNull(originalExpression);
+
         this.filteringStats = new FilteringStats();
     }
 
@@ -145,6 +179,12 @@ public class DispatcherTableHandle
     public boolean isColumnFitForDictionary(String columnName)
     {
         return columnsNotFitForDictionary.isEmpty() || !columnsNotFitForDictionary.contains(columnName);
+    }
+
+    @JsonIgnore
+    public Optional<ExpressionAndAssignments> getOriginalExpression()
+    {
+        return originalExpression;
     }
 
     @JsonIgnore

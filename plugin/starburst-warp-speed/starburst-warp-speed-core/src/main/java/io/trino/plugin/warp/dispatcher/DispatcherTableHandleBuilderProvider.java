@@ -15,18 +15,23 @@ package io.trino.plugin.warp.dispatcher;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import io.trino.plugin.base.util.ConnectorExpressionUtil.ExpressionAndAssignments;
 import io.trino.plugin.warp.expression.rewrite.WarpExpression;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.predicate.TupleDomain;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
 
+import static io.trino.spi.expression.Constant.TRUE;
+import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -51,6 +56,7 @@ public class DispatcherTableHandleBuilderProvider
                 .customStats(dispatcherTableHandle.getCustomStats())
                 .subsumedPredicates(dispatcherTableHandle.isSubsumedPredicates())
                 .columnsNotFitForDictionary(dispatcherTableHandle.getColumnsNotFitForDictionary());
+        dispatcherTableHandle.getOriginalExpression().ifPresent(builder::originalExpression);
         dispatcherTableHandle.getLimit().ifPresent(builder::limit);
         return builder;
     }
@@ -78,6 +84,7 @@ public class DispatcherTableHandleBuilderProvider
         protected boolean subsumedPredicates;
         private List<CustomStat> customStats = Collections.emptyList();
         private Set<String> columnsNotFitForDictionary = Set.of();
+        private Optional<ExpressionAndAssignments> originalExpression = Optional.of(new ExpressionAndAssignments(TRUE, emptyMap()));
 
         private Builder(DispatcherProxiedConnectorTransformer transformer, int predicateThreshold)
         {
@@ -139,6 +146,18 @@ public class DispatcherTableHandleBuilderProvider
             return this;
         }
 
+        public Builder originalExpression(ExpressionAndAssignments originalExpression)
+        {
+            this.originalExpression = Optional.of(originalExpression);
+            return this;
+        }
+
+        public Builder originalExpression(ConnectorExpression originalExpression, Map<String, ColumnHandle> originalAssignments)
+        {
+            this.originalExpression = Optional.of(new ExpressionAndAssignments(originalExpression, originalAssignments));
+            return this;
+        }
+
         public DispatcherTableHandle build()
         {
             return new DispatcherTableHandle(schemaName,
@@ -150,7 +169,8 @@ public class DispatcherTableHandleBuilderProvider
                     warpExpression,
                     customStats,
                     subsumedPredicates,
-                    columnsNotFitForDictionary);
+                    columnsNotFitForDictionary,
+                    originalExpression);
         }
     }
 }

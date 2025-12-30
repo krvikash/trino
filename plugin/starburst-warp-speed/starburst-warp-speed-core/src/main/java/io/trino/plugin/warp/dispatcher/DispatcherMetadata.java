@@ -951,6 +951,7 @@ public class DispatcherMetadata
             }
             return createConstraintApplicationResult(
                     session,
+                    constraint,
                     dispatcherTableHandle,
                     constraint.getSummary(),
                     Optional.empty(),
@@ -967,6 +968,7 @@ public class DispatcherMetadata
 
         return createConstraintApplicationResult(
                 session,
+                constraint,
                 dispatcherTableHandle,
                 newRemainingFilter,
                 newRemainingExpression,
@@ -977,6 +979,7 @@ public class DispatcherMetadata
 
     private Optional<ConstraintApplicationResult<ConnectorTableHandle>> createConstraintApplicationResult(
             ConnectorSession session,
+            Constraint constraint,
             DispatcherTableHandle table,
             TupleDomain<ColumnHandle> newRemainingFilter,
             Optional<ConnectorExpression> newRemainingExpression,
@@ -986,11 +989,17 @@ public class DispatcherMetadata
     {
         List<CustomStat> customStats = mergeCustomStats(table.getCustomStats(), customStatsMap);
         TupleDomain<ColumnHandle> fullPredicate = table.getFullPredicate().intersect(newRemainingFilter);
-        DispatcherTableHandle dispatcherTableHandle = createTableHandleBuilder(session, Optional.of(table), proxiedConnectorTableHandle, table.getSchemaTableName())
+
+        DispatcherTableHandleBuilderProvider.Builder builder = createTableHandleBuilder(session, Optional.of(table), proxiedConnectorTableHandle, table.getSchemaTableName())
                 .warpExpression(warpExpression)
                 .customStats(customStats)
-                .fullPredicate(fullPredicate)
-                .build();
+                .fullPredicate(fullPredicate);
+        if (table.getWarpExpression().isEmpty()) {
+            // Currently, WarpExpression is set only once
+            builder.originalExpression(constraint.getExpression(), constraint.getAssignments());
+        }
+        DispatcherTableHandle dispatcherTableHandle = builder.build();
+
         List<ConstraintApplicationResult.Alternative<ConnectorTableHandle>> alternatives = List.of(
                 new ConstraintApplicationResult.Alternative<>(dispatcherTableHandle, newRemainingFilter, newRemainingExpression, false));
 
