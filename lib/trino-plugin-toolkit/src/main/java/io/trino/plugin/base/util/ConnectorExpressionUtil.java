@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static io.trino.spi.expression.Constant.FALSE;
 import static io.trino.spi.expression.Constant.TRUE;
 import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
@@ -55,6 +56,9 @@ public final class ConnectorExpressionUtil
 
     public static ExpressionAndAssignments and(List<ExpressionAndAssignments> expressionAndAssignments)
     {
+        if (expressionAndAssignments.isEmpty()) {
+            return new ExpressionAndAssignments(TRUE, emptyMap());
+        }
         return combineWithLogicalOperator(expressionAndAssignments, ConnectorExpressions::and);
     }
 
@@ -65,6 +69,9 @@ public final class ConnectorExpressionUtil
 
     public static ExpressionAndAssignments or(List<ExpressionAndAssignments> expressionAndAssignments)
     {
+        if (expressionAndAssignments.isEmpty()) {
+            return new ExpressionAndAssignments(FALSE, emptyMap());
+        }
         return combineWithLogicalOperator(expressionAndAssignments, ConnectorExpressions::or);
     }
 
@@ -72,9 +79,6 @@ public final class ConnectorExpressionUtil
             List<ExpressionAndAssignments> expressionAndAssignments,
             Function<List<ConnectorExpression>, ConnectorExpression> combiner)
     {
-        if (expressionAndAssignments.isEmpty()) {
-            return new ExpressionAndAssignments(TRUE, emptyMap());
-        }
         if (expressionAndAssignments.size() == 1) {
             return expressionAndAssignments.getFirst();
         }

@@ -28,6 +28,7 @@ import java.util.Map;
 
 import static io.trino.plugin.base.expression.ConnectorExpressions.and;
 import static io.trino.plugin.base.expression.ConnectorExpressions.or;
+import static io.trino.spi.expression.Constant.FALSE;
 import static io.trino.spi.expression.Constant.TRUE;
 import static io.trino.spi.expression.StandardFunctions.IS_NULL_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME;
@@ -90,6 +91,13 @@ final class TestConnectorExpressionUtil
 
         assertThat(ConnectorExpressionUtil.and(ImmutableList.of(expressionAndAssignments)))
                 .isEqualTo(expressionAndAssignments);
+    }
+
+    @Test
+    void testOrEmpty()
+    {
+        assertThat(ConnectorExpressionUtil.or(ImmutableList.of()))
+                .isEqualTo(new ExpressionAndAssignments(FALSE, emptyMap()));
     }
 
     @Test
