@@ -46,8 +46,8 @@ public final class JdbcTableHandle
     // Additional to constraint
     private final List<ParameterizedExpression> constraintExpressions;
 
-    // used for re-constructing the constraintExpressions list
-    private final Optional<List<ExpressionAndAssignments>> constraintOriginalExpressions;
+    // used for re-constructing a conjunction logically equivalent to the constraintExpressions list
+    private final Optional<ExpressionAndAssignments> constraintOriginalExpression;
 
     // semantically sort order is applied after constraint
     private final Optional<List<JdbcSortItem>> sortOrder;
@@ -74,7 +74,7 @@ public final class JdbcTableHandle
                 new JdbcNamedRelationHandle(schemaTableName, remoteTableName, comment),
                 TupleDomain.all(),
                 ImmutableList.of(),
-                Optional.of(ImmutableList.of()),
+                Optional.of(ExpressionAndAssignments.TRUE),
                 Optional.empty(),
                 OptionalLong.empty(),
                 Optional.empty(),
@@ -101,7 +101,7 @@ public final class JdbcTableHandle
                 relationHandle,
                 constraint,
                 constraintExpressions,
-                Optional.empty(), // constraintOriginalExpressions is not serialized (not needed in workers)
+                Optional.empty(), // constraintOriginalExpression is not serialized (not needed in workers)
                 sortOrder,
                 limit,
                 columns,
@@ -115,7 +115,7 @@ public final class JdbcTableHandle
             JdbcRelationHandle relationHandle,
             TupleDomain<ColumnHandle> constraint,
             List<ParameterizedExpression> constraintExpressions,
-            List<ExpressionAndAssignments> constraintOriginalExpressions,
+            ExpressionAndAssignments constraintOriginalExpression,
             Optional<List<JdbcSortItem>> sortOrder,
             OptionalLong limit,
             Optional<List<JdbcColumnHandle>> columns,
@@ -128,7 +128,7 @@ public final class JdbcTableHandle
                 relationHandle,
                 constraint,
                 constraintExpressions,
-                Optional.of(constraintOriginalExpressions),
+                Optional.of(constraintOriginalExpression),
                 sortOrder,
                 limit,
                 columns,
@@ -142,7 +142,7 @@ public final class JdbcTableHandle
             JdbcRelationHandle relationHandle,
             TupleDomain<ColumnHandle> constraint,
             List<ParameterizedExpression> constraintExpressions,
-            Optional<List<ExpressionAndAssignments>> constraintOriginalExpressions,
+            Optional<ExpressionAndAssignments> constraintOriginalExpression,
             Optional<List<JdbcSortItem>> sortOrder,
             OptionalLong limit,
             Optional<List<JdbcColumnHandle>> columns,
@@ -154,7 +154,7 @@ public final class JdbcTableHandle
         this.relationHandle = requireNonNull(relationHandle, "relationHandle is null");
         this.constraint = requireNonNull(constraint, "constraint is null");
         this.constraintExpressions = ImmutableList.copyOf(requireNonNull(constraintExpressions, "constraintExpressions is null"));
-        this.constraintOriginalExpressions = requireNonNull(constraintOriginalExpressions, "constraintOriginalExpressions is null").map(ImmutableList::copyOf);
+        this.constraintOriginalExpression = requireNonNull(constraintOriginalExpression, "constraintOriginalExpression is null");
         this.sortOrder = sortOrder.map(ImmutableList::copyOf);
         this.limit = requireNonNull(limit, "limit is null");
 
@@ -171,7 +171,7 @@ public final class JdbcTableHandle
                 relationHandle,
                 constraint.intersect(newConstraint),
                 constraintExpressions,
-                constraintOriginalExpressions,
+                constraintOriginalExpression,
                 sortOrder,
                 limit,
                 columns,
@@ -187,7 +187,7 @@ public final class JdbcTableHandle
                 relationHandle,
                 constraint,
                 constraintExpressions,
-                constraintOriginalExpressions,
+                constraintOriginalExpression,
                 sortOrder,
                 limit,
                 columns,
@@ -208,7 +208,7 @@ public final class JdbcTableHandle
                 relationHandle,
                 constraint,
                 constraintExpressions,
-                constraintOriginalExpressions,
+                constraintOriginalExpression,
                 sortOrder,
                 limit,
                 Optional.of(columns),
@@ -250,9 +250,9 @@ public final class JdbcTableHandle
     }
 
     @JsonIgnore
-    public List<ExpressionAndAssignments> getConstraintOriginalExpressions()
+    public ExpressionAndAssignments getConstraintOriginalExpression()
     {
-        return constraintOriginalExpressions.orElseThrow();
+        return constraintOriginalExpression.orElseThrow();
     }
 
     @JsonProperty

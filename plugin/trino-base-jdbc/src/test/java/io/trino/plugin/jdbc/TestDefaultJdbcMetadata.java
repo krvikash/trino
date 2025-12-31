@@ -17,7 +17,7 @@ import com.google.common.base.VerifyException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import io.trino.plugin.base.util.ConnectorExpressionUtil;
+import io.trino.plugin.base.util.ConnectorExpressionUtil.ExpressionAndAssignments;
 import io.trino.plugin.jdbc.expression.ParameterizedExpression;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.AggregationApplicationResult;
@@ -457,8 +457,8 @@ public class TestDefaultJdbcMetadata
 
         JdbcTableHandle result = applyFilter(session, baseTableHandle, constraint);
 
-        assertThat(result.getConstraintOriginalExpressions())
-                .containsExactly(new ConnectorExpressionUtil.ExpressionAndAssignments(expression, assignments));
+        assertThat(result.getConstraintOriginalExpression())
+                .isEqualTo(new ExpressionAndAssignments(expression, assignments));
     }
 
     @Test
@@ -492,7 +492,7 @@ public class TestDefaultJdbcMetadata
                 baseTableHandle.getRelationHandle(),
                 TupleDomain.all(),
                 ImmutableList.of(new ParameterizedExpression("like", ImmutableList.of())),
-                ImmutableList.of(),
+                ExpressionAndAssignments.TRUE,
                 Optional.empty(),
                 OptionalLong.empty(),
                 Optional.empty(),

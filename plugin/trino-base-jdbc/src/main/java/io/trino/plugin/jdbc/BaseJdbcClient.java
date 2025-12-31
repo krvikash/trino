@@ -24,6 +24,7 @@ import dev.failsafe.function.CheckedRunnable;
 import io.airlift.log.Logger;
 import io.trino.plugin.base.mapping.IdentifierMapping;
 import io.trino.plugin.base.mapping.RemoteIdentifiers;
+import io.trino.plugin.base.util.ConnectorExpressionUtil.ExpressionAndAssignments;
 import io.trino.plugin.jdbc.JdbcProcedureHandle.ProcedureQuery;
 import io.trino.plugin.jdbc.JdbcRemoteIdentifiers.JdbcRemoteIdentifiersFactory;
 import io.trino.plugin.jdbc.expression.ParameterizedExpression;
@@ -267,7 +268,7 @@ public abstract class BaseJdbcClient
                     new JdbcQueryRelationHandle(preparedQuery),
                     TupleDomain.all(),
                     ImmutableList.of(),
-                    ImmutableList.of(),
+                    ExpressionAndAssignments.TRUE,
                     Optional.empty(),
                     OptionalLong.empty(),
                     Optional.of(getColumns(session, connection, metadata)),

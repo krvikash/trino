@@ -16,6 +16,7 @@ package io.trino.plugin.jdbc;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import dev.failsafe.RetryPolicy;
+import io.trino.plugin.base.util.ConnectorExpressionUtil.ExpressionAndAssignments;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorSession;
@@ -213,7 +214,7 @@ public class TestJdbcPageSourceProvider
                 jdbcTableHandle.getRelationHandle(),
                 domain,
                 ImmutableList.of(),
-                ImmutableList.of(),
+                ExpressionAndAssignments.TRUE,
                 Optional.empty(),
                 OptionalLong.empty(),
                 Optional.empty(),

@@ -23,6 +23,7 @@ import io.airlift.units.Duration;
 import io.trino.plugin.base.cache.identity.IdentityCacheMapping;
 import io.trino.plugin.base.cache.identity.SingletonIdentityCacheMapping;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
+import io.trino.plugin.base.util.ConnectorExpressionUtil.ExpressionAndAssignments;
 import io.trino.plugin.jdbc.JdbcProcedureHandle.ProcedureQuery;
 import io.trino.plugin.jdbc.credential.ExtraCredentialConfig;
 import io.trino.spi.connector.ColumnMetadata;
@@ -662,7 +663,7 @@ public class TestCachingJdbcClient
                 new JdbcQueryRelationHandle(new PreparedQuery("SELECT * FROM first", List.of())),
                 TupleDomain.all(),
                 ImmutableList.of(),
-                ImmutableList.of(),
+                ExpressionAndAssignments.TRUE,
                 Optional.empty(),
                 OptionalLong.empty(),
                 Optional.empty(),

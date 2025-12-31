@@ -233,11 +233,11 @@ public class DefaultJdbcMetadata
         TupleDomain<ColumnHandle> oldDomain = handle.getConstraint();
         TupleDomain<ColumnHandle> newDomain = oldDomain.intersect(filterDomain);
         List<ParameterizedExpression> newConstraintExpressions;
-        List<ExpressionAndAssignments> constraintOriginalExpressions;
+        ExpressionAndAssignments constraintOriginalExpression;
         TupleDomain<ColumnHandle> remainingFilter;
         if (newDomain.isNone()) {
             newConstraintExpressions = ImmutableList.of();
-            constraintOriginalExpressions = ImmutableList.of();
+            constraintOriginalExpression = ExpressionAndAssignments.TRUE;
             remainingFilter = TupleDomain.all();
             remainingExpression = TRUE;
         }
@@ -268,7 +268,7 @@ public class DefaultJdbcMetadata
             if (isComplexExpressionPushdown(session)) {
                 List<ParameterizedExpression> newExpressions = new ArrayList<>();
                 ImmutableList.Builder<ExpressionAndAssignments> constraintOriginalExpressionsBuilder = ImmutableList.builder();
-                constraintOriginalExpressionsBuilder.addAll(handle.getConstraintOriginalExpressions());
+                constraintOriginalExpressionsBuilder.add(handle.getConstraintOriginalExpression());
                 List<ConnectorExpression> remainingExpressions = new ArrayList<>();
                 for (ConnectorExpression expression : extractConjuncts(remainingExpression)) {
                     Optional<ParameterizedExpression> converted = jdbcClient.convertPredicate(session, expression, constraint.getAssignments());
@@ -280,7 +280,7 @@ public class DefaultJdbcMetadata
                         remainingExpressions.add(expression);
                     }
                 }
-                constraintOriginalExpressions = constraintOriginalExpressionsBuilder.build();
+                constraintOriginalExpression = ConnectorExpressionUtil.and(constraintOriginalExpressionsBuilder.build());
                 newConstraintExpressions = ImmutableSet.<ParameterizedExpression>builder()
                         .addAll(handle.getConstraintExpressions())
                         .addAll(newExpressions)
@@ -288,7 +288,7 @@ public class DefaultJdbcMetadata
                 remainingExpression = and(remainingExpressions);
             }
             else {
-                constraintOriginalExpressions = ImmutableList.of();
+                constraintOriginalExpression = ExpressionAndAssignments.TRUE;
                 newConstraintExpressions = ImmutableList.of();
             }
         }
@@ -302,7 +302,7 @@ public class DefaultJdbcMetadata
                 handle.getRelationHandle(),
                 newDomain,
                 newConstraintExpressions,
-                constraintOriginalExpressions,
+                constraintOriginalExpression,
                 handle.getSortOrder(),
                 handle.getLimit(),
                 handle.getColumns(),
@@ -335,7 +335,7 @@ public class DefaultJdbcMetadata
                 firstTable.getRelationHandle(),
                 TupleDomain.all(),
                 ImmutableList.of(),
-                ImmutableList.of(),
+                ExpressionAndAssignments.TRUE,
                 firstTable.getSortOrder(),
                 OptionalLong.empty(),
                 Optional.of(Stream.concat(
@@ -353,9 +353,7 @@ public class DefaultJdbcMetadata
         // the original enforced predicates for both tables will be returned to the caller to re-apply
         TupleDomain<ColumnHandle> unionedConstraint = columnWiseUnion(firstTable.getConstraint(), secondTable.getConstraint());
 
-        ExpressionAndAssignments firstExpression = ConnectorExpressionUtil.and(firstTable.getConstraintOriginalExpressions());
-        ExpressionAndAssignments secondExpression = ConnectorExpressionUtil.and(secondTable.getConstraintOriginalExpressions());
-        ExpressionAndAssignments unionExpression = or(firstExpression, secondExpression);
+        ExpressionAndAssignments unionExpression = or(firstTable.getConstraintOriginalExpression(), secondTable.getConstraintOriginalExpression());
         Optional<ConstraintApplicationResult<ConnectorTableHandle>> constraintResult = applyFilter(
                 session,
                 unified,
@@ -368,8 +366,8 @@ public class DefaultJdbcMetadata
             unified = (JdbcTableHandle) constraintResult.get().getHandle();
         }
 
-        Compensation firstCompensation = getCompensation(firstTable.getConstraint(), firstExpression, unified);
-        Compensation secondCompensation = getCompensation(secondTable.getConstraint(), secondExpression, unified);
+        Compensation firstCompensation = getCompensation(firstTable.getConstraint(), firstTable.getConstraintOriginalExpression(), unified);
+        Compensation secondCompensation = getCompensation(secondTable.getConstraint(), secondTable.getConstraintOriginalExpression(), unified);
 
         // push the limit (equal on both table handles)
         // we can do this only if we're not extracting and returning to the engine any compensating filters for the unified table handles
@@ -400,7 +398,7 @@ public class DefaultJdbcMetadata
             unified = unified.withColumns(columns);
         }
 
-        ExpressionAndAssignments expressionAndAssignments = ConnectorExpressionUtil.and(unified.getConstraintOriginalExpressions());
+        ExpressionAndAssignments expressionAndAssignments = unified.getConstraintOriginalExpression();
         return Optional.of(new UnificationResult<>(
                 unified,
                 firstCompensation.tupleDomain(),
@@ -480,7 +478,7 @@ public class DefaultJdbcMetadata
                 new JdbcQueryRelationHandle(preparedQuery),
                 TupleDomain.all(),
                 ImmutableList.of(),
-                ImmutableList.of(),
+                ExpressionAndAssignments.TRUE,
                 Optional.empty(),
                 OptionalLong.empty(),
                 Optional.of(columns),
@@ -540,7 +538,7 @@ public class DefaultJdbcMetadata
                         handle.getRelationHandle(),
                         handle.getConstraint(),
                         handle.getConstraintExpressions(),
-                        handle.getConstraintOriginalExpressions(),
+                        handle.getConstraintOriginalExpression(),
                         handle.getSortOrder(),
                         handle.getLimit(),
                         Optional.of(newColumns),
@@ -602,7 +600,7 @@ public class DefaultJdbcMetadata
                         new JdbcQueryRelationHandle(preparedQuery),
                         TupleDomain.all(),
                         ImmutableList.of(),
-                        ImmutableList.of(),
+                        ExpressionAndAssignments.TRUE,
                         Optional.empty(),
                         OptionalLong.empty(),
                         Optional.of(newColumns),
@@ -776,7 +774,7 @@ public class DefaultJdbcMetadata
                 new JdbcQueryRelationHandle(preparedQuery),
                 TupleDomain.all(),
                 ImmutableList.of(),
-                ImmutableList.of(),
+                ExpressionAndAssignments.TRUE,
                 Optional.empty(),
                 OptionalLong.empty(),
                 Optional.of(newColumnsList),
@@ -898,7 +896,7 @@ public class DefaultJdbcMetadata
                         new JdbcQueryRelationHandle(joinQuery.get()),
                         TupleDomain.all(),
                         ImmutableList.of(),
-                        ImmutableList.of(),
+                        ExpressionAndAssignments.TRUE,
                         Optional.empty(),
                         OptionalLong.empty(),
                         Optional.of(
@@ -994,7 +992,7 @@ public class DefaultJdbcMetadata
                         new JdbcQueryRelationHandle(joinQuery.get()),
                         TupleDomain.all(),
                         ImmutableList.of(),
-                        ImmutableList.of(),
+                        ExpressionAndAssignments.TRUE,
                         Optional.empty(),
                         OptionalLong.empty(),
                         Optional.of(
@@ -1105,7 +1103,7 @@ public class DefaultJdbcMetadata
                 handle.getRelationHandle(),
                 handle.getConstraint(),
                 handle.getConstraintExpressions(),
-                handle.getConstraintOriginalExpressions(),
+                handle.getConstraintOriginalExpression(),
                 handle.getSortOrder(),
                 OptionalLong.of(limit),
                 handle.getColumns(),
@@ -1161,7 +1159,7 @@ public class DefaultJdbcMetadata
                 handle.getRelationHandle(),
                 handle.getConstraint(),
                 handle.getConstraintExpressions(),
-                handle.getConstraintOriginalExpressions(),
+                handle.getConstraintOriginalExpression(),
                 Optional.of(resultSortOrder),
                 OptionalLong.of(topNCount),
                 handle.getColumns(),
