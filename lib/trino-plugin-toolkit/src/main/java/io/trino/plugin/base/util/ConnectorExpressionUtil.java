@@ -14,6 +14,7 @@
 package io.trino.plugin.base.util;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import io.trino.plugin.base.expression.ConnectorExpressions;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.expression.Call;
@@ -28,13 +29,16 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static io.trino.plugin.base.expression.ConnectorExpressions.extractVariables;
 import static io.trino.spi.expression.Constant.FALSE;
 import static io.trino.spi.expression.Constant.TRUE;
 import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.toSet;
 
 public final class ConnectorExpressionUtil
 {
@@ -42,11 +46,24 @@ public final class ConnectorExpressionUtil
 
     public record ExpressionAndAssignments(ConnectorExpression expression, Map<String, ColumnHandle> assignments)
     {
+        public static final ExpressionAndAssignments TRUE = new ExpressionAndAssignments(Constant.TRUE, emptyMap());
+        public static final ExpressionAndAssignments FALSE = new ExpressionAndAssignments(Constant.FALSE, emptyMap());
+
         public ExpressionAndAssignments
         {
             requireNonNull(expression, "expression is null");
             assignments = ImmutableMap.copyOf(requireNonNull(assignments, "assignments is null"));
         }
+    }
+
+    /**
+     * Extracts all distinct variable names from {@code expression}
+     */
+    public static Set<String> extractVariableNames(ConnectorExpression expression)
+    {
+        return extractVariables(expression).stream()
+                .map(Variable::getName)
+                .collect(toSet());
     }
 
     public static ExpressionAndAssignments and(ExpressionAndAssignments... expressionAndAssignments)
@@ -56,10 +73,16 @@ public final class ConnectorExpressionUtil
 
     public static ExpressionAndAssignments and(List<ExpressionAndAssignments> expressionAndAssignments)
     {
-        if (expressionAndAssignments.isEmpty()) {
-            return new ExpressionAndAssignments(TRUE, emptyMap());
+        if (expressionAndAssignments.stream().anyMatch(expression -> FALSE.equals(expression.expression()))) {
+            return ExpressionAndAssignments.FALSE;
         }
-        return combineWithLogicalOperator(expressionAndAssignments, ConnectorExpressions::and);
+        List<ExpressionAndAssignments> nonTrivialExpressions = expressionAndAssignments.stream()
+                .filter(expression -> !TRUE.equals(expression.expression()))
+                .toList();
+        if (nonTrivialExpressions.isEmpty()) {
+            return ExpressionAndAssignments.TRUE;
+        }
+        return combineWithLogicalOperator(nonTrivialExpressions, ConnectorExpressions::and);
     }
 
     public static ExpressionAndAssignments or(ExpressionAndAssignments... expressionAndAssignments)
@@ -69,10 +92,16 @@ public final class ConnectorExpressionUtil
 
     public static ExpressionAndAssignments or(List<ExpressionAndAssignments> expressionAndAssignments)
     {
-        if (expressionAndAssignments.isEmpty()) {
-            return new ExpressionAndAssignments(FALSE, emptyMap());
+        if (expressionAndAssignments.stream().anyMatch(expression -> TRUE.equals(expression.expression()))) {
+            return ExpressionAndAssignments.TRUE;
         }
-        return combineWithLogicalOperator(expressionAndAssignments, ConnectorExpressions::or);
+        List<ExpressionAndAssignments> nonTrivialExpressions = expressionAndAssignments.stream()
+                .filter(expression -> !FALSE.equals(expression.expression()))
+                .toList();
+        if (nonTrivialExpressions.isEmpty()) {
+            return ExpressionAndAssignments.FALSE;
+        }
+        return combineWithLogicalOperator(nonTrivialExpressions, ConnectorExpressions::or);
     }
 
     private static ExpressionAndAssignments combineWithLogicalOperator(
@@ -120,7 +149,12 @@ public final class ConnectorExpressionUtil
             expressions.add(symbolMapping.isEmpty() ? current.expression() : remapSymbols(current.expression(), symbolMapping));
         }
 
-        return new ExpressionAndAssignments(combiner.apply(expressions), unionAssignments);
+        ConnectorExpression expression = combiner.apply(expressions);
+        Set<String> variableNames = extractVariableNames(expression);
+        Map<String, ColumnHandle> prunedAssignments = Maps.filterEntries(
+                unionAssignments,
+                entry -> variableNames.contains(entry.getKey()));
+        return new ExpressionAndAssignments(expression, prunedAssignments);
     }
 
     static ConnectorExpression remapSymbols(ConnectorExpression expression, Map<String, String> symbolMapping)

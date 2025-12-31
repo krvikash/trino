@@ -35,7 +35,6 @@ import io.trino.spi.connector.Assignment;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.UnificationResult;
 import io.trino.spi.expression.ConnectorExpression;
-import io.trino.spi.expression.Variable;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.RowType;
@@ -102,7 +101,7 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.SystemSessionProperties.isDebugCteReuseEnabled;
 import static io.trino.plugin.base.expression.ConnectorExpressions.and;
-import static io.trino.plugin.base.expression.ConnectorExpressions.extractVariables;
+import static io.trino.plugin.base.util.ConnectorExpressionUtil.extractVariableNames;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -520,9 +519,7 @@ public class CteReuse
 
     private static void addExpressionTypes(Map<ColumnHandle, Type> typesMap, ConnectorExpression compensationExpression, Map<String, Assignment> assignments)
     {
-        extractVariables(compensationExpression).stream()
-                .map(Variable::getName)
-                .distinct()
+        extractVariableNames(compensationExpression).stream()
                 .map(assignments::get)
                 .forEach(assignment -> addType(typesMap, assignment.getColumn(), assignment.getType()));
     }
@@ -556,8 +553,8 @@ public class CteReuse
                 .filter((columnHandle, domain) -> unifiedHandlesSet.contains(columnHandle));
 
         List<ConnectorExpression> conjuncts = ConnectorExpressions.extractConjuncts(enforcedProperties.connectorExpressionConstraint()).stream()
-                .filter(conjunct -> extractVariables(conjunct).stream()
-                        .allMatch(variable -> unifiedHandlesSet.contains(enforcedProperties.connectorExpressionAssignments().get(variable.getName()).getColumn())))
+                .filter(conjunct -> extractVariableNames(conjunct).stream()
+                        .allMatch(variableName -> unifiedHandlesSet.contains(enforcedProperties.connectorExpressionAssignments().get(variableName).getColumn())))
                 .toList();
         List<ExpressionAndAssignments> enforcedExpressionAndAssignments = List.of(new ExpressionAndAssignments(and(conjuncts), toColumnHandleMap(enforcedProperties.connectorExpressionAssignments())));
         Block enforcedPredicate = translateToBlock(unifiedTableScan, prunedEnforcedTupleDomain, enforcedExpressionAndAssignments, plannerContext, session, metadata, nameAllocator);

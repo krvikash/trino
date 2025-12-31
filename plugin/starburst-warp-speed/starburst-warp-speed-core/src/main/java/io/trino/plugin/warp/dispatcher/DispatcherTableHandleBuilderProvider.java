@@ -30,8 +30,6 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
 
-import static io.trino.spi.expression.Constant.TRUE;
-import static java.util.Collections.emptyMap;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -84,7 +82,7 @@ public class DispatcherTableHandleBuilderProvider
         protected boolean subsumedPredicates;
         private List<CustomStat> customStats = Collections.emptyList();
         private Set<String> columnsNotFitForDictionary = Set.of();
-        private Optional<ExpressionAndAssignments> originalExpression = Optional.of(new ExpressionAndAssignments(TRUE, emptyMap()));
+        private Optional<ExpressionAndAssignments> originalExpression = Optional.of(ExpressionAndAssignments.TRUE);
 
         private Builder(DispatcherProxiedConnectorTransformer transformer, int predicateThreshold)
         {

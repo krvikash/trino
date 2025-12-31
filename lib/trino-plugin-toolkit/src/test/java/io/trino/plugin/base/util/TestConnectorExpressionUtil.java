@@ -14,6 +14,7 @@
 package io.trino.plugin.base.util;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import io.trino.plugin.base.util.ConnectorExpressionUtil.ExpressionAndAssignments;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.TestingColumnHandle;
@@ -28,18 +29,28 @@ import java.util.Map;
 
 import static io.trino.plugin.base.expression.ConnectorExpressions.and;
 import static io.trino.plugin.base.expression.ConnectorExpressions.or;
-import static io.trino.spi.expression.Constant.FALSE;
-import static io.trino.spi.expression.Constant.TRUE;
+import static io.trino.plugin.base.util.ConnectorExpressionUtil.extractVariableNames;
 import static io.trino.spi.expression.StandardFunctions.IS_NULL_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.RowType.field;
 import static io.trino.spi.type.RowType.rowType;
-import static java.util.Collections.emptyMap;
 import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestConnectorExpressionUtil
 {
+    @Test
+    void testExtractVariableNames()
+    {
+        ConnectorExpression expression = and(
+                lessThanOrEqual(variable("a"), variable("b")),
+                isNull(variable("a")),
+                isNull(variable("b")),
+                isNull(variable("c")));
+
+        assertThat(extractVariableNames(expression)).isEqualTo(ImmutableSet.of("a", "b", "c"));
+    }
+
     @Test
     void testRemapSymbolsVariable()
     {
@@ -79,7 +90,7 @@ final class TestConnectorExpressionUtil
     void testAndEmpty()
     {
         assertThat(ConnectorExpressionUtil.and(ImmutableList.of()))
-                .isEqualTo(new ExpressionAndAssignments(TRUE, emptyMap()));
+                .isEqualTo(ExpressionAndAssignments.TRUE);
     }
 
     @Test
@@ -94,10 +105,153 @@ final class TestConnectorExpressionUtil
     }
 
     @Test
+    void testAndWithTrue()
+    {
+        ExpressionAndAssignments expressionAndAssignments = new ExpressionAndAssignments(
+                isNull(variable("a")),
+                Map.of("a", new TestingColumnHandle("c")));
+
+        assertThat(ConnectorExpressionUtil.and(expressionAndAssignments, ExpressionAndAssignments.TRUE))
+                .isEqualTo(expressionAndAssignments);
+    }
+
+    @Test
+    void testAndWithFalse()
+    {
+        ExpressionAndAssignments expressionAndAssignments = new ExpressionAndAssignments(
+                isNull(variable("a")),
+                Map.of("a", new TestingColumnHandle("c")));
+
+        assertThat(ConnectorExpressionUtil.and(expressionAndAssignments, ExpressionAndAssignments.FALSE))
+                .isEqualTo(ExpressionAndAssignments.FALSE);
+    }
+
+    @Test
+    void testAndWithOnlyTrue()
+    {
+        assertThat(ConnectorExpressionUtil.and(ExpressionAndAssignments.TRUE, ExpressionAndAssignments.TRUE))
+                .isEqualTo(ExpressionAndAssignments.TRUE);
+    }
+
+    @Test
+    void testAndWithMultipleExpressionsAndTrue()
+    {
+        Call expression1 = isNull(variable("a"));
+        Call expression2 = isNull(variable("b"));
+        ColumnHandle columnHandle1 = new TestingColumnHandle("c1");
+        ColumnHandle columnHandle2 = new TestingColumnHandle("c2");
+
+        ExpressionAndAssignments result = ConnectorExpressionUtil.and(
+                new ExpressionAndAssignments(expression1, Map.of("a", columnHandle1)),
+                ExpressionAndAssignments.TRUE,
+                new ExpressionAndAssignments(expression2, Map.of("b", columnHandle2)));
+
+        assertThat(result).isEqualTo(
+                new ExpressionAndAssignments(
+                        and(expression1, expression2),
+                        Map.of("a", columnHandle1, "b", columnHandle2)));
+    }
+
+    @Test
+    void testAndPrunesUnusedAssignments()
+    {
+        ColumnHandle columnA = new TestingColumnHandle("columnA");
+        ColumnHandle columnB = new TestingColumnHandle("columnB");
+        ColumnHandle columnUnused = new TestingColumnHandle("columnUnused");
+
+        Call expressionA = isNull(variable("a"));
+        Call expressionB = isNull(variable("b"));
+
+        ExpressionAndAssignments result = ConnectorExpressionUtil.and(
+                new ExpressionAndAssignments(expressionA, Map.of("a", columnA, "unused1", columnUnused)),
+                new ExpressionAndAssignments(expressionB, Map.of("b", columnB, "unused2", columnUnused)));
+
+        assertThat(result.expression()).isEqualTo(and(expressionA, expressionB));
+        assertThat(result.assignments()).isEqualTo(Map.of("a", columnA, "b", columnB));
+    }
+
+    @Test
     void testOrEmpty()
     {
         assertThat(ConnectorExpressionUtil.or(ImmutableList.of()))
-                .isEqualTo(new ExpressionAndAssignments(FALSE, emptyMap()));
+                .isEqualTo(ExpressionAndAssignments.FALSE);
+    }
+
+    @Test
+    void testOrSingle()
+    {
+        ExpressionAndAssignments expressionAndAssignments = new ExpressionAndAssignments(
+                isNull(variable("a")),
+                Map.of("a", new TestingColumnHandle("c")));
+
+        assertThat(ConnectorExpressionUtil.or(ImmutableList.of(expressionAndAssignments)))
+                .isEqualTo(expressionAndAssignments);
+    }
+
+    @Test
+    void testOrWithFalse()
+    {
+        ExpressionAndAssignments expressionAndAssignments = new ExpressionAndAssignments(
+                isNull(variable("a")),
+                Map.of("a", new TestingColumnHandle("c")));
+
+        assertThat(ConnectorExpressionUtil.or(expressionAndAssignments, ExpressionAndAssignments.FALSE))
+                .isEqualTo(expressionAndAssignments);
+    }
+
+    @Test
+    void testOrWithTrue()
+    {
+        ExpressionAndAssignments expressionAndAssignments = new ExpressionAndAssignments(
+                isNull(variable("a")),
+                Map.of("a", new TestingColumnHandle("c")));
+
+        assertThat(ConnectorExpressionUtil.or(expressionAndAssignments, ExpressionAndAssignments.TRUE))
+                .isEqualTo(ExpressionAndAssignments.TRUE);
+    }
+
+    @Test
+    void testOrWithOnlyFalse()
+    {
+        assertThat(ConnectorExpressionUtil.or(ExpressionAndAssignments.FALSE, ExpressionAndAssignments.FALSE))
+                .isEqualTo(ExpressionAndAssignments.FALSE);
+    }
+
+    @Test
+    void testOrWithMultipleExpressionsAndFalse()
+    {
+        Call expression1 = isNull(variable("a"));
+        Call expression2 = isNull(variable("b"));
+        ColumnHandle columnHandle1 = new TestingColumnHandle("c1");
+        ColumnHandle columnHandle2 = new TestingColumnHandle("c2");
+
+        ExpressionAndAssignments result = ConnectorExpressionUtil.or(
+                new ExpressionAndAssignments(expression1, Map.of("a", columnHandle1)),
+                ExpressionAndAssignments.FALSE,
+                new ExpressionAndAssignments(expression2, Map.of("b", columnHandle2)));
+
+        assertThat(result).isEqualTo(
+                new ExpressionAndAssignments(
+                        or(expression1, expression2),
+                        Map.of("a", columnHandle1, "b", columnHandle2)));
+    }
+
+    @Test
+    void testOrPrunesUnusedAssignments()
+    {
+        ColumnHandle columnA = new TestingColumnHandle("columnA");
+        ColumnHandle columnB = new TestingColumnHandle("columnB");
+        ColumnHandle columnUnused = new TestingColumnHandle("columnUnused");
+
+        Call expressionA = isNull(variable("a"));
+        Call expressionB = isNull(variable("b"));
+
+        ExpressionAndAssignments result = ConnectorExpressionUtil.or(
+                new ExpressionAndAssignments(expressionA, Map.of("a", columnA, "unused1", columnUnused)),
+                new ExpressionAndAssignments(expressionB, Map.of("b", columnB, "unused2", columnUnused)));
+
+        assertThat(result.expression()).isEqualTo(or(expressionA, expressionB));
+        assertThat(result.assignments()).isEqualTo(Map.of("a", columnA, "b", columnB));
     }
 
     @Test
