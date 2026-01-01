@@ -284,7 +284,7 @@ public final class DistributedQueryRunner
             Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader,
             boolean bindAllInterfaces)
     {
-        if (this.coordinator != null) {
+        if (!extraProperties.containsKey("discovery.uri") && this.coordinator != null) {
             String discoveryUri = this.coordinator.getCurrentNode().getInternalUri() +
                     backupCoordinator.map(backup -> "," + backup.getCurrentNode().getInternalUri()).orElse("");
             extraProperties = ImmutableMap.<String, String>builder()
