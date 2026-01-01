@@ -159,6 +159,12 @@ public abstract class AbstractMockMetadata
     }
 
     @Override
+    public Set<ColumnHandle> getColumnHandlesForTableExecute(Session session, TableExecuteHandle tableExecuteHandle)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public Optional<TableLayout> getLayoutForTableExecute(Session session, TableExecuteHandle tableExecuteHandle)
     {
         throw new UnsupportedOperationException();
@@ -570,12 +576,6 @@ public abstract class AbstractMockMetadata
 
     @Override
     public ColumnHandle getMergeRowIdColumnHandle(Session session, TableHandle tableHandle)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Optional<List<ColumnHandle>> getColumnHandlesForExecute(Session session, TableExecuteHandle tableExecuteHandle, TableHandle tableHandle)
     {
         throw new UnsupportedOperationException();
     }

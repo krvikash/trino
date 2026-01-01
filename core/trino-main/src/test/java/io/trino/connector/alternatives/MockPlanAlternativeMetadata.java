@@ -153,6 +153,12 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
+    public Set<ColumnHandle> getColumnHandlesForTableExecute(ConnectorSession connectorSession, ConnectorTableHandle tableHandle, ConnectorTableExecuteHandle connectorTableExecuteHandle)
+    {
+        return delegate.getColumnHandlesForTableExecute(connectorSession, getDelegate(tableHandle), connectorTableExecuteHandle);
+    }
+
+    @Override
     public Optional<ConnectorTableLayout> getLayoutForTableExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle)
     {
         return delegate.getLayoutForTableExecute(session, tableExecuteHandle);
@@ -550,12 +556,6 @@ public class MockPlanAlternativeMetadata
     public ColumnHandle getMergeRowIdColumnHandle(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         return delegate.getMergeRowIdColumnHandle(session, getDelegate(tableHandle));
-    }
-
-    @Override
-    public Optional<List<ColumnHandle>> getColumnHandlesForExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle, ConnectorTableHandle tableHandle)
-    {
-        return delegate.getColumnHandlesForExecute(session, tableExecuteHandle, getDelegate(tableHandle));
     }
 
     @Override

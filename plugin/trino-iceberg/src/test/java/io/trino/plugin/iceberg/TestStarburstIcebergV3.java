@@ -404,7 +404,7 @@ public class TestStarburstIcebergV3
             assertThat(query("SELECT _row_id FROM " + table.getName())).failure()
                     .hasMessage("Table column names conflict with names reserved for Iceberg metadata columns: [_row_id]");
             assertThat(query("SELECT name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName()))
-                    .matches("VALUES (VARCHAR 'alice', CAST(NULL AS bigint), BIGINT '2')");
+                    .matches("VALUES (VARCHAR 'alice', CAST(0 AS bigint), BIGINT '2')");
             assertThat(query("UPDATE " + table.getName() + " SET name = 'BOB' WHERE name = 'alice'")).failure()
                     .hasMessage("Table column names conflict with names reserved for Iceberg metadata columns: [_row_id]");
         }

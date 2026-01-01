@@ -48,6 +48,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 
 import static io.airlift.slice.Slices.wrappedBuffer;
@@ -240,7 +241,7 @@ public class CopyOnWriteIcebergMergeSink
                 fileFormat,
                 fileIoProperties,
                 dataSequenceNumbers.get(path.toString()),
-                supportsRowLineage(formatVersion) ? firstRowIds.get(path.toString()) : null,
+                firstRowIds.containsKey(path.toString()) ? OptionalLong.of(firstRowIds.get(path.toString())) : OptionalLong.empty(),
                 nameMapping.map(NameMappingParser::fromJson),
                 formatVersion,
                 false);

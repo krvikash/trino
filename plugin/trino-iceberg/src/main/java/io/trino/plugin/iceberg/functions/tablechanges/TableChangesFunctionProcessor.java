@@ -35,6 +35,7 @@ import org.apache.iceberg.mapping.NameMappingParser;
 
 import java.io.IOException;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.plugin.iceberg.IcebergColumnHandle.DATA_CHANGE_ORDINAL_ID;
@@ -132,7 +133,7 @@ public class TableChangesFunctionProcessor
                 split.fileFormat(),
                 split.fileIoProperties(),
                 0L,
-                null,
+                OptionalLong.empty(),
                 functionHandle.nameMappingJson().map(NameMappingParser::fromJson),
                 // looks like version doesn't matter for table changes
                 2,

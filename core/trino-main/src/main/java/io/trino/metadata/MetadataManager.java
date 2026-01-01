@@ -351,7 +351,18 @@ public final class MetadataManager
         return executeHandle.map(handle -> new TableExecuteHandle(
                 catalogHandle,
                 tableHandle.transaction(),
+                tableHandle.connectorHandle(),
                 handle));
+    }
+
+    @Override
+    public Set<ColumnHandle> getColumnHandlesForTableExecute(Session session, TableExecuteHandle tableExecuteHandle)
+    {
+        CatalogHandle catalogHandle = tableExecuteHandle.catalogHandle();
+        CatalogMetadata catalogMetadata = getCatalogMetadataForWrite(session, catalogHandle);
+        ConnectorMetadata metadata = catalogMetadata.getMetadata(session);
+
+        return metadata.getColumnHandlesForTableExecute(session.toConnectorSession(catalogHandle), tableExecuteHandle.tableHandle(), tableExecuteHandle.connectorHandle());
     }
 
     @Override
@@ -1333,14 +1344,6 @@ public final class MetadataManager
         CatalogHandle catalogHandle = tableHandle.catalogHandle();
         ConnectorMetadata metadata = getMetadata(session, catalogHandle);
         return metadata.getMergeRowIdColumnHandle(session.toConnectorSession(catalogHandle), tableHandle.connectorHandle());
-    }
-
-    @Override
-    public Optional<List<ColumnHandle>> getColumnHandlesForExecute(Session session, TableExecuteHandle tableExecuteHandle, TableHandle tableHandle)
-    {
-        CatalogHandle catalogHandle = tableHandle.catalogHandle();
-        ConnectorMetadata metadata = getMetadata(session, catalogHandle);
-        return metadata.getColumnHandlesForExecute(session.toConnectorSession(catalogHandle), tableExecuteHandle.connectorHandle(), tableHandle.connectorHandle());
     }
 
     @Override

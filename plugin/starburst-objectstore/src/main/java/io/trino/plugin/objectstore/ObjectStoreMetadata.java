@@ -312,6 +312,13 @@ public class ObjectStoreMetadata
     }
 
     @Override
+    public Set<ColumnHandle> getColumnHandlesForTableExecute(ConnectorSession session, ConnectorTableHandle tableHandle, ConnectorTableExecuteHandle connectorTableExecuteHandle)
+    {
+        TableType tableType = tableType(tableHandle);
+        return delegate(tableType).getColumnHandlesForTableExecute(unwrap(tableType, session), tableHandle, connectorTableExecuteHandle);
+    }
+
+    @Override
     public Optional<ConnectorTableLayout> getLayoutForTableExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle)
     {
         TableType tableType = tableType(tableExecuteHandle);
@@ -1368,13 +1375,6 @@ public class ObjectStoreMetadata
             throw new TrinoException(NOT_SUPPORTED, "Writes are not supported for Hudi tables");
         }
         return delegate(tableType).getMergeRowIdColumnHandle(unwrap(tableType, session), tableHandle);
-    }
-
-    @Override
-    public Optional<List<ColumnHandle>> getColumnHandlesForExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle, ConnectorTableHandle tableHandle)
-    {
-        TableType tableType = tableType(tableHandle);
-        return delegate(tableType).getColumnHandlesForExecute(unwrap(tableType, session), tableExecuteHandle, tableHandle);
     }
 
     @Override

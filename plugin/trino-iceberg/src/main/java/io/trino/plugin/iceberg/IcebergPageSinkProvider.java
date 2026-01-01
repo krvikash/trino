@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.iceberg;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.airlift.json.JsonCodec;
@@ -54,6 +53,7 @@ import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.DeleteFileSet;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -132,10 +132,10 @@ public class IcebergPageSinkProvider
     private ConnectorPageSink createPageSink(ConnectorSession session, IcebergWritableTableHandle tableHandle, Map<String, String> fileIoProperties)
     {
         Schema schema = SchemaParser.fromJson(tableHandle.schemaAsJson());
-        return createPageSink(session, tableHandle, fileIoProperties, schema, tableHandle.partitionColumns());
+        return createPageSink(session, tableHandle, schema, fileIoProperties);
     }
 
-    private ConnectorPageSink createPageSink(ConnectorSession session, IcebergWritableTableHandle tableHandle, Map<String, String> fileIoProperties, Schema schema, List<IcebergColumnHandle> columns)
+    private IcebergPageSink createPageSink(ConnectorSession session, IcebergWritableTableHandle tableHandle, Schema schema, Map<String, String> fileIoProperties)
     {
         String partitionSpecJson = tableHandle.partitionsSpecsAsJson().get(tableHandle.partitionSpecId());
         PartitionSpec partitionSpec = PartitionSpecParser.fromJson(schema, partitionSpecJson);
@@ -147,7 +147,7 @@ public class IcebergPageSinkProvider
                 fileWriterFactory,
                 pageIndexerFactory,
                 fileSystemFactory.create(session.getIdentity(), fileIoProperties),
-                columns,
+                tableHandle.partitionColumns(),
                 jsonCodec,
                 session,
                 tableHandle.fileFormat(),
@@ -221,7 +221,7 @@ public class IcebergPageSinkProvider
         LocationProvider locationProvider = getLocationProvider(tableHandle.name(), tableHandle.outputPath(), tableHandle.storageProperties());
         Schema schema = SchemaParser.fromJson(tableHandle.schemaAsJson());
         Map<Integer, PartitionSpec> partitionsSpecs = transformValues(tableHandle.partitionsSpecsAsJson(), json -> PartitionSpecParser.fromJson(schema, json));
-        ConnectorPageSink pageSink = createPageSink(session, tableHandle, fileIoProperties);
+
         Map<String, DeleteFileSet> previousDeleteFiles = tableHandle.previousDeleteFiles().stream()
                 .collect(toImmutableMap(PositionDeleteFiles::dataFileLocation, file -> DeleteFileSet.of(file.deletes().stream()
                         .map(delete -> (DeleteFile) contentFileFromJson(delete, partitionsSpecs.get(file.partitionSpecId())))
@@ -239,17 +239,18 @@ public class IcebergPageSinkProvider
             }
         }
 
-        Schema newSchema = schema;
-        Optional<ConnectorPageSink> updateInsertPageSink = Optional.empty();
-        if (supportsRowLineage(tableHandle.formatVersion())) {
-            verifyExistingRowIdColumn(schema, tableHandle.partitionColumns());
-            newSchema = TypeUtil.join(schema, new Schema(MetadataColumns.ROW_ID));
-            ImmutableList.Builder<IcebergColumnHandle> columns = ImmutableList.builder();
-            columns.addAll(tableHandle.partitionColumns());
-            columns.add(IcebergColumnHandle.rowIdColumnHandle());
+        int formatVersion = merge.getTableHandle().getFormatVersion();
 
-            updateInsertPageSink = Optional.of(createPageSink(session, tableHandle, fileIoProperties, newSchema, columns.build()));
+        Schema outputSchema = schema;
+        if (formatVersion >= 3) {
+            verifyExistingRowIdColumn(schema, tableHandle.partitionColumns());
+            // Persist row IDs for updated rows; $last_updated_sequence_number is synthesized from file sequence number.
+            List<Types.NestedField> columns = new ArrayList<>(schema.columns());
+            columns.add(MetadataColumns.ROW_ID);
+            outputSchema = new Schema(columns);
         }
+
+        ConnectorPageSink pageSink = createPageSink(session, tableHandle, outputSchema, fileIoProperties);
 
         RowLevelOperationMode rowLevelOperationMode = merge.getInsertTableHandle().operationMode();
         return switch (rowLevelOperationMode) {
@@ -266,7 +267,7 @@ public class IcebergPageSinkProvider
                     schema,
                     partitionsSpecs,
                     pageSink,
-                    updateInsertPageSink,
+                    Optional.empty(),
                     schema.columns().size(),
                     pageSourceProviderFactory,
                     tableHandle.partitionColumns(),
@@ -285,10 +286,10 @@ public class IcebergPageSinkProvider
                     session,
                     tableHandle.fileFormat(),
                     tableHandle.storageProperties(),
-                    newSchema,
+                    outputSchema,
                     partitionsSpecs,
                     pageSink,
-                    updateInsertPageSink,
+                    Optional.empty(),
                     schema.columns().size(),
                     pageSourceProviderFactory,
                     getProjectedColumns(schema, typeManager),

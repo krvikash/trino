@@ -202,8 +202,14 @@ public class DeleteAndInsertMergeProcessor
         // Add the dummy case number, delete and insert won't use it
         INTEGER.writeLong(pageBuilder.getBlockBuilder(dataColumnChannels.size() + 1), 0);
 
-        // Copy row ID column for Iceberg row lineage
-        rowIdType.appendTo(originalPage.getBlock(rowIdChannel), position, pageBuilder.getBlockBuilder(dataColumnChannels.size() + 2));
+        // For UPDATE_INSERT rows preserve source row ID so connector merge sinks can retain row lineage.
+        if (causedByUpdate) {
+            Block rowIdBlock = originalPage.getBlock(rowIdChannel);
+            pageBuilder.getBlockBuilder(dataColumnChannels.size() + 2).append(rowIdBlock.getUnderlyingValueBlock(), rowIdBlock.getUnderlyingValuePosition(position));
+        }
+        else {
+            pageBuilder.getBlockBuilder(dataColumnChannels.size() + 2).appendNull();
+        }
 
         // Write 1 if this row is an insert derived from an update, 0 otherwise
         TINYINT.writeLong(pageBuilder.getBlockBuilder(dataColumnChannels.size() + 3), causedByUpdate ? 1 : 0);

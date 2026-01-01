@@ -145,7 +145,7 @@ class TestIcebergPageSourceProvider
                 PARQUET,
                 ImmutableMap.of(),
                 0L, // dataSequenceNumber
-                0L, // firstRowId
+                OptionalLong.empty(), // firstRowId
                 Optional.empty(),
                 new IcebergConfig().getFormatVersion(),
                 false)) {

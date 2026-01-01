@@ -227,6 +227,14 @@ public class ClassLoaderSafeConnectorMetadata
     }
 
     @Override
+    public Set<ColumnHandle> getColumnHandlesForTableExecute(ConnectorSession connectorSession, ConnectorTableHandle tableHandle, ConnectorTableExecuteHandle connectorTableExecuteHandle)
+    {
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
+            return delegate.getColumnHandlesForTableExecute(connectorSession, tableHandle, connectorTableExecuteHandle);
+        }
+    }
+
+    @Override
     public Optional<ConnectorTableLayout> getLayoutForTableExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle)
     {
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
@@ -1296,14 +1304,6 @@ public class ClassLoaderSafeConnectorMetadata
     {
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
             return delegate.getMergeRowIdColumnHandle(session, tableHandle);
-        }
-    }
-
-    @Override
-    public Optional<List<ColumnHandle>> getColumnHandlesForExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle, ConnectorTableHandle tableHandle)
-    {
-        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
-            return delegate.getColumnHandlesForExecute(session, tableExecuteHandle, tableHandle);
         }
     }
 

@@ -66,6 +66,7 @@ import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableMetadataParser;
 import org.apache.iceberg.TableOperations;
+import org.apache.iceberg.TableUtil;
 import org.apache.iceberg.Transaction;
 import org.apache.iceberg.exceptions.NotFoundException;
 import org.apache.iceberg.io.FileIO;
@@ -465,8 +466,8 @@ public class TrinoGlueCatalog
             uncheckedCacheGet(glueTableCache, tableName, () -> table);
             List<ColumnMetadata> columns;
             try {
-                BaseTable baseTable = loadTable(session, tableName);
-                columns = getColumnMetadatas(baseTable.schema(), typeManager, baseTable.operations().current().formatVersion());
+                org.apache.iceberg.Table icebergTable = loadTable(session, tableName);
+                columns = getColumnMetadatas(icebergTable.schema(), typeManager, TableUtil.formatVersion(icebergTable));
             }
             catch (RuntimeException e) {
                 // Table may be concurrently deleted

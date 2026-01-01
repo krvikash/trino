@@ -170,6 +170,15 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     }
 
     @Override
+    public Set<ColumnHandle> getColumnHandlesForTableExecute(ConnectorSession session, ConnectorTableHandle tableHandle, ConnectorTableExecuteHandle connectorTableExecuteHandle)
+    {
+        Span span = startSpan("getColumnHandlesForTableExecute", tableHandle);
+        try (var _ = scopedSpan(span)) {
+            return delegate.getColumnHandlesForTableExecute(session, tableHandle, connectorTableExecuteHandle);
+        }
+    }
+
+    @Override
     public Optional<ConnectorTableLayout> getLayoutForTableExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle)
     {
         Span span = startSpan("getLayoutForTableExecute", tableExecuteHandle);
@@ -1449,15 +1458,6 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
         Span span = startSpan("getInsertWriterScalingOptions", tableHandle);
         try (var _ = scopedSpan(span)) {
             return delegate.getInsertWriterScalingOptions(session, tableHandle);
-        }
-    }
-
-    @Override
-    public Optional<List<ColumnHandle>> getColumnHandlesForExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle, ConnectorTableHandle tableHandle)
-    {
-        Span span = startSpan("getColumnHandlesForExecute", tableHandle);
-        try (var _ = scopedSpan(span)) {
-            return delegate.getColumnHandlesForExecute(session, tableExecuteHandle, tableHandle);
         }
     }
 

@@ -264,6 +264,7 @@ import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.types.Types.IntegerType;
 import org.apache.iceberg.types.Types.ListType;
+import org.apache.iceberg.types.Types.LongType;
 import org.apache.iceberg.types.Types.NestedField;
 import org.apache.iceberg.types.Types.StringType;
 import org.apache.iceberg.types.Types.StructType;
@@ -344,8 +345,9 @@ import static io.trino.plugin.iceberg.IcebergColumnHandle.TRINO_MERGE_PARTITION_
 import static io.trino.plugin.iceberg.IcebergColumnHandle.TRINO_MERGE_PARTITION_SPEC_ID;
 import static io.trino.plugin.iceberg.IcebergColumnHandle.TRINO_MERGE_ROW_ID;
 import static io.trino.plugin.iceberg.IcebergColumnHandle.TRINO_MERGE_ROW_ID_NAME;
+import static io.trino.plugin.iceberg.IcebergColumnHandle.TRINO_MERGE_SOURCE_ROW_ID;
 import static io.trino.plugin.iceberg.IcebergColumnHandle.fileModifiedTimeColumnHandle;
-import static io.trino.plugin.iceberg.IcebergColumnHandle.lastUpdatedSequenceNumberColumnColumnHandle;
+import static io.trino.plugin.iceberg.IcebergColumnHandle.lastUpdatedSequenceNumberColumnHandle;
 import static io.trino.plugin.iceberg.IcebergColumnHandle.partitionColumnHandle;
 import static io.trino.plugin.iceberg.IcebergColumnHandle.pathColumnHandle;
 import static io.trino.plugin.iceberg.IcebergColumnHandle.rowIdColumnHandle;
@@ -1253,23 +1255,19 @@ public class IcebergMetadata
     public Map<String, ColumnHandle> getColumnHandles(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         IcebergTableHandle table = checkValidTableHandle(tableHandle);
-        ImmutableMap.Builder<String, ColumnHandle> columnHandles = ImmutableMap.builder();
-        List<IcebergColumnHandle> topLevelColumns = getTopLevelColumns(SchemaParser.fromJson(table.getTableSchemaJson()), typeManager);
-        for (IcebergColumnHandle columnHandle : topLevelColumns) {
-            columnHandles.put(columnHandle.getName(), columnHandle);
+        Map<String, ColumnHandle> columnHandles = new LinkedHashMap<>();
+        for (IcebergColumnHandle columnHandle : getTopLevelColumns(SchemaParser.fromJson(table.getTableSchemaJson()), typeManager)) {
+            columnHandles.putIfAbsent(columnHandle.getName(), columnHandle);
         }
-        columnHandles.put(PARTITION.getColumnName(), partitionColumnHandle());
-        columnHandles.put(FILE_PATH.getColumnName(), pathColumnHandle());
-        columnHandles.put(FILE_MODIFIED_TIME.getColumnName(), fileModifiedTimeColumnHandle());
-        if (supportsRowLineage(table.getFormatVersion())) {
-            if (!containsColumnHandle(topLevelColumns, ROW_ID.getColumnName())) {
-                columnHandles.put(ROW_ID.getColumnName(), rowIdColumnHandle());
-            }
-            if (!containsColumnHandle(topLevelColumns, LAST_UPDATED_SEQUENCE_NUMBER.getColumnName())) {
-                columnHandles.put(LAST_UPDATED_SEQUENCE_NUMBER.getColumnName(), lastUpdatedSequenceNumberColumnColumnHandle());
-            }
+        if (table.getFormatVersion() >= 3) {
+            // It is critical that ROW_ID comes before LAST_UPDATED_SEQUENCE_NUMBER, because the optimize command expects this ordering
+            columnHandles.putIfAbsent(ROW_ID.getColumnName(), rowIdColumnHandle());
+            columnHandles.putIfAbsent(LAST_UPDATED_SEQUENCE_NUMBER.getColumnName(), lastUpdatedSequenceNumberColumnHandle());
         }
-        return columnHandles.buildOrThrow();
+        columnHandles.putIfAbsent(PARTITION.getColumnName(), partitionColumnHandle());
+        columnHandles.putIfAbsent(FILE_PATH.getColumnName(), pathColumnHandle());
+        columnHandles.putIfAbsent(FILE_MODIFIED_TIME.getColumnName(), fileModifiedTimeColumnHandle());
+        return ImmutableMap.copyOf(columnHandles);
     }
 
     private static boolean containsColumnHandle(List<IcebergColumnHandle> columnHandles, String columnName)
@@ -1390,7 +1388,7 @@ public class IcebergMetadata
                     List<Callable<Optional<TableColumnsMetadata>>> tasks = remainingTables.stream()
                             .map(tableName -> (Callable<Optional<TableColumnsMetadata>>) () -> {
                                 try {
-                                    BaseTable icebergTable = catalog.loadTable(session, tableName);
+                                    Table icebergTable = catalog.loadTable(session, tableName);
                                     List<ColumnMetadata> columns = getColumnMetadatas(icebergTable.schema(), typeManager, formatVersion(icebergTable));
                                     return Optional.of(TableColumnsMetadata.forTable(tableName, columns));
                                 }
@@ -1971,12 +1969,26 @@ public class IcebergMetadata
         DataSize maxScannedFileSize = (DataSize) executeProperties.get("file_size_threshold");
         SortFieldInfo sortInfo = getSupportedSortFields(icebergTable.schema(), icebergTable.sortOrder());
         int specId = tableHandle.getSpecId().orElseThrow(() -> new VerifyException("Partition spec missing in the table handle"));
+
+        String tableSchemaJson = tableHandle.getTableSchemaJson();
+
+        if (tableHandle.getFormatVersion() >= 3) {
+            Schema tableSchema = SchemaParser.fromJson(tableSchemaJson);
+            // The order of ROW_ID and LAST_UPDATED_SEQUENCE_NUMBER must match the order in getColumnHandles method
+            tableSchema = new Schema(
+                    ImmutableList.<NestedField>builder()
+                            .addAll(tableSchema.columns())
+                            .add(MetadataColumns.ROW_ID)
+                            .add(MetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER)
+                            .build());
+            tableSchemaJson = SchemaParser.toJson(tableSchema);
+        }
         return Optional.of(new IcebergTableExecuteHandle(
                 tableHandle.getSchemaTableName(),
                 OPTIMIZE,
                 new IcebergOptimizeHandle(
                         tableHandle.getSnapshotId(),
-                        tableHandle.getTableSchemaJson(),
+                        tableSchemaJson,
                         tableHandle.getPartitionSpecJsons().get(specId),
                         getPartitionColumns(icebergTable, typeManager),
                         sortInfo.supportedSortFields(),
@@ -4052,43 +4064,16 @@ public class IcebergMetadata
     @Override
     public ColumnHandle getMergeRowIdColumnHandle(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
-        ImmutableList.Builder<NestedField> fields = ImmutableList.builder();
-        fields.add(MetadataColumns.FILE_PATH)
+        StructType type = StructType.of(ImmutableList.<NestedField>builder()
+                .add(MetadataColumns.FILE_PATH)
                 .add(MetadataColumns.ROW_POSITION)
                 .add(NestedField.required(TRINO_MERGE_PARTITION_SPEC_ID, "partition_spec_id", IntegerType.get()))
-                .add(NestedField.required(TRINO_MERGE_PARTITION_DATA, "partition_data", StringType.get()));
+                .add(NestedField.required(TRINO_MERGE_PARTITION_DATA, "partition_data", StringType.get()))
+                .add(NestedField.optional(TRINO_MERGE_SOURCE_ROW_ID, "source_row_id", LongType.get()))
+                .build());
 
-        if (supportsRowLineage(((IcebergTableHandle) tableHandle).getFormatVersion())) {
-            fields.add(MetadataColumns.ROW_ID);
-            fields.add(MetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER);
-        }
-        NestedField field = NestedField.required(TRINO_MERGE_ROW_ID, TRINO_MERGE_ROW_ID_NAME, StructType.of(fields.build()));
+        NestedField field = NestedField.required(TRINO_MERGE_ROW_ID, TRINO_MERGE_ROW_ID_NAME, type);
         return getColumnHandle(field, typeManager);
-    }
-
-    @Override
-    public Optional<List<ColumnHandle>> getColumnHandlesForExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle, ConnectorTableHandle tableHandle)
-    {
-        IcebergTableExecuteHandle executeHandle = (IcebergTableExecuteHandle) tableExecuteHandle;
-        IcebergTableHandle table = (IcebergTableHandle) tableHandle;
-        return switch (executeHandle.procedureId()) {
-            case OPTIMIZE ->
-            {
-                ImmutableList.Builder<ColumnHandle> columnHandles = ImmutableList.builder();
-                for (IcebergColumnHandle columnHandle : getTopLevelColumns(SchemaParser.fromJson(table.getTableSchemaJson()), typeManager)) {
-                    columnHandles.add(columnHandle);
-                }
-
-                if (supportsRowLineage(((IcebergTableHandle) tableHandle).getFormatVersion())) {
-                    columnHandles
-                            .add(rowIdColumnHandle())
-                            .add(lastUpdatedSequenceNumberColumnColumnHandle());
-                }
-
-                yield Optional.of(columnHandles.build());
-            }
-            default -> Optional.empty();
-        };
     }
 
     @Override
@@ -4975,7 +4960,7 @@ public class IcebergMetadata
         // If this changes, the caching logic may here may need to be revised.
         checkArgument(originalHandle.getMaxScannedFileSize().isEmpty(), "Unexpected max scanned file size set");
 
-        if (originalHandle.getProjectedColumns().contains(rowIdColumnHandle()) || originalHandle.getProjectedColumns().contains(lastUpdatedSequenceNumberColumnColumnHandle())) {
+        if (originalHandle.getProjectedColumns().contains(rowIdColumnHandle()) || originalHandle.getProjectedColumns().contains(lastUpdatedSequenceNumberColumnHandle())) {
             log.warn("Statistics for $row_id and $last_updated_sequence_number columns are not supported");
             return TableStatistics.empty();
         }

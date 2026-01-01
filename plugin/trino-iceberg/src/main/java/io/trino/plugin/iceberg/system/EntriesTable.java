@@ -14,6 +14,7 @@
 package io.trino.plugin.iceberg.system;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.iceberg.IcebergUtil;
 import io.trino.spi.block.ArrayBlockBuilder;
 import io.trino.spi.block.MapBlockBuilder;
@@ -35,6 +36,7 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.transforms.Transforms;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Type;
+import org.apache.iceberg.types.Type.PrimitiveType;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.types.Types.NestedField;
 import org.apache.iceberg.util.StructProjection;
@@ -51,7 +53,6 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.slice.Slices.wrappedHeapBuffer;
 import static io.trino.plugin.iceberg.IcebergTypes.convertIcebergValueToTrino;
 import static io.trino.plugin.iceberg.IcebergUtil.primitiveFieldTypes;
-import static io.trino.plugin.iceberg.IcebergUtil.supportsRowLineage;
 import static io.trino.plugin.iceberg.util.SystemTableUtil.getAllPartitionFields;
 import static io.trino.plugin.iceberg.util.SystemTableUtil.getPartitionColumnType;
 import static io.trino.plugin.iceberg.util.SystemTableUtil.partitionTypes;
@@ -65,10 +66,10 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.util.Objects.requireNonNull;
 import static org.apache.iceberg.MetadataColumns.DELETE_FILE_PATH;
 import static org.apache.iceberg.MetadataColumns.DELETE_FILE_POS;
-import static org.apache.iceberg.MetadataColumns.schemaWithRowLineage;
+import static org.apache.iceberg.MetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER;
+import static org.apache.iceberg.MetadataColumns.ROW_ID;
 import static org.apache.iceberg.MetadataTableType.ALL_ENTRIES;
 import static org.apache.iceberg.MetadataTableType.ENTRIES;
-import static org.apache.iceberg.TableUtil.formatVersion;
 
 // https://iceberg.apache.org/docs/latest/spark-queries/#all-entries
 // https://iceberg.apache.org/docs/latest/spark-queries/#entries
@@ -90,7 +91,12 @@ public class EntriesTable
                 metadataTableType,
                 executor);
         checkArgument(metadataTableType == ALL_ENTRIES || metadataTableType == ENTRIES, "Unexpected metadata table type: %s", metadataTableType);
-        idToTypeMapping = primitiveFieldTypes(supportsRowLineage(formatVersion(icebergTable)) ? schemaWithRowLineage(icebergTable.schema()) : icebergTable.schema());
+        idToTypeMapping = ImmutableMap.<Integer, Type>builder()
+                .putAll(primitiveFieldTypes(icebergTable.schema()))
+                // Row id and last updated sequence number may be written to v3 file, so we need to have a type mapping for them
+                .put(ROW_ID.fieldId(), (PrimitiveType) ROW_ID.type())
+                .put(LAST_UPDATED_SEQUENCE_NUMBER.fieldId(), (PrimitiveType) LAST_UPDATED_SEQUENCE_NUMBER.type())
+                .buildOrThrow();
         primitiveFields = IcebergUtil.primitiveFields(icebergTable.schema()).stream()
                 .sorted(Comparator.comparing(NestedField::name))
                 .collect(toImmutableList());

@@ -1234,6 +1234,15 @@ public class DispatcherMetadata
     }
 
     @Override
+    public Set<ColumnHandle> getColumnHandlesForTableExecute(ConnectorSession session, ConnectorTableHandle tableHandle, ConnectorTableExecuteHandle connectorTableExecuteHandle)
+    {
+        return proxiedConnectorMetadata.getColumnHandlesForTableExecute(
+                session,
+                ((DispatcherTableHandle) tableHandle).getProxyConnectorTableHandle(),
+                connectorTableExecuteHandle);
+    }
+
+    @Override
     public Optional<ConnectorTableLayout> getLayoutForTableExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle)
     {
         return proxiedConnectorMetadata.getLayoutForTableExecute(session, tableExecuteHandle);
@@ -1389,15 +1398,6 @@ public class DispatcherMetadata
     {
         return proxiedConnectorMetadata.getMergeRowIdColumnHandle(
                 session,
-                ((DispatcherTableHandle) tableHandle).getProxyConnectorTableHandle());
-    }
-
-    @Override
-    public Optional<List<ColumnHandle>> getColumnHandlesForExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle, ConnectorTableHandle tableHandle)
-    {
-        return proxiedConnectorMetadata.getColumnHandlesForExecute(
-                session,
-                tableExecuteHandle,
                 ((DispatcherTableHandle) tableHandle).getProxyConnectorTableHandle());
     }
 

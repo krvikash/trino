@@ -61,6 +61,8 @@ public class IcebergColumnHandle
     public static final String DATA_CHANGE_ORDINAL_NAME = "_change_ordinal";
     public static final int DATA_CHANGE_ORDINAL_ID = Integer.MIN_VALUE + 6;
 
+    public static final int TRINO_MERGE_SOURCE_ROW_ID = Integer.MIN_VALUE + 7;
+
     private final ColumnIdentity baseColumnIdentity;
     private final Type baseType;
     // The list of field ids to indicate the projected part of the top-level column represented by baseColumnIdentity
@@ -185,6 +187,18 @@ public class IcebergColumnHandle
     }
 
     @JsonIgnore
+    public boolean isRowIdColumn()
+    {
+        return id == ROW_ID.getId();
+    }
+
+    @JsonIgnore
+    public boolean isLastUpdatedSequenceNumberColumn()
+    {
+        return id == LAST_UPDATED_SEQUENCE_NUMBER.getId();
+    }
+
+    @JsonIgnore
     public boolean isRowPositionColumn()
     {
         return id == ROW_POSITION.fieldId();
@@ -215,18 +229,6 @@ public class IcebergColumnHandle
     public boolean isFileModifiedTimeColumn()
     {
         return id == FILE_MODIFIED_TIME.getId();
-    }
-
-    @JsonIgnore
-    public boolean isRowIdColumn()
-    {
-        return id == ROW_ID.getId();
-    }
-
-    @JsonIgnore
-    public boolean isLastUpdatedSequenceNumberColumn()
-    {
-        return id == LAST_UPDATED_SEQUENCE_NUMBER.getId();
     }
 
     @Override
@@ -268,6 +270,38 @@ public class IcebergColumnHandle
                 + sizeOf(nullable)
                 + sizeOf(comment, SizeOf::estimatedSizeOf)
                 + sizeOf(id);
+    }
+
+    public static IcebergColumnHandle rowIdColumnHandle()
+    {
+        return IcebergColumnHandle.required(columnIdentity(ROW_ID))
+                .columnType(ROW_ID.getType())
+                .build();
+    }
+
+    public static ColumnMetadata rowIdColumnMetadata()
+    {
+        return ColumnMetadata.builder()
+                .setName(ROW_ID.getColumnName())
+                .setType(ROW_ID.getType())
+                .setHidden(true)
+                .build();
+    }
+
+    public static IcebergColumnHandle lastUpdatedSequenceNumberColumnHandle()
+    {
+        return IcebergColumnHandle.required(columnIdentity(LAST_UPDATED_SEQUENCE_NUMBER))
+                .columnType(LAST_UPDATED_SEQUENCE_NUMBER.getType())
+                .build();
+    }
+
+    public static ColumnMetadata lastUpdatedSequenceNumberColumnMetadata()
+    {
+        return ColumnMetadata.builder()
+                .setName(LAST_UPDATED_SEQUENCE_NUMBER.getColumnName())
+                .setType(LAST_UPDATED_SEQUENCE_NUMBER.getType())
+                .setHidden(true)
+                .build();
     }
 
     public static IcebergColumnHandle partitionColumnHandle()
@@ -314,38 +348,6 @@ public class IcebergColumnHandle
         return ColumnMetadata.builder()
                 .setName(FILE_MODIFIED_TIME.getColumnName())
                 .setType(FILE_MODIFIED_TIME.getType())
-                .setHidden(true)
-                .build();
-    }
-
-    public static IcebergColumnHandle rowIdColumnHandle()
-    {
-        return IcebergColumnHandle.builder(columnIdentity(ROW_ID))
-                .fieldType(ROW_ID.getType(), ROW_ID.getType())
-                .build();
-    }
-
-    public static ColumnMetadata rowIdColumnMetadata()
-    {
-        return ColumnMetadata.builder()
-                .setName(ROW_ID.getColumnName())
-                .setType(ROW_ID.getType())
-                .setHidden(true)
-                .build();
-    }
-
-    public static IcebergColumnHandle lastUpdatedSequenceNumberColumnColumnHandle()
-    {
-        return IcebergColumnHandle.builder(columnIdentity(LAST_UPDATED_SEQUENCE_NUMBER))
-                .fieldType(LAST_UPDATED_SEQUENCE_NUMBER.getType(), LAST_UPDATED_SEQUENCE_NUMBER.getType())
-                .build();
-    }
-
-    public static ColumnMetadata lastUpdatedSequenceNumberColumnMetadata()
-    {
-        return ColumnMetadata.builder()
-                .setName(LAST_UPDATED_SEQUENCE_NUMBER.getColumnName())
-                .setType(LAST_UPDATED_SEQUENCE_NUMBER.getType())
                 .setHidden(true)
                 .build();
     }

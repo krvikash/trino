@@ -185,6 +185,12 @@ public class LakehouseMetadata
     }
 
     @Override
+    public Set<ColumnHandle> getColumnHandlesForTableExecute(ConnectorSession connectorSession, ConnectorTableHandle tableHandle, ConnectorTableExecuteHandle connectorTableExecuteHandle)
+    {
+        return forHandle(tableHandle).getColumnHandlesForTableExecute(connectorSession, tableHandle, connectorTableExecuteHandle);
+    }
+
+    @Override
     public Optional<ConnectorTableLayout> getLayoutForTableExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle)
     {
         return forHandle(tableExecuteHandle).getLayoutForTableExecute(session, tableExecuteHandle);
@@ -608,12 +614,6 @@ public class LakehouseMetadata
     public ColumnHandle getMergeRowIdColumnHandle(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         return forHandle(tableHandle).getMergeRowIdColumnHandle(session, tableHandle);
-    }
-
-    @Override
-    public Optional<List<ColumnHandle>> getColumnHandlesForExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle, ConnectorTableHandle tableHandle)
-    {
-        return forHandle(tableHandle).getColumnHandlesForExecute(session, tableExecuteHandle, tableHandle);
     }
 
     @Override

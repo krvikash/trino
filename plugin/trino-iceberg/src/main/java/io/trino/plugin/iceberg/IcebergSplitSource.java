@@ -752,7 +752,7 @@ public class IcebergSplitSource
                 taskWithDomain.fileStatisticsDomain(),
                 cachingHostAddressProvider.getHosts(getSplitKey(task.file().location(), task.start(), task.length()), ImmutableList.of()),
                 task.file().dataSequenceNumber(),
-                task.file().firstRowId());
+                task.file().firstRowId() == null ? OptionalLong.empty() : OptionalLong.of(task.file().firstRowId()));
     }
 
     private static void verifyDeletionVectorReferencesDataFile(FileScanTask task, org.apache.iceberg.DeleteFile deleteFile)

@@ -122,6 +122,8 @@ public interface Metadata
             String procedureName,
             Map<String, Object> executeProperties);
 
+    Set<ColumnHandle> getColumnHandlesForTableExecute(Session session, TableExecuteHandle tableExecuteHandle);
+
     Optional<TableLayout> getLayoutForTableExecute(Session session, TableExecuteHandle tableExecuteHandle);
 
     BeginTableExecuteResult<TableExecuteHandle, TableHandle> beginTableExecute(Session session, TableExecuteHandle handle, TableHandle updatedSourceTableHandle);
@@ -476,8 +478,6 @@ public interface Metadata
      * {@link io.trino.spi.connector.ConnectorMergeSink} that created them.
      */
     ColumnHandle getMergeRowIdColumnHandle(Session session, TableHandle tableHandle);
-
-    Optional<List<ColumnHandle>> getColumnHandlesForExecute(Session session, TableExecuteHandle tableExecuteHandle, TableHandle tableHandle);
 
     /**
      * Get the physical layout for updated or deleted rows of a MERGE operation.

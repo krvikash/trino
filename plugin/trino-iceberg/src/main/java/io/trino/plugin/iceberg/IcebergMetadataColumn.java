@@ -32,7 +32,7 @@ public enum IcebergMetadataColumn
     FILE_PATH(MetadataColumns.FILE_PATH.fieldId(), "$path", VARCHAR, PRIMITIVE),
     FILE_MODIFIED_TIME(Integer.MAX_VALUE - 1001, "$file_modified_time", TIMESTAMP_TZ_MILLIS, PRIMITIVE), // https://github.com/apache/iceberg/issues/5240
     ROW_ID(MetadataColumns.ROW_ID.fieldId(), "$row_id", BIGINT, PRIMITIVE),
-    LAST_UPDATED_SEQUENCE_NUMBER(MetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER.fieldId(), "$last_updated_sequence_number", BIGINT, PRIMITIVE),
+    LAST_UPDATED_SEQUENCE_NUMBER(MetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER.fieldId(), "$last_updated_sequence_number", BIGINT, PRIMITIVE)
     /**/;
 
     private static final Set<Integer> COLUMNS_ID = Stream.of(values())

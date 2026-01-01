@@ -26,6 +26,7 @@ import io.trino.spi.predicate.TupleDomain;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static io.airlift.slice.SizeOf.SIZE_OF_INT;
@@ -52,7 +53,7 @@ public class IcebergSplit
     private final SplitWeight splitWeight;
     private final TupleDomain<IcebergColumnHandle> fileStatisticsDomain;
     private final Long dataSequenceNumber;
-    private final Long firstRowId;
+    private final OptionalLong fileFirstRowId;
     private final List<HostAddress> addresses;
 
     @JsonCreator
@@ -69,7 +70,7 @@ public class IcebergSplit
             @JsonProperty("splitWeight") SplitWeight splitWeight,
             @JsonProperty("fileStatisticsDomain") TupleDomain<IcebergColumnHandle> fileStatisticsDomain,
             @JsonProperty("dataSequenceNumber") Long dataSequenceNumber,
-            @JsonProperty("firstRowId") Long firstRowId)
+            @JsonProperty("fileFirstRowId") OptionalLong fileFirstRowId)
     {
         this(
                 path,
@@ -86,7 +87,7 @@ public class IcebergSplit
                 fileStatisticsDomain,
                 ImmutableList.of(),
                 dataSequenceNumber,
-                firstRowId);
+                fileFirstRowId);
     }
 
     public IcebergSplit(
@@ -104,7 +105,7 @@ public class IcebergSplit
             TupleDomain<IcebergColumnHandle> fileStatisticsDomain,
             List<HostAddress> addresses,
             long dataSequenceNumber,
-            Long firstRowId)
+            OptionalLong fileFirstRowId)
     {
         this.path = requireNonNull(path, "path is null");
         this.start = start;
@@ -120,7 +121,7 @@ public class IcebergSplit
         this.fileStatisticsDomain = requireNonNull(fileStatisticsDomain, "fileStatisticsDomain is null");
         this.addresses = requireNonNull(addresses, "addresses is null");
         this.dataSequenceNumber = dataSequenceNumber;
-        this.firstRowId = firstRowId;
+        this.fileFirstRowId = requireNonNull(fileFirstRowId, "fileFirstRowId is null");
     }
 
     @JsonIgnore
@@ -214,9 +215,9 @@ public class IcebergSplit
     }
 
     @JsonProperty
-    public Long getFirstRowId()
+    public OptionalLong getFileFirstRowId()
     {
-        return firstRowId;
+        return fileFirstRowId;
     }
 
     @Override
@@ -231,7 +232,8 @@ public class IcebergSplit
                 + splitWeight.getRetainedSizeInBytes()
                 + fileStatisticsDomain.getRetainedSizeInBytes(IcebergColumnHandle::getRetainedSizeInBytes)
                 + SIZE_OF_LONG // dataSequenceNumber
-                + estimatedSizeOf(addresses, HostAddress::getRetainedSizeInBytes);
+                + estimatedSizeOf(addresses, HostAddress::getRetainedSizeInBytes)
+                + (fileFirstRowId.isPresent() ? SIZE_OF_LONG : 0);
     }
 
     @Override

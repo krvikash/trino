@@ -215,6 +215,15 @@ public class TracingMetadata
     }
 
     @Override
+    public Set<ColumnHandle> getColumnHandlesForTableExecute(Session session, TableExecuteHandle tableExecuteHandle)
+    {
+        Span span = startSpan("getColumnHandlesForTableExecute", tableExecuteHandle);
+        try (var _ = scopedSpan(span)) {
+            return delegate.getColumnHandlesForTableExecute(session, tableExecuteHandle);
+        }
+    }
+
+    @Override
     public Optional<TableLayout> getLayoutForTableExecute(Session session, TableExecuteHandle tableExecuteHandle)
     {
         Span span = startSpan("getLayoutForTableExecute", tableExecuteHandle);
@@ -850,15 +859,6 @@ public class TracingMetadata
         Span span = startSpan("getMergeRowIdColumnHandle", tableHandle);
         try (var _ = scopedSpan(span)) {
             return delegate.getMergeRowIdColumnHandle(session, tableHandle);
-        }
-    }
-
-    @Override
-    public Optional<List<ColumnHandle>> getColumnHandlesForExecute(Session session, TableExecuteHandle executeHandle, TableHandle tableHandle)
-    {
-        Span span = startSpan("getColumnHandlesForExecute", tableHandle);
-        try (var _ = scopedSpan(span)) {
-            return delegate.getColumnHandlesForExecute(session, executeHandle, tableHandle);
         }
     }
 

@@ -15,7 +15,6 @@ package io.trino.sql.planner;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import com.google.errorprone.annotations.MustBeClosed;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slices;
@@ -1061,45 +1060,6 @@ public class LogicalPlanner
             sourcePlanBuilder = sourcePlanBuilder.withNewRoot(new FilterNode(idAllocator.getNextId(), sourcePlanBuilder.getRoot(), sourcePlanBuilder.rewrite(whereExpression)));
         }
 
-        List<String> columnNames;
-        List<Symbol> symbols;
-
-        Optional<List<ColumnHandle>> columnHandlesForExecute = metadata.getColumnHandlesForExecute(session, executeHandle, tableHandle);
-
-        if (columnHandlesForExecute.isPresent()) {
-            columnNames = columnHandlesForExecute.get().stream()
-                    .map(columnHandle -> metadata.getColumnMetadata(session, tableHandle, columnHandle))
-                    .map(ColumnMetadata::getName)
-                    .collect(toImmutableList());
-
-            Set<ColumnHandle> columnHandlesForPredicate = ImmutableSet.copyOf(columnHandlesForExecute.get());
-
-            ImmutableList.Builder<Symbol> symbolBuilder = ImmutableList.builder();
-
-            List<Symbol> tableScanOutputs = sourcePlanBuilder.getRoot().getOutputSymbols();
-            RelationType tableScanRelationType = sourcePlanBuilder.getScope().getRelationType();
-
-            for (Field field : sourcePlanBuilder.getScope().getRelationType().getAllFields()) {
-                if (columnHandlesForPredicate.contains(analysis.getColumn(field))) {
-                    symbolBuilder.add(tableScanOutputs.get(tableScanRelationType.indexOf(field)));
-                }
-            }
-
-            symbols = symbolBuilder.build();
-
-            sourcePlanBuilder = sourcePlanBuilder.withNewRoot(new ProjectNode(idAllocator.getNextId(), sourcePlanBuilder.getRoot(), Assignments.identity(symbols)));
-        }
-
-        else {
-            TableMetadata tableMetadata = metadata.getTableMetadata(session, tableHandle);
-            columnNames = tableMetadata.columns().stream()
-                    .filter(column -> !column.isHidden()) // todo this filter is redundant
-                    .map(ColumnMetadata::getName)
-                    .collect(toImmutableList());
-
-            symbols = visibleFields(tableScanPlan);
-        }
-
         PlanNode sourcePlanRoot = sourcePlanBuilder.getRoot();
 
         TableWriterNode.TableExecuteTarget tableExecuteTarget = new TableWriterNode.TableExecuteTarget(
@@ -1107,6 +1067,25 @@ public class LogicalPlanner
                 Optional.empty(),
                 tableName.asSchemaTableName(),
                 metadata.getInsertWriterScalingOptions(session, tableHandle));
+
+        Map<String, ColumnHandle> tableColumnHandles = metadata.getColumnHandles(session, tableHandle);
+        Set<ColumnHandle> expectedColumnHandles = metadata.getColumnHandlesForTableExecute(session, executeHandle);
+
+        RelationType descriptor = tableScanPlan.getDescriptor();
+        List<String> columnNames = new ArrayList<>();
+        List<Symbol> symbols = new ArrayList<>();
+        List<Field> fields = List.copyOf(descriptor.getAllFields());
+        for (int fieldIndex = 0; fieldIndex < fields.size(); fieldIndex++) {
+            Field field = fields.get(fieldIndex);
+            String fieldName = field.getName().orElseThrow();
+            ColumnHandle columnHandle = tableColumnHandles.get(fieldName);
+            verify(columnHandle != null, "No column handle for field name %s", fieldName);
+            if (expectedColumnHandles.contains(columnHandle)) {
+                columnNames.add(fieldName);
+                symbols.add(tableScanPlan.getFieldMappings().get(fieldIndex));
+            }
+        }
+        verify(expectedColumnHandles.size() == columnNames.size(), "Expected column handles %s do not match actual column names %s", expectedColumnHandles, columnNames);
 
         Optional<TableLayout> layout = metadata.getLayoutForTableExecute(session, executeHandle);
 
