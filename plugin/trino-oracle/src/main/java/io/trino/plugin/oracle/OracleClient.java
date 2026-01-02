@@ -80,6 +80,7 @@ import oracle.sql.TIMESTAMP;
 import java.math.RoundingMode;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -191,6 +192,8 @@ public class OracleClient
     private static final int PRECISION_OF_UNSPECIFIED_NUMBER = 127;
 
     private static final int TRINO_BIGINT_TYPE = 832_424_001;
+
+    private static final Date START_OF_CURRENT_ERA = Date.valueOf(LocalDate.of(1, 1, 1));
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("uuuu-MM-dd");
     private static final DateTimeFormatter TIMESTAMP_SECONDS_FORMATTER = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss");
@@ -883,7 +886,7 @@ public class OracleClient
             throws SQLException
     {
         return timestamp.dateValue()
-                .before(java.sql.Date.valueOf(LocalDate.of(1, 1, 1)));
+                .before(START_OF_CURRENT_ERA);
     }
 
     private static void verifyLongTimestampPrecision(TimestampType timestampType)
