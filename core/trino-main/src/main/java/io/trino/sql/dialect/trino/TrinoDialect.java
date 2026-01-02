@@ -13,6 +13,7 @@
  */
 package io.trino.sql.dialect.trino;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -163,7 +164,7 @@ public class TrinoDialect
                         _ -> {
                             throw new UnsupportedOperationException(format("cannot parse %s attribute", PARTITIONING_HANDLE.name()));
                         },
-                        _ -> format("[test: %s attribute]", PARTITIONING_HANDLE.name()),
+                        PartitioningHandle::toString,
                         _ -> {
                             throw new UnsupportedOperationException(format("cannot parse %s attribute", CONSTANT_VALUES.name()));
                         },
@@ -174,15 +175,15 @@ public class TrinoDialect
                         _ -> {
                             throw new UnsupportedOperationException(format("cannot parse %s attribute", TABLE_HANDLE.name()));
                         },
-                        _ -> format("[test: %s attribute]", TABLE_HANDLE.name()),
+                        TableHandle::toString,
                         _ -> {
                             throw new UnsupportedOperationException(format("cannot parse %s attribute", COLUMN_HANDLES.name()));
                         },
-                        _ -> format("[test: %s attribute]", COLUMN_HANDLES.name()),
+                        columnHandles -> Joiner.on(", ").join(columnHandles),
                         _ -> {
                             throw new UnsupportedOperationException(format("cannot parse %s attribute", CONSTRAINT.name()));
                         },
-                        _ -> format("[test: %s attribute]", CONSTRAINT.name()),
+                        TupleDomain::toString,
                         typeDeserializer),
                 new ValuesOperationMetadata(typeDeserializer));
 

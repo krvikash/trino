@@ -2,7 +2,7 @@ IR version = 1
 %0 = query() : () -> "boolean" ({
     ^query
         %1 = table_scan() : () -> "multiset(row(bigint,bigint))" ()
-            {table_scan:table_handle = "[test: table_scan:table_handle attribute]", table_scan:column_handles = "[test: table_scan:column_handles attribute]", table_scan:constraint = "[test: table_scan:constraint attribute]", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,bigint)", ir.safe = "true", ir.has_side_effects = "false"}
+            {table_scan:table_handle = "local:tpch_sf1000_parquet.orders$data@2054734473589120268", table_scan:column_handles = "1:orderkey:bigint, 2:custkey:bigint", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,bigint)", ir.safe = "true", ir.has_side_effects = "false"}
         %2 = filter(%1) : ("multiset(row(bigint,bigint))") -> "multiset(row(bigint,bigint))" ({
             ^predicate (%3 : "row(bigint,bigint)")
                 %896 = field_reference(%3) : ("row(bigint,bigint)") -> "bigint" ()
@@ -59,9 +59,9 @@ IR version = 1
                 %30 = return(%29) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
         %31 = table_scan() : () -> "multiset(row(bigint,bigint,decimal(12,2),decimal(12,2),date))" ()
-            {table_scan:table_handle = "[test: table_scan:table_handle attribute]", table_scan:column_handles = "[test: table_scan:column_handles attribute]", table_scan:constraint = "[test: table_scan:constraint attribute]", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,bigint,decimal(12,2),decimal(12,2),date)", ir.safe = "true", ir.has_side_effects = "false"}
+            {table_scan:table_handle = "local:tpch_sf1000_parquet.lineitem$data@2010185327452057859", table_scan:column_handles = "1:orderkey:bigint, 3:suppkey:bigint, 6:extendedprice:decimal(12,2), 7:discount:decimal(12,2), 11:shipdate:date", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,bigint,decimal(12,2),decimal(12,2),date)", ir.safe = "true", ir.has_side_effects = "false"}
         %32 = filter(%31) : ("multiset(row(bigint,bigint,decimal(12,2),decimal(12,2),date))") -> "multiset(row(bigint,bigint,decimal(12,2),decimal(12,2),date))" ({
             ^predicate (%33 : "row(bigint,bigint,decimal(12,2),decimal(12,2),date)")
                 %916 = field_reference(%33) : ("row(bigint,bigint,decimal(12,2),decimal(12,2),date)") -> "bigint" ()
@@ -89,7 +89,7 @@ IR version = 1
                     {ir.terminal = "true"}
             })
         %46 = table_scan() : () -> "multiset(row(bigint,bigint))" ()
-            {table_scan:table_handle = "[test: table_scan:table_handle attribute]", table_scan:column_handles = "[test: table_scan:column_handles attribute]", table_scan:constraint = "[test: table_scan:constraint attribute]", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,bigint)", ir.safe = "true", ir.has_side_effects = "false"}
+            {table_scan:table_handle = "local:tpch_sf1000_parquet.supplier$data@3174586439174883544", table_scan:column_handles = "1:suppkey:bigint, 4:nationkey:bigint", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,bigint)", ir.safe = "true", ir.has_side_effects = "false"}
         %47 = filter(%46) : ("multiset(row(bigint,bigint))") -> "multiset(row(bigint,bigint))" ({
             ^predicate (%48 : "row(bigint,bigint)")
                 %932 = field_reference(%48) : ("row(bigint,bigint)") -> "bigint" ()
@@ -108,7 +108,7 @@ IR version = 1
                     {ir.terminal = "true"}
             })
         %534 = table_scan() : () -> "multiset(row(bigint,varchar))" ()
-            {table_scan:table_handle = "[test: table_scan:table_handle attribute]", table_scan:column_handles = "[test: table_scan:column_handles attribute]", table_scan:constraint = "[test: table_scan:constraint attribute]", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,varchar)", ir.safe = "true", ir.has_side_effects = "false"}
+            {table_scan:table_handle = "local:tpch_sf1000_parquet.nation$data@5987065169814573221", table_scan:column_handles = "1:nationkey:bigint, 2:name:varchar", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,varchar)", ir.safe = "true", ir.has_side_effects = "false"}
         %702 = filter(%534) : ("multiset(row(bigint,varchar))") -> "multiset(row(bigint,varchar))" ({
             ^predicate (%541 : "row(bigint,varchar)")
                 %661 = field_reference(%541) : ("row(bigint,varchar)") -> "varchar" ()
@@ -144,7 +144,7 @@ IR version = 1
                 %75 = return(%74) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "REPLICATE", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false"}
+            {exchange:type = "REPLICATE", exchange:scope = "REMOTE", exchange:partitioning_handle = "BROADCAST", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false"}
         %76 = exchange(%733) : ("multiset(row(bigint,varchar))") -> "multiset(row(bigint,varchar))" ({
             ^inputSelector (%77 : "row(bigint,varchar)")
                 %78 = field_reference(%77) : ("row(bigint,varchar)") -> "bigint" ()
@@ -168,7 +168,7 @@ IR version = 1
                 %87 = return(%86) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false"}
+            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false"}
         %88 = join(%47, %76) : ("multiset(row(bigint,bigint))", "multiset(row(bigint,varchar))") -> "multiset(row(bigint,varchar))" ({
             ^leftCriteriaSelector (%89 : "row(bigint,bigint)")
                 %90 = field_reference(%89) : ("row(bigint,bigint)") -> "bigint" ()
@@ -239,7 +239,7 @@ IR version = 1
                 %124 = return(%123) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "REPLICATE", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "REPLICATE", exchange:scope = "REMOTE", exchange:partitioning_handle = "BROADCAST", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
         %125 = exchange(%113) : ("multiset(row(bigint,varchar))") -> "multiset(row(bigint,varchar))" ({
             ^inputSelector (%126 : "row(bigint,varchar)")
                 %127 = field_reference(%126) : ("row(bigint,varchar)") -> "bigint" ()
@@ -263,7 +263,7 @@ IR version = 1
                 %136 = return(%135) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
         %137 = join(%32, %125) : ("multiset(row(bigint,bigint,decimal(12,2),decimal(12,2),date))", "multiset(row(bigint,varchar))") -> "multiset(row(bigint,decimal(12,2),decimal(12,2),date,varchar))" ({
             ^leftCriteriaSelector (%138 : "row(bigint,bigint,decimal(12,2),decimal(12,2),date)")
                 %139 = field_reference(%138) : ("row(bigint,bigint,decimal(12,2),decimal(12,2),date)") -> "bigint" ()
@@ -348,7 +348,7 @@ IR version = 1
                 %180 = return(%179) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
         %181 = exchange(%165) : ("multiset(row(bigint,decimal(12,2),decimal(12,2),date,varchar))") -> "multiset(row(bigint,decimal(12,2),decimal(12,2),date,varchar))" ({
             ^inputSelector (%182 : "row(bigint,decimal(12,2),decimal(12,2),date,varchar)")
                 %183 = field_reference(%182) : ("row(bigint,decimal(12,2),decimal(12,2),date,varchar)") -> "bigint" ()
@@ -378,7 +378,7 @@ IR version = 1
                 %195 = return(%194) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
         %196 = join(%18, %181) : ("multiset(row(bigint,bigint))", "multiset(row(bigint,decimal(12,2),decimal(12,2),date,varchar))") -> "multiset(row(bigint,decimal(12,2),decimal(12,2),date,varchar))" ({
             ^leftCriteriaSelector (%197 : "row(bigint,bigint)")
                 %198 = field_reference(%197) : ("row(bigint,bigint)") -> "bigint" ()
@@ -463,9 +463,9 @@ IR version = 1
                 %239 = return(%238) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
         %240 = table_scan() : () -> "multiset(row(bigint,bigint))" ()
-            {table_scan:table_handle = "[test: table_scan:table_handle attribute]", table_scan:column_handles = "[test: table_scan:column_handles attribute]", table_scan:constraint = "[test: table_scan:constraint attribute]", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,bigint)", ir.safe = "true", ir.has_side_effects = "false"}
+            {table_scan:table_handle = "local:tpch_sf1000_parquet.customer$data@4370200594185215759", table_scan:column_handles = "1:custkey:bigint, 4:nationkey:bigint", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,bigint)", ir.safe = "true", ir.has_side_effects = "false"}
         %241 = filter(%240) : ("multiset(row(bigint,bigint))") -> "multiset(row(bigint,bigint))" ({
             ^predicate (%242 : "row(bigint,bigint)")
                 %947 = field_reference(%242) : ("row(bigint,bigint)") -> "bigint" ()
@@ -518,7 +518,7 @@ IR version = 1
                 %286 = return(%285) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false"}
+            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false"}
         %287 = join(%241, %275) : ("multiset(row(bigint,bigint))", "multiset(row(bigint,varchar))") -> "multiset(row(bigint,varchar))" ({
             ^leftCriteriaSelector (%288 : "row(bigint,bigint)")
                 %289 = field_reference(%288) : ("row(bigint,bigint)") -> "bigint" ()
@@ -591,7 +591,7 @@ IR version = 1
                 %324 = return(%323) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
         %325 = exchange(%312) : ("multiset(row(bigint,varchar))") -> "multiset(row(bigint,varchar))" ({
             ^inputSelector (%326 : "row(bigint,varchar)")
                 %327 = field_reference(%326) : ("row(bigint,varchar)") -> "bigint" ()
@@ -615,7 +615,7 @@ IR version = 1
                 %336 = return(%335) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
         %337 = join(%224, %325) : ("multiset(row(bigint,decimal(12,2),decimal(12,2),date,varchar))", "multiset(row(bigint,varchar))") -> "multiset(row(decimal(12,2),decimal(12,2),date,varchar,varchar))" ({
             ^leftCriteriaSelector (%338 : "row(bigint,decimal(12,2),decimal(12,2),date,varchar)")
                 %339 = field_reference(%338) : ("row(bigint,decimal(12,2),decimal(12,2),date,varchar)") -> "bigint" ()
@@ -804,7 +804,7 @@ IR version = 1
                 %432 = return(%431) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[null,null,null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null,null,null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
         %433 = exchange(%416) : ("multiset(row(varchar,varchar,bigint,varbinary))") -> "multiset(row(varchar,varchar,bigint,varbinary))" ({
             ^inputSelector (%434 : "row(varchar,varchar,bigint,varbinary)")
                 %435 = field_reference(%434) : ("row(varchar,varchar,bigint,varbinary)") -> "varchar" ()
@@ -832,7 +832,7 @@ IR version = 1
                 %446 = return(%445) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
         %447 = aggregation(%433) : ("multiset(row(varchar,varchar,bigint,varbinary))") -> "multiset(row(varchar,varchar,bigint,decimal(38,4)))" ({
             ^aggregates (%448 : "multiset(row(varchar,varchar,bigint,varbinary))")
                 %449 = aggregate_call(%448) : ("multiset(row(varchar,varchar,bigint,varbinary))") -> "decimal(38,4)" ({
@@ -908,7 +908,7 @@ IR version = 1
                 %484 = return(%483) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "ROUND_ROBIN", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
         %485 = sort(%471) : ("multiset(row(varchar,varchar,bigint,decimal(38,4)))") -> "multiset(row(varchar,varchar,bigint,decimal(38,4)))" ({
             ^orderingSelector (%486 : "row(varchar,varchar,bigint,decimal(38,4))")
                 %487 = field_reference(%486) : ("row(varchar,varchar,bigint,decimal(38,4))") -> "varchar" ()
@@ -956,7 +956,7 @@ IR version = 1
                 %508 = return(%507) : ("row(varchar,varchar,bigint)") -> "row(varchar,varchar,bigint)" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", exchange:sort_orders = "[""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST""]", ir.has_side_effects = "false"}
+            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "UNKNOWN", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", exchange:sort_orders = "[""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST""]", ir.has_side_effects = "false"}
         %509 = exchange(%492) : ("multiset(row(varchar,varchar,bigint,decimal(38,4)))") -> "multiset(row(varchar,varchar,bigint,decimal(38,4)))" ({
             ^inputSelector (%510 : "row(varchar,varchar,bigint,decimal(38,4))")
                 %511 = field_reference(%510) : ("row(varchar,varchar,bigint,decimal(38,4))") -> "varchar" ()
@@ -990,7 +990,7 @@ IR version = 1
                 %525 = return(%524) : ("row(varchar,varchar,bigint)") -> "row(varchar,varchar,bigint)" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "GATHER", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", exchange:sort_orders = "[""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST""]", ir.has_side_effects = "false"}
+            {exchange:type = "GATHER", exchange:scope = "REMOTE", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", exchange:sort_orders = "[""ASC_NULLS_LAST"",""ASC_NULLS_LAST"",""ASC_NULLS_LAST""]", ir.has_side_effects = "false"}
         %526 = output(%509) : ("multiset(row(varchar,varchar,bigint,decimal(38,4)))") -> "boolean" ({
             ^outputFieldSelector (%527 : "row(varchar,varchar,bigint,decimal(38,4))")
                 %528 = field_reference(%527) : ("row(varchar,varchar,bigint,decimal(38,4))") -> "varchar" ()

@@ -537,7 +537,7 @@ final class TestProgramBuilderAndPrinter
                         %0 = query() : () -> "boolean" ({
                             ^query
                                 %1 = table_scan() : () -> "multiset(row(bigint,boolean))" ()
-                                    {table_scan:table_handle = "[test: table_scan:table_handle attribute]", table_scan:column_handles = "[test: table_scan:column_handles attribute]", table_scan:constraint = "[test: table_scan:constraint attribute]", table_scan:statistics = "{""outputRowCount"":""NaN"",""fieldStatistics"":{}}", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "true", table_scan:row_type = "row(bigint,boolean)", ir.safe = "true", ir.has_side_effects = "false"}
+                                    {table_scan:table_handle = "bla:INSTANCE", table_scan:column_handles = "TestingColumnHandle{name=a_handle}, TestingColumnHandle{name=b_handle}", table_scan:constraint = "{TestingColumnHandle{name=b_handle}=[ SortedRangeSet[type=boolean, ranges=1, {[true]}] ]}", table_scan:statistics = "{""outputRowCount"":""NaN"",""fieldStatistics"":{}}", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "true", table_scan:row_type = "row(bigint,boolean)", ir.safe = "true", ir.has_side_effects = "false"}
                                 %2 = output(%1) : ("multiset(row(bigint,boolean))") -> "boolean" ({
                                     ^outputFieldSelector (%3 : "row(bigint,boolean)")
                                         %4 = field_reference(%3) : ("row(bigint,boolean)") -> "bigint" ()
@@ -570,7 +570,7 @@ final class TestProgramBuilderAndPrinter
                                                         new PartitioningHandle(
                                                                 Optional.of(CatalogHandle.fromId("bla:normal:1")),
                                                                 Optional.of(TestingConnectorTransactionHandle.INSTANCE),
-                                                                new ConnectorPartitioningHandle() {}),
+                                                                new TestingPartitioningHandle()),
                                                         ImmutableList.of(new Symbol(BIGINT, "f"))),
                                                 ImmutableList.of(new Symbol(BIGINT, "f"), new Symbol(BOOLEAN, "g")),
                                                 false,
@@ -648,7 +648,7 @@ final class TestProgramBuilderAndPrinter
                                         %24 = return(%23) : ("empty row") -> "empty row" ()
                                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                     })
-                                    {exchange:type = "GATHER", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[null]", exchange:replicate_nulls_and_any = "false", exchange:bucket_to_partition = "[5,6,7]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                    {exchange:type = "GATHER", exchange:scope = "REMOTE", exchange:partitioning_handle = "bla:testing partitioning handle", exchange:constant_values = "[null]", exchange:replicate_nulls_and_any = "false", exchange:bucket_to_partition = "[5,6,7]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                 %25 = output(%7) : ("multiset(row(bigint,boolean))") -> "boolean" ({
                                     ^outputFieldSelector (%26 : "row(bigint,boolean)")
                                         %27 = field_reference(%26) : ("row(bigint,boolean)") -> "bigint" ()
@@ -670,5 +670,15 @@ final class TestProgramBuilderAndPrinter
             implements ConnectorTableHandle
     {
         INSTANCE
+    }
+
+    private static class TestingPartitioningHandle
+            implements ConnectorPartitioningHandle
+    {
+        @Override
+        public String toString()
+        {
+            return "testing partitioning handle";
+        }
     }
 }
