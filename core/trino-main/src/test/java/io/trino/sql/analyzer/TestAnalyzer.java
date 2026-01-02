@@ -193,6 +193,7 @@ import static io.trino.spi.StandardErrorCode.TOO_MANY_GROUPING_SETS;
 import static io.trino.spi.StandardErrorCode.TYPE_MISMATCH;
 import static io.trino.spi.StandardErrorCode.VIEW_IS_RECURSIVE;
 import static io.trino.spi.StandardErrorCode.VIEW_IS_STALE;
+import static io.trino.spi.connector.ConnectorMaterializedViewDefinition.WhenStaleBehavior.INLINE;
 import static io.trino.spi.connector.SaveMode.FAIL;
 import static io.trino.spi.session.PropertyMetadata.integerProperty;
 import static io.trino.spi.session.PropertyMetadata.stringProperty;
@@ -5801,12 +5802,11 @@ public class TestAnalyzer
     @Test
     public void testAnalyzeFreshMaterializedView()
     {
-        testAnalyzeFreshMaterializedView(Optional.empty());
-        testAnalyzeFreshMaterializedView(Optional.of(WhenStaleBehavior.INLINE));
-        testAnalyzeFreshMaterializedView(Optional.of(WhenStaleBehavior.FAIL));
+        testAnalyzeFreshMaterializedView(INLINE);
+        testAnalyzeFreshMaterializedView(WhenStaleBehavior.FAIL);
     }
 
-    private void testAnalyzeFreshMaterializedView(Optional<WhenStaleBehavior> whenStaleBehavior)
+    private void testAnalyzeFreshMaterializedView(WhenStaleBehavior whenStaleBehavior)
     {
         String suffix = resolveMaterializedViewNameSuffix(whenStaleBehavior);
 
@@ -5820,8 +5820,7 @@ public class TestAnalyzer
     @Test
     public void testAnalyzeStaleMaterializedView()
     {
-        testAnalyzeStaleMaterializedViewWithWhenStaleInline(Optional.empty());
-        testAnalyzeStaleMaterializedViewWithWhenStaleInline(Optional.of(WhenStaleBehavior.INLINE));
+        testAnalyzeStaleMaterializedViewWithWhenStaleInline(INLINE);
 
         assertFails("SELECT * FROM stale_materialized_view_when_stale_fail")
                 .hasErrorCode(VIEW_IS_STALE)
@@ -5834,7 +5833,7 @@ public class TestAnalyzer
                 .hasMessage("line 1:18: Table 'tpch.s1.non_existent_table' does not exist");
     }
 
-    public void testAnalyzeStaleMaterializedViewWithWhenStaleInline(Optional<WhenStaleBehavior> whenStaleBehavior)
+    public void testAnalyzeStaleMaterializedViewWithWhenStaleInline(WhenStaleBehavior whenStaleBehavior)
     {
         String suffix = resolveMaterializedViewNameSuffix(whenStaleBehavior);
 
@@ -5850,12 +5849,11 @@ public class TestAnalyzer
     @Test
     public void testAnalyzeInvalidFreshMaterializedView()
     {
-        testAnalyzeInvalidFreshMaterializedView(Optional.empty());
-        testAnalyzeInvalidFreshMaterializedView(Optional.of(WhenStaleBehavior.INLINE));
-        testAnalyzeInvalidFreshMaterializedView(Optional.of(WhenStaleBehavior.FAIL));
+        testAnalyzeInvalidFreshMaterializedView(INLINE);
+        testAnalyzeInvalidFreshMaterializedView(WhenStaleBehavior.FAIL);
     }
 
-    private void testAnalyzeInvalidFreshMaterializedView(Optional<WhenStaleBehavior> whenStaleBehavior)
+    private void testAnalyzeInvalidFreshMaterializedView(WhenStaleBehavior whenStaleBehavior)
     {
         String suffix = resolveMaterializedViewNameSuffix(whenStaleBehavior);
 
@@ -5873,12 +5871,11 @@ public class TestAnalyzer
     @Test
     public void testAnalyzeMaterializedViewWithAccessControl()
     {
-        testAnalyzeMaterializedViewWithAccessControl(Optional.empty());
-        testAnalyzeMaterializedViewWithAccessControl(Optional.of(WhenStaleBehavior.INLINE));
-        testAnalyzeMaterializedViewWithAccessControl(Optional.of(WhenStaleBehavior.FAIL));
+        testAnalyzeMaterializedViewWithAccessControl(INLINE);
+        testAnalyzeMaterializedViewWithAccessControl(WhenStaleBehavior.FAIL);
     }
 
-    private void testAnalyzeMaterializedViewWithAccessControl(Optional<WhenStaleBehavior> whenStaleBehavior)
+    private void testAnalyzeMaterializedViewWithAccessControl(WhenStaleBehavior whenStaleBehavior)
     {
         String suffix = resolveMaterializedViewNameSuffix(whenStaleBehavior);
 
@@ -5908,7 +5905,7 @@ public class TestAnalyzer
         assertFails(CLIENT_SESSION, "REFRESH MATERIALIZED VIEW fresh_materialized_view" + suffix, accessControlManager)
                 .hasErrorCode(PERMISSION_DENIED)
                 .hasMessage("Access Denied: Cannot select from columns [a, b] in table or view tpch.s1.t1");
-        if (whenStaleBehavior.orElse(WhenStaleBehavior.INLINE) == WhenStaleBehavior.INLINE) {
+        if (whenStaleBehavior == INLINE) {
             // Now we check that when the MV is stale, access to the underlying tables is checked.
             assertFails(CLIENT_SESSION, "SELECT * FROM stale_materialized_view" + suffix, accessControlManager)
                     .hasErrorCode(PERMISSION_DENIED)
@@ -7990,7 +7987,7 @@ public class TestAnalyzer
                 Optional.of("s1"),
                 ImmutableList.of(new ViewColumn("a", BIGINT.getTypeId(), Optional.empty())),
                 Optional.of(Duration.ZERO),
-                Optional.empty(),
+                INLINE,
                 Optional.of("comment"),
                 Identity.ofUser("user"),
                 ImmutableList.of(),
@@ -8120,7 +8117,7 @@ public class TestAnalyzer
                         Optional.of("s1"),
                         ImmutableList.of(new ViewColumn("a", BIGINT.getTypeId(), Optional.empty())),
                         Optional.of(Duration.ZERO),
-                        Optional.empty(),
+                        INLINE,
                         Optional.empty(),
                         Identity.ofUser("some user"),
                         ImmutableList.of(),
@@ -8165,12 +8162,11 @@ public class TestAnalyzer
                         ImmutableList.of(new ColumnMetadata("a", BIGINT))),
                 FAIL));
 
-        createMaterializedViews(metadata, testingConnectorMetadata, Optional.empty());
-        createMaterializedViews(metadata, testingConnectorMetadata, Optional.of(WhenStaleBehavior.INLINE));
-        createMaterializedViews(metadata, testingConnectorMetadata, Optional.of(WhenStaleBehavior.FAIL));
+        createMaterializedViews(metadata, testingConnectorMetadata, INLINE);
+        createMaterializedViews(metadata, testingConnectorMetadata, WhenStaleBehavior.FAIL);
     }
 
-    private void createMaterializedViews(Metadata metadata, TestingMetadata testingConnectorMetadata, Optional<WhenStaleBehavior> whenStaleBehavior)
+    private void createMaterializedViews(Metadata metadata, TestingMetadata testingConnectorMetadata, WhenStaleBehavior whenStaleBehavior)
     {
         String suffix = resolveMaterializedViewNameSuffix(whenStaleBehavior);
 
@@ -8299,9 +8295,9 @@ public class TestAnalyzer
         testingConnectorMetadata.markMaterializedViewIsFresh(freshMaterializedMismatchedColumnType.asSchemaTableName());
     }
 
-    private static String resolveMaterializedViewNameSuffix(Optional<WhenStaleBehavior> whenStaleBehavior)
+    private static String resolveMaterializedViewNameSuffix(WhenStaleBehavior whenStaleBehavior)
     {
-        return whenStaleBehavior.map(whenStale -> "_when_stale_" + whenStale.name().toLowerCase(Locale.ENGLISH)).orElse("");
+        return "_when_stale_" + whenStaleBehavior.name().toLowerCase(Locale.ENGLISH);
     }
 
     @Test
