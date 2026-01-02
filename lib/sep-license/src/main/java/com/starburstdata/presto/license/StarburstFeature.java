@@ -23,6 +23,7 @@ public enum StarburstFeature
     DYNAMODB("dynamodb", "Starburst DynamoDB connector"),
     MAPR("mapr", "MapR support in Hive connector"),
     MCP("mcp", "MCP server"),
+    PORTAL("portal", "Starburst Portal"),
     SALESFORCE("salesforce", "Starburst Salesforce connector"),
     SPARK("spark", "Spark"),
     SPLUNK("splunk", "Starburst Splunk connector"),
