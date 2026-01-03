@@ -28,7 +28,6 @@ import io.trino.spi.eventlistener.EventListener;
 
 import java.net.URI;
 
-import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.plugin.openlineage.OpenLineageTransport.CONSOLE;
 import static io.trino.plugin.openlineage.OpenLineageTransport.HTTP;
@@ -43,41 +42,32 @@ public class OpenLineageListenerModule
     protected void setup(Binder binder)
     {
         configBinder(binder).bindConfig(OpenLineageTransportConfig.class);
+        OpenLineageTransport transport = buildConfigObject(OpenLineageTransportConfig.class).getTransport();
+        if (transport == NOOP) {
+            binder.bind(OpenLineageTransportCreator.class).to(OpenLineageNoopTransport.class);
+            binder.bind(EventListener.class).toInstance(new EventListener() {});
+        }
 
-        install(conditionalModule(
-                OpenLineageTransportConfig.class,
-                config -> config.getTransport().equals(NOOP),
-                internalBinder -> {
-                    internalBinder.bind(OpenLineageTransportCreator.class).to(OpenLineageNoopTransport.class);
-                    internalBinder.bind(EventListener.class).toInstance(new EventListener() {});
-                }));
+        if (transport == CONSOLE) {
+            binder.bind(OpenLineage.class).toInstance(createOpenLineage());
+            configBinder(binder).bindConfig(OpenLineageListenerConfig.class);
+            binder.bind(OpenLineageTransportCreator.class).to(OpenLineageConsoleTransport.class);
+            binder.bind(OpenLineageClient.class).toProvider(OpenLineageClientProvider.class).in(Scopes.SINGLETON);
+            binder.bind(EventListener.class)
+                    .to(OpenLineageListener.class)
+                    .in(Scopes.SINGLETON);
+        }
 
-        install(conditionalModule(
-                OpenLineageTransportConfig.class,
-                config -> config.getTransport().equals(CONSOLE),
-                internalBinder -> {
-                    internalBinder.bind(OpenLineage.class).toInstance(createOpenLineage());
-                    configBinder(internalBinder).bindConfig(OpenLineageListenerConfig.class);
-                    internalBinder.bind(OpenLineageTransportCreator.class).to(OpenLineageConsoleTransport.class);
-                    internalBinder.bind(OpenLineageClient.class).toProvider(OpenLineageClientProvider.class).in(Scopes.SINGLETON);
-                    internalBinder.bind(EventListener.class)
-                            .to(OpenLineageListener.class)
-                            .in(Scopes.SINGLETON);
-                }));
-
-        install(conditionalModule(
-                OpenLineageTransportConfig.class,
-                config -> config.getTransport().equals(HTTP),
-                internalBinder -> {
-                    internalBinder.bind(OpenLineage.class).toInstance(createOpenLineage());
-                    configBinder(internalBinder).bindConfig(OpenLineageListenerConfig.class);
-                    configBinder(internalBinder).bindConfig(OpenLineageHttpTransportConfig.class);
-                    internalBinder.bind(OpenLineageTransportCreator.class).to(OpenLineageHttpTransport.class);
-                    internalBinder.bind(OpenLineageClient.class).toProvider(OpenLineageClientProvider.class).in(Scopes.SINGLETON);
-                    internalBinder.bind(EventListener.class)
-                            .to(OpenLineageListener.class)
-                            .in(Scopes.SINGLETON);
-                }));
+        if (transport == HTTP) {
+            binder.bind(OpenLineage.class).toInstance(createOpenLineage());
+            configBinder(binder).bindConfig(OpenLineageListenerConfig.class);
+            configBinder(binder).bindConfig(OpenLineageHttpTransportConfig.class);
+            binder.bind(OpenLineageTransportCreator.class).to(OpenLineageHttpTransport.class);
+            binder.bind(OpenLineageClient.class).toProvider(OpenLineageClientProvider.class).in(Scopes.SINGLETON);
+            binder.bind(EventListener.class)
+                    .to(OpenLineageListener.class)
+                    .in(Scopes.SINGLETON);
+        }
     }
 
     private static OpenLineage createOpenLineage()
