@@ -687,13 +687,6 @@ public abstract class BaseTestObjectStoreIcebergFeaturesConnectorTest
 
     @Test
     @Override
-    public void testCreateTableWithDefaultColumn()
-    {
-        skipDuplicateTestCoverage("testCreateTableWithDefaultColumn");
-    }
-
-    @Test
-    @Override
     public void testCreateTableWithLongColumnName()
     {
         skipDuplicateTestCoverage("testCreateTableWithLongColumnName");

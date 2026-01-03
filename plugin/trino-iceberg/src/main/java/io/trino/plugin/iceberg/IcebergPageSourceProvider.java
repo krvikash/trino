@@ -108,6 +108,7 @@ import org.apache.iceberg.parquet.ParquetSchemaUtil;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.types.Types.NestedField;
 import org.apache.iceberg.util.StructLikeWrapper;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.io.MessageColumnIO;
@@ -188,7 +189,6 @@ import static io.trino.plugin.iceberg.IcebergUtil.getPartitionKeys;
 import static io.trino.plugin.iceberg.IcebergUtil.getPartitionValues;
 import static io.trino.plugin.iceberg.IcebergUtil.schemaFromHandles;
 import static io.trino.plugin.iceberg.IcebergUtil.supportsRowLineage;
-import static io.trino.plugin.iceberg.TypeConverter.toIcebergType;
 import static io.trino.plugin.iceberg.util.OrcIcebergIds.fileColumnsByIcebergId;
 import static io.trino.plugin.iceberg.util.OrcTypeConverter.ORC_ICEBERG_ID_KEY;
 import static io.trino.spi.block.PageBuilderStatus.DEFAULT_MAX_PAGE_SIZE_IN_BYTES;
@@ -667,6 +667,7 @@ public class IcebergPageSourceProvider
                     length,
                     partitionSpecId,
                     partitionData,
+                    fileSchema,
                     dataColumns,
                     predicate,
                     orcReaderOptions
@@ -693,6 +694,7 @@ public class IcebergPageSourceProvider
                     fileSize,
                     partitionSpecId,
                     partitionData,
+                    fileSchema,
                     dataColumns,
                     ParquetReaderOptions.builder(parquetReaderOptions)
                             .withInitialBufferSize(useSmallReadsPerSplit ? DataSize.of(1, MEGABYTE) : parquetReaderOptions.getInitialBufferSize())
@@ -771,6 +773,7 @@ public class IcebergPageSourceProvider
             long length,
             int partitionSpecId,
             String partitionData,
+            Schema tableSchema,
             List<IcebergColumnHandle> columns,
             TupleDomain<IcebergColumnHandle> effectivePredicate,
             OrcReaderOptions options,
@@ -860,7 +863,8 @@ public class IcebergPageSourceProvider
                     transforms.transform(new GetRowPositionFromSource());
                 }
                 else if (!fileColumnsByIcebergId.containsKey(column.getBaseColumnIdentity().getId())) {
-                    transforms.constantValue(nativeValueToBlock(column.getType(), getInitialDefaultValue(column)));
+                    Object initialDefault = getInitialDefault(tableSchema, column.getBaseColumnIdentity().getId());
+                    transforms.constantValue(nativeValueToBlock(column.getType(), initialDefault));
                 }
                 else {
                     IcebergColumnHandle baseColumn = column.getBaseColumn();
@@ -1091,6 +1095,7 @@ public class IcebergPageSourceProvider
             long fileSize,
             int partitionSpecId,
             String partitionData,
+            Schema tableSchema,
             List<IcebergColumnHandle> columns,
             ParquetReaderOptions options,
             TupleDomain<IcebergColumnHandle> effectivePredicate,
@@ -1171,7 +1176,8 @@ public class IcebergPageSourceProvider
                     transforms.transform(new GetRowPositionFromSource());
                 }
                 else if (!parquetIdToFieldName.containsKey(column.getBaseColumn().getId())) {
-                    transforms.constantValue(nativeValueToBlock(column.getType(), getInitialDefaultValue(column)));
+                    Object initialDefault = getInitialDefault(tableSchema, column.getBaseColumn().getId());
+                    transforms.constantValue(nativeValueToBlock(column.getType(), initialDefault));
                 }
                 else {
                     IcebergColumnHandle baseColumn = column.getBaseColumn();
@@ -1184,8 +1190,9 @@ public class IcebergPageSourceProvider
                                 new FieldContext(baseColumn.getType(), baseColumn.getColumnIdentity()),
                                 messageColumnIO.getChild(parquetFieldName));
                         if (field.isEmpty()) {
-                            // base column is missing so return a null
-                            transforms.constantValue(column.getType().createNullBlock());
+                            // base column is missing so return initial-default or null
+                            Object initialDefault = getInitialDefault(tableSchema, baseColumn.getId());
+                            transforms.constantValue(nativeValueToBlock(column.getType(), initialDefault));
                             continue;
                         }
 
@@ -1404,7 +1411,8 @@ public class IcebergPageSourceProvider
                     transforms.transform(new GetRowPositionFromSource());
                 }
                 else if (!fileColumnsByIcebergId.containsKey(column.getBaseColumn().getId())) {
-                    transforms.constantValue(nativeValueToBlock(column.getType(), getInitialDefaultValue(column)));
+                    Object initialDefault = getInitialDefault(fileSchema, column.getBaseColumn().getId());
+                    transforms.constantValue(nativeValueToBlock(column.getType(), initialDefault));
                 }
                 else {
                     IcebergColumnHandle baseColumn = column.getBaseColumn();
@@ -1473,19 +1481,6 @@ public class IcebergPageSourceProvider
         }
     }
 
-    @Nullable
-    private static Object getInitialDefaultValue(IcebergColumnHandle column)
-    {
-        if (column.getInitialDefaultValue().isEmpty()) {
-            return null;
-        }
-
-        org.apache.iceberg.types.Type icebergType = toIcebergType(column.getType(), column.getColumnIdentity());
-        ByteBuffer byteBuffer = column.getInitialDefaultValue().get();
-        Object value = Conversions.fromByteBuffer(icebergType, byteBuffer);
-        return convertIcebergValueToTrino(icebergType, value);
-    }
-
     private static void checkForNonMetadataRowId(List<IcebergColumnHandle> columns, int formatVersion)
     {
         if (supportsRowLineage(formatVersion)) {
@@ -1552,6 +1547,25 @@ public class IcebergPageSourceProvider
                     return MappedField.of(mappedField.id(), lowercaseNames, convertToLowercase(mappedField.nestedMapping()));
                 })
                 .collect(toImmutableList());
+    }
+
+    @Nullable
+    private static Object getInitialDefault(Schema schema, int columnId)
+    {
+        NestedField field = schema.findField(columnId);
+        if (field == null) {
+            return null;
+        }
+        var literal = field.initialDefaultLiteral();
+        if (literal == null) {
+            return null;
+        }
+        ByteBuffer buffer = literal.toByteBuffer();
+        if (buffer == null) {
+            return null;
+        }
+        Object icebergValue = Conversions.fromByteBuffer(field.type(), buffer);
+        return convertIcebergValueToTrino(field.type(), icebergValue);
     }
 
     private static class IcebergOrcProjectedLayout

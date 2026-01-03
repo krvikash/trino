@@ -128,6 +128,8 @@ import static io.trino.plugin.iceberg.IcebergColumnHandle.partitionColumnMetadat
 import static io.trino.plugin.iceberg.IcebergColumnHandle.pathColumnHandle;
 import static io.trino.plugin.iceberg.IcebergColumnHandle.pathColumnMetadata;
 import static io.trino.plugin.iceberg.IcebergColumnHandle.rowIdColumnMetadata;
+import static io.trino.plugin.iceberg.IcebergDefaultValues.formatIcebergDefaultAsSql;
+import static io.trino.plugin.iceberg.IcebergDefaultValues.parseDefaultValue;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_FILESYSTEM_ERROR;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_INVALID_METADATA;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_INVALID_PARTITION_VALUE;
@@ -163,8 +165,6 @@ import static io.trino.plugin.iceberg.TrinoMetricsReporter.TRINO_METRICS_REPORTE
 import static io.trino.plugin.iceberg.TypeConverter.toIcebergType;
 import static io.trino.plugin.iceberg.TypeConverter.toIcebergTypeForNewColumn;
 import static io.trino.plugin.iceberg.TypeConverter.toTrinoType;
-import static io.trino.plugin.iceberg.util.IcebergDefaultValues.toIcebergLiteral;
-import static io.trino.plugin.iceberg.util.IcebergDefaultValues.toTrinoDefaultValue;
 import static io.trino.plugin.iceberg.util.Timestamps.timestampFromNanos;
 import static io.trino.plugin.iceberg.util.Timestamps.timestampTzFromMicros;
 import static io.trino.plugin.iceberg.util.Timestamps.timestampTzFromNanos;
@@ -461,18 +461,14 @@ public final class IcebergUtil
         ImmutableList.Builder<ColumnMetadata> columns = builderWithExpectedSize(icebergColumns.size() + 2);
 
         icebergColumns.stream()
-                .map(column -> {
-                    Type trinoType = toTrinoType(column.type(), typeManager);
-                    ColumnMetadata.Builder columnMetadata = ColumnMetadata.builder()
-                            .setName(column.name())
-                            .setType(trinoType)
-                            .setNullable(column.isOptional())
-                            .setComment(Optional.ofNullable(column.doc()));
-                    if (column.writeDefault() != null) {
-                        columnMetadata.setDefaultValue(Optional.of(toTrinoDefaultValue(column.type(), column.writeDefault())));
-                    }
-                    return columnMetadata.build();
-                })
+                .map(column ->
+                        ColumnMetadata.builder()
+                                .setName(column.name())
+                                .setType(toTrinoType(column.type(), typeManager))
+                                .setNullable(column.isOptional())
+                                .setComment(Optional.ofNullable(column.doc()))
+                                .setDefaultValue(formatIcebergDefaultAsSql(column.writeDefault(), column.type()))
+                                .build())
                 .forEach(columns::add);
         columns.add(partitionColumnMetadata());
         columns.add(pathColumnMetadata());
@@ -506,8 +502,6 @@ public final class IcebergUtil
         return IcebergColumnHandle.builder(createColumnIdentity(baseColumn))
                 .fieldType(toTrinoType(baseColumn.type(), typeManager), toTrinoType(childColumn.type(), typeManager))
                 .path(path)
-                .writeDefaultValue(baseColumn.writeDefault() == null ? null : toTrinoDefaultValue(childColumn.type(), childColumn.writeDefault()))
-                .initialDefaultValue(baseColumn.initialDefault() == null ? null : baseColumn.initialDefaultLiteral().toByteBuffer())
                 .nullable(childColumn.isOptional())
                 .comment(childColumn.doc())
                 .build();
@@ -909,14 +903,24 @@ public final class IcebergUtil
             if (!column.isHidden()) {
                 int index = icebergColumns.size() + 1;
                 org.apache.iceberg.types.Type type = toIcebergTypeForNewColumn(column.getType(), nextFieldId);
-                NestedField.Builder field = NestedField.builder()
+                NestedField.Builder fieldBuilder = NestedField.builder()
                         .withId(index)
                         .isOptional(column.isNullable())
                         .withName(column.getName())
                         .ofType(type)
                         .withDoc(column.getComment());
-                column.getDefaultValue().ifPresent(value -> field.withWriteDefault(toIcebergLiteral(type, value)));
-                icebergColumns.add(field.build());
+
+                // Set initial-default and write-default if present
+                // Note: DEFAULT NULL results in icebergDefault=null, which we skip since null is already the implicit default
+                column.getDefaultValue().ifPresent(defaultValue -> {
+                    Object icebergDefault = parseDefaultValue(defaultValue, column.getType(), type);
+                    if (icebergDefault != null) {
+                        fieldBuilder.withInitialDefault(icebergDefault);
+                        fieldBuilder.withWriteDefault(icebergDefault);
+                    }
+                });
+
+                icebergColumns.add(fieldBuilder.build());
             }
         }
         org.apache.iceberg.types.Type icebergSchema = StructType.of(icebergColumns);

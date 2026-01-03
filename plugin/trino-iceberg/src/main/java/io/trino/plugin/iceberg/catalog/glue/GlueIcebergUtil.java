@@ -39,12 +39,12 @@ import static io.trino.metastore.TableInfo.ICEBERG_MATERIALIZED_VIEW_COMMENT;
 import static io.trino.plugin.hive.HiveMetadata.PRESTO_VIEW_EXPANDED_TEXT_MARKER;
 import static io.trino.plugin.hive.TableType.EXTERNAL_TABLE;
 import static io.trino.plugin.hive.TableType.VIRTUAL_VIEW;
+import static io.trino.plugin.iceberg.IcebergDefaultValues.formatIcebergDefaultAsSql;
 import static io.trino.plugin.iceberg.IcebergUtil.COLUMN_TRINO_DEFAULT_VALUE_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergUtil.COLUMN_TRINO_NOT_NULL_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergUtil.COLUMN_TRINO_TYPE_ID_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergUtil.TRINO_TABLE_COMMENT_CACHE_PREVENTED;
 import static io.trino.plugin.iceberg.IcebergUtil.TRINO_TABLE_METADATA_INFO_VALID_FOR;
-import static io.trino.plugin.iceberg.util.IcebergDefaultValues.toTrinoDefaultValue;
 import static java.lang.String.format;
 import static java.util.Locale.ENGLISH;
 import static org.apache.iceberg.BaseMetastoreTableOperations.ICEBERG_TABLE_TYPE_VALUE;
@@ -130,7 +130,7 @@ public final class GlueIcebergUtil
         for (Types.NestedField icebergColumn : icebergColumns) {
             Optional<String> defaultValue = Optional.empty();
             if (icebergColumn.writeDefault() != null) {
-                defaultValue = Optional.of(toTrinoDefaultValue(icebergColumn.type(), icebergColumn.writeDefault()));
+                defaultValue = formatIcebergDefaultAsSql(icebergColumn.writeDefault(), icebergColumn.type());
             }
 
             String glueTypeString = toGlueTypeStringLossy(icebergColumn.type());

@@ -300,6 +300,23 @@ public abstract class BaseIcebergConnectorTest
         };
     }
 
+    @Override
+    @Test
+    public void testCreateTableWithDefaultColumn()
+    {
+        if (formatVersion < 3) {
+            String tableName = "test_default_value_" + randomNameSuffix();
+            assertThatThrownBy(() -> assertUpdate("CREATE TABLE " + tableName + " (x int DEFAULT 1)"))
+                    .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
+            return;
+        }
+
+        try (TestTable table = newTrinoTable(
+                "test_default_value_", "(x int DEFAULT 1)")) {
+            assertThat(getColumnDefault(table.getName(), "x")).isEqualTo("1");
+        }
+    }
+
     @Test
     public void testAddRowFieldCaseInsensitivity()
     {

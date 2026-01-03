@@ -384,7 +384,7 @@ final class TestIcebergDefaultValue
     {
         assertQueryFails(
                 "CREATE TABLE test_default_value_variant (id int, variant JSON DEFAULT JSON '{\"id\":3}') WITH (format='" + format + "')",
-                "Variant is not supported as default values");
+                "Unsupported default value type: json");
     }
 
     @ParameterizedTest
@@ -447,16 +447,16 @@ final class TestIcebergDefaultValue
     {
         assertQueryFails(
                 "CREATE TABLE test_unsupported_default_column_value(x int DEFAULT 1) WITH (format_version=2)",
-                "Default values are not supported for format version < 3");
+                "Default column values are not supported for Iceberg table format version < 3");
 
         try (TestTable table = newTrinoTable("test_unsupported_default_column_value", "(x int)  WITH (format_version=2)")) {
-            assertQueryFails("ALTER TABLE " + table.getName() + " ADD COLUMN y int DEFAULT 1", "Default values are not supported for format version < 3");
-            assertQueryFails("ALTER TABLE " + table.getName() + " ALTER COLUMN x SET DEFAULT 123", "Default values are not supported for format version < 3");
+            assertQueryFails("ALTER TABLE " + table.getName() + " ADD COLUMN y int DEFAULT 1", "Default column values are not supported for Iceberg table format version < 3");
+            assertQueryFails("ALTER TABLE " + table.getName() + " ALTER COLUMN x SET DEFAULT 123", "Default column values are not supported for Iceberg table format version < 3");
 
             loadTable(table.getName()).updateSchema()
                     .updateColumnDefault("x", Literal.of(123))
                     .commit();
-            assertQueryFails("ALTER TABLE " + table.getName() + " ALTER COLUMN x DROP DEFAULT", "Default values are not supported for format version < 3");
+            assertQueryFails("ALTER TABLE " + table.getName() + " ALTER COLUMN x DROP DEFAULT", "Default column values are not supported for Iceberg table format version < 3");
         }
     }
 

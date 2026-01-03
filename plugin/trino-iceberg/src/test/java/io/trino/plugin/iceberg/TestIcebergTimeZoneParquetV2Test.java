@@ -54,7 +54,7 @@ public class TestIcebergTimeZoneParquetV2Test
     void testWriteDefaultValue()
     {
         assertThatThrownBy(super::testWriteDefaultValue)
-                .hasMessageContaining("Default values are not supported for format version < 3");
+                .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
     }
 
     @Override

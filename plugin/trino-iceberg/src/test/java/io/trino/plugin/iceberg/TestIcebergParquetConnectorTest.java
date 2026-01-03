@@ -194,19 +194,6 @@ public class TestIcebergParquetConnectorTest
 
     @Test
     @Override
-    public void testCreateTableWithDefaultColumn()
-    {
-        if (formatVersion() >= 3) {
-            super.testCreateTableWithDefaultColumn();
-        }
-        else {
-            assertThatThrownBy(super::testCreateTableWithDefaultColumn)
-                    .hasMessageContaining("Default values are not supported for format version < 3");
-        }
-    }
-
-    @Test
-    @Override
     public void testSetDefaultColumn()
     {
         if (formatVersion() >= 3) {
@@ -214,7 +201,7 @@ public class TestIcebergParquetConnectorTest
         }
         else {
             assertThatThrownBy(super::testSetDefaultColumn)
-                    .hasMessageContaining("Default values are not supported for format version < 3");
+                    .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
         }
     }
 
@@ -227,7 +214,7 @@ public class TestIcebergParquetConnectorTest
         }
         else {
             assertThatThrownBy(super::testDropDefaultColumn)
-                    .hasMessageContaining("Default values are not supported for format version < 3");
+                    .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
         }
     }
 
@@ -240,7 +227,7 @@ public class TestIcebergParquetConnectorTest
         }
         else {
             assertThatThrownBy(super::testInsertDefaultNullIntoNotNullColumn)
-                    .hasMessageContaining("Default values are not supported for format version < 3");
+                    .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
         }
     }
 
@@ -253,7 +240,7 @@ public class TestIcebergParquetConnectorTest
         }
         else {
             assertThatThrownBy(super::testMergeDefaultNullIntoNotNullColumn)
-                    .hasMessageContaining("Default values are not supported for format version < 3");
+                    .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
         }
     }
 
@@ -266,7 +253,7 @@ public class TestIcebergParquetConnectorTest
         }
         else {
             assertThatThrownBy(super::testAddDefaultColumn)
-                    .hasMessageContaining("Default values are not supported for format version < 3");
+                    .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
         }
     }
 
@@ -279,7 +266,7 @@ public class TestIcebergParquetConnectorTest
         }
         else {
             assertThatThrownBy(super::testMergeWithDefaultColumnValue)
-                    .hasMessageContaining("Default values are not supported for format version < 3");
+                    .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
         }
     }
 
