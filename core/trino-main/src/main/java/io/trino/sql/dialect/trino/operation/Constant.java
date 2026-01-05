@@ -15,9 +15,9 @@ package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -45,7 +45,7 @@ public final class Constant
 
         this.result = new Result(resultName, irType(type));
 
-        Map<AttributeKey, Object> operationAttributes = CONSTANT_VALUE.asMap(new NullableValue(type, value));
+        Map<AttributeKey, Object> operationAttributes = CONSTANT_VALUE.asMap(new ConstantValue(type, value));
 
         ImmutableMap.Builder<AttributeKey, Object> attributes = ImmutableMap.builder();
         attributes.putAll(operationAttributes);
@@ -87,7 +87,7 @@ public final class Constant
     @Override
     public Operation withResultName(String newName)
     {
-        NullableValue constantValue = CONSTANT_VALUE.getAttribute(attributes);
+        ConstantValue constantValue = CONSTANT_VALUE.getAttribute(attributes);
         return new Constant(newName, constantValue.getType(), constantValue.getValue());
     }
 

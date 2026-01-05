@@ -8,37 +8,37 @@ IR version = 1
                 %2370 = field_reference(%3) : ("row(bigint,bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "0"}
                 %2371 = constant() : () -> "varchar" ()
-                    {constant:value = "[test: constant:value attribute]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=varchar, value=EQUAL]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2372 = constant() : () -> "varchar" ()
-                    {constant:value = "[test: constant:value attribute]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=varchar, value=df_2083]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2373 = constant() : () -> "boolean" ()
-                    {constant:value = "{""type"":""boolean"",""value"":false}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=boolean, value=false]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2374 = constant() : () -> "integer" ()
-                    {constant:value = "{""type"":""integer"",""value"":20000}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=integer, value=20000]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2375 = call(%2370, %2371, %2372, %2373, %2374) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %2377 = field_reference(%3) : ("row(bigint,bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "1"}
                 %2378 = constant() : () -> "varchar" ()
-                    {constant:value = "[test: constant:value attribute]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=varchar, value=EQUAL]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2379 = constant() : () -> "varchar" ()
-                    {constant:value = "[test: constant:value attribute]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=varchar, value=df_2084]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2380 = constant() : () -> "boolean" ()
-                    {constant:value = "{""type"":""boolean"",""value"":false}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=boolean, value=false]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2381 = constant() : () -> "integer" ()
-                    {constant:value = "{""type"":""integer"",""value"":20000}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=integer, value=20000]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2382 = call(%2377, %2378, %2379, %2380, %2381) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %2384 = field_reference(%3) : ("row(bigint,bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "2"}
                 %2385 = constant() : () -> "varchar" ()
-                    {constant:value = "[test: constant:value attribute]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=varchar, value=EQUAL]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2386 = constant() : () -> "varchar" ()
-                    {constant:value = "[test: constant:value attribute]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=varchar, value=df_2085]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2387 = constant() : () -> "boolean" ()
-                    {constant:value = "{""type"":""boolean"",""value"":false}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=boolean, value=false]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2388 = constant() : () -> "integer" ()
-                    {constant:value = "{""type"":""integer"",""value"":20000}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=integer, value=20000]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2389 = call(%2384, %2385, %2386, %2387, %2388) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %2393 = logical(%2375, %2382, %2389) : ("boolean", "boolean", "boolean") -> "boolean" ()
@@ -53,9 +53,9 @@ IR version = 1
                 %1033 = field_reference(%982) : ("row(bigint,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %1034 = constant() : () -> "integer" ()
-                    {constant:value = "{""type"":""integer"",""value"":5000}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=integer, value=5000]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %1035 = constant() : () -> "integer" ()
-                    {constant:value = "{""type"":""integer"",""value"":5200}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=integer, value=5200]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %1036 = between(%1033, %1034, %1035) : ("integer", "integer", "integer") -> "boolean" ()
                 %1039 = return(%1036) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
@@ -80,17 +80,17 @@ IR version = 1
             }, {
             ^boundArguments (%42 : "row(bigint)")
                 %43 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %44 = return(%43) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
             ^orderingSelector (%45 : "row(bigint)")
                 %46 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %47 = return(%46) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "REPLICATE", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:nullable_values = "[test: exchange:nullable_values attribute]", exchange:replicate_nulls_and_any = "false"}
+            {exchange:type = "REPLICATE", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false"}
         %48 = exchange(%1099) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
             ^inputSelector (%49 : "row(bigint)")
                 %50 = field_reference(%49) : ("row(bigint)") -> "bigint" ()
@@ -102,17 +102,17 @@ IR version = 1
             }, {
             ^boundArguments (%53 : "row(bigint)")
                 %54 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %55 = return(%54) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
             ^orderingSelector (%56 : "row(bigint)")
                 %57 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %58 = return(%57) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:nullable_values = "[test: exchange:nullable_values attribute]", exchange:replicate_nulls_and_any = "false"}
+            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false"}
         %59 = join(%2, %48) : ("multiset(row(bigint,bigint,bigint))", "multiset(row(bigint))") -> "multiset(row(bigint,bigint))" ({
             ^leftCriteriaSelector (%60 : "row(bigint,bigint,bigint)")
                 %61 = field_reference(%60) : ("row(bigint,bigint,bigint)") -> "bigint" ()
@@ -132,7 +132,7 @@ IR version = 1
             }, {
             ^filter (%68 : "row(bigint,bigint,bigint)", %69 : "row(bigint)")
                 %70 = constant() : () -> "boolean" ()
-                    {constant:value = "{""type"":""boolean"",""value"":true}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=boolean, value=true]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %71 = return(%70) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
@@ -148,7 +148,7 @@ IR version = 1
             }, {
             ^rightOutputSelector (%77 : "row(bigint)")
                 %78 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %79 = return(%78) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
@@ -167,7 +167,7 @@ IR version = 1
                 %1388 = field_reference(%1341) : ("row(bigint,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %1389 = constant() : () -> "integer" ()
-                    {constant:value = "{""type"":""integer"",""value"":6}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=integer, value=6]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %1390 = comparison(%1388, %1389) : ("integer", "integer") -> "boolean" ()
                     {comparison:operator = "EQUAL"}
                 %1393 = return(%1390) : ("boolean") -> "boolean" ()
@@ -193,17 +193,17 @@ IR version = 1
             }, {
             ^boundArguments (%101 : "row(bigint)")
                 %102 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %103 = return(%102) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
             ^orderingSelector (%104 : "row(bigint)")
                 %105 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %106 = return(%105) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "REPLICATE", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:nullable_values = "[test: exchange:nullable_values attribute]", exchange:replicate_nulls_and_any = "false"}
+            {exchange:type = "REPLICATE", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false"}
         %107 = exchange(%1450) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
             ^inputSelector (%108 : "row(bigint)")
                 %109 = field_reference(%108) : ("row(bigint)") -> "bigint" ()
@@ -215,17 +215,17 @@ IR version = 1
             }, {
             ^boundArguments (%112 : "row(bigint)")
                 %113 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %114 = return(%113) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
             ^orderingSelector (%115 : "row(bigint)")
                 %116 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %117 = return(%116) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:nullable_values = "[test: exchange:nullable_values attribute]", exchange:replicate_nulls_and_any = "false"}
+            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false"}
         %118 = join(%59, %107) : ("multiset(row(bigint,bigint))", "multiset(row(bigint))") -> "multiset(row(bigint))" ({
             ^leftCriteriaSelector (%119 : "row(bigint,bigint)")
                 %120 = field_reference(%119) : ("row(bigint,bigint)") -> "bigint" ()
@@ -245,7 +245,7 @@ IR version = 1
             }, {
             ^filter (%127 : "row(bigint,bigint)", %128 : "row(bigint)")
                 %129 = constant() : () -> "boolean" ()
-                    {constant:value = "{""type"":""boolean"",""value"":true}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=boolean, value=true]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %130 = return(%129) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
@@ -259,7 +259,7 @@ IR version = 1
             }, {
             ^rightOutputSelector (%135 : "row(bigint)")
                 %136 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %137 = return(%136) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
@@ -278,16 +278,16 @@ IR version = 1
                 %1766 = field_reference(%1685) : ("row(bigint,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %1767 = constant() : () -> "integer" ()
-                    {constant:value = "{""type"":""integer"",""value"":8}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=integer, value=8]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %1768 = constant() : () -> "integer" ()
-                    {constant:value = "{""type"":""integer"",""value"":9}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=integer, value=9]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %1769 = between(%1766, %1767, %1768) : ("integer", "integer", "integer") -> "boolean" ()
                 %1770 = field_reference(%1685) : ("row(bigint,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %1771 = constant() : () -> "integer" ()
-                    {constant:value = "{""type"":""integer"",""value"":19}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=integer, value=19]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %1772 = constant() : () -> "integer" ()
-                    {constant:value = "{""type"":""integer"",""value"":20}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=integer, value=20]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %1773 = between(%1770, %1771, %1772) : ("integer", "integer", "integer") -> "boolean" ()
                 %1774 = logical(%1769, %1773) : ("boolean", "boolean") -> "boolean" ()
                     {logical:operator = "OR"}
@@ -307,25 +307,25 @@ IR version = 1
             }, {
             ^boundArguments (%1844 : "row(bigint,integer)")
                 %161 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %162 = return(%161) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
             ^orderingSelector (%1845 : "row(bigint,integer)")
                 %164 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %165 = return(%164) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "REPLICATE", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:nullable_values = "[test: exchange:nullable_values attribute]", exchange:replicate_nulls_and_any = "false"}
+            {exchange:type = "REPLICATE", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false"}
         %2327 = filter(%1846) : ("multiset(row(bigint,integer))") -> "multiset(row(bigint,integer))" ({
             ^predicate (%1685 : "row(bigint,integer)")
                 %1690 = field_reference(%1685) : ("row(bigint,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %1691 = constant() : () -> "integer" ()
-                    {constant:value = "{""type"":""integer"",""value"":8}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=integer, value=8]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %1692 = constant() : () -> "integer" ()
-                    {constant:value = "{""type"":""integer"",""value"":9}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=integer, value=9]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %1693 = between(%1690, %1691, %1692) : ("integer", "integer", "integer") -> "boolean" ()
                 %1696 = return(%1693) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
@@ -350,17 +350,17 @@ IR version = 1
             }, {
             ^boundArguments (%171 : "row(bigint)")
                 %172 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %173 = return(%172) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
             ^orderingSelector (%174 : "row(bigint)")
                 %175 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %176 = return(%175) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:nullable_values = "[test: exchange:nullable_values attribute]", exchange:replicate_nulls_and_any = "false"}
+            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false"}
         %177 = join(%118, %166) : ("multiset(row(bigint))", "multiset(row(bigint))") -> "multiset(empty row)" ({
             ^leftCriteriaSelector (%178 : "row(bigint)")
                 %179 = field_reference(%178) : ("row(bigint)") -> "bigint" ()
@@ -380,19 +380,19 @@ IR version = 1
             }, {
             ^filter (%186 : "row(bigint)", %187 : "row(bigint)")
                 %188 = constant() : () -> "boolean" ()
-                    {constant:value = "{""type"":""boolean"",""value"":true}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=boolean, value=true]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %189 = return(%188) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
             ^leftOutputSelector (%190 : "row(bigint)")
                 %191 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %192 = return(%191) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
             ^rightOutputSelector (%193 : "row(bigint)")
                 %194 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %195 = return(%194) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
@@ -409,25 +409,25 @@ IR version = 1
                 %202 = aggregate_call(%201) : ("multiset(empty row)") -> "bigint" ({
                     ^arguments (%203 : "empty row")
                         %204 = constant() : () -> "empty row" ()
-                            {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                            {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                         %205 = return(%204) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                     }, {
                     ^filterSelector (%206 : "empty row")
                         %207 = constant() : () -> "empty row" ()
-                            {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                            {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                         %208 = return(%207) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                     }, {
                     ^maskSelector (%209 : "empty row")
                         %210 = constant() : () -> "empty row" ()
-                            {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                            {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                         %211 = return(%210) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                     }, {
                     ^orderingSelector (%212 : "empty row")
                         %213 = constant() : () -> "empty row" ()
-                            {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                            {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                         %214 = return(%213) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                     })
@@ -439,7 +439,7 @@ IR version = 1
             }, {
             ^groupingKeysSelector (%217 : "empty row")
                 %218 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %219 = return(%218) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
@@ -455,17 +455,17 @@ IR version = 1
             }, {
             ^boundArguments (%225 : "row(bigint)")
                 %226 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %227 = return(%226) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
             ^orderingSelector (%228 : "row(bigint)")
                 %229 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %230 = return(%229) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "GATHER", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:nullable_values = "[test: exchange:nullable_values attribute]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "GATHER", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
         %231 = exchange(%220) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
             ^inputSelector (%232 : "row(bigint)")
                 %233 = field_reference(%232) : ("row(bigint)") -> "bigint" ()
@@ -477,17 +477,17 @@ IR version = 1
             }, {
             ^boundArguments (%236 : "row(bigint)")
                 %237 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %238 = return(%237) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
             ^orderingSelector (%239 : "row(bigint)")
                 %240 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %241 = return(%240) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:nullable_values = "[test: exchange:nullable_values attribute]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
         %242 = aggregation(%231) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
             ^aggregates (%243 : "multiset(row(bigint))")
                 %244 = aggregate_call(%243) : ("multiset(row(bigint))") -> "bigint" ({
@@ -501,19 +501,19 @@ IR version = 1
                     }, {
                     ^filterSelector (%249 : "row(bigint)")
                         %250 = constant() : () -> "empty row" ()
-                            {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                            {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                         %251 = return(%250) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                     }, {
                     ^maskSelector (%252 : "row(bigint)")
                         %253 = constant() : () -> "empty row" ()
-                            {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                            {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                         %254 = return(%253) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                     }, {
                     ^orderingSelector (%255 : "row(bigint)")
                         %256 = constant() : () -> "empty row" ()
-                            {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                            {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                         %257 = return(%256) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                     })
@@ -525,7 +525,7 @@ IR version = 1
             }, {
             ^groupingKeysSelector (%260 : "row(bigint)")
                 %261 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %262 = return(%261) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
@@ -537,37 +537,37 @@ IR version = 1
                 %2434 = field_reference(%265) : ("row(bigint,bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "0"}
                 %2435 = constant() : () -> "varchar" ()
-                    {constant:value = "[test: constant:value attribute]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=varchar, value=EQUAL]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2436 = constant() : () -> "varchar" ()
-                    {constant:value = "[test: constant:value attribute]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=varchar, value=df_2099]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2437 = constant() : () -> "boolean" ()
-                    {constant:value = "{""type"":""boolean"",""value"":false}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=boolean, value=false]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2438 = constant() : () -> "integer" ()
-                    {constant:value = "{""type"":""integer"",""value"":20000}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=integer, value=20000]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2439 = call(%2434, %2435, %2436, %2437, %2438) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %2441 = field_reference(%265) : ("row(bigint,bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "1"}
                 %2442 = constant() : () -> "varchar" ()
-                    {constant:value = "[test: constant:value attribute]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=varchar, value=EQUAL]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2443 = constant() : () -> "varchar" ()
-                    {constant:value = "[test: constant:value attribute]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=varchar, value=df_2100]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2444 = constant() : () -> "boolean" ()
-                    {constant:value = "{""type"":""boolean"",""value"":false}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=boolean, value=false]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2445 = constant() : () -> "integer" ()
-                    {constant:value = "{""type"":""integer"",""value"":20000}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=integer, value=20000]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2446 = call(%2441, %2442, %2443, %2444, %2445) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %2448 = field_reference(%265) : ("row(bigint,bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "2"}
                 %2449 = constant() : () -> "varchar" ()
-                    {constant:value = "[test: constant:value attribute]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=varchar, value=EQUAL]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2450 = constant() : () -> "varchar" ()
-                    {constant:value = "[test: constant:value attribute]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=varchar, value=df_2101]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2451 = constant() : () -> "boolean" ()
-                    {constant:value = "{""type"":""boolean"",""value"":false}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=boolean, value=false]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2452 = constant() : () -> "integer" ()
-                    {constant:value = "{""type"":""integer"",""value"":20000}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=integer, value=20000]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %2453 = call(%2448, %2449, %2450, %2451, %2452) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %2457 = logical(%2439, %2446, %2453) : ("boolean", "boolean", "boolean") -> "boolean" ()
@@ -586,17 +586,17 @@ IR version = 1
             }, {
             ^boundArguments (%315 : "row(bigint)")
                 %316 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %317 = return(%316) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
             ^orderingSelector (%318 : "row(bigint)")
                 %319 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %320 = return(%319) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:nullable_values = "[test: exchange:nullable_values attribute]", exchange:replicate_nulls_and_any = "false"}
+            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false"}
         %321 = join(%264, %310) : ("multiset(row(bigint,bigint,bigint))", "multiset(row(bigint))") -> "multiset(row(bigint,bigint))" ({
             ^leftCriteriaSelector (%322 : "row(bigint,bigint,bigint)")
                 %323 = field_reference(%322) : ("row(bigint,bigint,bigint)") -> "bigint" ()
@@ -616,7 +616,7 @@ IR version = 1
             }, {
             ^filter (%330 : "row(bigint,bigint,bigint)", %331 : "row(bigint)")
                 %332 = constant() : () -> "boolean" ()
-                    {constant:value = "{""type"":""boolean"",""value"":true}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=boolean, value=true]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %333 = return(%332) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
@@ -632,7 +632,7 @@ IR version = 1
             }, {
             ^rightOutputSelector (%339 : "row(bigint)")
                 %340 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %341 = return(%340) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
@@ -655,17 +655,17 @@ IR version = 1
             }, {
             ^boundArguments (%374 : "row(bigint)")
                 %375 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %376 = return(%375) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
             ^orderingSelector (%377 : "row(bigint)")
                 %378 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %379 = return(%378) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:nullable_values = "[test: exchange:nullable_values attribute]", exchange:replicate_nulls_and_any = "false"}
+            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false"}
         %380 = join(%321, %369) : ("multiset(row(bigint,bigint))", "multiset(row(bigint))") -> "multiset(row(bigint))" ({
             ^leftCriteriaSelector (%381 : "row(bigint,bigint)")
                 %382 = field_reference(%381) : ("row(bigint,bigint)") -> "bigint" ()
@@ -685,7 +685,7 @@ IR version = 1
             }, {
             ^filter (%389 : "row(bigint,bigint)", %390 : "row(bigint)")
                 %391 = constant() : () -> "boolean" ()
-                    {constant:value = "{""type"":""boolean"",""value"":true}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=boolean, value=true]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %392 = return(%391) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
@@ -699,7 +699,7 @@ IR version = 1
             }, {
             ^rightOutputSelector (%397 : "row(bigint)")
                 %398 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %399 = return(%398) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
@@ -716,9 +716,9 @@ IR version = 1
                 %1701 = field_reference(%1682) : ("row(bigint,integer)") -> "integer" ()
                     {field_reference:index = "1"}
                 %1702 = constant() : () -> "integer" ()
-                    {constant:value = "{""type"":""integer"",""value"":19}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=integer, value=19]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %1703 = constant() : () -> "integer" ()
-                    {constant:value = "{""type"":""integer"",""value"":20}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=integer, value=20]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %1704 = between(%1701, %1702, %1703) : ("integer", "integer", "integer") -> "boolean" ()
                 %1707 = return(%1704) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
@@ -743,17 +743,17 @@ IR version = 1
             }, {
             ^boundArguments (%433 : "row(bigint)")
                 %434 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %435 = return(%434) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
             ^orderingSelector (%436 : "row(bigint)")
                 %437 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %438 = return(%437) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:nullable_values = "[test: exchange:nullable_values attribute]", exchange:replicate_nulls_and_any = "false"}
+            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false"}
         %439 = join(%380, %428) : ("multiset(row(bigint))", "multiset(row(bigint))") -> "multiset(empty row)" ({
             ^leftCriteriaSelector (%440 : "row(bigint)")
                 %441 = field_reference(%440) : ("row(bigint)") -> "bigint" ()
@@ -773,19 +773,19 @@ IR version = 1
             }, {
             ^filter (%448 : "row(bigint)", %449 : "row(bigint)")
                 %450 = constant() : () -> "boolean" ()
-                    {constant:value = "{""type"":""boolean"",""value"":true}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=boolean, value=true]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %451 = return(%450) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
             ^leftOutputSelector (%452 : "row(bigint)")
                 %453 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %454 = return(%453) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
             ^rightOutputSelector (%455 : "row(bigint)")
                 %456 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %457 = return(%456) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
@@ -802,25 +802,25 @@ IR version = 1
                 %464 = aggregate_call(%463) : ("multiset(empty row)") -> "bigint" ({
                     ^arguments (%465 : "empty row")
                         %466 = constant() : () -> "empty row" ()
-                            {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                            {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                         %467 = return(%466) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                     }, {
                     ^filterSelector (%468 : "empty row")
                         %469 = constant() : () -> "empty row" ()
-                            {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                            {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                         %470 = return(%469) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                     }, {
                     ^maskSelector (%471 : "empty row")
                         %472 = constant() : () -> "empty row" ()
-                            {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                            {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                         %473 = return(%472) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                     }, {
                     ^orderingSelector (%474 : "empty row")
                         %475 = constant() : () -> "empty row" ()
-                            {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                            {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                         %476 = return(%475) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                     })
@@ -832,7 +832,7 @@ IR version = 1
             }, {
             ^groupingKeysSelector (%479 : "empty row")
                 %480 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %481 = return(%480) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
@@ -848,17 +848,17 @@ IR version = 1
             }, {
             ^boundArguments (%487 : "row(bigint)")
                 %488 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %489 = return(%488) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
             ^orderingSelector (%490 : "row(bigint)")
                 %491 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %492 = return(%491) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "GATHER", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:nullable_values = "[test: exchange:nullable_values attribute]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "GATHER", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
         %493 = exchange(%482) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
             ^inputSelector (%494 : "row(bigint)")
                 %495 = field_reference(%494) : ("row(bigint)") -> "bigint" ()
@@ -870,17 +870,17 @@ IR version = 1
             }, {
             ^boundArguments (%498 : "row(bigint)")
                 %499 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %500 = return(%499) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
             ^orderingSelector (%501 : "row(bigint)")
                 %502 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %503 = return(%502) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
-            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:nullable_values = "[test: exchange:nullable_values attribute]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
         %504 = aggregation(%493) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
             ^aggregates (%505 : "multiset(row(bigint))")
                 %506 = aggregate_call(%505) : ("multiset(row(bigint))") -> "bigint" ({
@@ -894,19 +894,19 @@ IR version = 1
                     }, {
                     ^filterSelector (%511 : "row(bigint)")
                         %512 = constant() : () -> "empty row" ()
-                            {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                            {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                         %513 = return(%512) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                     }, {
                     ^maskSelector (%514 : "row(bigint)")
                         %515 = constant() : () -> "empty row" ()
-                            {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                            {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                         %516 = return(%515) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                     }, {
                     ^orderingSelector (%517 : "row(bigint)")
                         %518 = constant() : () -> "empty row" ()
-                            {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                            {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                         %519 = return(%518) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                     })
@@ -918,7 +918,7 @@ IR version = 1
             }, {
             ^groupingKeysSelector (%522 : "row(bigint)")
                 %523 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %524 = return(%523) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })
@@ -926,19 +926,19 @@ IR version = 1
         %525 = join(%242, %504) : ("multiset(row(bigint))", "multiset(row(bigint))") -> "multiset(row(bigint,bigint))" ({
             ^leftCriteriaSelector (%526 : "row(bigint)")
                 %527 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %528 = return(%527) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
             ^rightCriteriaSelector (%529 : "row(bigint)")
                 %530 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %531 = return(%530) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
             ^filter (%532 : "row(bigint)", %533 : "row(bigint)")
                 %534 = constant() : () -> "boolean" ()
-                    {constant:value = "{""type"":""boolean"",""value"":true}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=boolean, value=true]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %535 = return(%534) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             }, {
@@ -960,7 +960,7 @@ IR version = 1
             }, {
             ^dynamicFilterTargetSelector (%544 : "row(bigint)")
                 %545 = constant() : () -> "empty row" ()
-                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                 %546 = return(%545) : ("empty row") -> "empty row" ()
                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
             })

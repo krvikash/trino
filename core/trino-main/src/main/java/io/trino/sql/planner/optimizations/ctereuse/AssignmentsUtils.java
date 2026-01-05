@@ -19,13 +19,13 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
-import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Value;
@@ -135,7 +135,7 @@ public class AssignmentsUtils
                 block.operations().get(0) instanceof Constant constantOperation &&
                 block.operations().get(1) instanceof Return returnOperation &&
                 returnOperation.argument().equals(constantOperation.result()) &&
-                CONSTANT_VALUE.getAttribute(constantOperation.attributes()).equals(NullableValue.asNull(EMPTY_ROW));
+                CONSTANT_VALUE.getAttribute(constantOperation.attributes()).equals(ConstantValue.asNull(EMPTY_ROW));
     }
 
     public static boolean isEmptyRelationalComputation(Block block)
@@ -151,7 +151,7 @@ public class AssignmentsUtils
                 block.operations().get(0) instanceof Constant constantOperation &&
                 block.operations().get(1) instanceof Return returnOperation &&
                 returnOperation.argument().equals(constantOperation.result()) &&
-                CONSTANT_VALUE.getAttribute(constantOperation.attributes()).equals(NullableValue.asNull(EMPTY_ROW));
+                CONSTANT_VALUE.getAttribute(constantOperation.attributes()).equals(ConstantValue.asNull(EMPTY_ROW));
     }
 
     /**

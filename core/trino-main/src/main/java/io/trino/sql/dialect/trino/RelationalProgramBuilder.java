@@ -46,13 +46,14 @@ import io.trino.sql.dialect.trino.operation.WindowFunctionCall;
 import io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.CorrelatedJoinOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ConstantValues;
 import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeScope;
 import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType;
-import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.NullableValues;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DistributionType;
 import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.Statistics;
 import io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata.TopNStep;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameBoundType;
 import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameType;
@@ -386,9 +387,10 @@ public class RelationalProgramBuilder
         // order by
         Block orderingSelector = fieldSelectorBlock("^orderingSelector", exchangeRowType, outputMapping, node.getOrderingScheme().map(OrderingScheme::orderBy).orElse(ImmutableList.of())); // ordering scheme is defined in terms of exchange's output symbols
 
-        NullableValue[] nullableValues = new NullableValue[node.getPartitioningScheme().getPartitioning().getArguments().size()];
+        ConstantValue[] constantValues = new ConstantValue[node.getPartitioningScheme().getPartitioning().getArguments().size()];
         for (int i = 0; i < node.getPartitioningScheme().getPartitioning().getArguments().size(); i++) {
-            nullableValues[i] = node.getPartitioningScheme().getPartitioning().getArguments().get(i).getConstant();
+            NullableValue nullableValue = node.getPartitioningScheme().getPartitioning().getArguments().get(i).getConstant();
+            constantValues[i] = nullableValue == null ? null : new ConstantValue(nullableValue.getType(), nullableValue.getValue());
         }
 
         Exchange exchange = new Exchange(
@@ -403,7 +405,7 @@ public class RelationalProgramBuilder
                 ExchangeType.of(node.getType()),
                 ExchangeScope.of(node.getScope()),
                 node.getPartitioningScheme().getPartitioning().getHandle(),
-                new NullableValues(nullableValues),
+                new ConstantValues(constantValues),
                 node.getPartitioningScheme().isReplicateNullsAndAny(),
                 node.getPartitioningScheme().getBucketToPartition()
                         .map(Arrays::stream)

@@ -35,7 +35,6 @@ import io.trino.spi.connector.Assignment;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.UnificationResult;
 import io.trino.spi.expression.ConnectorExpression;
-import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
@@ -56,6 +55,7 @@ import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
 import io.trino.sql.dialect.trino.operationmetadata.DynamicFilterSourceOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.IrUtils;
 import io.trino.sql.newir.Block;
@@ -1522,7 +1522,7 @@ public class CteReuse
                         Value idArgument = operation.arguments().get(2);
                         Operation idOperation = operations.get(idArgument);
                         checkArgument(idOperation instanceof Constant, "expected dynamic filter id to be constant");
-                        NullableValue idAttribute = CONSTANT_VALUE.getAttribute(idOperation.attributes());
+                        ConstantValue idAttribute = CONSTANT_VALUE.getAttribute(idOperation.attributes());
                         checkArgument(idAttribute.getType().equals(VARCHAR), "expected dynamic filter id to be of varchar type");
                         String id = ((Slice) idAttribute.getValue()).toStringUtf8();
                         // find the equivalence group of the id, and get the group representative

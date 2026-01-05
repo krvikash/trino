@@ -13,21 +13,40 @@
  */
 package io.trino.sql.dialect.trino.operationmetadata;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.primitives.Primitives;
+import com.google.errorprone.annotations.DoNotCall;
 import io.airlift.json.JsonCodec;
 import io.airlift.json.JsonCodecFactory;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.spi.TrinoException;
+import io.trino.spi.block.Block;
 import io.trino.spi.connector.SortOrder;
+import io.trino.spi.predicate.NullableValue;
+import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeOperators;
 import io.trino.sql.newir.Operation;
 
+import java.lang.invoke.MethodHandle;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
+import static io.trino.spi.function.InvocationConvention.InvocationArgumentConvention.NEVER_NULL;
+import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.DEFAULT_ON_NULL;
+import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.FAIL_ON_NULL;
+import static io.trino.spi.function.InvocationConvention.simpleConvention;
+import static io.trino.spi.predicate.Utils.blockToNativeValue;
+import static io.trino.spi.predicate.Utils.nativeValueToBlock;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
+import static java.lang.String.format;
+import static java.lang.invoke.MethodType.methodType;
 import static java.util.Objects.requireNonNull;
 
 public record TrinoAttributeMetadata<T>(TrinoAttributeSignature<T> trinoAttributeSignature, Function<String, T> parseMethod, Function<T, String> printMethod)
@@ -272,6 +291,154 @@ public record TrinoAttributeMetadata<T>(TrinoAttributeSignature<T> trinoAttribut
         public static String print(List<String> stringList)
         {
             return STRING_LIST_CODEC.toJson(stringList);
+        }
+    }
+
+    /**
+     * Based on {@link NullableValue}, but implements safe equals and hashCode.
+     */
+    public static class ConstantValue
+    {
+        private static final TypeOperators TYPE_OPERATORS = new TypeOperators();
+
+        private final Type type;
+        private final Object value;
+        private final Optional<MethodHandle> equalOperator;
+        private final Optional<MethodHandle> hashCodeOperator;
+
+        public ConstantValue(Type type, Object value)
+        {
+            requireNonNull(type, "type is null");
+            if (value != null && !Primitives.wrap(type.getJavaType()).isInstance(value)) {
+                throw new IllegalArgumentException(format("Object '%s' does not match type %s", value, type.getJavaType()));
+            }
+
+            this.type = type;
+            this.value = value;
+
+            if (type.isComparable()) {
+                this.equalOperator = Optional.of(TYPE_OPERATORS.getEqualOperator(type, simpleConvention(DEFAULT_ON_NULL, NEVER_NULL, NEVER_NULL))
+                        .asType(methodType(boolean.class, Object.class, Object.class)));
+                this.hashCodeOperator = Optional.of(TYPE_OPERATORS.getHashCodeOperator(type, simpleConvention(FAIL_ON_NULL, NEVER_NULL))
+                        .asType(methodType(long.class, Object.class)));
+            }
+            else {
+                this.equalOperator = Optional.empty();
+                this.hashCodeOperator = Optional.empty();
+            }
+        }
+
+        public static ConstantValue of(Type type, Object value)
+        {
+            requireNonNull(value, "value is null");
+            return new ConstantValue(type, value);
+        }
+
+        public static ConstantValue asNull(Type type)
+        {
+            return new ConstantValue(type, null);
+        }
+
+        @JsonCreator
+        @DoNotCall // For JSON deserialization only
+        public static ConstantValue fromSerializable(@JsonProperty("serializable") Serializable serializable)
+        {
+            Type type = serializable.type();
+            Block block = serializable.block();
+            return new ConstantValue(type, block == null ? null : blockToNativeValue(type, block));
+        }
+
+        // Jackson serialization only
+        @JsonProperty
+        public Serializable getSerializable()
+        {
+            return new Serializable(type, value == null ? null : nativeValueToBlock(type, value));
+        }
+
+        public Type getType()
+        {
+            return type;
+        }
+
+        public Object getValue()
+        {
+            return value;
+        }
+
+        @Override
+        public int hashCode()
+        {
+            long hash = Objects.hash(type);
+            if (value != null) {
+                hash = hash * 31 + valueHash();
+            }
+            return (int) hash;
+        }
+
+        private long valueHash()
+        {
+            if (hashCodeOperator.isEmpty()) {
+                return 0;
+            }
+            try {
+                return (long) hashCodeOperator.get().invokeExact(value);
+            }
+            catch (Throwable throwable) {
+                throw handleThrowable(throwable);
+            }
+        }
+
+        @Override
+        public boolean equals(Object obj)
+        {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null || getClass() != obj.getClass()) {
+                return false;
+            }
+            ConstantValue other = (ConstantValue) obj;
+            return Objects.equals(this.type, other.type)
+                    && (this.value == null) == (other.value == null)
+                    && (this.value == null || valueEquals(other.value));
+        }
+
+        private boolean valueEquals(Object otherValue)
+        {
+            if (equalOperator.isEmpty()) {
+                return false;
+            }
+            try {
+                return (boolean) equalOperator.get().invokeExact(value, otherValue);
+            }
+            catch (Throwable throwable) {
+                throw handleThrowable(throwable);
+            }
+        }
+
+        private static RuntimeException handleThrowable(Throwable throwable)
+        {
+            if (throwable instanceof Error error) {
+                throw error;
+            }
+            if (throwable instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            return new RuntimeException(throwable);
+        }
+
+        @Override
+        public String toString()
+        {
+            return "[type=" + type + ", value=" + (value == null ? "null" : type.getObjectValue(nativeValueToBlock(type, value), 0).toString()) + "]";
+        }
+
+        public record Serializable(Type type, Block block)
+        {
+            public Serializable
+            {
+                requireNonNull(type, "type is null");
+            }
         }
     }
 }

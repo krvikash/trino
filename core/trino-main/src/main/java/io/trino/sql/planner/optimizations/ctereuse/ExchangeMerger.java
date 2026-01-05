@@ -50,9 +50,9 @@ import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operation.TrinoOperation.emptySourceAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.BUCKET_COUNT;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.BUCKET_TO_PARTITION;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.CONSTANT_VALUES;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.EXCHANGE_SCOPE;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.EXCHANGE_TYPE;
-import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.NULLABLE_VALUES;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.PARTITIONING_HANDLE;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.PARTITION_COUNT;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.REPLICATE_NULLS_AND_ANY;
@@ -131,7 +131,7 @@ public class ExchangeMerger
                             EXCHANGE_TYPE.getAttribute(exchange.attributes()),
                             EXCHANGE_SCOPE.getAttribute(exchange.attributes()),
                             PARTITIONING_HANDLE.getAttribute(exchange.attributes()),
-                            NULLABLE_VALUES.getAttribute(exchange.attributes()),
+                            CONSTANT_VALUES.getAttribute(exchange.attributes()),
                             REPLICATE_NULLS_AND_ANY.getAttribute(exchange.attributes()),
                             Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(exchange.attributes())),
                             Optional.ofNullable(PARTITION_COUNT.getAttribute(exchange.attributes())),
@@ -192,7 +192,7 @@ public class ExchangeMerger
                 EXCHANGE_TYPE.getAttribute(exchange.attributes()),
                 EXCHANGE_SCOPE.getAttribute(exchange.attributes()),
                 PARTITIONING_HANDLE.getAttribute(exchange.attributes()),
-                NULLABLE_VALUES.getAttribute(exchange.attributes()),
+                CONSTANT_VALUES.getAttribute(exchange.attributes()),
                 REPLICATE_NULLS_AND_ANY.getAttribute(exchange.attributes()),
                 Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(exchange.attributes())),
                 Optional.ofNullable(PARTITION_COUNT.getAttribute(exchange.attributes())),
@@ -361,7 +361,7 @@ public class ExchangeMerger
                             EXCHANGE_TYPE.getAttribute(exchange.attributes()),
                             EXCHANGE_SCOPE.getAttribute(exchange.attributes()),
                             PARTITIONING_HANDLE.getAttribute(exchange.attributes()),
-                            NULLABLE_VALUES.getAttribute(exchange.attributes()),
+                            CONSTANT_VALUES.getAttribute(exchange.attributes()),
                             REPLICATE_NULLS_AND_ANY.getAttribute(exchange.attributes()),
                             Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(exchange.attributes())),
                             Optional.ofNullable(PARTITION_COUNT.getAttribute(exchange.attributes())),
@@ -483,7 +483,7 @@ public class ExchangeMerger
                 EXCHANGE_TYPE.getAttribute(arbitraryExchange.attributes()),
                 EXCHANGE_SCOPE.getAttribute(arbitraryExchange.attributes()),
                 PARTITIONING_HANDLE.getAttribute(arbitraryExchange.attributes()),
-                NULLABLE_VALUES.getAttribute(arbitraryExchange.attributes()),
+                CONSTANT_VALUES.getAttribute(arbitraryExchange.attributes()),
                 REPLICATE_NULLS_AND_ANY.getAttribute(arbitraryExchange.attributes()),
                 Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(arbitraryExchange.attributes())),
                 Optional.ofNullable(PARTITION_COUNT.getAttribute(arbitraryExchange.attributes())),

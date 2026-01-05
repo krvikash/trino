@@ -20,9 +20,9 @@ import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ConstantValues;
 import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeScope;
 import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType;
-import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.NullableValues;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
@@ -48,6 +48,7 @@ import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.TypeConstraint.IS_RELATION;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.BUCKET_COUNT;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.BUCKET_TO_PARTITION;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.CONSTANT_VALUES;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.EXCHANGE_SCOPE;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.EXCHANGE_TYPE;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeScope.LOCAL;
@@ -55,7 +56,6 @@ import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMeta
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType.GATHER;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType.REPARTITION;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.NAME;
-import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.NULLABLE_VALUES;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.PARTITIONING_HANDLE;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.PARTITION_COUNT;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.REPLICATE_NULLS_AND_ANY;
@@ -85,7 +85,7 @@ public class Exchange
             ExchangeType type,
             ExchangeScope scope,
             PartitioningHandle partitioningHandle,
-            NullableValues partitioningBoundValues,
+            ConstantValues partitioningBoundValues,
             boolean partitioningReplicateNullsAndAny,
             Optional<List<Integer>> partitioningBucketToPartition,
             Optional<Integer> partitionCount,
@@ -139,7 +139,7 @@ public class Exchange
         this.result = new Result(resultName, irType(new MultisetType(exchangeRowType)));
 
         validateRowSelector(partitioningBoundArguments, exchangeRowType, "invalid partitioning bound arguments for Exchange operation");
-        if (trinoType(partitioningBoundArguments.getReturnedType()).getTypeParameters().size() != partitioningBoundValues.nullableValues().length) {
+        if (trinoType(partitioningBoundArguments.getReturnedType()).getTypeParameters().size() != partitioningBoundValues.constantValues().length) {
             throw new TrinoException(IR_ERROR, "partitioning bound arguments and bound values for Exchange do not match in size");
         }
         // TODO check that for a LOCAL exchange, all partitioningBoundArguments are variables (FieldSelections). Pass the current Program to resolve backlinks.
@@ -186,7 +186,7 @@ public class Exchange
         EXCHANGE_TYPE.putAttribute(operationAttributesBuilder, type);
         EXCHANGE_SCOPE.putAttribute(operationAttributesBuilder, scope);
         PARTITIONING_HANDLE.putAttribute(operationAttributesBuilder, partitioningHandle);
-        NULLABLE_VALUES.putAttribute(operationAttributesBuilder, partitioningBoundValues);
+        CONSTANT_VALUES.putAttribute(operationAttributesBuilder, partitioningBoundValues);
         REPLICATE_NULLS_AND_ANY.putAttribute(operationAttributesBuilder, partitioningReplicateNullsAndAny);
         partitioningBucketToPartition.ifPresent(bucketToPartition -> BUCKET_TO_PARTITION.putAttribute(operationAttributesBuilder, bucketToPartition));
         partitionCount.ifPresent(count -> PARTITION_COUNT.putAttribute(operationAttributesBuilder, count));
@@ -260,7 +260,7 @@ public class Exchange
                 EXCHANGE_TYPE.getAttribute(attributes),
                 EXCHANGE_SCOPE.getAttribute(attributes),
                 PARTITIONING_HANDLE.getAttribute(attributes),
-                NULLABLE_VALUES.getAttribute(attributes),
+                CONSTANT_VALUES.getAttribute(attributes),
                 REPLICATE_NULLS_AND_ANY.getAttribute(attributes),
                 Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(attributes)),
                 Optional.ofNullable(PARTITION_COUNT.getAttribute(attributes)),

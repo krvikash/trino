@@ -16,7 +16,7 @@ package io.trino.sql.dialect.trino.operationmetadata;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.json.JsonCodec;
-import io.trino.spi.predicate.NullableValue;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
 import io.trino.sql.newir.Operation.AttributeKey;
 import org.assertj.core.util.VisibleForTesting;
@@ -39,24 +39,24 @@ public class ConstantOperationMetadata
 {
     public static final String NAME = "constant";
 
-    public static final TrinoAttributeSignature<NullableValue> CONSTANT_VALUE = new TrinoAttributeSignature<>(prefixedName(NAME, "value"), false);
+    public static final TrinoAttributeSignature<ConstantValue> CONSTANT_VALUE = new TrinoAttributeSignature<>(prefixedName(NAME, "value"), false);
 
     public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(CONSTANT_VALUE);
 
-    private final TrinoAttributeMetadata<NullableValue> constantValueTrinoAttributeMetadata;
+    private final TrinoAttributeMetadata<ConstantValue> constantValueTrinoAttributeMetadata;
 
-    public ConstantOperationMetadata(JsonCodec<NullableValue> nullableValueCodec)
+    public ConstantOperationMetadata(JsonCodec<ConstantValue> constantValueCodec)
     {
-        this(nullableValueCodec::fromJson, nullableValueCodec::toJson);
+        this(constantValueCodec::fromJson, constantValueCodec::toJson);
     }
 
     @VisibleForTesting
-    public ConstantOperationMetadata(Function<String, NullableValue> nullableValueParseMethod, Function<NullableValue, String> nullableValuePrintMethod)
+    public ConstantOperationMetadata(Function<String, ConstantValue> constantValueParseMethod, Function<ConstantValue, String> constantValuePrintMethod)
     {
-        requireNonNull(nullableValueParseMethod, "nullableValueParseMethod is null");
-        requireNonNull(nullableValuePrintMethod, "nullableValuePrintMethod is null");
+        requireNonNull(constantValueParseMethod, "constantValueParseMethod is null");
+        requireNonNull(constantValuePrintMethod, "constantValuePrintMethod is null");
 
-        this.constantValueTrinoAttributeMetadata = new TrinoAttributeMetadata<>(CONSTANT_VALUE, nullableValueParseMethod, nullableValuePrintMethod);
+        this.constantValueTrinoAttributeMetadata = new TrinoAttributeMetadata<>(CONSTANT_VALUE, constantValueParseMethod, constantValuePrintMethod);
     }
 
     @Override

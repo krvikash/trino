@@ -91,9 +91,9 @@ final class TestProgramBuilderAndPrinter
                                 %1 = values() : () -> "multiset(row(bigint,boolean))" ({
                                     ^row
                                         %2 = constant() : () -> "bigint" ()
-                                            {constant:value = "{""type"":""bigint"",""value"":3}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                            {constant:value = "[type=bigint, value=3]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %3 = constant() : () -> "boolean" ()
-                                            {constant:value = "{""type"":""boolean"",""value"":true}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                            {constant:value = "[type=boolean, value=true]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %4 = row(%2, %3) : ("bigint", "boolean") -> "row(bigint,boolean)" ()
                                             {ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %5 = return(%4) : ("row(bigint,boolean)") -> "row(bigint,boolean)" ()
@@ -101,9 +101,9 @@ final class TestProgramBuilderAndPrinter
                                     }, {
                                     ^row
                                         %6 = constant() : () -> "bigint" ()
-                                            {constant:value = "{""type"":""bigint"",""value"":5}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                            {constant:value = "[type=bigint, value=5]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %7 = constant() : () -> "boolean" ()
-                                            {constant:value = "{""type"":""boolean"",""value"":false}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                            {constant:value = "[type=boolean, value=false]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %8 = row(%6, %7) : ("bigint", "boolean") -> "row(bigint,boolean)" ()
                                             {ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %9 = return(%8) : ("row(bigint,boolean)") -> "row(bigint,boolean)" ()
@@ -113,7 +113,7 @@ final class TestProgramBuilderAndPrinter
                                 %10 = filter(%1) : ("multiset(row(bigint,boolean))") -> "multiset(row(bigint,boolean))" ({
                                     ^predicate (%11 : "row(bigint,boolean)")
                                         %12 = constant() : () -> "boolean" ()
-                                            {constant:value = "{""type"":""boolean"",""value"":true}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                            {constant:value = "[type=boolean, value=true]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %13 = return(%12) : ("boolean") -> "boolean" ()
                                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                     })
@@ -183,9 +183,9 @@ final class TestProgramBuilderAndPrinter
                                 %1 = values() : () -> "multiset(row(bigint,boolean))" ({
                                     ^row
                                         %2 = constant() : () -> "bigint" ()
-                                            {constant:value = "{""type"":""bigint"",""value"":1}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                            {constant:value = "[type=bigint, value=1]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %3 = constant() : () -> "boolean" ()
-                                            {constant:value = "{""type"":""boolean"",""value"":true}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                            {constant:value = "[type=boolean, value=true]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %4 = row(%2, %3) : ("bigint", "boolean") -> "row(bigint,boolean)" ()
                                             {ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %5 = return(%4) : ("row(bigint,boolean)") -> "row(bigint,boolean)" ()
@@ -193,9 +193,9 @@ final class TestProgramBuilderAndPrinter
                                     }, {
                                     ^row
                                         %6 = constant() : () -> "bigint" ()
-                                            {constant:value = "{""type"":""bigint"",""value"":2}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                            {constant:value = "[type=bigint, value=2]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %7 = constant() : () -> "boolean" ()
-                                            {constant:value = "{""type"":""boolean"",""value"":false}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                            {constant:value = "[type=boolean, value=false]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %8 = row(%6, %7) : ("bigint", "boolean") -> "row(bigint,boolean)" ()
                                             {ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %9 = return(%8) : ("row(bigint,boolean)") -> "row(bigint,boolean)" ()
@@ -217,9 +217,9 @@ final class TestProgramBuilderAndPrinter
                                         %17 = values() : () -> "multiset(row(bigint,boolean))" ({
                                             ^row
                                                 %18 = constant() : () -> "bigint" ()
-                                                    {constant:value = "{""type"":""bigint"",""value"":3}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                                    {constant:value = "[type=bigint, value=3]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                                 %19 = constant() : () -> "boolean" ()
-                                                    {constant:value = "{""type"":""boolean"",""value"":true}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                                    {constant:value = "[type=boolean, value=true]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                                 %20 = row(%18, %19) : ("bigint", "boolean") -> "row(bigint,boolean)" ()
                                                     {ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                                 %21 = return(%20) : ("row(bigint,boolean)") -> "row(bigint,boolean)" ()
@@ -227,9 +227,9 @@ final class TestProgramBuilderAndPrinter
                                             }, {
                                             ^row
                                                 %22 = constant() : () -> "bigint" ()
-                                                    {constant:value = "{""type"":""bigint"",""value"":4}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                                    {constant:value = "[type=bigint, value=4]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                                 %23 = constant() : () -> "boolean" ()
-                                                    {constant:value = "{""type"":""boolean"",""value"":false}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                                    {constant:value = "[type=boolean, value=false]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                                 %24 = row(%22, %23) : ("bigint", "boolean") -> "row(bigint,boolean)" ()
                                                     {ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                                 %25 = return(%24) : ("row(bigint,boolean)") -> "row(bigint,boolean)" ()
@@ -388,9 +388,9 @@ final class TestProgramBuilderAndPrinter
                                 %1 = values() : () -> "multiset(row(bigint,boolean))" ({
                                     ^row
                                         %2 = constant() : () -> "bigint" ()
-                                            {constant:value = "{""type"":""bigint"",""value"":3}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                            {constant:value = "[type=bigint, value=3]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %3 = constant() : () -> "boolean" ()
-                                            {constant:value = "{""type"":""boolean"",""value"":true}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                            {constant:value = "[type=boolean, value=true]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %4 = row(%2, %3) : ("bigint", "boolean") -> "row(bigint,boolean)" ()
                                             {ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %5 = return(%4) : ("row(bigint,boolean)") -> "row(bigint,boolean)" ()
@@ -404,7 +404,7 @@ final class TestProgramBuilderAndPrinter
                                         %9 = field_reference(%7) : ("row(bigint,boolean)") -> "boolean" ()
                                             {field_reference:index = "1", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %10 = constant() : () -> "bigint" ()
-                                            {constant:value = "{""type"":""bigint"",""value"":5}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                            {constant:value = "[type=bigint, value=5]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %11 = row(%8, %9, %10) : ("bigint", "boolean", "bigint") -> "row(bigint,boolean,bigint)" ()
                                             {ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %12 = return(%11) : ("row(bigint,boolean,bigint)") -> "row(bigint,boolean,bigint)" ()
@@ -416,7 +416,7 @@ final class TestProgramBuilderAndPrinter
                                         %15 = aggregate_call(%14) : ("multiset(row(bigint,boolean,bigint))") -> "bigint" ({
                                             ^arguments (%16 : "row(bigint,boolean,bigint)")
                                                 %17 = constant() : () -> "empty row" ()
-                                                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                                 %18 = return(%17) : ("empty row") -> "empty row" ()
                                                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                             }, {
@@ -430,13 +430,13 @@ final class TestProgramBuilderAndPrinter
                                             }, {
                                             ^maskSelector (%23 : "row(bigint,boolean,bigint)")
                                                 %24 = constant() : () -> "empty row" ()
-                                                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                                 %25 = return(%24) : ("empty row") -> "empty row" ()
                                                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                             }, {
                                             ^orderingSelector (%26 : "row(bigint,boolean,bigint)")
                                                 %27 = constant() : () -> "empty row" ()
-                                                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                                 %28 = return(%27) : ("empty row") -> "empty row" ()
                                                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                             })
@@ -452,7 +452,7 @@ final class TestProgramBuilderAndPrinter
                                             }, {
                                             ^filterSelector (%34 : "row(bigint,boolean,bigint)")
                                                 %35 = constant() : () -> "empty row" ()
-                                                    {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                                    {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                                 %36 = return(%35) : ("empty row") -> "empty row" ()
                                                     {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                             }, {
@@ -602,9 +602,9 @@ final class TestProgramBuilderAndPrinter
                                 %1 = values() : () -> "multiset(row(bigint,boolean))" ({
                                     ^row
                                         %2 = constant() : () -> "bigint" ()
-                                            {constant:value = "{""type"":""bigint"",""value"":3}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                            {constant:value = "[type=bigint, value=3]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %3 = constant() : () -> "boolean" ()
-                                            {constant:value = "{""type"":""boolean"",""value"":true}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                            {constant:value = "[type=boolean, value=true]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %4 = row(%2, %3) : ("bigint", "boolean") -> "row(bigint,boolean)" ()
                                             {ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %5 = return(%4) : ("row(bigint,boolean)") -> "row(bigint,boolean)" ()
@@ -644,11 +644,11 @@ final class TestProgramBuilderAndPrinter
                                     }, {
                                     ^orderingSelector (%22 : "row(bigint,boolean)")
                                         %23 = constant() : () -> "empty row" ()
-                                            {constant:value = "{""type"":""empty row""}", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                            {constant:value = "[type=empty row, value=null]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                         %24 = return(%23) : ("empty row") -> "empty row" ()
                                             {ir.terminal = "true", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                     })
-                                    {exchange:type = "GATHER", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:nullable_values = "[test: exchange:nullable_values attribute]", exchange:replicate_nulls_and_any = "false", exchange:bucket_to_partition = "[5,6,7]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
+                                    {exchange:type = "GATHER", exchange:scope = "REMOTE", exchange:partitioning_handle = "[test: exchange:partitioning_handle attribute]", exchange:constant_values = "[null]", exchange:replicate_nulls_and_any = "false", exchange:bucket_to_partition = "[5,6,7]", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.has_side_effects = "false"}
                                 %25 = output(%7) : ("multiset(row(bigint,boolean))") -> "boolean" ({
                                     ^outputFieldSelector (%26 : "row(bigint,boolean)")
                                         %27 = field_reference(%26) : ("row(bigint,boolean)") -> "bigint" ()

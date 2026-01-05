@@ -26,7 +26,6 @@ import io.trino.spi.connector.ConnectorPartitioningHandle;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.TestingColumnHandle;
 import io.trino.spi.predicate.Domain;
-import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.MultisetType;
 import io.trino.spi.type.RowType;
@@ -57,9 +56,10 @@ import io.trino.sql.dialect.trino.operation.Window;
 import io.trino.sql.dialect.trino.operation.WindowFunctionCall;
 import io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.CorrelatedJoinOperationMetadata;
-import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.NullableValues;
+import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ConstantValues;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.Statistics;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.newir.Block;
@@ -585,7 +585,7 @@ final class TestRelationalProgramBuilder
                         Optional.of(CatalogHandle.fromId("bla:normal:1")),
                         Optional.of(TestingConnectorTransactionHandle.INSTANCE),
                         testingPartitioningHandle),
-                new NullableValues(new NullableValue[] {null}),
+                new ConstantValues(new ConstantValue[] {null}),
                 false,
                 Optional.of(ImmutableList.of(5, 6, 7)),
                 Optional.empty(),
@@ -616,8 +616,8 @@ final class TestRelationalProgramBuilder
                                         Optional.of(TestingConnectorTransactionHandle.INSTANCE),
                                         testingPartitioningHandle))
                         .put(
-                                new AttributeKey(TRINO, "exchange:nullable_values"),
-                                new NullableValues(new NullableValue[] {null}))
+                                new AttributeKey(TRINO, "exchange:constant_values"),
+                                new ConstantValues(new ConstantValue[] {null}))
                         .put(
                                 new AttributeKey(TRINO, "exchange:replicate_nulls_and_any"),
                                 false)
@@ -706,7 +706,7 @@ final class TestRelationalProgramBuilder
                 GATHER,
                 REMOTE,
                 SINGLE_DISTRIBUTION,
-                new NullableValues(new NullableValue[] {null}),
+                new ConstantValues(new ConstantValue[] {null}),
                 false,
                 Optional.of(ImmutableList.of(5, 6, 7)),
                 Optional.of(10),
@@ -734,8 +734,8 @@ final class TestRelationalProgramBuilder
                                 new AttributeKey(TRINO, "exchange:partitioning_handle"),
                                 SINGLE_DISTRIBUTION)
                         .put(
-                                new AttributeKey(TRINO, "exchange:nullable_values"),
-                                new NullableValues(new NullableValue[] {null}))
+                                new AttributeKey(TRINO, "exchange:constant_values"),
+                                new ConstantValues(new ConstantValue[] {null}))
                         .put(
                                 new AttributeKey(TRINO, "exchange:replicate_nulls_and_any"),
                                 false)

@@ -15,13 +15,13 @@ package io.trino.sql.planner.optimizations.ctereuse;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import io.trino.spi.predicate.NullableValue;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.Logical;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -92,7 +92,7 @@ public class PredicateUtils
                 // TODO this could be another operation or block parameter with constant true value
                 block.operations().getFirst() instanceof Constant constantOperation &&
                 returnOperation.argument().equals(constantOperation.result()) &&
-                CONSTANT_VALUE.getAttribute(constantOperation.attributes()).equals(NullableValue.of(BOOLEAN, true));
+                CONSTANT_VALUE.getAttribute(constantOperation.attributes()).equals(ConstantValue.of(BOOLEAN, true));
     }
 
     public static boolean isNull(Block block)
@@ -104,7 +104,7 @@ public class PredicateUtils
                 // TODO this could be another operation or block parameter with constant null value
                 block.operations().getFirst() instanceof Constant constantOperation &&
                 returnOperation.argument().equals(constantOperation.result()) &&
-                CONSTANT_VALUE.getAttribute(constantOperation.attributes()).equals(NullableValue.asNull(BOOLEAN));
+                CONSTANT_VALUE.getAttribute(constantOperation.attributes()).equals(ConstantValue.asNull(BOOLEAN));
     }
 
     /**
@@ -511,13 +511,13 @@ public class PredicateUtils
     private static boolean isTrue(Operation operation)
     {
         return operation instanceof Constant constantOperation &&
-                CONSTANT_VALUE.getAttribute(constantOperation.attributes()).equals(NullableValue.of(BOOLEAN, true));
+                CONSTANT_VALUE.getAttribute(constantOperation.attributes()).equals(ConstantValue.of(BOOLEAN, true));
     }
 
     private static boolean isFalse(Operation operation)
     {
         return operation instanceof Constant constantOperation &&
-                CONSTANT_VALUE.getAttribute(constantOperation.attributes()).equals(NullableValue.of(BOOLEAN, false));
+                CONSTANT_VALUE.getAttribute(constantOperation.attributes()).equals(ConstantValue.of(BOOLEAN, false));
     }
 
     private static boolean valuesSemanticallyEquivalent(Value leftValue, Value rightValue, Map<Value, Operation> operations)

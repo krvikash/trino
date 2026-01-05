@@ -16,8 +16,8 @@ package io.trino.sql.dialect.trino.operationmetadata;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.json.JsonCodec;
-import io.trino.spi.predicate.NullableValue;
 import io.trino.sql.dialect.ir.IrAttributeUtils;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
 import io.trino.sql.newir.Operation.AttributeKey;
@@ -66,7 +66,7 @@ public class ExchangeOperationMetadata
     public static final TrinoAttributeSignature<Integer> BUCKET_COUNT = BUCKET_COUNT_ATTRIBUTE_METADATA.trinoAttributeSignature();
     public static final TrinoAttributeSignature<SortOrderList> SORT_ORDERS = SORT_ORDERS_ATTRIBUTE_METADATA.trinoAttributeSignature();
     public static final TrinoAttributeSignature<PartitioningHandle> PARTITIONING_HANDLE = new TrinoAttributeSignature<>(prefixedName(NAME, "partitioning_handle"), false);
-    public static final TrinoAttributeSignature<NullableValues> NULLABLE_VALUES = new TrinoAttributeSignature<>(prefixedName(NAME, "nullable_values"), false);
+    public static final TrinoAttributeSignature<ConstantValues> CONSTANT_VALUES = new TrinoAttributeSignature<>(prefixedName(NAME, "constant_values"), false);
 
     public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(
             EXCHANGE_TYPE,
@@ -77,34 +77,34 @@ public class ExchangeOperationMetadata
             BUCKET_COUNT,
             SORT_ORDERS,
             PARTITIONING_HANDLE,
-            NULLABLE_VALUES);
+            CONSTANT_VALUES);
 
     private final TrinoAttributeMetadata<PartitioningHandle> partitioningHandleTrinoAttributeMetadata;
-    private final TrinoAttributeMetadata<NullableValues> nullableValuesTrinoAttributeMetadata;
+    private final TrinoAttributeMetadata<ConstantValues> constantValuesTrinoAttributeMetadata;
 
-    public ExchangeOperationMetadata(JsonCodec<PartitioningHandle> partitioningHandleCodec, JsonCodec<NullableValue[]> nullableValueArrayCodec)
+    public ExchangeOperationMetadata(JsonCodec<PartitioningHandle> partitioningHandleCodec, JsonCodec<ConstantValue[]> constantValueArrayCodec)
     {
         this(
                 partitioningHandleCodec::fromJson,
                 partitioningHandleCodec::toJson,
-                string -> new NullableValues(nullableValueArrayCodec.fromJson(string)),
-                nullableValues -> nullableValueArrayCodec.toJson(nullableValues.nullableValues()));
+                string -> new ConstantValues(constantValueArrayCodec.fromJson(string)),
+                constantValues -> constantValueArrayCodec.toJson(constantValues.constantValues()));
     }
 
     @VisibleForTesting
     public ExchangeOperationMetadata(
             Function<String, PartitioningHandle> partitioningHandleParseMethod,
             Function<PartitioningHandle, String> partitioningHandlePrintMethod,
-            Function<String, NullableValues> nullableValuesParseMethod,
-            Function<NullableValues, String> nullableValuesPrintMethod)
+            Function<String, ConstantValues> constantValuesParseMethod,
+            Function<ConstantValues, String> constantValuesPrintMethod)
     {
         requireNonNull(partitioningHandleParseMethod, "partitioningHandleParseMethod is null");
         requireNonNull(partitioningHandlePrintMethod, "partitioningHandlePrintMethod is null");
-        requireNonNull(nullableValuesParseMethod, "nullableValuesParseMethod is null");
-        requireNonNull(nullableValuesPrintMethod, "nullableValuesPrintMethod is null");
+        requireNonNull(constantValuesParseMethod, "constantValuesParseMethod is null");
+        requireNonNull(constantValuesPrintMethod, "constantValuesPrintMethod is null");
 
         this.partitioningHandleTrinoAttributeMetadata = new TrinoAttributeMetadata<>(PARTITIONING_HANDLE, partitioningHandleParseMethod, partitioningHandlePrintMethod);
-        this.nullableValuesTrinoAttributeMetadata = new TrinoAttributeMetadata<>(NULLABLE_VALUES, nullableValuesParseMethod, nullableValuesPrintMethod);
+        this.constantValuesTrinoAttributeMetadata = new TrinoAttributeMetadata<>(CONSTANT_VALUES, constantValuesParseMethod, constantValuesPrintMethod);
     }
 
     @Override
@@ -125,7 +125,7 @@ public class ExchangeOperationMetadata
                 BUCKET_COUNT_ATTRIBUTE_METADATA,
                 SORT_ORDERS_ATTRIBUTE_METADATA,
                 partitioningHandleTrinoAttributeMetadata,
-                nullableValuesTrinoAttributeMetadata);
+                constantValuesTrinoAttributeMetadata);
     }
 
     @Override
@@ -195,11 +195,11 @@ public class ExchangeOperationMetadata
         }
     }
 
-    public record NullableValues(NullableValue[] nullableValues)
+    public record ConstantValues(ConstantValue[] constantValues)
     {
-        public NullableValues
+        public ConstantValues
         {
-            requireNonNull(nullableValues, "nullableValues is null");
+            requireNonNull(constantValues, "constantValues is null");
         }
 
         @Override
@@ -211,14 +211,14 @@ public class ExchangeOperationMetadata
             if (obj == null || obj.getClass() != this.getClass()) {
                 return false;
             }
-            var that = (NullableValues) obj;
-            return Arrays.equals(nullableValues, that.nullableValues);
+            var that = (ConstantValues) obj;
+            return Arrays.equals(constantValues, that.constantValues);
         }
 
         @Override
         public int hashCode()
         {
-            return Arrays.hashCode(this.nullableValues);
+            return Arrays.hashCode(this.constantValues);
         }
     }
 }

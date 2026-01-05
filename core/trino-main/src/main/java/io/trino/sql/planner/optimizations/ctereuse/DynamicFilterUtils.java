@@ -16,12 +16,12 @@ package io.trino.sql.planner.optimizations.ctereuse;
 import com.google.common.collect.ImmutableList;
 import io.airlift.slice.Slice;
 import io.trino.spi.function.CatalogSchemaFunctionName;
-import io.trino.spi.predicate.NullableValue;
 import io.trino.sql.DynamicFilters;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.Call;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.Return;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -150,7 +150,7 @@ public class DynamicFilterUtils
         checkArgument(isDynamicFilter(block), "expected dynamic filter");
 
         Constant idOperation = (Constant) block.operations().get(block.operations().size() - 5);
-        NullableValue idAttribute = CONSTANT_VALUE.getAttribute(idOperation.attributes());
+        ConstantValue idAttribute = CONSTANT_VALUE.getAttribute(idOperation.attributes());
         checkArgument(idAttribute.getType().equals(VARCHAR), "expected dynamic filter id to be of varchar type");
         return ((Slice) idAttribute.getValue()).toStringUtf8();
     }

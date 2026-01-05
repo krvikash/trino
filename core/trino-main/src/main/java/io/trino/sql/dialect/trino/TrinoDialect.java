@@ -18,11 +18,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.airlift.json.JsonCodec;
-import io.airlift.json.JsonCodecFactory;
 import io.trino.metadata.TableHandle;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
-import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.TypeId;
 import io.trino.spi.type.TypeManager;
@@ -61,6 +59,7 @@ import io.trino.sql.dialect.trino.operationmetadata.SwitchOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ValuesOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata;
@@ -69,16 +68,17 @@ import io.trino.sql.newir.Dialect;
 import io.trino.sql.newir.Type;
 import io.trino.sql.planner.PartitioningHandle;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
-import static io.trino.sql.dialect.trino.TrinoDialect.ConstantValue.CONSTANT_VALUE_CODEC;
 import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.CONSTANT_VALUE;
-import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.NULLABLE_VALUES;
+import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.CONSTANT_VALUES;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.PARTITIONING_HANDLE;
 import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.COLUMN_HANDLES;
 import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.CONSTRAINT;
@@ -86,6 +86,7 @@ import static io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMet
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.joining;
 
 public class TrinoDialect
         extends Dialect
@@ -102,18 +103,18 @@ public class TrinoDialect
     @Inject
     public TrinoDialect(
             TypeManager typeManager,
-            JsonCodec<NullableValue> nullableValueCodec,
+            JsonCodec<ConstantValue> constantValueCodec,
             JsonCodec<PartitioningHandle> partitioningHandleCodec,
-            JsonCodec<NullableValue[]> nullableValueArrayCodec,
+            JsonCodec<ConstantValue[]> constantValueArrayCodec,
             JsonCodec<TableHandle> tableHandleCodec,
             JsonCodec<List<ColumnHandle>> columnHandleCodec,
             JsonCodec<TupleDomain<ColumnHandle>> tupleDomainCodec)
     {
         super(TRINO);
         requireNonNull(typeManager, "typeManager is null");
-        requireNonNull(nullableValueCodec, "nullableValueCodec is null");
+        requireNonNull(constantValueCodec, "constantValueCodec is null");
         requireNonNull(partitioningHandleCodec, "partitioningHandleCodec is null");
-        requireNonNull(nullableValueArrayCodec, "nullableValueArrayCodec is null");
+        requireNonNull(constantValueArrayCodec, "constantValueArrayCodec is null");
         requireNonNull(tableHandleCodec, "tableHandleCodec is null");
         requireNonNull(columnHandleCodec, "columnHandleCodec is null");
         requireNonNull(tupleDomainCodec, "tupleDomainCodec is null");
@@ -124,8 +125,8 @@ public class TrinoDialect
                 new AggregateCallOperationMetadata(typeDeserializer),
                 new ArrayOperationMetadata(typeDeserializer),
                 new CastOperationMetadata(typeDeserializer),
-                new ConstantOperationMetadata(nullableValueCodec),
-                new ExchangeOperationMetadata(partitioningHandleCodec, nullableValueArrayCodec),
+                new ConstantOperationMetadata(constantValueCodec),
+                new ExchangeOperationMetadata(partitioningHandleCodec, constantValueArrayCodec),
                 new TableScanOperationMetadata(tableHandleCodec, columnHandleCodec, tupleDomainCodec, typeDeserializer),
                 new ValuesOperationMetadata(typeDeserializer));
 
@@ -157,24 +158,18 @@ public class TrinoDialect
                         _ -> {
                             throw new UnsupportedOperationException(format("cannot parse %s attribute", CONSTANT_VALUE.name()));
                         },
-                        nullableValue -> {
-                            ConstantValue constantValue = new ConstantValue(nullableValue.getType(), nullableValue.getValue());
-                            try {
-                                return CONSTANT_VALUE_CODEC.toJson(constantValue);
-                            }
-                            catch (IllegalArgumentException e) {
-                                return format("[test: %s attribute]", CONSTANT_VALUE.name());
-                            }
-                        }),
+                        ConstantValue::toString),
                 new ExchangeOperationMetadata(
                         _ -> {
                             throw new UnsupportedOperationException(format("cannot parse %s attribute", PARTITIONING_HANDLE.name()));
                         },
                         _ -> format("[test: %s attribute]", PARTITIONING_HANDLE.name()),
                         _ -> {
-                            throw new UnsupportedOperationException(format("cannot parse %s attribute", NULLABLE_VALUES.name()));
+                            throw new UnsupportedOperationException(format("cannot parse %s attribute", CONSTANT_VALUES.name()));
                         },
-                        _ -> format("[test: %s attribute]", NULLABLE_VALUES.name())),
+                        constantValues -> Arrays.stream(constantValues.constantValues())
+                                .map(Objects::toString)
+                                .collect(joining(",", "[", "]"))),
                 new TableScanOperationMetadata(
                         _ -> {
                             throw new UnsupportedOperationException(format("cannot parse %s attribute", TABLE_HANDLE.name()));
@@ -201,16 +196,6 @@ public class TrinoDialect
                 .map(TrinoOperationMetadata::operationAttributes)
                 .flatMap(Set::stream)
                 .collect(toImmutableMap(attribute -> attribute.trinoAttributeSignature().name(), identity()));
-    }
-
-    public record ConstantValue(io.trino.spi.type.Type type, Object value)
-    {
-        public static final JsonCodec<ConstantValue> CONSTANT_VALUE_CODEC = new JsonCodecFactory().jsonCodec(ConstantValue.class);
-
-        public ConstantValue
-        {
-            requireNonNull(type, "type is null");
-        }
     }
 
     private static void validateInternalNamespacedAttributes(TrinoOperationMetadata operation)
