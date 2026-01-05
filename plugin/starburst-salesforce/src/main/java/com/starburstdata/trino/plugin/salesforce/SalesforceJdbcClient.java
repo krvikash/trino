@@ -187,7 +187,7 @@ public class SalesforceJdbcClient
     }
 
     @Override
-    public void rollbackCreateTable(ConnectorSession session, JdbcOutputTableHandle handle)
+    public void rollbackTemporaryTableCreation(ConnectorSession session, JdbcOutputTableHandle handle)
     {
         dropTable(session, new JdbcTableHandle(
                 handle.getRemoteTableName().getSchemaTableName(),

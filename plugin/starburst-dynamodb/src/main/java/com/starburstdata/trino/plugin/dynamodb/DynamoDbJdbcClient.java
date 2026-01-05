@@ -207,7 +207,7 @@ public class DynamoDbJdbcClient
     }
 
     @Override
-    public void rollbackCreateTable(ConnectorSession session, JdbcOutputTableHandle handle)
+    public void rollbackTemporaryTableCreation(ConnectorSession session, JdbcOutputTableHandle handle)
     {
         if (!enableWrites) {
             throw new TrinoException(NOT_SUPPORTED, "This connector does not support creating tables with data");
