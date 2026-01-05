@@ -812,8 +812,8 @@ public class TestDeltaLakeAnalyze
                         VALUES
                         ('col_int_1', null, 3.0, 0.0, null, 11, 13),
                         ('col_varchar_1', 6.0, 3.0, 0.0, null, null, null),
-                        ('col_int_2', null, 2.0, 0.1, null, 21, 22),
-                        ('col_varchar_2', 4.0, 2.0, 0.1, null, null, null),
+                        ('col_int_2', null, 2.0, 0.03, null, 21, 22),
+                        ('col_varchar_2', 4.0, 2.0, 0.03, null, null, null),
                         (null, null, null, null, 3.0, null, null)
                         """);
 

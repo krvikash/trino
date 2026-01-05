@@ -74,7 +74,7 @@ public class TestTableScanStatsRule
                         .symbolStats("a", assertion -> assertion
                                 .distinctValuesCount(20)
                                 // UNKNOWN_NULLS_FRACTION populated to allow CBO to use NDV for estimation
-                                .nullsFraction(0.1))
+                                .nullsFraction(0.03))
                         .symbolStats("b", assertion -> assertion
                                 .distinctValuesCount(23.1)
                                 .nullsFraction(0.3))
@@ -88,7 +88,7 @@ public class TestTableScanStatsRule
                                 .nullsFraction(0))
                         .symbolStats("e", assertion -> assertion
                                 .distinctValuesCount(31)
-                                .nullsFraction(0.06060606))
+                                .nullsFraction(0.03))
                         .symbolStats("unknown", assertion -> assertion
                                 .unknownRange()
                                 .distinctValuesCountUnknown()

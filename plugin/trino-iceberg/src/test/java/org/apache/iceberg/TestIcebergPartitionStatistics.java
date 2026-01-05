@@ -146,14 +146,14 @@ public final class TestIcebergPartitionStatistics
             assertStats(
                     table.getName(),
                     column("id", null, 3.0, 0.0, null, null, null),
-                    column("part", null, 2.0, 0.1, null, null, null),
+                    column("part", null, 2.0, 0.03, null, null, null),
                     rowCount(3.0));
 
             assertUpdate("INSERT INTO " + table.getName() + " VALUES (4, 30), (5, 30), (6, 30)", 3);
             assertStats(
                     table.getName(),
                     column("id", null, 6.0, 0.0, null, null, null),
-                    column("part", null, 3.0, 0.1, null, null, null),
+                    column("part", null, 3.0, 0.03, null, null, null),
                     rowCount(6.0));
 
             // Test filtering on partition column
@@ -210,7 +210,7 @@ public final class TestIcebergPartitionStatistics
             assertStats(
                     table.getName(),
                     column("id", null, 2.0, 0.0, null, null, null),
-                    column("part", null, 1.0, 0.1, null, null, null),
+                    column("part", null, 1.0, 0.03, null, null, null),
                     rowCount(2.0));
         }
     }
@@ -267,7 +267,7 @@ public final class TestIcebergPartitionStatistics
             assertStats(
                     table.getName(),
                     column("id", null, 2.0, 0.0, null, null, null),
-                    column("part", null, 1.0, 0.1, null, null, null),
+                    column("part", null, 1.0, 0.03, null, null, null),
                     rowCount(2.0));
 
             // Row-level delete doesn't update partition level stats
@@ -275,7 +275,7 @@ public final class TestIcebergPartitionStatistics
             assertStats(
                     table.getName(),
                     column("id", null, 2.0, 0.0, null, null, null),
-                    column("part", null, 1.0, 0.1, null, null, null),
+                    column("part", null, 1.0, 0.03, null, null, null),
                     rowCount(2.0));
 
             // ANALYZE updates partition stats
@@ -298,7 +298,7 @@ public final class TestIcebergPartitionStatistics
             assertStats(
                     table.getName(),
                     column("id", null, 2.0, 0.0, null, null, null),
-                    column("part", null, 1.0, 0.1, null, null, null),
+                    column("part", null, 1.0, 0.03, null, null, null),
                     rowCount(2.0));
 
             // Row-level delete doesn't update partition level stats
@@ -306,7 +306,7 @@ public final class TestIcebergPartitionStatistics
             assertStats(
                     table.getName(),
                     column("id", null, 2.0, 0.0, null, null, null),
-                    column("part", null, 1.0, 0.1, null, null, null),
+                    column("part", null, 1.0, 0.03, null, null, null),
                     rowCount(2.0));
 
             // ANALYZE updates partition stats

@@ -183,7 +183,7 @@ public class TestIcebergStatistics
                   ('nationkey', null, 25, 0, null, '0', '24'),
                   ('regionkey', null, 5, 0, null, '0', '4'),
                   ('name', %s, 25, 0, null, null, null),
-                  ('info', %s, 25, 0.1, null, null, null),
+                  ('info', %s, 25, 0.03, null, null, null),
                   (null, null, null, null, 50, null, null)
                 """.formatted(nameDataSize, infoDataSize)); // Row count statistics do not yet account for position deletes
 

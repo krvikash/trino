@@ -25,7 +25,7 @@ public abstract class BaseMySqlTableStatisticsIndexStatisticsTest
     protected BaseMySqlTableStatisticsIndexStatisticsTest(String dockerImageName)
     {
         super(dockerImageName,
-                nullFraction -> 0.1, // Without histograms we have no way of knowing real null fraction, 10% is just a "wild guess"
+                nullFraction -> 0.03, // Without histograms we have no way of knowing real null fraction, 3% is just a "wild guess"
                 varcharNdv -> null); //  Without histograms we don't know cardinality for varchar columns
     }
 

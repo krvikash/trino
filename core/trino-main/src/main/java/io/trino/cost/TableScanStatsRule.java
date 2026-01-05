@@ -36,7 +36,9 @@ import static java.util.Objects.requireNonNull;
 public class TableScanStatsRule
         extends SimpleStatsRule<TableScanNode>
 {
-    private static final double UNKNOWN_NULLS_FRACTION = 0.1;
+    // This constant is tuned for TPCDS sf1000 on partitioned iceberg tables with partition statistics that are missing nulls fraction.
+    // It's safer to underestimate nulls fraction to avoid overestimating row counts in joins.
+    private static final double UNKNOWN_NULLS_FRACTION = 0.03;
     private static final Pattern<TableScanNode> PATTERN = tableScan();
 
     public TableScanStatsRule(StatsNormalizer normalizer)
@@ -122,7 +124,7 @@ public class TableScanStatsRule
 
         // If a connector provides NDV but is missing nulls fraction statistic for a column
         // (e.g. Delta Lake after "delta.dataSkippingNumIndexedCols" columns and MySql), populate a
-        // 10% guess value so that the CBO can still produce some estimates rather failing to make
+        // 3% guess value so that the CBO can still produce some estimates rather failing to make
         // any estimates due to lack of nulls fraction.
         return Math.min(UNKNOWN_NULLS_FRACTION, maxPossibleNulls / rowCount.getValue());
     }
