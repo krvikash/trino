@@ -23,9 +23,6 @@ import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.block.VariableWidthPreSizedBlockBuilder;
 import io.trino.spi.function.IsNull;
 import io.trino.spi.function.ScalarOperator;
-import io.trino.spi.type.AbstractVariableWidthType;
-import io.trino.spi.type.TypeOperatorDeclaration;
-import io.trino.spi.type.TypeOperators;
 import io.trino.spi.type.TypeSignature;
 
 import static io.trino.geospatial.serde.JtsGeometrySerde.deserialize;
@@ -35,31 +32,14 @@ import static io.trino.spi.function.OperatorType.IDENTICAL;
 import static io.trino.spi.function.OperatorType.XX_HASH_64;
 
 public class GeometryType
-        extends AbstractVariableWidthType
+        extends AbstractGeometryType
 {
     public static final String NAME = "Geometry";
     public static final GeometryType GEOMETRY = new GeometryType();
 
-    private static final TypeOperatorDeclaration TYPE_OPERATOR_DECLARATION =
-            TypeOperatorDeclaration.builder(Slice.class)
-                    .addOperators(DEFAULT_READ_OPERATORS)
-                    .addOperators(DEFAULT_COMPARABLE_OPERATORS)
-                    .build();
-
     private GeometryType()
     {
-        super(new TypeSignature(NAME), Slice.class);
-    }
-
-    protected GeometryType(TypeSignature signature)
-    {
-        super(signature, Slice.class);
-    }
-
-    @Override
-    public TypeOperatorDeclaration getTypeOperatorDeclaration(TypeOperators typeOperators)
-    {
-        return TYPE_OPERATOR_DECLARATION;
+        super(new TypeSignature(NAME));
     }
 
     @Override
