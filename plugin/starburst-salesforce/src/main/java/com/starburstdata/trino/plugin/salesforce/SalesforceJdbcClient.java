@@ -155,7 +155,7 @@ public class SalesforceJdbcClient
         try {
             // Salesforce does not support ALTER TABLE so we cannot use a temporary table then alter it
             JdbcOutputTableHandle destinationTableHandle = createTable(session, tableMetadata, tableMetadata.getTable().getTableName());
-            rollbackActionConsumer.accept(() -> rollbackCreateDestinationTable(session, destinationTableHandle.getRemoteTableName()));
+            rollbackActionConsumer.accept(() -> rollbackDestinationTableCreation(session, destinationTableHandle.getRemoteTableName()));
             return destinationTableHandle;
         }
         catch (SQLException e) {

@@ -188,7 +188,7 @@ public class DynamoDbJdbcClient
         try {
             // DynamoDB does not support temporary table names
             JdbcOutputTableHandle destinationTableHandle = createTable(session, tableMetadata, tableMetadata.getTable().getTableName());
-            rollbackActionConsumer.accept(() -> rollbackCreateDestinationTable(session, destinationTableHandle.getRemoteTableName()));
+            rollbackActionConsumer.accept(() -> rollbackDestinationTableCreation(session, destinationTableHandle.getRemoteTableName()));
             return destinationTableHandle;
         }
         catch (SQLException e) {
