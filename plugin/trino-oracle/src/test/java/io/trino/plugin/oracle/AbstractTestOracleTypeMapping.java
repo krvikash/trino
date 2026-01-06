@@ -756,6 +756,7 @@ public abstract class AbstractTestOracleTypeMapping
         SqlDataTypeTest.create()
                 // min value in Oracle
                 .addRoundTrip("timestamp", "TIMESTAMP '-4712-01-01 00:00:00.000'", TIMESTAMP_MILLIS, "TIMESTAMP '-4712-01-01 00:00:00.000'")
+                .addRoundTrip("timestamp", "TIMESTAMP '-4712-12-31 23:59:59.000'", TIMESTAMP_MILLIS, "TIMESTAMP '-4712-12-31 23:59:59.000'")
                 .addRoundTrip("timestamp", "TIMESTAMP '-0001-01-01 00:00:00.000'", TIMESTAMP_MILLIS, "TIMESTAMP '-0001-01-01 00:00:00.000'")
                 // day before and after julian->gregorian calendar switch
                 .addRoundTrip("timestamp", "TIMESTAMP '1582-10-04 00:00:00.000'", TIMESTAMP_MILLIS, "TIMESTAMP '1582-10-04 00:00:00.000'")
@@ -802,6 +803,7 @@ public abstract class AbstractTestOracleTypeMapping
         SqlDataTypeTest.create()
                 // min value in Oracle
                 .addRoundTrip("TIMESTAMP(9)", "TIMESTAMP '-4712-01-01 00:00:00.000000000'", TIMESTAMP_NANOS, "TIMESTAMP '-4712-01-01 00:00:00.000000000'")
+                .addRoundTrip("TIMESTAMP(9)", "TIMESTAMP '-4712-12-31 23:59:59.999999999'", TIMESTAMP_NANOS, "TIMESTAMP '-4712-12-31 23:59:59.999999999'")
                 .addRoundTrip("TIMESTAMP(9)", "TIMESTAMP '-0001-01-01 00:00:00.000000000'", TIMESTAMP_NANOS, "TIMESTAMP '-0001-01-01 00:00:00.000000000'")
                 // day before and after julian->gregorian calendar switch
                 .addRoundTrip("TIMESTAMP(9)", "TIMESTAMP '1582-10-04 00:00:00.000000000'", TIMESTAMP_NANOS, "TIMESTAMP '1582-10-04 00:00:00.000000000'")
@@ -1166,6 +1168,7 @@ public abstract class AbstractTestOracleTypeMapping
     @Test
     void testTrinoReadsDateHavingInvalidInternalByte()
     {
+        // https://oracle-base.com/articles/misc/oracle-dates-timestamps-and-intervals#date
         // Oracle’s DATE datatype always occupies 7 bytes, representing:
         //
         // | Byte | Meaning             | Formula                 |
@@ -1304,6 +1307,7 @@ public abstract class AbstractTestOracleTypeMapping
     @Test
     void testTrinoReadsTimestampHavingInvalidInternalByte()
     {
+        // https://oracle-base.com/articles/misc/oracle-dates-timestamps-and-intervals#timestamp
         // Oracle’s TIMESTAMP datatype always occupies 11 bytes, representing:
         //
         // | Byte | Meaning             | Formula                 |

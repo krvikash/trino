@@ -75,21 +75,17 @@ import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import oracle.jdbc.OraclePreparedStatement;
 import oracle.jdbc.OracleTypes;
-import oracle.sql.TIMESTAMP;
 
 import java.math.RoundingMode;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
-import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.time.DateTimeException;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -170,6 +166,7 @@ import static java.lang.String.format;
 import static java.lang.String.join;
 import static java.util.Locale.ENGLISH;
 import static java.util.concurrent.TimeUnit.DAYS;
+import static oracle.sql.TIMESTAMP.getJavaYear;
 import static oracle.sql.TIMESTAMP.getNanos;
 
 public class OracleClient
@@ -192,8 +189,6 @@ public class OracleClient
     private static final int PRECISION_OF_UNSPECIFIED_NUMBER = 127;
 
     private static final int TRINO_BIGINT_TYPE = 832_424_001;
-
-    private static final Date START_OF_CURRENT_ERA = Date.valueOf(LocalDate.of(1, 1, 1));
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("uuuu-MM-dd");
     private static final DateTimeFormatter TIMESTAMP_SECONDS_FORMATTER = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss");
@@ -840,10 +835,11 @@ public class OracleClient
      * 1. Using getObject(columnIndex, LocalDateTime.class) throws an exception when the internal bytes of the timestamp are invalid.
      * 2. Using getString(columnIndex) returns a formatted timestamp string but loses the B.C. (era) information for years ≤ 0.
      * 3. Using getTimestamp(columnIndex), but it also doesn’t handle negative years correctly.
+     * 4. Using oracle.sql.TIMESTAMP#toLocalDateTime(byte[]) fails when internal byte representation is invalid.
      *
-     * To handle both cases, we used getBytes(columnIndex) to retrieve the raw bytes,
-     * construct the TIMESTAMP object manually, and safely extract the LocalDateTime
-     * while preserving all information, including B.C. era and invalid byte handling.
+     * To handle all the cases, we used getBytes(columnIndex) to retrieve the raw bytes,
+     * construct the LocalDateTime object manually while preserving all information,
+     * including B.C. era and invalid byte handling.
      */
     private static LocalDateTime toLocalDateTime(ResultSet resultSet, int columnIndex)
             throws SQLException
@@ -856,37 +852,76 @@ public class OracleClient
             throw new TrinoException(NOT_SUPPORTED,
                     "Unexpected Oracle TIMESTAMP length: " + timestampBytes.length);
         }
-        TIMESTAMP timestamp = new TIMESTAMP(timestampBytes);
-        // Getting LocalDateTime from TIMESTAMP will throw exception when any byte is invalid
-        LocalDate localDate = timestamp.dateValue().toLocalDate();
-        LocalTime localTime = timestamp.timeValue().toLocalTime();
-
-        int year = localDate.getYear();
-        if (isBcEra(timestamp)) {
-            // Adjust years when the value is B.C. dates because Converting java.sql.Date to java.time.LocalDate loses the negative year info
-            year = -year;
+        LocalDateTime localDateTime = toLocalDateTime(timestampBytes);
+        // Adjust years when the value is B.C. dates because Oracle returns +1 year unless converting to string in their server side
+        if (localDateTime.getYear() <= 0) {
+            localDateTime = localDateTime.minusYears(1);
         }
-        if (year < -4712 || year > 9999) {
+        if (localDateTime.getYear() < -4712 || localDateTime.getYear() > 9999) {
             // https://docs.oracle.com/en/error-help/db/ora-01841/
-            throw new TrinoException(NOT_SUPPORTED, "Timestamp year out of range: " + year + ", allowed year range: -4712 to 9999");
+            throw new TrinoException(NOT_SUPPORTED, "Timestamp year out of range: " + localDateTime.getYear() + ", allowed year range: -4712 to 9999");
         }
-        localDate = LocalDate.of(year, localDate.getMonthValue(), localDate.getDayOfMonth());
 
-        int nanos = 0;
-        if (timestampBytes.length == TIMESTAMP_INTERNAL_BYTE_SIZE) {
-            // Converting java.sql.Time to java.time.LocalTime loses nanoseconds precision, so we need to extract it from bytes
-            nanos = getNanos(timestampBytes, DATE_INTERNAL_BYTE_SIZE);
-        }
-        localTime = localTime.plusNanos(nanos);
-
-        return LocalDateTime.of(localDate, localTime);
+        return localDateTime;
     }
 
-    private static boolean isBcEra(TIMESTAMP timestamp)
-            throws SQLException
+    /**
+     * Converts Oracle's internal {@code TIMESTAMP} byte representation to a {@link LocalDateTime}.
+     *
+     * <p>The Oracle {@code TIMESTAMP} is stored as a sequence of biased bytes:
+     *
+     * <pre>
+     * Byte   Meaning                Formula
+     * ----   --------------------   -------------------------
+     * 1      Century                century = byte1 - 100
+     * 2      Year within century    yearInCentury = byte2 - 100
+     * 3      Month                  month = byte3
+     * 4      Day                    day = byte4
+     * 5      Hour                   hour = byte5 - 1
+     * 6      Minute                 minute = byte6 - 1
+     * 7      Second                 second = byte7 - 1
+     * 8–11   Fractional seconds     nanoseconds (4-byte integer)
+     * </pre>
+     *
+     * <p>The full year value is calculated as:
+     * <pre>
+     * year = (century * 100) + yearInCentury
+     * </pre>
+     *
+     * See <a href="https://oracle-base.com/articles/misc/oracle-dates-timestamps-and-intervals#timestamp">here</a>
+     */
+    private static LocalDateTime toLocalDateTime(byte[] timestampBytes)
     {
-        return timestamp.dateValue()
-                .before(START_OF_CURRENT_ERA);
+        int arraySize = timestampBytes.length;
+        int[] result;
+        if (arraySize == TIMESTAMP_INTERNAL_BYTE_SIZE) {
+            result = new int[TIMESTAMP_INTERNAL_BYTE_SIZE];
+        }
+        else {
+            result = new int[DATE_INTERNAL_BYTE_SIZE];
+        }
+
+        for (int i = 0; i < timestampBytes.length; ++i) {
+            result[i] = timestampBytes[i] & 255;
+        }
+
+        int year = getJavaYear(result[0], result[1]);
+        int nanos = 0;
+        if (arraySize == TIMESTAMP_INTERNAL_BYTE_SIZE) {
+            nanos = getNanos(timestampBytes, DATE_INTERNAL_BYTE_SIZE);
+        }
+
+        // Construct the timestamp incrementally from year-01-01T00:00
+        // by applying month, day, hour, minute, second, and nanosecond adjustments
+        LocalDateTime localDateTime = LocalDateTime.of(year, 1, 1, 0, 0);
+        localDateTime = localDateTime.plusMonths(result[2] - 1);
+        localDateTime = localDateTime.plusDays(result[3] - 1);
+        localDateTime = localDateTime.plusHours(result[4] - 1);
+        localDateTime = localDateTime.plusMinutes(result[5] - 1);
+        localDateTime = localDateTime.plusSeconds(result[6] - 1);
+        localDateTime = localDateTime.plusNanos(nanos);
+
+        return localDateTime;
     }
 
     private static void verifyLongTimestampPrecision(TimestampType timestampType)
