@@ -600,23 +600,6 @@ public final class ValueDecoders
                 });
     }
 
-    public ValueDecoder<long[]> getInt64TimestampNanosToShortTimestampWithTimeZoneDecoder(ParquetEncoding encoding)
-    {
-        checkArgument(
-                field.getType() instanceof TimestampWithTimeZoneType timestampWithTimeZoneType && timestampWithTimeZoneType.isShort(),
-                "Trino type %s is not a short timestamp",
-                field.getType());
-        int precision = ((TimestampWithTimeZoneType) field.getType()).getPrecision();
-        return new InlineTransformDecoder<>(
-                getLongDecoder(encoding),
-                (values, offset, length) -> {
-                    // decoded values are epochNanos, round to lower precision and convert to packed millis utc value
-                    for (int i = offset; i < offset + length; i++) {
-                        values[i] = packDateTimeWithZone(round(values[i], 9 - precision) / NANOSECONDS_PER_MILLISECOND, UTC_KEY);
-                    }
-                });
-    }
-
     public ValueDecoder<long[]> getInt64TimestampMicrosToShortTimestampWithTimeZoneDecoder(ParquetEncoding encoding)
     {
         checkArgument(
@@ -630,6 +613,23 @@ public final class ValueDecoders
                     // decoded values are epochMicros, round to lower precision and convert to packed millis utc value
                     for (int i = offset; i < offset + length; i++) {
                         values[i] = packDateTimeWithZone(round(values[i], 6 - precision) / MICROSECONDS_PER_MILLISECOND, UTC_KEY);
+                    }
+                });
+    }
+
+    public ValueDecoder<long[]> getInt64TimestampNanosToShortTimestampWithTimeZoneDecoder(ParquetEncoding encoding)
+    {
+        checkArgument(
+                field.getType() instanceof TimestampWithTimeZoneType timestampWithTimeZoneType && timestampWithTimeZoneType.isShort(),
+                "Trino type %s is not a short timestamp with time zone",
+                field.getType());
+        int precision = ((TimestampWithTimeZoneType) field.getType()).getPrecision();
+        return new InlineTransformDecoder<>(
+                getLongDecoder(encoding),
+                (values, offset, length) -> {
+                    // decoded values are epochNanos, round to lower precision and convert to packed millis utc value
+                    for (int i = offset; i < offset + length; i++) {
+                        values[i] = packDateTimeWithZone(round(values[i], 9 - precision) / NANOSECONDS_PER_MILLISECOND, UTC_KEY);
                     }
                 });
     }
@@ -656,43 +656,6 @@ public final class ValueDecoders
                         }
                     }
                 });
-    }
-
-    public ValueDecoder<int[]> getInt64TimestampNanosToLongTimestampWithTimeZoneDecoder(ParquetEncoding encoding)
-    {
-        ValueDecoder<long[]> delegate = getLongDecoder(encoding);
-        int precision = ((TimestampWithTimeZoneType) field.getType()).getPrecision();
-
-        return new ValueDecoder<>()
-        {
-            @Override
-            public void init(SimpleSliceInputStream input)
-            {
-                delegate.init(input);
-            }
-
-            @Override
-            public void read(int[] values, int offset, int length)
-            {
-                long[] buffer = new long[length];
-                delegate.read(buffer, 0, length);
-                // decoded values are epochNanos, round to lower precision and convert to (packed epochMillisUtc, picosOfMilli)
-                for (int i = 0; i < length; i++) {
-                    long epochNanos = round(buffer[i], 9 - precision);
-                    encodeFixed12(
-                            packDateTimeWithZone(floorDiv(epochNanos, NANOSECONDS_PER_MILLISECOND), UTC_KEY),
-                            floorMod(epochNanos, NANOSECONDS_PER_MILLISECOND) * PICOSECONDS_PER_NANOSECOND,
-                            values,
-                            i + offset);
-                }
-            }
-
-            @Override
-            public void skip(int n)
-            {
-                delegate.skip(n);
-            }
-        };
     }
 
     public ValueDecoder<int[]> getInt64TimestampMillisToLongTimestampDecoder(ParquetEncoding encoding, DateTimeZone timeZone)
@@ -841,6 +804,42 @@ public final class ValueDecoders
                                 values,
                                 i + offset);
                     }
+                }
+            }
+
+            @Override
+            public void skip(int n)
+            {
+                delegate.skip(n);
+            }
+        };
+    }
+
+    public ValueDecoder<int[]> getInt64TimestampNanosToLongTimestampWithTimeZoneDecoder(ParquetEncoding encoding)
+    {
+        ValueDecoder<long[]> delegate = getLongDecoder(encoding);
+        int precision = ((TimestampWithTimeZoneType) field.getType()).getPrecision();
+        return new ValueDecoder<>()
+        {
+            @Override
+            public void init(SimpleSliceInputStream input)
+            {
+                delegate.init(input);
+            }
+
+            @Override
+            public void read(int[] values, int offset, int length)
+            {
+                long[] buffer = new long[length];
+                delegate.read(buffer, 0, length);
+                // decoded values are epochNanos, round to lower precision and convert to (packed epochMillisUtc, picosOfMilli)
+                for (int i = 0; i < length; i++) {
+                    long epochNanos = round(buffer[i], 9 - precision);
+                    encodeFixed12(
+                            packDateTimeWithZone(floorDiv(epochNanos, NANOSECONDS_PER_MILLISECOND), UTC_KEY),
+                            floorMod(epochNanos, NANOSECONDS_PER_MILLISECOND) * PICOSECONDS_PER_NANOSECOND,
+                            values,
+                            i + offset);
                 }
             }
 
