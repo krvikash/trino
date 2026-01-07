@@ -267,7 +267,7 @@ public final class StressTestDataResource
 
     private static JettyHttpClient getJettyHttpClient()
     {
-        return new JettyHttpClient(new HttpClientConfig().setMaxContentLength(DataSize.of(64, MEGABYTE)));
+        return new JettyHttpClient(new HttpClientConfig().setMaxResponseContentLength(DataSize.of(64, MEGABYTE)));
     }
 
     private static ListMultimap<Integer, Slice> randomDataPages()

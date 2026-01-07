@@ -73,7 +73,7 @@ public class TroubleshootingModule
         DataSize maxContentLength = DataSize.ofBytes(
                 flightRecorderConfig.getMaxRecordingSize().toBytes() + DataSize.of(8, DataSize.Unit.MEGABYTE).toBytes());
         install(internalHttpClientModule("troubleshooting", ForTroubleshooting.class)
-                .withConfigDefaults(httpClientConfig -> httpClientConfig.setMaxContentLength(maxContentLength))
+                .withConfigDefaults(httpClientConfig -> httpClientConfig.setMaxResponseContentLength(maxContentLength))
                 .build());
         if (FlightRecorder.isAvailable()) {
             install(new FlightRecorderModule());

@@ -74,7 +74,6 @@ import static com.google.inject.Scopes.SINGLETON;
 import static com.google.inject.multibindings.MapBinder.newMapBinder;
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static io.airlift.bootstrap.ClosingBinder.closingBinder;
-import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.plugin.kafka.encoder.EncoderModule.encoderFactory;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
@@ -151,10 +150,13 @@ public class ConfluentModule
             binder.bind(DispatchingRowDecoderFactory.class).in(SINGLETON);
 
             configBinder(binder).bindConfig(ProtobufAnySupportConfig.class);
-            install(conditionalModule(ProtobufAnySupportConfig.class,
-                    ProtobufAnySupportConfig::isProtobufAnySupportEnabled,
-                    new ConfluentDesciptorProviderModule(),
-                    new DummyDescriptorProviderModule()));
+
+            if (buildConfigObject(ProtobufAnySupportConfig.class).isProtobufAnySupportEnabled()) {
+                install(new ConfluentDesciptorProviderModule());
+            }
+            else {
+                install(new DummyDescriptorProviderModule());
+            }
         }
     }
 

@@ -144,14 +144,14 @@ public class BufferExchangeModule
             if (useInternalCommunication) {
                 install(internalHttpClientModule("exchange.buffer-data", io.starburst.stargate.buffer.data.client.ForBufferDataClient.class)
                         .withConfigDefaults(config -> config
-                                .setMaxContentLength(DataSize.of(64, MEGABYTE)) // should equal to chunk.max-size
+                                .setMaxResponseContentLength(DataSize.of(64, MEGABYTE)) // should equal to chunk.max-size
                                 .setIdleTimeout(succinctDuration(30, SECONDS)))
                         .build());
             }
             else {
                 httpClientBinder(binder).bindHttpClient("exchange.buffer-data", io.starburst.stargate.buffer.data.client.ForBufferDataClient.class)
                         .withConfigDefaults(config -> config
-                                .setMaxContentLength(DataSize.of(64, MEGABYTE)) // should equal to chunk.max-size
+                                .setMaxResponseContentLength(DataSize.of(64, MEGABYTE)) // should equal to chunk.max-size
                                 .setIdleTimeout(succinctDuration(30, SECONDS)));
             }
 

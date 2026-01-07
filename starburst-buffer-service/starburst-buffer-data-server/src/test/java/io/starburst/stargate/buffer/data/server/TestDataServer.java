@@ -111,7 +111,7 @@ public class TestDataServer
                 .setConfigProperty("draining.min-duration", "2s")
                 .setConfigProperty("chunk.max-size", "32MB")
                 .build();
-        httpClient = new JettyHttpClient(new HttpClientConfig().setMaxContentLength(DataSize.of(64, MEGABYTE)));
+        httpClient = new JettyHttpClient(new HttpClientConfig().setMaxResponseContentLength(DataSize.of(64, MEGABYTE)));
         dataClient = new HttpDataClient(
                 dataServer.getBaseUri(),
                 BUFFER_NODE_ID,
