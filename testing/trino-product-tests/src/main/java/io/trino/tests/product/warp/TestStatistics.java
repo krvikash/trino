@@ -147,7 +147,7 @@ public class TestStatistics
                     .isTrue();
             logger.debug("created %s rules for schemaTable=%s.%s", res.appliedRules(), SCHEMA_NAME, TABLE_NAME);
 
-            warmUtils.warmAndValidate(RestUtils.CATALOG_1_PORT, CATALOG_NAME, testFormat, FastWarming.NONE);
+            warmUtils.warmAndValidate(CATALOG_NAME, testFormat, FastWarming.NONE);
         }
         catch (Exception e) {
             logger.error(e, "failed on ADDING RULES");

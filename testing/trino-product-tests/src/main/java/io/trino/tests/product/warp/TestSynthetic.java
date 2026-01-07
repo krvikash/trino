@@ -250,13 +250,13 @@ public class TestSynthetic
 
             boolean fastWarming = (boolean) warpSessionProperties.getOrDefault("%s.enable_import_export".formatted(CATALOG_NAME), false);
             if (fastWarming) {
-                warmUtils.warmAndValidate(RestUtils.CATALOG_1_PORT, CATALOG_NAME, testFormat, FastWarming.EXPORT);
+                warmUtils.warmAndValidate(CATALOG_NAME, testFormat, FastWarming.EXPORT);
                 demoterUtils.demote(RestUtils.CATALOG_1_PORT, schemaName, tableName, testFormat);
                 demoterUtils.resetToDefaultDemoterConfiguration(RestUtils.CATALOG_1_PORT);
-                warmUtils.warmAndValidate(RestUtils.CATALOG_1_PORT, CATALOG_NAME, testFormat, FastWarming.IMPORT);
+                warmUtils.warmAndValidate(CATALOG_NAME, testFormat, FastWarming.IMPORT);
             }
             else {
-                warmUtils.warmAndValidate(RestUtils.CATALOG_1_PORT, CATALOG_NAME, testFormat, FastWarming.NONE);
+                warmUtils.warmAndValidate(CATALOG_NAME, testFormat, FastWarming.NONE);
             }
             warmUtils.resetSessions(warpSessionProperties);
 

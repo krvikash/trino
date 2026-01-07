@@ -113,13 +113,13 @@ public abstract class WarpSpeedCloudTestBase
 
             boolean fastWarming = (boolean) sessionProperties.getOrDefault(CATALOG_NAME + ".enable_import_export", true);
             if (fastWarming) {
-                warmUtils.warmAndValidate(RestUtils.CATALOG_1_PORT, CATALOG_NAME, testFormat, FastWarming.EXPORT);
+                warmUtils.warmAndValidate(CATALOG_NAME, testFormat, FastWarming.EXPORT);
                 demoterUtils.demote(RestUtils.CATALOG_1_PORT, schema, table, testFormat);
                 demoterUtils.resetToDefaultDemoterConfiguration(RestUtils.CATALOG_1_PORT);
-                warmUtils.warmAndValidate(RestUtils.CATALOG_1_PORT, CATALOG_NAME, testFormat, FastWarming.IMPORT);
+                warmUtils.warmAndValidate(CATALOG_NAME, testFormat, FastWarming.IMPORT);
             }
             else {
-                warmUtils.warmAndValidate(RestUtils.CATALOG_1_PORT, CATALOG_NAME, testFormat, FastWarming.NONE);
+                warmUtils.warmAndValidate(CATALOG_NAME, testFormat, FastWarming.NONE);
             }
             warmUtils.resetSessions(sessionProperties);
 

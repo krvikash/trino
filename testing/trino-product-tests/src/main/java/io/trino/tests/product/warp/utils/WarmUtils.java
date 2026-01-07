@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
-import java.util.stream.Collectors;
 
 import static io.trino.tests.product.utils.QueryAssertions.assertEventually;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
@@ -85,7 +84,7 @@ public class WarmUtils
         return "select " + columns + " from " + tableName;
     }
 
-    public void warmAndValidate(int port, String catalogName, TestFormat testFormat, FastWarming fastWarming)
+    public void warmAndValidate(String catalogName, TestFormat testFormat, FastWarming fastWarming)
     {
         @Language("SQL")
         String warmQuery = testFormat.warm_query();
@@ -93,26 +92,20 @@ public class WarmUtils
             warmQuery = createWarmupQuery(testFormat.getTableName(), testFormat.structure());
         }
         warmAndValidate(
-                port,
                 catalogName,
                 testFormat.getTableName(),
                 warmQuery,
                 testFormat.expected_warm_failures(),
-                testFormat.session_properties() != null ?
-                        testFormat.session_properties().entrySet().stream().collect(Collectors.toMap(e -> catalogName + "." + e.getKey(), Map.Entry::getValue)) :
-                        Map.of(),
                 testFormat.expected_dictionary_counters(),
                 fastWarming,
                 true);
     }
 
     public void warmAndValidate(
-            int port,
             String catalogName,
             String tableName,
             @Language("SQL") String warmQuery,
             int expectedFailures,
-            Map<String, Object> sessionPropertiesWithCatalog,
             Map<String, Long> expectedDictionaryCounters,
             FastWarming fastWarming,
             boolean useEmptyQuery)
