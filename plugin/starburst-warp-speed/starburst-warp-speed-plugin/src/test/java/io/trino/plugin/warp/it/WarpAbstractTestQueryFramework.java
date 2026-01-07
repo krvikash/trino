@@ -33,7 +33,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
 
 import java.io.IOException;
-import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -178,41 +177,6 @@ public abstract class WarpAbstractTestQueryFramework
         assertUpdate(format("CREATE TABLE %s.%s %s", schemaName, tableName, columns));
         assertTableExists(schemaName, tableName);
         createdTables.add(schemaName + "." + tableName);
-    }
-
-    @SuppressWarnings("LanguageMismatch")
-    void execSilently(String sql)
-    {
-        try {
-            computeActual(sql);
-        }
-        catch (Throwable t) {
-            logger.error(t);
-        }
-    }
-
-    protected String executeRestCommand(String ext)
-            throws IOException
-    {
-        return executeRestCommand(ext, null);
-    }
-
-    protected String executeRestCommand(String ext, Object inObj)
-            throws IOException
-    {
-        return executeRestCommand(ext, inObj, HttpURLConnection.HTTP_OK);
-    }
-
-    protected String executeRestCommand(String ext, Object inObj, int responseCode)
-            throws IOException
-    {
-        return executeRestCommand("/v1/ext/varada/", ext, inObj, HttpMethod.POST, responseCode, Target.COORDINATOR);
-    }
-
-    protected String executeWorkerRestCommand(String prefix, String ext, Object inObj, String httpMethod, int responseCode)
-            throws IOException
-    {
-        return executeRestCommand(prefix, ext, inObj, httpMethod, responseCode, Target.WORKER);
     }
 
     protected String executeRestCommand(String prefix, String ext, Object inObj, String httpMethod, int responseCode)

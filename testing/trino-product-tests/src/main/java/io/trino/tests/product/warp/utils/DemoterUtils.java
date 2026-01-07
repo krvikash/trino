@@ -59,18 +59,9 @@ public class DemoterUtils
     private static final List<io.trino.plugin.warp.gen.constants.WarmUpType> allWarmUpTypes = List.of(WarmUpType.WARM_UP_TYPE_DATA, WarmUpType.WARM_UP_TYPE_BASIC,
             WarmUpType.WARM_UP_TYPE_LUCENE);
 
-    public DemoterUtils()
-    {
-    }
-
     public void demote(int port, String schema, String table, TestFormat test)
     {
         demote(port, schema, table, test.structure().stream().map(TestFormat.Column::name).toList());
-    }
-
-    public void demote(int port, String schema, String table, TableFormat tableFormat)
-    {
-        demote(port, schema, table, tableFormat.structure().stream().map(TestFormat.Column::name).toList());
     }
 
     public void demote(int port, String schema, String table, List<String> columnNames)
@@ -180,12 +171,6 @@ public class DemoterUtils
         resetToDefaultDemoterConfiguration(port, false);
     }
 
-    public void resetToDefaultDemoterConfiguration(boolean isCache)
-            throws IOException
-    {
-        resetToDefaultDemoterConfiguration(-1, isCache);
-    }
-
     private void resetToDefaultDemoterConfiguration(int port, boolean isCache)
             throws IOException
     {
@@ -208,40 +193,5 @@ public class DemoterUtils
             result = restUtils.executePostCommandWithReturnValue(port, WarmupDemoterTask.WARMUP_DEMOTER_PATH, WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME, warmupDemoterData);
         }
         logger.debug("result demoter configuration: %s", result);
-    }
-
-    public void demoteAllByMaxUsage(int port)
-    {
-        demoteAllByMaxUsage(port, false);
-    }
-
-    public void demoteAllByMaxUsage(boolean useCachePort)
-    {
-        demoteAllByMaxUsage(-1, useCachePort);
-    }
-
-    private void demoteAllByMaxUsage(int port, boolean useCachePort)
-    {
-        QueryResult demoterStatsBefore = JMXCachingManager.getDemoterStats();
-
-        WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()
-                .executeDemoter(true)
-                .batchSize(DEFAULT_DEMOTER_BATCH_SIZE)
-                .maxUsageThresholdInPercentage(0)
-                .modifyConfig(true)
-                .cleanupUsageThresholdInPercentage(0)
-                .resetHighestPriority(true)
-                .forceExecuteDeadObjects(true)
-                .forceDeleteFailedObjects(true)
-                .build();
-        Map<String, Object> demoteResultStats = demote(warmupDemoterData, port, useCachePort);
-
-        long deletedByLowPriority = (long) (Integer) demoteResultStats.get("warmupDemoter:" + JMXCachingConstants.WarmupDemoter.DELETED_BY_LOW_PRIORITY);
-        logger.info("demote according to max usage: deletedByLowPriority=%s", deletedByLowPriority);
-        assertThat(deletedByLowPriority).describedAs("deletedByLowPriority").isPositive();
-
-        QueryResult demoterStatsAfter = JMXCachingManager.getDemoterStats();
-        deletedByLowPriority = getDiffFromInitial(demoterStatsAfter, demoterStatsBefore, JMXCachingConstants.WarmupDemoter.DELETED_BY_LOW_PRIORITY);
-        assertThat(deletedByLowPriority).describedAs("deletedByLowPriority").isPositive();
     }
 }

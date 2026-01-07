@@ -19,11 +19,9 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.SetMultimap;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.api.warmup.RuleResultDTO;
 import io.trino.plugin.warp.api.warmup.WarmUpType;
 import io.trino.plugin.warp.api.warmup.WarmupColRuleData;
 import io.trino.plugin.warp.api.warmup.column.RegularColumnData;
-import io.trino.plugin.warp.api.warmup.column.WildcardColumnData;
 import jakarta.ws.rs.HttpMethod;
 
 import java.io.IOException;
@@ -114,66 +112,6 @@ public class RuleUtils
         return columnWarmupTypes;
     }
 
-    public void createWarmupRules(int port, String schema, TestFormat testFormat)
-            throws IOException
-    {
-        List<TestFormat.WarmupRule> warmupRules = testFormat.warmup_rules();
-        Set<WarmupColRuleData> rules = new HashSet<>();
-        WarmTypeForStrings warmTypeForStrings = testFormat.warm_type_for_strings() != null ?
-                testFormat.warm_type_for_strings() :
-                lucene_data_basic;
-        if (warmupRules == null) {
-            rules.addAll(createRulesFromStructure(schema, testFormat, warmTypeForStrings));
-        }
-        else {
-            for (TestFormat.WarmupRule warmupRule : warmupRules) {
-                List<WarmUpType> warmUpTypes = warmupRule.warmUpTypes();
-                if (warmUpTypes == null) {
-                    if (warmupRule.colNameId() != null) {
-                        TestFormat.Column column = testFormat.structure()
-                                .stream()
-                                .filter(x -> x.name().equalsIgnoreCase(warmupRule.colNameId()))
-                                .findFirst()
-                                .orElseThrow();
-                        warmUpTypes = calcWarmupTypesForColumn(column, warmTypeForStrings);
-                    }
-                }
-
-                if ((warmUpTypes == null) || warmUpTypes.isEmpty()) {
-                    throw new RuntimeException("[%s] no warmup types found for rule: %s".formatted(testFormat.name(), warmupRule));
-                }
-
-                for (WarmUpType warmUpType : warmUpTypes) {
-                    rules.add(new WarmupColRuleData(0,
-                            schema,
-                            testFormat.getTableName(),
-                            warmupRule.colNameId() != null ? new RegularColumnData(warmupRule.colNameId()) : new WildcardColumnData(),
-                            warmUpType,
-                            warmupRule.priority() > 0 ? warmupRule.priority() : DEFAULT_PRIORITY,
-                            warmupRule.ttl() != null ? warmupRule.ttl() : DEFAULT_TTL,
-                            warmupRule.predicates() != null ? ImmutableSet.copyOf(warmupRule.predicates()) : ImmutableSet.of()));
-                }
-            }
-        }
-        if (rules.isEmpty()) {
-            logger.info("no rules for test %s", testFormat.name());
-            return;
-        }
-        createRules(port, schema, testFormat.getTableName(), rules);
-    }
-
-    public void createRules(int port, String schema, String tableName, Set<WarmupColRuleData> rules)
-            throws IOException
-    {
-        String result = restUtils.executePostCommandWithReturnValue(port, WARMUP_PATH, TASK_NAME_SET, rules);
-        RuleResultDTO res = objectMapper.readerFor(new TypeReference<RuleResultDTO>() {}).readValue(result);
-        assertThat(res.rejectedRules().isEmpty() && !res.appliedRules().isEmpty())
-                .as("some rules are rejected. %s", res.rejectedRules())
-                .isTrue();
-        logger.info("created %s rules for schemaTable=%s.%s",
-                res.appliedRules().size(), schema, tableName);
-    }
-
     public SetMultimap<String, Object> getCustomStats(String queryId, String summaryType)
     {
         String prefix = format("/v1/query/%s?", queryId);
@@ -196,35 +134,6 @@ public class RuleUtils
             logger.error(e, "error");
         }
         return metricsMultiMap;
-    }
-
-    public void validateLoadByCacheDataOperator(String queryId)
-    {
-        try {
-            String prefix = format("/v1/query/%s?", queryId);
-            String pretty = restUtils.executeTrinoCommand(prefix, "pretty", null, HttpMethod.GET, HttpURLConnection.HTTP_OK);
-            List<String> operatorTypes = objectMapper.readTree(pretty).get("queryStats").get("operatorSummaries").findValues("operatorType").stream().map(JsonNode::asText).toList();
-            assertThat(operatorTypes.contains("LoadCachedDataOperator")).isTrue().describedAs("validate that LoadCachedDataOperator stage was applied");
-            assertThat(operatorTypes.contains("ScanFilterAndProjectOperator")).isFalse().describedAs("validate that ScanFilterAndProjectOperator stage was not applied");
-        }
-        catch (Exception e) {
-            throw new RuntimeException("failed", e);
-        }
-    }
-
-    public void validateNotLoadByCacheDataOperator(String queryId)
-    {
-        try {
-            String prefix = format("/v1/query/%s?", queryId);
-            String pretty = restUtils.executeTrinoCommand(prefix, "pretty", null, HttpMethod.GET, HttpURLConnection.HTTP_OK);
-            List<String> operatorTypes = objectMapper.readTree(pretty).get("queryStats").get("operatorSummaries").findValues("operatorType").stream().map(JsonNode::asText).toList();
-            assertThat(operatorTypes.contains("LoadCachedDataOperator")).isFalse().describedAs("validate that LoadCachedDataOperator stage was not applied");
-            assertThat(operatorTypes.contains("ScanFilterAndProjectOperator") || operatorTypes.contains("TableScanOperator")).isTrue()
-                    .describedAs("validate that ScanFilterAndProjectOperator or TableScanOperator stage was applied");
-        }
-        catch (Exception e) {
-            throw new RuntimeException("failed", e);
-        }
     }
 
     public Set<WarmupColRuleData> createRulesFromStructure(String schema,

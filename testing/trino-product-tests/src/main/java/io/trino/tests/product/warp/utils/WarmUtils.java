@@ -198,33 +198,6 @@ public class WarmUtils
         logger.info("Warmup process has finished tableName[%s], fastWarming[%s]", tableName, fastWarming);
     }
 
-    public QueryResult warmAndValidate(@Language("SQL") String query, Map<String, Long> expectedResults)
-    {
-        return warmAndValidate(query, expectedResults, Duration.valueOf("360s"));
-    }
-
-    public QueryResult warmAndValidate(
-            @Language("SQL") String query,
-            Map<String, Long> expectedResults,
-            Duration duration)
-    {
-        QueryResult warmingStatsBefore = JMXCachingManager.getWarmingStats();
-        logger.info("STARTING WARMUP=%s", query);
-        QueryResult queryResult = onTrino().executeQuery(query);
-        assertEventually(
-                duration,
-                () -> {
-                    QueryResult warmingStatsAfter = JMXCachingManager.getWarmingStats();
-                    for (Map.Entry<String, Long> entry : expectedResults.entrySet()) {
-                        long actualValue = getDiffFromInitial(warmingStatsAfter, warmingStatsBefore, entry.getKey());
-                        assertThat(actualValue)
-                                .as("warmAndValidate fail - %s expected %d actual %d", entry.getKey(), entry.getValue(), actualValue)
-                                .isEqualTo(entry.getValue());
-                    }
-                });
-        return queryResult;
-    }
-
     private void verifyDictionaryCounters(Map<String, Long> expectedDictionaryCounters, QueryResult dictionaryRowBefore, String testName, SoftAssertions softAssert)
     {
         if (expectedDictionaryCounters == null) {

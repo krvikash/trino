@@ -18,7 +18,6 @@ import com.fasterxml.jackson.databind.node.ValueNode;
 import com.google.common.collect.SetMultimap;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
-import io.airlift.units.Duration;
 import io.trino.jdbc.TrinoResultSet;
 import io.trino.tempto.query.QueryResult;
 import org.assertj.core.api.SoftAssertions;
@@ -37,15 +36,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import static io.trino.tests.product.utils.QueryAssertions.assertEventually;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
 import static io.trino.tests.product.warp.utils.DemoterUtils.objectMapper;
-import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmupExportService.EXPORT_ROW_GROUP_FINISHED;
-import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmupExportService.EXPORT_ROW_GROUP_SCHEDULED;
-import static io.trino.tests.product.warp.utils.JMXCachingManager.getDiffFromInitial;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -84,68 +78,6 @@ public class QueryUtils
         }
 
         softAssertions.assertAll();
-    }
-
-    public int runCacheQueries(TestFormat test, boolean isWarp)
-    {
-        List<TestFormat.QueryData> queriesData = test.queries_data();
-        if (queriesData == null) {
-            return 0;
-        }
-        logger.info("Going to execute %s queries", queriesData.size());
-        int ranQueries = 0;
-        for (TestFormat.QueryData query : queriesData) {
-            if (query.skip() || query.skip_caching()) {
-                logger.info("skipping query: %s", query);
-                continue;
-            }
-            warmAndQueryCache(query, test.split_count(), isWarp);
-            ranQueries++;
-        }
-        return ranQueries;
-    }
-
-    private void warmAndQueryCache(TestFormat.QueryData queryData, int splitCount, boolean isWarp)
-    {
-        QueryResult exportRowBefore = null;
-        if (isWarp) {
-            exportRowBefore = JMXCachingManager.getExportStats();
-        }
-
-        AtomicInteger iterationNUmber = new AtomicInteger();
-        @Language("SQL") String query = queryData.query();
-        assertEventually(
-                Duration.valueOf("360s"),
-                () -> {
-                    logger.info("Running QueryId=%s, split_count=%s, Query=%s", queryData.query_id(), splitCount, query);
-                    int iteration = iterationNUmber.getAndIncrement();
-                    logger.info("iterationNumber=%s, QueryId=%s", iteration, queryData.query_id());
-                    QueryResult queryResult = onTrino().executeQuery(query);
-                    List<Object> expectedResult = queryData.expected_result();
-                    if (validateQueryResult(expectedResult)) {
-                        verifyQueryResult(queryResult, expectedResult, queryData.query_id());
-                    }
-                    String queryId = ((TrinoResultSet) queryResult.getJdbcResultSet().orElseThrow()).getQueryId();
-                    ruleUtils.validateLoadByCacheDataOperator(queryId);
-                });
-
-        if (isWarp) {
-            logger.info("validate no export occurred");
-            QueryResult exportStatsAfter = JMXCachingManager.getExportStats();
-            assertThat(getDiffFromInitial(exportStatsAfter, exportRowBefore, EXPORT_ROW_GROUP_SCHEDULED))
-                    .as("validate no export for cachingManager. queryId=%s", queryData.query_id())
-                    .isEqualTo(getDiffFromInitial(exportStatsAfter, exportRowBefore, EXPORT_ROW_GROUP_FINISHED));
-        }
-    }
-
-    public QueryResult queryAndValidate(@Language("SQL") String query, Map<String, Long> expectedResults, String testName)
-    {
-        QueryResult queryResult = onTrino().executeQuery(query);
-        String queryId = ((TrinoResultSet) queryResult.getJdbcResultSet().orElseThrow()).getQueryId();
-        SoftAssertions softAssertions = new SoftAssertions();
-        verifyQueryCounters(queryId, expectedResults, CachingType.ACCORDING_TO_COUNTERS, testName, softAssertions);
-        softAssertions.assertAll();
-        return queryResult;
     }
 
     private void queryAndValidate(String catalogName, TestFormat.QueryData query, boolean assertOnCounters, SoftAssertions softAssert)
@@ -222,11 +154,6 @@ public class QueryUtils
                         .isEqualTo(expectedValue);
             }
         }
-    }
-
-    public void validateLoadByCacheDataOperator(String queryId)
-    {
-        ruleUtils.validateLoadByCacheDataOperator(queryId);
     }
 
     @SuppressWarnings("unchecked")

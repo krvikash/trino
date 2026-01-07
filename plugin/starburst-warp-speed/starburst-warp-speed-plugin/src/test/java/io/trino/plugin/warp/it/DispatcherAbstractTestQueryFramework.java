@@ -46,7 +46,6 @@ public abstract class DispatcherAbstractTestQueryFramework
 {
     protected static final String DEFAULT_SCHEMA = "schema";
     protected static final int DEFAULT_PRIORITY = 0;
-    protected static final int NEVER_PRIORITY = -10;
     protected static final Duration DEFAULT_TTL = Duration.ofSeconds(5);
 
     protected void createWarmupRules(String schema, String table, Map<String, Set<WarmupPropertiesData>> warmupMap)

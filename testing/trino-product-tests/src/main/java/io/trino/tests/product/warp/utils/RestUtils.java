@@ -19,8 +19,6 @@ import io.airlift.http.client.Request;
 import io.airlift.http.client.StringResponseHandler;
 import io.airlift.http.client.jetty.JettyHttpClient;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.extension.execution.debugtools.NativeStorageState;
-import io.trino.plugin.warp.extension.execution.debugtools.NativeStorageStateResource;
 import jakarta.ws.rs.HttpMethod;
 
 import java.io.IOException;
@@ -43,8 +41,6 @@ public class RestUtils
     private static final Logger logger = Logger.get(RuleUtils.class);
 
     public static final int CATALOG_1_PORT = 8089;
-    public static final int CATALOG_2_PORT = 8085;
-    public static final int CACHE_PORT = 8098;
 
     public RestUtils() {}
 
@@ -67,12 +63,6 @@ public class RestUtils
         return executeRestCommand(port, prefix, ext, null, HttpMethod.GET, HttpURLConnection.HTTP_OK);
     }
 
-    public void executePostCommand(int port, String prefix, String ext, Object inObj)
-            throws IOException
-    {
-        executeRestCommand(port, prefix, ext, inObj, HttpMethod.POST, HttpURLConnection.HTTP_NO_CONTENT);
-    }
-
     public String executePostCommandWithReturnValue(int port, String prefix, String ext, Object inObj)
             throws IOException
     {
@@ -83,13 +73,6 @@ public class RestUtils
             throws IOException
     {
         URI baseUrl = URI.create("http://presto-master:" + port);
-        return executeCommand(baseUrl, prefix, ext, inObj, httpMethod, responseCode);
-    }
-
-    public String executeWorkerRestCommand(String prefix, String ext, Object inObj, String httpMethod, int responseCode)
-            throws IOException
-    {
-        URI baseUrl = URI.create("http://presto-worker:8089");
         return executeCommand(baseUrl, prefix, ext, inObj, httpMethod, responseCode);
     }
 
@@ -138,25 +121,5 @@ public class RestUtils
         assertThat(response.getStatusCode()).describedAs(response.getBody()).isEqualTo(responseCode);
         client.close();
         return response.getBody();
-    }
-
-    public void validateNativeState(boolean storagePermanentException, boolean storageTemporaryException)
-            throws IOException
-    {
-        logger.info("test::before validateNativeState storagePermanentException=%b, storageTemporaryException=%b",
-                storagePermanentException, storageTemporaryException);
-        String result = executeWorkerRestCommand(
-                NativeStorageStateResource.PATH,
-                "",
-                null,
-                HttpMethod.GET,
-                HttpURLConnection.HTTP_OK);
-        NativeStorageState state =
-                objectMapper.readValue(
-                        result,
-                        NativeStorageState.class);
-
-        assertThat(state.storagePermanentException()).isEqualTo(storagePermanentException);
-        assertThat(state.storageTemporaryException()).isEqualTo(storageTemporaryException);
     }
 }

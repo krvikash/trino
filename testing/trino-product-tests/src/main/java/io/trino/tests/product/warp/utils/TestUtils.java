@@ -19,9 +19,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.net.URI;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.Iterator;
 import java.util.List;
 
@@ -29,8 +26,6 @@ import static io.trino.tests.product.warp.utils.DemoterUtils.objectMapper;
 
 public class TestUtils
 {
-    private static final String suffix = LocalDateTime.now(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("_yyyyMMdd_HHmmss_SSS"));
-
     private TestUtils()
     {
     }
@@ -45,16 +40,6 @@ public class TestUtils
             }
         }
         return count;
-    }
-
-    public static String getFullyQualifiedName(String catalogName, String schemaName, String tableName)
-    {
-        return catalogName + "." + schemaName + "." + tableName;
-    }
-
-    public static String getSuffix()
-    {
-        return suffix;
     }
 
     public static Iterator<TestFormat> executeDataProvider(String filePath)
