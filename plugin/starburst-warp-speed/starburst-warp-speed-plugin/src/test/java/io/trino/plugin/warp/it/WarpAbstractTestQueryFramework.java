@@ -42,7 +42,6 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -256,7 +255,7 @@ public abstract class WarpAbstractTestQueryFramework
             logger.error(e);
         }
         HttpClient client = new JettyHttpClient();
-        if (Objects.nonNull(inObj)) {
+        if (inObj != null) {
             String input = objectMapper.writeValueAsString(inObj);
             request.setBodyGenerator(createStaticBodyGenerator(input.getBytes(Charset.defaultCharset())));
         }

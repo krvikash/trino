@@ -30,7 +30,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.Charset;
-import java.util.Objects;
 
 import static io.airlift.http.client.Request.Builder.prepareDelete;
 import static io.airlift.http.client.Request.Builder.prepareGet;
@@ -129,7 +128,7 @@ public class RestUtils
         }
 
         HttpClient client = new JettyHttpClient();
-        if (Objects.nonNull(inObj)) {
+        if (inObj != null) {
             String input = objectMapper.writeValueAsString(inObj);
             request.setBodyGenerator(createStaticBodyGenerator(input.getBytes(Charset.defaultCharset())));
         }
