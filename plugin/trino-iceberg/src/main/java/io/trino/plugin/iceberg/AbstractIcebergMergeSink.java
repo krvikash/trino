@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import io.airlift.json.JsonCodec;
 import io.airlift.slice.Slice;
 import io.trino.filesystem.TrinoFileSystem;
+import io.trino.plugin.iceberg.delete.DeletionVector;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.RowBlock;
@@ -30,7 +31,6 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.io.LocationProvider;
 import org.apache.iceberg.util.DeleteFileSet;
-import org.roaringbitmap.longlong.Roaring64Bitmap;
 
 import java.util.HashMap;
 import java.util.List;
@@ -151,7 +151,7 @@ public abstract class AbstractIcebergMergeSink
                     return new FileDeletion(partitionSpecId, partitionData);
                 });
 
-                deletion.rowsToDelete().addLong(rowPosition);
+                deletion.rowsToDelete().add(rowPosition);
             }
         });
 
@@ -177,7 +177,7 @@ public abstract class AbstractIcebergMergeSink
     {
         private final int partitionSpecId;
         private final String partitionDataJson;
-        private final Roaring64Bitmap rowsToDelete = new Roaring64Bitmap();
+        private final DeletionVector.Builder rowsToDelete = new DeletionVector.Builder();
 
         public FileDeletion(int partitionSpecId, String partitionDataJson)
         {
@@ -195,7 +195,7 @@ public abstract class AbstractIcebergMergeSink
             return partitionDataJson;
         }
 
-        public Roaring64Bitmap rowsToDelete()
+        public DeletionVector.Builder rowsToDelete()
         {
             return rowsToDelete;
         }

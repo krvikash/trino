@@ -70,6 +70,13 @@ public record DeleteFile(
                 Optional.empty());
     }
 
+    public static DeleteFile fromDeletionVector(DeletionVector deletionVector)
+    {
+        Roaring64Bitmap bitmap = new Roaring64Bitmap();
+        deletionVector.forEachDeletedRow(bitmap::addLong);
+        return fromComputedDeletionRowPositions(bitmap);
+    }
+
     public static DeleteFile fromComputedDeletionRowPositions(Roaring64Bitmap computedDeletionRowPositions)
     {
         return new DeleteFile(

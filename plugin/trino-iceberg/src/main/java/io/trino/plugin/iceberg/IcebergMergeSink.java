@@ -16,6 +16,7 @@ package io.trino.plugin.iceberg;
 import io.airlift.json.JsonCodec;
 import io.airlift.slice.Slice;
 import io.trino.filesystem.TrinoFileSystem;
+import io.trino.plugin.iceberg.delete.DeletionVector;
 import io.trino.plugin.iceberg.delete.PositionDeleteWriter;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorSession;
@@ -24,7 +25,6 @@ import org.apache.iceberg.Schema;
 import org.apache.iceberg.io.LocationProvider;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.util.DeleteFileSet;
-import org.roaringbitmap.longlong.ImmutableLongBitmapDataProvider;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -95,14 +95,14 @@ public class IcebergMergeSink
 
         updateInsertPageSink.ifPresent(pageSink -> fragments.addAll(pageSink.finish().join()));
 
-        fileDeletions.forEach((dataFilePath, deletion) -> {
+        fileDeletions.forEach((dataFilePath, deletion) -> deletion.rowsToDelete().build().ifPresent(deletionVector -> {
             PositionDeleteWriter writer = createPositionDeleteWriter(
                     dataFilePath.toStringUtf8(),
                     partitionsSpecs.get(deletion.partitionSpecId()),
                     deletion.partitionDataJson());
 
-            fragments.addAll(writePositionDeletes(writer, deletion.rowsToDelete()));
-        });
+            fragments.add(writePositionDeletes(writer, deletionVector));
+        }));
 
         return completedFuture(fragments);
     }
@@ -133,12 +133,12 @@ public class IcebergMergeSink
                 previousDeleteFiles);
     }
 
-    private Collection<Slice> writePositionDeletes(PositionDeleteWriter writer, ImmutableLongBitmapDataProvider rowsToDelete)
+    private Slice writePositionDeletes(PositionDeleteWriter writer, DeletionVector rowsToDelete)
     {
         try {
             CommitTaskData task = writer.write(rowsToDelete);
             writtenBytes += task.fileSizeInBytes();
-            return List.of(wrappedBuffer(jsonCodec.toJsonBytes(task)));
+            return wrappedBuffer(jsonCodec.toJsonBytes(task));
         }
         catch (Throwable t) {
             closeAllSuppress(t, writer::abort);

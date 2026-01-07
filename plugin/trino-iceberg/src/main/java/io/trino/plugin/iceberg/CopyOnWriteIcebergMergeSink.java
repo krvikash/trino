@@ -216,7 +216,8 @@ public class CopyOnWriteIcebergMergeSink
             throws IOException
     {
         ImmutableList.Builder<DeleteFile> deleteFiles = ImmutableList.builder();
-        deleteFiles.add(DeleteFile.fromComputedDeletionRowPositions(deletion.rowsToDelete()));
+        deletion.rowsToDelete().build().ifPresent(deletionVector ->
+                deleteFiles.add(DeleteFile.fromDeletionVector(deletionVector)));
         previousDeleteFiles.getOrDefault(path.toString(), DeleteFileSet.create()).stream()
                 .map(DeleteFile::fromIceberg)
                 .map(deleteFile -> deleteFile.withDataSequenceNumber(dataSequenceNumbers.get(deleteFile.path())))
