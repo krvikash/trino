@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.storage.lucene;
 
+import io.airlift.log.Logger;
 import io.airlift.slice.Slices;
 import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.gen.stats.LuceneIndexerStats;
@@ -20,7 +21,6 @@ import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.spi.TrinoException;
 import io.trino.spi.catalog.CatalogName;
-import org.apache.commons.io.FileUtils;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -30,14 +30,15 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Comparator;
-import java.util.Objects;
-import java.util.stream.Stream;
 
+import static com.google.common.io.MoreFiles.deleteRecursively;
+import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class LuceneIndexerTest
 {
+    private static final Logger log = Logger.get(LuceneIndexerTest.class);
+
     private static Path localStorePath;
 
     private final StubsStorageEngineConstants storageEngineConstants = new StubsStorageEngineConstants();
@@ -53,16 +54,14 @@ public class LuceneIndexerTest
     @AfterAll
     static void afterAll()
     {
-        if (Objects.nonNull(localStorePath)) {
-            try (Stream<Path> stream = Files.walk(localStorePath)) {
-                stream.sorted(Comparator.reverseOrder())
-                        .map(Path::toFile)
-                        .forEach(FileUtils::deleteQuietly);
-            }
-            catch (IOException e) {
-                System.out.printf("failed to delete localStorePath '%s'%n", localStorePath);
-            }
+        try {
+            deleteRecursively(localStorePath, ALLOW_INSECURE);
         }
+        catch (IOException e) {
+            // TODO this probably should be propagated
+            log.error(e, "Failed to delete localStorePath '%s'", localStorePath);
+        }
+        localStorePath = null;
     }
 
     @Test

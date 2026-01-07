@@ -15,6 +15,7 @@ package io.trino.plugin.warp.dispatcher.warmup.warmers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.airlift.json.ObjectMapperProvider;
+import io.airlift.log.Logger;
 import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
 import io.trino.plugin.warp.cloudvendors.model.StorageObjectMetadata;
@@ -52,13 +53,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
-import java.util.stream.Stream;
 
+import static com.google.common.io.MoreFiles.deleteRecursively;
+import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -73,6 +73,7 @@ import static org.mockito.Mockito.when;
 
 public class WeGroupWarmerTest
 {
+    private static final Logger log = Logger.get(WeGroupWarmerTest.class);
     private static Path localStorePath;
 
     private GlobalConfig globalConfig;
@@ -93,16 +94,14 @@ public class WeGroupWarmerTest
     @AfterAll
     static void afterAll()
     {
-        if (Objects.nonNull(localStorePath)) {
-            try (Stream<Path> stream = Files.walk(localStorePath)) {
-                stream.sorted(Comparator.reverseOrder())
-                        .map(Path::toFile)
-                        .forEach(File::delete);
-            }
-            catch (IOException e) {
-                System.out.printf("failed to delete localStorePath '%s'%n", localStorePath);
-            }
+        try {
+            deleteRecursively(localStorePath, ALLOW_INSECURE);
         }
+        catch (IOException e) {
+            // TODO this probably should be propagated
+            log.error(e, "Failed to delete localStorePath '%s'", localStorePath);
+        }
+        localStorePath = null;
     }
 
     @BeforeEach

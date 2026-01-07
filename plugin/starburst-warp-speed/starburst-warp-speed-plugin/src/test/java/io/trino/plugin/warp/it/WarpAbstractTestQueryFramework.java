@@ -27,7 +27,6 @@ import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.MaterializedRow;
 import jakarta.ws.rs.HttpMethod;
-import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -47,6 +46,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.google.common.io.MoreFiles.deleteRecursively;
+import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static io.airlift.http.client.Request.Builder.prepareDelete;
 import static io.airlift.http.client.Request.Builder.prepareGet;
 import static io.airlift.http.client.Request.Builder.preparePost;
@@ -76,14 +77,14 @@ public abstract class WarpAbstractTestQueryFramework
     @AfterAll
     public void afterClass()
     {
-        if (Objects.nonNull(hiveDir)) {
-            try {
-                FileUtils.deleteDirectory(hiveDir.toFile());
-            }
-            catch (IOException e) {
-                logger.warn(e, "failed to delete hive dir [%s]", hiveDir);
-            }
+        try {
+            deleteRecursively(hiveDir, ALLOW_INSECURE);
         }
+        catch (IOException e) {
+            // TODO this probably should be propagated
+            logger.error(e, "Failed to delete hiveDir '%s'", hiveDir);
+        }
+        hiveDir = null;
     }
 
     @BeforeEach

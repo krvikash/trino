@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.MoreCollectors;
 import io.airlift.json.ObjectMapperProvider;
+import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.plugin.warp.config.GlobalConfig;
@@ -69,17 +70,16 @@ import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
+import static com.google.common.io.MoreFiles.deleteRecursively;
+import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -88,6 +88,8 @@ import static org.mockito.Mockito.when;
 
 public class RowGroupDataDaoTest
 {
+    private static final Logger log = Logger.get(RowGroupDataDaoTest.class);
+
     private static Path localStorePath;
 
     private GlobalConfig globalConfig;
@@ -104,16 +106,14 @@ public class RowGroupDataDaoTest
     @AfterAll
     static void afterAll()
     {
-        if (Objects.nonNull(localStorePath)) {
-            try (Stream<Path> stream = Files.walk(localStorePath)) {
-                stream.sorted(Comparator.reverseOrder())
-                        .map(Path::toFile)
-                        .forEach(FileUtils::deleteQuietly);
-            }
-            catch (IOException e) {
-                System.out.printf("failed to delete localStorePath '%s'%n", localStorePath);
-            }
+        try {
+            deleteRecursively(localStorePath, ALLOW_INSECURE);
         }
+        catch (IOException e) {
+            // TODO this probably should be propagated
+            log.error(e, "Failed to delete localStorePath '%s'", localStorePath);
+        }
+        localStorePath = null;
     }
 
     @BeforeEach
