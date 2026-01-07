@@ -29,7 +29,6 @@ import io.trino.testing.MaterializedRow;
 import jakarta.ws.rs.HttpMethod;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
 
@@ -64,13 +63,14 @@ public abstract class WarpAbstractTestQueryFramework
     protected final Set<String> createdTables = new HashSet<>();
     protected Path hiveDir;
 
-    @BeforeAll
-    @Override
-    public void init()
-            throws Exception
+    protected WarpAbstractTestQueryFramework()
     {
-        hiveDir = Files.createTempDirectory("hive_catalog_");
-        super.init();
+        try {
+            hiveDir = Files.createTempDirectory("hive_catalog_");
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @AfterAll
