@@ -43,6 +43,7 @@ import io.trino.metastore.TableInfo;
 import io.trino.plugin.base.classloader.ClassLoaderSafeSystemTable;
 import io.trino.plugin.base.filter.UtcConstraintExtractor;
 import io.trino.plugin.base.projection.ApplyProjectionUtil;
+import io.trino.plugin.base.projection.ApplyProjectionUtil.ProjectedColumnRepresentation;
 import io.trino.plugin.base.util.MaybeLazy;
 import io.trino.plugin.deltalake.DeltaLakeAnalyzeProperties.AnalyzeMode;
 import io.trino.plugin.deltalake.DeltaLakeTable.DeltaLakeColumn;
@@ -69,6 +70,7 @@ import io.trino.plugin.deltalake.transactionlog.DeletionVectorEntry;
 import io.trino.plugin.deltalake.transactionlog.DeltaLakeComputedStatistics;
 import io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport;
 import io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.ColumnMappingMode;
+import io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.IsolationLevel;
 import io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.UnsupportedTypeException;
 import io.trino.plugin.deltalake.transactionlog.DeltaLakeTransactionLogEntry;
 import io.trino.plugin.deltalake.transactionlog.MetadataEntry;
@@ -222,7 +224,6 @@ import static io.trino.hive.formats.HiveClassNames.LAZY_SIMPLE_SERDE_CLASS;
 import static io.trino.hive.formats.HiveClassNames.SEQUENCEFILE_INPUT_FORMAT_CLASS;
 import static io.trino.metastore.StorageFormat.create;
 import static io.trino.metastore.Table.TABLE_COMMENT;
-import static io.trino.plugin.base.projection.ApplyProjectionUtil.ProjectedColumnRepresentation;
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.extractSupportedProjectedColumns;
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.replaceWithNewVariables;
 import static io.trino.plugin.base.util.ExecutorUtil.processWithAdditionalThreads;
@@ -283,7 +284,6 @@ import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.CO
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.ColumnMappingMode.ID;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.ColumnMappingMode.NAME;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.ColumnMappingMode.NONE;
-import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.IsolationLevel;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.MAX_COLUMN_ID_CONFIGURATION_KEY;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.changeDataFeedEnabled;
 import static io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.deserializeType;
@@ -1509,20 +1509,21 @@ public class DeltaLakeMetadata
                 }
 
                 OptionalLong inCommitTimestamp = inCommitTimestampEnabled.orElse(false) ? OptionalLong.of(System.currentTimeMillis()) : OptionalLong.empty();
+                MetadataEntry metadataEntry = MetadataEntry.builder()
+                        .setDescription(tableMetadata.getComment())
+                        .setSchemaString(serializeSchemaAsJson(deltaTable.build()))
+                        .setPartitionColumns(getPartitionedBy(tableMetadata.getProperties()))
+                        // TODO: please care about the ucTableId property when Unity catalog support creating managed tables
+                        .setConfiguration(configurationForNewTable(checkpointInterval, changeDataFeedEnabled, deletionVectorsEnabled, columnMappingMode, maxFieldId, inCommitTimestampEnabled))
+                        .setInCommitTimestamp(inCommitTimestamp)
+                        .build();
                 appendTableEntries(
                         commitVersion,
                         transactionLogWriter,
                         saveMode == SaveMode.REPLACE ? CREATE_OR_REPLACE_TABLE_OPERATION : CREATE_TABLE_OPERATION,
                         session,
                         protocolEntry,
-                        MetadataEntry.builder()
-                                .setDescription(tableMetadata.getComment())
-                                .setSchemaString(serializeSchemaAsJson(deltaTable.build()))
-                                .setPartitionColumns(getPartitionedBy(tableMetadata.getProperties()))
-                                // TODO: please care about the ucTableId property when Unity catalog support creating managed tables
-                                .setConfiguration(configurationForNewTable(checkpointInterval, changeDataFeedEnabled, deletionVectorsEnabled, columnMappingMode, maxFieldId, inCommitTimestampEnabled))
-                                .setInCommitTimestamp(inCommitTimestamp)
-                                .build(),
+                        metadataEntry,
                         inCommitTimestamp);
 
                 transactionLogWriter.flush();
@@ -1531,7 +1532,11 @@ public class DeltaLakeMetadata
                     long lastKnownBackfilledVersion = isCatalogManagedTable(tableHandle.getProtocolEntry())
                             ? getMandatoryCurrentVersion(fileSystem, tableHandle.location(), tableHandle.getReadVersion())
                             : commitVersion;
-                    writeCheckpointIfNeeded(session, schemaTableName, location, tableHandle.toCredentialsHandle(), tableHandle.getReadVersion(), checkpointInterval, lastKnownBackfilledVersion);
+                    List<DeltaLakeColumnHandle> existingColumns = getColumns(tableHandle.getMetadataEntry(), tableHandle.getProtocolEntry());
+                    List<DeltaLakeColumnHandle> newColumns = getColumns(metadataEntry, protocolEntry);
+                    if (isNewCheckpointFileRequired(existingColumns, newColumns)) {
+                        writeCheckpoint(session, schemaTableName, location, tableHandle.toCredentialsHandle(), lastKnownBackfilledVersion);
+                    }
                 }
             }
         }
@@ -1796,9 +1801,11 @@ public class DeltaLakeMetadata
         OptionalLong readVersion = OptionalLong.empty();
         ProtocolEntry protocolEntry;
 
+        boolean isNewCheckpointFileRequired = false;
         if (replaceExistingTable) {
             protocolEntry = protocolEntryForTable(handle.getProtocolEntry().minReaderVersion(), handle.getProtocolEntry().minWriterVersion(), containsTimestampType, tableMetadata.getProperties(), containsVariantType);
             readVersion = OptionalLong.of(handle.getReadVersion());
+            isNewCheckpointFileRequired = isNewCheckpointFileRequired(getColumns(handle.getMetadataEntry(), handle.getProtocolEntry()), columnHandles.build());
         }
         else {
             TrinoFileSystem fileSystem = fileSystemFactory.create(session, location);
@@ -1822,6 +1829,7 @@ public class DeltaLakeMetadata
                 columnMappingMode,
                 maxFieldId,
                 replace,
+                isNewCheckpointFileRequired,
                 readVersion,
                 protocolEntry);
     }
@@ -2034,11 +2042,11 @@ public class DeltaLakeMetadata
             transactionLogWriter.flush();
             writeCommitted = true;
 
-            if (handle.replace() && handle.readVersion().isPresent()) {
+            if (handle.replace() && handle.readVersion().isPresent() && handle.isSchemaChanged()) {
                 long lastKnownBackfilledVersion = isCatalogManagedTable(handle.protocolEntry())
                         ? getMandatoryCurrentVersion(fileSystemFactory.create(session, handle.toCredentialsHandle()), handle.location(), handle.readVersion().getAsLong())
                         : commitVersion;
-                writeCheckpointIfNeeded(session, schemaTableName, handle.location(), handle.toCredentialsHandle(), handle.readVersion().getAsLong(), handle.checkpointInterval(), lastKnownBackfilledVersion);
+                writeCheckpoint(session, schemaTableName, location, handle.toCredentialsHandle(), lastKnownBackfilledVersion);
             }
 
             if (isCollectExtendedStatisticsColumnStatisticsOnWrite(session) && !computedStatistics.isEmpty()) {
@@ -3567,19 +3575,7 @@ public class DeltaLakeMetadata
             // This does not pose correctness issue but may be confusing if someone looks into transaction log.
             // To fix that we should allow for getting snapshot for given version.
 
-            TransactionLogReader transactionLogReader = new FileSystemTransactionLogReader(tableLocation, credentialsHandle, fileSystemFactory);
-            TableSnapshot snapshot = transactionLogAccess.loadSnapshot(session, transactionLogReader, table, tableLocation, Optional.of(newVersion), credentialsHandle);
-            checkpointWriterManager.writeCheckpoint(session, snapshot, credentialsHandle);
-
-            if (logRetentionDurationEnabled) {
-                TrinoFileSystem fileSystem = fileSystemFactory.create(session, credentialsHandle);
-                MetadataEntry metadataEntry = transactionLogAccess.getMetadataEntry(session, fileSystem, snapshot);
-                // remove old log files if log retention is set and expired log retention is enabled
-                if (isExpireLogRetentionEnabled(metadataEntry)) {
-                    Duration logRetentionDuration = getLogRetentionDuration(metadataEntry);
-                    cleanupExpiredTransactionLogs(fileSystem, logRetentionDuration.toMillis(), Location.of(getTransactionLogDir(tableLocation)), newVersion);
-                }
-            }
+            writeCheckpoint(session, table, tableLocation, credentialsHandle, newVersion);
         }
         catch (Exception e) {
             // We can't fail here as transaction was already committed, in case of INSERT this could result
@@ -3628,6 +3624,47 @@ public class DeltaLakeMetadata
         catch (IOException e) {
             throw new TrinoException(DELTA_LAKE_FILESYSTEM_ERROR, e);
         }
+    }
+
+    private void writeCheckpoint(ConnectorSession session, SchemaTableName table, String tableLocation, VendedCredentialsHandle credentialsHandle, long newVersion)
+            throws IOException
+    {
+        TransactionLogReader transactionLogReader = new FileSystemTransactionLogReader(tableLocation, credentialsHandle, fileSystemFactory);
+        TableSnapshot snapshot = transactionLogAccess.loadSnapshot(session, transactionLogReader, table, tableLocation, Optional.of(newVersion), credentialsHandle);
+        checkpointWriterManager.writeCheckpoint(session, snapshot, credentialsHandle);
+
+        if (logRetentionDurationEnabled) {
+            TrinoFileSystem fileSystem = fileSystemFactory.create(session, credentialsHandle);
+            MetadataEntry metadataEntry = transactionLogAccess.getMetadataEntry(session, fileSystem, snapshot);
+            // remove old log files if log retention is set and expired log retention is enabled
+            if (isExpireLogRetentionEnabled(metadataEntry)) {
+                Duration logRetentionDuration = getLogRetentionDuration(metadataEntry);
+                cleanupExpiredTransactionLogs(fileSystem, logRetentionDuration.toMillis(), Location.of(getTransactionLogDir(tableLocation)), newVersion);
+            }
+        }
+    }
+
+    private static boolean isNewCheckpointFileRequired(List<DeltaLakeColumnHandle> existingColumns, List<DeltaLakeColumnHandle> newColumns)
+    {
+        Map<String, Type> newColumnHandles = newColumns.stream()
+                .filter(column -> !isMetadataColumnHandle(column))
+                .collect(toImmutableMap(DeltaLakeColumnHandle::columnName, DeltaLakeColumnHandle::type));
+
+        for (DeltaLakeColumnHandle existingColumn : existingColumns) {
+            if (isMetadataColumnHandle(existingColumn)) {
+                continue;
+            }
+
+            if (!newColumnHandles.containsKey(existingColumn.columnName())) {
+                // remove/rename column requires creating a new checkpoint file
+                return true;
+            }
+            Type newType = newColumnHandles.get(existingColumn.columnName());
+            if (!existingColumn.type().equals(newType)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void cleanupFailedWrite(ConnectorSession session, VendedCredentialsHandle credentialsHandle, List<DataFileInfo> dataFiles)
