@@ -276,7 +276,8 @@ public class ElasticsearchMetadata
                     converted.type(),
                     field.type(),
                     converted.decoderDescriptor(),
-                    supportsPredicates(field.type(), converted.type) || delegate.isPresent()));
+                    supportsPredicates(field.type(), converted.type) || delegate.isPresent(),
+                    field.mappingConflict()));
         }
 
         return result.buildOrThrow();
@@ -537,6 +538,9 @@ public class ElasticsearchMetadata
         Map<ColumnHandle, Domain> domains = constraint.getSummary().getDomains().orElseThrow(() -> new IllegalArgumentException("constraint summary is NONE"));
         for (Map.Entry<ColumnHandle, Domain> entry : domains.entrySet()) {
             ElasticsearchColumnHandle column = (ElasticsearchColumnHandle) entry.getKey();
+            if (column.mappingConflict()) {
+                throw new TrinoException(NOT_SUPPORTED, "Cannot filter on column %s with mapping conflict (inconsistent types across selected index mappings).".formatted(column.name()));
+            }
 
             if (column.supportsPredicates()) {
                 supported.put(column, entry.getValue());

@@ -24,6 +24,7 @@ import io.trino.sql.planner.plan.FilterNode;
 import io.trino.testing.AbstractTestQueries;
 import io.trino.testing.BaseConnectorTest;
 import io.trino.testing.MaterializedResult;
+import io.trino.testing.QueryFailedException;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
 import org.elasticsearch.client.Request;
@@ -3102,7 +3103,7 @@ public abstract class BaseElasticsearchConnectorTest
 
         try {
             assertThatThrownBy(() -> computeActual("SELECT * FROM \"" + wildcardTable + "\""))
-                    .hasMessageContaining("Mappings conflict detected. Conflicting values in mappings for field isArray");
+                    .hasMessageContaining("Mappings conflict detected. Conflicting values in mappings for field \"isArray\"");
         }
         finally {
             deleteIndex(firstIndex);
@@ -3129,6 +3130,12 @@ public abstract class BaseElasticsearchConnectorTest
                     },
                     "optionalField": {
                       "type": "keyword"
+                    },
+                    "name": {
+                      "type": "text"
+                    },
+                    "conflict": {
+                      "type": "text"
                     }
                   }
                 }
@@ -3139,7 +3146,13 @@ public abstract class BaseElasticsearchConnectorTest
                 {
                   "properties": {
                     "id": {
+                      "type": "keyword"
+                    },
+                    "name": {
                       "type": "text"
+                    },
+                    "conflict": {
+                      "type": "integer"
                     }
                   }
                 }
@@ -3149,22 +3162,129 @@ public abstract class BaseElasticsearchConnectorTest
         index(firstIndex, ImmutableMap.<String, Object>builder()
                 .put("id", "id1")
                 .put("optionalField", "Yes")
+                .put("name", "a")
+                .put("conflict", "aa")
                 .buildOrThrow());
 
         createIndex(secondIndex, mappings2);
         index(secondIndex, ImmutableMap.<String, Object>builder()
                 .put("id", "id2")
+                .put("name", "b")
+                .put("conflict", 12)
                 .buildOrThrow());
 
         createIndex(thirdIndex, mappings);
         index(thirdIndex, ImmutableMap.<String, Object>builder()
                 .put("id", "id4")
                 .put("optionalField", "No")
+                .put("name", "c")
+                .put("conflict", "c")
                 .buildOrThrow());
 
         try {
-            assertThatThrownBy(() -> computeActual("SELECT * FROM \"" + wildcardTable + "\""))
-                    .hasMessageContaining("Mappings conflict detected. Conflicting values in mappings for field type");
+            assertThat(query("SELECT name, optionalField FROM \"" + wildcardTable + "\" where id='id1'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('a', 'Yes')")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT name, optionalField FROM \"" + wildcardTable + "\" where id='id2'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('b', null)")
+                    .isFullyPushedDown();
+
+            assertThat(query("SELECT conflict, name FROM \"" + wildcardTable + "\" where id='id1'"))
+                    .failure()
+                    .isInstanceOf(QueryFailedException.class)
+                    .hasMessageContaining("Querying the following columns is not supported due to type mapping conflicts");
+
+            assertThat(query("SELECT * FROM \"" + wildcardTable + "\" where id='id1'"))
+                    .failure()
+                    .isInstanceOf(QueryFailedException.class)
+                    .hasMessageContaining("Querying the following columns is not supported due to type mapping conflicts");
+
+            assertThat(query("SELECT name FROM \"" + wildcardTable + "\" where conflict ='id1'"))
+                    .failure()
+                    .isInstanceOf(QueryFailedException.class)
+                    .hasMessageContaining("Cannot filter on column conflict with mapping conflict (inconsistent types across selected index mappings).");
+        }
+        finally {
+            deleteIndex(firstIndex);
+            deleteIndex(secondIndex);
+            deleteIndex(thirdIndex);
+        }
+    }
+
+    @Test
+    public void testWildcardTableWithPartialIncompatibleMappings()
+            throws IOException
+    {
+        String suffix = randomNameSuffix();
+        String firstIndex = format("test_wildcard_%s_1", suffix);
+        String secondIndex = format("test_wildcard_%s_2", suffix);
+        String thirdIndex = format("test_wildcard_%s_3", suffix);
+        String wildcardTable = format("test_wildcard_%s_*", suffix);
+
+        @Language("JSON")
+        String mappings = """
+                {
+                  "properties": {
+                    "date1": {
+                      "type": "date"
+                    },
+                    "date2": {
+                      "type": "date"
+                    },
+                    "name": {
+                      "type": "text"
+                    }
+                  }
+                }
+                """;
+
+        @Language("JSON")
+        String mappings2 = """
+                {
+                  "properties": {
+                    "date1": {
+                      "type": "text"
+                    },
+                    "date2": {
+                      "type": "date"
+                    },
+                    "name": {
+                      "type": "text"
+                    }
+                  }
+                }
+                """;
+
+        createIndex(firstIndex, mappings);
+        index(firstIndex, ImmutableMap.<String, Object>builder()
+                .put("date1", "2015-01-01T12:10:30Z")
+                .put("date2", "2015-02-01")
+                .put("name", "a")
+                .buildOrThrow());
+
+        createIndex(secondIndex, mappings2);
+        index(secondIndex, ImmutableMap.<String, Object>builder()
+                .put("date1", "2015-01-01T12:10:30Z")
+                .put("date2", "2015-03-01")
+                .put("name", "b")
+                .buildOrThrow());
+
+        createIndex(thirdIndex, mappings);
+        index(thirdIndex, ImmutableMap.<String, Object>builder()
+                .put("date1", "2014-01-01T12:10:30Z")
+                .put("date2", "2014-02-01")
+                .put("name", "c")
+                .buildOrThrow());
+
+        try {
+
+            assertThat(query("SELECT name FROM \"" + wildcardTable + "\" where date2 > TIMESTAMP '2015-01-01'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES ('a'), ('b')")
+                    .isFullyPushedDown();
         }
         finally {
             deleteIndex(firstIndex);

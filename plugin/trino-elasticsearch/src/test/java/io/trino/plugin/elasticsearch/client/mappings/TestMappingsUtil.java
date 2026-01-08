@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import org.junit.jupiter.api.Test;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.plugin.base.util.JsonUtils.parseJson;
 import static io.trino.plugin.elasticsearch.client.mappings.MappingsUtil.union;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -357,7 +358,8 @@ final class TestMappingsUtil
     }
 
     @Test
-    void testShouldComplainWhenFieldsHaveDifferentValues()
+    void testShouldCreateConflictTypeForInconsistentMappingForField()
+            throws MergingMappingException
     {
         String mappings1 = """
                 {
@@ -375,16 +377,63 @@ final class TestMappingsUtil
                 {
                   "mappings": {
                     "properties": {
-                      "age":    { "type": "integer" },
-                      "email":  { "type": "keyword"  },
-                      "name":   { "type": "fullname"  }
+                      "age":    { "type": "long" },
+                      "email":  { "type": "string"  },
+                      "name":   { "type": "keyword"  }
+                    }
+                  }
+                }
+                """;
+
+        String expectedMappings = """
+                {
+                  "mappings": {
+                    "properties": {
+                      "age":    { "type": ["integer","long"] },
+                      "email":  { "type": ["keyword","string"]  },
+                      "name":   { "type": ["keyword", "text"]  }
+                    }
+                  }
+                }
+                """;
+
+        assertUnion(ImmutableList.of(mappings1, mappings2), expectedMappings);
+        assertUnion(ImmutableList.of(mappings2, mappings1), expectedMappings);
+        assertUnion(ImmutableList.of(mappings1, mappings2, mappings1), expectedMappings);
+        assertUnion(ImmutableList.of(mappings1, mappings2, mappings1, mappings1, mappings1), expectedMappings);
+        assertUnion(ImmutableList.of(mappings1, mappings2, mappings1, mappings2, mappings2), expectedMappings);
+        assertUnion(ImmutableList.of(mappings2, mappings2, mappings2, mappings1), expectedMappings);
+    }
+
+    @Test
+    void testShouldNotCreteConfComplainOnNotCompatibleFields()
+    {
+        String mappings1 = """
+                {
+                  "mappings": {
+                    "properties": {
+                      "age":    { "type1": "integer" },
+                      "email":  { "type2": "keyword"  },
+                      "name":   { "type": "text"  }
+                    }
+                  }
+                }
+                """;
+
+        String mappings2 = """
+                {
+                  "mappings": {
+                    "properties": {
+                      "age":    { "type1": "string" },
+                      "email":  { "type2": "keyword"  },
+                      "name":   { "type": "text"  }
                     }
                   }
                 }
                 """;
 
         assertThatThrownBy(() -> union(ImmutableList.of(parseJson(mappings1, JsonNode.class), parseJson(mappings2, JsonNode.class))))
-                .hasMessage("Mappings conflict detected. Conflicting values in mappings for field type are: \"text\" and \"fullname\"");
+                .hasMessage("Mappings conflict detected. Conflicting values in mappings for field \"type1\" are: \"integer\" and \"string\"");
     }
 
     @Test
@@ -415,13 +464,19 @@ final class TestMappingsUtil
                 """;
 
         assertThatThrownBy(() -> union(ImmutableList.of(parseJson(mappings1, JsonNode.class), parseJson(mappings2, JsonNode.class))))
-                .hasMessage("Mappings conflict detected. Conflicting values in mappings for field name are: \"text\" and {\"type\":\"text\"}");
+                .hasMessage("Mappings conflict detected. Conflicting values in mappings for field \"name\" are: \"text\" and {\"type\":\"text\"}");
     }
 
     private static void assertUnion(String json1, String json2, String expected)
             throws MergingMappingException
     {
-        JsonNode actual = union(ImmutableList.of(parseJson(json1, JsonNode.class), parseJson(json2, JsonNode.class)));
+        assertUnion(ImmutableList.of(json1, json2), expected);
+    }
+
+    private static void assertUnion(ImmutableList<String> jsons, String expected)
+            throws MergingMappingException
+    {
+        JsonNode actual = union(jsons.stream().map(json -> parseJson(json, JsonNode.class)).collect(toImmutableList()));
         assertThat(actual).isEqualTo(parseJson(expected, JsonNode.class));
     }
 }

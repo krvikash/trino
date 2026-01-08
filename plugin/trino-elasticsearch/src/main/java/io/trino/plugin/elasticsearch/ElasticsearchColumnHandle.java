@@ -31,9 +31,22 @@ public record ElasticsearchColumnHandle(
         Type type,
         IndexMetadata.Type elasticsearchType,
         DecoderDescriptor decoderDescriptor,
-        boolean supportsPredicates)
+        boolean supportsPredicates,
+        boolean mappingConflict)
+
         implements ColumnHandle
 {
+    public ElasticsearchColumnHandle(
+            List<String> path,
+            Optional<String> delegatedField,
+            Type type,
+            IndexMetadata.Type elasticsearchType,
+            DecoderDescriptor decoderDescriptor,
+            boolean supportsPredicates)
+    {
+        this(path, delegatedField, type, elasticsearchType, decoderDescriptor, supportsPredicates, false);
+    }
+
     public ElasticsearchColumnHandle(
             List<String> path,
             Type type,

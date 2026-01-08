@@ -503,8 +503,22 @@ public class ElasticsearchClient
 
             //default type is object
             String type = "object";
+            boolean mappingConflictField = false;
             if (value.has("type")) {
-                type = value.get("type").asText();
+                JsonNode typeNode = value.get("type");
+                // handle mapping conflicts where multiple types are defined for the same field
+                if (typeNode.isArray()) {
+                    mappingConflictField = true;
+                    type = "text";
+                    // In case of mapping conflicts there could be multiple concrete types for the same field.
+                    // We deliberately treat such fields as "text" because it would map naturally to Trino VARCHAR and can
+                    // accommodate heterogeneous values more safely than a narrower numeric or date type would. This
+                    // avoids failing metadata extraction while still allowing to process the query, even though the
+                    // underlying mapping is inconsistent. However, currently we do not allow such fields to be used in projections or filters.
+                }
+                else {
+                    type = typeNode.asText();
+                }
             }
             JsonNode metaNode = nullSafeNode(metaProperties, name);
             boolean isArray = !metaNode.isNull() && metaNode.has("isArray") && metaNode.get("isArray").asBoolean();
@@ -551,7 +565,7 @@ public class ElasticsearchClient
                     break;
 
                 default:
-                    result.add(new IndexMetadata.Field(asRawJson, isArray, name, new IndexMetadata.PrimitiveType(type), multiFields));
+                    result.add(new IndexMetadata.Field(asRawJson, isArray, name, new IndexMetadata.PrimitiveType(type), multiFields, mappingConflictField));
             }
         }
 

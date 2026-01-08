@@ -19,6 +19,7 @@ import io.airlift.log.Logger;
 import io.trino.plugin.elasticsearch.client.ElasticsearchClient;
 import io.trino.plugin.elasticsearch.decoders.Decoder;
 import io.trino.spi.Page;
+import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.PageBuilderStatus;
@@ -43,6 +44,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.plugin.elasticsearch.BuiltinColumns.SOURCE;
 import static io.trino.plugin.elasticsearch.BuiltinColumns.isBuiltinColumn;
 import static io.trino.plugin.elasticsearch.ElasticsearchQueryBuilder.buildSearchQuery;
+import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Predicate.isEqual;
@@ -73,6 +75,8 @@ public class ScanQueryPageSource
         requireNonNull(columns, "columns is null");
 
         this.columns = ImmutableList.copyOf(columns);
+
+        checkTypeMappingConflicts(columns);
 
         decoders = createDecoders(columns);
 
@@ -119,6 +123,18 @@ public class ScanQueryPageSource
                 table.limit());
         readTimeNanos += System.nanoTime() - start;
         this.iterator = new SearchHitIterator(client, () -> searchResponse, table.limit());
+    }
+
+    private static void checkTypeMappingConflicts(List<ElasticsearchColumnHandle> columns)
+    {
+        List<String> conflictingColumns = columns.stream()
+                .filter(ElasticsearchColumnHandle::mappingConflict)
+                .map(ElasticsearchColumnHandle::name)
+                .collect(toImmutableList());
+
+        if (!conflictingColumns.isEmpty()) {
+            throw new TrinoException(NOT_SUPPORTED, "Querying the following columns is not supported due to type mapping conflicts: " + String.join(", ", conflictingColumns));
+        }
     }
 
     @Override
