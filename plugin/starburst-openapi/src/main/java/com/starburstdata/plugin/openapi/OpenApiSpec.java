@@ -85,7 +85,6 @@ public class OpenApiSpec
     private static final Logger log = Logger.get(OpenApiSpec.class);
 
     public static final String SCHEMA_NAME = "default";
-    public static final String ROW_ID = "__trino_row_id";
     public static final String HTTP_OK = "200";
     public static final String MIME_JSON = "application/json";
 
@@ -322,18 +321,6 @@ public class OpenApiSpec
         Stream<OpenApiColumn> columns = pathItem.readOperationsMap().entrySet().stream()
                 .flatMap(entry -> getColumn(path, entry))
                 .distinct();
-        if (pathItem.getPost() != null || pathItem.getPut() != null || pathItem.getDelete() != null) {
-            // the ROW_ID column is required for MERGE operation, including UPDATE and DELETE
-            return Stream.concat(
-                            Stream.of(OpenApiColumn.builder()
-                                    .setName(ROW_ID)
-                                    .setType(VARCHAR)
-                                    .setSourceType(new StringSchema())
-                                    .setIsHidden(true)
-                                    .build()),
-                            columns)
-                    .toList();
-        }
         return columns.toList();
     }
 

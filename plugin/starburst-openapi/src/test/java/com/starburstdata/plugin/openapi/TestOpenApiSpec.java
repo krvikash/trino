@@ -100,11 +100,6 @@ final class TestOpenApiSpec
         assertThat(orgColumns)
                 .containsExactly(
                         OpenApiColumn.builder()
-                                .setName("__trino_row_id")
-                                .setType(VARCHAR).setSourceType(stringSchema)
-                                .setIsHidden(true)
-                                .build(),
-                        OpenApiColumn.builder()
                                 .setName("login").setSourceName("login")
                                 .setType(VARCHAR).setSourceType(stringSchema)
                                 .build(),
@@ -614,11 +609,6 @@ final class TestOpenApiSpec
         assertThat(columns)
                 .containsExactly(
                         OpenApiColumn.builder()
-                                .setName("__trino_row_id")
-                                .setType(VARCHAR).setSourceType(stringSchema)
-                                .setIsHidden(true)
-                                .build(),
-                        OpenApiColumn.builder()
                                 .setName("expand").setSourceName("expand")
                                 .setType(VARCHAR).setSourceType(stringSchema)
                                 .setOptionalPredicate(Map.of(new HttpPath(PathItem.HttpMethod.GET, path), ParameterLocation.QUERY))
@@ -789,11 +779,6 @@ final class TestOpenApiSpec
         assertThat(petColumns)
                 .containsExactly(
                         OpenApiColumn.builder()
-                                .setName("__trino_row_id")
-                                .setType(VARCHAR).setSourceType(stringSchema)
-                                .setIsHidden(true)
-                                .build(),
-                        OpenApiColumn.builder()
                                 .setName("id").setSourceName("id")
                                 .setType(BIGINT).setSourceType(intSchema)
                                 .setOptionalPredicate(Map.of(
@@ -914,11 +899,6 @@ final class TestOpenApiSpec
         assertThat(columns)
                 .containsExactly(
                         OpenApiColumn.builder()
-                                .setName("__trino_row_id")
-                                .setType(VARCHAR).setSourceType(stringSchema)
-                                .setIsHidden(true)
-                                .build(),
-                        OpenApiColumn.builder()
                                 .setName("data").setSourceName("data")
                                 .setType(dataType).setSourceType(objectSchema)
                                 .setIsNullable(true)
@@ -998,11 +978,6 @@ final class TestOpenApiSpec
                 RowType.field("total_count", createDecimalType(18, 8))));
         assertThat(columns)
                 .containsExactly(
-                        OpenApiColumn.builder()
-                                .setName("__trino_row_id")
-                                .setType(VARCHAR).setSourceType(stringSchema)
-                                .setIsHidden(true)
-                                .build(),
                         OpenApiColumn.builder()
                                 .setName("errors").setSourceName("errors")
                                 .setType(new ArrayType(RowType.from(List.of(
@@ -1465,11 +1440,6 @@ final class TestOpenApiSpec
                 .toList();
         assertThat(columns)
                 .containsExactly(
-                        OpenApiColumn.builder()
-                                .setName("__trino_row_id")
-                                .setType(VARCHAR).setSourceType(stringSchema)
-                                .setIsHidden(true)
-                                .build(),
                         OpenApiColumn.builder()
                                 .setName("id").setSourceName("id")
                                 .setType(BIGINT).setSourceType(intSchema)

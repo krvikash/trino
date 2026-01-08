@@ -78,7 +78,6 @@ import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
 import static com.google.common.net.HttpHeaders.USER_AGENT;
 import static com.google.common.net.MediaType.JSON_UTF_8;
 import static com.starburstdata.plugin.openapi.OpenApiErrorCode.OPENAPI_INVALID_FILTER;
-import static com.starburstdata.plugin.openapi.OpenApiSpec.ROW_ID;
 import static io.airlift.http.client.StaticBodyGenerator.createStaticBodyGenerator;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static io.trino.spi.type.DecimalConversions.longDecimalToDouble;
@@ -528,11 +527,6 @@ public class OpenApiClient
         for (JsonNode resultNode : resultNodes) {
             List<Object> recordBuilder = new ArrayList<>();
             for (OpenApiColumn column : columns) {
-                if (column.getName().equals(ROW_ID)) {
-                    // TODO this is dangerous, make it configurable and required?
-                    recordBuilder.add(params.values().stream().findFirst().map(Object::toString).orElse(null));
-                    continue;
-                }
                 String parameterName = column.getSourceName();
                 if (resultsPointer != null) {
                     recordBuilder.add(
