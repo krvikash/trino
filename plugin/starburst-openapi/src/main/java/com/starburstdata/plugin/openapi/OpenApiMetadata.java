@@ -103,13 +103,6 @@ public class OpenApiMetadata
                 .collect(toMap(OpenApiColumn::getName, OpenApiColumn::getHandle));
     }
 
-    public Map<String, OpenApiColumnHandle> getColumnHandles(ConnectorTableHandle connectorTableHandle)
-    {
-        OpenApiTableHandle tableHandle = (OpenApiTableHandle) connectorTableHandle;
-        return spec.getTables().get(tableHandle.schemaTableName().getTableName()).stream()
-                .collect(toMap(OpenApiColumn::getName, OpenApiColumn::getHandle));
-    }
-
     public Map<String, OpenApiColumn> getColumns(ConnectorTableHandle connectorTableHandle)
     {
         OpenApiTableHandle tableHandle = (OpenApiTableHandle) connectorTableHandle;
