@@ -87,9 +87,6 @@ final class TestOpenApiSpec
         OpenApiTableHandle orgsTableHandle = spec.getTableHandle(schemaTableName(SCHEMA_NAME, "orgs"));
         String paramsPath = "/orgs/{org}";
         assertThat(orgsTableHandle.selectPaths()).containsExactly("/orgs/{org}");
-        assertThat(orgsTableHandle.insertPaths()).isEmpty();
-        assertThat(orgsTableHandle.updatePaths()).isEmpty();
-        assertThat(orgsTableHandle.deletePaths()).containsExactly("/orgs/{org}");
         List<OpenApiColumn> orgColumns = tables.get("orgs").stream()
                 .map(column -> {
                     // compare only source types, so rebuild it without any other attribute
@@ -452,9 +449,6 @@ final class TestOpenApiSpec
         String listPath = "/repos/{owner}/{repo}/actions/workflows";
         String onePath = "/repos/{owner}/{repo}/actions/workflows/{workflow_id}";
         assertThat(workflowTableHandle.selectPaths()).containsExactly(listPath, onePath);
-        assertThat(workflowTableHandle.insertPaths()).isEmpty();
-        assertThat(workflowTableHandle.updatePaths()).isEmpty();
-        assertThat(workflowTableHandle.deletePaths()).isEmpty();
         List<OpenApiColumn> workflowColumns = tables.get("repos_actions_workflows").stream()
                 .map(column -> {
                     // compare only source types, so rebuild it without any other attribute
@@ -580,9 +574,6 @@ final class TestOpenApiSpec
         OpenApiTableHandle tableHandle = spec.getTableHandle(schemaTableName(SCHEMA_NAME, "rest_api_3_search"));
         String path = "/rest/api/3/search";
         assertThat(tableHandle.selectPaths()).containsExactly(path);
-        assertThat(tableHandle.insertPaths()).containsExactly(path);
-        assertThat(tableHandle.updatePaths()).containsExactly(path);
-        assertThat(tableHandle.deletePaths()).isEmpty();
         List<OpenApiColumn> columns = tables.get("rest_api_3_search").stream()
                 .map(column -> {
                     // compare only source types, so rebuild it without any other attribute
@@ -780,9 +771,6 @@ final class TestOpenApiSpec
         String listPath = "/pet";
         String onePath = "/pet/{petId}";
         assertThat(tableHandle.selectPaths()).containsExactly(onePath);
-        assertThat(tableHandle.insertPaths()).containsExactly(listPath, onePath);
-        assertThat(tableHandle.updatePaths()).containsExactly(listPath, onePath);
-        assertThat(tableHandle.deletePaths()).containsExactly(onePath);
         List<OpenApiColumn> petColumns = tables.get("pet").stream()
                 .map(column -> {
                     // compare only source types, so rebuild it without any other attribute
@@ -887,9 +875,6 @@ final class TestOpenApiSpec
         OpenApiTableHandle tableHandle = spec.getTableHandle(schemaTableName(SCHEMA_NAME, "api_v2_query_timeseries"));
         String path = "/api/v2/query/timeseries";
         assertThat(tableHandle.selectPaths()).containsExactly(path);
-        assertThat(tableHandle.insertPaths()).containsExactly(path);
-        assertThat(tableHandle.updatePaths()).containsExactly(path);
-        assertThat(tableHandle.deletePaths()).isEmpty();
         List<OpenApiColumn> columns = tables.get("api_v2_query_timeseries").stream()
                 .map(column -> {
                     // compare only source types, so rebuild it without any other attribute
@@ -969,9 +954,6 @@ final class TestOpenApiSpec
         String listPath = "/zones";
         String onePath = "/zones/{identifier}";
         assertThat(tableHandle.selectPaths()).containsExactly(listPath, onePath);
-        assertThat(tableHandle.insertPaths()).containsExactly(listPath);
-        assertThat(tableHandle.updatePaths()).containsExactly(listPath);
-        assertThat(tableHandle.deletePaths()).containsExactly(onePath);
         List<OpenApiColumn> columns = tables.get("zones").stream()
                 .map(column -> {
                     // compare only source types, so rebuild it without any other attribute
@@ -1205,9 +1187,6 @@ final class TestOpenApiSpec
         OpenApiTableHandle tableHandle = spec.getTableHandle(schemaTableName(SCHEMA_NAME, "v1_forecast"));
         String path = "/v1/forecast";
         assertThat(tableHandle.selectPaths()).containsExactly(path);
-        assertThat(tableHandle.insertPaths()).isEmpty();
-        assertThat(tableHandle.updatePaths()).isEmpty();
-        assertThat(tableHandle.deletePaths()).isEmpty();
         List<OpenApiColumn> columns = tables.get("v1_forecast").stream()
                 .map(column -> {
                     // compare only source types, so rebuild it without any other attribute
@@ -1471,9 +1450,6 @@ final class TestOpenApiSpec
         String postPath = "/namespaces/{namespace}/indexes/{index}/search";
         OpenApiTableHandle tableHandle = spec.getTableHandle(schemaTableName(SCHEMA_NAME, "namespaces_indexes_search"));
         assertThat(tableHandle.selectPaths()).containsExactly(postPath);
-        assertThat(tableHandle.insertPaths()).containsExactly(postPath);
-        assertThat(tableHandle.updatePaths()).containsExactly(postPath);
-        assertThat(tableHandle.deletePaths()).isEmpty();
 
         Set<String> expected = Set.of("namespaces_indexes_search");
         assertThat(tables.keySet()).containsAll(expected);

@@ -204,10 +204,7 @@ public class OpenApiSpec
         this.handles.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
                 .flatMap(entry -> Stream.concat(Stream.of(
-                        "SELECT FROM " + entry.getKey() + " maps to: " + pathsToString(entry.getValue().selectMethod(), entry.getValue().selectPaths()),
-                        "INSERT INTO " + entry.getKey() + " maps to: " + pathsToString(entry.getValue().insertMethod(), entry.getValue().insertPaths()),
-                        "UPDATE " + entry.getKey() + " maps to: " + pathsToString(entry.getValue().updateMethod(), entry.getValue().updatePaths()),
-                        "DELETE FROM " + entry.getKey() + " maps to: " + pathsToString(entry.getValue().deleteMethod(), entry.getValue().deletePaths())),
+                        "SELECT FROM " + entry.getKey() + " maps to: " + pathsToString(entry.getValue().selectMethod(), entry.getValue().selectPaths())),
                         this.tables.get(entry.getKey()).stream().filter(column -> !column.getRequiresPredicate().isEmpty() || !column.getOptionalPredicate().isEmpty())
                                 .map(column -> entry.getKey() + "." + column.getName() + " is " +
                                         (column.isPageNumber() ? "the page number, " : "") +
@@ -821,13 +818,6 @@ public class OpenApiSpec
                 // some APIs use POST to query resources
                 tablePaths.containsKey(PathItem.HttpMethod.GET) ? tablePaths.get(PathItem.HttpMethod.GET) : firstNonNull(tablePaths.get(PathItem.HttpMethod.POST), ImmutableList.of()),
                 tablePaths.containsKey(PathItem.HttpMethod.GET) ? PathItem.HttpMethod.GET : PathItem.HttpMethod.POST,
-                firstNonNull(tablePaths.get(PathItem.HttpMethod.POST), ImmutableList.of()),
-                PathItem.HttpMethod.POST,
-                // some APIs use POST to update resources, or both PUT and POST, with an identifier as a required query parameter or in the body
-                tablePaths.containsKey(PathItem.HttpMethod.PUT) ? tablePaths.get(PathItem.HttpMethod.PUT) : firstNonNull(tablePaths.get(PathItem.HttpMethod.POST), ImmutableList.of()),
-                tablePaths.containsKey(PathItem.HttpMethod.PUT) ? PathItem.HttpMethod.PUT : PathItem.HttpMethod.POST,
-                firstNonNull(tablePaths.get(PathItem.HttpMethod.DELETE), ImmutableList.of()),
-                PathItem.HttpMethod.DELETE,
                 TupleDomain.none());
     }
 

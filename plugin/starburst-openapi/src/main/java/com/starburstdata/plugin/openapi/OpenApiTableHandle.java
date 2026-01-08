@@ -37,12 +37,6 @@ public record OpenApiTableHandle(
         SchemaTableName schemaTableName,
         List<String> selectPaths,
         PathItem.HttpMethod selectMethod,
-        List<String> insertPaths,
-        PathItem.HttpMethod insertMethod,
-        List<String> updatePaths,
-        PathItem.HttpMethod updateMethod,
-        List<String> deletePaths,
-        PathItem.HttpMethod deleteMethod,
         TupleDomain<ColumnHandle> constraint)
         implements ConnectorTableHandle
 {
@@ -51,13 +45,6 @@ public record OpenApiTableHandle(
         requireNonNull(schemaTableName, "schemaTableName is null");
         selectPaths = ImmutableList.copyOf(selectPaths);
         requireNonNull(selectMethod, "selectMethod is null");
-        insertPaths = ImmutableList.copyOf(insertPaths);
-        requireNonNull(insertMethod, "insertMethod is null");
-        updatePaths = ImmutableList.copyOf(updatePaths);
-        requireNonNull(updateMethod, "updateMethod is null");
-        deletePaths = ImmutableList.copyOf(deletePaths);
-        requireNonNull(deleteMethod, "deleteMethod is null");
-        requireNonNull(constraint, "constraint is null");
     }
 
     @Override
@@ -72,12 +59,6 @@ public record OpenApiTableHandle(
                 schemaTableName,
                 selectPaths,
                 selectMethod,
-                insertPaths,
-                insertMethod,
-                updatePaths,
-                updateMethod,
-                deletePaths,
-                deleteMethod,
                 constraint);
     }
 
