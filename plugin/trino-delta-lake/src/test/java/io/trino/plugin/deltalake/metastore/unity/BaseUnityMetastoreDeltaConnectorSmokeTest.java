@@ -58,7 +58,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
             .handleIf(throwable -> Throwables.getRootCause(throwable) instanceof SQLException)
             .handleIf(throwable -> Pattern.compile(DATABRICKS_COMMUNICATION_FAILURE_MATCH).matcher(Throwables.getRootCause(throwable).getMessage()).find())
             .withBackoff(1, 10, ChronoUnit.SECONDS)
-            .withMaxRetries(3)
+            .withMaxRetries(30)
             .onRetry(event -> LOG.warn(event.getLastException(), "Query failed on attempt %d, will retry.", event.getAttemptCount()))
             .build();
 
