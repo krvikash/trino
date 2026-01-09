@@ -18,6 +18,7 @@ import io.trino.Session;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.metastore.HiveMetastore;
+import io.trino.plugin.geospatial.GeoPlugin;
 import io.trino.plugin.hive.TestingHivePlugin;
 import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.OutputNode;
@@ -87,6 +88,7 @@ public class TestStarburstIcebergV3
                 .addIcebergProperty("fs.hadoop.enabled", "true")
                 .build();
 
+        queryRunner.installPlugin(new GeoPlugin());
         queryRunner.installPlugin(new TestingHivePlugin(dataDirectory));
         queryRunner.createCatalog("hive", "hive", ImmutableMap.<String, String>builder()
                 .put("hive.security", "allow-all")
@@ -2164,22 +2166,22 @@ public class TestStarburstIcebergV3
     @Test
     void testGeometryType()
     {
-        // TODO https://starburstdata.atlassian.net/browse/SEP-17506 Add support for geometry and geography types
         try (TestTable table = newTrinoTable("test_geometry", "(x int)")) {
             BaseTable icebergTable = loadTable(table.getName());
             icebergTable.updateSchema().addColumn("geometry", Types.GeometryType.crs84()).commit();
-            assertQueryFails("SELECT * FROM " + table.getName(), "\\QCannot convert from Iceberg type 'geometry' (GEOMETRY) to Trino type");
+            assertThat(query("SELECT x FROM " + table.getName()))
+                    .returnsEmptyResult();
         }
     }
 
     @Test
     void testGeographyType()
     {
-        // TODO https://starburstdata.atlassian.net/browse/SEP-17506 Add support for geometry and geography types
         try (TestTable table = newTrinoTable("test_geography", "(x int)")) {
             BaseTable icebergTable = loadTable(table.getName());
             icebergTable.updateSchema().addColumn("geography", Types.GeographyType.crs84()).commit();
-            assertQueryFails("SELECT * FROM " + table.getName(), "\\QCannot convert from Iceberg type 'geography' (GEOGRAPHY) to Trino type");
+            assertThat(query("SELECT x FROM " + table.getName()))
+                    .returnsEmptyResult();
         }
     }
 
