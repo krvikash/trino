@@ -829,7 +829,7 @@ public class ElasticsearchMetadata
         return switch (trinoType) {
             case TimestampType _, BooleanType _, TinyintType _, SmallintType _, IntegerType _, BigintType _, RealType _ -> true;
             case DoubleType _ -> !(type instanceof ScaledFloatType);
-            case VarcharType _ when type instanceof PrimitiveType primitiveType && primitiveType.name().toLowerCase(ENGLISH).equals("keyword") -> true;
+            case VarcharType _ when type instanceof PrimitiveType(String name) && name.toLowerCase(ENGLISH).equals("keyword") -> true;
             default -> false;
         };
     }
