@@ -28,7 +28,7 @@ import io.trino.spi.type.TypeOperatorDeclaration;
 import io.trino.spi.type.TypeOperators;
 import io.trino.spi.type.TypeSignature;
 
-import static io.trino.geospatial.serde.GeometrySerde.deserialize;
+import static io.trino.geospatial.serde.JtsGeometrySerde.deserialize;
 import static io.trino.spi.function.OperatorType.EQUAL;
 import static io.trino.spi.function.OperatorType.HASH_CODE;
 import static io.trino.spi.function.OperatorType.IDENTICAL;
@@ -119,7 +119,7 @@ public class GeometryType
             return null;
         }
         try {
-            return deserialize(getSlice(block, position)).asText();
+            return deserialize(getSlice(block, position)).toText();
         }
         catch (Exception e) {
             return "<invalid geometry>";
