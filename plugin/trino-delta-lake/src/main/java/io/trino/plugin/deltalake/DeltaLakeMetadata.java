@@ -1508,6 +1508,7 @@ public class DeltaLakeMetadata
                     protocolEntry = protocolEntryForTable(DEFAULT_READER_VERSION, DEFAULT_WRITER_VERSION, containsTimestampType, tableMetadata.getProperties(), containsVariantType);
                 }
 
+                OptionalLong inCommitTimestamp = inCommitTimestampEnabled.orElse(false) ? OptionalLong.of(System.currentTimeMillis()) : OptionalLong.empty();
                 appendTableEntries(
                         commitVersion,
                         transactionLogWriter,
@@ -1519,8 +1520,10 @@ public class DeltaLakeMetadata
                                 .setSchemaString(serializeSchemaAsJson(deltaTable.build()))
                                 .setPartitionColumns(getPartitionedBy(tableMetadata.getProperties()))
                                 // TODO: please care about the ucTableId property when Unity catalog support creating managed tables
-                                .setConfiguration(configurationForNewTable(checkpointInterval, changeDataFeedEnabled, deletionVectorsEnabled, columnMappingMode, maxFieldId, inCommitTimestampEnabled)),
-                        inCommitTimestampEnabled.orElse(false) ? OptionalLong.of(System.currentTimeMillis()) : OptionalLong.empty());
+                                .setConfiguration(configurationForNewTable(checkpointInterval, changeDataFeedEnabled, deletionVectorsEnabled, columnMappingMode, maxFieldId, inCommitTimestampEnabled))
+                                .setInCommitTimestamp(inCommitTimestamp)
+                                .build(),
+                        inCommitTimestamp);
 
                 transactionLogWriter.flush();
 
@@ -2000,6 +2003,8 @@ public class DeltaLakeMetadata
                 }
                 transactionLogWriter = transactionLogWriterFactory.createFileSystemWriter(session, location, VendedCredentialsHandle.empty(location));
             }
+
+            OptionalLong inCommitTimestamp = handle.inCommitTimestampEnabled().orElse(false) ? OptionalLong.of(System.currentTimeMillis()) : OptionalLong.empty();
             appendTableEntries(
                     commitVersion,
                     transactionLogWriter,
@@ -2010,8 +2015,10 @@ public class DeltaLakeMetadata
                             .setDescription(handle.comment())
                             .setSchemaString(schemaString)
                             .setPartitionColumns(handle.partitionedBy())
-                            .setConfiguration(configurationForNewTable(handle.checkpointInterval(), handle.changeDataFeedEnabled(), handle.deletionVectorsEnabled(), columnMappingMode, handle.maxColumnId(), handle.inCommitTimestampEnabled())),
-                    handle.inCommitTimestampEnabled().orElse(false) ? OptionalLong.of(System.currentTimeMillis()) : OptionalLong.empty());
+                            .setConfiguration(configurationForNewTable(handle.checkpointInterval(), handle.changeDataFeedEnabled(), handle.deletionVectorsEnabled(), columnMappingMode, handle.maxColumnId(), handle.inCommitTimestampEnabled()))
+                            .setInCommitTimestamp(inCommitTimestamp)
+                            .build(),
+                    inCommitTimestamp);
             appendAddFileEntries(transactionLogWriter, dataFileInfos, physicalPartitionNames, columnNames, true);
             if (handle.readVersion().isPresent()) {
                 long writeTimestamp = Instant.now().toEpochMilli();
@@ -2117,6 +2124,7 @@ public class DeltaLakeMetadata
         try {
             long commitVersion = handle.getReadVersion() + 1;
 
+            OptionalLong inCommitTimestamp = getNextInCommitTimestamp(inCommitTimestampEnabled(metadataEntry, protocolEntry), handle.getReadVersion(), fileSystemFactory.create(session, handle), handle.getLocation());
             TransactionLogWriter transactionLogWriter = transactionLogWriterFactory.createWriter(session, handle);
             appendTableEntries(
                     commitVersion,
@@ -2125,8 +2133,10 @@ public class DeltaLakeMetadata
                     session,
                     protocolEntry,
                     MetadataEntry.builder(handle.getMetadataEntry())
-                            .setDescription(comment),
-                    getNextInCommitTimestamp(inCommitTimestampEnabled(metadataEntry, protocolEntry), handle.getReadVersion(), fileSystemFactory.create(session, handle), handle.getLocation()));
+                            .setDescription(comment)
+                            .setInCommitTimestamp(inCommitTimestamp)
+                            .build(),
+                    inCommitTimestamp);
             transactionLogWriter.flush();
             enqueueUpdateInfo(session, handle.getSchemaName(), handle.getTableName(), commitVersion, metadataEntry.getSchemaString(), comment);
         }
@@ -2159,6 +2169,11 @@ public class DeltaLakeMetadata
             String schemaString = serializeSchemaAsJson(deltaTable);
 
             TransactionLogWriter transactionLogWriter = transactionLogWriterFactory.createWriter(session, deltaLakeTableHandle);
+            OptionalLong inCommitTimestamp = getNextInCommitTimestamp(
+                    inCommitTimestampEnabled(deltaLakeTableHandle.getMetadataEntry(), protocolEntry),
+                    deltaLakeTableHandle.getReadVersion(),
+                    fileSystemFactory.create(session, deltaLakeTableHandle),
+                    deltaLakeTableHandle.getLocation());
             appendTableEntries(
                     commitVersion,
                     transactionLogWriter,
@@ -2166,8 +2181,10 @@ public class DeltaLakeMetadata
                     session,
                     protocolEntry,
                     MetadataEntry.builder(deltaLakeTableHandle.getMetadataEntry())
-                            .setSchemaString(schemaString),
-                    getNextInCommitTimestamp(inCommitTimestampEnabled(deltaLakeTableHandle.getMetadataEntry(), protocolEntry), deltaLakeTableHandle.getReadVersion(), fileSystemFactory.create(session, deltaLakeTableHandle), deltaLakeTableHandle.getLocation()));
+                            .setInCommitTimestamp(inCommitTimestamp)
+                            .setSchemaString(schemaString)
+                            .build(),
+                    inCommitTimestamp);
             transactionLogWriter.flush();
             enqueueUpdateInfo(
                     session,
@@ -2258,6 +2275,7 @@ public class DeltaLakeMetadata
             }
 
             Optional<Boolean> inCommitTimestampEnabled = inCommitTimestampEnabled(handle.getMetadataEntry(), protocolEntry);
+            OptionalLong inCommitTimestamp = getNextInCommitTimestamp(inCommitTimestampEnabled, handle.getReadVersion(), fileSystemFactory.create(session, handle), handle.getLocation());
             TransactionLogWriter transactionLogWriter = transactionLogWriterFactory.createWriter(session, handle);
             appendTableEntries(
                     commitVersion,
@@ -2275,8 +2293,10 @@ public class DeltaLakeMetadata
                             containsVariantType(newColumnMetadata.getType())),
                     MetadataEntry.builder(handle.getMetadataEntry())
                             .setSchemaString(schemaString)
-                            .setConfiguration(configuration),
-                    getNextInCommitTimestamp(inCommitTimestampEnabled, handle.getReadVersion(), fileSystemFactory.create(session, handle), handle.getLocation()));
+                            .setInCommitTimestamp(inCommitTimestamp)
+                            .setConfiguration(configuration)
+                            .build(),
+                    inCommitTimestamp);
             transactionLogWriter.flush();
             enqueueUpdateInfo(
                     session,
@@ -2339,6 +2359,7 @@ public class DeltaLakeMetadata
             throw new TrinoException(NOT_SUPPORTED, "Dropping the last non-partition column is unsupported");
         }
 
+        OptionalLong inCommitTimestamp = getNextInCommitTimestamp(inCommitTimestampEnabled(metadataEntry, protocolEntry), table.getReadVersion(), fileSystemFactory.create(session, table), table.getLocation());
         String schemaString = serializeSchemaAsJson(deltaTable);
         try {
             TransactionLogWriter transactionLogWriter = transactionLogWriterFactory.createWriter(session, table);
@@ -2349,8 +2370,10 @@ public class DeltaLakeMetadata
                     session,
                     protocolEntry,
                     MetadataEntry.builder(metadataEntry)
-                            .setSchemaString(schemaString),
-                    getNextInCommitTimestamp(inCommitTimestampEnabled(metadataEntry, protocolEntry), table.getReadVersion(), fileSystemFactory.create(session, table), table.getLocation()));
+                            .setInCommitTimestamp(inCommitTimestamp)
+                            .setSchemaString(schemaString)
+                            .build(),
+                    inCommitTimestamp);
             transactionLogWriter.flush();
             enqueueUpdateInfo(session, table.getSchemaName(), table.getTableName(), commitVersion, schemaString, Optional.ofNullable(metadataEntry.getDescription()));
         }
@@ -2410,6 +2433,7 @@ public class DeltaLakeMetadata
                 .build();
         String schemaString = serializeSchemaAsJson(deltaTable);
         try {
+            OptionalLong inCommitTimestamp = getNextInCommitTimestamp(inCommitTimestampEnabled(metadataEntry, protocolEntry), table.getReadVersion(), fileSystemFactory.create(session, table), table.getLocation());
             TransactionLogWriter transactionLogWriter = transactionLogWriterFactory.createWriter(session, table);
             appendTableEntries(
                     commitVersion,
@@ -2419,8 +2443,10 @@ public class DeltaLakeMetadata
                     protocolEntry,
                     MetadataEntry.builder(metadataEntry)
                             .setSchemaString(schemaString)
-                            .setPartitionColumns(partitionColumns),
-                    getNextInCommitTimestamp(inCommitTimestampEnabled(metadataEntry, protocolEntry), table.getReadVersion(), fileSystemFactory.create(session, table), table.getLocation()));
+                            .setInCommitTimestamp(inCommitTimestamp)
+                            .setPartitionColumns(partitionColumns)
+                            .build(),
+                    inCommitTimestamp);
             transactionLogWriter.flush();
             enqueueUpdateInfo(session, table.getSchemaName(), table.getTableName(), commitVersion, schemaString, Optional.ofNullable(metadataEntry.getDescription()));
             // Don't update extended statistics because it uses physical column names internally
@@ -2450,6 +2476,7 @@ public class DeltaLakeMetadata
         long commitVersion = table.getReadVersion() + 1;
         String schemaString = serializeSchemaAsJson(deltaTable);
         try {
+            OptionalLong inCommitTimestamp = getNextInCommitTimestamp(inCommitTimestampEnabled(metadataEntry, protocolEntry), table.getReadVersion(), fileSystemFactory.create(session, table), table.getLocation());
             TransactionLogWriter transactionLogWriter = transactionLogWriterFactory.createWriter(session, table);
             appendTableEntries(
                     commitVersion,
@@ -2458,8 +2485,10 @@ public class DeltaLakeMetadata
                     session,
                     protocolEntry,
                     MetadataEntry.builder(metadataEntry)
-                            .setSchemaString(schemaString),
-                    getNextInCommitTimestamp(inCommitTimestampEnabled(metadataEntry, protocolEntry), table.getReadVersion(), fileSystemFactory.create(session, table), table.getLocation()));
+                            .setInCommitTimestamp(inCommitTimestamp)
+                            .setSchemaString(schemaString)
+                            .build(),
+                    inCommitTimestamp);
             transactionLogWriter.flush();
             enqueueUpdateInfo(session, table.getSchemaName(), table.getTableName(), commitVersion, schemaString, Optional.ofNullable(metadataEntry.getDescription()));
         }
@@ -2474,14 +2503,13 @@ public class DeltaLakeMetadata
             String operation,
             ConnectorSession session,
             ProtocolEntry protocolEntry,
-            MetadataEntry.Builder metadataEntry,
+            MetadataEntry metadataEntry,
             OptionalLong inCommitTimestamp)
     {
-        long createdTime = System.currentTimeMillis();
-        transactionLogWriter.appendCommitInfoEntry(getCommitInfoEntry(session, IsolationLevel.WRITESERIALIZABLE, commitVersion, createdTime, operation, 0, true, inCommitTimestamp));
+        transactionLogWriter.appendCommitInfoEntry(getCommitInfoEntry(session, IsolationLevel.WRITESERIALIZABLE, commitVersion, metadataEntry.getCreatedTime(), operation, 0, true, inCommitTimestamp));
 
         transactionLogWriter.appendProtocolEntry(protocolEntry);
-        transactionLogWriter.appendMetadataEntry(metadataEntry.setCreatedTime(createdTime).build());
+        transactionLogWriter.appendMetadataEntry(metadataEntry);
     }
 
     private static void appendAddFileEntries(TransactionLogWriter transactionLogWriter, List<DataFileInfo> dataFileInfos, List<String> partitionColumnNames, List<String> originalColumnNames, boolean dataChange)

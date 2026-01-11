@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.OptionalLong;
 import java.util.UUID;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -277,7 +278,7 @@ public class MetadataEntry
         private String schemaString;
         private List<String> partitionColumns = ImmutableList.of();
         private Map<String, String> configuration;
-        private long createdTime;
+        private OptionalLong inCommitTimestamp;
 
         private Builder() {}
 
@@ -291,7 +292,6 @@ public class MetadataEntry
             schemaString = metadataEntry.schemaString;
             partitionColumns = ImmutableList.copyOf(metadataEntry.partitionColumns);
             configuration = ImmutableMap.copyOf(metadataEntry.configuration);
-            createdTime = metadataEntry.createdTime;
         }
 
         public Builder setId(String id)
@@ -324,15 +324,15 @@ public class MetadataEntry
             return this;
         }
 
-        public Builder setCreatedTime(long createdTime)
+        public Builder setInCommitTimestamp(OptionalLong inCommitTimestamp)
         {
-            this.createdTime = createdTime;
+            this.inCommitTimestamp = inCommitTimestamp;
             return this;
         }
 
         public MetadataEntry build()
         {
-            return new MetadataEntry(id, name, description.orElse(null), format, schemaString, partitionColumns, configuration, createdTime);
+            return new MetadataEntry(id, name, description.orElse(null), format, schemaString, partitionColumns, configuration, inCommitTimestamp.orElse(System.currentTimeMillis()));
         }
     }
 
