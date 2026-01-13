@@ -28,6 +28,7 @@ import io.trino.spi.predicate.SortedRangeSet;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeUtils;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.BiPredicate;
 
@@ -126,6 +127,12 @@ public record MockPlanAlternativeTableHandle(ConnectorTableHandle delegate, Colu
                 return false;
             };
         }
+
+        @Override
+        public String toString()
+        {
+            return "BigintIn[values=" + Arrays.toString(values) + "]";
+        }
     }
 
     public record IntegerIn(int[] values)
@@ -148,6 +155,12 @@ public record MockPlanAlternativeTableHandle(ConnectorTableHandle delegate, Colu
                 }
                 return false;
             };
+        }
+
+        @Override
+        public String toString()
+        {
+            return "IntegerIn[values=" + Arrays.toString(values) + "]";
         }
     }
 
