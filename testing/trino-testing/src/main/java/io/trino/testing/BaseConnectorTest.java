@@ -7324,15 +7324,15 @@ public abstract class BaseConnectorTest
 
         if (!hasBehavior(SUPPORTS_CTE_REUSE)) {
             assertThat(planWithoutCteReuse).isEqualTo(planWithCteReuse);
-            assertThat(countRegexOccurences(planWithCteReuse, "^Fragment ")).isEqualTo(3);
+            assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(3);
             return;
         }
 
         assertThat(planWithoutCteReuse).isNotEqualTo(planWithCteReuse);
-        assertThat(countRegexOccurences(planWithoutCteReuse, "^Fragment ")).isEqualTo(3);
+        assertThat(countRegexOccurrences(planWithoutCteReuse, "^Fragment ")).isEqualTo(3);
         // plan with CTE reuse has just 2 fragments and leaf fragment is accessed twice
-        assertThat(countRegexOccurences(planWithCteReuse, "^Fragment ")).isEqualTo(2);
-        assertThat(countRegexOccurences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [1]]\\E")).isEqualTo(2);
+        assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(2);
+        assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [1]]\\E")).isEqualTo(2);
         // results are ok
         assertQuery(enableCteReuse(), query, "VALUES 5, 21");
     }
@@ -7364,10 +7364,10 @@ public abstract class BaseConnectorTest
         String planWithCteReuse = (String) computeActual(enableCteReuse(), explainQuery).getOnlyValue();
 
         assertThat(planWithoutCteReuse).isNotEqualTo(planWithCteReuse);
-        assertThat(countRegexOccurences(planWithoutCteReuse, "^Fragment ")).isEqualTo(3);
+        assertThat(countRegexOccurrences(planWithoutCteReuse, "^Fragment ")).isEqualTo(3);
         // plan with CTE reuse has just 2 fragments and leaf fragment is accessed twice
-        assertThat(countRegexOccurences(planWithCteReuse, "^Fragment ")).isEqualTo(2);
-        assertThat(countRegexOccurences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [1]]\\E")).isEqualTo(2);
+        assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(2);
+        assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [1]]\\E")).isEqualTo(2);
 
         // results are ok
         assertQuery(enableCteReuse(), query, "VALUES 25, 24");
@@ -7390,7 +7390,7 @@ public abstract class BaseConnectorTest
         assertThat(query(query)).matches(expectedPlan);
     }
 
-    private int countRegexOccurences(String value, String regex)
+    private int countRegexOccurrences(String value, String regex)
     {
         Pattern pattern = Pattern.compile(regex, MULTILINE);
         Matcher matcher = pattern.matcher(value);
