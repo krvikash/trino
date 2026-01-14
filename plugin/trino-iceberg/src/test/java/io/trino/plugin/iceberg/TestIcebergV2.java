@@ -982,7 +982,6 @@ public class TestIcebergV2
                     TupleDomain.all(),
                     TupleDomain.all(),
                     ImmutableSet.of(),
-                    true,
                     newDirectExecutorService(),
                     fileSystemFactory.create(SESSION),
                     PARTITION_STATISTICS_READER);
@@ -998,7 +997,6 @@ public class TestIcebergV2
                             Domain.singleValue(INTEGER, 10L))),
                     TupleDomain.all(),
                     ImmutableSet.of(),
-                    true,
                     newDirectExecutorService(),
                     fileSystemFactory.create(SESSION),
                     PARTITION_STATISTICS_READER);
@@ -1015,7 +1013,6 @@ public class TestIcebergV2
                             column,
                             Domain.create(ValueSet.ofRanges(Range.greaterThan(INTEGER, 100L)), true))),
                     ImmutableSet.of(column),
-                    true,
                     newDirectExecutorService(),
                     fileSystemFactory.create(SESSION),
                     PARTITION_STATISTICS_READER);
@@ -1040,7 +1037,6 @@ public class TestIcebergV2
                     TupleDomain.all(),
                     TupleDomain.all(),
                     ImmutableSet.of(),
-                    true,
                     newDirectExecutorService(),
                     fileSystemFactory.create(SESSION),
                     PARTITION_STATISTICS_READER);
@@ -1056,7 +1052,6 @@ public class TestIcebergV2
                     TupleDomain.all(),
                     TupleDomain.all(),
                     ImmutableSet.of(column),
-                    true,
                     newDirectExecutorService(),
                     fileSystemFactory.create(SESSION),
                     PARTITION_STATISTICS_READER);
@@ -1079,7 +1074,6 @@ public class TestIcebergV2
                             IcebergColumnHandle.optional(ColumnIdentity.primitiveColumnIdentity(2, "b")).columnType(INTEGER).build(),
                             Domain.singleValue(INTEGER, 10L))),
                     ImmutableSet.of(column),
-                    true,
                     newDirectExecutorService(),
                     fileSystemFactory.create(SESSION),
                     PARTITION_STATISTICS_READER);
