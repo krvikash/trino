@@ -208,11 +208,6 @@ public final class TableStatisticsReader
             // Fallback to file-level statistics if no partition statistics file is available
         }
 
-        List<Types.NestedField> columns = icebergTable.schema().columns();
-        Map<Integer, org.apache.iceberg.types.Type> idToType = columns.stream()
-                .map(column -> Maps.immutableEntry(column.fieldId(), column.type()))
-                .collect(toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
-
         Set<Integer> columnIds = projectedColumns.stream()
                 .map(IcebergColumnHandle::getId)
                 .collect(toImmutableSet());
@@ -231,6 +226,10 @@ public final class TableStatisticsReader
                                 .collect(toImmutableList()))
                 .planWith(icebergPlanningExecutor);
 
+        List<Types.NestedField> columns = icebergTable.schema().columns()
+                .stream()
+                .filter(column -> columnIds.contains(column.fieldId()))
+                .collect(toImmutableList());
         IcebergStatistics.Builder icebergStatisticsBuilder = new IcebergStatistics.Builder(columns, typeManager);
         try (CloseableIterable<FileScanTask> fileScanTasks = tableScan.planFiles()) {
             fileScanTasks.forEach(fileScanTask -> {
@@ -266,6 +265,10 @@ public final class TableStatisticsReader
                 icebergTable,
                 snapshotId,
                 columnIds);
+
+        Map<Integer, org.apache.iceberg.types.Type> idToType = columns.stream()
+                .map(column -> Maps.immutableEntry(column.fieldId(), column.type()))
+                .collect(toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
 
         ImmutableMap.Builder<ColumnHandle, ColumnStatistics> columnHandleBuilder = ImmutableMap.builder();
         double recordCount = summary.recordCount();
