@@ -169,7 +169,7 @@ public class TestGroupByHash
             for (Type hashType : getHashTypes(groupByHashType)) {
                 GroupByHash groupByHash = groupByHashType.createGroupByHash(hashType);
                 Block block = BlockAssertions.createTypedLongsBlock(hashType, 0L, 1L);
-                int[] ids = new int[] {0, 0, 1, 1};
+                int[] ids = {0, 0, 1, 1};
                 Page page = new Page(DictionaryBlock.create(ids.length, block, ids));
 
                 groupByHash.addPage(page).process();

@@ -253,11 +253,11 @@ public class TestCheckpointWriter
         ProtocolEntry protocolEntry = new ProtocolEntry(10, 20, Optional.of(ImmutableSet.of()), Optional.of(ImmutableSet.of()));
         TransactionEntry transactionEntry = new TransactionEntry("appId", 1, 1001);
 
-        Block[] minMaxRowFieldBlocks = new Block[] {
+        Block[] minMaxRowFieldBlocks = {
                 nativeValueToBlock(IntegerType.INTEGER, 1L),
                 nativeValueToBlock(createUnboundedVarcharType(), utf8Slice("a"))
         };
-        Block[] nullCountRowFieldBlocks = new Block[] {
+        Block[] nullCountRowFieldBlocks = {
                 nativeValueToBlock(BigintType.BIGINT, 0L),
                 nativeValueToBlock(BigintType.BIGINT, 15L)
         };
@@ -382,11 +382,11 @@ public class TestCheckpointWriter
                 ImmutableMap.of(),
                 1000);
         ProtocolEntry protocolEntry = new ProtocolEntry(10, 20, Optional.of(ImmutableSet.of()), Optional.of(ImmutableSet.of()));
-        Block[] minMaxRowFieldBlocks = new Block[] {
+        Block[] minMaxRowFieldBlocks = {
                 nativeValueToBlock(IntegerType.INTEGER, 1L),
                 nativeValueToBlock(createUnboundedVarcharType(), utf8Slice("a"))
         };
-        Block[] nullCountRowFieldBlocks = new Block[] {
+        Block[] nullCountRowFieldBlocks = {
                 nativeValueToBlock(BigintType.BIGINT, 0L),
                 nativeValueToBlock(BigintType.BIGINT, 15L)
         };
