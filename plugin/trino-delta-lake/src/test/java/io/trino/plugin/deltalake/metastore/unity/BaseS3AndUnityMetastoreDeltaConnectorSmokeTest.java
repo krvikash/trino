@@ -43,7 +43,7 @@ abstract class BaseS3AndUnityMetastoreDeltaConnectorSmokeTest
         return ImmutableMap.<String, String>builder()
                 .put("hive.metastore.unity.host", DATABRICKS_HOST)
                 .put("hive.metastore.unity.token", DATABRICKS_TOKEN)
-                .put("hive.metastore.unity.catalog-owned-table-enabled", "true")
+                .put("hive.metastore.unity.catalog-managed-table-enabled", "true")
                 .put("fs.native-s3.enabled", "true")
                 .put("s3.region", DATABRICKS_AWS_REGION)
                 .putAll(getAdditionalDeltaLakeProperties())

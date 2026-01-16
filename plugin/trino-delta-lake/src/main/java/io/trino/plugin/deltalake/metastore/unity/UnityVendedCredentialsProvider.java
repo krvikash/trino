@@ -49,7 +49,7 @@ public class UnityVendedCredentialsProvider
 
         Optional<String> tableId = handle.tableId();
         TemporaryCredentials temporaryCredentials;
-        if (handle.catalogOwned()) {
+        if (handle.catalogManaged()) {
             temporaryCredentials = unityMetastore.getTemporaryTableCredentials(tableId.orElseThrow(), TableOperation.READ_WRITE);
         }
         else if (handle.managed()) {

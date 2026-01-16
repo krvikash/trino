@@ -41,7 +41,7 @@ abstract class BaseGcsAndUnityMetastoreDeltaConnectorSmokeTest
         return ImmutableMap.<String, String>builder()
                 .put("hive.metastore.unity.host", DATABRICKS_HOST)
                 .put("hive.metastore.unity.token", DATABRICKS_TOKEN)
-                .put("hive.metastore.unity.catalog-owned-table-enabled", "true")
+                .put("hive.metastore.unity.catalog-managed-table-enabled", "true")
                 .put("fs.native-gcs.enabled", "true")
                 .putAll(getAdditionalDeltaLakeProperties())
                 .buildOrThrow();

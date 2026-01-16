@@ -23,7 +23,7 @@ import static java.util.Objects.requireNonNull;
 public record DeltaMetastoreTable(
         SchemaTableName schemaTableName,
         boolean managed,
-        boolean catalogOwned,
+        boolean catalogManaged,
         String location,
         Optional<String> tableId)
 {
@@ -33,9 +33,9 @@ public record DeltaMetastoreTable(
         requireNonNull(location, "location is null");
         requireNonNull(tableId, "tableId is null");
 
-        if (catalogOwned) {
-            checkArgument(managed, "catalog owned tables must be managed");
-            checkArgument(tableId.isPresent(), "tableId must be present for catalog owned tables");
+        if (catalogManaged) {
+            checkArgument(managed, "catalog managed tables must be managed");
+            checkArgument(tableId.isPresent(), "tableId must be present for catalog managed tables");
         }
     }
 }

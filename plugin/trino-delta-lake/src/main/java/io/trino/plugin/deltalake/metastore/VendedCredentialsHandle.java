@@ -19,7 +19,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 public record VendedCredentialsHandle(
-        boolean catalogOwned,
+        boolean catalogManaged,
         boolean managed,
         Optional<String> tableId,
         String tableLocation,
@@ -31,8 +31,8 @@ public record VendedCredentialsHandle(
         requireNonNull(tableLocation, "tableLocation is null");
         requireNonNull(vendedCredentials, "vendedCredentials is null");
 
-        if (catalogOwned) {
-            checkArgument(managed, "catalog-owned table must be managed");
+        if (catalogManaged) {
+            checkArgument(managed, "Table must be managed by the catalog");
         }
     }
 
@@ -43,11 +43,11 @@ public record VendedCredentialsHandle(
 
     public static VendedCredentialsHandle of(DeltaMetastoreTable table)
     {
-        return new VendedCredentialsHandle(table.catalogOwned(), table.managed(), table.tableId(), table.location(), Optional.empty());
+        return new VendedCredentialsHandle(table.catalogManaged(), table.managed(), table.tableId(), table.location(), Optional.empty());
     }
 
     public VendedCredentialsHandle withVendedCredentials(FileSystemCredentials vendedCredentials)
     {
-        return new VendedCredentialsHandle(catalogOwned, managed, tableId, tableLocation, Optional.of(vendedCredentials));
+        return new VendedCredentialsHandle(catalogManaged, managed, tableId, tableLocation, Optional.of(vendedCredentials));
     }
 }

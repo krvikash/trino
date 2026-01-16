@@ -130,12 +130,12 @@ public class TestDeltaLakeDatabricksUnityCompatibility
 
     @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, DELTA_LAKE_DATABRICKS_UNITY_CREDENTIALS_VENDING, PROFILE_SPECIFIC_TESTS})
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
-    public void testReadWriteCatalogOwnedTable()
+    public void testReadWriteCatalogManagedTable()
     {
-        String tableName = "test_catalog_owned_" + randomNameSuffix();
+        String tableName = "test_catalog_managed_" + randomNameSuffix();
         String unityTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, tableName);
         String deltaTableName = "delta.%s.%s".formatted(schemaName, tableName);
-        String createTableSql = format("CREATE TABLE %s (id int) USING delta TBLPROPERTIES('delta.feature.catalogOwned-preview' = 'supported', " +
+        String createTableSql = format("CREATE TABLE %s (id int) USING delta TBLPROPERTIES('delta.feature.catalogManaged' = 'supported', " +
                 // Disable the writing features `rowTracking` and `v2Checkpoint` and `domainMetadata`
                 "'delta.enableRowTracking' = 'false', 'delta.checkpointPolicy' = 'classic'" +
                 ")", unityTableName);

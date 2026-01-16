@@ -34,6 +34,8 @@ public class SuiteDeltaLakeDatabricksUnity
         return ImmutableList.of(
                 testOnEnvironment(EnvMultinodeDatabricksUnity.class)
                         .withGroups(CONFIGURED_FEATURES, DELTA_LAKE_DATABRICKS_UNITY)
+                        // TODO (https://starburstdata.atlassian.net/browse/ENG-6677) enable the test when deletes on catalog managed tables are fixed
+                        .withExcludedTests("io.trino.tests.product.deltalake.TestDeltaLakeDatabricksUnityCompatibility.testReadWriteCatalogManagedTable")
                         .build());
     }
 }

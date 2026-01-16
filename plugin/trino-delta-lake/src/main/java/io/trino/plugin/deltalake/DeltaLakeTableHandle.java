@@ -30,7 +30,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.plugin.deltalake.DeltaLakeMetadata.isCatalogOwnedTable;
+import static io.trino.plugin.deltalake.DeltaLakeMetadata.isCatalogManagedTable;
 import static io.trino.plugin.deltalake.DeltaLakeTableHandle.WriteType.UPDATE;
 import static java.util.Objects.requireNonNull;
 
@@ -261,7 +261,7 @@ public class DeltaLakeTableHandle
     @Override
     public VendedCredentialsHandle toCredentialsHandle()
     {
-        return new VendedCredentialsHandle(isCatalogOwnedTable(protocolEntry), managed, tableId, location, Optional.empty());
+        return new VendedCredentialsHandle(isCatalogManagedTable(protocolEntry), managed, tableId, location, Optional.empty());
     }
 
     @JsonProperty

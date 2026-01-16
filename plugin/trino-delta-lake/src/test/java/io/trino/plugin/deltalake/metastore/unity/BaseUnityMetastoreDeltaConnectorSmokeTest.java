@@ -203,13 +203,13 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     }
 
     @Test
-    void testCatalogOwnedTable()
+    void testCatalogManagedTable()
     {
-        String tableName = "catalog_owned_table_" + randomNameSuffix();
+        String tableName = "catalog_managed_table_" + randomNameSuffix();
         onDatabricks().execute("""
                 CREATE TABLE IF NOT EXISTS %s.%s.%s (id int)
                 USING DELTA
-                TBLPROPERTIES('delta.feature.catalogOwned-preview' = 'supported', 'delta.enableRowTracking' = 'false', 'delta.checkpointPolicy' = 'classic')
+                TBLPROPERTIES('delta.feature.catalogManaged' = 'supported', 'delta.enableRowTracking' = 'false', 'delta.checkpointPolicy' = 'classic')
                 """.formatted(getDatabricksUnityCatalogName(), SCHEMA_NAME, tableName));
         try {
             assertQueryReturnsEmptyResult("TABLE " + tableName);

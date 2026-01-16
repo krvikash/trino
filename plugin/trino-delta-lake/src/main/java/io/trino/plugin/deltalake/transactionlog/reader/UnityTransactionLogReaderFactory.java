@@ -22,7 +22,7 @@ import io.trino.plugin.deltalake.metastore.VendedCredentialsHandle;
 import io.trino.plugin.hive.metastore.unity.UnityMetastoreConfig;
 import io.trino.spi.TrinoException;
 
-import static io.trino.plugin.deltalake.DeltaLakeMetadata.isCatalogOwnedTable;
+import static io.trino.plugin.deltalake.DeltaLakeMetadata.isCatalogManagedTable;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static java.util.Objects.requireNonNull;
 
@@ -31,7 +31,7 @@ public class UnityTransactionLogReaderFactory
 {
     private final DeltaLakeFileSystemFactory fileSystemFactory;
     private final DeltaLakeTableOperationsProvider tableOperationsProvider;
-    private final boolean isCatalogOwnedTableEnabled;
+    private final boolean isCatalogManagedTableEnabled;
 
     @Inject
     public UnityTransactionLogReaderFactory(
@@ -41,17 +41,17 @@ public class UnityTransactionLogReaderFactory
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.tableOperationsProvider = requireNonNull(tableOperationsProvider, "tableOperationsProvider is null");
-        this.isCatalogOwnedTableEnabled = unityMetastoreConfig.isCatalogOwnedTableEnabled();
+        this.isCatalogManagedTableEnabled = unityMetastoreConfig.isCatalogManagedTableEnabled();
     }
 
     @Override
     public TransactionLogReader createReader(DeltaLakeTableHandle tableHandle)
     {
-        if (isCatalogOwnedTable(tableHandle.getProtocolEntry())) {
-            if (!isCatalogOwnedTableEnabled) {
-                throw new TrinoException(NOT_SUPPORTED, "Catalog owned table not enabled");
+        if (isCatalogManagedTable(tableHandle.getProtocolEntry())) {
+            if (!isCatalogManagedTableEnabled) {
+                throw new TrinoException(NOT_SUPPORTED, "Unity Catalog managed configuration not enabled");
             }
-            String tableId = tableHandle.getMetadataEntry().getTableId().orElseThrow(() -> new IllegalArgumentException("Table id is required for Unity Catalog owned tables"));
+            String tableId = tableHandle.getMetadataEntry().getTableId().orElseThrow(() -> new IllegalArgumentException("Table id is required for Unity Catalog managed tables"));
             return new RestUnityTransactionLogReader(tableId, tableHandle.getLocation(), tableHandle.toCredentialsHandle(), fileSystemFactory, tableOperationsProvider);
         }
 
@@ -62,11 +62,11 @@ public class UnityTransactionLogReaderFactory
     public TransactionLogReader createReader(DeltaMetastoreTable table)
     {
         VendedCredentialsHandle credentialsHandle = VendedCredentialsHandle.of(table);
-        if (table.catalogOwned()) {
-            if (!isCatalogOwnedTableEnabled) {
-                throw new TrinoException(NOT_SUPPORTED, "Catalog owned table not enabled");
+        if (table.catalogManaged()) {
+            if (!isCatalogManagedTableEnabled) {
+                throw new TrinoException(NOT_SUPPORTED, "Unity Catalog managed configuration not enabled");
             }
-            String tableId = table.tableId().orElseThrow(() -> new IllegalArgumentException("Table id is required for Unity Catalog owned tables"));
+            String tableId = table.tableId().orElseThrow(() -> new IllegalArgumentException("Table id is required for Unity Catalog managed tables"));
             return new RestUnityTransactionLogReader(tableId, table.location(), credentialsHandle, fileSystemFactory, tableOperationsProvider);
         }
 

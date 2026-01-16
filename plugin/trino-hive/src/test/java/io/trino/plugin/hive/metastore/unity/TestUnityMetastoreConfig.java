@@ -31,7 +31,7 @@ final class TestUnityMetastoreConfig
                 .setCatalogName(null)
                 .setToken(null)
                 .setHost(null)
-                .setCatalogOwnedTableEnabled(false)
+                .setCatalogManagedTableEnabled(false)
                 .setVendedCredentialsEnabled(false));
     }
 
@@ -42,7 +42,7 @@ final class TestUnityMetastoreConfig
                 .put("hive.metastore.unity.catalog-name", "catalog")
                 .put("hive.metastore.unity.token", "token")
                 .put("hive.metastore.unity.host", "host")
-                .put("hive.metastore.unity.catalog-owned-table-enabled", "true")
+                .put("hive.metastore.unity.catalog-managed-table-enabled", "true")
                 .put("hive.metastore.unity.vended-credentials-enabled", "true")
                 .buildOrThrow();
 
@@ -50,7 +50,7 @@ final class TestUnityMetastoreConfig
                 .setCatalogName("catalog")
                 .setToken("token")
                 .setHost("host")
-                .setCatalogOwnedTableEnabled(true)
+                .setCatalogManagedTableEnabled(true)
                 .setVendedCredentialsEnabled(true);
 
         assertFullMapping(properties, expected);

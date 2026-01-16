@@ -27,7 +27,7 @@ import io.trino.spi.connector.ConnectorSession;
 
 import java.util.concurrent.ExecutorService;
 
-import static io.trino.plugin.deltalake.DeltaLakeMetadata.isCatalogOwnedTable;
+import static io.trino.plugin.deltalake.DeltaLakeMetadata.isCatalogManagedTable;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static java.util.Objects.requireNonNull;
 
@@ -38,7 +38,7 @@ public class UnityTransactionLogWriterFactory
     private final DeltaLakeTableOperationsProvider tableOperationsProvider;
     private final TransactionLogSynchronizerManager synchronizerManager;
     private final ExecutorService backfillExecutor;
-    private final boolean isCatalogOwnedTableEnabled;
+    private final boolean isCatalogManagedTableEnabled;
 
     @Inject
     public UnityTransactionLogWriterFactory(
@@ -52,7 +52,7 @@ public class UnityTransactionLogWriterFactory
         this.tableOperationsProvider = requireNonNull(tableOperationsProvider, "tableOperationsProvider is null");
         this.synchronizerManager = requireNonNull(synchronizerManager, "synchronizerManager is null");
         this.backfillExecutor = requireNonNull(backfillExecutor, "backfillExecutor is null");
-        this.isCatalogOwnedTableEnabled = unityMetastoreConfig.isCatalogOwnedTableEnabled();
+        this.isCatalogManagedTableEnabled = unityMetastoreConfig.isCatalogManagedTableEnabled();
     }
 
     @Override
@@ -65,9 +65,9 @@ public class UnityTransactionLogWriterFactory
     public TransactionLogWriter createWriter(ConnectorSession session, String tableLocation, MetadataEntry metadataEntry, ProtocolEntry protocolEntry, VendedCredentialsHandle credentialsHandle)
     {
         TransactionLogSynchronizer synchronizer = synchronizerManager.getSynchronizer(tableLocation);
-        if (isCatalogOwnedTable(protocolEntry)) {
-            if (!isCatalogOwnedTableEnabled) {
-                throw new TrinoException(NOT_SUPPORTED, "Catalog owned table not enabled");
+        if (isCatalogManagedTable(protocolEntry)) {
+            if (!isCatalogManagedTableEnabled) {
+                throw new TrinoException(NOT_SUPPORTED, "Unity Catalog managed configuration not enabled");
             }
             String tableId = metadataEntry.getTableId()
                     .orElseThrow(() -> new IllegalStateException("tableId is not present"));

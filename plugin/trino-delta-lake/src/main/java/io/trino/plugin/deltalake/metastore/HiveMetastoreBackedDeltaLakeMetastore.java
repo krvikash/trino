@@ -132,24 +132,24 @@ public class HiveMetastoreBackedDeltaLakeMetastore
         return new DeltaMetastoreTable(
                 new SchemaTableName(table.getDatabaseName(), table.getTableName()),
                 table.getTableType().equals(MANAGED_TABLE.name()),
-                catalogOwned(table),
+                catalogManaged(table),
                 getTableLocation(table),
                 getTableId(table));
     }
 
-    private static boolean catalogOwned(Table table)
+    private static boolean catalogManaged(Table table)
     {
         if (table.getParameters() == null) {
             return false;
         }
 
-        if (!"supported".equals(table.getParameters().get("delta.feature.catalogOwned-preview"))) {
+        if (!"supported".equals(table.getParameters().get("delta.feature.catalogManaged"))) {
             return false;
         }
 
-        checkState("true".equals(table.getParameters().get("delta.enableInCommitTimestamps")), "Catalog owned table must enable in-commit timestamps");
-        checkState(table.getTableType().equals(MANAGED_TABLE.name()), "Catalog owned table must be managed type table");
-        checkState(table.getParameters().containsKey(UNITY_CATALOG_TABLE_ID), "Catalog owned table must have a table id");
+        checkState("true".equals(table.getParameters().get("delta.enableInCommitTimestamps")), "Catalog managed table must enable in-commit timestamps");
+        checkState(table.getTableType().equals(MANAGED_TABLE.name()), "Catalog managed table must be managed type table");
+        checkState(table.getParameters().containsKey(UNITY_CATALOG_TABLE_ID), "Catalog managed table must have a table id");
         return true;
     }
 

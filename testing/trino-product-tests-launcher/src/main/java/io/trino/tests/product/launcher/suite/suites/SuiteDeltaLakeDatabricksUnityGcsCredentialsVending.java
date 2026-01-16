@@ -34,6 +34,8 @@ public class SuiteDeltaLakeDatabricksUnityGcsCredentialsVending
         return ImmutableList.of(
                 testOnEnvironment(EnvMultinodeDatabricksUnityGcsCredentialsVending.class)
                         .withGroups(CONFIGURED_FEATURES, DELTA_LAKE_DATABRICKS_UNITY_CREDENTIALS_VENDING)
+                        // TODO (https://starburstdata.atlassian.net/browse/ENG-6676) enable the test when delta.feature.catalogManaged table feature is supported
+                        .withExcludedTests("io.trino.tests.product.deltalake.TestDeltaLakeDatabricksUnityCompatibility.testReadWriteCatalogManagedTable")
                         .build());
     }
 }

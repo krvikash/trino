@@ -23,7 +23,7 @@ import static java.util.Objects.requireNonNull;
 
 public record CorruptedDeltaLakeTableHandle(
         SchemaTableName schemaTableName,
-        boolean catalogOwned,
+        boolean catalogManaged,
         boolean managed,
         Optional<String> tableId,
         String location,
@@ -47,6 +47,6 @@ public record CorruptedDeltaLakeTableHandle(
     @Override
     public VendedCredentialsHandle toCredentialsHandle()
     {
-        return new VendedCredentialsHandle(catalogOwned, managed, tableId, location, Optional.empty());
+        return new VendedCredentialsHandle(catalogManaged, managed, tableId, location, Optional.empty());
     }
 }
