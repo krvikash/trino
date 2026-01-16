@@ -120,7 +120,7 @@ public class UnityHiveMetastore
 {
     private static final Logger LOG = Logger.get(UnityHiveMetastore.class);
 
-    public static final String UNITY_CATALOG_TABLE_ID = "ucTableId";
+    public static final String UNITY_CATALOG_TABLE_ID = "io.unitycatalog.tableId";
 
     // TODO: support azure credentials vending https://starburstdata.atlassian.net/browse/SEP-18169
 
