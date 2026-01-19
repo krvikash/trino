@@ -24,7 +24,6 @@ import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.cache.NonEvictableLoadingCache;
-import io.trino.filesystem.TrinoFileSystem;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
@@ -82,12 +81,8 @@ import static io.trino.plugin.iceberg.ExpressionConverter.toIcebergExpression;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_INVALID_METADATA;
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.isMetadataColumnId;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isPartitionStatisticsEnabled;
-import static io.trino.plugin.iceberg.IcebergUtil.getFileModifiedTimeDomain;
-import static io.trino.plugin.iceberg.IcebergUtil.getModificationTime;
 import static io.trino.plugin.iceberg.IcebergUtil.getPartitionDomain;
 import static io.trino.plugin.iceberg.IcebergUtil.getPathDomain;
-import static io.trino.spi.type.DateTimeEncoding.packDateTimeWithZone;
-import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.Long.parseLong;
@@ -106,19 +101,16 @@ public final class TableStatisticsReader
 
     private final TypeManager typeManager;
     private final ExecutorService icebergPlanningExecutor;
-    private final IcebergFileSystemFactory fileSystemFactory;
     private final PartitionStatisticsReader partitionStatisticsReader;
 
     @Inject
     public TableStatisticsReader(
             TypeManager typeManager,
             @ForIcebergPlanning ExecutorService icebergPlanningExecutor,
-            IcebergFileSystemFactory fileSystemFactory,
             PartitionStatisticsReader partitionStatisticsReader)
     {
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.icebergPlanningExecutor = requireNonNull(icebergPlanningExecutor, "icebergPlanningExecutor is null");
-        this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.partitionStatisticsReader = requireNonNull(partitionStatisticsReader, "partitionStatisticsReader is null");
     }
 
@@ -137,7 +129,6 @@ public final class TableStatisticsReader
                 tableHandle.getUnenforcedPredicate(),
                 projectedColumns,
                 icebergPlanningExecutor,
-                fileSystemFactory.create(session.getIdentity(), icebergTable.io().properties()),
                 partitionStatisticsReader);
     }
 
@@ -151,7 +142,6 @@ public final class TableStatisticsReader
             TupleDomain<IcebergColumnHandle> unenforcedConstraint,
             Set<IcebergColumnHandle> projectedColumns,
             ExecutorService icebergPlanningExecutor,
-            TrinoFileSystem fileSystem,
             PartitionStatisticsReader partitionStatisticsReader)
     {
         if (snapshot.isEmpty()) {
@@ -225,7 +215,6 @@ public final class TableStatisticsReader
 
         Domain partitionDomain = getPartitionDomain(effectivePredicate);
         Domain pathDomain = getPathDomain(effectivePredicate);
-        Domain fileModifiedTimeDomain = getFileModifiedTimeDomain(effectivePredicate);
         Expression filter = toIcebergExpression(effectivePredicate.filter((column, domain) -> !isMetadataColumnId(column.getId())));
 
         NonEvictableLoadingCache<Integer, ManifestEvaluator> manifestPartitionFilterEvaluators = buildNonEvictableCache(
@@ -262,13 +251,8 @@ public final class TableStatisticsReader
                 if (!pathDomain.isAll() && !pathDomain.includesNullableValue(utf8Slice(dataFile.location()))) {
                     return;
                 }
-                if (!fileModifiedTimeDomain.isAll()) {
-                    long fileModifiedTime = getModificationTime(dataFile.location(), fileSystem);
-                    if (!fileModifiedTimeDomain.includesNullableValue(packDateTimeWithZone(fileModifiedTime, UTC_KEY))) {
-                        return;
-                    }
-                }
 
+                // Filtering by $file_modified_time is skipped to avoid making filesystem calls on each matched data file
                 icebergStatisticsBuilder.acceptDataFile(dataFile, spec);
             });
         }
