@@ -42,8 +42,6 @@ import io.trino.plugin.jdbc.aggregation.ImplementAvgDecimal;
 import io.trino.plugin.jdbc.aggregation.ImplementAvgFloatingPoint;
 import io.trino.plugin.jdbc.aggregation.ImplementCount;
 import io.trino.plugin.jdbc.aggregation.ImplementCountAll;
-import io.trino.plugin.jdbc.aggregation.ImplementCountDistinct;
-import io.trino.plugin.jdbc.aggregation.ImplementMinMax;
 import io.trino.plugin.jdbc.aggregation.ImplementStddevPop;
 import io.trino.plugin.jdbc.aggregation.ImplementStddevSamp;
 import io.trino.plugin.jdbc.aggregation.ImplementSum;
@@ -255,8 +253,8 @@ public class SingleStoreClient
                 ImmutableSet.<AggregateFunctionRule<JdbcExpression, ParameterizedExpression>>builder()
                         .add(new ImplementCountAll(bigintTypeHandle))
                         .add(new ImplementCount(bigintTypeHandle))
-                        .add(new ImplementCountDistinct(bigintTypeHandle, false))
-                        .add(new ImplementMinMax(false))
+                        .add(new ImplementCaseSensitiveCountDistinct(bigintTypeHandle))
+                        .add(new ImplementCaseSensitiveMinMax())
                         .add(new ImplementSum(SingleStoreClient::toTypeHandle))
                         .add(new ImplementAvgFloatingPoint())
                         .add(new ImplementAvgDecimal())
@@ -271,7 +269,10 @@ public class SingleStoreClient
     @Override
     public boolean supportsAggregationPushdown(ConnectorSession session, JdbcTableHandle table, List<AggregateFunction> aggregates, Map<String, ColumnHandle> assignments, List<List<ColumnHandle>> groupingSets)
     {
-        // Remote database can be case insensitive.
+        // Grouping Sets is not supported in SingleStore, so only single grouping set can be pushed down
+        if (groupingSets.size() == 1 && isEnableStringPushdownWithBinary(session)) {
+            return true;
+        }
         return preventTextualTypeAggregationPushdown(groupingSets);
     }
 

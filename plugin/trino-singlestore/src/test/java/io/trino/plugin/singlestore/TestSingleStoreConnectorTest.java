@@ -23,6 +23,7 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.sql.planner.plan.FilterNode;
+import io.trino.sql.planner.plan.GroupIdNode;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.testing.MaterializedResult;
@@ -35,12 +36,15 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.stream.Stream;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.MoreCollectors.onlyElement;
 import static io.airlift.slice.Slices.utf8Slice;
+import static io.trino.SystemSessionProperties.DISTINCT_AGGREGATIONS_STRATEGY;
 import static io.trino.spi.connector.ConnectorMetadata.MODIFYING_ROWS_MESSAGE;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
@@ -50,6 +54,7 @@ import static io.trino.sql.planner.assertions.PlanMatchPattern.tableScan;
 import static io.trino.testing.MaterializedResult.resultBuilder;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
 import static java.util.stream.IntStream.range;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -461,9 +466,7 @@ public class TestSingleStoreConnectorTest
     @Test
     public void testStringPushdownWithBinary()
     {
-        Session session = Session.builder(getSession())
-                .setCatalogSessionProperty("singlestore", "enable_string_pushdown_with_binary", "true")
-                .build();
+        Session session = stringPushdownWithBinaryEnabled(getSession());
 
         // varchar equality
         assertThat(query(session, "SELECT regionkey, nationkey, name FROM nation WHERE name = 'ROMANIA'"))
@@ -537,6 +540,346 @@ public class TestSingleStoreConnectorTest
                     .matches("VALUES 1")
                     .isFullyPushedDown();
         }
+    }
+
+    @Test
+    @Override
+    public void testCountDistinctWithStringTypes()
+    {
+        List<String> rows = Stream.of(null, "a", "b", "A", "B", " a ", "a", "b", " b ", "ą")
+                .map(value -> value == null ? "NULL, NULL" : format("'%1$s', '%1$s'", value))
+                .collect(toList());
+
+        try (TestTable testTable = new TestTable(getQueryRunner()::execute, "distinct_strings", "(t_char CHAR(5), t_varchar VARCHAR(5))", rows)) {
+            Session session = stringPushdownWithBinaryEnabled(getSession());
+            assertThat(query(session, "SELECT count(DISTINCT t_varchar) FROM " + testTable.getName()))
+                    .matches("VALUES BIGINT '7'")
+                    .isFullyPushedDown();
+
+            assertThat(query(session, "SELECT count(DISTINCT t_char) FROM " + testTable.getName()))
+                    .matches("VALUES BIGINT '7'")
+                    .isFullyPushedDown();
+
+            Session withMarkDistinct = sessionWithDistinctAggregationsStrategy(session, "mark_distinct");
+            assertThat(query(withMarkDistinct, "SELECT count(DISTINCT t_char), count(DISTINCT t_varchar) FROM " + testTable.getName()))
+                    .matches("VALUES (BIGINT '7', BIGINT '7')")
+                    .isFullyPushedDown();
+            Session withSingleStep = sessionWithDistinctAggregationsStrategy(session, "single_step");
+            assertThat(query(withSingleStep, "SELECT count(DISTINCT t_char), count(DISTINCT t_varchar) FROM " + testTable.getName()))
+                    .matches("VALUES (BIGINT '7', BIGINT '7')")
+                    .isFullyPushedDown();
+            Session withPreAggregate = sessionWithDistinctAggregationsStrategy(session, "pre_aggregate");
+            assertThat(query(withPreAggregate, "SELECT count(DISTINCT t_char), count(DISTINCT t_varchar) FROM " + testTable.getName()))
+                    .matches("VALUES (BIGINT '7', BIGINT '7')")
+                    .isFullyPushedDown();
+        }
+    }
+
+    @Test
+    @Override
+    public void testDistinctAggregationPushdown()
+    {
+        Session session = stringPushdownWithBinaryEnabled(getSession());
+        // Overridden because SingleStore connector supports pushdown of all aggregation functions including multiple DISTINCTs
+        // SELECT DISTINCT
+        assertThat(query("SELECT DISTINCT regionkey FROM nation")).isFullyPushedDown();
+        assertThat(query("SELECT min(DISTINCT regionkey) FROM nation")).isFullyPushedDown();
+        assertThat(query("SELECT DISTINCT regionkey, min(nationkey) FROM nation GROUP BY regionkey")).isFullyPushedDown();
+        assertThat(query(session, "SELECT DISTINCT name, min(comment) FROM nation GROUP BY name")).isFullyPushedDown();
+        // Integral types
+        try (TestTable emptyTable = createAggregationTestTable("tpch.empty_table", ImmutableList.of())) {
+            assertThat(query("SELECT DISTINCT a_bigint FROM " + emptyTable.getName())).isFullyPushedDown();
+            assertThat(query("SELECT min(DISTINCT a_bigint) FROM " + emptyTable.getName())).isFullyPushedDown();
+            assertThat(query("SELECT DISTINCT t_double, min(a_bigint) FROM " + emptyTable.getName() + " GROUP BY t_double")).isFullyPushedDown();
+        }
+
+        // String types
+        try (TestTable emptyTable = new TestTable(onRemoteDatabase(), "tpch.empty_table", "(a_varchar varchar(10), a_char char(10))", ImmutableList.of())) {
+            assertThat(query(session, "SELECT DISTINCT a_varchar, count(a_char) FROM " + emptyTable.getName() + " GROUP BY a_varchar")).isFullyPushedDown();
+            assertThat(query(session, "SELECT DISTINCT a_char, count(a_varchar) FROM " + emptyTable.getName() + " GROUP BY a_char")).isFullyPushedDown();
+        }
+
+        Session withMarkDistinct = sessionWithDistinctAggregationsStrategy(session, "mark_distinct");
+        // distinct aggregation
+        assertThat(query(withMarkDistinct, "SELECT count(DISTINCT regionkey) FROM nation")).isFullyPushedDown();
+        // distinct aggregation with GROUP BY
+        assertThat(query(withMarkDistinct, "SELECT count(DISTINCT nationkey) FROM nation GROUP BY regionkey")).isFullyPushedDown();
+        // distinct aggregation with varchar
+        assertThat(query(withMarkDistinct, "SELECT count(DISTINCT comment) FROM nation")).isFullyPushedDown();
+        // distinct aggregation with varchar with GROUP BY
+        assertThat(query(withMarkDistinct, "SELECT count(DISTINCT comment) FROM nation GROUP BY comment")).isFullyPushedDown();
+        // two distinct aggregations
+        assertThat(query(withMarkDistinct, "SELECT count(DISTINCT regionkey), count(DISTINCT nationkey) FROM nation")).isFullyPushedDown();
+        // distinct aggregation and a non-distinct aggregation
+        assertThat(query(withMarkDistinct, "SELECT count(DISTINCT regionkey), sum(nationkey) FROM nation")).isFullyPushedDown();
+        // two distinct aggregations with varchar
+        assertThat(query(withMarkDistinct, "SELECT count(DISTINCT name), count(DISTINCT comment) FROM nation")).isFullyPushedDown();
+        // distinct aggregation and a non-distinct aggregation with varchar
+        assertThat(query(withMarkDistinct, "SELECT count(DISTINCT name), max(comment) FROM nation")).isFullyPushedDown();
+
+        Session withoutMarkDistinct = sessionWithDistinctAggregationsStrategy(session, "single_step");
+        // distinct aggregation
+        assertThat(query(withoutMarkDistinct, "SELECT count(DISTINCT regionkey) FROM nation")).isFullyPushedDown();
+        // distinct aggregation with GROUP BY
+        assertThat(query(withoutMarkDistinct, "SELECT count(DISTINCT nationkey) FROM nation GROUP BY regionkey")).isFullyPushedDown();
+        // distinct aggregation with varchar
+        assertThat(query(withoutMarkDistinct, "SELECT count(DISTINCT comment) FROM nation")).isFullyPushedDown();
+        // distinct aggregation with varchar with GROUP BY
+        assertThat(query(withoutMarkDistinct, "SELECT count(DISTINCT comment) FROM nation GROUP BY comment")).isFullyPushedDown();
+        // two distinct aggregations
+        assertThat(query(withoutMarkDistinct, "SELECT count(DISTINCT regionkey), count(DISTINCT nationkey) FROM nation")).isFullyPushedDown();
+        // distinct aggregation and a non-distinct aggregation
+        assertThat(query(withoutMarkDistinct, "SELECT count(DISTINCT regionkey), sum(nationkey) FROM nation")).isFullyPushedDown();
+        // two distinct aggregations with varchar
+        assertThat(query(withoutMarkDistinct, "SELECT count(DISTINCT name), count(DISTINCT comment) FROM nation")).isFullyPushedDown();
+        // distinct aggregation and a non-distinct aggregation with varchar
+        assertThat(query(withoutMarkDistinct, "SELECT count(DISTINCT name), max(comment) FROM nation")).isFullyPushedDown();
+    }
+
+    @Test
+    public void testAggregationPushdownWithStringTypes()
+    {
+        List<String> rows = Stream.of(null, "a", "b", "A", "B", " a ", "a", "b", " b ", "ą")
+                .map(value -> value == null ? "NULL, NULL" : format("'%1$s', '%1$s'", value))
+                .collect(toList());
+
+        try (TestTable testTable = new TestTable(getQueryRunner()::execute, "strings", "(t_char CHAR(5), t_varchar VARCHAR(5))", rows)) {
+            Session session = stringPushdownWithBinaryEnabled(getSession());
+            assertThat(query(session, "SELECT count(t_varchar), count(t_char), count(*) FROM " + testTable.getName()))
+                    .matches("VALUES (BIGINT '9', BIGINT '9', BIGINT '10')")
+                    .isFullyPushedDown();
+
+            assertThat(query(session, "SELECT t_varchar, count(t_varchar), count(*) FROM " + testTable.getName() + " GROUP BY t_varchar"))
+                    .skippingTypesCheck()
+                    .matches("VALUES " +
+                            "(null, BIGINT '0', BIGINT '1')," +
+                            "(VARCHAR 'a', BIGINT '2', BIGINT '2')," +
+                            "(VARCHAR 'b', BIGINT '2', BIGINT '2')," +
+                            "(VARCHAR 'A', BIGINT '1', BIGINT '1')," +
+                            "(VARCHAR 'B', BIGINT '1', BIGINT '1')," +
+                            "(VARCHAR ' a ', BIGINT '1', BIGINT '1')," +
+                            "(VARCHAR ' b ', BIGINT '1', BIGINT '1')," +
+                            "(VARCHAR 'ą', BIGINT '1', BIGINT '1')")
+                    .isFullyPushedDown();
+            assertThat(query(session, "SELECT t_char, count(t_char), count(*) FROM " + testTable.getName() + " GROUP BY t_char"))
+                    .skippingTypesCheck()
+                    .matches("VALUES " +
+                            "(null, BIGINT '0', BIGINT '1')," +
+                            "(VARCHAR 'a    ', BIGINT '2', BIGINT '2')," +
+                            "(VARCHAR 'b    ', BIGINT '2', BIGINT '2')," +
+                            "(VARCHAR 'A    ', BIGINT '1', BIGINT '1')," +
+                            "(VARCHAR 'B    ', BIGINT '1', BIGINT '1')," +
+                            "(VARCHAR ' a   ', BIGINT '1', BIGINT '1')," +
+                            "(VARCHAR ' b   ', BIGINT '1', BIGINT '1')," +
+                            "(VARCHAR 'ą    ', BIGINT '1', BIGINT '1')")
+                    .isFullyPushedDown();
+
+            assertThat(query(session, "SELECT count(t_varchar) FROM " + testTable.getName() + " WHERE t_varchar = 'a' GROUP BY t_varchar"))
+                    .matches("VALUES BIGINT '2'")
+                    .isFullyPushedDown();
+            assertThat(query(session, "SELECT count(t_char) FROM " + testTable.getName() + " WHERE t_char = 'a' GROUP BY t_char"))
+                    .matches("VALUES BIGINT '2'")
+                    .isFullyPushedDown();
+
+            assertThat(query(session, "SELECT min(t_varchar), min(t_char), max(t_varchar), max(t_char) FROM " + testTable.getName()))
+                    .skippingTypesCheck()
+                    .matches("VALUES (VARCHAR ' a ', VARCHAR ' a   ', VARCHAR 'ą', VARCHAR 'ą    ')")
+                    .isFullyPushedDown();
+
+            assertThat(query(session, "SELECT t_varchar, min(t_varchar), max(t_varchar) FROM " + testTable.getName() + " GROUP BY t_varchar"))
+                    .skippingTypesCheck()
+                    .matches("VALUES " +
+                            "(null, null, null)," +
+                            "(VARCHAR 'a', VARCHAR 'a', VARCHAR 'a')," +
+                            "(VARCHAR 'b', VARCHAR 'b', VARCHAR 'b')," +
+                            "(VARCHAR 'A', VARCHAR 'A', VARCHAR 'A')," +
+                            "(VARCHAR 'B', VARCHAR 'B', VARCHAR 'B')," +
+                            "(VARCHAR ' a ', VARCHAR ' a ', VARCHAR ' a ')," +
+                            "(VARCHAR ' b ', VARCHAR ' b ', VARCHAR ' b ')," +
+                            "(VARCHAR 'ą', VARCHAR 'ą', VARCHAR 'ą')")
+                    .isFullyPushedDown();
+            assertThat(query(session, "SELECT t_char, min(t_char), max(t_char) FROM " + testTable.getName() + " GROUP BY t_char"))
+                    .skippingTypesCheck()
+                    .matches("VALUES " +
+                            "(null, null, null)," +
+                            "(VARCHAR 'a    ', VARCHAR 'a    ', VARCHAR 'a    ')," +
+                            "(VARCHAR 'b    ', VARCHAR 'b    ', VARCHAR 'b    ')," +
+                            "(VARCHAR 'A    ', VARCHAR 'A    ', VARCHAR 'A    ')," +
+                            "(VARCHAR 'B    ', VARCHAR 'B    ', VARCHAR 'B    ')," +
+                            "(VARCHAR ' a   ', VARCHAR ' a   ', VARCHAR ' a   ')," +
+                            "(VARCHAR ' b   ', VARCHAR ' b   ', VARCHAR ' b   ')," +
+                            "(VARCHAR 'ą    ', VARCHAR 'ą    ', VARCHAR 'ą    ')")
+                    .isFullyPushedDown();
+
+            assertThat(query(session, "SELECT min(t_varchar), max(t_varchar) FROM " + testTable.getName()+ " WHERE t_varchar = 'a' GROUP BY t_varchar"))
+                    .skippingTypesCheck()
+                    .matches("VALUES (VARCHAR 'a', VARCHAR 'a')")
+                    .isFullyPushedDown();
+            assertThat(query(session, "SELECT min(t_char), max(t_char) FROM " + testTable.getName()+ " WHERE t_char = 'a' GROUP BY t_char"))
+                    .skippingTypesCheck()
+                    .matches("VALUES (VARCHAR 'a    ', VARCHAR 'a    ')")
+                    .isFullyPushedDown();
+        }
+    }
+
+    @Test
+    @Override
+    public void testCaseSensitiveAggregationPushdown()
+    {
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_cs_agg_pushdown",
+                "(a_varchar VARCHAR(2) COLLATE utf8mb4_general_ci, a_char CHAR(2) COLLATE utf8mb4_general_ci, a_bigint bigint)",
+                ImmutableList.of(
+                        "'A', 'A', 1",
+                        "'B', 'B', 1",
+                        "'a', 'a', 3",
+                        "'b', 'b', 4",
+                        "'a ', 'a ', 5",
+                        "'aA', 'aA', 6"))) {
+            Session session = stringPushdownWithBinaryEnabled(getSession());
+            // case-sensitive functions
+            assertThat(query(session, "SELECT max(a_varchar), min(a_varchar), max(a_char), min(a_char) FROM " + table.getName()))
+                    .isFullyPushedDown()
+                    .skippingTypesCheck()
+                    .matches("VALUES ('b', 'A', 'b ', 'A ')"); // char is padded with spaces
+            // distinct over case-sensitive column
+            assertThat(query(session, "SELECT distinct a_varchar FROM " + table.getName()))
+                    .isFullyPushedDown()
+                    .skippingTypesCheck()
+                    .matches("VALUES 'A', 'B', 'a', 'b', 'aA', 'a '");
+            assertThat(query(session, "SELECT distinct a_char FROM " + table.getName()))
+                    .isFullyPushedDown()
+                    .skippingTypesCheck()
+                    .matches("VALUES 'A ', 'B ', 'a ', 'b ', 'aA'"); // char is padded with spaces
+            // case-sensitive grouping sets
+            assertThat(query(session, "SELECT a_varchar, count(*) FROM " + table.getName() + " GROUP BY a_varchar"))
+                    .isFullyPushedDown()
+                    .skippingTypesCheck()
+                    .matches("VALUES ('A', BIGINT '1'), ('a', BIGINT '1'), ('b', BIGINT '1'), ('B', BIGINT '1'), ('a ', BIGINT '1'), ('aA', BIGINT '1')");
+            assertThat(query(session, "SELECT a_char, count(*) FROM " + table.getName() + " GROUP BY a_char"))
+                    .isFullyPushedDown()
+                    .skippingTypesCheck()
+                    .matches("VALUES ('A ', BIGINT '1'), ('B ', BIGINT '1'), ('a ', BIGINT '2'), ('b ', BIGINT '1'), ('aA', BIGINT '1')");
+
+            // case-insensitive functions with case-insensitive grouping sets
+            assertThat(query(session, "SELECT count(a_varchar), count(a_char) FROM " + table.getName())).isFullyPushedDown();
+            assertThat(query(session, "SELECT count(a_varchar), count(a_char) FROM " + table.getName() + " GROUP BY a_bigint")).isFullyPushedDown();
+
+            // aggregation and filtering on the same column varchar
+            assertThat(query(
+                    session,
+                    """
+                            SELECT a_varchar, COUNT(*)
+                            FROM  %s
+                            WHERE a_varchar = 'a'
+                            GROUP BY a_varchar
+                            """.formatted(table.getName())))
+                    .isFullyPushedDown()
+                    .skippingTypesCheck()
+                    .matches("VALUES (VARCHAR 'a', BIGINT '1')");
+
+            // aggregation and filtering on the same column char
+            assertThat(query(
+                    session,
+                    """
+                            SELECT a_char, COUNT(*)
+                            FROM  %s
+                            WHERE a_char = 'a'
+                            GROUP BY a_char
+                            """.formatted(table.getName())))
+                    .isFullyPushedDown()
+                    .skippingTypesCheck()
+                    .matches("VALUES (CHAR 'a ', BIGINT '2')"); // char is padded with spaces so 'a' and 'a ' are same
+
+            // aggregation and filtering on the same column char with alias, trino does not allow alias in GROUP BY
+            assertThat(query(
+                    session,
+                    """
+                            SELECT a_char AS a_alias, COUNT(*)
+                            FROM  %s
+                            WHERE a_char = 'a'
+                            GROUP BY a_char
+                            """.formatted(table.getName())))
+                    .isFullyPushedDown()
+                    .skippingTypesCheck()
+                    .matches("VALUES (CHAR 'a ', BIGINT '2')");
+
+            // DISTINCT over case-sensitive columns
+            assertThat(query(session, "SELECT count(DISTINCT a_varchar) FROM " + table.getName()))
+                    .isFullyPushedDown()
+                    .skippingTypesCheck()
+                    .matches("VALUES BIGINT '6'");
+            assertThat(query(session, "SELECT count(DISTINCT a_char) FROM " + table.getName()))
+                    .isFullyPushedDown()
+                    .skippingTypesCheck()
+                    .matches("VALUES BIGINT '5'"); // char is padded with spaces so 'a' and 'a ' are same
+
+            // multiple grouping sets are not pushed down by optimizer
+            assertThat(query(
+                    session,
+                    """
+                    SELECT
+                        a_varchar,
+                        a_char,
+                        SUM(a_bigint) AS total_sum
+                    FROM %s
+                    GROUP BY GROUPING SETS (
+                        (a_varchar, a_char), -- Group by both columns
+                        (a_varchar),         -- Group by `a_varchar` only
+                        (a_char),            -- Group by `a_char` only
+                        ()                   -- Grand total (no grouping)
+                    )
+                    """.formatted(table.getName())))
+                    .isNotFullyPushedDown(GroupIdNode.class);
+
+            verifyMultipleDistinctPushdown(sessionWithDistinctAggregationsStrategy(session, "mark_distinct"), table);
+            verifyMultipleDistinctPushdown(sessionWithDistinctAggregationsStrategy(session, "single_step"), table);
+            verifyMultipleDistinctPushdown(sessionWithDistinctAggregationsStrategy(session, "pre_aggregate"), table);
+        }
+    }
+
+    private void verifyMultipleDistinctPushdown(Session session, TestTable table)
+    {
+        assertThat(query(session, "SELECT count(DISTINCT a_varchar), count(DISTINCT a_bigint) FROM " + table.getName()))
+                .isFullyPushedDown()
+                .skippingTypesCheck()
+                .matches("VALUES (BIGINT '6', BIGINT '5')");
+
+        assertThat(query(session, "SELECT count(DISTINCT a_char), count(DISTINCT a_bigint) FROM " + table.getName()))
+                .isFullyPushedDown()
+                .skippingTypesCheck()
+                .matches("VALUES (BIGINT '5', BIGINT '5')");
+
+        assertThat(query(session, "SELECT count(DISTINCT a_varchar), sum(DISTINCT a_bigint) FROM " + table.getName()))
+                .isFullyPushedDown()
+                .skippingTypesCheck()
+                .matches(sumDistinctAggregationPushdownExpectedResult());
+
+        assertThat(query(session, "SELECT count(DISTINCT a_char), sum(DISTINCT a_bigint) FROM " + table.getName()))
+                .isFullyPushedDown()
+                .skippingTypesCheck()
+                .matches("VALUES (BIGINT '5', BIGINT '19')"); // char is padded with spaces so 'a' and 'a ' are same
+    }
+
+    private static Session sessionWithDistinctAggregationsStrategy(Session session, String strategyValue)
+    {
+        return Session.builder(session)
+                .setSystemProperty(DISTINCT_AGGREGATIONS_STRATEGY, strategyValue)
+                .build();
+    }
+
+    private static Session stringPushdownWithBinaryEnabled(Session session)
+    {
+        return Session.builder(session)
+                .setCatalogSessionProperty("singlestore", "enable_string_pushdown_with_binary", "true")
+                .build();
+    }
+
+    @Override
+    protected String sumDistinctAggregationPushdownExpectedResult()
+    {
+        return "VALUES (BIGINT '6', BIGINT '19')";
     }
 
     @Override
