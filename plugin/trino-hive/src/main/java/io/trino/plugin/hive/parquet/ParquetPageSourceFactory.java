@@ -253,7 +253,7 @@ public class ParquetPageSourceFactory
             FileMetadata fileMetaData = parquetMetadata.getFileMetaData();
             fileSchema = fileMetaData.getSchema();
 
-            CoercionContext coercionContext = createCoercionContext(fileMetaData.getKeyValueMetaData(), options.isRebaseLegacyInt96Timestamp());
+            CoercionContext coercionContext = createCoercionContext(fileMetaData, options.isRebaseLegacyInt96Timestamp());
             Optional<MessageType> message = getParquetMessageType(columns, useColumnNames, fileSchema);
 
             requestedSchema = message.orElse(new MessageType(fileSchema.getName(), ImmutableList.of()));
@@ -264,7 +264,7 @@ public class ParquetPageSourceFactory
             List<TupleDomainParquetPredicate> parquetPredicates;
             if (options.isIgnoreStatistics()) {
                 parquetTupleDomains = ImmutableList.of(TupleDomain.all());
-                parquetPredicates = ImmutableList.of(buildPredicate(requestedSchema, TupleDomain.all(), descriptorsByPath, timeZone, coercionContext.convertDateToProleptic(), coercionContext.convertHiveInt96TimestampToProleptic()));
+                parquetPredicates = ImmutableList.of(buildPredicate(requestedSchema, TupleDomain.all(), descriptorsByPath, timeZone, coercionContext.convertDateToProleptic(), coercionContext.convertInt64TimestampProleptic(), coercionContext.convertInt96TimestampToProleptic()));
             }
             else {
                 ImmutableList.Builder<TupleDomain<ColumnDescriptor>> parquetTupleDomainsBuilder = ImmutableList.builderWithExpectedSize(disjunctTupleDomains.size());
@@ -272,7 +272,7 @@ public class ParquetPageSourceFactory
                 for (TupleDomain<HiveColumnHandle> tupleDomain : disjunctTupleDomains) {
                     TupleDomain<ColumnDescriptor> parquetTupleDomain = getParquetTupleDomain(descriptorsByPath, tupleDomain, fileSchema, useColumnNames);
                     parquetTupleDomainsBuilder.add(parquetTupleDomain);
-                    parquetPredicatesBuilder.add(buildPredicate(requestedSchema, parquetTupleDomain, descriptorsByPath, timeZone, coercionContext.convertDateToProleptic(), coercionContext.convertHiveInt96TimestampToProleptic()));
+                    parquetPredicatesBuilder.add(buildPredicate(requestedSchema, parquetTupleDomain, descriptorsByPath, timeZone, coercionContext.convertDateToProleptic(), coercionContext.convertInt64TimestampProleptic(), coercionContext.convertInt96TimestampToProleptic()));
                 }
                 parquetTupleDomains = parquetTupleDomainsBuilder.build();
                 parquetPredicates = parquetPredicatesBuilder.build();
@@ -290,7 +290,8 @@ public class ParquetPageSourceFactory
                     domainCompactionThreshold,
                     options,
                     coercionContext.convertDateToProleptic(),
-                    coercionContext.convertHiveInt96TimestampToProleptic());
+                    coercionContext.convertInt64TimestampProleptic(),
+                    coercionContext.convertInt96TimestampToProleptic());
 
             ParquetDataSourceId dataSourceId = dataSource.getId();
             ParquetDataSource finalDataSource = dataSource;
@@ -566,21 +567,25 @@ public class ParquetPageSourceFactory
         return transforms.build(pageSource);
     }
 
-    private static CoercionContext createCoercionContext(Map<String, String> keyValueMetaData, boolean parquetRebaseLegacyInt96Timestamp)
+    private static CoercionContext createCoercionContext(FileMetadata fileMetadata, boolean parquetRebaseLegacyInt96Timestamp)
     {
         boolean convertDateToProleptic = false;
-        boolean convertHiveInt96TimestampToProleptic = false;
+        boolean convertInt64TimestampProleptic = false;
+        boolean convertInt96TimestampToProleptic = false;
 
-        boolean convertSparkTimestampProleptic = false;
-        boolean convertSparkTimestampInt96ToProleptic = false;
+        String createdBy = fileMetadata.getCreatedBy();
+        if (createdBy != null && createdBy.startsWith("parquet-mr-trino")) {
+            return CoercionContext.DEFAULT;
+        }
 
+        Map<String, String> keyValueMetaData = fileMetadata.getKeyValueMetaData();
         // Hive: if entry exists and explicitly states 'false' then we should convert to Proleptic, in other cases no
         if ("false".equalsIgnoreCase(keyValueMetaData.get(HIVE_METADATA_KEY_WRITER_DATE_PROLEPTIC))) {
             convertDateToProleptic = true;
         }
 
         if (parquetRebaseLegacyInt96Timestamp && isParquetWrittenByHive(keyValueMetaData)) {
-            convertHiveInt96TimestampToProleptic = true;
+            convertInt96TimestampToProleptic = true;
         }
 
         String sparkVersionMetadata = keyValueMetaData.get(APACHE_SPARK_METADATA_KEY_VERSION);
@@ -596,7 +601,7 @@ public class ParquetPageSourceFactory
 
         if (sparkDatetimeInHybrid) {
             convertDateToProleptic = true;
-            convertSparkTimestampProleptic = true;
+            convertInt64TimestampProleptic = true;
         }
 
         // For INT96 timestamps, Spark followed the hybrid calendar up to Spark 3.0.x, and switched to Proleptic Gregorian in Spark 3.1.0
@@ -607,10 +612,10 @@ public class ParquetPageSourceFactory
                 .orElse(false) || keyValueMetaData.containsKey(APACHE_SPARK_METADATA_KEY_LEGACY_INT96);
 
         if (sparkInt96InHybrid) {
-            convertSparkTimestampInt96ToProleptic = true;
+            convertInt96TimestampToProleptic = true;
         }
 
-        return new CoercionContext(convertDateToProleptic, convertHiveInt96TimestampToProleptic, convertSparkTimestampProleptic, convertSparkTimestampInt96ToProleptic);
+        return new CoercionContext(convertDateToProleptic, convertInt64TimestampProleptic, convertInt96TimestampToProleptic);
     }
 
     private static boolean isParquetWrittenByHive(Map<String, String> keyValueMetaData)

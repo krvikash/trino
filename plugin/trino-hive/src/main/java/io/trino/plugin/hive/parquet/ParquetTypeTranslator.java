@@ -96,13 +96,13 @@ public final class ParquetTypeTranslator
             }
         }
         if (toTrinoType instanceof TimestampType timestampType) {
-            if (fromParquetType == INT96 && (coercionContext.convertHiveInt96TimestampToProleptic() || coercionContext.convertSparkTimestampInt96ToProleptic())) {
+            if (fromParquetType == INT96 && coercionContext.convertInt96TimestampToProleptic()) {
                 return Optional.of(timestampType.isShort()
                         ? new ShortTimestampHybridToProlepticGregorianCoercer(timestampType)
                         : new LongTimestampHybridToProlepticGregorianCoercer(timestampType));
             }
 
-            if (fromParquetType == INT64 && coercionContext.convertSparkTimestampToProleptic()) {
+            if (fromParquetType == INT64 && coercionContext.convertInt64TimestampProleptic()) {
                 if (typeAnnotation instanceof TimestampLogicalTypeAnnotation timestampLogicalTypeAnnotation) {
                     // according to spark.sql.parquet.inferTimestampNTZ.enabled, https://spark.apache.org/docs/latest/configuration.html#runtime-sql-configuration
                     if (!timestampLogicalTypeAnnotation.isAdjustedToUTC()) {
@@ -115,13 +115,13 @@ public final class ParquetTypeTranslator
             }
         }
         if (toTrinoType instanceof TimestampWithTimeZoneType timestampType) {
-            if (fromParquetType == INT96 && coercionContext.convertSparkTimestampInt96ToProleptic()) {
+            if (fromParquetType == INT96 && coercionContext.convertInt96TimestampToProleptic()) {
                 return Optional.of(timestampType.isShort()
                         ? new ShortTimestampWithTimeZoneHybridToProlepticGregorianCoercer(timestampType)
                         : new LongTimestampWithTimeZoneHybridToProlepticGregorianCoercer(timestampType));
             }
 
-            if (fromParquetType != INT96 && coercionContext.convertSparkTimestampToProleptic()) {
+            if (fromParquetType == INT64 && coercionContext.convertInt64TimestampProleptic()) {
                 return Optional.of(timestampType.isShort()
                         ? new ShortTimestampWithTimeZoneHybridToProlepticGregorianCoercer(timestampType)
                         : new LongTimestampWithTimeZoneHybridToProlepticGregorianCoercer(timestampType));
@@ -132,10 +132,9 @@ public final class ParquetTypeTranslator
 
     public record CoercionContext(
             boolean convertDateToProleptic,
-            boolean convertHiveInt96TimestampToProleptic,
-            boolean convertSparkTimestampToProleptic,
-            boolean convertSparkTimestampInt96ToProleptic)
+            boolean convertInt64TimestampProleptic,
+            boolean convertInt96TimestampToProleptic)
     {
-        public static final CoercionContext DEFAULT = new CoercionContext(false, false, false, false);
+        public static final CoercionContext DEFAULT = new CoercionContext(false, false, false);
     }
 }

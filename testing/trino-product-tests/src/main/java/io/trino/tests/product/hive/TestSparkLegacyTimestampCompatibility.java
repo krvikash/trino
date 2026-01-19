@@ -70,6 +70,38 @@ public class TestSparkLegacyTimestampCompatibility
         testSparkParquetLegacyTimestampCompatibility("CORRECTED");
     }
 
+    @Test(groups = {HIVE_SPARK, PROFILE_SPECIFIC_TESTS})
+    public void testHiveParquetHandlePushdownWhenLegacyTimestamp()
+    {
+        testHandlePushdownWhenLegacyTimestamp("INT96");
+        testHandlePushdownWhenLegacyTimestamp("TIMESTAMP_MICROS");
+        testHandlePushdownWhenLegacyTimestamp("TIMESTAMP_MILLIS");
+    }
+
+    private static void testHandlePushdownWhenLegacyTimestamp(String sparkOutputTimestampType)
+    {
+        String sparkTableName = "test_spark_parquet_handle_pushdown_when_legacy_timestamp_%s".formatted(randomNameSuffix());
+        String trinoTableName = "%s.%s.%s".formatted(TRINO_CATALOG, SCHEMA, sparkTableName);
+
+        try {
+            onSpark().executeQuery("SET spark.sql.parquet.outputTimestampType=%s".formatted(sparkOutputTimestampType));
+            if (sparkOutputTimestampType.equals("INT96")) {
+                onSpark().executeQuery("SET spark.sql.parquet.int96RebaseModeInWrite=LEGACY");
+            }
+            else {
+                onSpark().executeQuery("SET spark.sql.parquet.datetimeRebaseModeInWrite=LEGACY");
+            }
+            onSpark().executeQuery("CREATE TABLE %s.%s (tmst timestamp) USING PARQUET".formatted(SCHEMA, sparkTableName));
+            onSpark().executeQuery("INSERT INTO %s.%s VALUES (TIMESTAMP '0001-01-01 11:12:13.456')".formatted(SCHEMA, sparkTableName));
+
+            assertThat(onTrino().executeQuery("SELECT 1 FROM " + trinoTableName + " WHERE tmst = TIMESTAMP '0001-01-01 11:12:13.456'"))
+                    .containsOnly(row(1));
+        }
+        finally {
+            onSpark().executeQuery("DROP TABLE IF EXISTS " + sparkTableName);
+        }
+    }
+
     private void testSparkParquetLegacyTimestampCompatibility(String rebaseMode)
     {
         testSparkParquetLegacyTimestampCompatibility(rebaseMode, "INT96", MILLISECONDS, timestampsWithPrecision(MILLISECONDS));

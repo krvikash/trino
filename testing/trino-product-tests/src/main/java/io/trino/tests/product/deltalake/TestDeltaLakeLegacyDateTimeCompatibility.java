@@ -643,6 +643,74 @@ public class TestDeltaLakeLegacyDateTimeCompatibility
         }
     }
 
+    @Test(groups = {DELTA_LAKE_OSS, PROFILE_SPECIFIC_TESTS})
+    public void testHandlePushdownWhenLegacyTimestampNtz()
+    {
+        testHandlePushdownWhenLegacyTimestampNtz("INT96");
+        testHandlePushdownWhenLegacyTimestampNtz("TIMESTAMP_MICROS");
+        testHandlePushdownWhenLegacyTimestampNtz("TIMESTAMP_MILLIS");
+    }
+
+    private void testHandlePushdownWhenLegacyTimestampNtz(String sparkOutputTimestampType)
+    {
+        String deltaTableName = "test_spark_on_delta_handle_pushdown_when_legacy_timestamp_ntz_%s".formatted(randomNameSuffix());
+        String trinoTableName = "%s.%s.%s".formatted(DELTA_CATALOG, SCHEMA, deltaTableName);
+
+        try {
+            onSpark().executeQuery("SET spark.sql.timestampType=TIMESTAMP_NTZ");
+            onSpark().executeQuery("SET spark.sql.parquet.outputTimestampType=%s".formatted(sparkOutputTimestampType));
+            if (sparkOutputTimestampType.equals("INT96")) {
+                onSpark().executeQuery("SET spark.sql.parquet.int96RebaseModeInWrite=LEGACY");
+            }
+            else {
+                onSpark().executeQuery("SET spark.sql.parquet.datetimeRebaseModeInWrite=LEGACY");
+            }
+            onDelta().executeQuery("CREATE TABLE %s.%s (tmst TIMESTAMP_NTZ) USING DELTA LOCATION 's3://%s/databricks-compatibility-test-%s'".formatted(SCHEMA, deltaTableName, bucketName, deltaTableName));
+            onSpark().executeQuery("INSERT INTO %s.%s VALUES (TIMESTAMP '0001-01-01 11:12:13.456')".formatted(SCHEMA, deltaTableName));
+
+            assertThat(onTrino().executeQuery("SELECT 1 FROM " + trinoTableName + " WHERE tmst = TIMESTAMP '0001-01-01 11:12:13.456'"))
+                    .containsOnly(row(1));
+        }
+        finally {
+            onDelta().executeQuery("DROP TABLE IF EXISTS " + deltaTableName);
+        }
+    }
+
+    @Test(groups = {DELTA_LAKE_OSS, PROFILE_SPECIFIC_TESTS})
+    public void testHandlePushdownWhenLegacyTimestamp()
+    {
+        testHandlePushdownWhenLegacyTimestamp("INT96");
+        testHandlePushdownWhenLegacyTimestamp("TIMESTAMP_MICROS");
+        testHandlePushdownWhenLegacyTimestamp("TIMESTAMP_MILLIS");
+    }
+
+    private void testHandlePushdownWhenLegacyTimestamp(String sparkOutputTimestampType)
+    {
+        String deltaTableName = "test_spark_on_delta_handle_pushdown_when_legacy_timestamp_%s".formatted(randomNameSuffix());
+        String trinoTableName = "%s.%s.%s".formatted(DELTA_CATALOG, SCHEMA, deltaTableName);
+
+        try {
+            onSpark().executeQuery("SET spark.sql.parquet.outputTimestampType=%s".formatted(sparkOutputTimestampType));
+            if (sparkOutputTimestampType.equals("INT96")) {
+                onSpark().executeQuery("SET spark.sql.parquet.int96RebaseModeInWrite=LEGACY");
+            }
+            else {
+                onSpark().executeQuery("SET spark.sql.parquet.datetimeRebaseModeInWrite=LEGACY");
+            }
+            onDelta().executeQuery("CREATE TABLE %s.%s (tmst TIMESTAMP) USING DELTA LOCATION 's3://%s/databricks-compatibility-test-%s'".formatted(SCHEMA, deltaTableName, bucketName, deltaTableName));
+            onSpark().executeQuery("INSERT INTO %s.%s VALUES (TIMESTAMP '0001-01-01 11:12:13.456')".formatted(SCHEMA, deltaTableName));
+
+            assertThat(onSpark().executeQuery("SELECT 1 FROM " + deltaTableName + " WHERE tmst = TIMESTAMP '0001-01-01 11:12:13.456'"))
+                    .containsOnly(row(1));
+
+            assertThat(onTrino().executeQuery("SELECT 1 FROM " + trinoTableName + " WHERE tmst = TIMESTAMP '0001-01-01 11:12:13.456 UTC'"))
+                    .containsOnly(row(1));
+        }
+        finally {
+            onDelta().executeQuery("DROP TABLE IF EXISTS " + deltaTableName);
+        }
+    }
+
     private static List<String> timestampsWithPrecision(Precision precision)
     {
         return TIMESTAMPS.stream()

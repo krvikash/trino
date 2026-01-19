@@ -129,7 +129,7 @@ public final class PredicateUtils
             Map<List<String>, ColumnDescriptor> descriptorsByPath,
             DateTimeZone timeZone)
     {
-        return buildPredicate(requestedSchema, parquetTupleDomain, descriptorsByPath, timeZone, false, false);
+        return buildPredicate(requestedSchema, parquetTupleDomain, descriptorsByPath, timeZone, false, false, false);
     }
 
     public static TupleDomainParquetPredicate buildPredicate(
@@ -138,6 +138,7 @@ public final class PredicateUtils
             Map<List<String>, ColumnDescriptor> descriptorsByPath,
             DateTimeZone timeZone,
             boolean legacyDate,
+            boolean legacyInt64Timestamp,
             boolean legacyInt96Timestamp)
     {
         ImmutableList.Builder<ColumnDescriptor> columnReferences = ImmutableList.builder();
@@ -147,7 +148,7 @@ public final class PredicateUtils
                 columnReferences.add(descriptor);
             }
         }
-        return new TupleDomainParquetPredicate(parquetTupleDomain, columnReferences.build(), timeZone, legacyDate, legacyInt96Timestamp);
+        return new TupleDomainParquetPredicate(parquetTupleDomain, columnReferences.build(), timeZone, legacyDate, legacyInt64Timestamp, legacyInt96Timestamp);
     }
 
     public static boolean predicateMatches(
@@ -161,6 +162,7 @@ public final class PredicateUtils
             DateTimeZone timeZone,
             int domainCompactionThreshold,
             boolean legacyDate,
+            boolean legacyInt64Timestamp,
             boolean legacyInt96Timestamp,
             Optional<FileDecryptionContext> decryptionContext)
             throws IOException
@@ -180,7 +182,7 @@ public final class PredicateUtils
         // Perform column index, bloom filter checks and dictionary lookups only for the subset of columns where it can be useful.
         // This prevents unnecessary filesystem reads and decoding work when the predicate on a column comes from
         // file-level min/max stats or more generally when the predicate selects a range equal to or wider than row-group min/max.
-        TupleDomainParquetPredicate indexPredicate = new TupleDomainParquetPredicate(parquetTupleDomain, candidateColumns.get(), timeZone, legacyDate, legacyInt96Timestamp);
+        TupleDomainParquetPredicate indexPredicate = new TupleDomainParquetPredicate(parquetTupleDomain, candidateColumns.get(), timeZone, legacyDate, legacyInt64Timestamp, legacyInt96Timestamp);
 
         // Page stats is finer grained but relatively more expensive, so we do the filtering after above block filtering.
         if (columnIndexStore.isPresent() && !indexPredicate.matches(columnValueCounts, columnIndexStore.get(), dataSource.getId())) {
@@ -226,6 +228,7 @@ public final class PredicateUtils
                 domainCompactionThreshold,
                 options,
                 false,
+                false,
                 false);
     }
 
@@ -241,6 +244,7 @@ public final class PredicateUtils
             int domainCompactionThreshold,
             ParquetReaderOptions options,
             boolean legacyDate,
+            boolean legacyInt64Timestamp,
             boolean legacyInt96Timestamp)
             throws IOException
     {
@@ -263,6 +267,7 @@ public final class PredicateUtils
                         timeZone,
                         domainCompactionThreshold,
                         legacyDate,
+                        legacyInt64Timestamp,
                         legacyInt96Timestamp,
                         parquetMetadata.getDecryptionContext())) {
                     rowGroupInfoBuilder.add(new RowGroupInfo(columnsMetadata, block.fileRowCountOffset(), columnIndex));

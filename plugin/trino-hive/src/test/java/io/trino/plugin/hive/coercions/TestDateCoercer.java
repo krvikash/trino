@@ -24,6 +24,8 @@ import org.junit.jupiter.api.Test;
 import java.sql.Date;
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
 
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.plugin.hive.HiveStorageFormat.PARQUET;
@@ -37,8 +39,6 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
-import static java.lang.Math.floor;
-import static java.util.concurrent.TimeUnit.DAYS;
 import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -185,7 +185,7 @@ public class TestDateCoercer
                         INT32,
                         LogicalTypeAnnotation.dateType(),
                         DATE,
-                        new ParquetTypeTranslator.CoercionContext(convertDateToProleptic, false, false, false));
+                        new ParquetTypeTranslator.CoercionContext(convertDateToProleptic, false, false));
         Block readBlock = coercer.isPresent() ? coercer.get().apply(writtenBlock) : writtenBlock;
 
         Object actualDays = blockToNativeValue(DATE, readBlock);
@@ -197,9 +197,11 @@ public class TestDateCoercer
         return LocalDate.parse(date).toEpochDay();
     }
 
-    private Long toEpochDaysInHybridCalendar(String date)
+    private Long toEpochDaysInHybridCalendar(String dateStr)
     {
-        return (long) floor((double) Date.valueOf(date).getTime() / DAYS.toMillis(1));
+        Date date = Date.valueOf(dateStr);
+        long millis = date.getTime();
+        return TimeUnit.MILLISECONDS.toDays(millis + TimeZone.getDefault().getOffset(millis));
     }
 
     private void assertVarcharToDateCoercion(Type fromType, String date)
