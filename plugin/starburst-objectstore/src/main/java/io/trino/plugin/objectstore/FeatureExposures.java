@@ -248,6 +248,7 @@ public final class FeatureExposures
                 .put(HIVE, "register_partition", EXPOSED)
                 .put(DELTA, "register_table", INACCESSIBLE) // see ObjectStoreRegisterTableProcedure
                 .put(ICEBERG, "register_table", INACCESSIBLE) // see ObjectStoreRegisterTableProcedure
+                .put(ICEBERG, "register_view", INACCESSIBLE)
                 .put(ICEBERG, "rollback_to_snapshot", EXPOSED)
                 .put(HIVE, "sync_partition_metadata", EXPOSED)
                 .put(HIVE, "unregister_partition", EXPOSED)

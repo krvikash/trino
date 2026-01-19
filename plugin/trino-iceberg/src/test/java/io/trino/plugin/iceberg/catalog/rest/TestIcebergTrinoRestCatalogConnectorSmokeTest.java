@@ -29,6 +29,7 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.jdbc.JdbcCatalog;
 import org.apache.iceberg.rest.DelegatingRestSessionCatalog;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.view.BaseView;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -101,6 +102,7 @@ public class TestIcebergTrinoRestCatalogConnectorSmokeTest
                                 .put("iceberg.catalog.type", "rest")
                                 .put("iceberg.rest-catalog.uri", testServer.getBaseUrl().toString())
                                 .put("iceberg.register-table-procedure.enabled", "true")
+                                .put("iceberg.register-view-procedure.enabled", "true")
                                 .put("iceberg.writer-sort-buffer-size", "1MB")
                                 .buildOrThrow())
                 .setInitialTables(REQUIRED_TPCH_TABLES)
@@ -201,6 +203,13 @@ public class TestIcebergTrinoRestCatalogConnectorSmokeTest
     {
         BaseTable table = (BaseTable) backend.loadTable(toIdentifier(tableName));
         return table.operations().current().metadataFileLocation();
+    }
+
+    @Override
+    protected String getViewMetadataLocation(String viewName)
+    {
+        BaseView view = (BaseView) backend.loadView(toIdentifier(viewName));
+        return view.operations().current().metadataFileLocation();
     }
 
     @Override

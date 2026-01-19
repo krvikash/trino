@@ -174,7 +174,7 @@ public class RegisterTableProcedure
         catalog.registerTable(clientSession, schemaTableName, tableMetadata);
     }
 
-    private static void validateMetadataFileName(String fileName)
+    public static void validateMetadataFileName(String fileName)
     {
         String metadataFileName = fileName.trim();
         checkProcedureArgument(!metadataFileName.isEmpty(), "metadata_file_name cannot be empty when provided as an argument");
@@ -185,14 +185,14 @@ public class RegisterTableProcedure
      * Get the latest metadata file location present in location if metadataFileName is not provided, otherwise
      * form the metadata file location using location and metadataFileName
      */
-    private static String getMetadataLocation(TrinoFileSystem fileSystem, String location, Optional<String> metadataFileName)
+    public static String getMetadataLocation(TrinoFileSystem fileSystem, String location, Optional<String> metadataFileName)
     {
         return metadataFileName
                 .map(fileName -> format("%s/%s/%s", stripTrailingSlash(location), METADATA_FOLDER_NAME, fileName))
                 .orElseGet(() -> getLatestMetadataLocation(fileSystem, location));
     }
 
-    private static void validateMetadataLocation(TrinoFileSystem fileSystem, Location location)
+    public static void validateMetadataLocation(TrinoFileSystem fileSystem, Location location)
     {
         try {
             if (!fileSystem.newInputFile(location).exists()) {

@@ -432,6 +432,14 @@ final class TestIcebergUnityRestCatalogConnectorSmokeTest
 
     @Test
     @Override
+    public void testRegisterView()
+    {
+        assertThatThrownBy(super::testRegisterView)
+                .hasMessageContaining("Access Denied");
+    }
+
+    @Test
+    @Override
     public void testCreateTableWithNonExistingSchemaVerifyLocation()
     {
         testFailsDueToReadOnlyCatalog(super::testCreateTableWithNonExistingSchemaVerifyLocation);

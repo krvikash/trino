@@ -329,6 +329,13 @@ final class TestIcebergDatabricksUnityScanPlanningConnectorSmokeTest
 
     @Test
     @Override
+    public void testRegisterView()
+    {
+        testFailsDueToReadOnlyCatalog(super::testRegisterView);
+    }
+
+    @Test
+    @Override
     public void testCommentView()
     {
         testFailsDueToReadOnlyCatalog(super::testCommentView);

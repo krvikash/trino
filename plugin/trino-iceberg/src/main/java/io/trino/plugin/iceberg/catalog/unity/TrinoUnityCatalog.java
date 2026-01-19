@@ -37,6 +37,7 @@ import org.apache.iceberg.Schema;
 import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.Transaction;
+import org.apache.iceberg.view.ViewMetadata;
 
 import java.util.Iterator;
 import java.util.List;
@@ -141,6 +142,12 @@ public class TrinoUnityCatalog
     public List<SchemaTableName> listViews(ConnectorSession session, Optional<String> namespace)
     {
         throw new UnsupportedOperationException("listViews is not supported");
+    }
+
+    @Override
+    public void registerView(ConnectorSession session, SchemaTableName viewName, ViewMetadata viewMetadata)
+    {
+        throw new UnsupportedOperationException("registerView is not supported");
     }
 
     @Override

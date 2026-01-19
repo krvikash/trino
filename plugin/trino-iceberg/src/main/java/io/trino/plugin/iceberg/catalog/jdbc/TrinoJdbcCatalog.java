@@ -61,6 +61,7 @@ import org.apache.iceberg.view.SQLViewRepresentation;
 import org.apache.iceberg.view.UpdateViewProperties;
 import org.apache.iceberg.view.View;
 import org.apache.iceberg.view.ViewBuilder;
+import org.apache.iceberg.view.ViewMetadata;
 import org.apache.iceberg.view.ViewRepresentation;
 import org.apache.iceberg.view.ViewVersion;
 
@@ -614,6 +615,15 @@ public class TrinoJdbcCatalog
     public void dropView(ConnectorSession session, SchemaTableName schemaViewName)
     {
         jdbcCatalog.dropView(toIdentifier(schemaViewName));
+    }
+
+    @Override
+    public void registerView(ConnectorSession session, SchemaTableName viewName, ViewMetadata viewMetadata)
+    {
+        if (schemaVersion == SchemaVersion.V0) {
+            throw new TrinoException(NOT_SUPPORTED, "Schema version V0 does not support views");
+        }
+        jdbcCatalog.registerView(toIdentifier(viewName), viewMetadata.metadataFileLocation());
     }
 
     @Override

@@ -154,6 +154,14 @@ public class TestIcebergNessieCatalogConnectorSmokeTest
 
     @Test
     @Override
+    public void testRegisterView()
+    {
+        assertThatThrownBy(super::testRegisterView)
+                .hasStackTraceContaining("createView is not supported for Iceberg Nessie catalogs");
+    }
+
+    @Test
+    @Override
     public void testMaterializedView()
     {
         assertThatThrownBy(super::testMaterializedView)

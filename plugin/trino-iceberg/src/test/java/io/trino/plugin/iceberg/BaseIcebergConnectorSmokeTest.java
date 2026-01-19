@@ -20,6 +20,7 @@ import io.trino.Session;
 import io.trino.filesystem.FileIterator;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
+import io.trino.spi.TrinoException;
 import io.trino.testing.BaseConnectorSmokeTest;
 import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.sql.TestTable;
@@ -60,6 +61,7 @@ import static io.trino.plugin.iceberg.IcebergSessionProperties.COLLECT_EXTENDED_
 import static io.trino.plugin.iceberg.IcebergTestUtils.FILE_IO_FACTORY;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getMetadataFileAndUpdatedMillis;
+import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.testing.TestingAccessControlManager.TestingPrivilegeType.DROP_TABLE;
 import static io.trino.testing.TestingAccessControlManager.privilege;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_CREATE_TABLE;
@@ -71,6 +73,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newFixedThreadPool;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.abort;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 @TestInstance(PER_CLASS)
@@ -557,6 +560,72 @@ public abstract class BaseIcebergConnectorSmokeTest
     }
 
     @Test
+    public void testRegisterView()
+    {
+        String viewName = "test_register_view" + randomNameSuffix();
+        String viewNameWithViewLocation = "test_register_view" + randomNameSuffix();
+        String viewNameWithMetadataLocation = "test_register_view" + randomNameSuffix();
+        String viewNameWithVersionedView = "test_register_view" + randomNameSuffix();
+
+        try {
+            assertUpdate("CREATE VIEW " + viewName + " AS SELECT * FROM region");
+        }
+        catch (TrinoException e) {
+            if (e.getErrorCode() == NOT_SUPPORTED.toErrorCode()) {
+                abort("skipped");
+            }
+            throw e;
+        }
+
+        try {
+            String metadataLocation = getViewMetadataLocation(viewName);
+
+            // Test VIEW_LOCATION argument
+            Location viewLocation = Location.of(metadataLocation).parentDirectory().parentDirectory();
+            assertUpdate("CALL system.register_view(CURRENT_SCHEMA, '" + viewNameWithViewLocation + "', '" + viewLocation + "')");
+            assertThat(query("TABLE " + viewNameWithViewLocation)).matches("TABLE region");
+
+            // Test VIEW_LOCATION and METADATA_FILE_NAME arguments
+            String metadataFileName = Location.of(metadataLocation).fileName();
+            assertUpdate("CALL system.register_view(CURRENT_SCHEMA, '" + viewNameWithMetadataLocation + "', '" + viewLocation + "', '" + metadataFileName + "')");
+            assertThat(query("TABLE " + viewNameWithMetadataLocation)).matches("TABLE region");
+
+            // Register view after CREATE OR REPLACE
+            assertUpdate("CREATE OR REPLACE VIEW " + viewName + " AS SELECT * FROM nation");
+            Location versionedViewLocation = Location.of(getViewMetadataLocation(viewName)).parentDirectory().parentDirectory();
+            assertUpdate("CALL system.register_view(CURRENT_SCHEMA, '" + viewNameWithVersionedView + "', '" + versionedViewLocation + "')");
+            assertThat(query("TABLE " + viewNameWithVersionedView)).matches("TABLE nation");
+
+            // Invalid arguments
+            assertQueryFails(
+                    "CALL system.register_view(CURRENT_SCHEMA, '" + viewName + "', '" + viewLocation + "')",
+                    "View already exists: .*");
+            assertQueryFails(
+                    "CALL system.register_view(CURRENT_SCHEMA, '" + viewName + "_invalid_location', '" + viewLocation + "_invalid')",
+                    "No versioned metadata file exists at location: .*");
+            assertQueryFails(
+                    "CALL system.register_view(CURRENT_SCHEMA, '" + viewName + "_invalid_file_name', '" + viewLocation + "', 'invalid-metadata-file-name')",
+                    "Metadata file does not exist: .*");
+        }
+        finally {
+            dropViewIfExists(viewName);
+            dropViewIfExists(viewNameWithViewLocation);
+            dropViewIfExists(viewNameWithMetadataLocation);
+            dropViewIfExists(viewNameWithVersionedView);
+        }
+    }
+
+    private void dropViewIfExists(String viewName)
+    {
+        try {
+            assertUpdate("DROP VIEW IF EXISTS " + viewName);
+        }
+        catch (Exception e) {
+            // no-op
+        }
+    }
+
+    @Test
     public void testCreateTableWithNonExistingSchemaVerifyLocation()
     {
         String schemaName = "non_existing_schema_" + randomNameSuffix();
@@ -1022,6 +1091,11 @@ public abstract class BaseIcebergConnectorSmokeTest
     protected abstract void dropTableFromCatalog(String tableName);
 
     protected abstract String getMetadataLocation(String tableName);
+
+    protected String getViewMetadataLocation(String viewName)
+    {
+        return abort("The catalog does not support Iceberg views");
+    }
 
     protected abstract String schemaPath();
 

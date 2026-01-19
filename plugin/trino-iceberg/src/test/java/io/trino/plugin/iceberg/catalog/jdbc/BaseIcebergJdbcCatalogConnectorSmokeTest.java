@@ -28,6 +28,7 @@ import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.jdbc.JdbcCatalog;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.view.BaseView;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -114,6 +115,7 @@ public abstract class BaseIcebergJdbcCatalogConnectorSmokeTest
                                 .put("iceberg.jdbc-catalog.catalog-name", "tpch")
                                 .put("iceberg.jdbc-catalog.schema-version", schemaVersion.toString())
                                 .put("iceberg.register-table-procedure.enabled", "true")
+                                .put("iceberg.register-view-procedure.enabled", "true")
                                 .put("iceberg.writer-sort-buffer-size", "1MB")
                                 .put("iceberg.jdbc-catalog.default-warehouse-dir", warehouseLocation.getAbsolutePath())
                                 .put("iceberg.jdbc-catalog.retryable-status-codes", "57P01,57P05")
@@ -217,6 +219,13 @@ public abstract class BaseIcebergJdbcCatalogConnectorSmokeTest
     {
         BaseTable table = (BaseTable) jdbcCatalog.loadTable(toIdentifier(tableName));
         return table.operations().current().metadataFileLocation();
+    }
+
+    @Override
+    protected String getViewMetadataLocation(String viewName)
+    {
+        BaseView view = (BaseView) jdbcCatalog.loadView(toIdentifier(viewName));
+        return view.operations().current().metadataFileLocation();
     }
 
     @Override

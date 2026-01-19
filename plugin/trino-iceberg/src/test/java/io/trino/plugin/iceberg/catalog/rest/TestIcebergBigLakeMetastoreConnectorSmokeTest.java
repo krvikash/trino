@@ -229,6 +229,14 @@ final class TestIcebergBigLakeMetastoreConnectorSmokeTest
     }
 
     @Test
+    @Override
+    public void testRegisterView()
+    {
+        assertThatThrownBy(super::testRegisterView)
+                .hasMessageContaining("Server does not support endpoint: POST /v1/{prefix}/namespaces/{namespace}/views");
+    }
+
+    @Test
     @Override // TODO Enable once timeout issue is fixed
     public void testDeleteRowsConcurrently()
     {

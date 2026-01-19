@@ -278,6 +278,14 @@ final class TestIcebergDatabricksUnityRestCatalogConnectorSmokeTest
 
     @Test
     @Override
+    public void testRegisterView()
+    {
+        assertThatThrownBy(super::testRegisterView)
+                .hasMessageContaining("Server does not support endpoint: POST /v1/{prefix}/namespaces/{namespace}/views");
+    }
+
+    @Test
+    @Override
     public void testMaterializedView()
     {
         assertThatThrownBy(super::testMaterializedView)

@@ -300,6 +300,10 @@ final class TestIcebergS3TablesConnectorSmokeTest
     public void testUnregisterTableAccessControl() {}
 
     @Test
+    @Override // The procedure is unsupported in S3 Tables
+    public void testRegisterView() {}
+
+    @Test
     @Override
     @Disabled // TODO: remove once https://starburstdata.atlassian.net/browse/CONNECT-557 is fixed
     public void testSelectInformationSchemaTables() {}

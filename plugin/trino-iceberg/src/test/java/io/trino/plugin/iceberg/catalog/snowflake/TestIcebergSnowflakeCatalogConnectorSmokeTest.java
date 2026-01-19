@@ -676,6 +676,14 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     }
 
     @Test
+    @Override
+    public void testRegisterView()
+    {
+        assertThatThrownBy(super::testRegisterView)
+                .hasMessageContaining("Views are not supported for the Snowflake Iceberg catalog");
+    }
+
+    @Test
     public void testExecuteDelete()
     {
         assertThatThrownBy(() -> assertUpdate("DELETE FROM " + TpchTable.REGION.getTableName()))
