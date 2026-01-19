@@ -1291,7 +1291,7 @@ public final class SystemSessionProperties
                         SPOOLING_ENABLED,
                         "Enable client spooling protocol",
                         true,
-                        true),
+                        false),
                 booleanProperty(
                         SPOOLING_UNSUPPORTED_WARNING,
                         "Generate warning when client lacks support for spooling protocol",
