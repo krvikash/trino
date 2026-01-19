@@ -100,20 +100,20 @@ public class TupleDomainParquetPredicate
     private final List<ColumnDescriptor> columns;
     private final DateTimeZone timeZone;
     private final boolean legacyDate;
-    private final boolean legacyTimestamp;
+    private final boolean legacyInt96Timestamp;
 
     public TupleDomainParquetPredicate(TupleDomain<ColumnDescriptor> effectivePredicate, List<ColumnDescriptor> columns, DateTimeZone timeZone)
     {
         this(effectivePredicate, columns, timeZone, false, false);
     }
 
-    public TupleDomainParquetPredicate(TupleDomain<ColumnDescriptor> effectivePredicate, List<ColumnDescriptor> columns, DateTimeZone timeZone, boolean legacyDate, boolean legacyTimestamp)
+    public TupleDomainParquetPredicate(TupleDomain<ColumnDescriptor> effectivePredicate, List<ColumnDescriptor> columns, DateTimeZone timeZone, boolean legacyDate, boolean legacyInt96Timestamp)
     {
         this.effectivePredicate = requireNonNull(effectivePredicate, "effectivePredicate is null");
         this.columns = ImmutableList.copyOf(requireNonNull(columns, "columns is null"));
         this.timeZone = requireNonNull(timeZone, "timeZone is null");
         this.legacyDate = legacyDate;
-        this.legacyTimestamp = legacyTimestamp;
+        this.legacyInt96Timestamp = legacyInt96Timestamp;
     }
 
     public boolean isDiscreteSet(ColumnDescriptor column)
@@ -181,7 +181,7 @@ public class TupleDomainParquetPredicate
                     id,
                     timeZone,
                     legacyDate,
-                    legacyTimestamp);
+                    legacyInt96Timestamp);
             if (!effectivePredicateDomain.overlaps(domain)) {
                 return Optional.empty();
             }
@@ -253,7 +253,7 @@ public class TupleDomainParquetPredicate
             if (columnValueCount == null) {
                 throw new IllegalArgumentException(format("Missing columnValueCount for column %s in %s", column, id));
             }
-            Domain domain = getDomain(effectivePredicateDomain.getType(), columnValueCount, columnIndex, id, column, timeZone, legacyDate, legacyTimestamp);
+            Domain domain = getDomain(effectivePredicateDomain.getType(), columnValueCount, columnIndex, id, column, timeZone, legacyDate, legacyInt96Timestamp);
             if (!effectivePredicateDomain.overlaps(domain)) {
                 return false;
             }
@@ -316,7 +316,7 @@ public class TupleDomainParquetPredicate
 
     private boolean effectivePredicateMatches(Domain effectivePredicateDomain, DictionaryDescriptor dictionary)
     {
-        return effectivePredicateDomain.overlaps(getDomain(effectivePredicateDomain.getType(), dictionary, timeZone, legacyDate, legacyTimestamp));
+        return effectivePredicateDomain.overlaps(getDomain(effectivePredicateDomain.getType(), dictionary, timeZone, legacyDate, legacyInt96Timestamp));
     }
 
     @VisibleForTesting
@@ -341,7 +341,7 @@ public class TupleDomainParquetPredicate
             ParquetDataSourceId id,
             DateTimeZone timeZone,
             boolean legacyDate,
-            boolean legacyTimestamp)
+            boolean legacyInt96Timestamp)
             throws ParquetCorruptionException
     {
         if (statistics == null || statistics.isEmpty()) {
@@ -369,7 +369,7 @@ public class TupleDomainParquetPredicate
                     hasNullValue,
                     timeZone,
                     legacyDate,
-                    legacyTimestamp);
+                    legacyInt96Timestamp);
         }
         catch (Exception e) {
             throw corruptionException(column.toString(), id, statistics, e);
@@ -388,7 +388,7 @@ public class TupleDomainParquetPredicate
             boolean hasNullValue,
             DateTimeZone timeZone,
             boolean legacyDate,
-            boolean legacyTimestamp)
+            boolean legacyInt96Timestamp)
     {
         checkArgument(minimums.size() == maximums.size(), "Expected minimums and maximums to have the same size");
 
@@ -510,7 +510,7 @@ public class TupleDomainParquetPredicate
                     }
 
                     Object timestamp = timestampEncoder.getTimestamp(decodeInt96Timestamp(Binary.fromConstantByteArray(minSlice.getBytes())));
-                    if (legacyTimestamp) {
+                    if (legacyInt96Timestamp) {
                         timestamp = convertToProlepticGregorian(timestamp);
                     }
                     rangesBuilder.addValue(timestamp);
@@ -628,7 +628,7 @@ public class TupleDomainParquetPredicate
             ColumnDescriptor descriptor,
             DateTimeZone timeZone,
             boolean legacyDate,
-            boolean legacyTimestamp)
+            boolean legacyInt96Timestamp)
             throws ParquetCorruptionException
     {
         if (columnIndex == null) {
@@ -674,7 +674,7 @@ public class TupleDomainParquetPredicate
                 max.add(converterFunction.apply(maxValues.get(i)));
             }
 
-            return getDomain(descriptor, type, min, max, hasNullValue, timeZone, legacyDate, legacyTimestamp);
+            return getDomain(descriptor, type, min, max, hasNullValue, timeZone, legacyDate, legacyInt96Timestamp);
         }
         catch (Exception e) {
             throw corruptionException(columnName, id, columnIndex, e);
@@ -687,7 +687,7 @@ public class TupleDomainParquetPredicate
         return getDomain(type, dictionaryDescriptor, DateTimeZone.getDefault(), false, false);
     }
 
-    private static Domain getDomain(Type type, DictionaryDescriptor dictionaryDescriptor, DateTimeZone timeZone, boolean legacyDate, boolean legacyTimestamp)
+    private static Domain getDomain(Type type, DictionaryDescriptor dictionaryDescriptor, DateTimeZone timeZone, boolean legacyDate, boolean legacyInt96Timestamp)
     {
         if (dictionaryDescriptor == null) {
             return Domain.all(type);
@@ -726,7 +726,7 @@ public class TupleDomainParquetPredicate
         }
 
         // TODO: when min == max (i.e., singleton ranges, the construction of Domains can be done more efficiently
-        return getDomain(columnDescriptor, type, values, values, dictionaryDescriptor.isNullAllowed(), timeZone, legacyDate, legacyTimestamp);
+        return getDomain(columnDescriptor, type, values, values, dictionaryDescriptor.isNullAllowed(), timeZone, legacyDate, legacyInt96Timestamp);
     }
 
     private static ParquetCorruptionException corruptionException(String column, ParquetDataSourceId id, Statistics<?> statistics, Exception cause)
@@ -828,7 +828,7 @@ public class TupleDomainParquetPredicate
 
             FilterPredicate columnFilter = FilterApi.userDefined(
                     new TrinoIntColumn(ColumnPath.get(column.getPath())),
-                    new DomainUserDefinedPredicate<>(column, domain, timeZone, legacyDate, legacyTimestamp));
+                    new DomainUserDefinedPredicate<>(column, domain, timeZone, legacyDate, legacyInt96Timestamp));
             if (filter == null) {
                 filter = columnFilter;
             }
@@ -851,15 +851,15 @@ public class TupleDomainParquetPredicate
         private final Domain columnDomain;
         private final DateTimeZone timeZone;
         private final boolean legacyDate;
-        private final boolean legacyTimestamp;
+        private final boolean legacyInt96Timestamp;
 
-        public DomainUserDefinedPredicate(ColumnDescriptor columnDescriptor, Domain domain, DateTimeZone timeZone, boolean legacyDate, boolean legacyTimestamp)
+        public DomainUserDefinedPredicate(ColumnDescriptor columnDescriptor, Domain domain, DateTimeZone timeZone, boolean legacyDate, boolean legacyInt96Timestamp)
         {
             this.columnDescriptor = requireNonNull(columnDescriptor, "columnDescriptor is null");
             this.columnDomain = domain;
             this.timeZone = timeZone;
             this.legacyDate = legacyDate;
-            this.legacyTimestamp = legacyTimestamp;
+            this.legacyInt96Timestamp = legacyInt96Timestamp;
         }
 
         @Override
@@ -889,7 +889,7 @@ public class TupleDomainParquetPredicate
                     true,
                     timeZone,
                     legacyDate,
-                    legacyTimestamp);
+                    legacyInt96Timestamp);
             return !columnDomain.overlaps(domain);
         }
 
