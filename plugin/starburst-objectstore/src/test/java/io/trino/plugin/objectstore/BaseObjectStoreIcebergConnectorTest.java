@@ -145,7 +145,10 @@ public abstract class BaseObjectStoreIcebergConnectorTest
                 return Optional.of(setup.withNewValueLiteral("NULL"));
             case "tinyint -> smallint":
             case "bigint -> integer":
+            case "bigint -> smallint":
+            case "bigint -> tinyint":
             case "decimal(5,3) -> decimal(5,2)":
+            case "char(25) -> char(20)":
             case "varchar -> char(20)":
             case "time(6) -> time(3)":
             case "timestamp(6) -> timestamp(3)":
