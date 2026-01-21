@@ -95,7 +95,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
 
-public class TrinoDialect
+public final class TrinoDialect
         extends Dialect
 {
     // dialect name
