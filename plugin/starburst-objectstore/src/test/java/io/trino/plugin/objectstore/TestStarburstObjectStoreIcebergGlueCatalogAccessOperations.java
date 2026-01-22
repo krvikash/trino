@@ -46,7 +46,7 @@ public class TestStarburstObjectStoreIcebergGlueCatalogAccessOperations
         DistributedQueryRunner queryRunner = DistributedQueryRunner.builder(
                         testSessionBuilder()
                                 .setCatalog(CATALOG_NAME)
-                                .setSchema("tpch")
+                                .setSchema(testSchema)
                                 .build())
                 .build();
         try {
