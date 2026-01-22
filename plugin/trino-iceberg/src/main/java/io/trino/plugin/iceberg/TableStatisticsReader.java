@@ -169,6 +169,7 @@ public final class TableStatisticsReader
             if (partitionStatisticsFile.isPresent()) {
                 PartitionStatisticsFile statsFile = partitionStatisticsFile.get();
                 double recordCount = 0;
+                double deletedRecordCount = 0;
                 ImmutableMap.Builder<ColumnHandle, ColumnStatistics> columnHandleBuilder = ImmutableMap.builder();
                 Types.StructType partitionType = Partitioning.partitionType(icebergTable);
                 Schema schema = PartitionStatsHandler.schema(partitionType, formatVersion(icebergTable));
@@ -186,8 +187,8 @@ public final class TableStatisticsReader
                     }
                     else {
                         recordCount += stat.dataRecordCount();
-                        recordCount -= stat.equalityDeleteRecordCount();
-                        recordCount -= stat.positionDeleteRecordCount();
+                        deletedRecordCount += stat.equalityDeleteRecordCount();
+                        deletedRecordCount += stat.positionDeleteRecordCount();
                     }
                 }
 
@@ -204,7 +205,8 @@ public final class TableStatisticsReader
                                     .orElseGet(Estimate::unknown));
                     columnHandleBuilder.put(columnHandle, columnBuilder.build());
                 }
-                return new TableStatistics(Estimate.of(recordCount), columnHandleBuilder.buildOrThrow());
+                // Assuming that delete files usually don't remove more than 20% of the data files
+                return new TableStatistics(Estimate.of(recordCount - Math.min(deletedRecordCount, 0.2 * recordCount)), columnHandleBuilder.buildOrThrow());
             }
             // Fallback to file-level statistics if no partition statistics file is available
         }

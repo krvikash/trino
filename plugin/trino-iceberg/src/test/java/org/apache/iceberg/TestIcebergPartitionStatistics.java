@@ -14,11 +14,13 @@
 package org.apache.iceberg;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.hdfs.HdfsFileSystemFactory;
+import io.trino.filesystem.local.LocalFileSystemFactory;
 import io.trino.metastore.HiveMetastore;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.orc.OrcReaderConfig;
@@ -31,6 +33,7 @@ import io.trino.plugin.iceberg.IcebergFileWriterFactory;
 import io.trino.plugin.iceberg.IcebergPageSourceProviderFactory;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.plugin.iceberg.IcebergTestUtils;
+import io.trino.plugin.iceberg.PartitionData;
 import io.trino.plugin.iceberg.PartitionStatisticsReader;
 import io.trino.plugin.iceberg.fileio.ForwardingFileIoFactory;
 import io.trino.plugin.iceberg.fileio.ForwardingInputFile;
@@ -51,6 +54,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.MoreCollectors.onlyElement;
@@ -62,6 +66,7 @@ import static io.trino.plugin.iceberg.IcebergTestUtils.SESSION;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getHiveMetastore;
 import static io.trino.plugin.iceberg.IcebergTestUtils.listFiles;
+import static io.trino.plugin.iceberg.util.EqualityDeleteUtils.writeEqualityDeleteForTable;
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
 import static java.util.Locale.ENGLISH;
 import static org.apache.iceberg.TableUtil.formatVersion;
@@ -282,9 +287,9 @@ public final class TestIcebergPartitionStatistics
             assertUpdate("ANALYZE " + table.getName());
             assertStats(
                     table.getName(),
-                    column("id", null, 1.0, 0.0, null, null, null),
-                    column("part", null, 1.0, 0.0, null, null, null),
-                    rowCount(1.0));
+                    column("id", null, 1.0, 0.03, null, null, null),
+                    column("part", null, 1.0, 0.03, null, null, null),
+                    rowCount(1.6));
         }
     }
 
@@ -313,9 +318,9 @@ public final class TestIcebergPartitionStatistics
             assertUpdate("ANALYZE " + table.getName());
             assertStats(
                     table.getName(),
-                    column("id", null, 1.0, 0.0, null, null, null),
-                    column("part", null, 1.0, 0.0, null, null, null),
-                    rowCount(1.0));
+                    column("id", null, 1.0, 0.03, null, null, null),
+                    column("part", null, 1.0, 0.03, null, null, null),
+                    rowCount(1.6));
         }
     }
 
@@ -525,6 +530,26 @@ public final class TestIcebergPartitionStatistics
             assertUpdate(session, "ALTER TABLE " + table.getName() + " EXECUTE remove_orphan_files(retention_threshold => '0d')");
             assertThat(listFiles(fileSystem, icebergTable.location() + "/metadata"))
                     .anySatisfy(entry -> assertThat(entry).startsWith("partition-stats"));
+        }
+    }
+
+    @Test
+    void testNegativeRowCount()
+            throws Exception
+    {
+        try (TestTable table = newTrinoTable("test_negative_row_count", "(id INT, part INT) WITH (partitioning = ARRAY['part'])", List.of("1, 10"))) {
+            BaseTable icebergTable = loadTable(table.getName());
+
+            // Create equality delete files resulting in negative row count
+            writeEqualityDeleteForTable(icebergTable, new LocalFileSystemFactory(Files.createTempDirectory("prefix")), Optional.of(icebergTable.spec()), Optional.of(new PartitionData(new Object[] {1})), ImmutableMap.of("id", 1), Optional.empty());
+            writeEqualityDeleteForTable(icebergTable, new LocalFileSystemFactory(Files.createTempDirectory("prefix")), Optional.of(icebergTable.spec()), Optional.of(new PartitionData(new Object[] {1})), ImmutableMap.of("id", 1), Optional.empty());
+            assertUpdate("ANALYZE " + table.getName());
+
+            assertStats(
+                    table.getName(),
+                    column("id", null, 0.8, 0.0, null, "null", "null"),
+                    column("part", null, 0.8, 0.0, null, "null", "null"),
+                    rowCount(0.8));
         }
     }
 
