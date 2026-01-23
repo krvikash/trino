@@ -117,7 +117,7 @@ public final class DistributedQueryRunner
 
     private TestingTrinoServer coordinator;
     private Optional<TestingTrinoServer> backupCoordinator = Optional.empty();
-    private Consumer<Map<String, String>> registerNewWorker;
+    private Function<Map<String, String>, TestingTrinoServer> createNewWorker;
     private final InMemorySpanExporter spanExporter = InMemorySpanExporter.create();
     private final List<TestingTrinoServer> servers = new CopyOnWriteArrayList<>();
     private final List<FunctionBundle> functionBundles = new CopyOnWriteArrayList<>(ImmutableList.of(CustomFunctionBundle.CUSTOM_FUNCTIONS));
@@ -207,9 +207,7 @@ public final class DistributedQueryRunner
 
             extraCloseables.forEach(closeable -> closer.register(() -> closeUnchecked(closeable)));
 
-            registerNewWorker = additionalWorkerProperties -> {
-                @SuppressWarnings("resource")
-                TestingTrinoServer ignored = createServer(
+            createNewWorker = additionalWorkerProperties -> createServer(
                         false,
                         ImmutableMap.<String, String>builder()
                                 .putAll(extraProperties)
@@ -223,10 +221,10 @@ public final class DistributedQueryRunner
                         ImmutableList.of(),
                         modelConnectionSpecsLoader,
                         bindAllInterfaces);
-            };
 
             for (int i = 0; i < workerCount; i++) {
-                registerNewWorker.accept(Map.of());
+                TestingTrinoServer worker = createNewWorker.apply(Map.of());
+                registerServer(worker);
             }
         }
         catch (Exception e) {
@@ -304,12 +302,16 @@ public final class DistributedQueryRunner
                 bindAllInterfaces));
         servers.add(server);
 
-        if (this.coordinator != null) {
-            InternalNode currentNode = server.getCurrentNode();
-            this.coordinator.registerServer(currentNode);
-            this.backupCoordinator.ifPresent(backup -> backup.registerServer(currentNode));
-        }
         return server;
+    }
+
+    private void registerServer(TestingTrinoServer server)
+    {
+        if (this.coordinator != null) {
+            InternalNode node = server.getCurrentNode();
+            this.coordinator.registerServer(node);
+            this.backupCoordinator.ifPresent(backup -> backup.registerServer(node));
+        }
     }
 
     private static void setupLogging()
@@ -383,7 +385,8 @@ public final class DistributedQueryRunner
     public void addServers(int nodeCount)
     {
         for (int i = 0; i < nodeCount; i++) {
-            registerNewWorker.accept(Map.of());
+            TestingTrinoServer worker = createNewWorker.apply(Map.of());
+            registerServer(worker);
         }
     }
 
@@ -429,7 +432,8 @@ public final class DistributedQueryRunner
         }
 
         Map<String, String> reusePort = Map.of("http-server.http.port", Integer.toString(baseUrl.getPort()));
-        registerNewWorker.accept(reusePort);
+        TestingTrinoServer worker = createNewWorker.apply(reusePort);
+        registerServer(worker);
         // Verify the address was reused.
         assertThat(servers.stream()
                 .map(TestingTrinoServer::getBaseUrl)
@@ -726,7 +730,7 @@ public final class DistributedQueryRunner
         }
         coordinator = null;
         backupCoordinator = Optional.empty();
-        registerNewWorker = _ -> {
+        createNewWorker = _ -> {
             throw new IllegalStateException("Already closed");
         };
         servers.clear();
