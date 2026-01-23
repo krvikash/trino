@@ -116,6 +116,7 @@ public final class DistributedQueryRunner
 
     private TestingTrinoServer coordinator;
     private Optional<TestingTrinoServer> backupCoordinator = Optional.empty();
+    private Function<Map<String, String>, TestingTrinoServer> createNewCoordinator;
     private Consumer<Map<String, String>> createNewWorker;
     private final InMemorySpanExporter spanExporter = InMemorySpanExporter.create();
     private final List<TestingTrinoServer> servers = new CopyOnWriteArrayList<>();
@@ -161,43 +162,34 @@ public final class DistributedQueryRunner
         setupLogging();
 
         try {
-            Map<String, String> extraCoordinatorProperties = new HashMap<>();
-            extraCoordinatorProperties.putAll(extraProperties);
-            extraCoordinatorProperties.putAll(coordinatorProperties);
+            createNewCoordinator = additionalCoordinatorProperties -> {
+                Map<String, String> extraCoordinatorProperties = new HashMap<>();
+                extraCoordinatorProperties.putAll(extraProperties);
+                extraCoordinatorProperties.putAll(coordinatorProperties);
+                extraCoordinatorProperties.putAll(additionalCoordinatorProperties);
 
-            if (!extraCoordinatorProperties.containsKey("web-ui.authentication.type") && !"false".equalsIgnoreCase(extraCoordinatorProperties.get("web-ui.enabled"))) {
-                // Make it possible to use Trino UI when running multiple tests (or tests and SomeQueryRunner.main) at once.
-                // This is necessary since cookies are shared (don't discern port number) and logging into one instance logs you out from others.
-                extraCoordinatorProperties.put("web-ui.authentication.type", "fixed");
-                extraCoordinatorProperties.put("web-ui.user", "admin");
-            }
+                if (!extraCoordinatorProperties.containsKey("web-ui.authentication.type") && !"false".equalsIgnoreCase(extraCoordinatorProperties.get("web-ui.enabled"))) {
+                    // Make it possible to use Trino UI when running multiple tests (or tests and SomeQueryRunner.main) at once.
+                    // This is necessary since cookies are shared (don't discern port number) and logging into one instance logs you out from others.
+                    extraCoordinatorProperties.put("web-ui.authentication.type", "fixed");
+                    extraCoordinatorProperties.put("web-ui.user", "admin");
+                }
 
-            coordinator = createServer(
-                    true,
-                    extraCoordinatorProperties,
-                    environment,
-                    additionalModule,
-                    baseDataDir,
-                    systemAccessControlConfiguration,
-                    systemAccessControls,
-                    eventListeners,
-                    modelConnectionSpecsLoader,
-                    bindAllInterfaces);
+                return createServer(
+                        true,
+                        extraCoordinatorProperties,
+                        environment,
+                        additionalModule,
+                        baseDataDir,
+                        systemAccessControlConfiguration,
+                        systemAccessControls,
+                        eventListeners,
+                        modelConnectionSpecsLoader,
+                        bindAllInterfaces);
+            };
 
-            backupCoordinator = backupCoordinatorProperties.map(properties -> createServer(
-                    true,
-                    ImmutableMap.<String, String>builder()
-                            .putAll(extraProperties)
-                            .putAll(properties)
-                            .buildOrThrow(),
-                    environment,
-                    additionalModule,
-                    baseDataDir,
-                    systemAccessControlConfiguration,
-                    systemAccessControls,
-                    eventListeners,
-                    modelConnectionSpecsLoader,
-                    bindAllInterfaces));
+            coordinator = createNewCoordinator.apply(ImmutableMap.of());
+            backupCoordinator = backupCoordinatorProperties.map(properties -> createNewCoordinator.apply(properties));
 
             refreshNodes();
 
@@ -721,6 +713,9 @@ public final class DistributedQueryRunner
         }
         coordinator = null;
         backupCoordinator = Optional.empty();
+        createNewCoordinator = _ -> {
+            throw new IllegalStateException("Already closed");
+        };
         createNewWorker = _ -> {
             throw new IllegalStateException("Already closed");
         };
