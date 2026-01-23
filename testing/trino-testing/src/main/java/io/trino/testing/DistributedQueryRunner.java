@@ -89,6 +89,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Throwables.throwIfInstanceOf;
 import static com.google.common.base.Throwables.throwIfUnchecked;
@@ -114,8 +115,7 @@ public final class DistributedQueryRunner
     private static final String ENVIRONMENT = "testing";
     private static final AtomicInteger unclosedInstances = new AtomicInteger();
 
-    private TestingTrinoServer coordinator;
-    private Optional<TestingTrinoServer> backupCoordinator = Optional.empty();
+    private final List<TestingTrinoServer> coordinators = new CopyOnWriteArrayList<>();
     private Function<Map<String, String>, TestingTrinoServer> createNewCoordinator;
     private Consumer<Map<String, String>> createNewWorker;
     private final InMemorySpanExporter spanExporter = InMemorySpanExporter.create();
@@ -188,8 +188,10 @@ public final class DistributedQueryRunner
                         bindAllInterfaces);
             };
 
-            coordinator = createNewCoordinator.apply(ImmutableMap.of());
-            backupCoordinator = backupCoordinatorProperties.map(properties -> createNewCoordinator.apply(properties));
+            TestingTrinoServer coordinator = createNewCoordinator.apply(ImmutableMap.of());
+            coordinators.add(coordinator);
+            Optional<TestingTrinoServer> backupCoordinator = backupCoordinatorProperties.map(properties -> createNewCoordinator.apply(properties));
+            backupCoordinator.ifPresent(coordinators::add);
 
             refreshNodes();
 
@@ -226,11 +228,11 @@ public final class DistributedQueryRunner
 
         // copy session using property manager in coordinator
         defaultSession = defaultSession.toSessionRepresentation().toSession(
-                coordinator.getSessionPropertyManager(),
+                getCoordinator().getSessionPropertyManager(),
                 defaultSession.getIdentity().getExtraCredentials(),
                 defaultSession.getExchangeEncryptionKey());
 
-        this.trinoClient = closer.register(testingTrinoClientFactory.create(coordinator, defaultSession));
+        this.trinoClient = closer.register(testingTrinoClientFactory.create(getCoordinator(), defaultSession));
 
         log.info("Created DistributedQueryRunner in %s (unclosed instances = %s)", nanosSince(start), unclosedInstances.incrementAndGet());
     }
@@ -263,10 +265,10 @@ public final class DistributedQueryRunner
             Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader,
             boolean bindAllInterfaces)
     {
-        if (!extraProperties.containsKey("discovery.uri") && this.coordinator != null) {
+        if (!extraProperties.containsKey("discovery.uri") && !this.coordinators.isEmpty()) {
             extraProperties = ImmutableMap.<String, String>builder()
                     .putAll(extraProperties)
-                    .put("discovery.uri", this.coordinator.getCurrentNode().getInternalUri().toString())
+                    .put("discovery.uri", this.getCoordinator().getCurrentNode().getInternalUri().toString())
                     .buildOrThrow();
         }
 
@@ -293,8 +295,7 @@ public final class DistributedQueryRunner
 
     private void refreshNodes()
     {
-        coordinator.refreshNodes();
-        backupCoordinator.ifPresent(TestingTrinoServer::refreshNodes);
+        coordinators.forEach(TestingTrinoServer::refreshNodes);
     }
 
     private static void setupLogging()
@@ -450,78 +451,84 @@ public final class DistributedQueryRunner
     @Override
     public TransactionManager getTransactionManager()
     {
-        return coordinator.getTransactionManager();
+        return getCoordinator().getTransactionManager();
     }
 
     @Override
     public PlannerContext getPlannerContext()
     {
-        return coordinator.getPlannerContext();
+        return getCoordinator().getPlannerContext();
     }
 
     @Override
     public CacheMetadata getCacheMetadata()
     {
-        return coordinator.getCacheMetadata();
+        return getCoordinator().getCacheMetadata();
     }
 
     @Override
     public QueryExplainer getQueryExplainer()
     {
-        return coordinator.getQueryExplainer();
+        return getCoordinator().getQueryExplainer();
     }
 
     @Override
     public SessionPropertyManager getSessionPropertyManager()
     {
-        return coordinator.getSessionPropertyManager();
+        return getCoordinator().getSessionPropertyManager();
     }
 
     @Override
     public SplitManager getSplitManager()
     {
-        return coordinator.getSplitManager();
+        return getCoordinator().getSplitManager();
     }
 
     @Override
     public PageSourceManager getPageSourceManager()
     {
-        return coordinator.getPageSourceManager();
+        return getCoordinator().getPageSourceManager();
     }
 
     @Override
     public NodePartitioningManager getNodePartitioningManager()
     {
-        return coordinator.getNodePartitioningManager();
+        return getCoordinator().getNodePartitioningManager();
     }
 
     @Override
     public StatsCalculator getStatsCalculator()
     {
-        return coordinator.getStatsCalculator();
+        return getCoordinator().getStatsCalculator();
     }
 
     @Override
     public TestingAccessControlManager getAccessControl()
     {
-        return coordinator.getAccessControl();
+        return getCoordinator().getAccessControl();
     }
 
     @Override
     public TestingGroupProviderManager getGroupProvider()
     {
-        return coordinator.getGroupProvider();
+        return getCoordinator().getGroupProvider();
     }
 
     public SessionPropertyDefaults getSessionPropertyDefaults()
     {
-        return coordinator.getSessionPropertyDefaults();
+        return getCoordinator().getSessionPropertyDefaults();
     }
 
     @Override
     public TestingTrinoServer getCoordinator()
     {
-        return coordinator;
+        checkArgument(!coordinators.isEmpty(), "No coordinator defined");
+        return coordinators.getFirst();
+    }
+
+    public List<TestingTrinoServer> getCoordinators()
+    {
+        return ImmutableList.copyOf(coordinators);
     }
 
     public List<TestingTrinoServer> getServers()
@@ -547,8 +554,7 @@ public final class DistributedQueryRunner
     public void createCatalog(String catalogName, String connectorName, Map<String, String> properties)
     {
         long start = System.nanoTime();
-        coordinator.createCatalog(catalogName, connectorName, properties);
-        backupCoordinator.ifPresent(backup -> backup.createCatalog(catalogName, connectorName, properties));
+        coordinators.forEach(coordinator -> coordinator.createCatalog(catalogName, connectorName, properties));
         log.debug("Created catalog %s in %s", catalogName, nanosSince(start));
     }
 
@@ -586,7 +592,7 @@ public final class DistributedQueryRunner
     public MaterializedResultWithPlan executeWithPlan(Session session, String sql)
     {
         ResultWithQueryId<MaterializedResult> result = executeInternal(session, sql);
-        return new MaterializedResultWithPlan(result.getQueryId(), coordinator.getQueryPlan(result.getQueryId()), result.getResult());
+        return new MaterializedResultWithPlan(result.getQueryId(), getCoordinator().getQueryPlan(result.getQueryId()), result.getResult());
     }
 
     @Override
@@ -629,9 +635,9 @@ public final class DistributedQueryRunner
             spansValid = concurrentQueries.incrementAndGet() == 1;
             try {
                 spanExporter.reset();
-                PlanOptions planOptions = coordinator.getQueryExplainer().getLogicalPlan(
+                PlanOptions planOptions = getCoordinator().getQueryExplainer().getLogicalPlan(
                         session,
-                        coordinator.getInstance(Key.get(SqlParser.class)).createStatement(sql),
+                        getCoordinator().getInstance(Key.get(SqlParser.class)).createStatement(sql),
                         ImmutableList.of(),
                         WarningCollector.NOOP,
                         createPlanOptimizersStatsCollector());
@@ -651,7 +657,7 @@ public final class DistributedQueryRunner
 
     public Plan getQueryPlan(QueryId queryId)
     {
-        return coordinator.getQueryPlan(queryId).orElseThrow();
+        return getCoordinator().getQueryPlan(queryId).orElseThrow();
     }
 
     @Override
@@ -709,8 +715,7 @@ public final class DistributedQueryRunner
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        coordinator = null;
-        backupCoordinator = Optional.empty();
+        coordinators.clear();
         createNewCoordinator = _ -> {
             throw new IllegalStateException("Already closed");
         };
@@ -727,7 +732,7 @@ public final class DistributedQueryRunner
 
     private void cancelAllQueries()
     {
-        QueryManager queryManager = coordinator.getQueryManager();
+        QueryManager queryManager = getCoordinator().getQueryManager();
         for (BasicQueryInfo queryInfo : queryManager.getQueries()) {
             if (!queryInfo.getState().isDone()) {
                 try {
