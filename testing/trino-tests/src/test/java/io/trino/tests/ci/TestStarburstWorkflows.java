@@ -20,7 +20,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.yaml.snakeyaml.Yaml;
 
-import java.io.StringReader;
+import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -54,7 +54,7 @@ public class TestStarburstWorkflows
     {
         try {
             Yaml yaml = new Yaml();
-            Map<?, ?> workflow = yaml.load(new StringReader(Files.readString(path)));
+            Map<?, ?> workflow = yaml.load(Reader.of(Files.readString(path)));
             Map<String, ?> jobs = getMap(workflow, "jobs");
             jobs.forEach((jobName, jobDefinition) -> {
                 Map<?, ?> job = (Map<?, ?>) jobDefinition;
@@ -101,7 +101,7 @@ public class TestStarburstWorkflows
         String buildSuccessJobName = "build-success";
 
         Yaml yaml = new Yaml();
-        Map<?, ?> workflow = yaml.load(new StringReader(Files.readString(findRepositoryRoot().resolve(CI_YML_REPO_PATH))));
+        Map<?, ?> workflow = yaml.load(Reader.of(Files.readString(findRepositoryRoot().resolve(CI_YML_REPO_PATH))));
         Map<String, ?> jobs = getMap(workflow, "jobs");
 
         Set<String> allJobNames = jobs.keySet();
