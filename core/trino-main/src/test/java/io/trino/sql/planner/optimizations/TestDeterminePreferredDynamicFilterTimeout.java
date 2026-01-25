@@ -32,7 +32,6 @@ import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.assertions.BasePlanTest;
 import io.trino.sql.planner.plan.ExchangeNode;
-import io.trino.sql.planner.plan.FilterNode;
 import io.trino.testing.PlanTester;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -40,7 +39,6 @@ import org.junit.jupiter.api.Test;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalLong;
 import java.util.Set;
 
 import static io.trino.SystemSessionProperties.ENABLE_DYNAMIC_FILTERING;
@@ -54,7 +52,6 @@ import static io.trino.SystemSessionProperties.getSmallDynamicFilterWaitTimeout;
 import static io.trino.spi.statistics.TableStatistics.empty;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.IntegerType.INTEGER;
-import static io.trino.sql.DynamicFilters.extractDynamicFilters;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
 import static io.trino.sql.ir.Booleans.TRUE;
 import static io.trino.sql.ir.Comparison.Operator.EQUAL;
@@ -73,6 +70,7 @@ import static io.trino.sql.planner.assertions.PlanMatchPattern.join;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.node;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.semiJoin;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.tableScan;
+import static io.trino.sql.planner.assertions.SemiJoinDynamicFilterProducer.dynamicFilter;
 import static io.trino.sql.planner.plan.AggregationNode.Step.FINAL;
 import static io.trino.sql.planner.plan.AggregationNode.Step.PARTIAL;
 import static io.trino.sql.planner.plan.ExchangeNode.Scope.LOCAL;
@@ -476,12 +474,14 @@ public class TestDeterminePreferredDynamicFilterTimeout
                         .setSystemProperty(FILTERING_SEMI_JOIN_TO_INNER, "false")
                         .build(),
                 anyTree(
-                        semiJoin("A_1", "B_1", "SEMI_JOIN_RESULT", true,
+                        semiJoin("A_1", "B_1", "SEMI_JOIN_RESULT", dynamicFilter("DF"),
                                 filter(TRUE,
-                                        tableScan("table_small_a", ImmutableMap.of("A_1", "a_1")))
-                                        .with(FilterNode.class, filterNode -> extractDynamicFilters(filterNode.getPredicate())
-                                                .getDynamicConjuncts().get(0).getPreferredTimeout()
-                                                .equals(OptionalLong.of(waitForCascadingDynamicFiltersTimeout))),
+                                        dynamicFilters -> dynamicFilters
+                                                .addConsumer(consumer -> consumer
+                                                        .alias("DF")
+                                                        .expression(BIGINT, "A_1")
+                                                        .preferredTimeout(waitForCascadingDynamicFiltersTimeout)),
+                                        tableScan("table_small_a", ImmutableMap.of("A_1", "a_1"))),
                                 node(ExchangeNode.class,
                                         filter(
                                                 new Comparison(EQUAL, new Reference(INTEGER, "B_1"), new Call(RANDOM, ImmutableList.of(new Constant(INTEGER, 5L)))),
