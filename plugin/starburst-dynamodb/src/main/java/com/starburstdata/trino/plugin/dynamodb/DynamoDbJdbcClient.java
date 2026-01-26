@@ -54,7 +54,6 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -348,7 +347,7 @@ public class DynamoDbJdbcClient
 
         invalidateDriverCache(session);
 
-        Path schemaFile = Paths.get(schemaDirectory.getAbsolutePath(), tableName + ".rsd");
+        Path schemaFile = Path.of(schemaDirectory.getAbsolutePath(), tableName + ".rsd");
         try {
             Files.deleteIfExists(schemaFile);
         }
@@ -647,7 +646,7 @@ public class DynamoDbJdbcClient
 
         String renderedTemplate = jinjava.render(template, context);
 
-        Path outputFile = Paths.get(schemaDirectory.getAbsolutePath(), tableName + ".rsd");
+        Path outputFile = Path.of(schemaDirectory.getAbsolutePath(), tableName + ".rsd");
         try {
             Files.writeString(outputFile, renderedTemplate, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
         }

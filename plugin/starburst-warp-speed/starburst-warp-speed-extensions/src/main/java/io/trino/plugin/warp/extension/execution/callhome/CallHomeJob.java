@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Locale;
@@ -227,7 +226,7 @@ public class CallHomeJob
     {
         if (srcFile.exists()) {
             try {
-                File tmpFile = Paths.get(targetDirectory.toString(), srcFile.getName()).toFile();
+                File tmpFile = Path.of(targetDirectory.toString(), srcFile.getName()).toFile();
                 FileUtils.copyFile(srcFile, tmpFile);
                 return Optional.of(tmpFile);
             }

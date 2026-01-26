@@ -31,7 +31,6 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -132,7 +131,7 @@ public class DynamoDbTestTable
 
         String renderedTemplate = jinjava.render(template, context);
 
-        Path outputFile = Paths.get(config.getSchemaDirectory(), getName() + ".rsd");
+        Path outputFile = Path.of(config.getSchemaDirectory(), getName() + ".rsd");
         try {
             Files.writeString(outputFile, renderedTemplate, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
         }
@@ -177,7 +176,7 @@ public class DynamoDbTestTable
                 .tableName(getName())
                 .build());
 
-        Path schemaFile = Paths.get(config.getSchemaDirectory(), getName() + ".rsd");
+        Path schemaFile = Path.of(config.getSchemaDirectory(), getName() + ".rsd");
         try {
             Files.deleteIfExists(schemaFile);
         }

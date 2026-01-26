@@ -33,7 +33,6 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Map;
 
 /**
@@ -70,7 +69,7 @@ public class WarpNativeStorageEngineModule
     public static String addSveSuffixIfNeeded()
     {
         if (!SKIP_SVE) {
-            try (BufferedReader reader = Files.newBufferedReader(Paths.get("/proc/cpuinfo"), Charset.defaultCharset())) {
+            try (BufferedReader reader = Files.newBufferedReader(Path.of("/proc/cpuinfo"), Charset.defaultCharset())) {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     // Check if the line starts with "Features" and contains "sve"

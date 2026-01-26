@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.function.Predicate;
@@ -94,7 +93,7 @@ class ConnectorFeaturesTestHelper
             throws IOException
     {
         Path sourceFile;
-        try (Stream<Path> walk = Files.walk(Paths.get("."))) {
+        try (Stream<Path> walk = Files.walk(Path.of("."))) {
             sourceFile = walk
                     .filter(path -> path.getFileName().toString().equals(objectStoreConnectorFeaturesTestClass.getSimpleName() + ".java"))
                     .collect(onlyElement());

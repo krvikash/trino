@@ -24,7 +24,6 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -55,7 +54,7 @@ public class TestTroubleshootingResourceGroups
     public void testFileBasedResourceGroups()
             throws Exception
     {
-        Path resourceGroupsConfigFile = Paths.get(TestTroubleshootingResourceGroups.class.getClassLoader().getResource("resource_groups_config_simple.json").toURI());
+        Path resourceGroupsConfigFile = Path.of(TestTroubleshootingResourceGroups.class.getClassLoader().getResource("resource_groups_config_simple.json").toURI());
         Path resourceGroupsPropertiesFile = createTempFileForTesting();
         byte[] resourceGroupsConfigFileContent = Files.readAllBytes(resourceGroupsConfigFile);
         try (OutputStream outputStream = Files.newOutputStream(resourceGroupsPropertiesFile)) {

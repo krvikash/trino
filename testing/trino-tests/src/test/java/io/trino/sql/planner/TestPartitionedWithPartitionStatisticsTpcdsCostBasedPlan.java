@@ -17,7 +17,6 @@ package io.trino.sql.planner;
 import io.trino.tpcds.Table;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -46,7 +45,7 @@ public class TestPartitionedWithPartitionStatisticsTpcdsCostBasedPlan
     @Override
     protected String getQueryPlanResourcePath(String queryResourcePath)
     {
-        Path queryPath = Paths.get(queryResourcePath);
+        Path queryPath = Path.of(queryResourcePath);
         Path directory = queryPath.getParent();
         directory = directory.resolve("iceberg").resolve("partitioned_with_part_stats");
         String planResourceName = queryPath.getFileName().toString().replaceAll("\\.sql$", ".plan.txt");

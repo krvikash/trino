@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
@@ -42,7 +41,7 @@ public final class JaegerTraceImporter
     {
         GrpcExporterBuilder<FileBasedMarshaller> grpcExporterBuilder = new GrpcExporterBuilder<>(OTLP_GRPC_SPAN_EXPORTER, 10L, URI.create("http://localhost:4317"), () -> null, "/opentelemetry.proto.collector.trace.v1.TraceService/Export");
         GrpcExporter<FileBasedMarshaller> exporter = grpcExporterBuilder.build();
-        Path tracesDirectory = Paths.get(System.getProperty("user.home")).resolve("Downloads/traces");
+        Path tracesDirectory = Path.of(System.getProperty("user.home")).resolve("Downloads/traces");
         Path decompressedDirectory = tracesDirectory.resolve("decompressed");
         try (Stream<Path> traceFiles = Files.list(tracesDirectory)) {
             for (Path traceFile : traceFiles.toList()) {

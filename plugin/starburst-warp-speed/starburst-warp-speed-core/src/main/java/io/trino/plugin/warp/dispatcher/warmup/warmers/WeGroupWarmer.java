@@ -48,7 +48,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -170,7 +170,7 @@ public class WeGroupWarmer
     private void copyFile(String sourceFileName, String targetFileName)
     {
         try {
-            Files.copy(Paths.get(sourceFileName), Paths.get(targetFileName));
+            Files.copy(Path.of(sourceFileName), Path.of(targetFileName));
         }
         catch (IOException e) {
             throw new RuntimeException("Files.copy %s to %s failed exception: %s cause: %s"

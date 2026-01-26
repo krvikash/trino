@@ -19,7 +19,7 @@ import org.testcontainers.containers.DockerComposeContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
 
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.time.Duration;
 
 import static io.trino.testing.containers.TestContainers.getPathFromClassPathResource;
@@ -42,7 +42,7 @@ public class ApacheOzoneContainer
         String apacheOzoneResourceLocation = getPathFromClassPathResource("com/starburstdata/presto/plugin/hive/ozone");
 
         this.apacheOzone =
-                new DockerComposeContainer<>("ozone-", Paths.get(apacheOzoneResourceLocation, "ozone-docker-compose.yml").toFile())
+                new DockerComposeContainer<>("ozone-", Path.of(apacheOzoneResourceLocation, "ozone-docker-compose.yml").toFile())
                         .withEnv("NETWORK_ID", network.getId())
                         .withEnv("OZONE_ENVIRONMENT_FILE", apacheOzoneResourceLocation + "/environment-variables.env")
                         .withExposedService("ozone-manager", OFS_ENDPOINT_PORT, Wait.forListeningPort().withStartupTimeout(Duration.ofMinutes(3)))

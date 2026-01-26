@@ -19,7 +19,6 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import static com.google.common.io.Resources.getResource;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,13 +39,13 @@ public class TestJSONLicenseProvider
     public void setUp()
             throws URISyntaxException
     {
-        testLicensePath = Paths.get(getResource(TestJSONLicenseProvider.class, "test-license.json.signed").toURI());
+        testLicensePath = Path.of(getResource(TestJSONLicenseProvider.class, "test-license.json.signed").toURI());
     }
 
     @Test
     public void testReturnsEmptyOptionWhenLicensePathNotSet()
     {
-        JSONLicenseProvider jsonLicenseProvider = new JSONLicenseProvider(Paths.get("/this-file-does-not-exist-never-ever"), JSON_LICENSE_VERIFIER);
+        JSONLicenseProvider jsonLicenseProvider = new JSONLicenseProvider(Path.of("/this-file-does-not-exist-never-ever"), JSON_LICENSE_VERIFIER);
         assertThat(jsonLicenseProvider.getLicense()).isEmpty();
         assertThat(jsonLicenseProvider.getFileHandle()).isEmpty();
     }

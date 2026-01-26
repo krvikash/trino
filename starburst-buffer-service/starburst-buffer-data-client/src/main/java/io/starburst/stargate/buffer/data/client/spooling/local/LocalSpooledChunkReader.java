@@ -23,7 +23,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -54,7 +54,7 @@ public class LocalSpooledChunkReader
         checkArgument(scheme == null || scheme.equals("file"), "Unexpected storage scheme %s for LocalSpooledChunkReader, expecting null/file", scheme);
 
         byte[] bytes = new byte[length];
-        try (FileInputStream inputStream = new FileInputStream(Paths.get(spooledChunk.location()).toFile())) {
+        try (FileInputStream inputStream = new FileInputStream(Path.of(spooledChunk.location()).toFile())) {
             inputStream.getChannel().position(offset);
             int bytesRead = inputStream.read(bytes);
             verify(bytesRead == length, "bytesRead %s not equal to length %s", bytesRead, length);

@@ -32,7 +32,6 @@ import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -111,7 +110,7 @@ public class TestConnectorSensitiveProperties
         List<Path> pluginClasspath = Arrays.stream(pluginClassLoader.getURLs())
                 .map(url -> {
                     try {
-                        return Paths.get(url.toURI());
+                        return Path.of(url.toURI());
                     }
                     catch (URISyntaxException e) {
                         throw new RuntimeException(e);
@@ -187,7 +186,7 @@ public class TestConnectorSensitiveProperties
 
     private static Path findRepositoryRoot()
     {
-        Path workingDirectory = Paths.get("").toAbsolutePath();
+        Path workingDirectory = Path.of("").toAbsolutePath();
         for (Path path = workingDirectory; path != null; path = path.getParent()) {
             if (Files.isDirectory(path.resolve(".git"))) {
                 return path;

@@ -49,7 +49,6 @@ import io.trino.server.ServerConfig;
 import jdk.jfr.FlightRecorder;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
@@ -92,13 +91,13 @@ public class TroubleshootingModule
         // pass the file's location in tests.
         newOptionalBinder(binder, Key.get(Path.class, ForAccessControlConfigDump.class))
                 .setDefault()
-                .toInstance(Paths.get("etc", "access-control.properties"));
+                .toInstance(Path.of("etc", "access-control.properties"));
         // The location of this file is not configurable - it is always set to etc/resource-groups.properties
         // in the InternalResourceGroupManager. The purpose of injecting this file that way is to enable
         // providing its location in tests.
         newOptionalBinder(binder, Key.get(Path.class, ForResourceGroupConfigDump.class))
                 .setDefault()
-                .toInstance(Paths.get("etc", "resource-groups.properties"));
+                .toInstance(Path.of("etc", "resource-groups.properties"));
         newSetBinder(binder, BuiltInFeatureConfigDumper.class);
         newOptionalBinder(binder, Key.get(new TypeLiteral<Map<String, Set<String>>>() {}, ForTroubleshooting.class))
                 .setDefault()

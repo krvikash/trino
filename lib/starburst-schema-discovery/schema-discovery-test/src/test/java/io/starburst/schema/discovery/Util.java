@@ -34,7 +34,7 @@ import io.trino.plugin.hive.orc.HdfsOrcDataSource;
 import io.trino.plugin.hive.parquet.TrinoParquetDataSource;
 
 import java.net.URL;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -94,7 +94,7 @@ public class Util
 
     public static DiscoveryTrinoFileSystem fileSystem()
     {
-        return new DiscoveryTrinoFileSystem(new SortedTrinoFileSystem(new LocalFileSystem(Paths.get("/"))));
+        return new DiscoveryTrinoFileSystem(new SortedTrinoFileSystem(new LocalFileSystem(Path.of("/"))));
     }
 
     public static TypeInfo struct(List<String> names, List<TypeInfo> types)

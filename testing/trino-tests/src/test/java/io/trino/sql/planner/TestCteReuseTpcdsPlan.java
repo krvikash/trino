@@ -21,7 +21,6 @@ import io.trino.testing.PlanTester;
 import io.trino.tpcds.Table;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -104,7 +103,7 @@ public class TestCteReuseTpcdsPlan
     @Override
     protected String getQueryPlanResourcePath(String queryResourcePath)
     {
-        Path queryPath = Paths.get(queryResourcePath);
+        Path queryPath = Path.of(queryResourcePath);
         String connectorName = getPlanTester().getCatalogManager().getCatalog(new CatalogName(CATALOG_NAME)).orElseThrow().getConnectorName().toString();
         Path directory = queryPath.getParent();
         directory = directory.resolve(connectorName);

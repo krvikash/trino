@@ -30,7 +30,6 @@ import java.io.UncheckedIOException;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +48,7 @@ import static java.util.Objects.requireNonNull;
 public class ConfigDumper
 {
     private static final String ACCESS_CONTROL_NAME_PROPERTY = "access-control.name";
-    private static final Path JVM_CONFIG_FILE = Paths.get("etc", "jvm.config");
+    private static final Path JVM_CONFIG_FILE = Path.of("etc", "jvm.config");
     private static final byte[] SECURITY_SENSITIVE_PROPERTY_VALUE = "[REDACTED]".getBytes(ISO_8859_1);
 
     private final ConfigurationFactory configurationFactory;
@@ -202,7 +201,7 @@ public class ConfigDumper
             dumpProperties(properties, resourceGroupsConfigFile.getFileName().toString(), outputStream, directoryName);
             String configFilePath = properties.get("resource-groups.config-file");
             if (configFilePath != null) {
-                dumpFileIfExists(Paths.get(configFilePath), "file_resource_groups.json", outputStream, directoryName);
+                dumpFileIfExists(Path.of(configFilePath), "file_resource_groups.json", outputStream, directoryName);
             }
         }
     }
@@ -218,7 +217,7 @@ public class ConfigDumper
             dumpProperties(properties, "%s_access_control.properties".formatted(name), outputStream, directoryName);
             String configFilePath = properties.get("security.config-file");
             if (configFilePath != null) {
-                dumpFileIfExists(Paths.get(configFilePath), "%s_access_control_rules.json".formatted(name), outputStream, directoryName);
+                dumpFileIfExists(Path.of(configFilePath), "%s_access_control_rules.json".formatted(name), outputStream, directoryName);
             }
         }
     }

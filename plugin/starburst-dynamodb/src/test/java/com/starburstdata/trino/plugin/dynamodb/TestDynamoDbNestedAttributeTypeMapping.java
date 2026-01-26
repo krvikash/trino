@@ -34,7 +34,7 @@ import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType;
 
 import java.io.File;
 import java.net.URI;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.starburstdata.trino.plugin.dynamodb.DynamoDbSessionProperties.FLATTEN_ARRAY_ELEMENT_COUNT;
@@ -51,7 +51,7 @@ public class TestDynamoDbNestedAttributeTypeMapping
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        File schemaDirectory = Paths.get("src/test/resources/complex-type-schemas").toFile();
+        File schemaDirectory = Path.of("src/test/resources/complex-type-schemas").toFile();
         checkState(schemaDirectory.exists() && schemaDirectory.isDirectory(), "Test schema directory %s does not exist or is not a directory", schemaDirectory);
 
         TestingDynamoDbServer server = closeAfterClass(new TestingDynamoDbServer());

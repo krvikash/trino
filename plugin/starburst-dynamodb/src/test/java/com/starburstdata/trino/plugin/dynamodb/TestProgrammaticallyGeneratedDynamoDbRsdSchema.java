@@ -18,7 +18,6 @@ import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 
@@ -63,8 +62,8 @@ public class TestProgrammaticallyGeneratedDynamoDbRsdSchema
             String tableName = table.getTableName();
 
             // Verify the programmatically generated file is as expected
-            File actualProgrammaticallyGeneratedRsdFile = Paths.get(actualSchemasDirectory, tableName + ".rsd").toFile();
-            File expectedProgrammaticallyGeneratedRsdFile = Paths.get(EXPECTED_PROGRAMMATICALLY_GENERATED_SCHEMAS_DIRECTORY, tableName + ".rsd").toFile();
+            File actualProgrammaticallyGeneratedRsdFile = Path.of(actualSchemasDirectory, tableName + ".rsd").toFile();
+            File expectedProgrammaticallyGeneratedRsdFile = Path.of(EXPECTED_PROGRAMMATICALLY_GENERATED_SCHEMAS_DIRECTORY, tableName + ".rsd").toFile();
             assertThat(actualProgrammaticallyGeneratedRsdFile).exists()
                     .hasSameTextualContentAs(expectedProgrammaticallyGeneratedRsdFile);
         }

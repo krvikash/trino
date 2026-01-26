@@ -32,7 +32,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -104,7 +103,7 @@ public class LocalSpoolingStorage
     {
         counts.remove(exchangeId);
         for (String prefixedDirectory : getPrefixedDirectories(bufferNodeId, exchangeId)) {
-            Path path = Paths.get(spoolingDirectory.resolve(prefixedDirectory).getPath());
+            Path path = Path.of(spoolingDirectory.resolve(prefixedDirectory).getPath());
             if (Files.exists(path)) {
                 try {
                     MoreFiles.deleteRecursively(path, ALLOW_INSECURE);
@@ -158,7 +157,7 @@ public class LocalSpoolingStorage
 
     private Path getPath(String fileName)
     {
-        return Paths.get(spoolingDirectory.resolve(fileName).getPath());
+        return Path.of(spoolingDirectory.resolve(fileName).getPath());
     }
 
     @PreDestroy

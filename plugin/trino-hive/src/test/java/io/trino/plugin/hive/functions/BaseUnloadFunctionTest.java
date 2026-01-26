@@ -36,7 +36,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -215,7 +214,7 @@ abstract class BaseUnloadFunctionTest
         assertThat(result.getColumnNames()).containsExactly("path", "count");
         assertThat(result.getRowCount()).isEqualTo(1);
 
-        assertThat(Files.readString(Paths.get(URI.create((String) result.getMaterializedRows().getFirst().getField(0)))))
+        assertThat(Files.readString(Path.of(URI.create((String) result.getMaterializedRows().getFirst().getField(0)))))
                 .isEqualTo("""
                         iddata
                         1a
@@ -243,7 +242,7 @@ abstract class BaseUnloadFunctionTest
         assertThat(result.getColumnNames()).containsExactly("path", "count");
         assertThat(result.getRowCount()).isEqualTo(1);
 
-        assertThat(Files.readString(Paths.get(URI.create((String) result.getMaterializedRows().getFirst().getField(0)))))
+        assertThat(Files.readString(Path.of(URI.create((String) result.getMaterializedRows().getFirst().getField(0)))))
                 .isEqualTo("""
                         1a
                         2b
@@ -315,7 +314,7 @@ abstract class BaseUnloadFunctionTest
         assertThat(result.getColumnNames()).containsExactly("path", "count");
         assertThat(result.getRowCount()).isEqualTo(1);
 
-        assertThat(Files.readString(Paths.get(URI.create((String) result.getMaterializedRows().getFirst().getField(0)))))
+        assertThat(Files.readString(Path.of(URI.create((String) result.getMaterializedRows().getFirst().getField(0)))))
                 .isEqualTo("""
                         "id","data"
                         "1","a"
@@ -343,7 +342,7 @@ abstract class BaseUnloadFunctionTest
         assertThat(result.getColumnNames()).containsExactly("path", "count");
         assertThat(result.getRowCount()).isEqualTo(1);
 
-        assertThat(Files.readString(Paths.get(URI.create((String) result.getMaterializedRows().getFirst().getField(0)))))
+        assertThat(Files.readString(Path.of(URI.create((String) result.getMaterializedRows().getFirst().getField(0)))))
                 .isEqualTo("""
                         "1","a"
                         "2","b"
@@ -1088,7 +1087,7 @@ abstract class BaseUnloadFunctionTest
         MaterializedResult result = computeActual("SELECT * FROM TABLE(hive.system.unload(input => TABLE(SELECT 1 x), location => '" + location + "', format => 'TEXTFILE', existing_directory => 'ignore'))");
 
         assertThat(result.getRowCount()).isEqualTo(1);
-        assertThat(Files.readString(Paths.get(URI.create((String) result.getMaterializedRows().getFirst().getField(0)))))
+        assertThat(Files.readString(Path.of(URI.create((String) result.getMaterializedRows().getFirst().getField(0)))))
                 .isEqualTo("""
                         1
                         """);

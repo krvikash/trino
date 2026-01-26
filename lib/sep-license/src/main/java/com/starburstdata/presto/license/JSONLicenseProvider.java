@@ -18,7 +18,6 @@ import io.trino.spi.TrinoException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Optional;
 
 import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
@@ -27,7 +26,7 @@ import static java.util.Objects.requireNonNull;
 class JSONLicenseProvider
         implements LicenseProvider
 {
-    public static final Path LICENSE_PATH = Paths.get("etc/starburstdata.license");
+    public static final Path LICENSE_PATH = Path.of("etc/starburstdata.license");
     private static Logger log = Logger.get(JSONLicenseProvider.class);
     private final Path licensePath;
     private final JSONLicenseVerifier licenseVerifier;

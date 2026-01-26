@@ -28,7 +28,6 @@ import io.trino.tests.tpch.TpchQueryRunner;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -60,7 +59,7 @@ public class TestQueryTroubleshooting
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        accessControlRulesFile = Paths.get(TestQueryTroubleshooting.class.getClassLoader().getResource("file-access/access-control-rules.json").toURI());
+        accessControlRulesFile = Path.of(TestQueryTroubleshooting.class.getClassLoader().getResource("file-access/access-control-rules.json").toURI());
         accessControlPropertiesFile = createTempFileForTesting();
         rulesFileContent = Files.readAllBytes(accessControlRulesFile);
         try (OutputStream outputStream = Files.newOutputStream(accessControlPropertiesFile)) {
