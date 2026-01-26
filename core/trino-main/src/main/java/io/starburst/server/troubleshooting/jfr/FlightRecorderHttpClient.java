@@ -47,7 +47,7 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.util.concurrent.Futures.addCallback;
 import static io.airlift.http.client.Request.Builder.prepareDelete;
 import static io.airlift.http.client.Request.Builder.prepareGet;
-import static io.airlift.http.client.ResponseHandlerUtils.readResponseBytes;
+import static io.airlift.http.client.ResponseHandlerUtils.getResponseBytes;
 import static io.starburst.server.troubleshooting.jfr.FlightRecorderHttpClient.InputStreamResponseHandler.createInputStreamResponseHandler;
 import static io.starburst.server.troubleshooting.jfr.FlightRecorderHttpClient.StatusCheckingResponseHandler.createStatusCheckingHandler;
 import static io.starburst.server.troubleshooting.jfr.FlightRecorderWorkerResource.BASE_PATH_API_V1;
@@ -255,7 +255,7 @@ class FlightRecorderHttpClient
 
             return new InputStreamResponse(
                     response.getStatusCode(),
-                    new ByteArrayInputStream(readResponseBytes(request, response)));
+                    new ByteArrayInputStream(getResponseBytes(request, response)));
         }
 
         private record InputStreamResponse(int statusCode, InputStream inputStream)
@@ -289,7 +289,7 @@ class FlightRecorderHttpClient
         public String handle(Request request, Response response)
         {
             if (response.getStatusCode() < 300) {
-                return new String(readResponseBytes(request, response), UTF_8);
+                return new String(getResponseBytes(request, response), UTF_8);
             }
 
             throw new HttpStatusException("Expected error code 2xx, got: %d".formatted(response.getStatusCode()), response);
