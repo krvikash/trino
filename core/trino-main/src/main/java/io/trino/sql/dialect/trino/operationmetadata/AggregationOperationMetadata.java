@@ -98,8 +98,8 @@ public class AggregationOperationMetadata
         return new Aggregation(
                 resultName,
                 getOnlyElement(arguments),
-                regions.get(0).getOnlyBlock(),
-                regions.get(1).getOnlyBlock(),
+                regions.get(0).getOnlyBlock().withLabel("^aggregates"),
+                regions.get(1).getOnlyBlock().withLabel("^groupingKeysSelector"),
                 GROUPING_SETS_COUNT.getAttribute(operationAttributes),
                 GLOBAL_GROUPING_SETS.getAttribute(operationAttributes),
                 Optional.ofNullable(GROUP_ID_INDEX.getAttribute(operationAttributes)).map(OptionalInt::of).orElse(OptionalInt.empty()),

@@ -70,8 +70,8 @@ public class GroupIdOperationMetadata
         return new GroupId(
                 resultName,
                 getOnlyElement(arguments),
-                regions.get(0).getOnlyBlock(),
-                regions.get(1).getOnlyBlock(),
+                regions.get(0).getOnlyBlock().withLabel("^groupingColumnsSelector"),
+                regions.get(1).getOnlyBlock().withLabel("^aggregationArgumentsSelector"),
                 GROUPING_SETS.getAttribute(operationAttributes),
                 ImmutableMap.of(),
                 derivedAttributes);

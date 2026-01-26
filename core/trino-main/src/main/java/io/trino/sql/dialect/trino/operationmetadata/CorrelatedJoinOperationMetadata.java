@@ -70,9 +70,9 @@ public class CorrelatedJoinOperationMetadata
         return new CorrelatedJoin(
                 resultName,
                 getOnlyElement(arguments),
-                regions.get(0).getOnlyBlock(),
-                regions.get(1).getOnlyBlock(),
-                regions.get(2).getOnlyBlock(),
+                regions.get(0).getOnlyBlock().withLabel("^correlationSelector"),
+                regions.get(1).getOnlyBlock().withLabel("^subquery"),
+                regions.get(2).getOnlyBlock().withLabel("^filter"),
                 JOIN_TYPE.getAttribute(operationAttributes),
                 ImmutableMap.of(),
                 derivedAttributes);

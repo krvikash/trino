@@ -81,7 +81,7 @@ public class TopNOperationMetadata
         return new TopN(
                 resultName,
                 getOnlyElement(arguments),
-                getOnlyElement(regions).getOnlyBlock(),
+                getOnlyElement(regions).getOnlyBlock().withLabel("^orderingSelector"),
                 SORT_ORDERS.getAttribute(operationAttributes),
                 LIMIT.getAttribute(operationAttributes),
                 TOP_N_STEP.getAttribute(operationAttributes),

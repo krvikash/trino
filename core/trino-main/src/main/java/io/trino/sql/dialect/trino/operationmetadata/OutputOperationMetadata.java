@@ -75,7 +75,7 @@ public class OutputOperationMetadata
         return new Output(
                 resultName,
                 getOnlyElement(arguments),
-                getOnlyElement(regions).getOnlyBlock(),
+                getOnlyElement(regions).getOnlyBlock().withLabel("^outputFieldSelector"),
                 COLUMN_NAMES.getAttribute(operationAttributes),
                 ImmutableMap.of(),
                 derivedAttributes);

@@ -70,7 +70,7 @@ public class DynamicFilterSourceOperationMetadata
         return new DynamicFilterSource(
                 resultName,
                 getOnlyElement(arguments),
-                getOnlyElement(regions).getOnlyBlock(),
+                getOnlyElement(regions).getOnlyBlock().withLabel("^dynamicFilterTargetSelector"),
                 DYNAMIC_FILTER_IDS.getAttribute(operationAttributes),
                 ImmutableMap.of(),
                 derivedAttributes);

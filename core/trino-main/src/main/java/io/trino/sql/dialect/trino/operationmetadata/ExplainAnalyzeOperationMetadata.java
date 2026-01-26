@@ -70,7 +70,7 @@ public class ExplainAnalyzeOperationMetadata
         return new ExplainAnalyze(
                 resultName,
                 getOnlyElement(arguments),
-                getOnlyElement(regions).getOnlyBlock(),
+                getOnlyElement(regions).getOnlyBlock().withLabel("^inputFieldSelector"),
                 VERBOSE.getAttribute(operationAttributes),
                 ImmutableMap.of(),
                 derivedAttributes);

@@ -76,7 +76,7 @@ public class SortOperationMetadata
         return new Sort(
                 resultName,
                 getOnlyElement(arguments),
-                getOnlyElement(regions).getOnlyBlock(),
+                getOnlyElement(regions).getOnlyBlock().withLabel("^orderingSelector"),
                 SORT_ORDERS.getAttribute(operationAttributes),
                 PARTIAL.getAttribute(operationAttributes),
                 ImmutableMap.of(),

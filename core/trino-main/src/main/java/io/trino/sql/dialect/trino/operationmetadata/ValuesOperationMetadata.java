@@ -93,7 +93,10 @@ public class ValuesOperationMetadata
             values = new Values(
                     resultName,
                     (RowType) rowType,
-                    regions.stream().map(Region::getOnlyBlock).collect(toImmutableList()),
+                    regions.stream()
+                            .map(Region::getOnlyBlock)
+                            .map(block -> block.withLabel("^row"))
+                            .collect(toImmutableList()),
                     derivedAttributes);
         }
 

@@ -81,9 +81,9 @@ public class WindowOperationMetadata
         return new Window(
                 resultName,
                 getOnlyElement(arguments),
-                regions.get(0).getOnlyBlock(),
-                regions.get(1).getOnlyBlock(),
-                regions.get(2).getOnlyBlock(),
+                regions.get(0).getOnlyBlock().withLabel("^windowFunctions"),
+                regions.get(1).getOnlyBlock().withLabel("^partitioningSelector"),
+                regions.get(2).getOnlyBlock().withLabel("^orderingSelector"),
                 PRE_PARTITIONED_INDEXES.getAttribute(operationAttributes),
                 Optional.ofNullable(SORT_ORDERS.getAttribute(operationAttributes)),
                 PRE_SORTED_PREFIX.getAttribute(operationAttributes),

@@ -153,9 +153,10 @@ public class ExchangeOperationMetadata
                 arguments,
                 regions.subList(0, arguments.size()).stream()
                         .map(Region::getOnlyBlock)
+                        .map(block -> block.withLabel("^inputSelector"))
                         .collect(toImmutableList()),
-                regions.get(regions.size() - 2).getOnlyBlock(),
-                regions.getLast().getOnlyBlock(),
+                regions.get(regions.size() - 2).getOnlyBlock().withLabel("^boundArguments"),
+                regions.getLast().getOnlyBlock().withLabel("^orderingSelector"),
                 EXCHANGE_TYPE.getAttribute(operationAttributes),
                 EXCHANGE_SCOPE.getAttribute(operationAttributes),
                 PARTITIONING_HANDLE.getAttribute(operationAttributes),

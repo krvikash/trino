@@ -61,7 +61,7 @@ public class FilterOperationMetadata
         return new Filter(
                 resultName,
                 getOnlyElement(arguments),
-                getOnlyElement(regions).getOnlyBlock(),
+                getOnlyElement(regions).getOnlyBlock().withLabel("^predicate"),
                 ImmutableMap.of(),
                 derivedAttributes);
     }

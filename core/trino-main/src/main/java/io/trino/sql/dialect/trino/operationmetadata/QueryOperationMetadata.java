@@ -61,7 +61,7 @@ public class QueryOperationMetadata
 
         return new Query(
                 resultName,
-                getOnlyElement(regions).getOnlyBlock(),
+                getOnlyElement(regions).getOnlyBlock().withLabel("^query"),
                 derivedAttributes);
     }
 

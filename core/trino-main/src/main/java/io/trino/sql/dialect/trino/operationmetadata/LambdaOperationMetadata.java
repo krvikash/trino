@@ -60,7 +60,7 @@ public class LambdaOperationMetadata
 
         return new Lambda(
                 resultName,
-                getOnlyElement(regions).getOnlyBlock(),
+                getOnlyElement(regions).getOnlyBlock().withLabel("^lambda"),
                 derivedAttributes);
     }
 

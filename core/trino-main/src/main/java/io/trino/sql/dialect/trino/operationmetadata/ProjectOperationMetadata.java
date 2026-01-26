@@ -61,7 +61,7 @@ public class ProjectOperationMetadata
         return new Project(
                 resultName,
                 getOnlyElement(arguments),
-                getOnlyElement(regions).getOnlyBlock(),
+                getOnlyElement(regions).getOnlyBlock().withLabel("^assignments"),
                 ImmutableMap.of(),
                 derivedAttributes);
     }

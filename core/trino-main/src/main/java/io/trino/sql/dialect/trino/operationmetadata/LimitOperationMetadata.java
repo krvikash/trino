@@ -93,7 +93,7 @@ public class LimitOperationMetadata
         return new Limit(
                 resultName,
                 getOnlyElement(arguments),
-                getOnlyElement(regions).getOnlyBlock(),
+                getOnlyElement(regions).getOnlyBlock().withLabel("^orderingSelector"),
                 Optional.ofNullable(SORT_ORDERS.getAttribute(operationAttributes)),
                 COUNT.getAttribute(operationAttributes),
                 PARTIAL.getAttribute(operationAttributes),
