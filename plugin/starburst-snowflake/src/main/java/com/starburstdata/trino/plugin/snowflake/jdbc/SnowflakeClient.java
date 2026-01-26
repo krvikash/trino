@@ -302,7 +302,7 @@ public class SnowflakeClient
             while (resultSet.next()) {
                 String schemaName = resultSet.getString("TABLE_SCHEM");
                 // skip internal schemas
-                if (filterSchema(schemaName)) {
+                if (filterRemoteSchema(schemaName)) {
                     schemaNames.add(format("%s%s%s", resultSet.getString("TABLE_CATALOG"), DATABASE_SEPARATOR, schemaName));
                 }
             }

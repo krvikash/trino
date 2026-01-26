@@ -86,7 +86,7 @@ public class StarburstSqlServerMultiDatabaseClient
                 while (resultSet.next()) {
                     String schemaName = resultSet.getString("name");
                     // skip internal schemas
-                    if (filterSchema(schemaName)) {
+                    if (filterRemoteSchema(schemaName)) {
                         schemaNames.add(format("%s%s%s", catalogName, DATABASE_SEPARATOR, schemaName));
                     }
                 }
