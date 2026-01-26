@@ -269,7 +269,7 @@ public class StarburstSqlServerMultiDatabaseClient
     }
 
     @Override
-    public String getTableSchemaName(ResultSet resultSet)
+    public String getTableRemoteSchemaName(ResultSet resultSet)
             throws SQLException
     {
         return resultSet.getString("TABLE_CAT") + DATABASE_SEPARATOR + resultSet.getString("TABLE_SCHEM");

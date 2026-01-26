@@ -555,7 +555,7 @@ public class SingleStoreClient
     }
 
     @Override
-    protected String getTableSchemaName(ResultSet resultSet)
+    protected String getTableRemoteSchemaName(ResultSet resultSet)
             throws SQLException
     {
         // SingleStore uses catalogs instead of schemas

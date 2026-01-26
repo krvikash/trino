@@ -408,13 +408,13 @@ public class SnowflakeClient
     }
 
     @Override
-    public String getTableSchemaName(ResultSet resultSet)
+    public String getTableRemoteSchemaName(ResultSet resultSet)
             throws SQLException
     {
         if (databasePrefixForSchemaEnabled) {
             return resultSet.getString("TABLE_CAT") + "." + resultSet.getString("TABLE_SCHEM");
         }
-        return super.getTableSchemaName(resultSet);
+        return super.getTableRemoteSchemaName(resultSet);
     }
 
     private static Optional<JdbcTypeHandle> decimalTypeHandle(DecimalType decimalType)
