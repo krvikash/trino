@@ -88,6 +88,15 @@ public class BinaryComparisonQueryBuilder
         return super.toPredicate(client, session, column, jdbcType, type, writeFunction, operator, value, accumulator);
     }
 
+    @Override
+    protected String toInPredicate(JdbcClient client, ConnectorSession session, JdbcColumnHandle column, JdbcTypeHandle jdbcType, Type type, List<Object> singleValues, WriteFunction writeFunction, Consumer<QueryParameter> accumulator)
+    {
+        if (isStringType(column) && isEnableStringPushdownWithBinary(session)) {
+            return "BINARY " + super.toInPredicate(client, session, column, jdbcType, type, singleValues, writeFunction, accumulator);
+        }
+        return super.toInPredicate(client, session, column, jdbcType, type, singleValues, writeFunction, accumulator);
+    }
+
     private static boolean isStringType(JdbcColumnHandle column)
     {
         return column.getColumnType() instanceof CharType || column.getColumnType() instanceof VarcharType;

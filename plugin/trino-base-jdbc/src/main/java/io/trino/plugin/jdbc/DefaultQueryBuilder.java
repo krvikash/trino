@@ -507,11 +507,7 @@ public class DefaultQueryBuilder
             disjuncts.add(toPredicate(client, session, column, jdbcType, type, writeFunction, "=", getOnlyElement(singleValues), accumulator));
         }
         else if (singleValues.size() > 1) {
-            for (Object value : singleValues) {
-                accumulator.accept(new QueryParameter(jdbcType, type, Optional.of(value)));
-            }
-            String values = Joiner.on(",").join(nCopies(singleValues.size(), writeFunction.getBindExpression()));
-            disjuncts.add(client.quoted(column.getColumnName()) + " IN (" + values + ")");
+            disjuncts.add(toInPredicate(client, session, column, jdbcType, type, singleValues, writeFunction, accumulator));
         }
 
         checkState(!disjuncts.isEmpty());
@@ -519,6 +515,15 @@ public class DefaultQueryBuilder
             return getOnlyElement(disjuncts);
         }
         return "(" + Joiner.on(" OR ").join(disjuncts) + ")";
+    }
+
+    protected String toInPredicate(JdbcClient client, ConnectorSession session, JdbcColumnHandle column, JdbcTypeHandle jdbcType, Type type, List<Object> singleValues, WriteFunction writeFunction, Consumer<QueryParameter> accumulator)
+    {
+        for (Object value : singleValues) {
+            accumulator.accept(new QueryParameter(jdbcType, type, Optional.of(value)));
+        }
+        String values = Joiner.on(",").join(nCopies(singleValues.size(), writeFunction.getBindExpression()));
+        return client.quoted(column.getColumnName()) + " IN (" + values + ")";
     }
 
     protected String toPredicate(JdbcClient client, ConnectorSession session, JdbcColumnHandle column, JdbcTypeHandle jdbcType, Type type, WriteFunction writeFunction, String operator, Object value, Consumer<QueryParameter> accumulator)

@@ -546,22 +546,31 @@ public class TestSingleStoreConnectorTest
                 "tpch.single_store_string_pushdown",
                 """
                 (
+                some_varchar varchar(255),
                 some_char char(16),
                 other_column varchar(255)
                 )
                 """,
                 List.of(
-                        "null, null",
-                        "'AA', 'AA'",
-                        "'aa', 'aa'",
-                        "'bb', 'bb'",
-                        "'cc', 'cc'"
+                        "null, null, null",
+                        "'AA', 'AA', 'AA'",
+                        "'aa', 'aa', 'aa'",
+                        "'bb', 'bb', 'bb'",
+                        "'cc', 'cc', 'cc'"
                 ))) {
             // char pushdown
             assertThat(query(session, "SELECT some_char FROM " + table.getName() + " WHERE some_char = 'aa'")).isFullyPushedDown();
             assertThat(query(session, "SELECT some_char FROM " + table.getName() + " WHERE some_char BETWEEN 'aa' AND 'bb'")).isFullyPushedDown();
             assertThat(query(session, "SELECT some_char FROM " + table.getName() + " WHERE some_char = 'AA'")).isFullyPushedDown();
             assertThat(query(session, "SELECT some_char FROM " + table.getName() + " WHERE some_char = 'AA' OR other_column = 'BB'")).isNotFullyPushedDown(FilterNode.class);
+
+            // equality/like/in on same column transformed to IN via queryBuilder
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar = 'aa' OR some_varchar = 'BB'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar IN ('aa', 'bb')")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar LIKE 'aa' OR some_varchar = 'BB'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char = 'aa' OR some_char = 'BB'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char IN ('aa', 'bb')")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char LIKE 'aa' OR some_char = 'BB'")).isNotFullyPushedDown(FilterNode.class);
         }
     }
 
