@@ -35,7 +35,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.plugin.objectstore.FeatureExposure.UNDEFINED;
 import static io.trino.plugin.objectstore.FeatureExposures.sessionExposureDecisions;
@@ -45,6 +44,7 @@ import static io.trino.plugin.objectstore.PropertyMetadataValidation.VerifyDescr
 import static io.trino.plugin.objectstore.PropertyMetadataValidation.VerifyDescription.VERIFY_DESCRIPTION;
 import static io.trino.plugin.objectstore.PropertyMetadataValidation.verifyPropertyMetadata;
 import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElse;
 
 public class ObjectStoreSessionProperties
 {
@@ -71,7 +71,7 @@ public class ObjectStoreSessionProperties
         delegates.byType().forEach((type, connector) -> {
             for (PropertyMetadata<?> property : connector.getSessionProperties()) {
                 String name = property.getName();
-                switch (firstNonNull(featureExposures.remove(type, name), UNDEFINED)) {
+                switch (requireNonNullElse(featureExposures.remove(type, name), UNDEFINED)) {
                     case INACCESSIBLE -> {
                         maskedProperties.put(name, type);
                         defaultPropertyValue.put(name, type, Optional.ofNullable(property.getDefaultValue()));

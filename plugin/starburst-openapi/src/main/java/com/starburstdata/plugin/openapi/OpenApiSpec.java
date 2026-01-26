@@ -61,7 +61,6 @@ import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -75,6 +74,7 @@ import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.util.Comparator.comparingInt;
 import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElse;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
@@ -332,9 +332,9 @@ public class OpenApiSpec
 
         Map<String, String> specExtension = op.getExtensions() == null ?
                 ImmutableMap.of() :
-                getMapOfStrings(firstNonNull(
+                getMapOfStrings(requireNonNullElse(
                         op.getExtensions().get(SPEC_EXTENSION),
-                        firstNonNull(op.getExtensions().get(LEGACY_SPEC_EXTENSION), ImmutableMap.of())));
+                        requireNonNullElse(op.getExtensions().get(LEGACY_SPEC_EXTENSION), ImmutableMap.of())));
         JsonPointer resultsPointer;
         try {
             resultsPointer = parseJsonPointer(specExtension.get(PAGINATION_RESULTS_PATH));
@@ -803,7 +803,7 @@ public class OpenApiSpec
         return new OpenApiTableHandle(
                 SchemaTableName.schemaTableName(SCHEMA_NAME, tableName),
                 // some APIs use POST to query resources
-                tablePaths.containsKey(PathItem.HttpMethod.GET) ? tablePaths.get(PathItem.HttpMethod.GET) : firstNonNull(tablePaths.get(PathItem.HttpMethod.POST), ImmutableList.of()),
+                tablePaths.containsKey(PathItem.HttpMethod.GET) ? tablePaths.get(PathItem.HttpMethod.GET) : requireNonNullElse(tablePaths.get(PathItem.HttpMethod.POST), ImmutableList.of()),
                 tablePaths.containsKey(PathItem.HttpMethod.GET) ? PathItem.HttpMethod.GET : PathItem.HttpMethod.POST,
                 TupleDomain.none());
     }

@@ -65,7 +65,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Throwables.getCausalChain;
 import static com.google.common.collect.MoreCollectors.toOptional;
@@ -75,6 +74,7 @@ import static com.starburstdata.trino.plugin.functions.io.StorageErrorCode.STORA
 import static io.trino.plugin.base.util.JsonUtils.parseJson;
 import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
 import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElse;
 
 public class ResolvingFileSystemModule
         extends AbstractConfigurationAwareModule
@@ -116,7 +116,7 @@ public class ResolvingFileSystemModule
                         .orElseThrow(() -> new IllegalArgumentException("No factory for location: " + location));
             }
             catch (IllegalArgumentException e) {
-                throw new TrinoException(CONFIGURATION_INVALID, "Invalid configuration: " + firstNonNull(e.getMessage(), e), e);
+                throw new TrinoException(CONFIGURATION_INVALID, "Invalid configuration: " + requireNonNullElse(e.getMessage(), e), e);
             }
         };
 

@@ -99,7 +99,6 @@ import static com.databricks.sdk.core.PatCredentialsProvider.PAT;
 import static com.databricks.sdk.service.catalog.DataSourceFormat.DELTA;
 import static com.databricks.sdk.service.catalog.TableType.EXTERNAL;
 import static com.databricks.sdk.service.catalog.TableType.MANAGED;
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.hive.thrift.metastore.hive_metastoreConstants.META_TABLE_LOCATION;
@@ -119,6 +118,7 @@ import static io.trino.spi.connector.SchemaTableName.schemaTableName;
 import static io.trino.spi.security.PrincipalType.USER;
 import static java.time.temporal.ChronoUnit.MILLIS;
 import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElse;
 
 public class UnityHiveMetastore
         implements UnityMetastore
@@ -195,7 +195,7 @@ public class UnityHiveMetastore
                 Optional.ofNullable(schemaInfo.getOwner()),
                 Optional.of(USER),
                 Optional.ofNullable(schemaInfo.getComment()),
-                firstNonNull(schemaInfo.getProperties(), ImmutableMap.of()));
+                requireNonNullElse(schemaInfo.getProperties(), ImmutableMap.of()));
         return Optional.of(database);
     }
 
@@ -263,8 +263,8 @@ public class UnityHiveMetastore
         try {
             return retry(() -> Streams.stream(tablesApi.list(catalogName, databaseName))
                     .filter(tableInfo -> {
-                        DataSourceFormat dataSourceFormat = firstNonNull(tableInfo.getDataSourceFormat(), DELTA);
-                        com.databricks.sdk.service.catalog.TableType tableType = firstNonNull(tableInfo.getTableType(), MANAGED);
+                        DataSourceFormat dataSourceFormat = requireNonNullElse(tableInfo.getDataSourceFormat(), DELTA);
+                        com.databricks.sdk.service.catalog.TableType tableType = requireNonNullElse(tableInfo.getTableType(), MANAGED);
                         if (dataSourceFormat != DELTA && tableType == MANAGED) {
                             return false;
                         }
@@ -319,10 +319,10 @@ public class UnityHiveMetastore
                     return fromUnityTable(delegate.next()).orElseGet(this::computeNext);
                 }
                 catch (DatabricksError e) {
-                    throw new TrinoException(HIVE_METASTORE_ERROR, firstNonNull(e.getMessage(), e).toString(), e);
+                    throw new TrinoException(HIVE_METASTORE_ERROR, requireNonNullElse(e.getMessage(), e).toString(), e);
                 }
                 catch (RuntimeException e) {
-                    throw new TrinoException(GENERIC_INTERNAL_ERROR, "Error accessing Unity Metastore: " + firstNonNull(e.getMessage(), e), e);
+                    throw new TrinoException(GENERIC_INTERNAL_ERROR, "Error accessing Unity Metastore: " + requireNonNullElse(e.getMessage(), e), e);
                 }
             }
         });
@@ -700,11 +700,11 @@ public class UnityHiveMetastore
 
     private Optional<Table> fromUnityTable(com.databricks.sdk.service.catalog.TableInfo tableInfo)
     {
-        com.databricks.sdk.service.catalog.TableType tableType = firstNonNull(tableInfo.getTableType(), MANAGED);
+        com.databricks.sdk.service.catalog.TableType tableType = requireNonNullElse(tableInfo.getTableType(), MANAGED);
         if (!SUPPORTED_TABLE_TYPES_MAPPING.containsKey(tableType)) {
             throw new TrinoException(NOT_SUPPORTED, "Unsupported table type: " + tableType);
         }
-        DataSourceFormat dataSourceFormat = firstNonNull(tableInfo.getDataSourceFormat(), DELTA);
+        DataSourceFormat dataSourceFormat = requireNonNullElse(tableInfo.getDataSourceFormat(), DELTA);
         if (!supportedUnityTableFormats.contains(dataSourceFormat)) {
             throw new TrinoException(NOT_SUPPORTED, "Unsupported data source format: " + dataSourceFormat);
         }

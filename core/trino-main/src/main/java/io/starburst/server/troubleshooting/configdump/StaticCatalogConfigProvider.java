@@ -18,11 +18,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.connector.CatalogConfigurationReader.CONNECTOR_NAME_PROPERTY;
 import static io.trino.connector.CatalogConfigurationReader.loadCatalogProperties;
 import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElse;
 
 public class StaticCatalogConfigProvider
         implements CatalogConfigProvider
@@ -35,7 +35,7 @@ public class StaticCatalogConfigProvider
     {
         requireNonNull(staticCatalogManagerConfig, "staticCatalogManagerConfig is null");
         this.catalogConfigurationDir = requireNonNull(staticCatalogManagerConfig.getCatalogConfigurationDir(), "catalogConfigurationDir is null").toPath();
-        this.disabledCatalogs = firstNonNull(staticCatalogManagerConfig.getDisabledCatalogs(), ImmutableList.of());
+        this.disabledCatalogs = requireNonNullElse(staticCatalogManagerConfig.getDisabledCatalogs(), ImmutableList.of());
     }
 
     @Override

@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.io.BaseEncoding.base64Url;
 import static com.starburstdata.plugin.openapi.authentication.OpenApiAuthenticationScheme.BEARER;
 import static io.airlift.http.client.JsonResponseHandler.createJsonResponseHandler;
@@ -145,11 +144,11 @@ public class OpenApiAuthentication
                         case HTTP -> applyHttpAuth(builder, securitySchema.getScheme());
                         case OAUTH2 -> {
                             OAuthFlows flows = requireNonNull(securitySchema.getFlows(), "flows are null");
-                            OAuthFlow flow = firstNonNull(
+                            OAuthFlow flow = requireNonNullElse(
                                     flows.getPassword(),
-                                    firstNonNull(
+                                    requireNonNullElse(
                                             flows.getAuthorizationCode(),
-                                            firstNonNull(
+                                            requireNonNullElse(
                                                     flows.getClientCredentials(),
                                                     flows.getImplicit())));
                             applyOAuth(builder, flow.getAuthorizationUrl());

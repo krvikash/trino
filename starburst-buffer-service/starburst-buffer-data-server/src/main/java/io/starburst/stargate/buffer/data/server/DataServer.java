@@ -27,10 +27,10 @@ import io.starburst.stargate.buffer.BufferServiceSystemRequirements;
 import io.starburst.stargate.buffer.status.StatusModule;
 import org.weakref.jmx.guice.MBeanModule;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkState;
 import static io.starburst.stargate.buffer.BufferNodeState.STARTED;
 import static io.starburst.stargate.buffer.data.server.DataServerApplicationModules.getDataServerApplicationModule;
+import static java.util.Objects.requireNonNullElse;
 
 public final class DataServer
 {
@@ -43,7 +43,7 @@ public final class DataServer
         BufferServiceSystemRequirements.verifySystemRequirements();
         String injectedVersion = System.getenv("BUFFER_DATA_SERVER_DOCKER_VERSION");
         checkState(injectedVersion == null || !injectedVersion.isEmpty(), "BUFFER_DATA_SERVER_DOCKER_VERSION is set but empty");
-        String version = firstNonNull(injectedVersion, DataServer.class.getPackage().getImplementationVersion());
+        String version = requireNonNullElse(injectedVersion, DataServer.class.getPackage().getImplementationVersion());
 
         ImmutableList.Builder<Module> modules = ImmutableList.builder();
         modules.add(new NodeModule(),

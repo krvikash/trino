@@ -29,9 +29,9 @@ import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElse;
 import static net.snowflake.client.core.Constants.MB;
 import static net.snowflake.client.jdbc.DefaultResultStreamProvider.detectGzipAndGetStream;
 
@@ -61,7 +61,7 @@ public class StarburstResultStreamProvider
         catch (URISyntaxException | SnowflakeSQLException e) {
             throw new TrinoException(
                     JDBC_ERROR,
-                    "Error encountered when requesting a result chunk URL: %s %s".formatted(chunk.fileUrl(), firstNonNull(e.getMessage(), e)),
+                    "Error encountered when requesting a result chunk URL: %s %s".formatted(chunk.fileUrl(), requireNonNullElse(e.getMessage(), e)),
                     e);
         }
 

@@ -34,7 +34,6 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Suppliers.memoize;
 import static com.google.common.base.Verify.verify;
@@ -49,6 +48,7 @@ import static java.nio.file.Files.newInputStream;
 import static java.time.Duration.ofMillis;
 import static java.time.temporal.ChronoUnit.MILLIS;
 import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElse;
 import static jdk.jfr.RecordingState.CLOSED;
 import static jdk.jfr.RecordingState.RUNNING;
 import static jdk.jfr.RecordingState.STOPPED;
@@ -294,7 +294,7 @@ public final class LocalRecordingFactory
 
         private Duration getDuration()
         {
-            Instant endTime = firstNonNull(recording.getStopTime(), Instant.now());
+            Instant endTime = requireNonNullElse(recording.getStopTime(), Instant.now());
             return ofMillis(recording.getStartTime().until(endTime, MILLIS));
         }
 

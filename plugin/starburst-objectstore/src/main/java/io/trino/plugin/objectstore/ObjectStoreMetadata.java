@@ -131,7 +131,6 @@ import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -163,6 +162,7 @@ import static io.trino.spi.StandardErrorCode.NOT_FOUND;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.StandardErrorCode.UNSUPPORTED_TABLE_TYPE;
 import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElse;
 
 public class ObjectStoreMetadata
         implements ConnectorMetadata
@@ -1667,7 +1667,7 @@ public class ObjectStoreMetadata
             throw e;
         }
         catch (Throwable e) {
-            throw new TrinoException(GENERIC_INTERNAL_ERROR, "Failed to flush metadata cache: " + firstNonNull(e.toString(), e), e);
+            throw new TrinoException(GENERIC_INTERNAL_ERROR, "Failed to flush metadata cache: " + requireNonNullElse(e.toString(), e), e);
         }
     }
 
@@ -1680,7 +1680,7 @@ public class ObjectStoreMetadata
             throw e;
         }
         catch (Throwable e) {
-            throw new TrinoException(GENERIC_INTERNAL_ERROR, "Failed to flush metadata cache: " + firstNonNull(e.toString(), e), e);
+            throw new TrinoException(GENERIC_INTERNAL_ERROR, "Failed to flush metadata cache: " + requireNonNullElse(e.toString(), e), e);
         }
     }
 

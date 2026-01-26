@@ -61,7 +61,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.MoreCollectors.onlyElement;
@@ -85,6 +84,7 @@ import static io.trino.spi.transaction.IsolationLevel.READ_UNCOMMITTED;
 import static io.trino.spi.transaction.IsolationLevel.checkConnectorSupports;
 import static java.util.Comparator.comparing;
 import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElse;
 import static java.util.concurrent.Executors.newFixedThreadPool;
 import static java.util.stream.Collectors.toSet;
 
@@ -235,7 +235,7 @@ public class ObjectStoreConnector
         delegates.byType().forEach((type, connector) -> {
             for (Procedure procedure : connector.getProcedures()) {
                 String name = procedure.getName();
-                switch (firstNonNull(featureExposures.remove(type, name), UNDEFINED)) {
+                switch (requireNonNullElse(featureExposures.remove(type, name), UNDEFINED)) {
                     case INACCESSIBLE -> { /* skipped */ }
                     case UNDEFINED -> throw new IllegalStateException("Unknown procedure provided by %s: %s".formatted(type, name));
                     case EXPOSED -> {
@@ -278,7 +278,7 @@ public class ObjectStoreConnector
                 String name = procedure.getName();
                 verify(name.equals(name.toUpperCase(Locale.ROOT)), "Procedure name is not uppercase: %s", name);
 
-                switch (firstNonNull(featureExposures.remove(type, name), UNDEFINED)) {
+                switch (requireNonNullElse(featureExposures.remove(type, name), UNDEFINED)) {
                     case INACCESSIBLE -> { /* skipped */ }
                     case UNDEFINED -> throw new IllegalStateException("Unknown table procedure provided by %s: %s".formatted(type, name));
                     case EXPOSED -> {
@@ -325,7 +325,7 @@ public class ObjectStoreConnector
             for (SystemTable systemTable : connector.getSystemTables()) {
                 SchemaTableName name = systemTable.getTableMetadata().getTable();
 
-                switch (firstNonNull(systemTableExposures.remove(type, name), UNDEFINED)) {
+                switch (requireNonNullElse(systemTableExposures.remove(type, name), UNDEFINED)) {
                     case INACCESSIBLE -> { /* skipped */ }
                     case UNDEFINED -> throw new IllegalStateException("Unknown table procedure provided by %s: %s".formatted(type, name));
                     case EXPOSED -> {

@@ -25,8 +25,8 @@ import io.airlift.tracing.TracingModule;
 import io.starburst.stargate.buffer.BufferServiceSystemRequirements;
 import org.weakref.jmx.guice.MBeanModule;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static io.starburst.stargate.buffer.discovery.server.DiscoveryServerApplicationModules.getDiscoveryServerApplicationModule;
+import static java.util.Objects.requireNonNullElse;
 
 public final class DiscoveryServer
 {
@@ -47,7 +47,7 @@ public final class DiscoveryServer
                 new JmxModule(),
                 new JmxOpenMetricsModule(),
                 new LogJmxModule(),
-                new TracingModule("buffer-discover-server", firstNonNull(DiscoveryServer.class.getPackage().getImplementationVersion(), "unknown")),
+                new TracingModule("buffer-discover-server", requireNonNullElse(DiscoveryServer.class.getPackage().getImplementationVersion(), "unknown")),
                 getDiscoveryServerApplicationModule());
 
         Bootstrap app = new Bootstrap(modules.build());
