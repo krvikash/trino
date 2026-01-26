@@ -123,7 +123,8 @@ public final class QueryExecutors
         // while keeping costs to a minimum.
 
         RetryPolicy<QueryResult> databricksRetryPolicy = RetryPolicy.<QueryResult>builder()
-                .handleIf(throwable -> throwable.getMessage().contains("HTTP Response code: 502"))
+                // Retry on 503 may lead to unexpected test results: https://github.com/trinodb/trino/pull/14392#issuecomment-1264041917
+                .handleIf(throwable -> throwable.getMessage().contains("HTTP Response code: 502") || throwable.getMessage().contains("The current cluster state is Pending"))
                 .withBackoff(1, 10, ChronoUnit.SECONDS)
                 .withMaxRetries(60)
                 .onRetry(event -> log.warn(event.getLastException(), "Query failed on attempt %d, will retry.", event.getAttemptCount()))
