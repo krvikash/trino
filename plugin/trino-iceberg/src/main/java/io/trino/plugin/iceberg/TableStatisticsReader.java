@@ -203,7 +203,9 @@ public final class TableStatisticsReader
                                     .orElseGet(Estimate::unknown));
                     columnHandleBuilder.put(columnHandle, columnBuilder.build());
                 }
-                // Assuming that delete files usually don't remove more than 20% of the data files
+                // Assuming that delete files usually don't remove more than 20% of the data files.
+                // We can't simply compute total rows as recordCount - deletedRecordCount,
+                // since rows deleted by delete files may overlap regardless of the type (equality or positional).
                 return new TableStatistics(Estimate.of(recordCount - Math.min(deletedRecordCount, 0.2 * recordCount)), columnHandleBuilder.buildOrThrow());
             }
             // Fallback to file-level statistics if no partition statistics file is available
