@@ -217,7 +217,7 @@ public abstract class BaseJdbcClient
                     String remoteSchemaFromResultSet = getTableSchemaName(resultSet);
                     String tableSchema = identifierMapping.fromRemoteSchemaName(remoteSchemaFromResultSet);
                     String tableName = identifierMapping.fromRemoteTableName(remoteSchemaFromResultSet, resultSet.getString("TABLE_NAME"));
-                    if (filterRemoteSchema(tableSchema)) {
+                    if (filterRemoteSchema(remoteSchemaFromResultSet)) {
                         list.add(RelationCommentMetadata.forRelation(new SchemaTableName(tableSchema, tableName), getTableComment(resultSet)));
                     }
                 }
