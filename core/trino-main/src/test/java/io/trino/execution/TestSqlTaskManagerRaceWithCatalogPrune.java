@@ -106,7 +106,13 @@ public class TestSqlTaskManagerRaceWithCatalogPrune
         public void ensureCatalogsLoaded(List<CatalogProperties> catalogs) {}
 
         @Override
-        public void pruneCatalogs(Set<CatalogHandle> catalogsInUse) {}
+        public PrunableState getPrunableState()
+        {
+            return PrunableState.empty();
+        }
+
+        @Override
+        public void pruneCatalogs(PrunableState prunableState, Set<CatalogHandle> catalogsInUse) {}
 
         @Override
         public ConnectorServices getConnectorServices(CatalogHandle catalogHandle)

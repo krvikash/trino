@@ -13,7 +13,6 @@
  */
 package io.trino.transaction;
 
-import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.errorprone.annotations.ThreadSafe;
@@ -584,7 +583,10 @@ public class InMemoryTransactionManager
                     idleTime,
                     catalogNames,
                     writtenCatalogName,
-                    ImmutableSet.copyOf(activeCatalogs.keySet()));
+                    registeredCatalogs.values().stream()
+                            .flatMap(Optional::stream)
+                            .map(Catalog::getCatalogHandle)
+                            .collect(toImmutableSet()));
         }
     }
 }
