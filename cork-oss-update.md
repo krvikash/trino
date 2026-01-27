@@ -201,13 +201,13 @@ If the CI fails on the Update PR, make relevant fixes, updating the fixup commit
 
 Run this workflow https://github.com/starburstdata/benchmarks-gha/actions/workflows/benchmark-pr.yaml on update PR
 using following benchmarks:
-- `iceberg/sf1000_parquet_unpart`
-- `iceberg/sf1000_parquet_part_c5`
+- `iceberg/sf1000_parquet_unpart_c5_series`
+- `iceberg/sf1000_parquet_part_c5_series`
 
 ```shell
 PR_LINK=$(gh pr list -H ${TARGET_BRANCH} --json url --jq '.[].url')
-gh workflow run --repo starburstdata/benchmarks-gha benchmark-pr.yaml -f PrLink=${PR_LINK} -fTestType="iceberg/sf1000_parquet_unpart" -fUseOnDemandNodes=true
-gh workflow run --repo starburstdata/benchmarks-gha benchmark-pr.yaml -f PrLink=${PR_LINK} -fTestType="iceberg/sf1000_parquet_part_c5" -fUseOnDemandNodes=true
+gh workflow run --repo starburstdata/benchmarks-gha benchmark-pr.yaml -f PrLink=${PR_LINK} -fTestType="iceberg/sf1000_parquet_unpart_c5_series" -fUseOnDemandNodes=true
+gh workflow run --repo starburstdata/benchmarks-gha benchmark-pr.yaml -f PrLink=${PR_LINK} -fTestType="iceberg/sf1000_parquet_part_c5_series" -fUseOnDemandNodes=true
 ```
 
 Above workflow on completion will add a comment to the PR with status of benchmark run, and a link to Tableau
