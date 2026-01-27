@@ -137,21 +137,21 @@ public class CatalogPruneTask
         PrunableState prunableState = connectorServicesProvider.getPrunableState();
 
         // send message to workers to trigger prune
-        List<CatalogHandle> activeCatalogs = getActiveCatalogs();
+        Set<CatalogHandle> activeCatalogs = getActiveCatalogs();
         pruneWorkerCatalogs(online, activeCatalogs);
 
         // prune inactive catalogs locally
-        connectorServicesProvider.pruneCatalogs(prunableState, ImmutableSet.copyOf(activeCatalogs));
+        connectorServicesProvider.pruneCatalogs(prunableState, activeCatalogs);
     }
 
-    void pruneWorkerCatalogs(Set<URI> online, List<CatalogHandle> activeCatalogs)
+    void pruneWorkerCatalogs(Set<URI> online, Set<CatalogHandle> activeCatalogs)
     {
         for (URI uri : online) {
             uri = uriBuilderFrom(uri).appendPath("/v1/task/pruneCatalogs").build();
             Request request = preparePost()
                     .setUri(uri)
                     .addHeader(CONTENT_TYPE, JSON_UTF_8.toString())
-                    .setBodyGenerator(jsonBodyGenerator(CATALOG_HANDLES_CODEC, activeCatalogs))
+                    .setBodyGenerator(jsonBodyGenerator(CATALOG_HANDLES_CODEC, ImmutableList.copyOf(activeCatalogs)))
                     .build();
             httpClient.executeAsync(request, new ResponseHandler<>()
             {
@@ -172,13 +172,13 @@ public class CatalogPruneTask
         }
     }
 
-    private List<CatalogHandle> getActiveCatalogs()
+    private Set<CatalogHandle> getActiveCatalogs()
     {
         ImmutableSet.Builder<CatalogHandle> activeCatalogs = ImmutableSet.builder();
         // all catalogs currently associated with a name
         activeCatalogs.addAll(catalogManager.getReachableDynamicCatalogs());
         // all catalogs that still may be used by ongoing transactions
         transactionManager.getAllTransactionInfos().forEach(info -> activeCatalogs.addAll(info.getRegisteredCatalogs()));
-        return ImmutableList.copyOf(activeCatalogs.build());
+        return activeCatalogs.build();
     }
 }
