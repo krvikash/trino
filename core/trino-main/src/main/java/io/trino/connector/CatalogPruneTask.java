@@ -101,7 +101,7 @@ public class CatalogPruneTask
         if (enabled && !started.getAndSet(true)) {
             executor.scheduleWithFixedDelay(() -> {
                 try {
-                    pruneWorkerCatalogs();
+                    pruneCatalogs();
                 }
                 catch (Throwable e) {
                     // ignore to avoid getting unscheduled
@@ -125,7 +125,7 @@ public class CatalogPruneTask
     }
 
     @VisibleForTesting
-    public void pruneWorkerCatalogs()
+    public void pruneCatalogs()
     {
         AllNodes allNodes = internalNodeManager.getAllNodes();
         Set<URI> online = Stream.of(allNodes.activeNodes(), allNodes.inactiveNodes(), allNodes.drainingNodes(), allNodes.drainedNodes(), allNodes.shuttingDownNodes())
