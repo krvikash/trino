@@ -24,7 +24,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Optional;
 
-import static com.google.common.io.ByteStreams.toByteArray;
 import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
 import static com.google.common.net.MediaType.PLAIN_TEXT_UTF_8;
 import static io.airlift.json.JsonCodec.jsonCodec;
@@ -65,7 +64,7 @@ public class PreparedStatementRequestFilter
                 return;
             }
 
-            QuerySubmission submission = QUERY_SUBMISSION_CODEC.fromJson(toByteArray(request.getEntityStream()));
+            QuerySubmission submission = QUERY_SUBMISSION_CODEC.fromJson(request.getEntityStream().readAllBytes());
 
             request.getHeaders().putSingle(CONTENT_TYPE, PLAIN_TEXT_UTF_8.toString());
             request.setEntityStream(new ByteArrayInputStream(submission.getQuery().getBytes(UTF_8)));
