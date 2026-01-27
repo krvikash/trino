@@ -11,7 +11,6 @@ package io.starburst.server.troubleshooting.providers;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
-import io.starburst.server.troubleshooting.TroubleshootingConfig;
 import io.starburst.server.troubleshooting.TroubleshootingContext;
 import io.trino.client.NodeVersion;
 import io.trino.execution.QueryInfo;
@@ -19,7 +18,6 @@ import io.trino.metadata.FunctionManager;
 import io.trino.metadata.Metadata;
 import io.trino.metadata.SessionPropertyManager;
 import io.trino.sql.planner.planprinter.Anonymizer;
-import io.trino.sql.planner.planprinter.CounterBasedAnonymizer;
 import io.trino.sql.planner.planprinter.NoOpAnonymizer;
 import io.trino.sql.planner.planprinter.ValuePrinter;
 
@@ -38,17 +36,15 @@ public class QueryPlanProvider
     private final Metadata metadata;
     private final FunctionManager functionManager;
     private final NodeVersion nodeVersion;
-    private final Anonymizer anonymizer;
+    private final Anonymizer anonymizer = new NoOpAnonymizer();
 
     @Inject
     public QueryPlanProvider(
-            TroubleshootingConfig config,
             SessionPropertyManager sessionPropertyManager,
             Metadata metadata,
             FunctionManager functionManager,
             NodeVersion nodeVersion)
     {
-        this.anonymizer = requireNonNull(config, "config is null").isAnonymizedPlan() ? new CounterBasedAnonymizer() : new NoOpAnonymizer();
         this.sessionPropertyManager = requireNonNull(sessionPropertyManager, "sessionPropertyManager is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.functionManager = requireNonNull(functionManager, "functionManager is null");

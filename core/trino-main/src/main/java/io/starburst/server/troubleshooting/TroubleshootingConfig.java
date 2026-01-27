@@ -19,13 +19,15 @@ import jakarta.validation.constraints.Min;
 import static io.airlift.units.Duration.succinctDuration;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
-@DefunctConfig("troubleshooting.max-capture-duration")
+@DefunctConfig({
+        "troubleshooting.max-capture-duration",
+        "troubleshooting.anonymize-query-plan",
+})
 public class TroubleshootingConfig
 {
     private int maxActiveQueries = 128;
     private Duration maxAccessDuration = succinctDuration(5, MINUTES);
     private Duration cleanupInterval = succinctDuration(1, MINUTES);
-    private boolean anonymizedPlan = true;
     private int maxCollectedWorkersJfr = 2;
     private int maxCollectedWorkersTrace = Integer.MAX_VALUE;
 
@@ -66,19 +68,6 @@ public class TroubleshootingConfig
     public TroubleshootingConfig setCleanupInterval(Duration cleanupInterval)
     {
         this.cleanupInterval = cleanupInterval;
-        return this;
-    }
-
-    public boolean isAnonymizedPlan()
-    {
-        return anonymizedPlan;
-    }
-
-    @Config("troubleshooting.anonymize-query-plan")
-    @ConfigDescription("Remove any sensitive data from the query plan")
-    public TroubleshootingConfig setAnonymizedPlan(boolean anonymizedPlan)
-    {
-        this.anonymizedPlan = anonymizedPlan;
         return this;
     }
 

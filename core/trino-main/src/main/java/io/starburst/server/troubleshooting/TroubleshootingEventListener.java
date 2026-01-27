@@ -27,19 +27,16 @@ public class TroubleshootingEventListener
 {
     private final TroubleshootingAccessControl accessControl;
     private final TroubleshootingContextManager troubleshootingContextManager;
-    private final boolean anonymizePlan;
     private final SpanInterceptor spanInterceptor;
 
     @Inject
     public TroubleshootingEventListener(
             TroubleshootingAccessControl accessControl,
-            TroubleshootingConfig config,
             TroubleshootingContextManager troubleshootingContextManager,
             EventListenerManager listenerManager,
             SpanInterceptor spanInterceptor)
     {
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
-        this.anonymizePlan = requireNonNull(config, "config is null").isAnonymizedPlan();
         this.troubleshootingContextManager = requireNonNull(troubleshootingContextManager, "troubleshootingContextManager is null");
         requireNonNull(listenerManager, "listenerManager is null").addEventListener(this);
         this.spanInterceptor = requireNonNull(spanInterceptor, "spanInterceptor is null");
@@ -77,11 +74,5 @@ public class TroubleshootingEventListener
                 .withEnabledRoles(context.getEnabledRoles())
                 .withGroups(context.getGroups())
                 .build());
-    }
-
-    @Override
-    public boolean requiresAnonymizedPlan()
-    {
-        return anonymizePlan;
     }
 }
