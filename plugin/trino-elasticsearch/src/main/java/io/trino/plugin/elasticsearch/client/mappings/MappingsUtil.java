@@ -48,28 +48,28 @@ public class MappingsUtil
         return resultNode;
     }
 
-    private static void copy(ObjectNode fromNode, ObjectNode toNode)
+    private static void copy(ObjectNode sourceNode, ObjectNode targetNode)
             throws MergingMappingException
     {
-        Iterator<String> fieldNames = fromNode.fieldNames();
+        Iterator<String> fieldNames = sourceNode.fieldNames();
         while (fieldNames.hasNext()) {
             String fieldName = fieldNames.next();
-            JsonNode mainValue = toNode.get(fieldName);
-            JsonNode updateValue = fromNode.get(fieldName);
+            JsonNode sourceField = sourceNode.get(fieldName);
+            JsonNode targetField = targetNode.get(fieldName);
 
-            if (mainValue != null) {
-                if (mainValue.isObject() && updateValue.isObject()) {
-                    copy((ObjectNode) updateValue, (ObjectNode) mainValue);
+            if (targetField != null) {
+                if (targetField.isObject() && sourceField.isObject()) {
+                    copy((ObjectNode) sourceField, (ObjectNode) targetField);
                 }
-                else if (mainValue.equals(updateValue)) {
-                    toNode.set(fieldName, updateValue);
+                else if (targetField.equals(sourceField)) {
+                    targetNode.set(fieldName, sourceField);
                 }
                 else {
-                    throw new MergingMappingException(format("Mappings conflict detected. Conflicting values in mappings for field %s are: %s and %s", fieldName, mainValue, updateValue));
+                    throw new MergingMappingException(format("Mappings conflict detected. Conflicting values in mappings for field %s are: %s and %s", fieldName, targetField, sourceField));
                 }
             }
             else {
-                toNode.set(fieldName, updateValue);
+                targetNode.set(fieldName, sourceField);
             }
         }
     }
