@@ -104,6 +104,12 @@ public abstract non-sealed class Operation
             argumentTypes = ImmutableList.copyOf(argumentTypes);
             regionTypes = ImmutableList.copyOf(regionTypes);
         }
+
+        public FunctionType getRegionType(int index)
+        {
+            Type type = regionTypes.get(index);
+            return (FunctionType) type.dialectType();
+        }
     }
 
     public final String dialect()
