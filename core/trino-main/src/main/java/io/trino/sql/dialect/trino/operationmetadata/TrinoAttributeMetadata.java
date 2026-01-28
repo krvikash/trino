@@ -15,6 +15,7 @@ package io.trino.sql.dialect.trino.operationmetadata;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Primitives;
@@ -26,6 +27,13 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.predicate.NullableValue;
+import io.trino.spi.type.ArrayType;
+import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.MapType;
+import io.trino.spi.type.RealType;
+import io.trino.spi.type.RowType;
+import io.trino.spi.type.TimeWithTimeZoneType;
+import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
 import io.trino.sql.newir.Operation;
@@ -299,6 +307,15 @@ public record TrinoAttributeMetadata<T>(TrinoAttributeSignature<T> trinoAttribut
      */
     public static class ConstantValue
     {
+        private static final List<Class<? extends Type>> TYPES_COMPARED_BY_VALUE = ImmutableList.of(TimestampWithTimeZoneType.class, TimeWithTimeZoneType.class);
+
+        private static final List<Class<? extends Type>> TYPES_COMPARED_BY_IDENTICAL = ImmutableList.of(
+                DoubleType.class,
+                RealType.class,
+                ArrayType.class,
+                MapType.class,
+                RowType.class);
+
         private static final TypeOperators TYPE_OPERATORS = new TypeOperators();
 
         private final Type type;
@@ -316,15 +333,25 @@ public record TrinoAttributeMetadata<T>(TrinoAttributeSignature<T> trinoAttribut
             this.type = type;
             this.value = value;
 
-            if (type.isComparable()) {
-                this.equalOperator = Optional.of(TYPE_OPERATORS.getEqualOperator(type, simpleConvention(DEFAULT_ON_NULL, NEVER_NULL, NEVER_NULL))
-                        .asType(methodType(boolean.class, Object.class, Object.class)));
-                this.hashCodeOperator = Optional.of(TYPE_OPERATORS.getHashCodeOperator(type, simpleConvention(FAIL_ON_NULL, NEVER_NULL))
-                        .asType(methodType(long.class, Object.class)));
-            }
-            else {
+            if (!type.isComparable() || isOrContainsTypeComparedByValue(type)) {
+                // Compared by value means that values will be compared using `Objects.equals` and hashed with `Objects.hashCode`.
+                // For e.g. LongTimestampWithTimeZone, this will compare them by value.
+                // For structural types based on Block, this currently compares by reference.
                 this.equalOperator = Optional.empty();
                 this.hashCodeOperator = Optional.empty();
+            }
+            else {
+                if (isComparedByIdentical(type)) {
+                    this.equalOperator = Optional.of(TYPE_OPERATORS.getIdenticalOperator(type, simpleConvention(DEFAULT_ON_NULL, NEVER_NULL, NEVER_NULL))
+                            .asType(methodType(boolean.class, Object.class, Object.class)));
+                }
+                else {
+                    this.equalOperator = Optional.of(TYPE_OPERATORS.getEqualOperator(type, simpleConvention(DEFAULT_ON_NULL, NEVER_NULL, NEVER_NULL))
+                            .asType(methodType(boolean.class, Object.class, Object.class)));
+                }
+                // Note: for types compared by IDENTICAL operator (NOT DISTINCT), the HASH_CODE operator must be consistent with IDENTICAL operator
+                this.hashCodeOperator = Optional.of(TYPE_OPERATORS.getHashCodeOperator(type, simpleConvention(FAIL_ON_NULL, NEVER_NULL))
+                        .asType(methodType(long.class, Object.class)));
             }
         }
 
@@ -377,6 +404,9 @@ public record TrinoAttributeMetadata<T>(TrinoAttributeSignature<T> trinoAttribut
 
         private long valueHash()
         {
+            if (isOrContainsTypeComparedByValue(type)) {
+                return Objects.hashCode(value);
+            }
             if (hashCodeOperator.isEmpty()) {
                 return 0;
             }
@@ -405,6 +435,9 @@ public record TrinoAttributeMetadata<T>(TrinoAttributeSignature<T> trinoAttribut
 
         private boolean valueEquals(Object otherValue)
         {
+            if (isOrContainsTypeComparedByValue(type)) {
+                return Objects.equals(value, otherValue);
+            }
             if (equalOperator.isEmpty()) {
                 return false;
             }
@@ -425,6 +458,48 @@ public record TrinoAttributeMetadata<T>(TrinoAttributeSignature<T> trinoAttribut
                 throw runtimeException;
             }
             return new RuntimeException(throwable);
+        }
+
+        private static boolean isComparedByValue(Type type)
+        {
+            for (Class<? extends Type> clazz : TYPES_COMPARED_BY_VALUE) {
+                if (clazz.isInstance(type)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static boolean isComparedByIdentical(Type type)
+        {
+            for (Class<? extends Type> clazz : TYPES_COMPARED_BY_IDENTICAL) {
+                if (clazz.isInstance(type)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @VisibleForTesting
+        public static boolean isOrContainsTypeComparedByValue(Type type)
+        {
+            if (isComparedByValue(type)) {
+                return true;
+            }
+            if (type instanceof ArrayType arrayType) {
+                return isOrContainsTypeComparedByValue(arrayType.getElementType());
+            }
+            if (type instanceof MapType mapType) {
+                return isOrContainsTypeComparedByValue(mapType.getKeyType()) || isOrContainsTypeComparedByValue(mapType.getValueType());
+            }
+            if (type instanceof RowType rowType) {
+                for (RowType.Field field : rowType.getFields()) {
+                    if (isOrContainsTypeComparedByValue(field.getType())) {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         @Override
