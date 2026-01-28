@@ -562,7 +562,6 @@ public class TestSingleStoreConnectorTest
             assertThat(query(session, "SELECT some_char FROM " + table.getName() + " WHERE some_char = 'aa'")).isFullyPushedDown();
             assertThat(query(session, "SELECT some_char FROM " + table.getName() + " WHERE some_char BETWEEN 'aa' AND 'bb'")).isFullyPushedDown();
             assertThat(query(session, "SELECT some_char FROM " + table.getName() + " WHERE some_char = 'AA'")).isFullyPushedDown();
-            assertThat(query(session, "SELECT some_char FROM " + table.getName() + " WHERE some_char = 'AA' OR other_column = 'BB'")).isNotFullyPushedDown(FilterNode.class);
 
             // equality/like/in on same column transformed to IN via queryBuilder
             assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar = 'aa' OR some_varchar = 'BB'")).isFullyPushedDown();
@@ -571,6 +570,61 @@ public class TestSingleStoreConnectorTest
             assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char = 'aa' OR some_char = 'BB'")).isFullyPushedDown();
             assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char IN ('aa', 'bb')")).isFullyPushedDown();
             assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char LIKE 'aa' OR some_char = 'BB'")).isNotFullyPushedDown(FilterNode.class);
+        }
+    }
+
+    @Test
+    void testStringComplexExpressionPushdownWithBinary()
+    {
+        Session session = stringPushdownWithBinaryEnabled(getSession());
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.single_store_string_complex_expression_pushdown",
+                """
+                (
+                some_varchar varchar(255),
+                some_char char(16),
+                some_longtext longtext,
+                other_varchar varchar(255),
+                other_char char(16)
+                )
+                """,
+                List.of(
+                        "null, null, null, null, null",
+                        "'AA', 'AA', 'AA', 'AA', 'AA'",
+                        "'aa', 'aa', 'aa', 'aa', 'aa'",
+                        "'BB', 'BB', 'BB', 'BB', 'BB'",
+                        "'bb', 'bb', 'bb', 'bb', 'bb'",
+                        "'cc', 'cc', 'cc', 'cc', 'cc'",
+                        "'dd', 'dd', null, null, null"
+                ))) {
+            for (String operator : List.of("=", "<>", "<", "<=", ">", ">=", "IS NOT DISTINCT FROM")) {
+                assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar " + operator + " 'aa' OR other_varchar = 'bb'")).isFullyPushedDown();
+                assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char " + operator + " 'aa' OR other_char = 'bb'")).isFullyPushedDown();
+
+                assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar " + operator + " other_varchar OR other_varchar = 'bb'")).isFullyPushedDown();
+                assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char " + operator + " other_char OR other_char = 'bb'")).isFullyPushedDown();
+
+                // Comparing VARCHARs of different lengths uses CAST internally, CAST pushdown is not supported yet
+                assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar " + operator + " some_longtext OR other_varchar = 'bb'")).isNotFullyPushedDown(FilterNode.class);
+                assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char " + operator + " some_longtext OR other_char = 'bb'")).isNotFullyPushedDown(FilterNode.class);
+            }
+
+            // not pushed because there is no rewrite rule for IS NULL
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar IS NULL OR other_varchar = 'bb'")).isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char IS NULL OR other_char = 'bb'")).isNotFullyPushedDown(FilterNode.class);
+
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar IS NOT NULL OR other_varchar = 'bb'")).isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char IS NOT NULL OR other_char = 'bb'")).isNotFullyPushedDown(FilterNode.class);
+
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar IS NOT DISTINCT FROM NULL OR other_varchar = 'bb'")).isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char IS NOT DISTINCT FROM NULL OR other_char = 'bb'")).isNotFullyPushedDown(FilterNode.class);
+
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar LIKE 'a%' OR other_varchar = 'bb'")).isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char LIKE 'a%' OR other_char = 'bb'")).isNotFullyPushedDown(FilterNode.class);
+
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar IN ('aa', 'dd') OR other_varchar = 'bb'")).isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char IN ('aa', 'dd') OR other_char = 'bb'")).isNotFullyPushedDown(FilterNode.class);
         }
     }
 
