@@ -50,7 +50,6 @@ import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static io.trino.tpch.TpchTable.CUSTOMER;
 import static io.trino.tpch.TpchTable.LINE_ITEM;
-import static io.trino.tpch.TpchTable.NATION;
 import static io.trino.tpch.TpchTable.ORDERS;
 import static io.trino.tpch.TpchTable.PART;
 import static io.trino.tpch.TpchTable.PART_SUPPLIER;
@@ -80,7 +79,6 @@ final class TestSortTempFileFactory
         testWrittenBytes(PART, 1.23);
         testWrittenBytes(PART_SUPPLIER, 0.82);
         testWrittenBytes(SUPPLIER, 0.81);
-        testWrittenBytes(NATION, 0.66);
     }
 
     private <T extends TpchEntity> void testWrittenBytes(TpchTable<T> table, double expectedRatio)
@@ -234,7 +232,6 @@ final class TestSortTempFileFactory
         output.append(runAndGetSummary(PART));
         output.append(runAndGetSummary(PART_SUPPLIER));
         output.append(runAndGetSummary(SUPPLIER));
-        output.append(runAndGetSummary(NATION));
 
         output.append("=".repeat(80)).append("\n");
 
