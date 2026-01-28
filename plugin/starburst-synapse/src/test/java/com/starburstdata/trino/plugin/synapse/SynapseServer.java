@@ -32,8 +32,8 @@ public class SynapseServer
     private static final String ENDPOINT = requireNonNull(System.getProperty("test.synapse.jdbc.endpoint"), "test.synapse.jdbc.endpoint is not set");
     static final String USERNAME = requireNonNull(System.getProperty("test.synapse.jdbc.user"), "test.synapse.jdbc.user is not set");
     static final String PASSWORD = requireNonNull(System.getProperty("test.synapse.jdbc.password"), "test.synapse.jdbc.password is not set");
+    private static final String DATABASE = System.getProperty("test.synapse.jdbc.sqlpool", "SQLPOOL2");
 
-    private static final String DATABASE = "SQLPOOL2";
     private static final String PORT = "1433";
 
     static final String JDBC_URL = "jdbc:sqlserver://" + ENDPOINT + ":" + PORT + ";database=" + DATABASE;
