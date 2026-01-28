@@ -20,6 +20,7 @@ import io.trino.sql.dialect.ir.IrDialect.FunctionType;
 import io.trino.sql.newir.Block.Parameter;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -35,8 +36,10 @@ import static io.trino.sql.newir.FormatValidation.isValidAttributeName;
 import static io.trino.sql.newir.FormatValidation.isValidIdentifier;
 import static io.trino.sql.newir.Value.validateValueName;
 import static java.lang.String.format;
+import static java.util.Comparator.comparing;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.partitioningBy;
 
 /**
  * Operation is the main building block of a program.
@@ -210,10 +213,18 @@ public abstract non-sealed class Operation
         if (!attributes().isEmpty()) {
             builder.append("\n")
                     .append(indent)
-                    .append(INDENT)
-                    .append(attributes().entrySet().stream()
-                            .map(entry -> printOptions.formatAttribute(entry.getKey(), entry.getValue()))
-                            .collect(joining(", ", "{", "}")));
+                    .append(INDENT);
+            Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes().entrySet().stream()
+                    .collect(partitioningBy(entry -> entry.getKey().dialect().equals(this.dialect())));
+            // first output attributes from this operation's dialect in their actual order
+            List<Map.Entry<AttributeKey, Object>> printOrder = new ArrayList<>(partitionedAttributes.get(true));
+            // then output all other attributes sorted by dialect and name
+            partitionedAttributes.get(false).stream()
+                    .sorted(comparing(entry -> entry.getKey().dialect() + "." + entry.getKey().name()))
+                    .forEach(printOrder::add);
+            builder.append(printOrder.stream()
+                    .map(entry -> printOptions.formatAttribute(entry.getKey(), entry.getValue()))
+                    .collect(joining(", ", "{", "}")));
         }
 
         return builder.toString();
