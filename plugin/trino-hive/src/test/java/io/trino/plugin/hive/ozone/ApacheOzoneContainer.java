@@ -15,7 +15,7 @@ package io.trino.plugin.hive.ozone;
 
 import com.google.common.net.HostAndPort;
 import io.airlift.log.Logger;
-import org.testcontainers.containers.DockerComposeContainer;
+import org.testcontainers.containers.ComposeContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
 
@@ -35,14 +35,15 @@ public class ApacheOzoneContainer
     public static final String DUMMY_ACCESS_KEY = "dummy-access-key";
     public static final String DUMMY_SECRET_KEY = "dummy-secret-key";
 
-    private final DockerComposeContainer apacheOzone;
+    private final ComposeContainer apacheOzone;
 
     public ApacheOzoneContainer(Network network)
     {
         String apacheOzoneResourceLocation = getPathFromClassPathResource("com/starburstdata/presto/plugin/hive/ozone");
 
+        // TODO Use image from https://hub.docker.com/r/apache/ozone/ instead docker-compose (https://starburstdata.atlassian.net/browse/ENG-7046)
         this.apacheOzone =
-                new DockerComposeContainer<>("ozone-", Path.of(apacheOzoneResourceLocation, "ozone-docker-compose.yml").toFile())
+                new ComposeContainer("ozone-", Path.of(apacheOzoneResourceLocation, "ozone-docker-compose.yml").toFile())
                         .withEnv("NETWORK_ID", network.getId())
                         .withEnv("OZONE_ENVIRONMENT_FILE", apacheOzoneResourceLocation + "/environment-variables.env")
                         .withExposedService("ozone-manager", OFS_ENDPOINT_PORT, Wait.forListeningPort().withStartupTimeout(Duration.ofMinutes(3)))
