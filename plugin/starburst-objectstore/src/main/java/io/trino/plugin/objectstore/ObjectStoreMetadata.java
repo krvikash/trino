@@ -599,55 +599,55 @@ public class ObjectStoreMetadata
     @Override
     public Collection<FunctionMetadata> listFunctions(ConnectorSession session, String schemaName)
     {
-        return icebergMetadata.listFunctions(session, schemaName);
+        return icebergMetadata.listFunctions(unwrap(ICEBERG, session), schemaName);
     }
 
     @Override
     public Collection<FunctionMetadata> getFunctions(ConnectorSession session, SchemaFunctionName name)
     {
-        return icebergMetadata.getFunctions(session, name);
+        return icebergMetadata.getFunctions(unwrap(ICEBERG, session), name);
     }
 
     @Override
     public FunctionMetadata getFunctionMetadata(ConnectorSession session, FunctionId functionId)
     {
-        return icebergMetadata.getFunctionMetadata(session, functionId);
+        return icebergMetadata.getFunctionMetadata(unwrap(ICEBERG, session), functionId);
     }
 
     @Override
     public FunctionDependencyDeclaration getFunctionDependencies(ConnectorSession session, FunctionId functionId, BoundSignature boundSignature)
     {
-        return icebergMetadata.getFunctionDependencies(session, functionId, boundSignature);
+        return icebergMetadata.getFunctionDependencies(unwrap(ICEBERG, session), functionId, boundSignature);
     }
 
     @Override
     public void createBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String branch, Optional<String> fromBranch, SaveMode saveMode, Map<String, Object> properties)
     {
-        icebergMetadata.createBranch(session, tableHandle, branch, fromBranch, saveMode, properties);
+        icebergMetadata.createBranch(unwrap(ICEBERG, session), tableHandle, branch, fromBranch, saveMode, properties);
     }
 
     @Override
     public void dropBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String branch)
     {
-        icebergMetadata.dropBranch(session, tableHandle, branch);
+        icebergMetadata.dropBranch(unwrap(ICEBERG, session), tableHandle, branch);
     }
 
     @Override
     public void fastForwardBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String sourceBranch, String targetBranch)
     {
-        icebergMetadata.fastForwardBranch(session, tableHandle, sourceBranch, targetBranch);
+        icebergMetadata.fastForwardBranch(unwrap(ICEBERG, session), tableHandle, sourceBranch, targetBranch);
     }
 
     @Override
     public Collection<String> listBranches(ConnectorSession session, SchemaTableName tableName)
     {
-        return icebergMetadata.listBranches(session, tableName);
+        return icebergMetadata.listBranches(unwrap(ICEBERG, session), tableName);
     }
 
     @Override
     public boolean branchExists(ConnectorSession session, SchemaTableName tableName, String branch)
     {
-        return icebergMetadata.branchExists(session, tableName, branch);
+        return icebergMetadata.branchExists(unwrap(ICEBERG, session), tableName, branch);
     }
 
     @Override
@@ -661,7 +661,7 @@ public class ObjectStoreMetadata
     public Metrics getMetrics(ConnectorSession session)
     {
         // TODO: support other type catalog metrics
-        return hiveMetadata.getMetrics(session);
+        return hiveMetadata.getMetrics(unwrap(HIVE, session));
     }
 
     @Override
@@ -1630,7 +1630,8 @@ public class ObjectStoreMetadata
     @Override
     public boolean allowSplittingReadIntoMultipleSubQueries(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
-        return delegate(tableType(tableHandle)).allowSplittingReadIntoMultipleSubQueries(session, tableHandle);
+        TableType tableType = tableType(tableHandle);
+        return delegate(tableType).allowSplittingReadIntoMultipleSubQueries(unwrap(tableType, session), tableHandle);
     }
 
     @Override
