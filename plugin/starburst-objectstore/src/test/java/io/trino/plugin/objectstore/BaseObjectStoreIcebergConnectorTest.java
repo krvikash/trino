@@ -158,6 +158,11 @@ public abstract class BaseObjectStoreIcebergConnectorTest
             case "time(6) -> time(3)":
             case "timestamp(6) -> timestamp(3)":
             case "array(integer) -> array(bigint)":
+            case "array(array(integer)) -> array(array(bigint))":
+            case "map(varchar, integer) -> map(varchar, bigint)":
+            case "map(integer, row(x integer)) -> map(integer, row(\"x\" bigint))":
+            // Iceberg cannot update map keys
+            case "map(integer, varchar) -> map(bigint, varchar)":
                 return Optional.of(setup.asUnsupported());
 
             // Iceberg connector ignores the varchar length
@@ -170,7 +175,7 @@ public abstract class BaseObjectStoreIcebergConnectorTest
     @Override
     protected void verifySetColumnTypeFailurePermissible(Throwable e)
     {
-        assertThat(e).hasMessageMatching(".*(Cannot change column type|not supported for Iceberg|Not a primitive type|Cannot change type ).*");
+        assertThat(e).hasMessageMatching(".*(Cannot change column type|not supported for Iceberg|Not a primitive type|Cannot change type |Cannot update map keys).*");
     }
 
     @Override
