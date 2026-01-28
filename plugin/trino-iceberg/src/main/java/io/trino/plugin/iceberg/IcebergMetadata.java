@@ -2605,10 +2605,9 @@ public class IcebergMetadata
             clusteredPartitionValues = ImmutableMap.of();
         }
 
-        beginTransaction(icebergTable);
         Types.StructType partitionType = icebergTable.spec().partitionType();
         Map<Integer, PartitionSpec> specs = icebergTable.specs();
-        RewriteManifests rewriteManifests = transaction.rewriteManifests();
+        RewriteManifests rewriteManifests = icebergTable.rewriteManifests();
         // commit.manifest.target-size-bytes is enforced by RewriteManifests,
         // so we don't have to worry about any manifest file getting too big
         // because of the clustering logic
@@ -2626,8 +2625,6 @@ public class IcebergMetadata
                 })
                 .scanManifestsWith(icebergScanExecutor)
                 .commit();
-        commitTransaction(transaction, "optimize manifests");
-        transaction = null;
     }
 
     private Map<Object, Integer> getClusteredPartitionValues(
