@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.log.Logger;
 import io.trino.Session;
+import io.trino.metastore.Table;
 import io.trino.plugin.hive.metastore.glue.GlueHiveMetastore;
 import io.trino.plugin.hive.metastore.glue.GlueHiveMetastoreConfig;
 import io.trino.plugin.tpch.TpchPlugin;
@@ -25,6 +26,7 @@ import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import io.trino.tpch.TpchTable;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.glue.GlueClient;
@@ -134,6 +136,21 @@ public class TestHiveGlueMetadataListing
         assertQueryReturnsEmptyResult(format("SELECT table_name FROM hive.information_schema.columns WHERE table_name = '%s' AND table_schema='%s'", FAILING_TABLE_WITH_NULL_SERDE, tpchSchema));
 
         assertThat(computeActual("SHOW TABLES FROM hive." + tpchSchema).getOnlyColumnAsSet()).isEqualTo(expectedTables);
+    }
+
+    @Test
+    public void testStreamTables()
+    {
+        assertThat(glueMetastore.streamTables(getSession().toConnectorSession(), tpchSchema))
+                .isPresent()
+                .get(InstanceOfAssertFactories.iterator(Table.class))
+                .toIterable()
+                .extracting(Table::getTableName)
+                .doesNotContain(
+                        FAILING_TABLE_WITH_NULL_STORAGE_DESCRIPTOR_NAME,
+                        FAILING_TABLE_WITH_NULL_TYPE,
+                        FAILING_TABLE_WITH_BAD_HIVE_TYPE,
+                        FAILING_TABLE_WITH_NULL_SERDE);
     }
 
     private void createBrokenTables(Path dataDirectory)

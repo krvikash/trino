@@ -116,6 +116,7 @@ import static io.opentelemetry.context.Context.taskWrapping;
 import static io.trino.metastore.Table.TABLE_COMMENT;
 import static io.trino.plugin.base.util.ExecutorUtil.processWithAdditionalThreads;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_FILESYSTEM_ERROR;
+import static io.trino.plugin.hive.HiveErrorCode.HIVE_INVALID_METADATA;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_METASTORE_ERROR;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_UNSUPPORTED_FORMAT;
 import static io.trino.plugin.hive.HiveMetadata.TRINO_QUERY_ID_NAME;
@@ -321,6 +322,10 @@ public class GlueHiveMetastore
                         catch (TrinoException e) {
                             if (e.getErrorCode().equals(HIVE_UNSUPPORTED_FORMAT.toErrorCode())) {
                                 log.debug(e, "Ignore unsupported table: %s.%s", databaseName, glueTable.name());
+                                continue;
+                            }
+                            if (e.getErrorCode().equals(HIVE_INVALID_METADATA.toErrorCode())) {
+                                log.debug(e, "Ignore invalid table: %s.%s", databaseName, glueTable.name());
                                 continue;
                             }
                             throw e;
