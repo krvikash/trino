@@ -155,6 +155,45 @@ public class TestSparkLegacyTimestampCompatibility
         }
     }
 
+    @Test(groups = {HIVE_SPARK, PROFILE_SPECIFIC_TESTS})
+    public void testHiveOrcLegacyTimestampCompatibilityWithHybridCalendar()
+    {
+        boolean isProlepticGregorian = false;
+        testHiveOrcLegacyTimestampCompatibility(isProlepticGregorian, MILLISECONDS, timestampsWithPrecision(MILLISECONDS), timestampsWithPrecision(MILLISECONDS));
+        testHiveOrcLegacyTimestampCompatibility(isProlepticGregorian, MICROSECONDS, timestampsWithPrecision(MICROSECONDS), timestampsWithPrecision(MICROSECONDS));
+        testHiveOrcLegacyTimestampCompatibility(isProlepticGregorian, NANOSECONDS, timestampsWithPrecision(NANOSECONDS), timestampsWithPrecision(MICROSECONDS));
+    }
+
+    @Test(groups = {HIVE_SPARK, PROFILE_SPECIFIC_TESTS})
+    public void testHiveOrcLegacyTimestampCompatibilityWithProlepticCalendar()
+    {
+        boolean isProlepticGregorian = true;
+        testHiveOrcLegacyTimestampCompatibility(isProlepticGregorian, MILLISECONDS, timestampsWithPrecision(MILLISECONDS), timestampsWithPrecision(MILLISECONDS));
+        testHiveOrcLegacyTimestampCompatibility(isProlepticGregorian, MICROSECONDS, timestampsWithPrecision(MICROSECONDS), timestampsWithPrecision(MICROSECONDS));
+        testHiveOrcLegacyTimestampCompatibility(isProlepticGregorian, NANOSECONDS, timestampsWithPrecision(NANOSECONDS), timestampsWithPrecision(MICROSECONDS));
+    }
+
+    private static void testHiveOrcLegacyTimestampCompatibility(
+            boolean isProlepticGregorian,
+            HiveTimestampPrecision trinoTimestampPrecision,
+            List<String> timestamps,
+            List<String> expectedTimestamps)
+    {
+        String sparkTableName = "test_spark_orc_legacy_timestamp_compatibility_%s".formatted(randomNameSuffix());
+        String trinoTableName = "%s.%s.%s".formatted(TRINO_CATALOG, SCHEMA, sparkTableName);
+        try {
+            onSpark().executeQuery("CREATE TABLE %s.%s (tmst timestamp) USING ORC TBLPROPERTIES ('orc.proleptic.gregorian' = '%s', 'transactional' = 'false')".formatted(SCHEMA, sparkTableName, isProlepticGregorian));
+            onSpark().executeQuery("INSERT INTO %s.%s VALUES %s".formatted(SCHEMA, sparkTableName, toValues(timestamps)));
+
+            onTrino().executeQuery("SET SESSION hive.timestamp_precision = '" + trinoTimestampPrecision + "'");
+            assertThat(onTrino().executeQuery("SELECT tmst FROM " + trinoTableName)).containsOnly(toExpectedRows(expectedTimestamps));
+            assertThat(onSpark().executeQuery("SELECT tmst FROM " + sparkTableName)).containsOnly(toExpectedRows(expectedTimestamps));
+        }
+        finally {
+            onSpark().executeQuery("DROP TABLE IF EXISTS " + sparkTableName);
+        }
+    }
+
     private static String toValues(List<String> timestamps)
     {
         return timestamps.stream()
