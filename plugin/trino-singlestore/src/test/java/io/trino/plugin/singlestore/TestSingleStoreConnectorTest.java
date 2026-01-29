@@ -540,6 +540,29 @@ public class TestSingleStoreConnectorTest
                     .matches("VALUES 1")
                     .isFullyPushedDown();
         }
+
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.single_store_string_pushdown",
+                """
+                (
+                some_char char(16),
+                other_column varchar(255)
+                )
+                """,
+                List.of(
+                        "null, null",
+                        "'AA', 'AA'",
+                        "'aa', 'aa'",
+                        "'bb', 'bb'",
+                        "'cc', 'cc'"
+                ))) {
+            // char pushdown
+            assertThat(query(session, "SELECT some_char FROM " + table.getName() + " WHERE some_char = 'aa'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_char FROM " + table.getName() + " WHERE some_char BETWEEN 'aa' AND 'bb'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_char FROM " + table.getName() + " WHERE some_char = 'AA'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_char FROM " + table.getName() + " WHERE some_char = 'AA' OR other_column = 'BB'")).isNotFullyPushedDown(FilterNode.class);
+        }
     }
 
     @Test
