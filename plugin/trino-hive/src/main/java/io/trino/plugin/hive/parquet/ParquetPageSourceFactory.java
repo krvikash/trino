@@ -69,6 +69,7 @@ import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -79,6 +80,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -137,6 +139,7 @@ public class ParquetPageSourceFactory
     private static final String APACHE_SPARK_METADATA_KEY_VERSION = "org.apache.spark.version";
     private static final String APACHE_SPARK_METADATA_KEY_LEGACY_DATE_TIME = "org.apache.spark.legacyDateTime";
     private static final String APACHE_SPARK_METADATA_KEY_LEGACY_INT96 = "org.apache.spark.legacyINT96";
+    private static final String APACHE_SPARK_TIMEZONE_METADATA_KEY = "org.apache.spark.timeZone";
 
     private static final Set<String> PARQUET_SERDE_CLASS_NAMES = ImmutableSet.<String>builder()
             .add(PARQUET_HIVE_SERDE_CLASS)
@@ -572,6 +575,7 @@ public class ParquetPageSourceFactory
         boolean convertDateToProleptic = false;
         boolean convertInt64TimestampProleptic = false;
         boolean convertInt96TimestampToProleptic = false;
+        TimeZone sparkTimeZone = TimeZone.getTimeZone(ZoneId.of("UTC"));
 
         String createdBy = fileMetadata.getCreatedBy();
         if (createdBy != null && createdBy.startsWith("parquet-mr-trino")) {
@@ -615,7 +619,11 @@ public class ParquetPageSourceFactory
             convertInt96TimestampToProleptic = true;
         }
 
-        return new CoercionContext(convertDateToProleptic, convertInt64TimestampProleptic, convertInt96TimestampToProleptic);
+        if (sparkDatetimeInHybrid || sparkInt96InHybrid) {
+            sparkTimeZone = TimeZone.getTimeZone(ZoneId.of(keyValueMetaData.getOrDefault(APACHE_SPARK_TIMEZONE_METADATA_KEY, "UTC")));
+        }
+
+        return new CoercionContext(convertDateToProleptic, convertInt64TimestampProleptic, convertInt96TimestampToProleptic, sparkTimeZone);
     }
 
     private static boolean isParquetWrittenByHive(Map<String, String> keyValueMetaData)

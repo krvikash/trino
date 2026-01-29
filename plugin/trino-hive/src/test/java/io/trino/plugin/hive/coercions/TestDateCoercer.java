@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Date;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Optional;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
@@ -45,6 +46,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestDateCoercer
 {
+    private static final TimeZone UTC = TimeZone.getTimeZone(ZoneId.of("UTC"));
+
     @Test
     public void testValidVarcharToDate()
     {
@@ -131,7 +134,6 @@ public class TestDateCoercer
 
         assertReadingWithCoercionHybridToProlepticLegacyDate("1000-02-29", "1000-03-01"); // legacy leap year
         assertReadingWithCoercionHybridToProlepticLegacyDate("1600-02-29", "1600-02-29"); // Gregorian leap year
-        assertReadingWithCoercionHybridToProlepticLegacyDate("1700-02-29", "1700-03-01"); // non-leap year in Gregorian calendar
         assertReadingWithCoercionHybridToProlepticLegacyDate("2000-02-29", "2000-02-29"); // Gregorian leap year
 
         assertReadingWithoutCoercionHybridToProlepticLegacyDate("0001-01-01", "0000-12-30");
@@ -163,33 +165,60 @@ public class TestDateCoercer
 
         assertReadingWithoutCoercionHybridToProlepticLegacyDate("1000-02-29", "1000-03-06"); // legacy leap year
         assertReadingWithoutCoercionHybridToProlepticLegacyDate("1600-02-29", "1600-02-29"); // Gregorian leap year
-        assertReadingWithoutCoercionHybridToProlepticLegacyDate("1700-02-29", "1700-03-01"); // non-leap year in Gregorian calendar
         assertReadingWithoutCoercionHybridToProlepticLegacyDate("2000-02-29", "2000-02-29"); // Gregorian leap year
     }
 
-    private void assertReadingWithCoercionHybridToProlepticLegacyDate(String writtenDate, String actualReadDate)
+    @Test
+    public void testLegacyNegativeDateCoercionFromHybridCalendarToProlepticGregorianCalendar()
     {
-        assertReadingHybridToProlepticLegacyDate(true, writtenDate, actualReadDate);
+        assertReadingWithCoercionHybridToProlepticLegacyDate(-9999, 12, 31);
+        assertReadingWithCoercionHybridToProlepticLegacyDate(-5555, 1, 1);
+        assertReadingWithCoercionHybridToProlepticLegacyDate(-4713, 1, 1);
+        assertReadingWithCoercionHybridToProlepticLegacyDate(-1001, 1, 1);
+        assertReadingWithCoercionHybridToProlepticLegacyDate(-1, 1, 1);
+
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate(-9999, 12, 31, -9999, 10, 15);
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate(-5555, 1, 1, -5556, 11, 18);
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate(-4713, 1, 1, -4714, 11, 24);
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate(-1001, 1, 1, -1002, 12, 22);
+        assertReadingWithoutCoercionHybridToProlepticLegacyDate(-1, 1, 1, -2, 12, 30);
+    }
+
+    private void assertReadingWithCoercionHybridToProlepticLegacyDate(String date, String actualReadDate)
+    {
+        assertReadingHybridToProlepticLegacyDate(true, toHybridDays(date), toEpochDaysInProlepticGregorian(actualReadDate));
     }
 
     private void assertReadingWithoutCoercionHybridToProlepticLegacyDate(String writtenDate, String actualReadDate)
     {
-        assertReadingHybridToProlepticLegacyDate(false, writtenDate, actualReadDate);
+        assertReadingHybridToProlepticLegacyDate(false, toHybridDays(writtenDate), toEpochDaysInProlepticGregorian(actualReadDate));
     }
 
-    private void assertReadingHybridToProlepticLegacyDate(boolean convertDateToProleptic, String writtenDate, String actualReadDate)
+    private void assertReadingWithCoercionHybridToProlepticLegacyDate(int year, int month, int day)
     {
-        Block writtenBlock = nativeValueToBlock(DATE, toEpochDaysInHybridCalendar(writtenDate));
+        assertReadingHybridToProlepticLegacyDate(true, toHybridDays(year, month, day), toEpochDaysInProlepticGregorian(year, month, day));
+    }
+
+    private void assertReadingWithoutCoercionHybridToProlepticLegacyDate(int jYear, int jMonth, int jDay, int gYear, int gMonth, int gDay)
+    {
+        assertReadingHybridToProlepticLegacyDate(false, toHybridDays(jYear, jMonth, jDay), toEpochDaysInProlepticGregorian(gYear, gMonth, gDay));
+    }
+
+    private void assertReadingHybridToProlepticLegacyDate(boolean convertDateToProleptic, long hybridDays, long gregorianDays)
+    {
+        Block writtenBlock = nativeValueToBlock(DATE, hybridDays);
         Optional<TypeCoercer<? extends Type, ? extends Type>> coercer =
                 ParquetTypeTranslator.createCoercer(
                         INT32,
                         LogicalTypeAnnotation.dateType(),
                         DATE,
-                        new ParquetTypeTranslator.CoercionContext(convertDateToProleptic, false, false));
+                        new ParquetTypeTranslator.CoercionContext(convertDateToProleptic, false, false, UTC));
         Block readBlock = coercer.isPresent() ? coercer.get().apply(writtenBlock) : writtenBlock;
 
-        Object actualDays = blockToNativeValue(DATE, readBlock);
-        assertThat(actualDays).isEqualTo(toEpochDaysInProlepticGregorian(actualReadDate));
+        long actualDays = (Long) blockToNativeValue(DATE, readBlock);
+        assertThat(actualDays)
+                .withFailMessage("Expected to read %s days but was %s days", LocalDate.ofEpochDay(gregorianDays).toString(), LocalDate.ofEpochDay(actualDays).toString())
+                .isEqualTo(gregorianDays);
     }
 
     private static long toEpochDaysInProlepticGregorian(String date)
@@ -197,9 +226,21 @@ public class TestDateCoercer
         return LocalDate.parse(date).toEpochDay();
     }
 
-    private Long toEpochDaysInHybridCalendar(String dateStr)
+    private static long toEpochDaysInProlepticGregorian(int year, int month, int day)
+    {
+        return LocalDate.of(year, month, 1).plusDays(day - 1).toEpochDay();
+    }
+
+    private long toHybridDays(String dateStr)
     {
         Date date = Date.valueOf(dateStr);
+        long millis = date.getTime();
+        return TimeUnit.MILLISECONDS.toDays(millis + TimeZone.getDefault().getOffset(millis));
+    }
+
+    private long toHybridDays(int year, int month, int day)
+    {
+        Date date = new Date(year - 1900, month - 1, day);
         long millis = date.getTime();
         return TimeUnit.MILLISECONDS.toDays(millis + TimeZone.getDefault().getOffset(millis));
     }

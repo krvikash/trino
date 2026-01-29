@@ -13,91 +13,130 @@
  */
 package io.trino.plugin.base.util;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import io.trino.cache.EvictableCacheBuilder;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Date;
-import java.util.GregorianCalendar;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.temporal.ChronoField;
+import java.time.zone.ZoneOffsetTransition;
+import java.util.Calendar;
 import java.util.TimeZone;
 
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_MILLISECOND;
+import static io.trino.spi.type.Timestamps.MILLISECONDS_PER_DAY;
 import static io.trino.spi.type.Timestamps.MILLISECONDS_PER_SECOND;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MILLISECOND;
 import static java.lang.Math.floorDiv;
 import static java.lang.Math.floorMod;
 import static java.lang.Math.multiplyExact;
 import static java.lang.Math.toIntExact;
-import static java.time.ZoneOffset.UTC;
-import static java.time.format.ResolverStyle.LENIENT;
-import static java.util.concurrent.TimeUnit.DAYS;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.Calendar.DAY_OF_MONTH;
+import static java.util.Calendar.DST_OFFSET;
+import static java.util.Calendar.ERA;
+import static java.util.Calendar.HOUR_OF_DAY;
+import static java.util.Calendar.MINUTE;
+import static java.util.Calendar.MONTH;
+import static java.util.Calendar.SECOND;
+import static java.util.Calendar.YEAR;
+import static java.util.Calendar.ZONE_OFFSET;
 
 public final class CalendarUtils
 {
-    private static final TimeZone TZ_UTC = TimeZone.getTimeZone(UTC);
-    private static final String DATE_FORMAT = "yyyy-MM-dd";
-    private static final String DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm:ss.SSS";
-    private static final String LAST_SWITCH_JULIAN_DAY_STR = "1582-10-15";
-    private static final long LAST_SWITCH_JULIAN_DAY_MILLIS;
-    private static final long LAST_SWITCH_JULIAN_DAY;
+    private static final TimeZone UTC_TZ = TimeZone.getTimeZone(ZoneId.of("UTC"));
+    private static final LocalDate LAST_SWITCH_JULIAN_DAY = LocalDate.of(1582, 10, 15);
 
-    private static final ThreadLocal<SimpleDateFormat> HYBRID_CALENDAR_DATE_FORMAT = ThreadLocal.withInitial(() -> {
-        SimpleDateFormat format = new SimpleDateFormat(DATE_FORMAT);
-        format.setCalendar(new GregorianCalendar(TZ_UTC));
-        return format;
-    });
-
-    private static final ThreadLocal<SimpleDateFormat> HYBRID_CALENDAR_DATE_TIME_FORMAT = ThreadLocal.withInitial(() -> {
-        SimpleDateFormat format = new SimpleDateFormat(DATE_TIME_FORMAT);
-        format.setCalendar(new GregorianCalendar(TZ_UTC));
-        return format;
-    });
-
-    private static final DateTimeFormatter PROLEPTIC_CALENDAR_DATE_FORMAT = DateTimeFormatter.ofPattern(DATE_FORMAT)
-            .withResolverStyle(LENIENT);
-
-    private static final DateTimeFormatter PROLEPTIC_CALENDAR_DATE_TIME_FORMAT = DateTimeFormatter.ofPattern(DATE_TIME_FORMAT)
-            .withResolverStyle(LENIENT);
-
-    static {
-        try {
-            LAST_SWITCH_JULIAN_DAY_MILLIS = HYBRID_CALENDAR_DATE_FORMAT.get().parse(LAST_SWITCH_JULIAN_DAY_STR).getTime();
-            LAST_SWITCH_JULIAN_DAY = MILLISECONDS.toDays(LAST_SWITCH_JULIAN_DAY_MILLIS);
-        }
-        catch (ParseException e) {
-            throw new RuntimeException(e);
-        }
+    private static long lastSwitchJulianDayInMillis(TimeZone timeZone)
+    {
+        // last day of Julian calendar is 1582-10-4, and the next day is 1582-10-15 in Gregorian calendar.
+        // the switch day is 1582-10-15
+        Calendar cal = new Calendar.Builder()
+                .setCalendarType("gregory")
+                .setDate(1582, Calendar.OCTOBER, 15)
+                .setTimeZone(timeZone)
+                .build();
+        return cal.getTimeInMillis();
     }
+
+    private static final LoadingCache<TimeZone, Long> switchDaysByTimeZone = EvictableCacheBuilder.newBuilder()
+            .maximumSize(100)
+            .build(CacheLoader.from(CalendarUtils::lastSwitchJulianDayInMillis));
 
     private CalendarUtils() {}
 
     public static int convertHybridDaysToProlepticGregorian(int hybridDays)
     {
-        if (hybridDays >= LAST_SWITCH_JULIAN_DAY) {
+        if (hybridDays >= LAST_SWITCH_JULIAN_DAY.toEpochDay()) {
             return hybridDays;
         }
-        long hybridMillis = DAYS.toMillis(hybridDays);
-        String hybridDateInString = HYBRID_CALENDAR_DATE_FORMAT.get().format(new Date(hybridMillis));
-        return toIntExact(LocalDate.from(PROLEPTIC_CALENDAR_DATE_FORMAT.parse(hybridDateInString)).toEpochDay());
+        Calendar calendar = new Calendar.Builder()
+                .setCalendarType("gregory")
+                .setTimeZone(UTC_TZ)
+                .setInstant(multiplyExact(hybridDays, (long) MILLISECONDS_PER_DAY))
+                .build();
+
+        LocalDate localDate = LocalDate.of(calendar.get(YEAR), calendar.get(MONTH) + 1, 1)
+                .with(ChronoField.ERA, calendar.get(ERA))
+                .plusDays(calendar.get(DAY_OF_MONTH) - 1);
+
+        return toIntExact(localDate.toEpochDay());
     }
 
     public static long convertHybridMicrosToProlepticGregorian(long hybridMicros)
     {
         long hybridMillis = floorDiv(hybridMicros, (long) MICROSECONDS_PER_MILLISECOND);
         long remainderMicros = floorMod(hybridMicros, MICROSECONDS_PER_MILLISECOND);
-        long prolepticMillis = convertHybridMillisToProlepticGregorian(hybridMillis);
+        long prolepticMillis = convertHybridMillisToProlepticGregorian(hybridMillis, UTC_TZ);
         return multiplyExact(prolepticMillis, MICROSECONDS_PER_MILLISECOND) + remainderMicros;
     }
 
     public static long convertHybridMillisToProlepticGregorian(long hybridMillis)
     {
-        if (hybridMillis < LAST_SWITCH_JULIAN_DAY_MILLIS) {
-            String dateTimeInString = HYBRID_CALENDAR_DATE_TIME_FORMAT.get().format(new Date(hybridMillis));
-            LocalDateTime localDateTime = LocalDateTime.parse(dateTimeInString, PROLEPTIC_CALENDAR_DATE_TIME_FORMAT);
-            return multiplyExact(localDateTime.toEpochSecond(UTC), MILLISECONDS_PER_SECOND) + floorDiv(localDateTime.getNano(), NANOSECONDS_PER_MILLISECOND);
+        return convertHybridMillisToProlepticGregorian(hybridMillis, UTC_TZ);
+    }
+
+    public static long convertHybridMillisToProlepticGregorian(long hybridMillis, TimeZone timeZone)
+    {
+        ZoneId zoneId = timeZone.toZoneId();
+        if (hybridMillis >= switchDaysByTimeZone.getUnchecked(timeZone)) {
+            return hybridMillis;
         }
-        return hybridMillis;
+        // based on Apache Spark's implementation
+        Calendar calendar = new Calendar.Builder()
+                .setCalendarType("gregory")
+                .setTimeZone(timeZone)
+                .setInstant(hybridMillis)
+                .build();
+
+        LocalDateTime localDateTime = LocalDateTime.of(
+                        calendar.get(YEAR),
+                        calendar.get(MONTH) + 1,
+                        1, // number of the days will be added at the end to handle not-existing date in leap Julian year which is non-leap in Gregorian
+                        calendar.get(HOUR_OF_DAY),
+                        calendar.get(MINUTE),
+                        calendar.get(SECOND),
+                        Math.floorMod(hybridMillis, MILLISECONDS_PER_SECOND) * NANOSECONDS_PER_MILLISECOND)
+                .with(ChronoField.ERA, calendar.get(ERA))
+                .plusDays(calendar.get(DAY_OF_MONTH) - 1);
+        ZonedDateTime zonedDateTime = localDateTime.atZone(zoneId);
+
+        ZoneOffsetTransition zoneOffsetTransition = zoneId.getRules().getTransition(localDateTime);
+        if (zoneOffsetTransition != null && zoneOffsetTransition.isOverlap()) {
+            int dstOffset = calendar.get(DST_OFFSET);
+            int zoneOffset = calendar.get(ZONE_OFFSET);
+            calendar.add(DAY_OF_MONTH, 1);
+
+            if (zoneOffset == calendar.get(ZONE_OFFSET) && dstOffset == calendar.get(DST_OFFSET)) {
+                zonedDateTime = zonedDateTime.withLaterOffsetAtOverlap();
+            }
+            else {
+                zonedDateTime = zonedDateTime.withEarlierOffsetAtOverlap();
+            }
+        }
+
+        return zonedDateTime.toInstant().toEpochMilli();
     }
 }

@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.hive.coercions;
 
+import com.google.common.collect.ImmutableSet;
 import io.trino.plugin.hive.HiveTimestampPrecision;
 import io.trino.plugin.hive.coercions.CoercionUtils.CoercionContext;
 import io.trino.plugin.hive.parquet.ParquetTypeTranslator;
@@ -28,16 +29,17 @@ import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import org.junit.jupiter.api.Test;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Date;
-import java.util.GregorianCalendar;
+import java.time.temporal.ChronoField;
+import java.time.zone.ZoneOffsetTransition;
+import java.time.zone.ZoneRules;
+import java.util.Calendar;
 import java.util.Optional;
 import java.util.TimeZone;
 
@@ -53,6 +55,7 @@ import static io.trino.spi.type.DateTimeEncoding.unpackMillisUtc;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.LongTimestampWithTimeZone.fromEpochMillisAndFraction;
 import static io.trino.spi.type.LongTimestampWithTimeZone.fromEpochSecondsAndFraction;
+import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_NANOS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_PICOS;
@@ -77,6 +80,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestTimestampCoercer
 {
+    private static final TimeZone UTC_TZ = TimeZone.getTimeZone(ZoneId.of("UTC"));
+    private static final LocalDate GREGORIAN_START_DATE = LocalDate.of(1582, 10, 15);
+    private static final LocalDate JULIAN_END_DATE = LocalDate.of(1582, 10, 4);
+    private static final LocalDateTime GREGORIAN_START_DATETIME = LocalDateTime.of(GREGORIAN_START_DATE, LocalTime.MIDNIGHT);
+    private static final LocalDateTime JULIAN_END_DATETIME = LocalDateTime.of(JULIAN_END_DATE, LocalTime.of(23, 59, 59, 999999999));
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss.SSS");
+    private static final DateTimeFormatter LONG_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss.SSSSSSSSS");
+
     @Test
     public void testTimestampToDate()
     {
@@ -324,62 +335,73 @@ public class TestTimestampCoercer
 
     @Test
     public void testLegacyTimestampCoercionFromHybridCalendarToProlepticGregorianCalendar()
-            throws Exception
     {
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("0001-01-01 00:00:00.000", "0001-01-01T00:00:00.000");  // 1st  year of era
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("0001-01-01 15:00:00.000", "0001-01-01T15:00:00.000");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("0001-01-01 15:15:00.000", "0001-01-01T15:15:00.000");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("0001-01-01 15:15:15.000", "0001-01-01T15:15:15.000");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("0001-01-01 15:15:15.123", "0001-01-01T15:15:15.123");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1000-01-01 15:15:15.123", "1000-01-01T15:15:15.123");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-03 23:59:59.999", "1582-10-03T23:59:59.999");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-04 00:00:00.000", "1582-10-04T00:00:00.000"); // just before the switch to Gregorian calendar
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-04 15:15:15.123", "1582-10-04T15:15:15.123");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-04 23:59:59.999", "1582-10-04T23:59:59.999");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-15 00:00:00.000", "1582-10-15T00:00:00.000"); // first day after the switch to Gregorian calendar
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-15 15:15:15.123", "1582-10-15T15:15:15.123");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-15 23:59:59.999", "1582-10-15T23:59:59.999");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-16 00:00:00.000", "1582-10-16T00:00:00.000");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1788-09-10 15:15:15.123", "1788-09-10T15:15:15.123");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1888-12-31 15:15:15.123", "1888-12-31T15:15:15.123");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1969-12-31 15:15:15.123", "1969-12-31T15:15:15.123"); // just before the epoch
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1970-01-01 00:00:00.001", "1970-01-01T00:00:00.001"); // epoch day
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1970-01-01 15:15:15.123", "1970-01-01T15:15:15.123");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("2024-03-30 15:15:15.123", "2024-03-30T15:15:15.123");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("5000-11-11 23:59:59.999", "5000-11-11T23:59:59.999");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("9999-12-31 23:59:59.999", "9999-12-31T23:59:59.999");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("-9999-12-31 23:59:59.999", "-9999-12-31 23:59:59.999");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("-5555-01-01 23:59:59.999", "-5555-01-01 23:59:59.999");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("-4713-01-01 00:00:00.000", "-4713-01-01 00:00:00.000");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("-1001-01-01 00:00:00.123", "-1001-01-01 00:00:00.123");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("-0001-01-01 00:00:00.123", "-0001-01-01 00:00:00.123");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("0001-01-01 00:00:00.000", "0001-01-01 00:00:00.000");  // 1st  year of era
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("0001-01-01 15:00:00.000", "0001-01-01 15:00:00.000");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("0001-01-01 15:15:00.000", "0001-01-01 15:15:00.000");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("0001-01-01 15:15:15.000", "0001-01-01 15:15:15.000");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("0001-01-01 15:15:15.123", "0001-01-01 15:15:15.123");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1000-01-01 15:15:15.123", "1000-01-01 15:15:15.123");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-03 23:59:59.999", "1582-10-03 23:59:59.999");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-04 00:00:00.000", "1582-10-04 00:00:00.000"); // just before the switch to Gregorian calendar
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-04 15:15:15.123", "1582-10-04 15:15:15.123");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-04 23:59:59.999", "1582-10-04 23:59:59.999");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-15 00:00:00.000", "1582-10-15 00:00:00.000"); // first day after the switch to Gregorian calendar
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-15 15:15:15.123", "1582-10-15 15:15:15.123");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-15 23:59:59.999", "1582-10-15 23:59:59.999");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1582-10-16 00:00:00.000", "1582-10-16 00:00:00.000");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1788-09-10 15:15:15.123", "1788-09-10 15:15:15.123");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1888-12-31 15:15:15.123", "1888-12-31 15:15:15.123");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1969-12-31 15:15:15.123", "1969-12-31 15:15:15.123"); // just before the epoch
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1970-01-01 00:00:00.001", "1970-01-01 00:00:00.001"); // epoch day
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1970-01-01 15:15:15.123", "1970-01-01 15:15:15.123");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("2024-03-30 15:15:15.123", "2024-03-30 15:15:15.123");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("5000-11-11 23:59:59.999", "5000-11-11 23:59:59.999");
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("9999-12-31 23:59:59.999", "9999-12-31 23:59:59.999");
 
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1000-02-29 01:02:03.123", "1000-03-01T01:02:03.123"); // legacy leap year
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1600-02-29 11:12:13.654", "1600-02-29T11:12:13.654"); // Gregorian leap year
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1700-02-29 21:22:23.001", "1700-03-01T21:22:23.001"); // non-leap year in Gregorian calendar
-        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("2000-02-29 00:00:00.999", "2000-02-29T00:00:00.999"); // Gregorian leap year
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1000-02-29 01:02:03.123", "1000-02-28 01:02:03.123"); // legacy leap year
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("1600-02-29 11:12:13.654", "1600-02-29 11:12:13.654"); // Gregorian leap year
+        assertReadingWithCoercionHybridToProlepticLegacyTimestamp("2000-02-29 00:00:00.999", "2000-02-29 00:00:00.999"); // Gregorian leap year
 
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("0001-01-01 15:15:15.123", "0000-12-30T15:15:15.123");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1000-01-01 15:15:15.123", "1000-01-06T15:15:15.123");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1582-10-04 15:15:15.123", "1582-10-14T15:15:15.123");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1582-10-04 23:59:59.999", "1582-10-14T23:59:59.999");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1582-10-15 00:00:00.000", "1582-10-15T00:00:00.000");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1582-10-15 15:15:15.123", "1582-10-15T15:15:15.123");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1582-10-15 23:59:59.999", "1582-10-15T23:59:59.999");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1582-10-16 00:00:00.000", "1582-10-16T00:00:00.000");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1788-09-10 15:15:15.123", "1788-09-10T15:15:15.123");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1888-12-31 15:15:15.123", "1888-12-31T15:15:15.123");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1969-12-31 15:15:15.123", "1969-12-31T15:15:15.123");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1970-01-01 15:15:15.123", "1970-01-01T15:15:15.123");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("2024-03-30 15:15:15.123", "2024-03-30T15:15:15.123");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("5000-11-11 23:59:59.999", "5000-11-11T23:59:59.999");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("9999-12-31 23:59:59.999", "9999-12-31T23:59:59.999");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("-9999-12-31 23:59:59.999", "-9999-10-15 23:59:59.999");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("-5555-01-01 23:59:59.999", "-5556-11-18 23:59:59.999");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("-4713-01-01 00:00:00.000", "-4714-11-24 00:00:00.000");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("-1001-01-01 00:00:00.123", "-1002-12-22 00:00:00.123");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("-0001-01-01 00:00:00.123", "-0002-12-30 00:00:00.123");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("0001-01-01 15:15:15.123", "0000-12-30 15:15:15.123");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1000-01-01 15:15:15.123", "1000-01-06 15:15:15.123");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1582-10-04 15:15:15.123", "1582-10-14 15:15:15.123");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1582-10-04 23:59:59.999", "1582-10-14 23:59:59.999");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1582-10-15 00:00:00.000", "1582-10-15 00:00:00.000");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1582-10-15 15:15:15.123", "1582-10-15 15:15:15.123");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1582-10-15 23:59:59.999", "1582-10-15 23:59:59.999");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1582-10-16 00:00:00.000", "1582-10-16 00:00:00.000");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1788-09-10 15:15:15.123", "1788-09-10 15:15:15.123");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1888-12-31 15:15:15.123", "1888-12-31 15:15:15.123");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1969-12-31 15:15:15.123", "1969-12-31 15:15:15.123");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1970-01-01 15:15:15.123", "1970-01-01 15:15:15.123");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("2024-03-30 15:15:15.123", "2024-03-30 15:15:15.123");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("5000-11-11 23:59:59.999", "5000-11-11 23:59:59.999");
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("9999-12-31 23:59:59.999", "9999-12-31 23:59:59.999");
 
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1000-02-29 01:02:03.123", "1000-03-06T01:02:03.123"); // legacy leap year
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1600-02-29 11:12:13.654", "1600-02-29T11:12:13.654"); // Gregorian leap year
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1700-02-29 21:22:23.001", "1700-03-01T21:22:23.001"); // non-leap year in Gregorian calendar
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("2000-02-29 00:00:00.999", "2000-02-29T00:00:00.999"); // Gregorian leap year
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1000-02-29 01:02:03.123", "1000-03-05 01:02:03.123"); // legacy leap year
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("1600-02-29 11:12:13.654", "1600-02-29 11:12:13.654"); // Gregorian leap year
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp("2000-02-29 00:00:00.999", "2000-02-29 00:00:00.999"); // Gregorian leap year
     }
 
     @Test
     public void testLegacyLongTimestampCoercionFromHybridCalendarToProlepticGregorianCalendar()
-            throws Exception
     {
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("-9999-12-31 23:59:59.999999999", "-9999-12-31T23:59:59.999999999");
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("-5555-01-01 23:59:59.999999999", "-5555-01-01T23:59:59.999999999");
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("-4713-01-01 00:00:00.000000000", "-4713-01-01T00:00:00.000000000");
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("-1001-01-01 00:00:00.123456789", "-1001-01-01T00:00:00.123456789");
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("-0001-01-01 00:00:00.123456789", "-0001-01-01T00:00:00.123456789");
         assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("0001-01-01 15:15:15.123456789", "0001-01-01T15:15:15.123456789");
         assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("1000-01-01 15:15:15.123456789", "1000-01-01T15:15:15.123456789");
         assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("1582-10-04 15:15:15.123456789", "1582-10-04T15:15:15.123456789");
@@ -395,6 +417,11 @@ public class TestTimestampCoercer
         assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("1970-01-01 00:00:00.000000001", "1970-01-01T00:00:00.000000001"); //epoch day
         assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp("2024-03-30 15:15:15.123456789", "2024-03-30T15:15:15.123456789");
 
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("-9999-12-31 23:59:59.999999999", "-9999-10-15T23:59:59.999999999");
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("-5555-01-01 23:59:59.999999999", "-5556-11-18T23:59:59.999999999");
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("-4713-01-01 00:00:00.000000000", "-4714-11-24T00:00:00.000000000"); // Julian calendar start
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("-1001-01-01 00:00:00.123456789", "-1002-12-22T00:00:00.123456789");
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("-0001-01-01 00:00:00.123456789", "-0002-12-30T00:00:00.123456789");
         assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("0001-01-01 15:15:15.123456789", "0000-12-30T15:15:15.123456789");
         assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("1000-01-01 15:15:15.123456789", "1000-01-06T15:15:15.123456789");
         assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp("1582-10-04 15:15:15.123456789", "1582-10-14T15:15:15.123456789");
@@ -412,171 +439,274 @@ public class TestTimestampCoercer
 
     @Test
     public void testLegacyTimestampWithTimeZoneCoercionFromHybridCalendarToProlepticGregorianCalendar()
-            throws Exception
     {
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("0001-01-01 00:00:00.000", "0001-01-01T00:00:00.000");  // 1st  year of era
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("0001-01-01 15:00:00.000", "0001-01-01T15:00:00.000");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("0001-01-01 15:15:00.000", "0001-01-01T15:15:00.000");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("0001-01-01 15:15:15.000", "0001-01-01T15:15:15.000");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("0001-01-01 15:15:15.123", "0001-01-01T15:15:15.123");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1000-01-01 15:15:15.123", "1000-01-01T15:15:15.123");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-03 23:59:59.999", "1582-10-03T23:59:59.999");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-04 00:00:00.000", "1582-10-04T00:00:00.000"); // just before the switch to Gregorian calendar
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-04 15:15:15.123", "1582-10-04T15:15:15.123");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-04 23:59:59.999", "1582-10-04T23:59:59.999");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-15 00:00:00.000", "1582-10-15T00:00:00.000"); // first day after the switch to Gregorian calendar
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-15 15:15:15.123", "1582-10-15T15:15:15.123");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-15 23:59:59.999", "1582-10-15T23:59:59.999");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-16 00:00:00.000", "1582-10-16T00:00:00.000");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1788-09-10 15:15:15.123", "1788-09-10T15:15:15.123");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1888-12-31 15:15:15.123", "1888-12-31T15:15:15.123");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1969-12-31 15:15:15.123", "1969-12-31T15:15:15.123"); // just before the epoch
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1970-01-01 00:00:00.001", "1970-01-01T00:00:00.001"); // epoch day
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1970-01-01 15:15:15.123", "1970-01-01T15:15:15.123");
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("2024-03-30 15:15:15.123", "2024-03-30T15:15:15.123");
+        ImmutableSet.of(
+                        "UTC",
+                        "Europe/Warsaw",
+                        "America/New_York",
+                        "America/Los_Angeles",
+                        "America/Bahia_Banderas",
+                        "Asia/Kolkata",
+                        "Asia/Hong_Kong",
+                        "Africa/Dakar",
+                        "Antarctica/Vostok",
+                        "Asia/Kathmandu")
+                .stream()
+                .map(ZoneId::of)
+                .forEach(this::testLegacyTimestampWithTimeZoneCoercionFromHybridCalendarToProlepticGregorianCalendar);
+    }
 
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1000-02-29 01:02:03.123", "1000-03-01T01:02:03.123"); // legacy leap year
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1600-02-29 11:12:13.654", "1600-02-29T11:12:13.654"); // Gregorian leap year
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1700-02-29 21:22:23.001", "1700-03-01T21:22:23.001"); // non-leap year in Gregorian calendar
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("2000-02-29 00:00:00.999", "2000-02-29T00:00:00.999"); // Gregorian leap year
+    private void testLegacyTimestampWithTimeZoneCoercionFromHybridCalendarToProlepticGregorianCalendar(ZoneId zoneId)
+    {
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("-9999-12-31 23:59:59.999", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("-5555-01-01 23:59:59.999", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("-4713-01-01 00:00:00.000", zoneId); // Julian day zero
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("-1001-01-01 00:00:00.123", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("-0001-01-01 00:00:00.123", zoneId);
 
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("0001-01-01 15:15:15.123", "0000-12-30T15:15:15.123");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1000-01-01 15:15:15.123", "1000-01-06T15:15:15.123");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-04 15:15:15.123", "1582-10-14T15:15:15.123");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-04 23:59:59.999", "1582-10-14T23:59:59.999");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-15 00:00:00.000", "1582-10-15T00:00:00.000");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-15 15:15:15.123", "1582-10-15T15:15:15.123");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-15 23:59:59.999", "1582-10-15T23:59:59.999");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-16 00:00:00.000", "1582-10-16T00:00:00.000");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1788-09-10 15:15:15.123", "1788-09-10T15:15:15.123");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1888-12-31 15:15:15.123", "1888-12-31T15:15:15.123");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1969-12-31 15:15:15.123", "1969-12-31T15:15:15.123");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1970-01-01 15:15:15.123", "1970-01-01T15:15:15.123");
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("2024-03-30 15:15:15.123", "2024-03-30T15:15:15.123");
+        // Year 1 CE and early AD dates
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("0001-01-01 00:00:00.000", zoneId);  // 1st  year of era
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("0001-01-01 15:00:00.000", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("0001-01-01 15:15:00.000", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("0001-01-01 15:15:15.000", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("0001-01-01 15:15:15.123", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("0100-03-20 14:30:00.250", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("0500-08-10 08:15:45.678", zoneId);
 
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1000-02-29 01:02:03.123", "1000-03-06T01:02:03.123"); // legacy leap year
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1600-02-29 11:12:13.654", "1600-02-29T11:12:13.654"); // Gregorian leap year
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1700-02-29 21:22:23.001", "1700-03-01T21:22:23.001"); // non-leap year in Gregorian calendar
-        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("2000-02-29 00:00:00.999", "2000-02-29T00:00:00.999"); // Gregorian leap year
+        // Medieval dates before Gregorian calendar switch
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1000-01-01 15:15:15.123", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1200-12-25 00:00:00.001", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1400-09-15 16:45:30.999", zoneId);
+
+        // Around the Julian-Gregorian calendar switch (October 1582)
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-01-01 00:00:00.123", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-03 23:59:59.999", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-04 00:00:00.000", zoneId); // just before the switch to Gregorian calendar
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-04 15:15:15.123", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-04 11:59:59.999", zoneId); // last day of Julian calendar
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-15 12:00:00.000", zoneId); // first day after the switch to Gregorian calendar
+
+        // Post-Gregorian dates (no rebasing needed but test coercer still works)
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-15 15:15:15.123", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-15 23:59:59.999", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-16 00:00:00.000", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1788-09-10 15:15:15.123", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1888-12-31 15:15:15.123", zoneId);
+
+        // Epoch and modern dates
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1969-12-31 15:15:15.123", zoneId); // just before the epoch
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1970-01-01 00:00:00.001", zoneId); // epoch day
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1970-01-01 15:15:15.123", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("2000-01-01 00:00:00.000", zoneId); // Y2K
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("2024-03-30 15:15:15.123", zoneId);
+
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1000-02-29 01:02:03.123", zoneId); // legacy leap year
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1600-02-29 11:12:13.654", zoneId); // Gregorian leap year
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("2000-02-29 00:00:00.999", zoneId); // Gregorian leap year
+    }
+
+    @Test
+    public void testLegacyTimestampWithTimeZoneNoCoercionFromHybridCalendarToProlepticGregorianCalendar()
+    {
+        ZoneId zoneId = ZoneId.of("Europe/London");
+
+        // BC dates show significant drift
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("-9999-12-31 23:59:59.999", "-9999-10-15 23:58:44.999", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("-5555-01-01 23:59:59.999", "-5556-11-18 23:58:44.999", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("-4713-01-01 00:00:00.000", "-4714-11-23 23:58:45.000", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("-1001-01-01 00:00:00.123", "-1002-12-21 23:58:45.123", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("-0001-01-01 00:00:00.123", "-0002-12-29 23:58:45.123", zoneId);
+
+        // 1Y CE
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("0001-01-01 15:15:15.123", "0000-12-30 15:14:00.123", zoneId);
+
+        // Medieval dates
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1000-01-01 15:15:15.123", "1000-01-06 15:14:00.123", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1000-06-20 10:20:30.456", "1000-06-26 10:19:15.456", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1400-09-15 16:45:30.999", "1400-09-24 16:44:15.999", zoneId);
+
+        // Around calendar switch
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-04 15:15:15.123", "1582-10-14 15:14:00.123", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-04 23:59:59.999", "1582-10-14 23:58:44.999", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-15 00:00:00.000", "1582-10-14 23:58:45.000", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-15 15:15:15.123", "1582-10-15 15:15:15.123", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-15 23:59:59.999", "1582-10-15 23:59:59.999", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-16 00:00:00.000", "1582-10-16 00:00:00.000", zoneId);
+
+        // Post-Gregorian dates unchanged
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1788-09-10 15:15:15.123", "1788-09-10 15:15:15.123", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1888-12-31 15:15:15.123", "1888-12-31 15:15:15.123", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1969-12-31 15:15:15.123", "1969-12-31 15:15:15.123", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1970-01-01 15:15:15.123", "1970-01-01 15:15:15.123", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("2024-03-30 15:15:15.123", "2024-03-30 15:15:15.123", zoneId);
+
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1000-02-29 01:02:03.123", "1000-03-05 01:00:48.123", zoneId); // legacy leap year
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("1600-02-29 11:12:13.654", "1600-02-29 11:12:13.654", zoneId); // Gregorian leap year
+        assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone("2000-02-29 00:00:00.999", "2000-02-29 00:00:00.999", zoneId); // Gregorian leap year
     }
 
     @Test
     public void testLegacyLongTimestampWithTimeZoneCoercionFromHybridCalendarToProlepticGregorianCalendar()
-            throws ParseException
     {
-        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("0001-01-01 15:15:15.123456789", "0001-01-01T15:15:15.123456789");
-        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1000-01-01 15:15:15.123456789", "1000-01-01T15:15:15.123456789");
-        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-04 15:15:15.123456789", "1582-10-04T15:15:15.123456789");
-        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-04 23:59:59.999999999", "1582-10-04T23:59:59.999999999");
-        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-15 00:00:00.000000000", "1582-10-15T00:00:00.000000000");
-        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-15 15:15:15.123456789", "1582-10-15T15:15:15.123456789");
-        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-15 23:59:59.999999999", "1582-10-15T23:59:59.999999999");
-        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-16 00:00:00.000000000", "1582-10-16T00:00:00.000000000");
-        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1788-09-10 15:15:15.123456789", "1788-09-10T15:15:15.123456789");
-        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1888-12-31 15:15:15.123456789", "1888-12-31T15:15:15.123456789");
-        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1969-12-31 15:15:15.123456789", "1969-12-31T15:15:15.123456789");
-        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1970-01-01 15:15:15.123456789", "1970-01-01T15:15:15.123456789");
-        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1970-01-01 00:00:00.000000001", "1970-01-01T00:00:00.000000001"); //epoch day
-        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("2024-03-30 15:15:15.123456789", "2024-03-30T15:15:15.123456789");
+        ImmutableSet.of(
+                        "UTC",
+                        "Europe/Warsaw",
+                        "America/New_York",
+                        "America/Los_Angeles",
+                        "America/Bahia_Banderas",
+                        "Asia/Kolkata",
+                        "Asia/Hong_Kong",
+                        "Africa/Dakar",
+                        "Antarctica/Vostok",
+                        "Asia/Kathmandu")
+                .stream()
+                .map(ZoneId::of)
+                .forEach(this::testLegacyLongTimestampWithTimeZoneCoercionFromHybridCalendarToProlepticGregorianCalendar);
+    }
 
-        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("0001-01-01 15:15:15.123456789", "0000-12-30T15:15:15.123456789");
-        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1000-01-01 15:15:15.123456789", "1000-01-06T15:15:15.123456789");
-        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-04 15:15:15.123456789", "1582-10-14T15:15:15.123456789");
-        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-04 23:59:59.999999999", "1582-10-14T23:59:59.999999999");
-        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-15 00:00:00.000000000", "1582-10-15T00:00:00.000000000");
-        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-15 15:15:15.123456789", "1582-10-15T15:15:15.123456789");
-        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-15 23:59:59.999999999", "1582-10-15T23:59:59.999999999");
-        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-16 00:00:00.000000000", "1582-10-16T00:00:00.000000000");
-        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1788-09-10 15:15:15.123456789", "1788-09-10T15:15:15.123456789");
-        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1888-12-31 15:15:15.123456789", "1888-12-31T15:15:15.123456789");
-        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1969-12-31 15:15:15.123456789", "1969-12-31T15:15:15.123456789");
-        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1970-01-01 15:15:15.123456789", "1970-01-01T15:15:15.123456789");
-        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("2024-03-30 15:15:15.123456789", "2024-03-30T15:15:15.123456789");
+    private void testLegacyLongTimestampWithTimeZoneCoercionFromHybridCalendarToProlepticGregorianCalendar(ZoneId zoneId)
+    {
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("-9999-12-31 23:59:59.999999999", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("-5555-01-01 23:59:59.999999999", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("-1001-01-01 00:00:00.123456789", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("-0001-01-01 00:00:00.123456789", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("0001-01-01 15:15:15.123456789", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1000-01-01 15:15:15.123456789", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-04 15:15:15.123456789", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-04 11:59:59.999999999", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-15 12:00:00.000000000", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-15 15:15:15.123456789", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-15 23:59:59.999999999", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-16 00:00:00.000000000", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1788-09-10 15:15:15.123456789", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1888-12-31 15:15:15.123456789", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1969-12-31 15:15:15.123456789", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1970-01-01 15:15:15.123456789", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1970-01-01 00:00:00.000000001", zoneId); //epoch day
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("2024-03-30 15:15:15.123456789", zoneId);
+    }
+
+    @Test
+    public void testLegacyLongTimestampWithTimeZoneInHybridCalendarNoCoercion()
+    {
+        ZoneId zoneId = ZoneId.of("Europe/London");
+
+        // BC dates show significant drift
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("-9999-12-31 23:59:59.999999999", "-9999-10-15 23:58:44.999999999", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("-5555-01-01 23:59:59.999999999", "-5556-11-18 23:58:44.999999999", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("-4713-01-01 00:00:00.000000000", "-4714-11-23 23:58:45.000000000", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("-1001-01-01 00:00:00.123456789", "-1002-12-21 23:58:45.123456789", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("-0001-01-01 00:00:00.123456789", "-0002-12-29 23:58:45.123456789", zoneId);
+
+        // 1Y CE
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("0001-01-01 15:15:15.123456789", "0000-12-30 15:14:00.123456789", zoneId);
+
+        // Medieval dates
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1000-01-01 15:15:15.123456789", "1000-01-06 15:14:00.123456789", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1000-06-20 10:20:30.456789123", "1000-06-26 10:19:15.456789123", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1400-09-15 16:45:30.999999999", "1400-09-24 16:44:15.999999999", zoneId);
+
+        // Around calendar switch
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-04 15:15:15.123456789", "1582-10-14 15:14:00.123456789", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-04 23:59:59.999999999", "1582-10-14 23:58:44.999999999", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-15 00:00:00.000000000", "1582-10-14 23:58:45.000000000", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-15 15:15:15.123456789", "1582-10-15 15:15:15.123456789", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-15 23:59:59.999999999", "1582-10-15 23:59:59.999999999", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-16 00:00:00.000000000", "1582-10-16 00:00:00.000000000", zoneId);
+
+        // Post-Gregorian dates unchanged
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1788-09-10 15:15:15.123456789", "1788-09-10 15:15:15.123456789", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1888-12-31 15:15:15.123456789", "1888-12-31 15:15:15.123456789", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1969-12-31 15:15:15.123456789", "1969-12-31 15:15:15.123456789", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1970-01-01 15:15:15.123456789", "1970-01-01 15:15:15.123456789", zoneId);
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("2024-03-30 15:15:15.123456789", "2024-03-30 15:15:15.123456789", zoneId);
+
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1000-02-29 01:02:03.123456789", "1000-03-05 01:00:48.123456789", zoneId); // legacy leap year
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1600-02-29 11:12:13.654123456", "1600-02-29 11:12:13.654123456", zoneId); // Gregorian leap year
+        assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("2000-02-29 00:00:00.999999999", "2000-02-29 00:00:00.999999999", zoneId); // Gregorian leap year
     }
 
     private void assertReadingWithCoercionHybridToProlepticLegacyTimestamp(String writtenTimestamp, String actualReadDate)
-            throws Exception
     {
         assertReadingHybridToProlepticLegacyTimestamp(true, writtenTimestamp, actualReadDate);
     }
 
     private void assertReadingWithoutCoercionHybridToProlepticLegacyTimestamp(String writtenTimestamp, String actualReadDate)
-            throws Exception
     {
         assertReadingHybridToProlepticLegacyTimestamp(false, writtenTimestamp, actualReadDate);
     }
 
     private void assertReadingHybridToProlepticLegacyTimestamp(boolean convertTimestampToProleptic, String writtenTimestamp, String actualReadTimestamp)
-            throws Exception
     {
-        long hybridMillis = toHybridMillis(writtenTimestamp);
+        ZonedDateTime insertZdt = fromDateTimeString(writtenTimestamp, UTC);
+        long hybridMillis = toHybridMillis(insertZdt);
         Block writtenBlock = nativeValueToBlock(TIMESTAMP_MICROS, multiplyExact(hybridMillis, MICROSECONDS_PER_MILLISECOND));
 
-        Optional<TypeCoercer<? extends Type, ? extends Type>> coercer = ParquetTypeTranslator.createCoercer(INT96, null, TIMESTAMP_MICROS, new ParquetTypeTranslator.CoercionContext(false, false, convertTimestampToProleptic));
+        Optional<TypeCoercer<? extends Type, ? extends Type>> coercer = ParquetTypeTranslator.createCoercer(INT96, null, TIMESTAMP_MICROS, new ParquetTypeTranslator.CoercionContext(false, false, convertTimestampToProleptic, UTC_TZ));
         Block readBlock = coercer.isPresent() ? coercer.get().apply(writtenBlock) : writtenBlock;
 
         long actualMillis = floorDiv((long) blockToNativeValue(TIMESTAMP_MICROS, readBlock), MICROSECONDS_PER_MILLISECOND);
-        long expectedMillis = toInstantInProlepticGregorian(actualReadTimestamp).toEpochMilli();
-        assertThat(actualMillis).isEqualTo(expectedMillis);
+
+        ZonedDateTime expectedZonedDateTime = fromDateTimeString(actualReadTimestamp, UTC);
+        long expectedMillis = expectedZonedDateTime.toInstant().toEpochMilli();
+
+        assertThat(actualMillis)
+                .withFailMessage(() -> "Expected timestamp to be %s, but was %s".formatted(expectedZonedDateTime, fromProlepticMillis(actualMillis, UTC_TZ.toZoneId())))
+                .isEqualTo(expectedMillis);
     }
 
-    private void assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone(String writtenTimestamp, String actualReadDate)
-            throws Exception
+    private void assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone(String timestamp, ZoneId zoneId)
     {
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone(true, writtenTimestamp, actualReadDate);
+        assertReadingHybridToProlepticLegacyTimestampWithTimeZone(true, timestamp, timestamp, zoneId);
     }
 
-    private void assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone(String writtenTimestamp, String actualReadDate)
-            throws Exception
+    private void assertReadingWithoutCoercionHybridToProlepticLegacyTimestampWithTimeZone(String writtenTimestamp, String actualReadTimestamp, ZoneId zoneId)
     {
-        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone(false, writtenTimestamp, actualReadDate);
+        assertReadingHybridToProlepticLegacyTimestampWithTimeZone(false, writtenTimestamp, actualReadTimestamp, zoneId);
     }
 
-    private void assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone(boolean convertTimestampToProleptic, String writtenTimestamp, String actualReadTimestamp)
-            throws Exception
+    private void assertReadingHybridToProlepticLegacyTimestampWithTimeZone(boolean convertTimestampToProleptic, String timestamp, String actualReadTimestamp, ZoneId zoneId)
     {
-        long hybridMillis = toHybridMillis(writtenTimestamp);
-        TimeZoneKey timeZoneKey = TimeZoneKey.getTimeZoneKey(ZoneId.systemDefault().toString());
-        long hybridMillisWithTimeZone = DateTimeEncoding.packDateTimeWithZone(hybridMillis, timeZoneKey);
+        TimeZone timezone = TimeZone.getTimeZone(zoneId);
+        ZonedDateTime zonedDateTime = fromDateTimeString(timestamp, timezone.toZoneId());
+        long hybridMillis = toHybridMillis(zonedDateTime);
+        long hybridMillisWithTimeZone = DateTimeEncoding.packDateTimeWithZone(hybridMillis, UTC_KEY);
         Block writtenBlock = nativeValueToBlock(TIMESTAMP_TZ_MILLIS, hybridMillisWithTimeZone);
 
-        Optional<TypeCoercer<? extends Type, ? extends Type>> coercer = ParquetTypeTranslator.createCoercer(INT96, null, TIMESTAMP_TZ_MILLIS, new ParquetTypeTranslator.CoercionContext(false, false, convertTimestampToProleptic));
+        Optional<TypeCoercer<? extends Type, ? extends Type>> coercer = ParquetTypeTranslator.createCoercer(
+                INT96,
+                null,
+                TIMESTAMP_TZ_MILLIS,
+                new ParquetTypeTranslator.CoercionContext(false, false, convertTimestampToProleptic, timezone));
         Block readBlock = coercer.isPresent() ? coercer.get().apply(writtenBlock) : writtenBlock;
 
         long actualMillisWithTimeZone = (long) blockToNativeValue(TIMESTAMP_TZ_MILLIS, readBlock);
         long actualMillis = unpackMillisUtc(actualMillisWithTimeZone);
-        long expectedMillis = toInstantInProlepticGregorian(actualReadTimestamp).toEpochMilli();
-        assertThat(actualMillis).isEqualTo(expectedMillis);
-    }
 
-    private static long toHybridMillis(String writtenTimestamp)
-            throws ParseException
-    {
-        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-        format.setCalendar(new GregorianCalendar(TimeZone.getTimeZone(UTC)));
-        Date parsed = format.parse(writtenTimestamp);
-        return parsed.getTime();
+        ZonedDateTime expectedZonedDateTime = fromDateTimeString(actualReadTimestamp, zoneId);
+        long expectedMillis = expectedZonedDateTime.toInstant().toEpochMilli();
+
+        assertThat(actualMillis)
+                .withFailMessage(() -> "Expected timestamp to be %s, but was %s".formatted(expectedZonedDateTime, fromProlepticMillis(actualMillis, zoneId)))
+                .isEqualTo(expectedMillis);
     }
 
     private void assertReadingWithCoercionHybridToProlepticLegacyLongTimestamp(String writtenTimestamp, String actualReadDate)
-            throws Exception
     {
         assertReadingHybridToProlepticLegacyLongTimestamp(true, writtenTimestamp, actualReadDate);
     }
 
     private void assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestamp(String writtenTimestamp, String actualReadDate)
-            throws Exception
     {
         assertReadingHybridToProlepticLegacyLongTimestamp(false, writtenTimestamp, actualReadDate);
     }
 
     private void assertReadingHybridToProlepticLegacyLongTimestamp(boolean convertTimestampToProleptic, String writtenTimestamp, String actualReadTimestamp)
-            throws Exception
     {
         LongTimestamp givenTimestamp = fromHybridTimestamp(writtenTimestamp);
         Block writtenBlock = nativeValueToBlock(TIMESTAMP_NANOS, givenTimestamp);
 
-        Optional<TypeCoercer<? extends Type, ? extends Type>> coercer = ParquetTypeTranslator.createCoercer(INT96, null, TIMESTAMP_NANOS, new ParquetTypeTranslator.CoercionContext(false, false, convertTimestampToProleptic));
+        Optional<TypeCoercer<? extends Type, ? extends Type>> coercer = ParquetTypeTranslator.createCoercer(INT96, null, TIMESTAMP_NANOS, new ParquetTypeTranslator.CoercionContext(false, false, convertTimestampToProleptic, UTC_TZ));
         Block readBlock = coercer.isPresent() ? coercer.orElseThrow().apply(writtenBlock) : writtenBlock;
         LongTimestamp actualLongTimestamp = (LongTimestamp) blockToNativeValue(TIMESTAMP_NANOS, readBlock);
 
@@ -585,32 +715,38 @@ public class TestTimestampCoercer
         assertThat(actualLongTimestamp).isEqualTo(expectedLongTimestamp);
     }
 
-    private void assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone(String writtenTimestamp, String actualReadDate)
-            throws ParseException
+    private void assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone(String writtenTimestamp, ZoneId zoneId)
     {
-        assertReadingHybridToProlepticLegacyLongTimestampWithTimeZone(true, writtenTimestamp, actualReadDate);
+        assertReadingHybridToProlepticLegacyLongTimestampWithTimeZone(true, writtenTimestamp, writtenTimestamp, zoneId);
     }
 
-    private void assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone(String writtenTimestamp, String actualReadDate)
-            throws ParseException
+    private void assertReadingWithoutCoercionHybridToProlepticLegacyLongTimestampWithTimeZone(String writtenTimestamp, String actualReadDate, ZoneId zoneId)
     {
-        assertReadingHybridToProlepticLegacyLongTimestampWithTimeZone(false, writtenTimestamp, actualReadDate);
+        assertReadingHybridToProlepticLegacyLongTimestampWithTimeZone(false, writtenTimestamp, actualReadDate, zoneId);
     }
 
-    private void assertReadingHybridToProlepticLegacyLongTimestampWithTimeZone(boolean convertTimestampToProleptic, String writtenTimestamp, String actualReadTimestamp)
-            throws ParseException
+    private void assertReadingHybridToProlepticLegacyLongTimestampWithTimeZone(boolean convertTimestampToProleptic, String writtenTimestamp, String actualReadTimestamp, ZoneId zoneId)
     {
-        TimeZoneKey givenTimeZoneKey = TimeZoneKey.getTimeZoneKey(ZoneId.systemDefault().toString());
+        TimeZone timeZone = TimeZone.getTimeZone(zoneId);
+        TimeZoneKey givenTimeZoneKey = TimeZoneKey.getTimeZoneKey(zoneId.toString());
+
         LongTimestampWithTimeZone givenTimestamp = fromHybridTimestamp(writtenTimestamp, givenTimeZoneKey);
         Block writtenBlock = nativeValueToBlock(TIMESTAMP_TZ_NANOS, givenTimestamp);
 
-        Optional<TypeCoercer<? extends Type, ? extends Type>> coercer = ParquetTypeTranslator.createCoercer(INT96, null, TIMESTAMP_TZ_NANOS, new ParquetTypeTranslator.CoercionContext(false, false, convertTimestampToProleptic));
+        Optional<TypeCoercer<? extends Type, ? extends Type>> coercer =
+                ParquetTypeTranslator.createCoercer(
+                        INT96,
+                        null,
+                        TIMESTAMP_TZ_NANOS,
+                        new ParquetTypeTranslator.CoercionContext(false, false, convertTimestampToProleptic, timeZone));
         Block readBlock = coercer.isPresent() ? coercer.orElseThrow().apply(writtenBlock) : writtenBlock;
         LongTimestampWithTimeZone actualLongTimestamp = (LongTimestampWithTimeZone) blockToNativeValue(TIMESTAMP_TZ_NANOS, readBlock);
 
-        LongTimestampWithTimeZone expectedLongTimestamp = fromProlepticGregorianTimestamp(actualReadTimestamp, givenTimeZoneKey);
+        LongTimestampWithTimeZone expectedLongTimestamp = fromProlepticGregorianTimestamp(actualReadTimestamp, givenTimeZoneKey, givenTimeZoneKey.getZoneId());
 
-        assertThat(actualLongTimestamp).isEqualTo(expectedLongTimestamp);
+        assertThat(actualLongTimestamp)
+                .withFailMessage(() -> "Expected timestamp to be %s, but was %s".formatted(expectedLongTimestamp, actualLongTimestamp))
+                .isEqualTo(expectedLongTimestamp);
     }
 
     private static LongTimestamp fromProlepticGregorianTimestamp(String actualReadTimestamp)
@@ -621,40 +757,53 @@ public class TestTimestampCoercer
         return new LongTimestamp(epochMicros, picosOfMicros);
     }
 
-    private static LongTimestampWithTimeZone fromProlepticGregorianTimestamp(String actualReadTimestamp, TimeZoneKey timeZoneKey)
+    private static LongTimestampWithTimeZone fromProlepticGregorianTimestamp(String actualReadTimestamp, TimeZoneKey timeZoneKey, ZoneId zoneId)
     {
-        LocalDateTime localDateTime = LocalDateTime.parse(actualReadTimestamp);
-        Instant instant = localDateTime.toInstant(UTC);
+        LocalDateTime localDateTime = LocalDateTime.parse(actualReadTimestamp, LONG_DATE_TIME_FORMATTER);
+        Instant instant = localDateTime.atZone(zoneId).toInstant();
         return fromEpochSecondsAndFraction(instant.getEpochSecond(), (long) instant.getNano() * PICOSECONDS_PER_NANOSECOND, timeZoneKey);
     }
 
     private static LongTimestamp fromHybridTimestamp(String writtenTimestamp)
-            throws ParseException
     {
-        // in order to create julian timestamp with nanos precision we need to parse with LocaDateTime, then print it just up to millis, and then reparse with SimpleDateFormat and finally add the previously stripped nanos part
-        LocalDateTime localDateTime = LocalDateTime.parse(writtenTimestamp, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS"));
-        int nanosOfMilli = floorMod(localDateTime.getNano(), NANOSECONDS_PER_MILLISECOND);
-        long julianMillis = toHybridMillis(localDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")));
+        ZonedDateTime zonedDateTime = fromLongDateTimeString(writtenTimestamp, UTC);
+        int nanosOfMilli = floorMod(zonedDateTime.getNano(), NANOSECONDS_PER_MILLISECOND);
+        long julianMillis = toHybridMillis(zonedDateTime);
         long epochMicros = multiplyExact(julianMillis, MICROSECONDS_PER_MILLISECOND) + floorDiv(nanosOfMilli, NANOSECONDS_PER_MICROSECOND);
         int picosOfMicro = multiplyExact(floorMod(nanosOfMilli, NANOSECONDS_PER_MICROSECOND), PICOSECONDS_PER_NANOSECOND);
         return new LongTimestamp(epochMicros, picosOfMicro);
     }
 
     private static LongTimestampWithTimeZone fromHybridTimestamp(String writtenTimestamp, TimeZoneKey timeZoneKey)
-            throws ParseException
     {
-        LocalDateTime localDateTime = LocalDateTime.parse(writtenTimestamp, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS"));
-        ZonedDateTime zonedDateTime = localDateTime.atZone(timeZoneKey.getZoneId());
-        long julianMillis = toHybridMillis(zonedDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")));
+        ZonedDateTime zonedDateTime = fromLongDateTimeString(writtenTimestamp, timeZoneKey.getZoneId());
+        long julianMillis = toHybridMillis(zonedDateTime);
+
         int picosOfMilli = (zonedDateTime.getNano() % NANOSECONDS_PER_MILLISECOND) * PICOSECONDS_PER_NANOSECOND;
         return fromEpochMillisAndFraction(julianMillis, picosOfMilli, timeZoneKey);
     }
 
-    private static Instant toInstantInProlepticGregorian(String actualReadTimestamp)
+    private static ZonedDateTime fromDateTimeString(String timestamp, ZoneId zoneId)
     {
-        LocalDateTime localDateTime = LocalDateTime.parse(actualReadTimestamp);
+        return LocalDateTime.parse(timestamp, DATE_TIME_FORMATTER).atZone(zoneId);
+    }
+
+    private static ZonedDateTime fromLongDateTimeString(String timestamp, ZoneId zoneId)
+    {
+        return LocalDateTime.parse(timestamp, LONG_DATE_TIME_FORMATTER).atZone(zoneId);
+    }
+
+    private static Instant toInstantInProlepticGregorian(String timestamp)
+    {
+        LocalDateTime localDateTime = LocalDateTime.parse(timestamp);
         ZonedDateTime zoned = localDateTime.atZone(UTC);
         return zoned.toInstant();
+    }
+
+    private static ZonedDateTime fromProlepticMillis(long millis, ZoneId zoneId)
+    {
+        Instant instant = Instant.ofEpochMilli(millis);
+        return instant.atZone(zoneId);
     }
 
     public static void assertLongTimestampToVarcharCoercions(TimestampType fromType, LongTimestamp valueToBeCoerced, VarcharType toType, String expectedValue)
@@ -685,5 +834,40 @@ public class TestTimestampCoercer
         LocalDateTime localDateTime = LocalDateTime.parse(timestampAsString);
         SqlTimestamp timestamp = SqlTimestamp.fromSeconds(TIMESTAMP_PICOS.getPrecision(), localDateTime.toEpochSecond(UTC), localDateTime.get(NANO_OF_SECOND));
         assertCoercions(TIMESTAMP_PICOS, new LongTimestamp(timestamp.getEpochMicros(), timestamp.getPicosOfMicros()), DATE, LocalDate.parse(expectedDate).toEpochDay(), NANOSECONDS);
+    }
+
+    private static long toHybridMillis(ZonedDateTime zonedDateTime)
+    {
+        LocalDateTime ldt = zonedDateTime.toLocalDateTime();
+        ZoneId zoneId = zonedDateTime.getZone();
+        TimeZone tz = TimeZone.getTimeZone(zoneId);
+
+        if (ldt.isAfter(GREGORIAN_START_DATETIME)) {
+            return zonedDateTime.toInstant().toEpochMilli();
+        }
+
+        if (ldt.isAfter(JULIAN_END_DATETIME) && ldt.isBefore(GREGORIAN_START_DATETIME)) {
+            ldt = LocalDateTime.of(GREGORIAN_START_DATE, ldt.toLocalTime());
+        }
+
+        Calendar cal = new Calendar.Builder()
+                .setCalendarType("gregory")
+                .setDate(ldt.getYear(), ldt.getMonthValue() - 1, ldt.getDayOfMonth())
+                .setTimeOfDay(ldt.getHour(), ldt.getMinute(), ldt.getSecond())
+                .setTimeZone(tz)
+                .build();
+
+        // Handle DST overlap transitions
+        ZoneRules rules = zoneId.getRules();
+        ZoneOffsetTransition trans = rules.getTransition(ldt);
+        if (trans != null && trans.isOverlap()) {
+            Calendar cloned = (Calendar) cal.clone();
+            int shift = trans.getOffsetBefore().equals(zonedDateTime.getOffset()) ? -1 : 1;
+            cloned.add(Calendar.DAY_OF_MONTH, shift);
+            cal.set(Calendar.ZONE_OFFSET, cloned.get(Calendar.ZONE_OFFSET));
+            cal.set(Calendar.DST_OFFSET, cloned.get(Calendar.DST_OFFSET));
+        }
+
+        return cal.getTimeInMillis() + ldt.get(ChronoField.MILLI_OF_SECOND);
     }
 }

@@ -33,7 +33,9 @@ import org.apache.parquet.schema.LogicalTypeAnnotation.DateLogicalTypeAnnotation
 import org.apache.parquet.schema.LogicalTypeAnnotation.DecimalLogicalTypeAnnotation;
 import org.apache.parquet.schema.LogicalTypeAnnotation.TimestampLogicalTypeAnnotation;
 
+import java.time.ZoneId;
 import java.util.Optional;
+import java.util.TimeZone;
 
 import static io.trino.parquet.reader.ColumnReaderFactory.isIntegerAnnotationAndPrimitive;
 import static io.trino.plugin.hive.coercions.DecimalCoercers.createDecimalToVarcharCoercer;
@@ -117,14 +119,14 @@ public final class ParquetTypeTranslator
         if (toTrinoType instanceof TimestampWithTimeZoneType timestampType) {
             if (fromParquetType == INT96 && coercionContext.convertInt96TimestampToProleptic()) {
                 return Optional.of(timestampType.isShort()
-                        ? new ShortTimestampWithTimeZoneHybridToProlepticGregorianCoercer(timestampType)
-                        : new LongTimestampWithTimeZoneHybridToProlepticGregorianCoercer(timestampType));
+                        ? new ShortTimestampWithTimeZoneHybridToProlepticGregorianCoercer(timestampType, coercionContext.timeZoneForInt96TimestampWithTimezone())
+                        : new LongTimestampWithTimeZoneHybridToProlepticGregorianCoercer(timestampType, coercionContext.timeZoneForInt96TimestampWithTimezone()));
             }
 
             if (fromParquetType == INT64 && coercionContext.convertInt64TimestampProleptic()) {
                 return Optional.of(timestampType.isShort()
-                        ? new ShortTimestampWithTimeZoneHybridToProlepticGregorianCoercer(timestampType)
-                        : new LongTimestampWithTimeZoneHybridToProlepticGregorianCoercer(timestampType));
+                        ? new ShortTimestampWithTimeZoneHybridToProlepticGregorianCoercer(timestampType, coercionContext.timeZoneForInt96TimestampWithTimezone())
+                        : new LongTimestampWithTimeZoneHybridToProlepticGregorianCoercer(timestampType, coercionContext.timeZoneForInt96TimestampWithTimezone()));
             }
         }
         return Optional.empty();
@@ -133,8 +135,9 @@ public final class ParquetTypeTranslator
     public record CoercionContext(
             boolean convertDateToProleptic,
             boolean convertInt64TimestampProleptic,
-            boolean convertInt96TimestampToProleptic)
+            boolean convertInt96TimestampToProleptic,
+            TimeZone timeZoneForInt96TimestampWithTimezone)
     {
-        public static final CoercionContext DEFAULT = new CoercionContext(false, false, false);
+        public static final CoercionContext DEFAULT = new CoercionContext(false, false, false, TimeZone.getTimeZone(ZoneId.of("UTC")));
     }
 }

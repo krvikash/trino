@@ -499,8 +499,8 @@ public class TestTupleDomainParquetPredicate
         assertThat(getDomain(columnDescriptor, DATE, 10, intColumnStats(0, 100), ID, UTC)).isEqualTo(create(ValueSet.ofRanges(range(DATE, 0L, true, 100L, true)), false));
 
         // legacy dates in Julian calendar
-        // 0001-01-01 -> Julian day: -719165 , Proleptic Gregorian: -718798
-        assertThat(getDomain(columnDescriptor, DATE, 10, intColumnStats(-719165, -719165), ID, UTC, true, false, false)).isEqualTo(singleValue(DATE, -718798L));
+        // 0001-01-01 -> Julian day: -719164 , Proleptic Gregorian: -719162
+        assertThat(getDomain(columnDescriptor, DATE, 10, intColumnStats(-719164, -719164), ID, UTC, true, false, false)).isEqualTo(singleValue(DATE, -719162L));
         // 1001-01-01 -> Julian day: -354281 , Proleptic Gregorian: -354286
         assertThat(getDomain(columnDescriptor, DATE, 10, intColumnStats(-354281, -354281), ID, UTC, true, false, false)).isEqualTo(singleValue(DATE, -354286L));
 

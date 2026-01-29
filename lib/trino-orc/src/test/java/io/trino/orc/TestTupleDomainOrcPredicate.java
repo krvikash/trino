@@ -275,8 +275,8 @@ public class TestTupleDomainOrcPredicate
         assertThat(getDomain(DATE, 10, dateColumnStats(5L, 0, null))).isEqualTo(create(ValueSet.ofRanges(greaterThanOrEqual(DATE, 0L)), true));
 
         // legacy dates in Julian calendar
-        // 0001-01-01 -> Julian day: -719165 , Proleptic Gregorian: -718798
-        assertThat(getDomain(DATE, 10, dateColumnStats(10L, -719165, -719165), true)).isEqualTo(singleValue(DATE, -718798L));
+        // 0001-01-01 -> Julian day: -719164 , Proleptic Gregorian: -719162
+        assertThat(getDomain(DATE, 10, dateColumnStats(10L, -719164, -719164), true)).isEqualTo(singleValue(DATE, -719162L));
         // 1001-01-01 -> Julian day: -354281 , Proleptic Gregorian: -354286
         assertThat(getDomain(DATE, 10, dateColumnStats(10L, -354281, -354281), true)).isEqualTo(singleValue(DATE, -354286L));
     }
