@@ -19,7 +19,12 @@ import io.trino.plugin.hive.functions.Unload.UnloadFunctionHandle;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
+import io.trino.spi.function.BoundSignature;
+import io.trino.spi.function.FunctionDependencies;
+import io.trino.spi.function.FunctionId;
 import io.trino.spi.function.FunctionProvider;
+import io.trino.spi.function.InvocationConvention;
+import io.trino.spi.function.ScalarFunctionImplementation;
 import io.trino.spi.function.table.ConnectorTableFunctionHandle;
 import io.trino.spi.function.table.TableFunctionDataProcessor;
 import io.trino.spi.function.table.TableFunctionProcessorProvider;
@@ -45,6 +50,30 @@ public class ObjectStoreFunctionProvider
         this.icebergConnector = requireNonNull(icebergConnector, "icebergConnector is null");
         this.deltaConnector = requireNonNull(deltaConnector, "deltaConnector is null");
         this.objectStoreSessionProperties = requireNonNull(objectStoreSessionProperties, "objectStoreSessionProperties is null");
+
+        // Update getScalarFunctionImplementation below if this behavior changes
+        verifyNoScalarFunctionImplementation(hiveConnector);
+        verifyNoScalarFunctionImplementation(deltaConnector);
+    }
+
+    private static void verifyNoScalarFunctionImplementation(Connector connector)
+    {
+        try {
+            connector.getFunctionProvider().orElseThrow().getScalarFunctionImplementation(null, null, null, null);
+        }
+        catch (UnsupportedOperationException e) {
+            // expected
+        }
+    }
+
+    @Override
+    public ScalarFunctionImplementation getScalarFunctionImplementation(
+            FunctionId functionId,
+            BoundSignature boundSignature,
+            FunctionDependencies functionDependencies,
+            InvocationConvention invocationConvention)
+    {
+        return icebergConnector.getFunctionProvider().orElseThrow().getScalarFunctionImplementation(functionId, boundSignature, functionDependencies, invocationConvention);
     }
 
     @Override
