@@ -36,7 +36,6 @@ import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
-import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.util.Objects.requireNonNull;
@@ -1174,67 +1173,67 @@ final class TestOpenApiSpec
                 .toList();
         RowType dailyType = RowType.from(List.of(
                 RowType.field("time", new ArrayType(VARCHAR)),
-                RowType.field("temperature_2m_max", new ArrayType(REAL)),
-                RowType.field("temperature_2m_min", new ArrayType(REAL)),
-                RowType.field("apparent_temperature_max", new ArrayType(REAL)),
-                RowType.field("apparent_temperature_min", new ArrayType(REAL)),
-                RowType.field("precipitation_sum", new ArrayType(REAL)),
-                RowType.field("precipitation_hours", new ArrayType(REAL)),
-                RowType.field("weather_code", new ArrayType(REAL)),
-                RowType.field("sunrise", new ArrayType(REAL)),
-                RowType.field("sunset", new ArrayType(REAL)),
-                RowType.field("wind_speed_10m_max", new ArrayType(REAL)),
-                RowType.field("wind_gusts_10m_max", new ArrayType(REAL)),
-                RowType.field("wind_direction_10m_dominant", new ArrayType(REAL)),
-                RowType.field("shortwave_radiation_sum", new ArrayType(REAL)),
-                RowType.field("uv_index_max", new ArrayType(REAL)),
-                RowType.field("uv_index_clear_sky_max", new ArrayType(REAL)),
-                RowType.field("et0_fao_evapotranspiration", new ArrayType(REAL))));
+                RowType.field("temperature_2m_max", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("temperature_2m_min", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("apparent_temperature_max", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("apparent_temperature_min", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("precipitation_sum", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("precipitation_hours", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("weather_code", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("sunrise", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("sunset", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("wind_speed_10m_max", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("wind_gusts_10m_max", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("wind_direction_10m_dominant", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("shortwave_radiation_sum", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("uv_index_max", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("uv_index_clear_sky_max", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("et0_fao_evapotranspiration", new ArrayType(createDecimalType(18, 8)))));
         RowType hourlyType = RowType.from(List.of(
                 RowType.field("time", new ArrayType(VARCHAR)),
-                RowType.field("temperature_2m", new ArrayType(REAL)),
-                RowType.field("relative_humidity_2m", new ArrayType(REAL)),
-                RowType.field("dew_point_2m", new ArrayType(REAL)),
-                RowType.field("apparent_temperature", new ArrayType(REAL)),
-                RowType.field("pressure_msl", new ArrayType(REAL)),
-                RowType.field("cloud_cover", new ArrayType(REAL)),
-                RowType.field("cloud_cover_low", new ArrayType(REAL)),
-                RowType.field("cloud_cover_mid", new ArrayType(REAL)),
-                RowType.field("cloud_cover_high", new ArrayType(REAL)),
-                RowType.field("wind_speed_10m", new ArrayType(REAL)),
-                RowType.field("wind_speed_80m", new ArrayType(REAL)),
-                RowType.field("wind_speed_120m", new ArrayType(REAL)),
-                RowType.field("wind_speed_180m", new ArrayType(REAL)),
-                RowType.field("wind_direction_10m", new ArrayType(REAL)),
-                RowType.field("wind_direction_80m", new ArrayType(REAL)),
-                RowType.field("wind_direction_120m", new ArrayType(REAL)),
-                RowType.field("wind_direction_180m", new ArrayType(REAL)),
-                RowType.field("wind_gusts_10m", new ArrayType(REAL)),
-                RowType.field("shortwave_radiation", new ArrayType(REAL)),
-                RowType.field("direct_radiation", new ArrayType(REAL)),
-                RowType.field("direct_normal_irradiance", new ArrayType(REAL)),
-                RowType.field("diffuse_radiation", new ArrayType(REAL)),
-                RowType.field("vapour_pressure_deficit", new ArrayType(REAL)),
-                RowType.field("evapotranspiration", new ArrayType(REAL)),
-                RowType.field("precipitation", new ArrayType(REAL)),
-                RowType.field("weather_code", new ArrayType(REAL)),
-                RowType.field("snow_height", new ArrayType(REAL)),
-                RowType.field("freezing_level_height", new ArrayType(REAL)),
-                RowType.field("soil_temperature_0cm", new ArrayType(REAL)),
-                RowType.field("soil_temperature_6cm", new ArrayType(REAL)),
-                RowType.field("soil_temperature_18cm", new ArrayType(REAL)),
-                RowType.field("soil_temperature_54cm", new ArrayType(REAL)),
-                RowType.field("soil_moisture_0_1cm", new ArrayType(REAL)),
-                RowType.field("soil_moisture_1_3cm", new ArrayType(REAL)),
-                RowType.field("soil_moisture_3_9cm", new ArrayType(REAL)),
-                RowType.field("soil_moisture_9_27cm", new ArrayType(REAL)),
-                RowType.field("soil_moisture_27_81cm", new ArrayType(REAL))));
+                RowType.field("temperature_2m", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("relative_humidity_2m", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("dew_point_2m", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("apparent_temperature", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("pressure_msl", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("cloud_cover", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("cloud_cover_low", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("cloud_cover_mid", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("cloud_cover_high", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("wind_speed_10m", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("wind_speed_80m", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("wind_speed_120m", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("wind_speed_180m", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("wind_direction_10m", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("wind_direction_80m", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("wind_direction_120m", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("wind_direction_180m", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("wind_gusts_10m", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("shortwave_radiation", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("direct_radiation", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("direct_normal_irradiance", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("diffuse_radiation", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("vapour_pressure_deficit", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("evapotranspiration", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("precipitation", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("weather_code", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("snow_height", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("freezing_level_height", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("soil_temperature_0cm", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("soil_temperature_6cm", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("soil_temperature_18cm", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("soil_temperature_54cm", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("soil_moisture_0_1cm", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("soil_moisture_1_3cm", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("soil_moisture_3_9cm", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("soil_moisture_9_27cm", new ArrayType(createDecimalType(18, 8))),
+                RowType.field("soil_moisture_27_81cm", new ArrayType(createDecimalType(18, 8)))));
         RowType currentWeatherType = RowType.from(List.of(
                 RowType.field("time", VARCHAR),
-                RowType.field("temperature", REAL),
-                RowType.field("wind_speed", REAL),
-                RowType.field("wind_direction", REAL),
-                RowType.field("weather_code", INTEGER)));
+                RowType.field("temperature", createDecimalType(18, 8)),
+                RowType.field("windspeed", createDecimalType(18, 8)),
+                RowType.field("winddirection", createDecimalType(18, 8)),
+                RowType.field("weather_code", BIGINT)));
         assertThat(columns)
                 .containsExactly(
                         OpenApiColumn.builder()
@@ -1259,7 +1258,7 @@ final class TestOpenApiSpec
                                 .setName("generationtime_ms").setSourceName("generationtime_ms")
                                 .setType(createDecimalType(18, 8)).setSourceType(numberSchema)
                                 .setIsNullable(true)
-                                .setComment("Generation time of the weather forecast in milli seconds. This is mainly used for performance monitoring and improvements.")
+                                .setComment("Generation time of the weather forecast in milliseconds. This is mainly used for performance monitoring and improvements.")
                                 .build(),
                         OpenApiColumn.builder()
                                 .setName("utc_offset_seconds").setSourceName("utc_offset_seconds")
@@ -1311,13 +1310,13 @@ final class TestOpenApiSpec
                                 .build(),
                         OpenApiColumn.builder()
                                 .setName("latitude_req").setSourceName("latitude")
-                                .setType(REAL).setSourceType(numberSchema)
+                                .setType(DOUBLE).setSourceType(numberSchema)
                                 .setRequiresPredicate(Map.of(new HttpPath(PathItem.HttpMethod.GET, path), ParameterLocation.QUERY))
                                 .setIsNullable(true)
                                 .build(),
                         OpenApiColumn.builder()
                                 .setName("longitude_req").setSourceName("longitude")
-                                .setType(REAL).setSourceType(numberSchema)
+                                .setType(DOUBLE).setSourceType(numberSchema)
                                 .setRequiresPredicate(Map.of(new HttpPath(PathItem.HttpMethod.GET, path), ParameterLocation.QUERY))
                                 .setIsNullable(true)
                                 .build(),
