@@ -74,7 +74,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Optional;
 import java.util.OptionalInt;
 
-import static io.trino.metadata.TestMetadataManager.createTestMetadataManager;
+import static io.trino.metadata.TestingMetadataManager.createTestingMetadataManager;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_FIRST;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
 import static io.trino.spi.connector.SortOrder.DESC_NULLS_FIRST;
@@ -642,7 +642,7 @@ class TestToOldIrRelationalRewriter
         SymbolAllocator symbolAllocator = new SymbolAllocator();
         // rewrite of TableScan involves a metadata call to resolve column names. This test uses the test metadata manager, which does not support it, so we don't test TableScan rewrite.
         // TODO test TableScan rewrite
-        ToOldIrRelationalRewriter rewriter = new ToOldIrRelationalRewriter(new PlanNodeIdAllocator(), symbolAllocator, new ToOldIrScalarRewriter(symbolAllocator), testSession(), createTestMetadataManager());
+        ToOldIrRelationalRewriter rewriter = new ToOldIrRelationalRewriter(new PlanNodeIdAllocator(), symbolAllocator, new ToOldIrScalarRewriter(symbolAllocator), testSession(), createTestingMetadataManager());
         return ((TrinoOperation) rewrittenOperation).accept(rewriter, planNode.getSources());
     }
 }

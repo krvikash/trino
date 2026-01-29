@@ -18,7 +18,7 @@ import io.trino.client.NodeVersion;
 import io.trino.exchange.ExchangeMetricsCollector;
 import io.trino.execution.warnings.WarningCollector;
 import io.trino.metadata.Metadata;
-import io.trino.metadata.TestMetadataManager;
+import io.trino.metadata.TestingMetadataManager;
 import io.trino.security.AccessControl;
 import io.trino.security.AllowAllAccessControl;
 import io.trino.spi.TrinoException;
@@ -64,7 +64,7 @@ public class TestSetSessionAuthorizationTask
     {
         transactionManager = createTestTransactionManager();
         accessControl = new AllowAllAccessControl();
-        metadata = TestMetadataManager.builder()
+        metadata = TestingMetadataManager.builder()
                 .withTransactionManager(transactionManager)
                 .build();
         parser = new SqlParser();

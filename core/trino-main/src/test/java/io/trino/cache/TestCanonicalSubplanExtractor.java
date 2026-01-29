@@ -83,7 +83,7 @@ import static io.trino.cache.CanonicalSubplanExtractor.canonicalAggregationToCol
 import static io.trino.cache.CanonicalSubplanExtractor.canonicalExpressionToColumnId;
 import static io.trino.cache.CanonicalSubplanExtractor.columnIdToSymbol;
 import static io.trino.cache.CanonicalSubplanExtractor.extractCanonicalSubplans;
-import static io.trino.metadata.TestMetadataManager.createTestMetadataManager;
+import static io.trino.metadata.TestingMetadataManager.createTestingMetadataManager;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.VarcharType.createVarcharType;
@@ -907,7 +907,7 @@ public class TestCanonicalSubplanExtractor
 
     private FilterNode createFilterNode()
     {
-        MetadataManager metadataManager = createTestMetadataManager();
+        MetadataManager metadataManager = createTestingMetadataManager();
         return new FilterNode(
                 new PlanNodeId("filter_node"),
                 createTableScan(),
