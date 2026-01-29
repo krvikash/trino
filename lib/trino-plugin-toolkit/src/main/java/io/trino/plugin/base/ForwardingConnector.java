@@ -166,6 +166,12 @@ public abstract class ForwardingConnector
     }
 
     @Override
+    public List<PropertyMetadata<?>> getBranchProperties()
+    {
+        return delegate().getBranchProperties();
+    }
+
+    @Override
     public List<PropertyMetadata<?>> getTableProperties()
     {
         return delegate().getTableProperties();
