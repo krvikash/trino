@@ -20,6 +20,7 @@ import io.trino.client.NodeVersion;
 import io.trino.connector.CatalogServiceProvider;
 import io.trino.connector.MockConnectorFactory;
 import io.trino.connector.MockConnectorPlugin;
+import io.trino.exchange.ExchangeMetricsCollector;
 import io.trino.execution.warnings.WarningCollector;
 import io.trino.metadata.CatalogProcedures;
 import io.trino.metadata.Metadata;
@@ -49,6 +50,7 @@ import org.junit.jupiter.api.parallel.Execution;
 
 import java.lang.invoke.MethodHandle;
 import java.net.URI;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 
@@ -171,6 +173,7 @@ public class TestCallTask
                 metadata,
                 WarningCollector.NOOP,
                 createPlanOptimizersStatsCollector(),
+                new ExchangeMetricsCollector(ImmutableList::of, Duration.ofMillis(1)),
                 Optional.empty(),
                 true,
                 Optional.empty(),

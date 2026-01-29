@@ -30,6 +30,7 @@ import io.trino.cost.CachingTableStatsProvider;
 import io.trino.cost.CostCalculator;
 import io.trino.cost.StatsCalculator;
 import io.trino.exchange.ExchangeManagerRegistry;
+import io.trino.exchange.ExchangeMetricsCollector;
 import io.trino.execution.QueryPreparer.PreparedQuery;
 import io.trino.execution.StateMachine.StateChangeListener;
 import io.trino.execution.querystats.PlanOptimizersStatsCollector;
@@ -153,6 +154,7 @@ public class SqlQueryExecution
     private final TableExecuteContextManager tableExecuteContextManager;
     private final SqlTaskManager coordinatorTaskManager;
     private final ExchangeManagerRegistry exchangeManagerRegistry;
+    private final ExchangeMetricsCollector exchangeMetricsCollector;
     private final EventDrivenTaskSourceFactory eventDrivenTaskSourceFactory;
     private final TaskDescriptorStorage taskDescriptorStorage;
     private final PlanOptimizersStatsCollector planOptimizersStatsCollector;
@@ -193,6 +195,7 @@ public class SqlQueryExecution
             TableExecuteContextManager tableExecuteContextManager,
             SqlTaskManager coordinatorTaskManager,
             ExchangeManagerRegistry exchangeManagerRegistry,
+            ExchangeMetricsCollector exchangeMetricsCollector,
             EventDrivenTaskSourceFactory eventDrivenTaskSourceFactory,
             TaskDescriptorStorage taskDescriptorStorage,
             FormatOptions formatOptions)
@@ -247,6 +250,7 @@ public class SqlQueryExecution
             this.remoteTaskFactory = new MemoryTrackingRemoteTaskFactory(requireNonNull(remoteTaskFactory, "remoteTaskFactory is null"), stateMachine);
             this.coordinatorTaskManager = requireNonNull(coordinatorTaskManager, "coordinatorTaskManager is null");
             this.exchangeManagerRegistry = requireNonNull(exchangeManagerRegistry, "exchangeManagerRegistry is null");
+            this.exchangeMetricsCollector = requireNonNull(exchangeMetricsCollector, "exchangeMetricsCollector is null");
             this.eventDrivenTaskSourceFactory = requireNonNull(eventDrivenTaskSourceFactory, "taskSourceFactory is null");
             this.taskDescriptorStorage = requireNonNull(taskDescriptorStorage, "taskDescriptorStorage is null");
             this.planOptimizersStatsCollector = requireNonNull(planOptimizersStatsCollector, "planOptimizersStatsCollector is null");
@@ -589,6 +593,7 @@ public class SqlQueryExecution
                     plannerContext.getMetadata(),
                     splitSourceFactory,
                     exchangeManagerRegistry,
+                    exchangeMetricsCollector,
                     coordinatorTaskManager);
             case TASK -> new EventDrivenFaultTolerantQueryScheduler(
                     stateMachine,
@@ -606,6 +611,7 @@ public class SqlQueryExecution
                     outputStatsEstimatorFactory,
                     nodePartitioningManager,
                     exchangeManagerRegistry.getExchangeManager(),
+                    exchangeMetricsCollector,
                     nodeAllocatorService,
                     nodeManager,
                     dynamicFilterService,
@@ -842,6 +848,7 @@ public class SqlQueryExecution
         private final TableExecuteContextManager tableExecuteContextManager;
         private final SqlTaskManager coordinatorTaskManager;
         private final ExchangeManagerRegistry exchangeManagerRegistry;
+        private final ExchangeMetricsCollector exchangeMetricsCollector;
         private final EventDrivenTaskSourceFactory eventDrivenTaskSourceFactory;
         private final TaskDescriptorStorage taskDescriptorStorage;
         private final FormatOptions formatOptions;
@@ -876,6 +883,7 @@ public class SqlQueryExecution
                 TableExecuteContextManager tableExecuteContextManager,
                 SqlTaskManager coordinatorTaskManager,
                 ExchangeManagerRegistry exchangeManagerRegistry,
+                ExchangeMetricsCollector exchangeMetricsCollector,
                 EventDrivenTaskSourceFactory eventDrivenTaskSourceFactory,
                 TaskDescriptorStorage taskDescriptorStorage,
                 FormatOptions formatOptions)
@@ -910,6 +918,7 @@ public class SqlQueryExecution
             this.tableExecuteContextManager = requireNonNull(tableExecuteContextManager, "tableExecuteContextManager is null");
             this.coordinatorTaskManager = requireNonNull(coordinatorTaskManager, "coordinatorTaskManager is null");
             this.exchangeManagerRegistry = requireNonNull(exchangeManagerRegistry, "exchangeManagerRegistry is null");
+            this.exchangeMetricsCollector = requireNonNull(exchangeMetricsCollector, "exchangeMetricsCollector is null");
             this.eventDrivenTaskSourceFactory = requireNonNull(eventDrivenTaskSourceFactory, "eventDrivenTaskSourceFactory is null");
             this.taskDescriptorStorage = requireNonNull(taskDescriptorStorage, "taskDescriptorStorage is null");
             this.formatOptions = requireNonNull(formatOptions, "formatOptions is null");
@@ -962,6 +971,7 @@ public class SqlQueryExecution
                     tableExecuteContextManager,
                     coordinatorTaskManager,
                     exchangeManagerRegistry,
+                    exchangeMetricsCollector,
                     eventDrivenTaskSourceFactory,
                     taskDescriptorStorage,
                     formatOptions);

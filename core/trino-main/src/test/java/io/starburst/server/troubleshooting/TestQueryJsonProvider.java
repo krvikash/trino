@@ -154,6 +154,7 @@ public class TestQueryJsonProvider
                         107)),
                 DynamicFilterService.DynamicFiltersStats.EMPTY,
                 ImmutableMap.of(),
+                ImmutableMap.of(),
                 ImmutableList.of(),
                 ImmutableList.of());
 

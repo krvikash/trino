@@ -36,6 +36,7 @@ import io.trino.FeaturesConfig.DataIntegrityVerification;
 import io.trino.block.BlockAssertions;
 import io.trino.exchange.ExchangeManagerConfig;
 import io.trino.exchange.ExchangeManagerRegistry;
+import io.trino.exchange.ExchangeMetricsCollector;
 import io.trino.execution.StageId;
 import io.trino.execution.TaskId;
 import io.trino.execution.buffer.PageDeserializer;
@@ -495,6 +496,7 @@ public class TestDirectExchangeClient
                 DataSize.of(1, Unit.MEGABYTE),
                 RetryPolicy.QUERY,
                 Optional.of(new ExchangeManagerRegistry(OpenTelemetry.noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of()), new ExchangeManagerConfig())),
+                Optional.of(new ExchangeMetricsCollector(ImmutableList::of, java.time.Duration.ofMillis(1))),
                 new QueryId("query"),
                 Span.getInvalid(),
                 createRandomExchangeId());
@@ -556,6 +558,7 @@ public class TestDirectExchangeClient
                         DataSize.of(1, Unit.KILOBYTE),
                         RetryPolicy.QUERY,
                         Optional.of(new ExchangeManagerRegistry(OpenTelemetry.noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), Tracing.noopTracer(), new SecretsResolver(ImmutableMap.of()), new ExchangeManagerConfig())),
+                        Optional.of(new ExchangeMetricsCollector(ImmutableList::of, java.time.Duration.ofMillis(1))),
                         new QueryId("query"),
                         Span.getInvalid(),
                         createRandomExchangeId()),

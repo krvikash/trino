@@ -24,6 +24,7 @@ import io.opentelemetry.api.trace.Span;
 import io.trino.FeaturesConfig;
 import io.trino.FeaturesConfig.DataIntegrityVerification;
 import io.trino.exchange.ExchangeManagerRegistry;
+import io.trino.exchange.ExchangeMetricsCollector;
 import io.trino.execution.QueryManagerConfig;
 import io.trino.execution.TaskFailureListener;
 import io.trino.memory.context.LocalMemoryContext;
@@ -60,6 +61,7 @@ public class DirectExchangeClientFactory
     private final boolean useOfExchangeForQueryRetryPolicyAllowed;
     private final ExecutorService pageBufferClientCallbackExecutor;
     private final ExchangeManagerRegistry exchangeManagerRegistry;
+    private final Optional<ExchangeMetricsCollector> exchangeMetricsCollector;
 
     @Inject
     public DirectExchangeClientFactory(
@@ -70,7 +72,8 @@ public class DirectExchangeClientFactory
             @ForExchange HttpClient httpClient,
             @ForExchange HttpClientConfig httpClientConfig,
             @ForExchange ScheduledExecutorService scheduler,
-            ExchangeManagerRegistry exchangeManagerRegistry)
+            ExchangeManagerRegistry exchangeManagerRegistry,
+            Optional<ExchangeMetricsCollector> exchangeMetricsCollector)
     {
         this(
                 nodeInfo,
@@ -86,7 +89,8 @@ public class DirectExchangeClientFactory
                 queryManagerConfig.isAllowExchangeInQueryRetries(),
                 httpClient,
                 scheduler,
-                exchangeManagerRegistry);
+                exchangeManagerRegistry,
+                exchangeMetricsCollector);
     }
 
     public DirectExchangeClientFactory(
@@ -103,7 +107,8 @@ public class DirectExchangeClientFactory
             boolean useOfExchangeForQueryRetryPolicyAllowed,
             HttpClient httpClient,
             ScheduledExecutorService scheduler,
-            ExchangeManagerRegistry exchangeManagerRegistry)
+            ExchangeManagerRegistry exchangeManagerRegistry,
+            Optional<ExchangeMetricsCollector> exchangeMetricsCollector)
     {
         this.nodeInfo = requireNonNull(nodeInfo, "nodeInfo is null");
         this.dataIntegrityVerification = requireNonNull(dataIntegrityVerification, "dataIntegrityVerification is null");
@@ -130,6 +135,7 @@ public class DirectExchangeClientFactory
         checkArgument(maxResponseSize.toBytes() > 0, "maxResponseSize must be at least 1 byte: %s", maxResponseSize);
         checkArgument(concurrentRequestMultiplier > 0, "concurrentRequestMultiplier must be at least 1: %s", concurrentRequestMultiplier);
         this.exchangeManagerRegistry = requireNonNull(exchangeManagerRegistry, "exchangeManagerRegistry is null");
+        this.exchangeMetricsCollector = requireNonNull(exchangeMetricsCollector, "exchangeMetricsCollector is null");
     }
 
     @PreDestroy
@@ -162,6 +168,7 @@ public class DirectExchangeClientFactory
                     deduplicationBufferSize,
                     retryPolicy,
                     useOfExchangeForQueryRetryPolicyAllowed ? Optional.of(exchangeManagerRegistry) : Optional.empty(),
+                    useOfExchangeForQueryRetryPolicyAllowed ? exchangeMetricsCollector : Optional.empty(),
                     queryId,
                     parentSpan,
                     exchangeId);
