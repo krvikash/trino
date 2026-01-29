@@ -97,8 +97,6 @@ public class OpenApiSpec
     private static final String PAGINATION_PAGE_PARAM = "pageParam";
     private static final Pattern JSON_POINTER_PATTERN = Pattern.compile("\\$response\\.body#(/.*)");
 
-    // should only be used to manually resolving references
-    private final OpenAPI openApi;
     private final Map<String, List<OpenApiColumn>> tables;
     private final Map<String, OpenApiTableHandle> handles;
     private final Map<String, Map<HttpPath, JsonPointer>> errorPointers;
@@ -116,7 +114,7 @@ public class OpenApiSpec
 
     OpenApiSpec(OpenAPI openApi)
     {
-        this.openApi = requireNonNull(openApi, "openApi is null");
+        requireNonNull(openApi, "openApi is null");
 
         /*
         Path params are assumed to be primary keys, so paths without any params are merged with same path with params.
@@ -759,10 +757,6 @@ public class OpenApiSpec
         }
         if (type.equals("int") || type.equals("integer")) {
             return Optional.of(new TypeTuple(INTEGER, property));
-        }
-        Schema<?> referenced = openApi.getComponents().getSchemas().get(type);
-        if (referenced != null) {
-            return convertType(referenced).map(convertedType -> new TypeTuple(convertedType.type(), referenced));
         }
         // unknown and unsupported types will be returned as strings, which at least can be parsed with json functions
         return Optional.of(FALLBACK_TYPE);
