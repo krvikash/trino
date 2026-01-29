@@ -179,6 +179,8 @@ public class ObjectStoreConnector
         this.defaultIcebergFileFormat = objectStoreConfig.getDefaultIcebergFileFormat();
         this.tracer = requireNonNull(tracer, "tracer is null");
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
+
+        verifyNoBranchProperties(delegates);
     }
 
     @VisibleForTesting
@@ -225,6 +227,14 @@ public class ObjectStoreConnector
             }
         }
         return ImmutableList.copyOf(properties.values());
+    }
+
+    private static void verifyNoBranchProperties(DelegateConnectors delegates)
+    {
+        for (Connector connector : delegates.asList()) {
+            // Update objectstore connector once sub connectors support branch properties
+            verify(connector.getBranchProperties().isEmpty(), "The objectstore connector expects no branch properties from sub connectors");
+        }
     }
 
     private Set<Procedure> procedures(DelegateConnectors delegates, ObjectStoreSessionProperties sessionProperties, Set<Procedure> objectStoreProcedures)
