@@ -67,9 +67,11 @@ public interface DataApi
      * If no exchange related request is received by BufferNode for prolonged period of time exchange data is removed from memory as if
      * {@link #removeExchange(String)} was called.
      *
+     * @return BufferNodeExchangeMetrics showing current state of the exchange on this buffer node.
+     *
      * In case of failure returned future will wrap {@link DataApiException}
      */
-    ListenableFuture<Void> pingExchange(String exchangeId);
+    ListenableFuture<BufferNodeExchangeMetrics> pingExchange(String exchangeId);
 
     /**
      * Closes exchange and removes all in-memory data for an exchange.

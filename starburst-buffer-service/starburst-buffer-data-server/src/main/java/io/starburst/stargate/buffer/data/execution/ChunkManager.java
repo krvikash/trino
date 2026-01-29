@@ -33,6 +33,7 @@ import io.airlift.slice.Slice;
 import io.airlift.units.Duration;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
+import io.starburst.stargate.buffer.data.client.BufferNodeExchangeMetrics;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
@@ -414,9 +415,10 @@ public class ChunkManager
         });
     }
 
-    public void pingExchange(String exchangeId)
+    public BufferNodeExchangeMetrics pingExchange(String exchangeId)
     {
-        getExchangeAndHeartbeat(exchangeId);
+        Exchange exchange = getExchangeAndHeartbeat(exchangeId);
+        return exchange.collectBufferNodeMetrics();
     }
 
     public ListenableFuture<Void> finishExchange(String exchangeId)

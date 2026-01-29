@@ -26,6 +26,7 @@ import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.BufferNodeStats;
+import io.starburst.stargate.buffer.data.client.BufferNodeExchangeMetrics;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
@@ -174,6 +175,7 @@ public class TestDataServer
         addDataPage(EXCHANGE_1, 1, 2, 0, 1L, largePage1);
         addDataPage(EXCHANGE_1, 1, 2, 0, 2L, largePage2);
 
+        // Ping to keep exchanges alive
         pingExchange(EXCHANGE_0);
         pingExchange(EXCHANGE_1);
 
@@ -185,6 +187,7 @@ public class TestDataServer
         ChunkHandle chunkHandle3 = new ChunkHandle(BUFFER_NODE_ID, 1, 3L, largePage1.length());
         ChunkHandle chunkHandle4 = new ChunkHandle(BUFFER_NODE_ID, 1, 4L, largePage2.length());
 
+        // Finish EXCHANGE_0 and validate metrics
         finishExchange(EXCHANGE_0);
         assertNodeStats(2, 2, 0, 3);
 
@@ -195,12 +198,23 @@ public class TestDataServer
         assertThat(chunkList1.chunks()).containsExactlyInAnyOrder(chunkHandle3);
         assertThat(chunkList1.nextPagingId()).isPresent();
 
+        // Validate EXCHANGE_0 metrics after finish
+        long exchange0TotalBytes = 11 + 7;
+        BufferNodeExchangeMetrics exchange0Metrics = pingExchange(EXCHANGE_0);
+        assertThat(exchange0Metrics).isEqualTo(new BufferNodeExchangeMetrics(2, 2, exchange0TotalBytes, 0, 0, 2, exchange0TotalBytes));
+
+        // Finish EXCHANGE_1 to ensure deterministic chunk state
         finishExchange(EXCHANGE_1);
         assertNodeStats(2, 0, 0, 5);
 
         chunkList1 = listClosedChunks(EXCHANGE_1, chunkList1.nextPagingId(), 2);
         assertThat(chunkList1.chunks()).containsExactlyInAnyOrder(chunkHandle2, chunkHandle4);
         assertThat(chunkList1.nextPagingId()).isEmpty();
+
+        // Validate EXCHANGE_1 metrics after finish
+        long exchange1TotalBytes = 10 + largePage1.length() + largePage2.length();
+        BufferNodeExchangeMetrics exchange1Metrics = pingExchange(EXCHANGE_1);
+        assertThat(exchange1Metrics).isEqualTo(new BufferNodeExchangeMetrics(2, 3, exchange1TotalBytes, 0, 0, 3, exchange1TotalBytes));
 
         assertThat(getChunkData(EXCHANGE_0, chunkHandle0)).containsExactly(
                 new DataPage(0, 0, utf8Slice("trino")),
@@ -227,7 +241,7 @@ public class TestDataServer
 
         registerExchange(EXCHANGE_0, STANDARD);
 
-        ImmutableListMultimap.Builder<Integer, Slice> dataPages = ImmutableListMultimap.<Integer, Slice>builder();
+        ImmutableListMultimap.Builder<Integer, Slice> dataPages = ImmutableListMultimap.builder();
         dataPages.put(0, utf8Slice("a"));
         dataPages.put(0, utf8Slice("b"));
         dataPages.put(0, utf8Slice("c"));
@@ -252,8 +266,14 @@ public class TestDataServer
         ChunkHandle chunkHandle1 = getChunkHandleOrThrow(chunkList0.chunks(), 0, 1 + largePage2.length()); // largePage2, e
         ChunkHandle chunkHandle2 = getChunkHandleOrThrow(chunkList0.chunks(), 1, 3 + largePage1.length()); // v, x, largePage1, y
         ChunkHandle chunkHandle3 = getChunkHandleOrThrow(chunkList0.chunks(), 1, 1 + largePage2.length()); // largePage2, z
+        BufferNodeExchangeMetrics exchange0Metrics = pingExchange(EXCHANGE_0);
+
+        long totalBytes = chunkList0.chunks().stream().mapToLong(ChunkHandle::dataSizeInBytes).sum();
+        long spooledBytes = 4 + largePage1.length();
 
         assertThat(chunkList0.nextPagingId()).isEmpty();
+        assertThat(exchange0Metrics).isEqualTo(
+                new BufferNodeExchangeMetrics(2, 3, totalBytes - spooledBytes, 1, spooledBytes, 4, totalBytes));
         assertThat(getChunkData(EXCHANGE_0, chunkHandle0)).containsExactly(
                 new DataPage(0, 0, utf8Slice("a")),
                 new DataPage(0, 0, utf8Slice("b")),
@@ -319,8 +339,13 @@ public class TestDataServer
         });
 
         await().atMost(ONE_SECOND).until(chunkListFuture::isDone);
+        BufferNodeExchangeMetrics exchangeMetrics = pingExchange(EXCHANGE_0);
         ChunkHandle chunkHandle = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 5);
-        assertThat(getFutureValue(chunkListFuture).chunks()).containsExactly(chunkHandle);
+        ChunkList chunkList = getFutureValue(chunkListFuture);
+        assertThat(chunkList.chunks()).containsExactly(chunkHandle);
+        assertThat(chunkList.nextPagingId()).isEmpty();
+        assertThat(exchangeMetrics).isEqualTo(
+                new BufferNodeExchangeMetrics(1, 0, 0, 1, 5, 1, 5));
 
         await().atMost(FIVE_SECONDS).until(
                 this::getNodeState,
@@ -461,9 +486,9 @@ public class TestDataServer
         getFutureValue(dataClient.removeExchange(exchangeId));
     }
 
-    private void pingExchange(String exchangeId)
+    private BufferNodeExchangeMetrics pingExchange(String exchangeId)
     {
-        getFutureValue(dataClient.pingExchange(exchangeId));
+        return getFutureValue(dataClient.pingExchange(exchangeId));
     }
 
     private ChunkHandle getChunkHandleOrThrow(List<ChunkHandle> chunkHandles, int partitionId, int dataSizeInBytes)

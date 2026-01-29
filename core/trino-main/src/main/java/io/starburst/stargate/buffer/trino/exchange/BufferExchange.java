@@ -19,6 +19,7 @@ import io.airlift.units.DataSize;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
+import io.starburst.stargate.buffer.data.client.BufferNodeExchangeMetrics;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.DataApiException;
@@ -33,6 +34,7 @@ import io.trino.spi.exchange.ExchangeSinkHandle;
 import io.trino.spi.exchange.ExchangeSinkInstanceHandle;
 import io.trino.spi.exchange.ExchangeSourceHandle;
 import io.trino.spi.exchange.ExchangeSourceHandleSource;
+import io.trino.spi.metrics.Metrics;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -110,6 +112,9 @@ public class BufferExchange
     @GuardedBy("this")
     private SourceHandlesDeliveryMode sourceHandlesDeliveryMode = STANDARD;
 
+    private final ExchangeCoordinatorMetricsBuilder coordinatorMetrics = new ExchangeCoordinatorMetricsBuilder();
+    private final ExchangeBufferNodeMetricsBuilder bufferNodeMetrics = new ExchangeBufferNodeMetricsBuilder();
+
     public BufferExchange(
             QueryId queryId,
             ExchangeId exchangeId,
@@ -161,12 +166,13 @@ public class BufferExchange
         catch (RuntimeException e) {
             throw new TrinoException(INVALID_TASK_ID, e);
         }
-
-        return new BufferExchangeSinkHandle(
+        BufferExchangeSinkHandle bufferExchangeSinkHandle = new BufferExchangeSinkHandle(
                 externalExchangeId,
                 taskPartitionId,
                 outputPartitionCount,
                 preserveOrderWithinPartition);
+        coordinatorMetrics.incrementSinkAdded();
+        return bufferExchangeSinkHandle;
     }
 
     @Override
@@ -183,7 +189,11 @@ public class BufferExchange
         }
 
         BufferExchangeSinkHandle bufferExchangeSinkHandle = (BufferExchangeSinkHandle) sinkHandle;
-        return handleMappingFuture(taskAttemptId, bufferExchangeSinkHandle, partitionNodeMapper.getMapping(bufferExchangeSinkHandle.getTaskPartitionId(), taskNode));
+        return handleMappingFuture(taskAttemptId, bufferExchangeSinkHandle, partitionNodeMapper.getMapping(bufferExchangeSinkHandle.getTaskPartitionId(), taskNode))
+                .thenApply(exchangeSinkInstanceHandle -> {
+                    coordinatorMetrics.incrementSinkInstanceCreated();
+                    return exchangeSinkInstanceHandle;
+                });
     }
 
     @Override
@@ -193,7 +203,11 @@ public class BufferExchange
         checkState(!closed.get(), "already closed");
         BufferExchangeSinkHandle bufferExchangeSinkHandle = (BufferExchangeSinkHandle) sinkHandle;
         partitionNodeMapper.refreshMapping();
-        return handleMappingFuture(taskAttemptId, bufferExchangeSinkHandle, partitionNodeMapper.getMapping(bufferExchangeSinkHandle.getTaskPartitionId(), taskNode));
+        return handleMappingFuture(taskAttemptId, bufferExchangeSinkHandle, partitionNodeMapper.getMapping(bufferExchangeSinkHandle.getTaskPartitionId(), taskNode))
+                .thenApply(exchangeSinkInstanceHandle -> {
+                    coordinatorMetrics.incrementSinkInstanceUpdated();
+                    return exchangeSinkInstanceHandle;
+                });
     }
 
     private CompletableFuture<ExchangeSinkInstanceHandle> handleMappingFuture(int taskAttemptId, BufferExchangeSinkHandle bufferExchangeSinkHandle, ListenableFuture<PartitionNodeMapping> newMappingFuture)
@@ -288,11 +302,15 @@ public class BufferExchange
             }
 
             if (preserveOrderWithinPartition) {
+                List<ChunkHandle> sortedChunks = sortedCopyOf(Comparator.comparingLong(ChunkHandle::chunkId), chunkHandles);
                 newReadySourceHandles.add(BufferExchangeSourceHandle.fromChunkHandles(
                         externalExchangeId,
                         partitionId,
-                        sortedCopyOf(Comparator.comparingLong(ChunkHandle::chunkId), chunkHandles),
+                        sortedChunks,
                         true));
+                coordinatorMetrics.recordSourceHandleCreated(
+                        sortedChunks.size(),
+                        sortedChunks.stream().mapToLong(ChunkHandle::dataSizeInBytes).sum());
                 chunkHandles.clear();
                 continue;
             }
@@ -309,6 +327,7 @@ public class BufferExchange
                             partitionId,
                             currentSourceHandleChunks,
                             false));
+                    coordinatorMetrics.recordSourceHandleCreated(currentSourceHandleChunks.size(), currentSourceHandleDataSize);
                     usedChunkHandlesCount += currentSourceHandleChunks.size();
                     currentSourceHandleDataSize = 0;
                     currentSourceHandleChunks = new ArrayList<>();
@@ -322,6 +341,7 @@ public class BufferExchange
                         partitionId,
                         currentSourceHandleChunks,
                         false));
+                coordinatorMetrics.recordSourceHandleCreated(currentSourceHandleChunks.size(), currentSourceHandleDataSize);
                 usedChunkHandlesCount += currentSourceHandleChunks.size();
             }
 
@@ -332,7 +352,6 @@ public class BufferExchange
         }
 
         this.allSourceHandlesCreated = allChunksDiscovered;
-
         return newReadySourceHandles;
     }
 
@@ -374,6 +393,13 @@ public class BufferExchange
         }
     }
 
+    @Override
+    public synchronized Metrics getMetrics()
+    {
+        return coordinatorMetrics.buildMetrics()
+                .mergeWith(bufferNodeMetrics.buildMetrics());
+    }
+
     private synchronized void markFailed(Throwable failure)
     {
         if (this.failure != null) {
@@ -405,6 +431,7 @@ public class BufferExchange
             Deque<ChunkHandle> queue = discoveredChunkHandles.computeIfAbsent(chunkHandle.partitionId(), ignore -> new ArrayDeque<>());
             queue.add(chunkHandle);
             discoveredChunkHandlesCounter++;
+            coordinatorMetrics.recordChunkDiscovered(chunkHandle.dataSizeInBytes());
         }
     }
 
@@ -452,6 +479,14 @@ public class BufferExchange
                     }
 
                     @Override
+                    public void onMetricsDiscovered(BufferNodeExchangeMetrics metrics)
+                    {
+                        synchronized (BufferExchange.this) {
+                            bufferNodeMetrics.update(bufferNodeId, metrics);
+                        }
+                    }
+
+                    @Override
                     public void onFailure(Throwable failure)
                     {
                         markFailed(failure);
@@ -459,6 +494,7 @@ public class BufferExchange
                 });
 
         chunkPolledBufferNodes.put(bufferNodeId, poller);
+        coordinatorMetrics.incrementBufferNodePolled();
         poller.start();
     }
 

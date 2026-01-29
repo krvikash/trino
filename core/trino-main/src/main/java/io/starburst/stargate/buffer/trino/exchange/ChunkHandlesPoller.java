@@ -15,6 +15,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.ThreadSafe;
 import io.airlift.log.Logger;
 import io.opentelemetry.api.trace.Span;
+import io.starburst.stargate.buffer.data.client.BufferNodeExchangeMetrics;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
@@ -117,17 +118,17 @@ class ChunkHandlesPoller
             }
 
             if (pinging) {
-                ListenableFuture<Void> pingFuture = dataApi.pingExchange(dataNodeId, externalExchangeId);
+                ListenableFuture<BufferNodeExchangeMetrics> pingFuture = dataApi.pingExchange(dataNodeId, externalExchangeId);
                 addCallback(pingFuture, new FutureCallback<>()
                 {
                     @Override
-                    public void onSuccess(Void result)
+                    public void onSuccess(BufferNodeExchangeMetrics metrics)
                     {
                         try {
                             if (closed) {
                                 return;
                             }
-
+                            callback.onMetricsDiscovered(metrics);
                             executorService.schedule(ChunkHandlesPoller.this::doPollOrPing, PING_INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
                         }
                         catch (Throwable t) {
@@ -269,6 +270,8 @@ class ChunkHandlesPoller
     public interface ChunksCallback
     {
         void onChunksDiscovered(List<ChunkHandle> chunks, boolean noMoreChunks);
+
+        void onMetricsDiscovered(BufferNodeExchangeMetrics metrics);
 
         void onFailure(Throwable failure);
     }

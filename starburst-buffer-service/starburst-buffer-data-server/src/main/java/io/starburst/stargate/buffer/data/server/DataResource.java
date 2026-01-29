@@ -29,6 +29,7 @@ import io.airlift.stats.CounterStat;
 import io.airlift.stats.DistributionStat;
 import io.airlift.units.Duration;
 import io.opentelemetry.api.trace.Span;
+import io.starburst.stargate.buffer.data.client.BufferNodeExchangeMetrics;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApiException;
@@ -918,14 +919,15 @@ public class DataResource
 
     @GET
     @Path("{exchangeId}/ping")
+    @Produces(MediaType.APPLICATION_JSON)
     public Response pingExchange(
             @PathParam("exchangeId") String exchangeId,
             @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId)
     {
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
-            chunkManager.pingExchange(exchangeId);
-            return okResponse();
+            BufferNodeExchangeMetrics metrics = chunkManager.pingExchange(exchangeId);
+            return Response.ok().entity(metrics).build();
         }
         catch (RuntimeException e) {
             reportException(e, "error on GET /%s/ping", exchangeId);

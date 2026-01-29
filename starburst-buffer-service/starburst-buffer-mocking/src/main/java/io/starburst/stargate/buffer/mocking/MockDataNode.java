@@ -19,6 +19,7 @@ import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.BufferNodeStats;
+import io.starburst.stargate.buffer.data.client.BufferNodeExchangeMetrics;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
@@ -32,10 +33,12 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -136,11 +139,10 @@ class MockDataNode
     }
 
     @Override
-    public synchronized ListenableFuture<Void> pingExchange(String exchangeId)
+    public synchronized ListenableFuture<BufferNodeExchangeMetrics> pingExchange(String exchangeId)
     {
         throwIfNodeGone();
-        // no-op
-        return immediateVoidFuture();
+        return getExchangeData(exchangeId).getBufferNodeExchangeMetrics();
     }
 
     @Override
@@ -246,6 +248,7 @@ class MockDataNode
     {
         private final String exchangeId;
         private final Map<ChunkKey, ClosedChunkData> closedChunks = new HashMap<>();
+        private final Set<Integer> partitions = new HashSet<>();
         private final ListMultimap<Integer, DataPage> pendingDataPages = ArrayListMultimap.create();
         private boolean finished;
         private long nextChunkId;
@@ -292,6 +295,16 @@ class MockDataNode
         public int getClosedChunksCount()
         {
             return closedChunks.size();
+        }
+
+        @GuardedBy("MockDataNode.this")
+        public ListenableFuture<BufferNodeExchangeMetrics> getBufferNodeExchangeMetrics()
+        {
+            int partitionCount = partitions.size();
+            long totalBytes = closedChunks.values().stream().mapToLong(ClosedChunkData::getDataSize).sum();
+            int totalChunks = closedChunks.size();
+            return immediateFuture(new BufferNodeExchangeMetrics(
+                    partitionCount, totalChunks, totalBytes, 0, 0, totalChunks, totalBytes));
         }
 
         @GuardedBy("MockDataNode.this")
@@ -345,6 +358,7 @@ class MockDataNode
                         ClosedChunkData chunkData = new ClosedChunkData(ImmutableList.copyOf(pendingDataPages.get(partitionId)));
                         nextChunkId++;
                         pendingDataPages.removeAll(partitionId);
+                        partitions.add(partitionId);
                         closedChunks.put(chunkKey, chunkData);
                     }
                 }
@@ -369,6 +383,7 @@ class MockDataNode
                 ChunkKey chunkKey = new ChunkKey(nodeId, partitionId, nextChunkId);
                 ClosedChunkData chunkData = new ClosedChunkData(ImmutableList.copyOf(entry.getValue()));
                 nextChunkId++;
+                partitions.add(partitionId);
                 closedChunks.put(chunkKey, chunkData);
             }
             pendingDataPages.clear();

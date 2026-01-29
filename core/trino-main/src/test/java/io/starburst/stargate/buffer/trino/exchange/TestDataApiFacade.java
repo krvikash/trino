@@ -20,6 +20,7 @@ import io.airlift.units.Duration;
 import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeState;
+import io.starburst.stargate.buffer.data.client.BufferNodeExchangeMetrics;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApi;
@@ -589,7 +590,7 @@ public class TestDataApiFacade
         }
 
         @Override
-        public synchronized ListenableFuture<Void> pingExchange(String exchangeId)
+        public synchronized ListenableFuture<BufferNodeExchangeMetrics> pingExchange(String exchangeId)
         {
             throw new RuntimeException("not implemented");
         }

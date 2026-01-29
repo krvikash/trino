@@ -88,6 +88,7 @@ public class HttpDataClient
 
     private static final JsonCodec<ChunkList> CHUNK_LIST_JSON_CODEC = jsonCodec(ChunkList.class);
     private static final JsonCodec<BufferNodeInfo> BUFFER_NODE_INFO_JSON_CODEC = jsonCodec(BufferNodeInfo.class);
+    private static final JsonCodec<BufferNodeExchangeMetrics> BUFFER_NODE_EXCHANGE_METRICS_JSON_CODEC = jsonCodec(BufferNodeExchangeMetrics.class);
 
     private final URI baseUri;
     private final long targetBufferNodeId;
@@ -213,7 +214,7 @@ public class HttpDataClient
     }
 
     @Override
-    public ListenableFuture<Void> pingExchange(String exchangeId)
+    public ListenableFuture<BufferNodeExchangeMetrics> pingExchange(String exchangeId)
     {
         requireNonNull(exchangeId, "exchangeId is null");
 
@@ -225,7 +226,21 @@ public class HttpDataClient
                 .build();
 
         HttpResponseFuture<StringResponse> responseFuture = httpClient.executeAsync(request, createStringResponseHandler());
-        return translateFailures(request, responseFuture);
+        return transformAsync(catchAndDecorateExceptions(request, responseFuture), response -> {
+            if (response.getStatusCode() != HttpStatus.OK.code()) {
+                String errorCode = response.getHeader(ERROR_CODE_HEADER);
+                String errorMessage = requestErrorMessage(request, response.getBody());
+                return immediateFailedFuture(new DataApiException(errorCode == null ? INTERNAL_ERROR : ErrorCode.valueOf(errorCode), errorMessage));
+            }
+
+            // Check if response is empty to distinguish old vs new buffer service. '{}' will be handled properly
+            String responseBody = response.getBody();
+            if (responseBody == null || responseBody.isEmpty()) {
+                // Old version of buffer service returns empty body - return empty metrics
+                return immediateFuture(new BufferNodeExchangeMetrics(0, 0, 0, 0, 0, 0, 0));
+            }
+            return immediateFuture(BUFFER_NODE_EXCHANGE_METRICS_JSON_CODEC.fromJson(responseBody));
+        }, directExecutor());
     }
 
     @Override

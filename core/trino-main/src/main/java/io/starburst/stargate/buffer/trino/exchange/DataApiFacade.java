@@ -35,6 +35,7 @@ import io.airlift.units.Duration;
 import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeState;
+import io.starburst.stargate.buffer.data.client.BufferNodeExchangeMetrics;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkList;
 import io.starburst.stargate.buffer.data.client.DataApi;
@@ -280,12 +281,12 @@ public class DataApiFacade
         }
     }
 
-    public ListenableFuture<Void> pingExchange(long bufferNodeId, String exchangeId)
+    public ListenableFuture<BufferNodeExchangeMetrics> pingExchange(long bufferNodeId, String exchangeId)
     {
         return runWithRetry(bufferNodeId, () -> internalPingExchange(bufferNodeId, exchangeId));
     }
 
-    private ListenableFuture<Void> internalPingExchange(long bufferNodeId, String exchangeId)
+    private ListenableFuture<BufferNodeExchangeMetrics> internalPingExchange(long bufferNodeId, String exchangeId)
     {
         try {
             return getDataApi(bufferNodeId).pingExchange(exchangeId);

@@ -27,6 +27,7 @@ import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
+import io.starburst.stargate.buffer.data.client.BufferNodeExchangeMetrics;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.ChunkList;
@@ -129,8 +130,8 @@ public class Exchange
     private volatile boolean spooled;
     private final AtomicInteger spooledChunks = new AtomicInteger();
     private final AtomicLong spooledBytes = new AtomicLong();
-    private Optional<Integer> finishedClosedChunks = Optional.empty();
-    private Optional<Long> finishedClosedBytes = Optional.empty();
+    private volatile Optional<Integer> finishedClosedChunks = Optional.empty();
+    private volatile Optional<Long> finishedClosedBytes = Optional.empty();
     private int resourceReportsCounter;
 
     public Exchange(
@@ -319,6 +320,35 @@ public class Exchange
                             }
                         },
                         longPollTimeoutExecutor);
+    }
+
+    public BufferNodeExchangeMetrics collectBufferNodeMetrics()
+    {
+        ExchangeResourceUsage usage = new ExchangeResourceUsage(partitions.size(), spooledChunks.get(), spooledBytes.get());
+        if (finishedClosedBytes.isPresent() && finishedClosedChunks.isPresent()) {
+            usage.updateTotalChunkResources(finishedClosedChunks.get(), finishedClosedBytes.get());
+        }
+        else {
+            // Otherwise aggregate from partitions
+            partitions.values().forEach(partition -> partition.updateResourceUsage(usage));
+        }
+        // Note: usage.closedChunks is the total number of chunks as it already includes spooled chunks (they remain in closedChunks collection)
+        // Similarly, usage.closedInMemoryBytes (despite the name) includes bytes of all closed chunks,
+        int totalChunks = usage.closedChunks;
+        long totalBytes = usage.closedInMemoryBytes;
+
+        // Calculate actual in-memory values by subtracting spooled
+        int chunksInMemory = totalChunks - usage.spooledChunks;
+        long bytesInMemory = totalBytes - usage.spooledBytes;
+
+        return new BufferNodeExchangeMetrics(
+                usage.partitionCount,
+                chunksInMemory,
+                bytesInMemory,
+                usage.spooledChunks,
+                usage.spooledBytes,
+                totalChunks,
+                totalBytes);
     }
 
     @GuardedBy("this")
