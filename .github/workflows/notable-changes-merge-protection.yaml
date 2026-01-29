@@ -1,0 +1,21 @@
+# Caller workflow for Notable Changes merge protection
+# Blocks merge if needs-notable-review label is present
+
+name: Notable Changes Merge Protection
+
+on:
+  pull_request:
+    types: [ opened, synchronize, reopened, labeled, unlabeled, edited ]
+  workflow_run:
+    workflows: ["Notable Change"]
+    types: [completed]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  check:
+    uses: starburstdata/notable-changes-workflow/.github/workflows/merge-protection.yaml@main
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.ENG_AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}

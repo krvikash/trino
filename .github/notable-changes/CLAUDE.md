@@ -26,7 +26,7 @@ Every Cork PR falls into one of two categories (see "Fork Admission" section in 
 ## High-Impact Areas
 
 ### Critical Directories (Almost Always Notable)
-- `core/trino-spi/` - Service Provider Interface (breaking changes affect all connectors)
+- `core/trino-spi/` - Service Provider Interface; **but evaluate carefully** — many SPI changes don't affect SPI consumers (e.g. Pages/Blocks internals are implemented in SPI but are not part of the public contract). Starburst does not ship SPI jars, so only changes that affect connector/plugin compatibility or user-visible behavior are notable.
 - `core/trino-main/src/main/java/io/trino/server/` - Server configuration
 - `core/trino-main/src/main/java/io/trino/execution/` - Query execution engine
 
@@ -40,13 +40,13 @@ Every Cork PR falls into one of two categories (see "Fork Admission" section in 
 ### Configuration Patterns (Check Carefully)
 - `*Config.java` with `@Config` annotations - configuration property changes
 - `*SessionProperties.java` - session-level configuration
-- `*.g4` files - ANTLR grammar (syntax changes are always notable)
+- `*.g4` files - ANTLR grammar (notable only for core grammar changes; connector-specific grammars, e.g. in `plugin/trino-delta-lake/`, are less impactful; minor fixes like typos are usually not notable)
 - `*Resource.java` - REST API endpoints
 
 ## Notable Change Indicators for Cork
 
 ### Always Notable
-1. Changes to `io.trino.spi.*` packages (SPI breaking changes)
+1. Changes to `io.trino.spi.*` packages that affect **connector/plugin compatibility** (e.g. interface additions, removals, or signature changes) — internal SPI classes like Pages and Blocks are not notable to users, and Starburst does not ship SPI jars
 2. Configuration property additions, removals, or renames
 3. Default value changes for existing configuration
 4. Feature flag changes (enabling/disabling features by default)

@@ -6,6 +6,10 @@ name: Notable Change
 on:
   issue_comment:
     types: [created]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  pull_request_review:
+    types: [submitted]
   workflow_dispatch:
     inputs:
       pr_number:
@@ -23,44 +27,31 @@ jobs:
   check-trigger:
     if: |
       github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request_review' &&
+       github.event.review.state == 'approved') ||
+      github.event_name == 'pull_request' ||
       (github.event.issue.pull_request &&
        (contains(github.event.comment.body, '/generate-metadata') ||
         contains(github.event.comment.body, '/regenerate') ||
         contains(github.event.comment.body, '/accept')))
-    runs-on: ubuntu-latest
+    runs-on: ["self-hosted", "gha-fleet-ec2-2cpu-8gb-amd64", "latest"]
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
       pr_number: ${{ steps.check.outputs.pr_number }}
     steps:
-      - name: Determine PR number
+      - uses: starburstdata/notable-changes-workflow/.github/actions/check-trigger@main
         id: check
-        uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const eventName = context.eventName;
-            let prNumber = 0;
-            let shouldRun = false;
-
-            if (eventName === 'workflow_dispatch') {
-              prNumber = parseInt('${{ inputs.pr_number }}') || 0;
-              shouldRun = prNumber > 0;
-            } else {
-              prNumber = context.issue.number;
-              shouldRun = true;
-            }
-
-            core.setOutput('should_run', shouldRun ? 'true' : 'false');
-            core.setOutput('pr_number', prNumber);
+          pr-number-override: ${{ inputs.pr_number }}
 
   analyze:
     needs: check-trigger
     if: needs.check-trigger.outputs.should_run == 'true'
     uses: starburstdata/notable-changes-workflow/.github/workflows/notable-changes.yaml@main
     with:
-      secrets-manager-arn: 'arn:aws:secretsmanager:us-east-2:843985043183:secret:sep-ci/sep/cork'
-      github-token-env-var: 'SEP_CI_SEP_CORK_GITHUB_ACCESS_TOKEN'
       pr-number: ${{ needs.check-trigger.outputs.pr_number }}
+      claude-md-path: '.github/notable-changes/CLAUDE.md'
       enable-external-context: true
     secrets:
       AWS_ACCESS_KEY_ID: ${{ secrets.ENG_AWS_ACCESS_KEY_ID }}
@@ -68,3 +59,16 @@ jobs:
       JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
       JIRA_EMAIL_USER: ${{ secrets.JIRA_EMAIL_USER }}
       GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+
+  notify-failure:
+    needs: [ check-trigger, analyze ]
+    if: |
+      always() &&
+      needs.check-trigger.outputs.should_run == 'true' &&
+      needs.analyze.result == 'failure'
+    runs-on: [ "self-hosted", "gha-fleet-ec2-2cpu-8gb-amd64", "latest" ]
+    steps:
+      - uses: starburstdata/notable-changes-workflow/.github/actions/notify-failure@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          pr-number: ${{ needs.check-trigger.outputs.pr_number }}
