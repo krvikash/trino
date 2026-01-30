@@ -238,6 +238,7 @@ public class SingleStoreClient
                 .addStandardRules(this::quoted)
                 .add(new RewriteCharConstant())
                 .add(new BinaryRewriteStringComparison())
+                .add(new BinaryRewriteLike())
                 // No "real" on the list; pushdown on REAL is disabled also in toColumnMapping
                 .withTypeClass("numeric_type", ImmutableSet.of("tinyint", "smallint", "integer", "bigint", "decimal", "double"))
                 .map("$equal(left: numeric_type, right: numeric_type)").to("left = right")

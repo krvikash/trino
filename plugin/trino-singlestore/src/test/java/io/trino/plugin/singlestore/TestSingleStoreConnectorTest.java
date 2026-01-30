@@ -620,11 +620,105 @@ public class TestSingleStoreConnectorTest
             assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar IS NOT DISTINCT FROM NULL OR other_varchar = 'bb'")).isNotFullyPushedDown(FilterNode.class);
             assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char IS NOT DISTINCT FROM NULL OR other_char = 'bb'")).isNotFullyPushedDown(FilterNode.class);
 
-            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar LIKE 'a%' OR other_varchar = 'bb'")).isNotFullyPushedDown(FilterNode.class);
-            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char LIKE 'a%' OR other_char = 'bb'")).isNotFullyPushedDown(FilterNode.class);
-
             assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar IN ('aa', 'dd') OR other_varchar = 'bb'")).isNotFullyPushedDown(FilterNode.class);
             assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char IN ('aa', 'dd') OR other_char = 'bb'")).isNotFullyPushedDown(FilterNode.class);
+        }
+    }
+
+    @Test
+    public void testLikePushdownWithBinary()
+    {
+        Session session = stringPushdownWithBinaryEnabled(getSession());
+
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.single_store_like_pushdown",
+                """
+                (
+                some_char char(4),
+                some_tiny_text tinytext,
+                some_text text,
+                some_long_text longtext,
+                some_varchar varchar(255),
+                other_column varchar(255)
+                )
+                """,
+                List.of(
+                        "null, null, null, null, null, null",
+                        "'AA', 'AA', 'AA', 'AA', 'AA', 'AA'",
+                        "'aa', 'aa', 'aa', 'aa', 'aa', 'aa'",
+                        "'bb', 'bb', 'bb', 'bb', 'bb', 'bb'",
+                        "'%%', '%%', '%%', '%%', '%%', '%%'"
+                ))) {
+
+            // tiny text
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_tiny_text LIKE NULL")).isReplacedWithEmptyValues();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_tiny_text LIKE '%'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_tiny_text LIKE 'aa'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_tiny_text LIKE 'a%'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_tiny_text LIKE '%a'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_tiny_text LIKE '%a%'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_tiny_text LIKE 'a_'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_tiny_text LIKE '_a'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_tiny_text LIKE 'a%' OR some_tiny_text = 'BB'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_tiny_text LIKE 'a%' OR other_column = 'BB'")).isFullyPushedDown();
+
+            // text
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_text LIKE NULL")).isReplacedWithEmptyValues();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_text LIKE '%'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_text LIKE 'aa'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_text LIKE 'a%'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_text LIKE '%a'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_text LIKE '%a%'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_text LIKE 'a_'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_text LIKE '_a'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_text LIKE 'a%' OR some_text = 'BB'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_text LIKE 'a%' OR other_column = 'BB'")).isFullyPushedDown();
+
+            // long text
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_long_text LIKE NULL")).isReplacedWithEmptyValues();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_long_text LIKE '%'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_long_text LIKE 'aa'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_long_text LIKE 'a%'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_long_text LIKE '%a'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_long_text LIKE '%a%'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_long_text LIKE 'a_'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_long_text LIKE '_a'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_long_text LIKE 'a%' OR some_text = 'BB'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_long_text LIKE 'a%' OR other_column = 'BB'")).isFullyPushedDown();
+
+            // varchar
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar LIKE NULL")).isReplacedWithEmptyValues();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar LIKE '%'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar LIKE 'aa'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar LIKE 'a%'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar LIKE '%a'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar LIKE '%a%'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar LIKE 'a_'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar LIKE '_a'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar LIKE 'a%' OR some_varchar = 'BB'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar LIKE 'a%' OR other_column = 'BB'")).isFullyPushedDown();
+
+            // char - not pushed down because SingleStore has different padding handing in LIKE than in trino
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char LIKE NULL")).isReplacedWithEmptyValues();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char LIKE '%'")).isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char LIKE 'aa'")).isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char LIKE 'a%'")).isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char LIKE '%a'")).isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char LIKE '%a%'")).isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char LIKE 'a_'")).isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char LIKE '_a'")).isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char LIKE 'a%' OR some_char = 'BB'")).isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_char LIKE 'a%' OR other_column = 'BB'")).isNotFullyPushedDown(FilterNode.class);
+
+            // SingleStore doesn't natively support ESCAPE syntax so we simulate it in trino
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar LIKE '|%%' ESCAPE '|'")).isNotFullyPushedDown(FilterNode.class);
+
+            // like with NOT
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar NOT LIKE NULL")).isReplacedWithEmptyValues();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar NOT LIKE 'a%'")).isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar NOT LIKE 'aa' OR other_column = 'aa'")).isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE NOT (some_varchar LIKE '%a' OR other_column = 'bb')")).isNotFullyPushedDown(FilterNode.class);
         }
     }
 
