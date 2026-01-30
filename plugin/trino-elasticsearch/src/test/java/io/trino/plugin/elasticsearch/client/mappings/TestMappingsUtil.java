@@ -358,7 +358,7 @@ final class TestMappingsUtil
     }
 
     @Test
-    void testShouldCreateConflictTypeForInconsistentMappingForField()
+    void testShouldCreateConflictTypeWithArrayOfTypeWhenInconsistentMappingForField()
             throws MergingMappingException
     {
         String mappings1 = """
@@ -406,7 +406,7 @@ final class TestMappingsUtil
     }
 
     @Test
-    void testShouldNotCreteConfComplainOnNotCompatibleFields()
+    void testShouldNotCreateArrayOfTypesForPropertyNameOtherThanType()
     {
         String mappings1 = """
                 {
