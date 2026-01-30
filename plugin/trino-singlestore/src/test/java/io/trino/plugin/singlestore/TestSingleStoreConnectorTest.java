@@ -716,9 +716,9 @@ public class TestSingleStoreConnectorTest
 
             // like with NOT
             assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar NOT LIKE NULL")).isReplacedWithEmptyValues();
-            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar NOT LIKE 'a%'")).isNotFullyPushedDown(FilterNode.class);
-            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar NOT LIKE 'aa' OR other_column = 'aa'")).isNotFullyPushedDown(FilterNode.class);
-            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE NOT (some_varchar LIKE '%a' OR other_column = 'bb')")).isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar NOT LIKE 'a%'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar NOT LIKE 'aa' OR other_column = 'aa'")).isFullyPushedDown();
+            assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE NOT (some_varchar LIKE '%a' OR other_column = 'bb')")).isFullyPushedDown();
         }
     }
 
