@@ -12,6 +12,7 @@ package io.starburst.server.troubleshooting;
 import com.google.inject.Binder;
 import com.google.inject.Key;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.airlift.units.Duration;
 import io.starburst.server.troubleshooting.TroubleshootingTestHelper.Unzipped;
 import io.trino.Session;
 import io.trino.node.InternalNodeManager;
@@ -41,10 +42,10 @@ import static io.starburst.server.troubleshooting.TroubleshootingSessionProperti
 import static io.trino.client.AdditionalClientCapabilities.QUERY_TROUBLESHOOTING;
 import static io.trino.node.NodeState.ACTIVE;
 import static io.trino.testing.TestingSession.testSessionBuilder;
+import static io.trino.testing.assertions.Assert.assertEventually;
 import static java.lang.Math.min;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.testcontainers.shaded.org.awaitility.Awaitility.await;
 
 public class TestLimitedWorkersCollected
         extends AbstractTestQueryFramework
@@ -86,8 +87,9 @@ public class TestLimitedWorkersCollected
                 .build();
         // wait for all the workers to announce itself in the discovery service
         InternalNodeManager nodeManager = queryRunner.getCoordinator().getInstance(Key.get(InternalNodeManager.class));
-        await().atMost(5, SECONDS)
-                .untilAsserted(() -> assertThat(nodeManager.getNodes(ACTIVE)).hasSizeGreaterThanOrEqualTo(queryRunner.getNodeCount()));
+        assertEventually(
+                new Duration(5, SECONDS),
+                () -> assertThat(nodeManager.getNodes(ACTIVE)).hasSizeGreaterThanOrEqualTo(queryRunner.getNodeCount()));
 
         return queryRunner;
     }
