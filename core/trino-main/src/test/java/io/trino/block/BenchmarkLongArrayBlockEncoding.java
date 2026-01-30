@@ -170,7 +170,7 @@ public class BenchmarkLongArrayBlockEncoding
         }
     }
 
-    public static void main(String[] args)
+    static void main()
             throws Exception
     {
         benchmark(BenchmarkLongArrayBlockEncoding.class).run();

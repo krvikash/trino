@@ -70,7 +70,7 @@ public class TestPartitionedWithPartitionStatisticsTpcdsCostBasedPlan
         return TPCDS_SQL_FILES;
     }
 
-    public static void main(String[] args)
+    static void main()
     {
         new TestPartitionedWithPartitionStatisticsTpcdsCostBasedPlan().generate();
     }

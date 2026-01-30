@@ -211,7 +211,7 @@ public final class IcebergQueryRunner
     {
         private IcebergAiMinIoQueryRunnerMain() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             File modelsFile = new File(System.getProperty("iceberg.model-file.path"));
@@ -619,7 +619,7 @@ public final class IcebergQueryRunner
     {
         private IcebergQueryRunnerWithFilesystemSpoolingExchangeMain() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             File exchangeManagerDirectory = createTempDirectory("exchange_manager").toFile();
@@ -647,7 +647,7 @@ public final class IcebergQueryRunner
     {
         private IcebergQueryRunnerWithEmbeddedBufferExchangeMain() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             File exchangeManagerDirectory = createTempDirectory("exchange_manager").toFile();
@@ -712,7 +712,7 @@ public final class IcebergQueryRunner
     {
         private IcebergLakekeeperQueryRunnerMain() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             @SuppressWarnings("resource")

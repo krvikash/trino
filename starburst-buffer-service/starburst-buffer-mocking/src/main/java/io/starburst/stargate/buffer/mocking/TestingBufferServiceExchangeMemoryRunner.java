@@ -25,7 +25,7 @@ public final class TestingBufferServiceExchangeMemoryRunner
 {
     private TestingBufferServiceExchangeMemoryRunner() {}
 
-    public static void main(String[] args)
+    static void main()
             throws Exception
     {
         TestingBufferService bufferService = TestingBufferService

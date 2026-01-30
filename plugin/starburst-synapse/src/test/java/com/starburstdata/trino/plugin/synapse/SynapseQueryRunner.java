@@ -196,7 +196,7 @@ public final class SynapseQueryRunner
         log.info("Imported %s rows for %s in %s", rows, table.objectName(), nanosSince(start).convertToMostSuccinctTimeUnit());
     }
 
-    public static void main(String[] args)
+    static void main()
             throws Exception
     {
         Logging.initialize();

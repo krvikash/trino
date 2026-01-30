@@ -562,7 +562,7 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
     {
         private UpdateOverrides() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws IOException
         {
             HELPER.updateOverrides();

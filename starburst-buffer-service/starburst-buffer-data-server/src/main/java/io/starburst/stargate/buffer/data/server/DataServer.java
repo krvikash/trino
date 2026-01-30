@@ -38,7 +38,7 @@ public final class DataServer
 
     private DataServer() {}
 
-    public static void main(String[] args)
+    static void main()
     {
         BufferServiceSystemRequirements.verifySystemRequirements();
         String injectedVersion = System.getenv("BUFFER_DATA_SERVER_DOCKER_VERSION");

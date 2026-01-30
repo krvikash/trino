@@ -96,7 +96,7 @@ public class DataframeQueryRunner
         queryRunner.execute("CREATE SCHEMA iceberg.default");
     }
 
-    public static void main(String[] args)
+    static void main()
             throws Exception
     {
         Logging.initialize();

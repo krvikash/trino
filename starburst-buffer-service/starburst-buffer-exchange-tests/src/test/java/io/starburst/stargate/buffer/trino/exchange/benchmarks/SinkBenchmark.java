@@ -27,7 +27,7 @@ public final class SinkBenchmark
 
     private SinkBenchmark() {}
 
-    public static void main(String[] args)
+    static void main()
     {
         DataSize dataPerWriter = DataSize.of(4, DataSize.Unit.GIGABYTE);
         List<SinkBenchmarkSetup> setups = ImmutableList.of(

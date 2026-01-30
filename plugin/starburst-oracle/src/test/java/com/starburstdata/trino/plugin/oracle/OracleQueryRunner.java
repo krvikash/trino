@@ -240,7 +240,7 @@ public final class OracleQueryRunner
                 .buildOrThrow();
     }
 
-    public static void main(String[] args)
+    static void main()
             throws Exception
     {
         Lease<TestingStarburstOracleServer> oracleServer = TestingStarburstOracleServer.getInstance();

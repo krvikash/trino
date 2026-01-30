@@ -28,7 +28,7 @@ public class SchemaDiscoveryCli
     public static class Debug
     {
         @SuppressWarnings("InfiniteLoopStatement")
-        public static void main(String[] args)
+        static void main()
                 throws IOException
         {
             BufferedReader in = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
@@ -39,7 +39,7 @@ public class SchemaDiscoveryCli
         }
     }
 
-    public static void main(String[] args)
+    static void main(String[] args)
     {
         CommandLine commandLine = new CommandLine(new SchemaDiscoveryCommand());
         Map<String, CommandLine.IHelpSectionRenderer> helpMap = new HashMap<>(commandLine.getHelpSectionMap());

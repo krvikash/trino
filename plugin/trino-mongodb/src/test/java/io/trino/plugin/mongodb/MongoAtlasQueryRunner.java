@@ -119,7 +119,7 @@ public final class MongoAtlasQueryRunner
     {
         private MongoAtlasQueryRunnerMain() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             DistributedQueryRunner atlasQueryRunner = createMongoAtlasQueryRunner(
@@ -136,7 +136,7 @@ public final class MongoAtlasQueryRunner
     {
         private MongoAtlasFederatedQueryRunnerMain() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             DistributedQueryRunner atlasFederatedQueryRunner = createMongoAtlasFederatedMongoQueryRunner(

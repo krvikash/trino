@@ -34,7 +34,7 @@ public final class DiscoveryServer
 
     private DiscoveryServer() {}
 
-    public static void main(String[] args)
+    static void main()
     {
         BufferServiceSystemRequirements.verifySystemRequirements();
 

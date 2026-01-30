@@ -89,7 +89,7 @@ public final class StressTestDataResource
         }
     }
 
-    public static void main(String[] args)
+    static void main()
             throws Exception
     {
         boolean isChunkSpoolMergeEnabled = true;

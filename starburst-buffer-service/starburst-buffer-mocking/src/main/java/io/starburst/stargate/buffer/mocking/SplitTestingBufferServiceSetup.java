@@ -28,7 +28,7 @@ public class SplitTestingBufferServiceSetup
 
         private BufferServiceMain() {}
 
-        public static void main(String[] args)
+        static void main()
         {
             TestingBufferService bufferService = TestingBufferService
                     .builder()
@@ -50,7 +50,7 @@ public class SplitTestingBufferServiceSetup
     {
         private TrinoQueryRunnerMain() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             Map<String, String> properties = new HashMap<>();

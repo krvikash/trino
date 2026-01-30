@@ -217,7 +217,7 @@ final class TestSortTempFileFactory
         return "%-15s | %8d | %,15d | %,15d | %10.4f%n".formatted(table.getTableName(), actualRows, optimizedBytes, orcBytes, ratio);
     }
 
-    public static void main(String[] args)
+    static void main()
             throws Exception
     {
         StringBuilder output = new StringBuilder();

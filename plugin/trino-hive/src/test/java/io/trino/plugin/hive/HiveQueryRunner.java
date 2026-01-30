@@ -484,7 +484,7 @@ public final class HiveQueryRunner
     {
         private HiveS3UnityQueryRunnerMain() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             String unityHost = requiredNonEmptySystemProperty("testing.hive.metastore.unity.host");

@@ -16,7 +16,7 @@ public class ShallowDiscoveryCli
 {
     private ShallowDiscoveryCli() {}
 
-    public static void main(String[] args)
+    static void main(String[] args)
     {
         CommandLine commandLine = new CommandLine(new ShallowDiscoveryCommand());
         commandLine.setExecutionExceptionHandler((e, __, ___) -> {

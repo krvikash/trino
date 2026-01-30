@@ -91,7 +91,7 @@ public final class OpenApiQueryRunner
         }
     }
 
-    public static void main(String[] args)
+    static void main()
             throws Exception
     {
         FastApiServer fastApiServer = new FastApiServer();
@@ -115,7 +115,7 @@ public final class OpenApiQueryRunner
      */
     public static class OpenApi30GithubQueryRunnerMain
     {
-        public static void main()
+        static void main()
                 throws Exception
         {
             QueryRunner queryRunner = builder()
@@ -142,7 +142,7 @@ public final class OpenApiQueryRunner
      */
     public static class OpenApi31GithubQueryRunnerMain
     {
-        public static void main()
+        static void main()
                 throws Exception
         {
             QueryRunner queryRunner = builder()

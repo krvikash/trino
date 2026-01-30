@@ -291,7 +291,7 @@ public final class DeltaLakeQueryRunner
     {
         private DeltaS3UnityQueryRunnerMain() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             String unityHost = requiredNonEmptySystemProperty("testing.hive.metastore.unity.host");

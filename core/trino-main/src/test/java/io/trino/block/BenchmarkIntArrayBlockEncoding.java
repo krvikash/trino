@@ -170,7 +170,7 @@ public class BenchmarkIntArrayBlockEncoding
         }
     }
 
-    public static void main(String[] args)
+    static void main()
             throws Exception
     {
         benchmark(BenchmarkIntArrayBlockEncoding.class).run();

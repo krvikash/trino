@@ -21,7 +21,7 @@ public final class MockBufferServiceExchangeMemoryRunner
 {
     private MockBufferServiceExchangeMemoryRunner() {}
 
-    public static void main(String[] args)
+    static void main()
             throws Exception
     {
         MockBufferService mockBufferService = new MockBufferService(1);

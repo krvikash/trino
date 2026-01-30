@@ -39,7 +39,7 @@ public class Tester
 {
     private Tester() {}
 
-    public static void main(String[] args)
+    static void main()
             throws Exception
     {
         BufferedReader in = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));

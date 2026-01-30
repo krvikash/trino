@@ -36,7 +36,7 @@ public final class JaegerTraceImporter
 {
     private JaegerTraceImporter() {}
 
-    public static void main(String[] args)
+    static void main()
             throws IOException
     {
         GrpcExporterBuilder<FileBasedMarshaller> grpcExporterBuilder = new GrpcExporterBuilder<>(OTLP_GRPC_SPAN_EXPORTER, 10L, URI.create("http://localhost:4317"), () -> null, "/opentelemetry.proto.collector.trace.v1.TraceService/Export");

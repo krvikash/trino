@@ -94,7 +94,7 @@ public final class StorageQueryRunner
 
     public static final class StorageDefaultQueryRunnerMain
     {
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             Logging.initialize();
@@ -162,7 +162,7 @@ public final class StorageQueryRunner
     public static final class StorageExternalQueryRunnerMain
     {
         // Please set connector properties via VM options. e.g. -Dio.credentials-key=
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             Logging.initialize();

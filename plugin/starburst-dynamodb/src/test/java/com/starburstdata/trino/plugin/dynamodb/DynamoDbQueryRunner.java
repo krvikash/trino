@@ -273,7 +273,7 @@ public final class DynamoDbQueryRunner
 
     public static final class DefaultDynamoDbQueryRunnerMain
     {
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             Logging.initialize();
@@ -294,7 +294,7 @@ public final class DynamoDbQueryRunner
 
     public static final class RemoteDynamoDbQueryRunnerMain
     {
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             Logging.initialize();

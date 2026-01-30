@@ -228,7 +228,7 @@ public class BenchmarkMemoryCacheManager
         benchmarkConcurrentStorePages(context);
     }
 
-    public static void main(String[] args)
+    static void main()
             throws RunnerException
     {
         benchmark(BenchmarkMemoryCacheManager.class).run();

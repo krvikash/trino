@@ -31,7 +31,7 @@ public final class SourceBenchmark
 
     private SourceBenchmark() {}
 
-    public static void main(String[] args)
+    static void main()
     {
         DataSize totalDataSize = DataSize.of(32, GIGABYTE);
         List<SourceBenchmarkSetup> setups = ImmutableList.of(

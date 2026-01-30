@@ -47,7 +47,7 @@ public class QueryJsonExtractUtils
     {
     }
 
-    public static void main(String[] args)
+    static void main()
             throws IOException
     {
         // TODO: In order to use this util, please update the following args:

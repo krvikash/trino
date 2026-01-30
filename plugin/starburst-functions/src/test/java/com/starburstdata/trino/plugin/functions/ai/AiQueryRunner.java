@@ -90,7 +90,7 @@ public final class AiQueryRunner
                 .build();
     }
 
-    public static void main(String[] args)
+    static void main()
             throws Exception
     {
         String json = """

@@ -387,7 +387,7 @@ public class BenchmarkSortingFileWriter
         }
     }
 
-    public static void main(String[] args)
+    static void main()
             throws Exception
     {
         benchmark(BenchmarkSortingFileWriter.class)
