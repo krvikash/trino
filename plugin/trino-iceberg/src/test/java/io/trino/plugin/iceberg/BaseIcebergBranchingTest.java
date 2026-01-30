@@ -16,7 +16,6 @@ package io.trino.plugin.iceberg;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.metastore.HiveMetastore;
 import io.trino.testing.AbstractTestQueryFramework;
-import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
 import org.apache.iceberg.BaseTable;
 import org.junit.jupiter.api.Test;
@@ -25,26 +24,14 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.List;
 
-import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
-import static io.trino.plugin.iceberg.IcebergTestUtils.getHiveMetastore;
 import static org.apache.iceberg.expressions.Expressions.alwaysTrue;
 import static org.assertj.core.api.Assertions.assertThat;
 
-final class TestIcebergBranching
+public abstract class BaseIcebergBranchingTest
         extends AbstractTestQueryFramework
 {
-    private HiveMetastore metastore;
-    private TrinoFileSystemFactory fileSystemFactory;
-
-    @Override
-    protected QueryRunner createQueryRunner()
-            throws Exception
-    {
-        QueryRunner queryRunner = IcebergQueryRunner.builder().build();
-        metastore = getHiveMetastore(queryRunner);
-        fileSystemFactory = getFileSystemFactory(queryRunner);
-        return queryRunner;
-    }
+    protected HiveMetastore metastore;
+    protected TrinoFileSystemFactory fileSystemFactory;
 
     @ParameterizedTest
     @ValueSource(ints = {2, 3})
