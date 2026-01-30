@@ -406,6 +406,72 @@ final class TestMappingsUtil
     }
 
     @Test
+    void testShouldCreateArrayOfTypesWhenInconsistentMappingForFieldAndSubfield()
+            throws MergingMappingException
+    {
+        String mappings1 = """
+                {
+                  "mappings": {
+                    "properties": {
+                      "name" : {
+                        "type" : "text",
+                        "fields" : {
+                          "keyword" : {
+                            "type" : "keyword",
+                            "ignore_above" : 256
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                """;
+
+        String mappings2 = """
+                {
+                  "mappings": {
+                    "properties": {
+                      "name" : {
+                        "type" : "integer",
+                        "fields" : {
+                          "keyword" : {
+                            "type" : "string",
+                            "ignore_above" : 256
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                """;
+
+        String expectedMappings = """
+                {
+                  "mappings": {
+                    "properties": {
+                      "name" : {
+                        "type" : ["integer", "text"],
+                        "fields" : {
+                          "keyword" : {
+                            "type" : ["keyword", "string"],
+                            "ignore_above" : 256
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                """;
+
+        assertUnion(ImmutableList.of(mappings1, mappings2), expectedMappings);
+        assertUnion(ImmutableList.of(mappings2, mappings1), expectedMappings);
+        assertUnion(ImmutableList.of(mappings1, mappings2, mappings1), expectedMappings);
+        assertUnion(ImmutableList.of(mappings1, mappings2, mappings1, mappings1, mappings1), expectedMappings);
+        assertUnion(ImmutableList.of(mappings1, mappings2, mappings1, mappings2, mappings2), expectedMappings);
+        assertUnion(ImmutableList.of(mappings2, mappings2, mappings2, mappings1), expectedMappings);
+    }
+
+    @Test
     void testShouldNotCreateArrayOfTypesForPropertyNameOtherThanType()
     {
         String mappings1 = """
