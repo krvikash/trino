@@ -111,7 +111,8 @@ public class StorageModule
         configBinder(binder).bindConfig(OrcWriterConfig.class);
         configBinder(binder).bindConfig(ParquetReaderConfig.class);
         configBinder(binder).bindConfig(ParquetWriterConfig.class);
-        newSetBinder(binder, SessionPropertiesProvider.class).addBinding().to(HiveSessionProperties.class).in(Scopes.SINGLETON);
+        binder.bind(HiveSessionProperties.class).in(Scopes.SINGLETON);
+        newSetBinder(binder, SessionPropertiesProvider.class).addBinding().to(StorageSessionProperties.class).in(Scopes.SINGLETON);
 
         binder.bind(FileFormatDataSourceStats.class).in(Scopes.SINGLETON);
         newExporter(binder).export(FileFormatDataSourceStats.class).withGeneratedName();
