@@ -1576,7 +1576,6 @@ jobs:
             - { modules: plugin/trino-mongodb, profile: cloud-tests }
             - { modules: plugin/trino-mysql }
             - { modules: plugin/starburst-openapi }
-            - { modules: plugin/trino-openlineage }
             - { modules: plugin/trino-opensearch }
             - { modules: plugin/trino-oracle }
             - { modules: plugin/trino-pinot, runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest ] }
