@@ -34,10 +34,10 @@ import software.amazon.awssdk.core.exception.SdkClientException;
 import java.io.IOException;
 import java.net.URI;
 
-import static io.trino.testing.containers.Minio.MINIO_ACCESS_KEY;
 import static io.trino.testing.containers.Minio.MINIO_API_PORT;
 import static io.trino.testing.containers.Minio.MINIO_REGION;
-import static io.trino.testing.containers.Minio.MINIO_SECRET_KEY;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -129,7 +129,7 @@ public class TestS3FileSystemApiTimeout
                 .setEndpoint(s3Endpoint)
                 .setRegion(MINIO_REGION)
                 .setPathStyleAccess(true)
-                .setAwsAccessKey(MINIO_ACCESS_KEY)
-                .setAwsSecretKey(MINIO_SECRET_KEY);
+                .setAwsAccessKey(MINIO_ROOT_USER)
+                .setAwsSecretKey(MINIO_ROOT_PASSWORD);
     }
 }

@@ -20,8 +20,8 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 
 import java.util.Map;
 
-import static io.trino.testing.containers.Minio.MINIO_ACCESS_KEY;
-import static io.trino.testing.containers.Minio.MINIO_SECRET_KEY;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
 
 public final class CustomCredentialProviders
 {
@@ -35,7 +35,7 @@ public final class CustomCredentialProviders
         @Override
         public AwsCredentials resolveCredentials()
         {
-            return AwsBasicCredentials.create(MINIO_ACCESS_KEY, MINIO_SECRET_KEY);
+            return AwsBasicCredentials.create(MINIO_ROOT_USER, MINIO_ROOT_PASSWORD);
         }
     }
 

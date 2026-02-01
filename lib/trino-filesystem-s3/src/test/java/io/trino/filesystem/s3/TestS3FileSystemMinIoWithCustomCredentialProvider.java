@@ -27,9 +27,9 @@ import software.amazon.awssdk.services.s3.S3Client;
 import java.io.IOException;
 import java.net.URI;
 
-import static io.trino.testing.containers.Minio.MINIO_ACCESS_KEY;
 import static io.trino.testing.containers.Minio.MINIO_REGION;
-import static io.trino.testing.containers.Minio.MINIO_SECRET_KEY;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static software.amazon.awssdk.core.checksums.ResponseChecksumValidation.WHEN_REQUIRED;
 
@@ -73,7 +73,7 @@ public class TestS3FileSystemMinIoWithCustomCredentialProvider
                 .responseChecksumValidation(WHEN_REQUIRED)
                 .requestChecksumCalculation(RequestChecksumCalculation.WHEN_REQUIRED)
                 .credentialsProvider(StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create(MINIO_ACCESS_KEY, MINIO_SECRET_KEY)))
+                        AwsBasicCredentials.create(MINIO_ROOT_USER, MINIO_ROOT_PASSWORD)))
                 .build();
     }
 
@@ -85,7 +85,7 @@ public class TestS3FileSystemMinIoWithCustomCredentialProvider
                 .setRegion(MINIO_REGION)
                 .setPathStyleAccess(true)
                 .setCustomCredentialProviderClass(CustomCredentialProviders.MapBasedAwsCredentialsProvider.class.getName())
-                .setCustomCredentialProviderArguments("accessKey=%s,secretKey=%s".formatted(MINIO_ACCESS_KEY, MINIO_SECRET_KEY))
+                .setCustomCredentialProviderArguments("accessKey=%s,secretKey=%s".formatted(MINIO_ROOT_USER, MINIO_ROOT_PASSWORD))
                 .setStreamingPartSize(DataSize.valueOf("5.5MB")), new S3FileSystemStats());
     }
 

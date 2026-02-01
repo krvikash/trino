@@ -35,8 +35,8 @@ import static io.trino.plugin.iceberg.IcebergTestUtils.checkOrcFileSorting;
 import static io.trino.plugin.iceberg.IcebergTestUtils.checkParquetFileSorting;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.assertions.Assert.assertEventually;
-import static io.trino.testing.containers.Minio.MINIO_ACCESS_KEY;
-import static io.trino.testing.containers.Minio.MINIO_SECRET_KEY;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
 import static java.lang.String.format;
 import static org.apache.iceberg.FileFormat.PARQUET;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -83,8 +83,8 @@ final class TestIcebergLakekeeperCatalogConnectorSmokeTest
                 .addIcebergProperty("fs.native-s3.enabled", "true")
                 .addIcebergProperty("s3.region", "dummy")
                 .addIcebergProperty("s3.path-style-access", "true")
-                .addIcebergProperty("s3.aws-access-key", MINIO_ACCESS_KEY)
-                .addIcebergProperty("s3.aws-secret-key", MINIO_SECRET_KEY)
+                .addIcebergProperty("s3.aws-access-key", MINIO_ROOT_USER)
+                .addIcebergProperty("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
                 .setInitialTables(REQUIRED_TPCH_TABLES)
                 .build();
     }

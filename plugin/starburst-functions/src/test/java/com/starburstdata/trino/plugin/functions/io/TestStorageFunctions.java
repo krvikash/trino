@@ -48,9 +48,9 @@ import java.util.Optional;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.trino.testing.TestingNames.randomNameSuffix;
-import static io.trino.testing.containers.Minio.MINIO_ACCESS_KEY;
 import static io.trino.testing.containers.Minio.MINIO_REGION;
-import static io.trino.testing.containers.Minio.MINIO_SECRET_KEY;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.EnumSource.Mode.EXCLUDE;
@@ -83,8 +83,8 @@ final class TestStorageFunctions
         queryRunner.createCatalog("hive", "hive", ImmutableMap.<String, String>builder()
                 .put("hive.metastore.uri", container.getHiveMetastoreEndpoint().toString())
                 .put("fs.native-s3.enabled", "true")
-                .put("s3.aws-access-key", MINIO_ACCESS_KEY)
-                .put("s3.aws-secret-key", MINIO_SECRET_KEY)
+                .put("s3.aws-access-key", MINIO_ROOT_USER)
+                .put("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
                 .put("s3.region", MINIO_REGION)
                 .put("s3.endpoint", "http://" + container.getMinio().getMinioApiEndpoint())
                 .put("s3.path-style-access", "true")
@@ -360,7 +360,7 @@ final class TestStorageFunctions
                         }
                     ]
                 }
-                """.formatted(minioEndpoint, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_REGION).stripIndent();
+                """.formatted(minioEndpoint, MINIO_ROOT_USER, MINIO_ROOT_PASSWORD, MINIO_REGION).stripIndent();
 
         Path config = Files.createTempFile("starburst_functions", "json");
         config.toFile().deleteOnExit();
@@ -372,8 +372,8 @@ final class TestStorageFunctions
     {
         S3FileSystemConfig config = new S3FileSystemConfig()
                 .setEndpoint(minio.getMinioAddress())
-                .setAwsAccessKey(MINIO_ACCESS_KEY)
-                .setAwsSecretKey(MINIO_SECRET_KEY)
+                .setAwsAccessKey(MINIO_ROOT_USER)
+                .setAwsSecretKey(MINIO_ROOT_PASSWORD)
                 .setRegion(MINIO_REGION)
                 .setPathStyleAccess(true);
         S3FileSystemFactory fileSystemFactory = new S3FileSystemFactory(OpenTelemetry.noop(), config, new S3FileSystemStats());

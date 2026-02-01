@@ -22,8 +22,8 @@ import org.junit.jupiter.api.AfterAll;
 import java.util.Map;
 
 import static io.trino.testing.TestingNames.randomNameSuffix;
-import static io.trino.testing.containers.Minio.MINIO_ACCESS_KEY;
-import static io.trino.testing.containers.Minio.MINIO_SECRET_KEY;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
 import static org.apache.iceberg.FileFormat.PARQUET;
 
 final class TestIcebergHiveCatalogExternalWriteTest
@@ -53,8 +53,8 @@ final class TestIcebergHiveCatalogExternalWriteTest
                 .put("hive.metastore.uri", hive3MinioDataLake.getHiveHadoop().getHiveMetastoreEndpoint().toString())
                 .put("fs.hadoop.enabled", "false")
                 .put("fs.native-s3.enabled", "true")
-                .put("s3.aws-access-key", MINIO_ACCESS_KEY)
-                .put("s3.aws-secret-key", MINIO_SECRET_KEY)
+                .put("s3.aws-access-key", MINIO_ROOT_USER)
+                .put("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
                 .put("s3.endpoint", hive3MinioDataLake.getMinio().getMinioAddress())
                 .put("s3.region", "us-east-1")
                 .put("s3.path-style-access", "true")

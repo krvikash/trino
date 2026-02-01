@@ -34,10 +34,10 @@ import static io.airlift.http.client.JsonResponseHandler.createJsonResponseHandl
 import static io.airlift.http.client.StaticBodyGenerator.createStaticBodyGenerator;
 import static io.airlift.http.client.StatusResponseHandler.createStatusResponseHandler;
 import static io.trino.testing.containers.Minio.DEFAULT_HOST_NAME;
-import static io.trino.testing.containers.Minio.MINIO_ACCESS_KEY;
 import static io.trino.testing.containers.Minio.MINIO_API_PORT;
 import static io.trino.testing.containers.Minio.MINIO_REGION;
-import static io.trino.testing.containers.Minio.MINIO_SECRET_KEY;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
@@ -164,8 +164,8 @@ public final class TestingLakekeeperCatalog
                 "storage-credential", Map.<String, Object>of(
                         "type", "s3",
                         "credential-type", "access-key",
-                        "aws-access-key-id", MINIO_ACCESS_KEY,
-                        "aws-secret-access-key", MINIO_SECRET_KEY)));
+                        "aws-access-key-id", MINIO_ROOT_USER,
+                        "aws-secret-access-key", MINIO_ROOT_PASSWORD)));
 
         Request request = Request.Builder.preparePost()
                 .setUri(URI.create(restUri() + "/management/v1/warehouse"))

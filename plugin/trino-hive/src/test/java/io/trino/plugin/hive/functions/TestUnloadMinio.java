@@ -26,9 +26,9 @@ import io.trino.testing.containers.Minio;
 import java.io.IOException;
 
 import static io.trino.testing.TestingNames.randomNameSuffix;
-import static io.trino.testing.containers.Minio.MINIO_ACCESS_KEY;
 import static io.trino.testing.containers.Minio.MINIO_REGION;
-import static io.trino.testing.containers.Minio.MINIO_SECRET_KEY;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
 
 public class TestUnloadMinio
         extends BaseUnloadFileSystemTest
@@ -46,8 +46,8 @@ public class TestUnloadMinio
         minio.createBucket(bucketName);
         return HiveQueryRunner.builder()
                 .setHiveProperties(ImmutableMap.<String, String>builder()
-                        .put("hive.s3.aws-access-key", MINIO_ACCESS_KEY)
-                        .put("hive.s3.aws-secret-key", MINIO_SECRET_KEY)
+                        .put("hive.s3.aws-access-key", MINIO_ROOT_USER)
+                        .put("hive.s3.aws-secret-key", MINIO_ROOT_PASSWORD)
                         .put("hive.s3.endpoint", minio.getMinioAddress())
                         .put("hive.s3.path-style-access", "true")
                         .buildOrThrow())
@@ -62,8 +62,8 @@ public class TestUnloadMinio
                 OpenTelemetry.noop(),
                 new S3FileSystemConfig()
                         .setRegion(MINIO_REGION)
-                        .setAwsAccessKey(MINIO_ACCESS_KEY)
-                        .setAwsSecretKey(MINIO_SECRET_KEY)
+                        .setAwsAccessKey(MINIO_ROOT_USER)
+                        .setAwsSecretKey(MINIO_ROOT_PASSWORD)
                         .setEndpoint(minio.getMinioAddress())
                         .setPathStyleAccess(true),
                 new S3FileSystemStats());

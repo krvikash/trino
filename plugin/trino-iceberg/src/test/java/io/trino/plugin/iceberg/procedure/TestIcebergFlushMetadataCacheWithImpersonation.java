@@ -27,9 +27,9 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static io.trino.testing.TestingNames.randomNameSuffix;
-import static io.trino.testing.containers.Minio.MINIO_ACCESS_KEY;
 import static io.trino.testing.containers.Minio.MINIO_REGION;
-import static io.trino.testing.containers.Minio.MINIO_SECRET_KEY;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
 import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestIcebergFlushMetadataCacheWithImpersonation
@@ -54,8 +54,8 @@ final class TestIcebergFlushMetadataCacheWithImpersonation
                         .put("hive.metastore-cache-ttl", "1d")
                         .put("hive.user-metastore-cache-ttl", "1d")
                         .put("fs.native-s3.enabled", "true")
-                        .put("s3.aws-access-key", MINIO_ACCESS_KEY)
-                        .put("s3.aws-secret-key", MINIO_SECRET_KEY)
+                        .put("s3.aws-access-key", MINIO_ROOT_USER)
+                        .put("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
                         .put("s3.region", MINIO_REGION)
                         .put("s3.endpoint", hiveMinioDataLake.getMinio().getMinioAddress())
                         .put("s3.path-style-access", "true")
