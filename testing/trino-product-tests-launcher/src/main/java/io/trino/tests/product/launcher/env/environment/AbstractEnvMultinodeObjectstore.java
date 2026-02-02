@@ -30,7 +30,9 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
 
+import static io.trino.tests.product.launcher.env.EnvironmentContainers.COORDINATOR;
 import static io.trino.tests.product.launcher.env.EnvironmentContainers.HADOOP;
+import static io.trino.tests.product.launcher.env.EnvironmentContainers.WORKER;
 import static io.trino.tests.product.launcher.env.common.Minio.MINIO_CONTAINER_NAME;
 import static io.trino.tests.product.launcher.env.common.Standard.CONTAINER_TRINO_ETC;
 import static java.util.Objects.requireNonNull;
@@ -68,10 +70,16 @@ public abstract class AbstractEnvMultinodeObjectstore
         // Using hdp3.1 so we are using Hive metastore with version close to versions of hive-*.jars Spark uses
         builder.configureContainer(HADOOP, container -> container.setDockerImageName("ghcr.io/trinodb/testing/hdp3.1-hive:" + hadoopImagesVersion));
 
-        builder.addConnector(
-                connectorName,
-                forHostPath(dockerFiles.getDockerFilesHostPath("conf/environment/%s/objectstore.properties".formatted(configDirectoryName))),
-                CONTAINER_TRINO_ETC + "/catalog/objectstore.properties");
+        builder.addConnector(connectorName);
+        for (String logicalName : Set.of(COORDINATOR, WORKER)) {
+            builder.configureContainer(logicalName, container -> container
+                    .withCopyFileToContainer(
+                            forHostPath(dockerFiles.getDockerFilesHostPath("conf/environment/%s/minio.properties".formatted(configDirectoryName))),
+                            CONTAINER_TRINO_ETC + "/catalog/minio.properties")
+                    .withCopyFileToContainer(
+                            forHostPath(dockerFiles.getDockerFilesHostPath("conf/environment/%s/hdfs.properties".formatted(configDirectoryName))),
+                            CONTAINER_TRINO_ETC + "/catalog/hdfs.properties"));
+        }
 
         // Initialize buckets in Minio
         FileAttribute<Set<PosixFilePermission>> posixFilePermissions = PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-r--r--"));

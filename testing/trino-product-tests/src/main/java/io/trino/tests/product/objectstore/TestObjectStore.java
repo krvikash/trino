@@ -30,21 +30,28 @@ public class TestObjectStore
     @Test(groups = {OBJECTSTORE, PROFILE_SPECIFIC_TESTS})
     public void testCreateTableAsSelect()
     {
-        String schemaName = "test_schema_minio" + randomNameSuffix();
-        String tableName = "test_table_minio" + randomNameSuffix();
+        testCreateTableAsSelect("minio", "s3://" + S3_BUCKET_NAME);
+        testCreateTableAsSelect("hdfs", "hdfs://hadoop-master:9000/user/hive/warehouse");
+    }
 
-        onTrino().executeQuery("CREATE SCHEMA objectstore.%1$s WITH (location = 's3://%2$s/%1$s')".formatted(schemaName, S3_BUCKET_NAME));
+    private void testCreateTableAsSelect(String catalogName, String location)
+    {
+        String schemaName = "test_schema_" + randomNameSuffix();
+        String tableName = "test_table_" + randomNameSuffix();
+
+        onTrino().executeQuery("CREATE SCHEMA %1$s.%2$s WITH (location = '%3$s/%2$s')".formatted(catalogName, schemaName, location));
+        onTrino().executeQuery("USE %s.%s".formatted(catalogName, schemaName));
         try {
-            onTrino().executeQuery("CREATE TABLE objectstore." + schemaName + "." + tableName + " AS SELECT * FROM tpch.tiny.nation");
-            assertThat(onTrino().executeQuery("SELECT * FROM objectstore." + schemaName + "." + tableName).rows())
+            onTrino().executeQuery("CREATE TABLE " + schemaName + "." + tableName + " AS SELECT * FROM tpch.tiny.nation");
+            assertThat(onTrino().executeQuery("SELECT * FROM " + schemaName + "." + tableName).rows())
                     .containsExactlyInAnyOrderElementsOf(onTrino().executeQuery("SELECT * FROM tpch.tiny.nation").rows());
 
-            assertThat((String) onTrino().executeQuery("SELECT \"$path\" FROM objectstore." + schemaName + "." + tableName + " LIMIT 1").getOnlyValue())
-                    .startsWith("s3://");
+            assertThat((String) onTrino().executeQuery("SELECT \"$path\" FROM " + schemaName + "." + tableName + " LIMIT 1").getOnlyValue())
+                    .startsWith(location);
         }
         finally {
-            onTrino().executeQuery("DROP TABLE IF EXISTS objectstore." + schemaName + "." + tableName);
-            onTrino().executeQuery("DROP SCHEMA objectstore." + schemaName);
+            onTrino().executeQuery("DROP TABLE IF EXISTS " + schemaName + "." + tableName);
+            onTrino().executeQuery("DROP SCHEMA " + schemaName);
         }
     }
 }
