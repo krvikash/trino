@@ -219,6 +219,73 @@ public abstract class BaseTestObjectStoreIcebergFeaturesConnectorTest
                 .hasStackTraceContaining("No FileSystem for scheme \"local\"");
     }
 
+    @Test
+    @Override
+    public void testExtraProperties()
+    {
+        // Arbitrary extra_properties currently not exposed in Galaxy
+        assertThatThrownBy(super::testExtraProperties)
+                .isInstanceOf(QueryFailedException.class)
+                .hasMessageContaining("Catalog 'iceberg' table property 'extra_properties' does not exist");
+    }
+
+    @Test
+    @Override
+    public void testReplaceTableExtraProperties()
+    {
+        // Arbitrary extra_properties currently not exposed in Galaxy
+        assertThatThrownBy(super::testReplaceTableExtraProperties)
+                .isInstanceOf(QueryFailedException.class)
+                .hasMessageContaining("Catalog 'iceberg' table property 'extra_properties' does not exist");
+    }
+
+    @Test
+    @Override
+    public void testCreateTableAsSelectWithExtraProperties()
+    {
+        // Arbitrary extra_properties currently not exposed in Galaxy
+        assertThatThrownBy(super::testCreateTableAsSelectWithExtraProperties)
+                .isInstanceOf(QueryFailedException.class)
+                .hasMessageContaining("Catalog 'iceberg' table property 'extra_properties' does not exist");
+    }
+
+    @Test
+    @Override
+    public void testShowCreateNotContainExtraProperties()
+    {
+        // Arbitrary extra_properties currently not exposed in Galaxy
+        assertThatThrownBy(super::testShowCreateNotContainExtraProperties)
+                .isInstanceOf(QueryFailedException.class)
+                .hasMessageContaining("Catalog 'iceberg' table property 'extra_properties' does not exist");
+    }
+
+    @Test
+    @Override
+    public void testNullExtraProperty()
+    {
+        // Arbitrary extra_properties currently not exposed in Galaxy
+        assertThatThrownBy(super::testNullExtraProperty)
+                .hasMessageContaining("Catalog 'iceberg' table property 'extra_properties' does not exist");
+    }
+
+    @Test
+    @Override
+    public void testIllegalExtraPropertyKey()
+    {
+        // Arbitrary extra_properties currently not exposed in Galaxy
+        assertThatThrownBy(super::testIllegalExtraPropertyKey)
+                .hasMessageContaining("Catalog 'iceberg' table property 'extra_properties' does not exist");
+    }
+
+    @Test
+    @Override
+    public void testSetIllegalExtraPropertyKey()
+    {
+        // Arbitrary extra_properties currently not exposed in Galaxy
+        assertThatThrownBy(super::testSetIllegalExtraPropertyKey)
+                .hasMessageContaining("Catalog 'iceberg' table property 'extra_properties' does not exist");
+    }
+
     private void skipDuplicateTestCoverage(String methodName, Class<?>... args)
     {
         HELPER.skipDuplicateTestCoverage(methodName, args);
@@ -1799,73 +1866,6 @@ public abstract class BaseTestObjectStoreIcebergFeaturesConnectorTest
     public void testTableSampleBernoulliBoundaryValues()
     {
         skipDuplicateTestCoverage("testTableSampleBernoulliBoundaryValues");
-    }
-
-    @Test
-    @Override
-    public void testExtraProperties()
-    {
-        // Arbitrary extra_properties currently not exposed in Galaxy
-        assertThatThrownBy(super::testExtraProperties)
-                .isInstanceOf(QueryFailedException.class)
-                .hasMessageContaining("Catalog 'iceberg' table property 'extra_properties' does not exist");
-    }
-
-    @Test
-    @Override
-    public void testReplaceTableExtraProperties()
-    {
-        // Arbitrary extra_properties currently not exposed in Galaxy
-        assertThatThrownBy(super::testReplaceTableExtraProperties)
-                .isInstanceOf(QueryFailedException.class)
-                .hasMessageContaining("Catalog 'iceberg' table property 'extra_properties' does not exist");
-    }
-
-    @Test
-    @Override
-    public void testCreateTableAsSelectWithExtraProperties()
-    {
-        // Arbitrary extra_properties currently not exposed in Galaxy
-        assertThatThrownBy(super::testCreateTableAsSelectWithExtraProperties)
-                .isInstanceOf(QueryFailedException.class)
-                .hasMessageContaining("Catalog 'iceberg' table property 'extra_properties' does not exist");
-    }
-
-    @Test
-    @Override
-    public void testShowCreateNotContainExtraProperties()
-    {
-        // Arbitrary extra_properties currently not exposed in Galaxy
-        assertThatThrownBy(super::testShowCreateNotContainExtraProperties)
-                .isInstanceOf(QueryFailedException.class)
-                .hasMessageContaining("Catalog 'iceberg' table property 'extra_properties' does not exist");
-    }
-
-    @Test
-    @Override
-    public void testNullExtraProperty()
-    {
-        // Arbitrary extra_properties currently not exposed in Galaxy
-        assertThatThrownBy(super::testNullExtraProperty)
-                .hasMessageContaining("Catalog 'iceberg' table property 'extra_properties' does not exist");
-    }
-
-    @Test
-    @Override
-    public void testIllegalExtraPropertyKey()
-    {
-        // Arbitrary extra_properties currently not exposed in Galaxy
-        assertThatThrownBy(super::testIllegalExtraPropertyKey)
-                .hasMessageContaining("Catalog 'iceberg' table property 'extra_properties' does not exist");
-    }
-
-    @Test
-    @Override
-    public void testSetIllegalExtraPropertyKey()
-    {
-        // Arbitrary extra_properties currently not exposed in Galaxy
-        assertThatThrownBy(super::testSetIllegalExtraPropertyKey)
-                .hasMessageContaining("Catalog 'iceberg' table property 'extra_properties' does not exist");
     }
 
     @Test
