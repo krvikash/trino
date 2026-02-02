@@ -516,15 +516,6 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
                 .hasMessageContaining("Executing OPTIMIZE on Hive tables is not supported");
     }
 
-    @Test
-    @Override
-    public void testSelectFromPrestoViewReferencingHiveTableWithTimestamps()
-    {
-        // TODO Separate file metastore between hive and hive_timestamp_nanos catalogs
-        assertThatThrownBy(super::testSelectFromPrestoViewReferencingHiveTableWithTimestamps)
-                .hasMessageContaining("View already exists");
-    }
-
     @BeforeEach
     public void preventDuplicatedTestCoverage(TestInfo testInfo)
     {
