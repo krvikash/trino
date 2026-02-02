@@ -140,6 +140,11 @@ public abstract class BaseObjectStoreIcebergConnectorTest
             return Optional.of(setup.withNewValueLiteral("TIMESTAMP '2020-02-12 14:03:00.123000 +00:00'"));
         }
         switch ("%s -> %s".formatted(setup.sourceColumnType(), setup.newColumnType())) {
+            // Iceberg allows updating column types if the update is safe. Safe updates are:
+            // - int to bigint
+            // - float to double
+            // - decimal(P,S) to decimal(P2,S) when P2 > P (scale cannot change)
+            // https://iceberg.apache.org/docs/latest/spark-ddl/#alter-table--alter-column
             case "row(x integer) -> row(y integer)":
                 // TODO https://github.com/trinodb/trino/issues/15822 The connector returns incorrect NULL when a field in row type doesn't exist in Parquet files
                 return Optional.of(setup.withNewValueLiteral("NULL"));
@@ -153,15 +158,10 @@ public abstract class BaseObjectStoreIcebergConnectorTest
             case "time(6) -> time(3)":
             case "timestamp(6) -> timestamp(3)":
             case "array(integer) -> array(bigint)":
-                // Iceberg allows updating column types if the update is safe. Safe updates are:
-                // - int to bigint
-                // - float to double
-                // - decimal(P,S) to decimal(P2,S) when P2 > P (scale cannot change)
-                // https://iceberg.apache.org/docs/latest/spark-ddl/#alter-table--alter-column
                 return Optional.of(setup.asUnsupported());
 
+            // Iceberg connector ignores the varchar length
             case "varchar(100) -> varchar(50)":
-                // Iceberg connector ignores the varchar length
                 return Optional.empty();
         }
         return Optional.of(setup);
