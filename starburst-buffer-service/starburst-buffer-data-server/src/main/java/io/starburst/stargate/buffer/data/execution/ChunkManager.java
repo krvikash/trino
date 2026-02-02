@@ -66,14 +66,20 @@ import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Throwables.throwIfInstanceOf;
+import static com.google.common.base.Throwables.throwIfUnchecked;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
@@ -483,7 +489,7 @@ public class ChunkManager
         // finish all exchanges
         exchanges.values().forEach(exchange -> {
             try {
-                getFutureValue(exchange.finish());
+                getFutureValueWithTimeout(exchange.finish(), 10, SECONDS);
                 validExchanges.add(exchange);
             }
             catch (Throwable e) {
@@ -579,6 +585,30 @@ public class ChunkManager
         int remainingExchangesBeingReleased = exchangesBeingReleased.size();
         if (remainingExchangesBeingReleased > 0) {
             log.warn("%s exchanges did not finish releasing spooled chunks", remainingExchangesBeingReleased);
+        }
+    }
+
+    private void getFutureValueWithTimeout(ListenableFuture<Void> future, int timeoutValue, TimeUnit timeUnit)
+    {
+        requireNonNull(future, "future is null");
+        checkArgument(timeoutValue >= 0, "timeout is negative");
+        requireNonNull(timeUnit, "timeUnit is null");
+
+        try {
+            future.get(timeoutValue, timeUnit);
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("interrupted", e);
+        }
+        catch (ExecutionException e) {
+            Throwable cause = e.getCause() == null ? e : e.getCause();
+            throwIfInstanceOf(cause, RuntimeException.class);
+            throwIfUnchecked(cause);
+            throw new RuntimeException(cause);
+        }
+        catch (TimeoutException timeoutException) {
+            throw new RuntimeException(timeoutException);
         }
     }
 
