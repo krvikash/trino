@@ -57,6 +57,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -475,8 +476,21 @@ public class ChunkManager
         long drainingStart = System.currentTimeMillis();
         chunkSpoolExecutor.shutdownNow(); // deschedule background spooling
 
+        List<Exchange> validExchanges = new ArrayList<>();
+        Set<Exchange> failedExchanges = new HashSet<>();
+
         // finish all exchanges
-        exchanges.values().forEach(exchange -> getFutureValue(exchange.finish()));
+        exchanges.values().forEach(exchange -> {
+            try {
+                getFutureValue(exchange.finish());
+                validExchanges.add(exchange);
+            }
+            catch (Throwable e) {
+                // skip failed exchanges; there should be none, but we want to be conservative and reduce blast radius in case we have some.
+                log.error(e, "Exception while draining exchange %s", exchange.getExchangeId());
+                failedExchanges.add(exchange);
+            }
+        });
 
         // spool all chunks
         long backoff = 1_000;
@@ -485,7 +499,7 @@ public class ChunkManager
         for (int i = 0; i < drainingMaxAttempts; ++i) {
             try {
                 ImmutableList.Builder<Chunk> chunks = ImmutableList.builder();
-                for (Exchange exchange : exchanges.values()) {
+                for (Exchange exchange : validExchanges) {
                     for (Partition partition : exchange.getPartitionsSortedBySizeDesc()) {
                         for (Chunk chunk : partition.getClosedChunks()) {
                             chunks.add(chunk);
@@ -535,11 +549,11 @@ public class ChunkManager
 
         log.info("Waiting for Trino to acknowledge all closed chunks of all exchanges");
         for (int i = 0; i < 1000; ++i) {
-            if (exchanges.values().stream().allMatch(Exchange::isAllClosedChunksReceived)) {
+            if (validExchanges.stream().allMatch(Exchange::isAllClosedChunksReceived)) {
                 log.info("All closed chunks of all exchanges have been consumed by Trino");
                 return;
             }
-            List<Exchange> pendingExchanges = exchanges.values().stream().filter(exchange -> !exchange.isAllClosedChunksReceived()).toList();
+            List<Exchange> pendingExchanges = exchanges.values().stream().filter(exchange -> !failedExchanges.contains(exchange) && !exchange.isAllClosedChunksReceived()).toList();
             for (Exchange pendingExchange : pendingExchanges) {
                 // some exchanges could be added after we already started draining.
                 // we wait for all addDataPages requests to complete before we enter drainAllChunks method
@@ -555,11 +569,9 @@ public class ChunkManager
             sleepUninterruptibly(100, MILLISECONDS);
         }
 
-        for (Map.Entry<String, Exchange> entry : exchanges.entrySet()) {
-            String exchangeId = entry.getKey();
-            Exchange exchange = entry.getValue();
+        for (Exchange exchange : validExchanges) {
             if (!exchange.isAllClosedChunksReceived()) {
-                log.warn("Failed to receive acknowledgement of receiving all closed chunks from exchange " + exchangeId);
+                log.warn("Failed to receive acknowledgement of receiving all closed chunks from exchange " + exchange.getExchangeId());
             }
         }
 
