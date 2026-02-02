@@ -91,6 +91,7 @@ import static io.starburst.stargate.buffer.data.client.ChunkDeliveryMode.STANDAR
 import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_CORRUPTED;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_NOT_FOUND;
+import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.execution.ChunkManager.ExchangeRemovalReason.ABANDONED;
 import static io.starburst.stargate.buffer.data.execution.ChunkManager.ExchangeRemovalReason.EXPLICIT;
 import static io.starburst.stargate.buffer.data.execution.ExchangeState.CREATED;
@@ -906,6 +907,11 @@ public class ChunkManager
     private long tickerReadMillis()
     {
         return ticker.read() / 1_000_000;
+    }
+
+    public int getMaxPageLength()
+    {
+        return chunkMaxSizeInBytes - DATA_PAGE_HEADER_SIZE;
     }
 
     record ChunksWithExchangeId(

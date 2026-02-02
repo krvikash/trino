@@ -481,6 +481,12 @@ public class DataResource
                                         ImmutableList.Builder<Slice> pages = ImmutableList.builder();
                                         while (bytes > 0 && sliceInput.isReadable()) {
                                             int pageLength = sliceInput.readInt();
+
+                                            if (pageLength > chunkManager.getMaxPageLength()) {
+                                                resumeWithError(errorPrefix.get(), format("Data page too large (%d > %d)".formatted(pageLength, chunkManager.getMaxPageLength())), USER_ERROR);
+                                                return;
+                                            }
+
                                             bytes -= Integer.BYTES;
                                             Slice page = sliceInput.readSlice(pageLength);
                                             if (dataIntegrityVerificationEnabled) {

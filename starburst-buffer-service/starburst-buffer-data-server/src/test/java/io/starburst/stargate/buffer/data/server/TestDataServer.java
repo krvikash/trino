@@ -67,6 +67,7 @@ import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.ChunkDeliveryMode.STANDARD;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
+import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -85,7 +86,7 @@ public class TestDataServer
     private static final String EXCHANGE_0 = "exchange-0";
     private static final String EXCHANGE_1 = "exchange-1";
     private static final long BUFFER_NODE_ID = 0;
-    private static final DataSize DATA_SERVER_AVAILABLE_MEMORY = DataSize.of(70, MEGABYTE);
+    private static final DataSize DATA_SERVER_AVAILABLE_MEMORY = DataSize.of(130, MEGABYTE);
 
     private TestingDataServer dataServer;
     private HttpClient httpClient;
@@ -297,6 +298,49 @@ public class TestDataServer
     }
 
     @Test
+    public void testAddDataPagesOnSizeLimit()
+    {
+        int sizeLimit = toIntExact(DataSize.of(32, MEGABYTE).toBytes() - DATA_PAGE_HEADER_SIZE);
+        Slice largePage0 = utf8Slice("0".repeat(sizeLimit));
+        Slice largePage1 = utf8Slice("1".repeat(sizeLimit - 1)); // need different size to distinguish in getChunkHandleOrThrow
+
+        registerExchange(EXCHANGE_0, STANDARD);
+
+        addDataPages(EXCHANGE_0, 0, 0, 0, ImmutableListMultimap.of(0, largePage0, 0, largePage1));
+        finishExchange(EXCHANGE_0);
+
+        ChunkList chunkList0 = listClosedChunks(EXCHANGE_0, OptionalLong.empty(), 2);
+        assertThat(chunkList0.nextPagingId()).isEmpty();
+
+        ChunkHandle chunkHandle0 = getChunkHandleOrThrow(chunkList0.chunks(), 0, largePage0.length()); // largePage0
+        ChunkHandle chunkHandle1 = getChunkHandleOrThrow(chunkList0.chunks(), 0, largePage1.length()); // largePage1
+
+        assertThat(getChunkData(EXCHANGE_0, chunkHandle0)).containsExactly(
+                new DataPage(0, 0, largePage0));
+
+        assertThat(getChunkData(EXCHANGE_0, chunkHandle1)).containsExactly(
+                new DataPage(0, 0, largePage1));
+
+        removeExchange(EXCHANGE_0);
+    }
+
+    @Test
+    public void testAddDataPagesExceedingLimit()
+    {
+        int sizeLimit = toIntExact(DataSize.of(32, MEGABYTE).toBytes() - DATA_PAGE_HEADER_SIZE);
+        Slice tooLargePage = utf8Slice("0".repeat(sizeLimit + 1));
+
+        registerExchange(EXCHANGE_0, STANDARD);
+
+        assertThatThrownBy(() -> addDataPage(EXCHANGE_0, 0, 0, 0, 0, tooLargePage))
+                .isInstanceOf(DataApiException.class)
+                .matches(dataApiException -> ((DataApiException) dataApiException).getErrorCode() == USER_ERROR)
+                .hasMessage("error on POST %s/api/v1/buffer/data/%s/addDataPages/0/0/0?targetBufferNodeId=0: Data page too large (33554426 > 33554425)"
+                        .formatted(dataServer.getBaseUri(), EXCHANGE_0));
+        finishExchange(EXCHANGE_0);
+    }
+
+    @Test
     public void testDraining()
     {
         addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("dummy"));
@@ -410,14 +454,14 @@ public class TestDataServer
     @Test
     public void testSpooling()
     {
-        int pageSizeInBytes = (int) DataSize.of(11, MEGABYTE).toBytes() - DATA_PAGE_HEADER_SIZE;
+        int pageSizeInBytes = (int) DataSize.of(16, MEGABYTE).toBytes() - DATA_PAGE_HEADER_SIZE;
         for (int index = 0; index < 10; ++index) {
             addDataPage(EXCHANGE_0, index, index, index, index, utf8Slice(String.valueOf(index).repeat(pageSizeInBytes)));
         }
         finishExchange(EXCHANGE_0);
 
         List<ChunkHandle> chunkHandles = listClosedChunks(EXCHANGE_0, OptionalLong.empty(), 10).chunks();
-        assertNodeStats(1, 0, 5, 5);
+        assertNodeStats(1, 0, 3, 7);
 
         for (ChunkHandle chunkHandle : chunkHandles) {
             int index = chunkHandle.partitionId();
