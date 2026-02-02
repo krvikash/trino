@@ -1377,7 +1377,7 @@ jobs:
             - { modules: plugin/trino-bigquery, profile: cloud-tests-2 }
             - { modules: plugin/trino-cassandra }
             - { modules: plugin/trino-clickhouse }
-            - { modules: plugin/trino-delta-lake }
+            - { modules: plugin/trino-delta-lake, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
             - { modules: plugin/trino-delta-lake, profile: cloud-tests }
             - { modules: plugin/trino-delta-lake, profile: fte-tests }
             - { modules: plugin/trino-druid }
@@ -1391,7 +1391,7 @@ jobs:
             - { modules: plugin/trino-hive, profile: fte-tests }
             - { modules: plugin/trino-hive, profile: test-parquet }
             - { modules: plugin/trino-hudi }
-            - { modules: plugin/trino-iceberg }
+            - { modules: plugin/trino-iceberg, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
             - { modules: plugin/trino-iceberg, profile: cloud-tests }
             - { modules: plugin/trino-iceberg, profile: fte-tests }
             - { modules: plugin/trino-iceberg, profile: minio-and-avro }
