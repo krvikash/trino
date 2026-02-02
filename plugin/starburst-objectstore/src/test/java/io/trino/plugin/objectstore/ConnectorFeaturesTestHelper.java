@@ -102,7 +102,7 @@ class ConnectorFeaturesTestHelper
 
         String contents = Files.readString(sourceFile, UTF_8);
         String nonGeneratedContents = contents.replaceFirst(
-                "(/////// ----------------------------------------- please put generated code below this line as well --------------------------------- ///////\n)(?s:.*)(}\n$)",
+                "(// \\Q*****\\E ----------------------------------------- please put generated code below this line as well --------------------------------- \\Q*****\\E //\n)(?s:.*)(}\n$)",
                 "$1");
         checkState(!nonGeneratedContents.equals(contents), "Pattern not found");
 

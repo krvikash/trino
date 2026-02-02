@@ -303,9 +303,9 @@ public abstract class BaseTestObjectStoreIcebergFeaturesConnectorTest
         }
     }
 
-    /////// ----------------------------------------- please put generated code below this line ----------------------------------------- ///////
-    /////// ----------------------------------------- please put generated code also below this line ------------------------------------ ///////
-    /////// ----------------------------------------- please put generated code below this line as well --------------------------------- ///////
+    // ***** ----------------------------------------- please put generated code below this line ----------------------------------------- ***** //
+    // ***** ----------------------------------------- please put generated code also below this line ------------------------------------ ***** //
+    // ***** ----------------------------------------- please put generated code below this line as well --------------------------------- ***** //
 
     @Test
     @Override
