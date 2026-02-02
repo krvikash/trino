@@ -145,7 +145,7 @@ public abstract class BaseObjectStoreIcebergConnectorTest
             // - float to double
             // - decimal(P,S) to decimal(P2,S) when P2 > P (scale cannot change)
             // https://iceberg.apache.org/docs/latest/spark-ddl/#alter-table--alter-column
-            case "row(x integer) -> row(y integer)":
+            case "row(x integer) -> row(\"y\" integer)":
                 // TODO https://github.com/trinodb/trino/issues/15822 The connector returns incorrect NULL when a field in row type doesn't exist in Parquet files
                 return Optional.of(setup.withNewValueLiteral("NULL"));
             case "tinyint -> smallint":
@@ -157,7 +157,6 @@ public abstract class BaseObjectStoreIcebergConnectorTest
             case "varchar -> char(20)":
             case "time(6) -> time(3)":
             case "timestamp(6) -> timestamp(3)":
-            case "map(integer, row(x integer)) -> map(integer, row(\"x\" bigint))":
             // Iceberg cannot update map keys
             case "map(integer, varchar) -> map(bigint, varchar)":
                 return Optional.of(setup.asUnsupported());
