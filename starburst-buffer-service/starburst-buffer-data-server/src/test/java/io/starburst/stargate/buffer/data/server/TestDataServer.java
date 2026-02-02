@@ -108,6 +108,7 @@ public class TestDataServer
                 .setConfigProperty("memory.allocation-low-watermark", "0.99")
                 .setConfigProperty("memory.allocation-high-watermark", "0.99")
                 .setConfigProperty("draining.min-duration", "2s")
+                .setConfigProperty("chunk.max-size", "32MB")
                 .build();
         httpClient = new JettyHttpClient(new HttpClientConfig().setMaxContentLength(DataSize.of(64, MEGABYTE)));
         dataClient = new HttpDataClient(
