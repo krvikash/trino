@@ -648,6 +648,13 @@ public abstract class BaseTestObjectStoreDeltaFeaturesConnectorTest
 
     @Test
     @Override
+    public void testDropDefaultColumn()
+    {
+        skipDuplicateTestCoverage("testDropDefaultColumn");
+    }
+
+    @Test
+    @Override
     public void testDropNonEmptySchemaWithMaterializedView()
     {
         skipDuplicateTestCoverage("testDropNonEmptySchemaWithMaterializedView");
@@ -1418,20 +1425,6 @@ public abstract class BaseTestObjectStoreDeltaFeaturesConnectorTest
 
     @Test
     @Override
-    public void testSetDefaultColumn()
-    {
-        skipDuplicateTestCoverage("testSetDefaultColumn");
-    }
-
-    @Test
-    @Override
-    public void testDropDefaultColumn()
-    {
-        skipDuplicateTestCoverage("testDropDefaultColumn");
-    }
-
-    @Test
-    @Override
     public void testSetColumnTypeWithNotNull()
     {
         skipDuplicateTestCoverage("testSetColumnTypeWithNotNull");
@@ -1442,6 +1435,13 @@ public abstract class BaseTestObjectStoreDeltaFeaturesConnectorTest
     public void testSetColumnTypes()
     {
         skipDuplicateTestCoverage("testSetColumnTypes");
+    }
+
+    @Test
+    @Override
+    public void testSetDefaultColumn()
+    {
+        skipDuplicateTestCoverage("testSetDefaultColumn");
     }
 
     @Test
