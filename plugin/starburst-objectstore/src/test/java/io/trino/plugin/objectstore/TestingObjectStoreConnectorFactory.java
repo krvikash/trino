@@ -29,7 +29,7 @@ import io.trino.plugin.deltalake.DefaultDeltaLakeFileSystemFactory;
 import io.trino.plugin.deltalake.TestingDeltaLakeExtensionsModule;
 import io.trino.plugin.deltalake.metastore.NoOpVendedCredentialsProvider;
 import io.trino.plugin.deltalake.metastore.TestingDeltaLakeMetastoreModule;
-import io.trino.plugin.deltalake.transactionlog.writer.LocalTransactionLogSynchronizer;
+import io.trino.plugin.deltalake.transactionlog.writer.TestingLocalTransactionLogSynchronizer;
 import io.trino.plugin.deltalake.transactionlog.writer.TransactionLogSynchronizer;
 import io.trino.plugin.hive.metastore.CachingHiveMetastoreModule;
 import io.trino.plugin.hive.metastore.MetastoreTypeConfig;
@@ -61,14 +61,17 @@ public class TestingObjectStoreConnectorFactory
     private final String connectorName;
     private final Optional<HiveMetastore> metastore;
     private final Optional<Module> hiveModule;
-    private final Optional<Path> localFileSystemRootPath;
+    private final Optional<TrinoFileSystemFactory> localFileSystemFactory;
+    private final Optional<TransactionLogSynchronizer> localTransactionLogSynchronizer;
 
     public TestingObjectStoreConnectorFactory(String connectorName, Optional<HiveMetastore> metastore, Optional<Module> hiveModule, Optional<Path> localFileSystemRootPath)
     {
         this.connectorName = requireNonNull(connectorName, "connectorName is null");
         this.metastore = requireNonNull(metastore, "metastore is null");
         this.hiveModule = requireNonNull(hiveModule, "hiveModule is null");
-        this.localFileSystemRootPath = requireNonNull(localFileSystemRootPath, "localFileSystemRootPath is null");
+        requireNonNull(localFileSystemRootPath, "localFileSystemRootPath is null");
+        this.localFileSystemFactory = localFileSystemRootPath.map(LocalFileSystemFactory::new);
+        this.localTransactionLogSynchronizer = localFileSystemFactory.map(factory -> new TestingLocalTransactionLogSynchronizer(new DefaultDeltaLakeFileSystemFactory(factory, new NoOpVendedCredentialsProvider())));
     }
 
     @Override
@@ -90,13 +93,10 @@ public class TestingObjectStoreConnectorFactory
                     metastore.map(TestingDeltaLakeMetastoreModule::new),
                     binder -> {
                         binder.install(new TestingDeltaLakeExtensionsModule());
-                        if (localFileSystemRootPath.isPresent()) {
-                            LocalFileSystemFactory localFileSystemFactory = new LocalFileSystemFactory(localFileSystemRootPath.get());
-                            newMapBinder(binder, String.class, TrinoFileSystemFactory.class)
-                                    .addBinding("local").toInstance(localFileSystemFactory);
-                            newMapBinder(binder, String.class, TransactionLogSynchronizer.class)
-                                    .addBinding("local").toInstance(new LocalTransactionLogSynchronizer(new DefaultDeltaLakeFileSystemFactory(localFileSystemFactory, new NoOpVendedCredentialsProvider())));
-                        }
+                        localFileSystemFactory.ifPresent(filesystemFactory -> newMapBinder(binder, String.class, TrinoFileSystemFactory.class)
+                                .addBinding("local").toInstance(filesystemFactory));
+                        localTransactionLogSynchronizer.ifPresent(logSynchronizer -> newMapBinder(binder, String.class, TransactionLogSynchronizer.class)
+                                .addBinding("local").toInstance(logSynchronizer));
 
                         configBinder(binder).bindConfig(MetastoreTypeConfig.class);
                     },
