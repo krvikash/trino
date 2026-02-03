@@ -28,7 +28,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
-import java.io.StringReader;
+import java.io.Reader;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -113,7 +113,7 @@ public class QueryJsonExtractUtils
         System.out.println("starting " + f);
         ObjectReader objectReader = new ObjectMapper().readerFor(TreeMap.class);
         String filename = f.getAbsolutePath().substring(0, f.getAbsolutePath().lastIndexOf(".json"));
-        ContainerNode jsonNode = (ContainerNode) objectReader.readTree(new StringReader(prepareFileContent(filename + ".json", false)));
+        ContainerNode jsonNode = (ContainerNode) objectReader.readTree(Reader.of(prepareFileContent(filename + ".json", false)));
         ArrayNode operatorsNode;
         ObjectNode queryStats = (ObjectNode) jsonNode.get("queryStats");
         operatorsNode = (ArrayNode) queryStats.get("operatorSummaries");
