@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>347</version>
+        <version>348</version>
     </parent>
 
     <groupId>io.trino</groupId>
@@ -237,7 +237,7 @@
         <dep.starburst-dataframe.version>0.8.0.pr74-fbdfcb6</dep.starburst-dataframe.version>
 
         <!-- keep dependency properties sorted -->
-        <dep.airlift.version>396</dep.airlift.version>
+        <dep.airlift.version>397</dep.airlift.version>
         <dep.alluxio.version>2.9.6</dep.alluxio.version>
         <dep.antlr.version>4.13.2</dep.antlr.version>
         <dep.avro.version>1.12.1</dep.avro.version>
