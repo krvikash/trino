@@ -191,13 +191,6 @@
             <artifactId>trino-faulttolerant-tests</artifactId>
             <type>test-jar</type>
             <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <!-- transitive dependency via junit; conflicts with version pulled by awaitability -->
-                    <groupId>org.hamcrest</groupId>
-                    <artifactId>hamcrest-core</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>
