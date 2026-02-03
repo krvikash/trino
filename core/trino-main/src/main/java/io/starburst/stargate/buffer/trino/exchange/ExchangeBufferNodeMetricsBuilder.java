@@ -28,7 +28,7 @@ class ExchangeBufferNodeMetricsBuilder
 {
     private final ConcurrentHashMap<Long, BufferNodeExchangeMetrics> bufferNodeMetrics = new ConcurrentHashMap<>();
 
-    public synchronized void update(long bufferNodeId, BufferNodeExchangeMetrics metrics)
+    public void update(long bufferNodeId, BufferNodeExchangeMetrics metrics)
     {
         requireNonNull(metrics, "metrics is null");
         bufferNodeMetrics.put(bufferNodeId, metrics);

@@ -394,7 +394,7 @@ public class BufferExchange
     }
 
     @Override
-    public synchronized Metrics getMetrics()
+    public Metrics getMetrics()
     {
         return coordinatorMetrics.buildMetrics()
                 .mergeWith(bufferNodeMetrics.buildMetrics());
@@ -481,9 +481,7 @@ public class BufferExchange
                     @Override
                     public void onMetricsDiscovered(BufferNodeExchangeMetrics metrics)
                     {
-                        synchronized (BufferExchange.this) {
-                            bufferNodeMetrics.update(bufferNodeId, metrics);
-                        }
+                        bufferNodeMetrics.update(bufferNodeId, metrics);
                     }
 
                     @Override
