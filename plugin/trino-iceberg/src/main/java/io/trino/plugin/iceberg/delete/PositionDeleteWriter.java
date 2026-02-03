@@ -32,6 +32,7 @@ import org.apache.iceberg.FileContent;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionSpecParser;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.io.DeleteWriteResult;
 import org.apache.iceberg.io.LocationProvider;
 import org.apache.iceberg.util.DeleteFileSet;
@@ -123,7 +124,8 @@ public class PositionDeleteWriter
                 writer.rewrittenDeleteFiles(),
                 contentOffset,
                 contentSize,
-                writer.getFileMetrics().splitOffsets());
+                writer.getFileMetrics().splitOffsets(),
+                SortOrder.unsorted().orderId());
     }
 
     public void abort()

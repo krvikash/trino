@@ -212,10 +212,10 @@ class TestFileBasedConflictDetection
                 {"partitionValues":[40]}
                 """;
         CommitTaskData commitTaskData1 = new CommitTaskData("test_location/data/new.parquet", FileFormat.PARQUET, 0, new MetricsWrapper(new Metrics()), PartitionSpecParser.toJson(currentPartitionSpec),
-                Optional.of(partitionDataJson), DATA, Optional.empty(), List.of(), OptionalLong.empty(), OptionalLong.empty(), Optional.empty());
+                Optional.of(partitionDataJson), DATA, Optional.empty(), List.of(), OptionalLong.empty(), OptionalLong.empty(), Optional.empty(), SortOrder.unsorted().orderId());
         // Remove file from version with previous partition specification
         CommitTaskData commitTaskData2 = new CommitTaskData("test_location/data/old.parquet", FileFormat.PARQUET, 0, new MetricsWrapper(new Metrics()), PartitionSpecParser.toJson(previousPartitionSpec),
-                Optional.of(partitionDataJson), POSITION_DELETES, Optional.empty(), List.of(), OptionalLong.empty(), OptionalLong.empty(), Optional.empty());
+                Optional.of(partitionDataJson), POSITION_DELETES, Optional.empty(), List.of(), OptionalLong.empty(), OptionalLong.empty(), Optional.empty(), SortOrder.unsorted().orderId());
         TupleDomain<IcebergColumnHandle> icebergColumnHandleTupleDomain = extractTupleDomainsFromCommitTasks(getIcebergTableHandle(currentPartitionSpec), icebergTable, List.of(commitTaskData1, commitTaskData2), null);
         assertThat(icebergColumnHandleTupleDomain.getDomains().orElseThrow()).isEmpty();
 
@@ -237,7 +237,8 @@ class TestFileBasedConflictDetection
                 List.of(),
                 OptionalLong.empty(),
                 OptionalLong.empty(),
-                Optional.empty());
+                Optional.empty(),
+                SortOrder.unsorted().orderId());
         CommitTaskData commitTaskData2 = new CommitTaskData(
                 "test_location/data/old.parquet",
                 FileFormat.PARQUET,
@@ -250,7 +251,8 @@ class TestFileBasedConflictDetection
                 List.of(),
                 OptionalLong.empty(),
                 OptionalLong.empty(),
-                Optional.empty());
+                Optional.empty(),
+                SortOrder.unsorted().orderId());
 
         return List.of(commitTaskData1, commitTaskData2);
     }

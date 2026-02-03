@@ -124,6 +124,7 @@ public class IcebergPageSink
     private final long idleWriterMinFileSize;
     private final Map<String, String> storageProperties;
     private final List<TrinoSortField> sortFields;
+    private final int sortOrderId;
     private final boolean sortedWritingEnabled;
     private final DataSize sortingFileWriterBufferSize;
     private final Integer sortingFileWriterMaxOpenFiles;
@@ -159,6 +160,7 @@ public class IcebergPageSink
             Map<String, String> storageProperties,
             int maxOpenWriters,
             List<TrinoSortField> sortFields,
+            int sortOrderId,
             DataSize sortingFileWriterBufferSize,
             int sortingFileWriterMaxOpenFiles,
             Optional<String> sortedWritingLocalStagingPath,
@@ -210,10 +212,12 @@ public class IcebergPageSink
             }
             this.sortColumnIndexes = sortColumnIndexes.build();
             this.sortOrders = sortOrders.build();
+            this.sortOrderId = sortOrderId;
         }
         else {
             this.sortColumnIndexes = ImmutableList.of();
             this.sortOrders = ImmutableList.of();
+            this.sortOrderId = org.apache.iceberg.SortOrder.unsorted().orderId();
         }
     }
 
@@ -454,7 +458,8 @@ public class IcebergPageSink
                 writer.rewrittenDeleteFiles(),
                 OptionalLong.empty(),
                 OptionalLong.empty(),
-                writer.getFileMetrics().splitOffsets());
+                writer.getFileMetrics().splitOffsets(),
+                sortOrderId);
 
         commitTasks.add(wrappedBuffer(jsonCodec.toJsonBytes(task)));
     }

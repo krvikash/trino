@@ -47,6 +47,7 @@ import org.apache.iceberg.PartitionSpecParser;
 import org.apache.iceberg.RowLevelOperationMode;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SchemaParser;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.io.LocationProvider;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
@@ -148,6 +149,7 @@ public class IcebergPageSinkProvider
                 tableHandle.storageProperties(),
                 maxPartitionsPerWriter(session),
                 tableHandle.sortFields(),
+                tableHandle.sortOrderId(),
                 sortingFileWriterBufferSize,
                 sortingFileWriterMaxOpenFiles,
                 sortingFileWriterLocalStagingPath,
@@ -183,6 +185,7 @@ public class IcebergPageSinkProvider
                         optimizeHandle.tableStorageProperties(),
                         maxPartitionsPerWriter(session),
                         optimizeHandle.sortFields(),
+                        optimizeHandle.sortOrderId(),
                         sortingFileWriterBufferSize,
                         sortingFileWriterMaxOpenFiles,
                         sortingFileWriterLocalStagingPath,
@@ -329,6 +332,7 @@ public class IcebergPageSinkProvider
                 generateEmbeddingsHandle.tableStorageProperties(),
                 maxPartitionsPerWriter(session),
                 generateEmbeddingsHandle.sortOrder(),
+                SortOrder.unsorted().orderId(),
                 sortingFileWriterBufferSize,
                 sortingFileWriterMaxOpenFiles,
                 sortingFileWriterLocalStagingPath,

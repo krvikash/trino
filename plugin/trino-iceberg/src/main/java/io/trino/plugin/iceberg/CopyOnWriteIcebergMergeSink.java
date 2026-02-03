@@ -34,6 +34,7 @@ import org.apache.iceberg.MetricsConfig;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionSpecParser;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.io.LocationProvider;
 import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.types.Type;
@@ -187,7 +188,8 @@ public class CopyOnWriteIcebergMergeSink
                 writer.rewrittenDeleteFiles(),
                 OptionalLong.empty(),
                 OptionalLong.empty(),
-                writer.getFileMetrics().splitOffsets());
+                writer.getFileMetrics().splitOffsets(),
+                SortOrder.unsorted().orderId());
 
         return Optional.of(wrappedBuffer(jsonCodec.toJsonBytes(task)));
     }
@@ -206,7 +208,8 @@ public class CopyOnWriteIcebergMergeSink
                 ImmutableList.of(),
                 OptionalLong.empty(),
                 OptionalLong.empty(),
-                Optional.empty());
+                Optional.empty(),
+                SortOrder.unsorted().orderId());
     }
 
     private ConnectorPageSource createPageSource(Location path, FileDeletion deletion, PartitionSpec partitionSpec, PartitionData partitionData)

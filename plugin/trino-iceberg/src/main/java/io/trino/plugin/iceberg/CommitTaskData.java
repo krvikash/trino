@@ -16,11 +16,13 @@ package io.trino.plugin.iceberg;
 import com.google.common.collect.ImmutableList;
 import org.apache.iceberg.FileContent;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.SortOrder;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 public record CommitTaskData(
@@ -35,7 +37,8 @@ public record CommitTaskData(
         List<String> deletionVectorFiles,
         OptionalLong deletionVectorContentOffset,
         OptionalLong deletionVectorContentSize,
-        Optional<List<Long>> fileSplitOffsets)
+        Optional<List<Long>> fileSplitOffsets,
+        int sortOrderId)
 {
     public CommitTaskData
     {
@@ -50,5 +53,6 @@ public record CommitTaskData(
         requireNonNull(fileSplitOffsets, "fileSplitOffsets is null");
         requireNonNull(deletionVectorContentOffset, "deletionVectorContentOffset is null");
         requireNonNull(deletionVectorContentSize, "deletionVectorContentSize is null");
+        checkArgument(content == FileContent.DATA || sortOrderId == SortOrder.unsorted().orderId(), "Sorted order id can be present only for data files");
     }
 }
