@@ -62,6 +62,7 @@ public class TestStarburstObjectStoreDeltaFeaturesConnectorTest
                     .put("hive.metastore.thrift.client.read-timeout", "1m") // read timed out sometimes happens with the default timeout
                     .put("delta.register-table-procedure.enabled", "true")
                     .put("delta.metastore.store-table-metadata", "true")
+                    .put("delta.metastore.store-table-metadata-threads", "0")
                     .put("fs.native-s3.enabled", "true")
                     .put("s3.aws-access-key", MINIO_ACCESS_KEY)
                     .put("s3.aws-secret-key", MINIO_SECRET_KEY)
