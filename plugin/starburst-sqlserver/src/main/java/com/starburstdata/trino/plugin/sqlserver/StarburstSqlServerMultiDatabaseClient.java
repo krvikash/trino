@@ -30,6 +30,7 @@ import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.SchemaNotFoundException;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.security.ConnectorIdentity;
+import io.trino.spi.type.TypeManager;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -64,10 +65,11 @@ public class StarburstSqlServerMultiDatabaseClient
             JdbcStatisticsConfig statisticsConfig,
             ConnectionFactory connectionFactory,
             QueryBuilder queryBuilder,
+            TypeManager typeManager,
             IdentifierMapping identifierMapping,
             RemoteQueryModifier queryModifier)
     {
-        super(config, statisticsConfig, connectionFactory, queryBuilder, identifierMapping, queryModifier);
+        super(config, statisticsConfig, connectionFactory, queryBuilder, typeManager, identifierMapping, queryModifier);
         this.identifierMapping = requireNonNull(identifierMapping, "identifierMapping is null");
     }
 

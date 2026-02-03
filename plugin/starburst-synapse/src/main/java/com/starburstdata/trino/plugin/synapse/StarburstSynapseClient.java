@@ -55,6 +55,7 @@ import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.TimeType;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
 import org.jdbi.v3.core.Handle;
@@ -103,10 +104,11 @@ public class StarburstSynapseClient
             JdbcStatisticsConfig statisticsConfig,
             ConnectionFactory connectionFactory,
             QueryBuilder queryBuilder,
+            TypeManager typeManager,
             IdentifierMapping identifierMapping,
             RemoteQueryModifier queryModifier)
     {
-        super(config, statisticsConfig, connectionFactory, queryBuilder, identifierMapping, queryModifier);
+        super(config, statisticsConfig, connectionFactory, queryBuilder, typeManager, identifierMapping, queryModifier);
 
         // TODO: Remove once https://starburstdata.atlassian.net/browse/SEP-10133 is addressed
         // Explicitly copied from SQL Server to remove some connector expression rewrites since it's unsafe for varchars due to default case-insensitive collation of Synapse

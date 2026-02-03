@@ -66,6 +66,14 @@ public class TestSynapseTypeMapping
 
     @Override
     @Test
+    public void testJson()
+    {
+        assertThatThrownBy(super::testJson).hasRootCauseMessage("Cannot find data type 'json'.");
+        abort("Synapse does not support json data type");
+    }
+
+    @Override
+    @Test
     public void testTrinoUnboundedVarchar()
     {
         SqlDataTypeTest.create()

@@ -18,6 +18,7 @@ import io.trino.plugin.jdbc.QueryBuilder;
 import io.trino.plugin.jdbc.logging.RemoteQueryModifier;
 import io.trino.plugin.sqlserver.SqlServerClient;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.type.TypeManager;
 
 import static com.google.common.base.Verify.verify;
 import static com.starburstdata.trino.plugin.sqlserver.StarburstSqlServerSessionProperties.hasParallelism;
@@ -31,10 +32,11 @@ public class StarburstSqlServerClient
             JdbcStatisticsConfig statisticsConfig,
             ConnectionFactory connectionFactory,
             QueryBuilder queryBuilder,
+            TypeManager typeManager,
             IdentifierMapping identifierMapping,
             RemoteQueryModifier queryModifier)
     {
-        super(config, statisticsConfig, connectionFactory, queryBuilder, identifierMapping, queryModifier);
+        super(config, statisticsConfig, connectionFactory, queryBuilder, typeManager, identifierMapping, queryModifier);
     }
 
     @Override
