@@ -147,7 +147,7 @@ public class IcebergPageSinkProvider
                 tableHandle.fileFormat(),
                 tableHandle.storageProperties(),
                 maxPartitionsPerWriter(session),
-                tableHandle.sortOrder(),
+                tableHandle.sortFields(),
                 sortingFileWriterBufferSize,
                 sortingFileWriterMaxOpenFiles,
                 sortingFileWriterLocalStagingPath,
