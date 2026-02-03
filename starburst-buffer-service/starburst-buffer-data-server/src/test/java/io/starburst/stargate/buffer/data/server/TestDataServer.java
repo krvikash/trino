@@ -271,11 +271,10 @@ public class TestDataServer
         BufferNodeExchangeMetrics exchange0Metrics = pingExchange(EXCHANGE_0);
 
         long totalBytes = chunkList0.chunks().stream().mapToLong(ChunkHandle::dataSizeInBytes).sum();
-        long spooledBytes = 4 + largePage1.length();
 
         assertThat(chunkList0.nextPagingId()).isEmpty();
         assertThat(exchange0Metrics).isEqualTo(
-                new BufferNodeExchangeMetrics(2, 3, totalBytes - spooledBytes, 1, spooledBytes, 4, totalBytes));
+                new BufferNodeExchangeMetrics(2, 4, totalBytes, 0, 0, 4, totalBytes));
         assertThat(getChunkData(EXCHANGE_0, chunkHandle0)).containsExactly(
                 new DataPage(0, 0, utf8Slice("a")),
                 new DataPage(0, 0, utf8Slice("b")),
