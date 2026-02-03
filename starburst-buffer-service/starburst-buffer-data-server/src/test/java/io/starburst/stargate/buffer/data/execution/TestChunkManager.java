@@ -41,7 +41,6 @@ import io.starburst.stargate.buffer.data.spooling.s3.MinioStorage;
 import io.starburst.stargate.buffer.data.spooling.s3.S3ClientConfig;
 import io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.s3.S3Utils;
-import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
@@ -74,14 +73,12 @@ import static io.starburst.stargate.buffer.data.execution.ChunkManagerConfig.DEF
 import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.verifyChunkData;
 import static io.starburst.stargate.buffer.data.spooling.SpoolTestHelper.createS3SpooledChunkReader;
 import static io.starburst.stargate.buffer.data.spooling.SpoolTestHelper.createS3SpoolingStorage;
+import static io.trino.testing.assertions.Assert.assertEventually;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.awaitility.Awaitility.await;
-import static org.awaitility.Awaitility.waitAtMost;
-import static org.awaitility.Durations.ONE_SECOND;
 import static org.junit.jupiter.api.Assumptions.abort;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -466,12 +463,12 @@ public class TestChunkManager
 
         ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(
                 EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("test"), utf8Slice("spool"), utf8Slice("chunks"))).addDataPagesFuture();
-        awaitOneSecond().until(addDataPagesFuture1::isDone);
+        assertEventually(new Duration(1, SECONDS), () -> assertThat(addDataPagesFuture1.isDone()).isTrue());
         assertThat(memoryAllocator.getFreeMemory()).isEqualTo(32);
 
         ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(
                 EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("add"), utf8Slice("data"), utf8Slice("pages"))).addDataPagesFuture();
-        awaitOneSecond().until(addDataPagesFuture2::isDone);
+        assertEventually(new Duration(1, SECONDS), () -> assertThat(addDataPagesFuture2.isDone()).isTrue());
         assertThat(memoryAllocator.getFreeMemory()).isEqualTo(0);
 
         ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(
@@ -483,7 +480,7 @@ public class TestChunkManager
         // the open chunk should have spooled too
         assertThat(chunkManager.getSpooledChunksCount()).isEqualTo(2);
 
-        awaitOneSecond().until(addDataPagesFuture3::isDone);
+        assertEventually(new Duration(1, SECONDS), () -> assertThat(addDataPagesFuture3.isDone()).isTrue());
         assertThat(memoryAllocator.getFreeMemory()).isEqualTo(64);
 
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 22);
@@ -504,7 +501,7 @@ public class TestChunkManager
         getFutureValue(chunkManager.finishExchange(EXCHANGE_1));
 
         ListenableFuture<Slice> sliceFuture = memoryAllocator.allocate(64);
-        awaitOneSecond().until(sliceFuture::isDone);
+        assertEventually(new Duration(1, SECONDS), () -> assertThat(sliceFuture.isDone()).isTrue());
 
         chunkManager.spoolIfNecessary(); // only one closed chunk can be spooled at this point
         assertThat(chunkManager.getClosedChunks()).isEqualTo(0);
@@ -552,12 +549,12 @@ public class TestChunkManager
 
         ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(
                 EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("a"), utf8Slice("b"), utf8Slice("c"))).addDataPagesFuture();
-        awaitOneSecond().until(addDataPagesFuture1::isDone);
+        assertEventually(new Duration(1, SECONDS), () -> assertThat(addDataPagesFuture1.isDone()).isTrue());
         assertThat(memoryAllocator.getFreeMemory()).isEqualTo(40);
 
         ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(
                 EXCHANGE_0, 1, 1, 1, 1L, ImmutableList.of(utf8Slice("d"), utf8Slice("e"), utf8Slice("f"))).addDataPagesFuture();
-        awaitOneSecond().until(addDataPagesFuture2::isDone);
+        assertEventually(new Duration(1, SECONDS), () -> assertThat(addDataPagesFuture2.isDone()).isTrue());
         assertThat(memoryAllocator.getFreeMemory()).isEqualTo(16);
 
         ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(
@@ -566,7 +563,7 @@ public class TestChunkManager
 
         // wait for all addDataPagesFutures to finish
         chunkManager.spoolIfNecessary();
-        awaitOneSecond().until(addDataPagesFuture3::isDone);
+        assertEventually(new Duration(1, SECONDS), () -> assertThat(addDataPagesFuture3.isDone()).isTrue());
 
         Future<Integer> numClosedChunksFuture = executor.submit(() -> {
             OptionalLong pagingId = OptionalLong.empty();
@@ -638,13 +635,13 @@ public class TestChunkManager
         // 1 closed chunk and 1 partially filled open chunk
         ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(
                 EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("data for chunk 0"), utf8Slice("partial1"))).addDataPagesFuture();
-        awaitOneSecond().until(addDataPagesFuture1::isDone);
+        assertEventually(new Duration(1, SECONDS), () -> assertThat(addDataPagesFuture1.isDone()).isTrue());
         assertThat(memoryAllocator.getFreeMemory()).isEqualTo(64);
 
         // 1 closed chunk and 1 partially filled open chunk
         ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(
                 EXCHANGE_1, 1, 1, 1, 2L, ImmutableList.of(utf8Slice("data for chunk 2"), utf8Slice("partial3"))).addDataPagesFuture();
-        awaitOneSecond().until(addDataPagesFuture2::isDone);
+        assertEventually(new Duration(1, SECONDS), () -> assertThat(addDataPagesFuture2.isDone()).isTrue());
         assertThat(memoryAllocator.getFreeMemory()).isEqualTo(0);
 
         chunkManager.spoolIfNecessary();
@@ -713,13 +710,13 @@ public class TestChunkManager
         // 1 closed chunk and 1 partially filled open chunk
         ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(
                 EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("data for chunk 0"), utf8Slice("partial1"))).addDataPagesFuture();
-        awaitOneSecond().until(addDataPagesFuture1::isDone);
+        assertEventually(new Duration(1, SECONDS), () -> assertThat(addDataPagesFuture1.isDone()).isTrue());
         assertThat(memoryAllocator.getFreeMemory()).isEqualTo(64);
 
         // 1 closed chunk and 1 partially filled open chunk
         ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(
                 EXCHANGE_1, 1, 1, 1, 2L, ImmutableList.of(utf8Slice("data for chunk 2"), utf8Slice("partial3"))).addDataPagesFuture();
-        awaitOneSecond().until(addDataPagesFuture3::isDone);
+        assertEventually(new Duration(1, SECONDS), () -> assertThat(addDataPagesFuture3.isDone()).isTrue());
         assertThat(memoryAllocator.getFreeMemory()).isEqualTo(0);
 
         chunkManager.spoolIfNecessary();
@@ -773,14 +770,14 @@ public class TestChunkManager
         Future<?> drainAllChunksFuture = executor.submit(chunkManager::drainAllChunks);
 
         // wait until chunkManager::drainAllChunks finishes all existing exchanges
-        waitAtMost(1, SECONDS).until(() -> chunkManager.getExchangeAndHeartbeat(EXCHANGE_0).isFinished());
+        assertEventually(new Duration(1, SECONDS), () -> assertThat(chunkManager.getExchangeAndHeartbeat(EXCHANGE_0).isFinished()).isTrue());
         // it is waiting for markAllClosedChunksReceived on all exchanges now
 
         // register one more exchange
         chunkManager.registerExchange(EXCHANGE_1, STANDARD, Optional.empty());
 
         // finish should be triggered on new exchange too
-        waitAtMost(1, SECONDS).until(() -> chunkManager.getExchangeAndHeartbeat(EXCHANGE_1).isFinished());
+        assertEventually(new Duration(1, SECONDS), () -> chunkManager.getExchangeAndHeartbeat(EXCHANGE_1).isFinished());
 
         // we should get information that there are no more chunks for both exchanges
         listClosedChunkUntilNoMore(chunkManager, EXCHANGE_0, OptionalLong.empty());
@@ -881,9 +878,9 @@ public class TestChunkManager
                 DataSize.of(32, BYTE),
                 DataSize.of(8, BYTE));
         ListenableFuture<Void> addDataPagesFuture1 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 1L, ImmutableList.of(utf8Slice("1"))).addDataPagesFuture();
-        awaitOneSecond().until(addDataPagesFuture1::isDone);
+        assertEventually(new Duration(1, SECONDS), () -> assertThat(addDataPagesFuture1.isDone()).isTrue());
         ListenableFuture<Void> addDataPagesFuture2 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 2L, ImmutableList.of(utf8Slice("2"))).addDataPagesFuture();
-        awaitOneSecond().until(addDataPagesFuture2::isDone);
+        assertEventually(new Duration(1, SECONDS), () -> assertThat(addDataPagesFuture2.isDone()).isTrue());
         ListenableFuture<Void> addDataPagesFuture3 = chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 3L, ImmutableList.of(utf8Slice("3"))).addDataPagesFuture();
         assertThat(addDataPagesFuture3.isDone()).isFalse();
 
@@ -892,7 +889,7 @@ public class TestChunkManager
         assertThat(addDataPagesFuture3.isDone()).isFalse();
 
         chunkManager.spoolIfNecessary();
-        awaitOneSecond().until(addDataPagesFuture3::isDone);
+        assertEventually(new Duration(1, SECONDS), () -> assertThat(addDataPagesFuture3.isDone()).isTrue());
 
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 1);
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 0, 1L, 1);
@@ -1211,11 +1208,6 @@ public class TestChunkManager
         assertThat(chunkDataResult.spooledChunk().get().length()).isEqualTo(52);
         assertThat(chunkDataResult.spooledChunk().get().location()).startsWith("s3://" + minioStorage.getBucketName());
         assertThat(chunkDataResult.spooledChunk().get().location()).contains("exchange-0." + drainedBufferNodeId);
-    }
-
-    private static ConditionFactory awaitOneSecond()
-    {
-        return await().pollInterval(1, MILLISECONDS).atMost(ONE_SECOND);
     }
 
     private static BufferNodeExchangeMetrics emptyMetrics()

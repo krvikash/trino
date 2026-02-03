@@ -23,6 +23,7 @@ import io.airlift.http.client.StringResponseHandler;
 import io.airlift.http.client.jetty.JettyHttpClient;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
+import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.data.server.testing.TestingDataServer;
 import io.starburst.stargate.buffer.testing.TestingBufferService;
 import io.trino.plugin.memory.MemoryQueryRunner;
@@ -44,15 +45,15 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.airlift.http.client.StatusResponseHandler.createStatusResponseHandler;
 import static io.airlift.http.client.StringResponseHandler.createStringResponseHandler;
 import static io.airlift.testing.Closeables.closeAll;
 import static io.trino.testing.TestingConnectorSession.SESSION;
+import static io.trino.testing.assertions.Assert.assertEventually;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
@@ -202,8 +203,8 @@ public class TestDrain
 
         latch.await();
 
-        assertThat(drainingJob).as("draining job").succeedsWithin(5, TimeUnit.SECONDS);
-        assertThat(queryJob).as("query job").succeedsWithin(5, TimeUnit.SECONDS);
+        assertThat(drainingJob).as("draining job").succeedsWithin(5, SECONDS);
+        assertThat(queryJob).as("query job").succeedsWithin(5, SECONDS);
     }
 
     private void drainAndShutdownDataServer(TestingDataServer dataServer)
@@ -227,17 +228,13 @@ public class TestDrain
                         .build())
                 .build();
 
-        await()
-                .atMost(20, TimeUnit.SECONDS)
-                .pollInterval(1, TimeUnit.SECONDS)
-                .ignoreNoExceptions()
-                .until(() -> {
-                    StringResponseHandler.StringResponse stateResponse = httpClient.execute(stateRequest, createStringResponseHandler());
-                    assertThat(stateResponse.getStatusCode()).as("status code for /state on data server %s", dataServer.getNodeId()).isEqualTo(200);
-                    String currentState = stateResponse.getBody().trim();
-                    log.info("got current state %s for data server %s", currentState, dataServer.getNodeId());
-                    return currentState.equals("DRAINED");
-                });
+        assertEventually(new Duration(20, SECONDS), new Duration(1, SECONDS), () -> {
+            StringResponseHandler.StringResponse stateResponse = httpClient.execute(stateRequest, createStringResponseHandler());
+            assertThat(stateResponse.getStatusCode()).as("status code for /state on data server %s", dataServer.getNodeId()).isEqualTo(200);
+            String currentState = stateResponse.getBody().trim();
+            log.info("got current state %s for data server %s", currentState, dataServer.getNodeId());
+            assertThat(currentState).isEqualTo("DRAINED");
+        });
 
         // prepare for shutdown
         log.info("Shutting down data server %s", dataServer.getNodeId());
@@ -263,14 +260,11 @@ public class TestDrain
                         .build())
                 .build();
 
-        await()
-                .atMost(20, TimeUnit.SECONDS)
-                .pollInterval(1, TimeUnit.SECONDS)
-                .until(() -> {
-                    StringResponseHandler.StringResponse stateResponse = httpClient.execute(stateRequest, createStringResponseHandler());
-                    String currentState = stateResponse.getBody().trim();
-                    log.info("got current state %s for data server %s", currentState, dataServer.getNodeId());
-                    return currentState.equals("ACTIVE");
-                });
+        assertEventually(Duration.valueOf("20s"), Duration.valueOf("1s"), () -> {
+            StringResponseHandler.StringResponse stateResponse = httpClient.execute(stateRequest, createStringResponseHandler());
+            String currentState = stateResponse.getBody().trim();
+            log.info("got current state %s for data server %s", currentState, dataServer.getNodeId());
+            assertThat(currentState).isEqualTo("ACTIVE");
+        });
     }
 }

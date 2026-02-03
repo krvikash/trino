@@ -26,6 +26,7 @@ import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.airlift.tracing.SpanSerialization;
 import io.airlift.units.DataSize;
+import io.airlift.units.Duration;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.BufferNodeState;
@@ -59,10 +60,10 @@ import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.DataSize.succinctBytes;
 import static io.airlift.units.Duration.succinctDuration;
+import static io.trino.testing.assertions.Assert.assertEventually;
 import static java.lang.Math.toIntExact;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.awaitility.Awaitility.await;
-import static org.awaitility.Durations.TEN_SECONDS;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public final class StressTestDataResource
 {
@@ -108,9 +109,7 @@ public final class StressTestDataResource
                 try (JettyHttpClient httpClient = getJettyHttpClient()) {
                     var dataClient = getHttpDataClient(dataServer, httpClient);
                     // Wait for Node to become ready
-                    await().atMost(TEN_SECONDS).until(
-                            () -> dataClient.getInfo().state(),
-                            BufferNodeState.ACTIVE::equals);
+                    assertEventually(new Duration(10, SECONDS), () -> assertThat(dataClient.getInfo().state()).isEqualTo(BufferNodeState.ACTIVE));
                 }
                 System.out.println("it is started now");
             }

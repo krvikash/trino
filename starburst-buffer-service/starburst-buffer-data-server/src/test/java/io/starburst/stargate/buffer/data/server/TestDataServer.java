@@ -21,6 +21,7 @@ import io.airlift.json.ObjectMapperProvider;
 import io.airlift.slice.Slice;
 import io.airlift.tracing.SpanSerialization;
 import io.airlift.units.DataSize;
+import io.airlift.units.Duration;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.BufferNodeInfo;
@@ -64,20 +65,19 @@ import static io.airlift.testing.Closeables.closeAll;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.DataSize.succinctBytes;
 import static io.airlift.units.Duration.succinctDuration;
+import static io.starburst.stargate.buffer.BufferNodeState.ACTIVE;
+import static io.starburst.stargate.buffer.BufferNodeState.DRAINED;
+import static io.starburst.stargate.buffer.BufferNodeState.DRAINING;
 import static io.starburst.stargate.buffer.data.client.ChunkDeliveryMode.STANDARD;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
+import static io.trino.testing.assertions.Assert.assertEventually;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.awaitility.Awaitility.await;
-import static org.awaitility.Durations.FIVE_SECONDS;
-import static org.awaitility.Durations.ONE_SECOND;
-import static org.awaitility.Durations.TEN_SECONDS;
-import static org.awaitility.Durations.TWO_SECONDS;
 import static org.junit.jupiter.api.Assumptions.abort;
 
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
@@ -123,9 +123,7 @@ public class TestDataServer
                 spanJsonCodec);
 
         // Wait for Node to become ready
-        await().atMost(TEN_SECONDS).until(
-                () -> dataClient.getInfo().state(),
-                BufferNodeState.ACTIVE::equals);
+        assertEventually(new Duration(10, SECONDS), () -> assertThat(dataClient.getInfo().state()).isEqualTo(ACTIVE));
     }
 
     @AfterEach
@@ -353,9 +351,7 @@ public class TestDataServer
 
         assertThat(httpClient.execute(drainRequest, createStatusResponseHandler()).getStatusCode())
                 .isEqualTo(200);
-        await().atMost(ONE_SECOND).until(
-                this::getNodeState,
-                BufferNodeState.DRAINING::equals);
+        assertEventually(new Duration(1, SECONDS), () -> assertThat(this.getNodeState()).isEqualTo(DRAINING));
 
         assertThatThrownBy(() -> addDataPage(EXCHANGE_0, 1, 1, 1, 1L, utf8Slice("dummy")))
                 .isInstanceOf(DataApiException.class)
@@ -382,7 +378,7 @@ public class TestDataServer
             return abort();
         });
 
-        await().atMost(ONE_SECOND).until(chunkListFuture::isDone);
+        assertEventually(new Duration(1, SECONDS), () -> assertThat(chunkListFuture.isDone()).isTrue());
         BufferNodeExchangeMetrics exchangeMetrics = pingExchange(EXCHANGE_0);
         ChunkHandle chunkHandle = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 5);
         ChunkList chunkList = getFutureValue(chunkListFuture);
@@ -391,9 +387,7 @@ public class TestDataServer
         assertThat(exchangeMetrics).isEqualTo(
                 new BufferNodeExchangeMetrics(1, 0, 0, 1, 5, 1, 5));
 
-        await().atMost(FIVE_SECONDS).until(
-                this::getNodeState,
-                BufferNodeState.DRAINED::equals);
+        assertEventually(new Duration(5, SECONDS), () -> assertThat(this.getNodeState()).isEqualTo(DRAINED));
     }
 
     private BufferNodeState getNodeState()
@@ -547,8 +541,7 @@ public class TestDataServer
 
     private void assertNodeStats(long trackedExchanges, int openChunks, int spooledChunks, int closedChunks)
     {
-        await().atMost(TWO_SECONDS)
-                .until(() -> nodeStatsEqual(trackedExchanges, openChunks, spooledChunks, closedChunks));
+        assertEventually(new Duration(2, SECONDS), () -> assertThat(nodeStatsEqual(trackedExchanges, openChunks, spooledChunks, closedChunks)).isTrue());
     }
 
     private boolean nodeStatsEqual(long trackedExchanges, int openChunks, int spooledChunks, int closedChunks)
