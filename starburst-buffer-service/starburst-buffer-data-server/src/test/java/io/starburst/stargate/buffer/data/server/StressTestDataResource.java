@@ -92,11 +92,9 @@ public final class StressTestDataResource
     static void main()
             throws Exception
     {
-        boolean isChunkSpoolMergeEnabled = true;
         try (TestingDataServer dataServer = TestingDataServer.builder()
                 .withDiscoveryApiModule(new TestingDiscoveryApiModule())
                 .setConfigProperty("spooling.directory", System.getProperty("java.io.tmpdir") + "/spooling-storage-" + UUID.randomUUID())
-                .setConfigProperty("chunk.spool-merge-enabled", String.valueOf(isChunkSpoolMergeEnabled))
                 .setConfigProperty("discovery-broadcast-interval", "10ms")
                 .setConfigProperty("memory.heap-headroom", succinctBytes(Runtime.getRuntime().maxMemory() - DATA_SERVER_AVAILABLE_MEMORY.toBytes()).toString())
                 .setConfigProperty("memory.allocation-low-watermark", "0.75")
