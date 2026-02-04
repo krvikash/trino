@@ -1001,11 +1001,11 @@ public class EventDrivenFaultTolerantQueryScheduler
 
             // handle diagnostics logging on query failure
             queryStateMachine.getFailureInfo().ifPresent(failureInfo -> {
-                if (failureInfo.getErrorCode() == EXCEEDED_TIME_LIMIT.toErrorCode()
+                if (failureInfo.errorCode() == EXCEEDED_TIME_LIMIT.toErrorCode()
                         && noEventsStopwatch.elapsed().toMillis() > SCHEDULER_STALLED_DURATION_ON_TIME_EXCEEDED_THRESHOLD_MILLIS) {
                     logDebugInfoSafe(format("Scheduler stalled for %s on EXCEEDED_TIME_LIMIT", noEventsStopwatch.elapsed()));
                 }
-                else if (failureInfo.getErrorCode() == USER_CANCELED.toErrorCode()
+                else if (failureInfo.errorCode() == USER_CANCELED.toErrorCode()
                         && noEventsStopwatch.elapsed().toMillis() > SCHEDULER_STALLED_DURATION_ON_USER_CANCELED_THRESHOLD_MILLIS) {
                     logDebugInfoSafe(format("Scheduler stalled for %s on USER_CANCELED", noEventsStopwatch.elapsed()));
                 }
@@ -1904,7 +1904,7 @@ public class EventDrivenFaultTolerantQueryScheduler
                 replacementTasks.forEach(schedulingQueue::addOrUpdate);
 
                 // When tasks fail for some intermittent reason, delay scheduling retries
-                if (shouldDelayScheduling(failureInfo.getErrorCode())) {
+                if (shouldDelayScheduling(failureInfo.errorCode())) {
                     schedulingDelayer.startOrProlongDelayIfNecessary();
                     scheduledExecutorService.schedule(() -> eventQueue.add(Event.WAKE_UP), schedulingDelayer.getRemainingDelayInMillis(), MILLISECONDS);
                 }
@@ -1996,19 +1996,19 @@ public class EventDrivenFaultTolerantQueryScheduler
 
         private ExecutionFailureInfo rewriteTransportFailure(ExecutionFailureInfo executionFailureInfo)
         {
-            if (executionFailureInfo.getRemoteHost() == null || !nodeManager.isGone(executionFailureInfo.getRemoteHost())) {
+            if (executionFailureInfo.remoteHost() == null || !nodeManager.isGone(executionFailureInfo.remoteHost())) {
                 return executionFailureInfo;
             }
 
             return new ExecutionFailureInfo(
-                    executionFailureInfo.getType(),
-                    executionFailureInfo.getMessage(),
-                    executionFailureInfo.getCause(),
-                    executionFailureInfo.getSuppressed(),
-                    executionFailureInfo.getStack(),
-                    executionFailureInfo.getErrorLocation(),
+                    executionFailureInfo.type(),
+                    executionFailureInfo.message(),
+                    executionFailureInfo.cause(),
+                    executionFailureInfo.suppressed(),
+                    executionFailureInfo.stack(),
+                    executionFailureInfo.errorLocation(),
                     REMOTE_HOST_GONE.toErrorCode(),
-                    executionFailureInfo.getRemoteHost());
+                    executionFailureInfo.remoteHost());
         }
 
         private static class PreSchedulingTaskContexts
@@ -2688,7 +2688,7 @@ public class EventDrivenFaultTolerantQueryScheduler
             RuntimeException failure = failureInfo.toException();
             recordTaskFailureInLog(taskId, failure);
 
-            ErrorCode errorCode = failureInfo.getErrorCode();
+            ErrorCode errorCode = failureInfo.errorCode();
             partitionMemoryEstimator.registerPartitionFinished(
                     partition.getMemoryRequirements(),
                     taskStatus.peakMemoryReservation(),
