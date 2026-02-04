@@ -66,7 +66,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.IntStream;
 
-import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_OR_PUSHDOWN;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.HIVE_CONNECTOR_NAME;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
@@ -221,13 +220,10 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     public void testLuceneQueryPushDown()
     {
         // We're just checking the pushdown - warmup is not required
-        Session session = Session.builder(getQueryRunner().getDefaultSession())
-                .setCatalogSessionProperty(catalog, ENABLE_OR_PUSHDOWN, "true")
-                .build();
         String prefixLikePattern = "prefix%";
         String suffixLikePattern = "%suffix";
         String query = format("SELECT %1$s FROM t WHERE %1$s LIKE '%2$s' AND %1$s LIKE '%3$s'", C2, prefixLikePattern, suffixLikePattern);
-        DispatcherTableHandle table = executeWithTableHandle(session, query);
+        DispatcherTableHandle table = executeWithTableHandle(getSession(), query);
 
         // Validate the translation to WarpExpression
         io.trino.plugin.warp.expression.rewrite.WarpExpression warpExpression = table.getWarpExpression().orElseThrow();
@@ -245,7 +241,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         assertThat(table.getFullPredicate().getDomains()).isEqualTo(Optional.of(Map.of(hiveColumnHandle1, domain)));
 
         // Validate that we go to Native
-        MaterializedResult result = computeActual(session, query);
+        MaterializedResult result = computeActual(getSession(), query);
         assertThat(result.getRowCount()).isEqualTo(0); //return 0 because we don't have native
     }
 
