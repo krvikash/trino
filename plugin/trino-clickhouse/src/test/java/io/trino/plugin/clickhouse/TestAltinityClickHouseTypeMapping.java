@@ -14,8 +14,13 @@
 package io.trino.plugin.clickhouse;
 
 import io.trino.testing.QueryRunner;
+import io.trino.testing.sql.TestTable;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static io.trino.plugin.clickhouse.TestingClickHouseServer.ALTINITY_DEFAULT_IMAGE;
+import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestAltinityClickHouseTypeMapping
         extends BaseClickHouseTypeMapping
@@ -26,5 +31,20 @@ final class TestAltinityClickHouseTypeMapping
     {
         clickhouseServer = closeAfterClass(new TestingClickHouseServer(ALTINITY_DEFAULT_IMAGE));
         return ClickHouseQueryRunner.builder(clickhouseServer).build();
+    }
+
+    @Test
+    @Override
+    public void testArrayWithTupleElement()
+    {
+        // Insert syntax and Select return on Array[Tuple] is different in older versions of ClickHouse
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_array_of_tuple",
+                "(c1 Array(Tuple(a Int32, b String))) ENGINE=Log",
+                List.of("[(1), (2)], [('hello'), ('world')]"))) {
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("SELECT (ARRAY[1, 2]), (ARRAY[to_utf8('hello'), to_utf8('world')])");
+        }
     }
 }

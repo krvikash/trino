@@ -69,6 +69,7 @@ import io.trino.plugin.jdbc.expression.JdbcConnectorExpressionRewriterBuilder;
 import io.trino.plugin.jdbc.expression.ParameterizedExpression;
 import io.trino.plugin.jdbc.logging.RemoteQueryModifier;
 import io.trino.spi.TrinoException;
+import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.RowValueBuilder;
 import io.trino.spi.block.SqlRow;
@@ -80,6 +81,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.expression.Variable;
+import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Decimals;
@@ -105,6 +107,7 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.sql.Array;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -142,6 +145,7 @@ import static io.trino.plugin.clickhouse.ClickHouseTableProperties.ORDER_BY_PROP
 import static io.trino.plugin.clickhouse.ClickHouseTableProperties.PARTITION_BY_PROPERTY;
 import static io.trino.plugin.clickhouse.ClickHouseTableProperties.PRIMARY_KEY_PROPERTY;
 import static io.trino.plugin.clickhouse.ClickHouseTableProperties.SAMPLE_BY_PROPERTY;
+import static io.trino.plugin.clickhouse.ClickHouseTypeUtils.normalizeArrayObject;
 import static io.trino.plugin.clickhouse.ClickHouseTypeUtils.toObjectArray;
 import static io.trino.plugin.clickhouse.ClickHouseTypeUtils.writeScalarElement;
 import static io.trino.plugin.clickhouse.TrinoToClickHouseWriteChecker.DATE32;
@@ -523,7 +527,8 @@ public class ClickHouseClient
         StringBuilder sb = new StringBuilder()
                 .append(quoted(columnName))
                 .append(" ");
-        if (column.isNullable()) {
+        // Nested type cannot be inside Nullable type
+        if (column.isNullable() && !(column.getType() instanceof ArrayType)) {
             // set column nullable property explicitly
             sb.append("Nullable(").append(toWriteMapping(session, column.getType()).getDataType()).append(")");
         }
@@ -800,6 +805,12 @@ public class ClickHouseClient
                             shortTimestampWithTimeZoneWriteFunction(version, column.getTimeZone(), 0, true)));
                 }
                 return Optional.of(timestampWithTimeZoneColumnMapping(version, column));
+
+            case Types.ARRAY:
+                Optional<ColumnMapping> columnMapping = arrayToTrinoType(session, connection, typeHandle, column);
+                if (columnMapping.isPresent()) {
+                    return columnMapping;
+                }
         }
 
         if (getUnsupportedTypeHandling(session) == CONVERT_TO_VARCHAR) {
@@ -886,6 +897,24 @@ public class ClickHouseClient
                 throw new TrinoException(JDBC_ERROR, e);
             }
         });
+    }
+
+    @Override
+    protected Optional<Integer> getArrayColumnDimensions(ConnectorSession session, Connection connection, ResultSet resultSet, RemoteTableName remoteTableName, String columnName)
+    {
+        try {
+            String jdbcTypeName = resultSet.getString("TYPE_NAME");
+            verify(jdbcTypeName != null, "Type name is missing");
+            ClickHouseColumn column = ClickHouseColumn.of("", jdbcTypeName);
+            int columnDimension = column.getArrayNestedLevel();
+            if (columnDimension == 0) {
+                return Optional.empty();
+            }
+            return Optional.of(columnDimension);
+        }
+        catch (SQLException e) {
+            throw new TrinoException(JDBC_ERROR, e);
+        }
     }
 
     /**
@@ -1190,12 +1219,13 @@ public class ClickHouseClient
                     return Optional.empty();
                 }
 
+                int arrayDimensions = element.getArrayNestedLevel();
                 JdbcTypeHandle elementTypeHandle = new JdbcTypeHandle(
                         sqlType,
                         Optional.of(jdbcTypeMapping.toNativeType(element)),
                         Optional.of(element.getPrecision()),
                         Optional.of(element.getScale()),
-                        Optional.empty(),
+                        arrayDimensions > 0 ? Optional.of(arrayDimensions) : Optional.empty(),
                         Optional.empty());
 
                 // jdbc-types-mapped-to-varchar forces the element to VARCHAR, but JDBC returns the raw
@@ -1214,6 +1244,9 @@ public class ClickHouseClient
                 // so that VARCHAR mapping would fail at read time. Return empty so the whole outer
                 // Tuple falls through to top-level handling instead.
                 if (element.getDataType() == Tuple && !(elementMapping.get().getType() instanceof RowType)) {
+                    return Optional.empty();
+                }
+                if (element.getDataType() == ClickHouseDataType.Array && !(elementMapping.get().getType() instanceof ArrayType)) {
                     return Optional.empty();
                 }
 
@@ -1239,7 +1272,7 @@ public class ClickHouseClient
     private static boolean isSupportedTupleElementType(ClickHouseDataType dataType, int jdbcType)
     {
         boolean supportedClickHouseType = switch (dataType) {
-            case Bool, UInt8, UInt16, UInt32, UInt64, IPv4, IPv6, Enum8, Enum16, FixedString, String, UUID, Tuple -> true;
+            case Bool, UInt8, UInt16, UInt32, UInt64, IPv4, IPv6, Enum8, Enum16, FixedString, String, UUID, Tuple, Array -> true;
             default -> false;
         };
         boolean supportedJdbcType = switch (jdbcType) {
@@ -1279,6 +1312,10 @@ public class ClickHouseClient
                     SqlRow nestedSqlRow = buildSqlRow(nestedRowType, nestedTupleValues, roundingMode);
                     fieldType.writeObject(fieldBuilder, nestedSqlRow);
                 }
+                else if (fieldType instanceof ArrayType arrayType) {
+                    Block nestedArrayBlock = buildArrayBlock(arrayType.getElementType(), value, roundingMode);
+                    fieldType.writeObject(fieldBuilder, nestedArrayBlock);
+                }
                 else {
                     writeScalarElement(fieldBuilder, fieldType, value, roundingMode);
                 }
@@ -1291,6 +1328,136 @@ public class ClickHouseClient
         return ObjectWriteFunction.of(SqlRow.class, (_, _, _) -> {
             throw new TrinoException(NOT_SUPPORTED, "Writing to ClickHouse Tuple columns is not supported");
         });
+    }
+
+    private Optional<ColumnMapping> arrayToTrinoType(ConnectorSession session, Connection connection, JdbcTypeHandle typeHandle, ClickHouseColumn column)
+    {
+        checkArgument(typeHandle.jdbcType() == Types.ARRAY, "Not array type");
+
+        Optional<JdbcTypeHandle> maybeBaseElementTypeHandle = getArrayElementTypeHandle(connection, column);
+        if (maybeBaseElementTypeHandle.isEmpty()) {
+            return Optional.empty();
+        }
+        JdbcTypeHandle baseElementTypeHandle = maybeBaseElementTypeHandle.get();
+        String baseTypeName = baseElementTypeHandle.jdbcTypeName()
+                .orElseThrow(() -> new TrinoException(JDBC_ERROR, "Element type name is missing: " + baseElementTypeHandle));
+
+        ClickHouseColumn baseColumn = ClickHouseColumn.of("", baseTypeName);
+
+        // When CONVERT_TO_VARCHAR is set, unsupported element types return a VARCHAR mapping from
+        // toColumnMapping, but JDBC returns raw Java objects inside an Array — not strings.
+        // Return empty so the whole Array column falls back to top-level CONVERT_TO_VARCHAR handling.
+        if (getUnsupportedTypeHandling(session) == CONVERT_TO_VARCHAR
+                && !isSupportedTupleElementType(baseColumn.getDataType(), baseElementTypeHandle.jdbcType())) {
+            return Optional.empty();
+        }
+
+        // jdbc-types-mapped-to-varchar forces element type to VARCHAR, but JDBC returns raw Java objects
+        // inside an Array — not Strings. Return the varchar mapping so the whole Array column reads as varchar.
+        Optional<ColumnMapping> forcedElementMapping = getForcedMappingToVarchar(baseElementTypeHandle);
+        if (forcedElementMapping.isPresent()) {
+            return forcedElementMapping;
+        }
+
+        if (typeHandle.arrayDimensions().isEmpty()) {
+            return Optional.empty();
+        }
+
+        Optional<ColumnMapping> baseElementMapping = toColumnMapping(session, connection, baseElementTypeHandle);
+
+        // A nested Tuple or Array whose sub-elements are unsupported falls back to VARCHAR with
+        // CONVERT_TO_VARCHAR. JDBC returns Object[], not a string, so that mapping would fail at read time.
+        // Return empty so the whole outer Array falls through to top-level handling instead.
+        if (baseElementMapping.isPresent()) {
+            Type mappedType = baseElementMapping.get().getType();
+            ClickHouseDataType baseDataType = baseColumn.getDataType();
+            if ((baseDataType == Tuple && !(mappedType instanceof RowType))
+                    || (baseDataType == ClickHouseDataType.Array && !(mappedType instanceof ArrayType))) {
+                return Optional.empty();
+            }
+        }
+
+        RoundingMode roundingMode = getDecimalRoundingMode(session);
+        return baseElementMapping
+                .map(elementMapping -> {
+                    ArrayType trinoArrayType = new ArrayType(elementMapping.getType());
+                    ColumnMapping arrayColumnMapping = toArrayColumnMapping(trinoArrayType, roundingMode);
+
+                    int arrayDimensions = typeHandle.arrayDimensions().get();
+                    for (int i = 1; i < arrayDimensions; i++) {
+                        trinoArrayType = new ArrayType(trinoArrayType);
+                        arrayColumnMapping = toArrayColumnMapping(trinoArrayType, roundingMode);
+                    }
+                    return arrayColumnMapping;
+                });
+    }
+
+    private static Optional<JdbcTypeHandle> getArrayElementTypeHandle(Connection connection, ClickHouseColumn column)
+    {
+        try {
+            JdbcTypeMapping jdbcTypeMapping = JdbcTypeMapping.getDefaultMapping();
+            ClickHouseColumn arrayBaseColumn = column.getArrayBaseColumn();
+            if (arrayBaseColumn == null) {
+                return Optional.empty();
+            }
+            return Optional.of(new JdbcTypeHandle(
+                    jdbcTypeMapping.toSqlType(arrayBaseColumn, connection.getTypeMap()),
+                    Optional.ofNullable(jdbcTypeMapping.toNativeType(arrayBaseColumn)),
+                    Optional.of(arrayBaseColumn.getPrecision()),
+                    Optional.of(arrayBaseColumn.getScale()),
+                    Optional.empty(),
+                    Optional.empty()));
+        }
+        catch (SQLException e) {
+            throw new TrinoException(JDBC_ERROR, e);
+        }
+    }
+
+    private static ColumnMapping toArrayColumnMapping(ArrayType arrayType, RoundingMode roundingMode)
+    {
+        return ColumnMapping.objectMapping(
+                arrayType,
+                arrayReadFunction(arrayType.getElementType(), roundingMode),
+                ObjectWriteFunction.of(Block.class, (_, _, _) -> {
+                    throw new TrinoException(NOT_SUPPORTED, "Writing to ClickHouse Array columns is not supported");
+                }),
+                DISABLE_PUSHDOWN);
+    }
+
+    private static ObjectReadFunction arrayReadFunction(Type elementType, RoundingMode roundingMode)
+    {
+        return ObjectReadFunction.of(Block.class, (resultSet, columnIndex) -> {
+            Array array = resultSet.getArray(columnIndex);
+
+            // https://github.com/ClickHouse/clickhouse-java/pull/2668 (resultSet is not supported in ClickHouseArray)
+            Object arrayObject = array.getArray();
+            return buildArrayBlock(elementType, arrayObject, roundingMode);
+        });
+    }
+
+    private static Block buildArrayBlock(Type elementType, Object arrayObject, RoundingMode roundingMode)
+    {
+        Object[] elements = normalizeArrayObject(arrayObject);
+        BlockBuilder builder = elementType.createBlockBuilder(null, elements.length);
+
+        for (Object element : elements) {
+            if (element == null) {
+                builder.appendNull();
+            }
+            else if (elementType instanceof ArrayType arrayType) {
+                Block nestedBlock = buildArrayBlock(arrayType.getElementType(), element, roundingMode);
+                elementType.writeObject(builder, nestedBlock);
+            }
+            else if (elementType instanceof RowType rowType) {
+                Object[] nestedTupleValues = toObjectArray(element);
+                SqlRow sqlRow = buildSqlRow(rowType, nestedTupleValues, roundingMode);
+                elementType.writeObject(builder, sqlRow);
+            }
+            else {
+                writeScalarElement(builder, elementType, element, roundingMode);
+            }
+        }
+        return builder.build();
     }
 
     public static boolean supportsPushdown(Variable variable, RewriteContext<ParameterizedExpression> context)

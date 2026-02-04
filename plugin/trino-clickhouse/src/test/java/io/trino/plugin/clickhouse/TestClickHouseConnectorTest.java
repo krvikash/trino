@@ -581,7 +581,7 @@ public class TestClickHouseConnectorTest
         return new TestTable(
                 onRemoteDatabase(),
                 "tpch.test_unsupported_column_present",
-                "(one bigint, two Array(UInt8), three String) ENGINE=Log");
+                "(one bigint, two Map(String, UInt64), three String) ENGINE=Log");
     }
 
     @Override
@@ -2044,7 +2044,115 @@ public class TestClickHouseConnectorTest
             onRemoteDatabase().execute("INSERT INTO " + testTable.getName() + " VALUES (1, ('Alice', ['a', 'b']))");
 
             assertThat(query("SELECT * FROM " + testTable.getName()))
+                    .matches("VALUES (1, CAST(ROW('Alice', CAST(ARRAY['a', 'b'] AS array(varchar))) AS ROW(name varchar, tags array(varchar))))");
+        }
+    }
+
+    @Test
+    public void testReadArrayType()
+    {
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_read_array",
+                "(id Int32, scores Array(Int32), names Array(String)) ENGINE=Log")) {
+            onRemoteDatabase().execute("INSERT INTO " + testTable.getName() + " VALUES (1, [1, 2, 3], ['Alice', 'Bob']), (2, [42], ['Charlie'])");
+
+            assertThat(query("SELECT * FROM " + testTable.getName() + " ORDER BY id"))
+                    .matches("VALUES " +
+                            "(1, ARRAY[1, 2, 3], CAST(ARRAY['Alice', 'Bob'] AS array(varchar))), " +
+                            "(2, ARRAY[42], CAST(ARRAY['Charlie'] AS array(varchar)))");
+
+            assertThat(query("SELECT id FROM " + testTable.getName() + " WHERE cardinality(scores) > 1"))
                     .matches("VALUES 1");
+        }
+    }
+
+    @Test
+    public void testReadNestedArrayType()
+    {
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_read_nested_array",
+                "(id Int32, matrix Array(Array(Int32))) ENGINE=Log")) {
+            onRemoteDatabase().execute("INSERT INTO " + testTable.getName() + " VALUES (1, [[1, 2], [3, 4]])");
+
+            assertThat(query("SELECT * FROM " + testTable.getName()))
+                    .matches("VALUES (1, ARRAY[ARRAY[1, 2], ARRAY[3, 4]])");
+        }
+    }
+
+    @Test
+    public void testShowCreateArrayColumn()
+    {
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_describe_array",
+                "(id Int32, scores Array(Int32), tags Array(String)) ENGINE=Log")) {
+            assertThat(computeScalar("SHOW CREATE TABLE " + testTable.getName()))
+                    .isEqualTo(format(
+                            """
+                                    CREATE TABLE clickhouse.%s (
+                                       id integer NOT NULL,
+                                       scores array(integer) NOT NULL,
+                                       tags array(varchar) NOT NULL
+                                    )
+                                    WITH (
+                                       engine = 'LOG'
+                                    )\
+                                    """,
+                            testTable.getName()));
+        }
+    }
+
+    @Test
+    public void testShowCreateArrayUnsupportedColumn()
+    {
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_describe_array_unsupported",
+                "(id Int32, map_col Array(Map(String, String))) ENGINE=Log")) {
+            assertThat(computeScalar("SHOW CREATE TABLE " + testTable.getName()))
+                    .isEqualTo(format(
+                            """
+                                    CREATE TABLE clickhouse.%s (
+                                       id integer NOT NULL
+                                    )
+                                    WITH (
+                                       engine = 'LOG'
+                                    )\
+                                    """,
+                            testTable.getName()));
+
+            Session convertToVarchar = Session.builder(getSession())
+                    .setCatalogSessionProperty("clickhouse", UNSUPPORTED_TYPE_HANDLING, CONVERT_TO_VARCHAR.name())
+                    .build();
+            assertThat(computeScalar(convertToVarchar, "SHOW CREATE TABLE " + testTable.getName()))
+                    .isEqualTo(format(
+                            """
+                                    CREATE TABLE clickhouse.%s (
+                                       id integer NOT NULL,
+                                       map_col varchar NOT NULL
+                                    )
+                                    WITH (
+                                       engine = 'LOG'
+                                    )\
+                                    """,
+                            testTable.getName()));
+        }
+    }
+
+    @Test
+    public void testWriteArrayColumnUnsupported()
+    {
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_write_array",
+                "(id Int32, scores Array(Int32)) ENGINE=Log")) {
+            onRemoteDatabase().execute("INSERT INTO " + testTable.getName() + " VALUES (1, [1, 2, 3])");
+
+            assertQueryFails(
+                    "INSERT INTO " + testTable.getName() + " SELECT id, scores FROM " + testTable.getName(),
+                    "Writing to ClickHouse Array columns is not supported");
         }
     }
 

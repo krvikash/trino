@@ -333,7 +333,7 @@ public abstract class BaseJdbcClient
                         Optional.ofNullable(resultSet.getString("TYPE_NAME")),
                         getInteger(resultSet, "COLUMN_SIZE"),
                         getInteger(resultSet, "DECIMAL_DIGITS"),
-                        Optional.empty(),
+                        getArrayColumnDimensions(session, connection, resultSet, remoteTableName, columnName),
                         Optional.ofNullable(caseSensitivityMapping.get(columnName)));
                 Optional<ColumnMapping> columnMapping = toColumnMapping(session, connection, typeHandle);
                 log.debug("Mapping data type of '%s' column '%s': %s mapped to %s", schemaTableName, columnName, typeHandle, columnMapping);
@@ -548,6 +548,11 @@ public abstract class BaseJdbcClient
     protected Map<String, CaseSensitivity> getCaseSensitivityForColumns(ConnectorSession session, Connection connection, SchemaTableName schemaTableName, RemoteTableName remoteTableName)
     {
         return ImmutableMap.of();
+    }
+
+    protected Optional<Integer> getArrayColumnDimensions(ConnectorSession session, Connection connection, ResultSet resultSet, RemoteTableName remoteTableName, String columnName)
+    {
+        return Optional.empty();
     }
 
     protected static Optional<Integer> getInteger(ResultSet resultSet, String columnLabel)

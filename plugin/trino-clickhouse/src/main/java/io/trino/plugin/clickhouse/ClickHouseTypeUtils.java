@@ -18,14 +18,19 @@ import com.google.common.net.InetAddresses;
 import io.airlift.slice.Slice;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.type.BigintType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Decimals;
 import io.trino.spi.type.Int128;
+import io.trino.spi.type.IntegerType;
+import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.VarbinaryType;
 
+import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.MathContext;
@@ -54,6 +59,7 @@ import static io.trino.spi.type.UuidType.javaUuidToTrinoUuid;
 import static java.lang.Float.floatToRawIntBits;
 import static java.lang.String.format;
 import static java.lang.System.arraycopy;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 final class ClickHouseTypeUtils
 {
@@ -75,6 +81,11 @@ final class ClickHouseTypeUtils
                         TimeZoneKey.getTimeZoneKey(offsetDateTime.getOffset().getId()));
                 case Float floatValue -> floatToRawIntBits(floatValue);
                 case BigDecimal bigDecimal -> Decimals.encodeShortScaledValue(bigDecimal, ((DecimalType) type).getScale(), roundingMode);
+                // ClickHouse JDBC returns signed primitive wrappers for unsigned integer array elements.
+                // UInt8→Byte stored in SMALLINT, UInt16→Short stored in INTEGER, UInt32→Integer stored in BIGINT.
+                case Byte byteValue when type instanceof SmallintType -> Byte.toUnsignedLong(byteValue);
+                case Short shortValue when type instanceof IntegerType -> Short.toUnsignedLong(shortValue);
+                case Integer intValue when type instanceof BigintType -> Integer.toUnsignedLong(intValue);
                 default -> ((Number) value).longValue();
             };
             type.writeLong(builder, element);
@@ -97,6 +108,16 @@ final class ClickHouseTypeUtils
                 // Original bytes are unrecoverable.
                 type.writeSlice(builder, utf8Slice(stringValue));
             }
+            else if (value instanceof byte[] bytes) {
+                // ClickHouse JDBC returns raw byte[] for Array(String) and Array(FixedString) elements
+                // (binary string mode). Map to varbinary as-is; for varchar decode as UTF-8.
+                if (type instanceof VarbinaryType) {
+                    type.writeSlice(builder, wrappedBuffer(bytes));
+                }
+                else {
+                    type.writeSlice(builder, utf8Slice(new String(bytes, UTF_8)));
+                }
+            }
             else {
                 throw new TrinoException(NOT_SUPPORTED, format("Unsupported value type for Slice: %s", value.getClass().getName()));
             }
@@ -106,6 +127,12 @@ final class ClickHouseTypeUtils
             verify(!decimalType.isShort(), "The type should be long decimal");
             if (value instanceof UnsignedLong unsignedLong) {
                 BigInteger unscaledValue = unsignedLong.bigIntegerValue();
+                BigDecimal bigDecimal = new BigDecimal(unscaledValue, UINT64_TYPE.getScale(), new MathContext(UINT64_TYPE.getPrecision()));
+                type.writeObject(builder, Decimals.encodeScaledValue(bigDecimal, decimalType.getScale(), roundingMode));
+            }
+            else if (value instanceof Long longValue) {
+                // ClickHouse JDBC returns Long (not UnsignedLong) for Array(UInt64) elements
+                BigInteger unscaledValue = UnsignedLong.valueOf(longValue).bigIntegerValue();
                 BigDecimal bigDecimal = new BigDecimal(unscaledValue, UINT64_TYPE.getScale(), new MathContext(UINT64_TYPE.getPrecision()));
                 type.writeObject(builder, Decimals.encodeScaledValue(bigDecimal, decimalType.getScale(), roundingMode));
             }
@@ -158,5 +185,24 @@ final class ClickHouseTypeUtils
             return list.toArray();
         }
         throw new TrinoException(JDBC_ERROR, format("Unexpected type returned for Tuple column: %s", arrayObject.getClass().getName()));
+    }
+
+    static Object[] normalizeArrayObject(Object arrayObject)
+    {
+        if (arrayObject instanceof Object[] array) {
+            return array;
+        }
+        if (arrayObject instanceof List<?> list) {
+            return list.toArray();
+        }
+        if (arrayObject.getClass().isArray()) {
+            int length = Array.getLength(arrayObject);
+            Object[] result = new Object[length];
+            for (int i = 0; i < length; i++) {
+                result[i] = Array.get(arrayObject, i);
+            }
+            return result;
+        }
+        throw new IllegalArgumentException("Unsupported array object: " + arrayObject.getClass());
     }
 }

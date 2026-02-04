@@ -71,4 +71,19 @@ public abstract class BaseClickHouseConnectorSmokeTest
                     .matches("VALUES (VARCHAR 'Alice', 95), (VARCHAR 'Bob', 80)");
         }
     }
+
+    @Test
+    public void testReadArrayColumn()
+    {
+        try (TestTable testTable = new TestTable(
+                getClickHouseServer()::execute,
+                "tpch.test_array_smoke",
+                "(id Int32, scores Array(Int32), tags Array(String)) ENGINE=Log")) {
+            getClickHouseServer().execute("INSERT INTO " + testTable.getName() + " VALUES (1, [10, 20], ['a', 'b']), (2, [42], ['c'])");
+            assertThat(query("SELECT * FROM " + testTable.getName() + " ORDER BY id"))
+                    .matches("VALUES " +
+                            "(1, ARRAY[10, 20], CAST(ARRAY['a', 'b'] AS array(varchar))), " +
+                            "(2, ARRAY[42], CAST(ARRAY['c'] AS array(varchar)))");
+        }
+    }
 }

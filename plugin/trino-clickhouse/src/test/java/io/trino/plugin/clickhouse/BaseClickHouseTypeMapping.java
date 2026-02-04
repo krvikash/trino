@@ -16,6 +16,7 @@ package io.trino.plugin.clickhouse;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
+import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.TimestampWithTimeZoneType;
@@ -2181,22 +2182,14 @@ public abstract class BaseClickHouseTypeMapping
                 onRemoteDatabase(),
                 "tpch.test_tuple_unsupported",
                 "(id Int32," +
-                        " array_string_col Tuple(name String, tags Array(String))," +
-                        " array_int_col Tuple(name String, ids Array(Int32))," +
                         " map_string_col Tuple(name String, attrs Map(String, String))," +
                         " map_int_col Tuple(name String, scores Map(String, Int32))," +
                         " point_col Tuple(name String, location Point)," +
-                        " ring_col Tuple(name String, ring Ring)," +
-                        " nested_col Tuple(info Tuple(name String, tags Array(String)))," +
-                        " mixed_nested_col Tuple(id Int32, sub Tuple(name String, tags Array(String)))) ENGINE=Log")) {
-            assertQueryFails("SELECT array_string_col FROM " + testTable.getName(), ".*Column 'array_string_col' cannot be resolved.*");
-            assertQueryFails("SELECT array_int_col FROM " + testTable.getName(), ".*Column 'array_int_col' cannot be resolved.*");
+                        " ring_col Tuple(name String, ring Ring)) ENGINE=Log")) {
             assertQueryFails("SELECT map_string_col FROM " + testTable.getName(), ".*Column 'map_string_col' cannot be resolved.*");
             assertQueryFails("SELECT map_int_col FROM " + testTable.getName(), ".*Column 'map_int_col' cannot be resolved.*");
             assertQueryFails("SELECT point_col FROM " + testTable.getName(), ".*Column 'point_col' cannot be resolved.*");
             assertQueryFails("SELECT ring_col FROM " + testTable.getName(), ".*Column 'ring_col' cannot be resolved.*");
-            assertQueryFails("SELECT nested_col FROM " + testTable.getName(), ".*Column 'nested_col' cannot be resolved.*");
-            assertQueryFails("SELECT mixed_nested_col FROM " + testTable.getName(), ".*Column 'mixed_nested_col' cannot be resolved.*");
         }
     }
 
@@ -2207,8 +2200,6 @@ public abstract class BaseClickHouseTypeMapping
                 .setCatalogSessionProperty("clickhouse", UNSUPPORTED_TYPE_HANDLING, CONVERT_TO_VARCHAR.name())
                 .build();
         SqlDataTypeTest.create()
-                .addRoundTrip("Tuple(name String, tags Array(String))", "('Alice', ['a', 'b'])", VARCHAR, "varchar '[Alice, [[97], [98]]]'")
-                .addRoundTrip("Tuple(name String, ids Array(Int32))", "('Alice', [1, 2, 3])", VARCHAR, "varchar '[Alice, [1, 2, 3]]'")
                 .addRoundTrip("Tuple(name String, attrs Map(String, String))", "('Alice', {'key': 'val'})", VARCHAR, "varchar '[Alice, {key=val}]'")
                 .addRoundTrip("Tuple(name String, scores Map(String, Int32))", "('Alice', {'score': 100})", VARCHAR, "varchar '[Alice, {score=100}]'")
                 .addRoundTrip("Tuple(name String, location Point)", "('Alice', (10.0, 20.0))", VARCHAR, "varchar '[Alice, [10.0, 20.0]]'")
@@ -2245,6 +2236,433 @@ public abstract class BaseClickHouseTypeMapping
         SqlDataTypeTest.create()
                 .addRoundTrip("Point", "(10, 10)", VARCHAR, "varchar '(10.0,10.0)'")
                 .execute(getQueryRunner(), convertToVarchar, clickhouseCreateAndInsert("tpch.point"));
+    }
+
+    @Test
+    public void testArray()
+    {
+        // Boolean
+        SqlDataTypeTest.create()
+                .addRoundTrip("Array(Bool)", "[true, false]", new ArrayType(BOOLEAN), "ARRAY[true, false]")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_boolean"));
+
+        // Numeric types
+        SqlDataTypeTest.create()
+                .addRoundTrip("Array(Int8)", "[-128, 5, 127]", new ArrayType(TINYINT), "ARRAY[TINYINT '-128', TINYINT '5', TINYINT '127']")
+                .addRoundTrip("Array(Int16)", "[-32768, 32456, 32767]", new ArrayType(SMALLINT), "ARRAY[SMALLINT '-32768', SMALLINT '32456', SMALLINT '32767']")
+                .addRoundTrip("Array(Int32)", "[1, 2, 1234567890]", new ArrayType(INTEGER), "ARRAY[1, 2, 1234567890]")
+                .addRoundTrip("Array(Int64)", "[123456789012]", new ArrayType(BIGINT), "ARRAY[123456789012]")
+                .addRoundTrip("Array(UInt8)", "[0, 255]", new ArrayType(SMALLINT), "ARRAY[SMALLINT '0', SMALLINT '255']")
+                .addRoundTrip("Array(UInt16)", "[0, 65535]", new ArrayType(INTEGER), "ARRAY[0, 65535]")
+                .addRoundTrip("Array(UInt32)", "[0, 4294967295]", new ArrayType(BIGINT), "ARRAY[BIGINT '0', BIGINT '4294967295']")
+                .addRoundTrip("Array(UInt64)", "[0, 18446744073709551615]", new ArrayType(createDecimalType(20)), "ARRAY[CAST('0' AS decimal(20, 0)), CAST('18446744073709551615' AS decimal(20, 0))]")
+                .addRoundTrip("Array(Float32)", "[3.14]", new ArrayType(REAL), "ARRAY[REAL '3.14']")
+                .addRoundTrip("Array(Float32)", "[nan]", new ArrayType(REAL), "ARRAY[CAST(nan() AS REAL)]")
+                .addRoundTrip("Array(Float32)", "[-inf]", new ArrayType(REAL), "ARRAY[CAST(-infinity() AS REAL)]")
+                .addRoundTrip("Array(Float32)", "[+inf]", new ArrayType(REAL), "ARRAY[CAST(infinity() AS REAL)]")
+                .addRoundTrip("Array(Float64)", "[2.718]", new ArrayType(DOUBLE), "ARRAY[DOUBLE '2.718']")
+                .addRoundTrip("Array(Float64)", "[nan]", new ArrayType(DOUBLE), "ARRAY[CAST(nan() AS DOUBLE)]")
+                .addRoundTrip("Array(Float64)", "[-inf]", new ArrayType(DOUBLE), "ARRAY[CAST(-infinity() AS DOUBLE)]")
+                .addRoundTrip("Array(Float64)", "[+inf]", new ArrayType(DOUBLE), "ARRAY[CAST(infinity() AS DOUBLE)]")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_numeric"));
+
+        // Date
+        SqlDataTypeTest.create()
+                .addRoundTrip("Array(Date)", "['1970-01-01', '2017-07-01']", new ArrayType(DATE),
+                        "ARRAY[DATE '1970-01-01', DATE '2017-07-01']")
+                .addRoundTrip("Array(Date32)", "['1952-04-03', '2017-07-01']", new ArrayType(DATE),
+                        "ARRAY[DATE '1952-04-03', DATE '2017-07-01']")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_date"));
+
+        // Timestamp
+        SqlDataTypeTest.create()
+                .addRoundTrip("Array(DateTime)", "['2024-01-15 12:30:45']", new ArrayType(createTimestampType(0)),
+                        "ARRAY[TIMESTAMP '2024-01-15 12:30:45']")
+                .addRoundTrip("Array(DateTime64(3))", "['2024-01-15 12:30:45.123']", new ArrayType(createTimestampType(3)),
+                        "ARRAY[TIMESTAMP '2024-01-15 12:30:45.123']")
+                .addRoundTrip("Array(DateTime('UTC'))", "['2024-01-15 12:30:45']", new ArrayType(TIMESTAMP_TZ_SECONDS),
+                        "ARRAY[TIMESTAMP '2024-01-15 12:30:45 UTC']")
+                .addRoundTrip("Array(DateTime64(3, 'UTC'))", "['2024-01-15 12:30:45.123']", new ArrayType(createTimestampWithTimeZoneType(3)),
+                        "ARRAY[TIMESTAMP '2024-01-15 12:30:45.123 UTC']")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_timestamp"));
+
+        // Decimal
+        SqlDataTypeTest.create()
+                .addRoundTrip("Array(Decimal(3, 1))", "[10.0, 10.1, -10.1]", new ArrayType(createDecimalType(3, 1)),
+                        "ARRAY[CAST('10.0' AS decimal(3, 1)), CAST('10.1' AS decimal(3, 1)), CAST('-10.1' AS decimal(3, 1))]")
+                .addRoundTrip("Array(Decimal(24, 2))", "[2, 2.3, 123456789.3]", new ArrayType(createDecimalType(24, 2)),
+                        "ARRAY[CAST('2.00' AS decimal(24, 2)), CAST('2.30' AS decimal(24, 2)), CAST('123456789.30' AS decimal(24, 2))]")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_decimal"));
+
+        // String as varbinary (default)
+        SqlDataTypeTest.create()
+                .addRoundTrip("Array(String)", "['hello', 'world']", new ArrayType(VARBINARY),
+                        "ARRAY[to_utf8('hello'), to_utf8('world')]")
+                .addRoundTrip("Array(FixedString(8))", "['Alice']", new ArrayType(VARBINARY),
+                        "ARRAY[to_utf8('Alice\0\0\0')]")
+                .addRoundTrip("Array(LowCardinality(String))", "['hello', 'world']", new ArrayType(VARBINARY),
+                        "ARRAY[to_utf8('hello'), to_utf8('world')]")
+                .addRoundTrip("Array(LowCardinality(FixedString(8)))", "['Alice']", new ArrayType(VARBINARY),
+                        "ARRAY[to_utf8('Alice\0\0\0')]")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_string"));
+
+        // String as varchar
+        SqlDataTypeTest.create()
+                .addRoundTrip("Array(String)", "['hello', 'world']", new ArrayType(VARCHAR),
+                        "CAST(ARRAY['hello', 'world'] AS array(varchar))")
+                .addRoundTrip("Array(FixedString(8))", "['Alice']", new ArrayType(VARCHAR),
+                        "CAST(ARRAY[VARCHAR 'Alice\0\0\0'] AS array(varchar))")
+                .addRoundTrip("Array(LowCardinality(String))", "['hello', 'world']", new ArrayType(VARCHAR),
+                        "CAST(ARRAY['hello', 'world'] AS array(varchar))")
+                .addRoundTrip("Array(LowCardinality(FixedString(8)))", "['Alice']", new ArrayType(VARCHAR),
+                        "CAST(ARRAY[VARCHAR 'Alice\0\0\0'] AS array(varchar))")
+                .execute(getQueryRunner(), mapStringAsVarcharSession(), clickhouseCreateAndInsert("tpch.test_array_string_varchar"));
+
+        // Enum
+        SqlDataTypeTest.create()
+                .addRoundTrip("Array(Enum8('active' = 1, 'inactive' = 2))", "['active', 'inactive']",
+                        new ArrayType(createUnboundedVarcharType()), "ARRAY[VARCHAR 'active', VARCHAR 'inactive']")
+                .addRoundTrip("Array(Enum16('low' = 1, 'high' = 2))", "['low', 'high']",
+                        new ArrayType(createUnboundedVarcharType()), "ARRAY[VARCHAR 'low', VARCHAR 'high']")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_enum"));
+
+        // UUID
+        SqlDataTypeTest.create()
+                .addRoundTrip("Array(UUID)", "['114514ea-0601-1981-1142-e9b55b0abd6d']",
+                        new ArrayType(UuidType.UUID), "ARRAY[UUID '114514ea-0601-1981-1142-e9b55b0abd6d']")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_uuid"));
+
+        // IP address
+        SqlDataTypeTest.create()
+                .addRoundTrip("Array(IPv4)", "['192.168.1.1', '10.0.0.1']",
+                        new ArrayType(IPADDRESS), "ARRAY[IPADDRESS '192.168.1.1', IPADDRESS '10.0.0.1']")
+                .addRoundTrip("Array(IPv6)", "['2001:db8::1', '::1']",
+                        new ArrayType(IPADDRESS), "ARRAY[IPADDRESS '2001:db8::1', IPADDRESS '::1']")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_ip"));
+
+        // Nested arrays
+        SqlDataTypeTest.create()
+                .addRoundTrip("Array(Array(Int32))", "[[1, 2], [3, 4]]", new ArrayType(new ArrayType(INTEGER)),
+                        "ARRAY[ARRAY[1, 2], ARRAY[3, 4]]")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_nested"));
+    }
+
+    @Test
+    public void testArrayWithTupleElement()
+    {
+        SqlDataTypeTest.create()
+                .addRoundTrip("Array(Tuple(a Int32, b String))", "[(1, 'hello'), (2, 'world')]",
+                        new ArrayType(rowType(field("a", INTEGER), field("b", VARBINARY))),
+                        "ARRAY[CAST(ROW(1, to_utf8('hello')) AS row(a integer, b varbinary)), CAST(ROW(2, to_utf8('world')) AS row(a integer, b varbinary))]")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_of_tuple"));
+    }
+
+    @Test
+    public void testArrayTrinoVarbinary()
+    {
+        // Array(String)/Array(FixedString) elements are returned as raw byte[] by the JDBC driver,
+        // unlike Tuple elements which go through TupleDeserializer and lose non-UTF-8 bytes.
+        // Original bytes are preserved even when they are not valid UTF-8.
+        SqlDataTypeTest.create()
+                .addRoundTrip("Array(String)", "['']", new ArrayType(VARBINARY), "ARRAY[X'']")
+                .addRoundTrip("Array(String)", "['\\x68\\x65\\x6C\\x6C\\x6F']", new ArrayType(VARBINARY), "ARRAY[to_utf8('hello')]")
+                .addRoundTrip("Array(String)", "['Piękna łąka w 東京都']", new ArrayType(VARBINARY), "ARRAY[to_utf8('Piękna łąka w 東京都')]")
+                .addRoundTrip("Array(String)", "['Bag full of 💰']", new ArrayType(VARBINARY), "ARRAY[to_utf8('Bag full of 💰')]")
+                .addRoundTrip("Array(String)", "['\\x00\\x00\\x00\\x00\\x00\\x00']", new ArrayType(VARBINARY), "ARRAY[X'000000000000']")
+                // non-UTF-8 bytes are preserved as-is (unlike Tuple where they become U+FFFD)
+                .addRoundTrip("Array(String)", "['\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\x0D\\xF9\\x36\\x7A\\xA7\\x00\\x00\\x00']", new ArrayType(VARBINARY), "ARRAY[X'0001020304050607080df9367aa7000000']")
+                .addRoundTrip("Array(FixedString(10))", "['c12345678b']", new ArrayType(VARBINARY), "ARRAY[to_utf8('c12345678b')]")
+                .addRoundTrip("Array(FixedString(10))", "['c123']", new ArrayType(VARBINARY), "ARRAY[to_utf8('c123\0\0\0\0\0\0')]")
+                .addRoundTrip("Array(FixedString(10))", "['\\x00\\x00\\x00\\x00\\x00\\x00']", new ArrayType(VARBINARY), "ARRAY[X'00000000000000000000']")
+                // non-UTF-8 bytes in FixedString elements are also preserved as-is
+                .addRoundTrip("Array(FixedString(17))", "['\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\x0D\\xF9\\x36\\x7A\\xA7\\x00\\x00\\x00']", new ArrayType(VARBINARY), "ARRAY[X'0001020304050607080df9367aa7000000']")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_varbinary"));
+    }
+
+    @Test
+    public void testArrayTrinoVarchar()
+    {
+        SqlDataTypeTest.create()
+                .addRoundTrip("Array(String)", "['Piękna łąka w 東京都']", new ArrayType(VARCHAR), "ARRAY[VARCHAR 'Piękna łąka w 東京都']")
+                .addRoundTrip("Array(String)", "['text_a']", new ArrayType(VARCHAR), "ARRAY[VARCHAR 'text_a']")
+                .addRoundTrip("Array(String)", "['攻殻機動隊']", new ArrayType(VARCHAR), "ARRAY[VARCHAR '攻殻機動隊']")
+                .addRoundTrip("Array(String)", "['😂']", new ArrayType(VARCHAR), "ARRAY[VARCHAR '😂']")
+                .addRoundTrip("Array(String)", "['Ну, погоди!']", new ArrayType(VARCHAR), "ARRAY[VARCHAR 'Ну, погоди!']")
+                .addRoundTrip("Array(FixedString(8))", "['Alice']", new ArrayType(VARCHAR), "ARRAY[VARCHAR 'Alice\0\0\0']")
+                .addRoundTrip("Array(FixedString(10))", "['c123']", new ArrayType(VARCHAR), "ARRAY[VARCHAR 'c123\0\0\0\0\0\0']")
+                .execute(getQueryRunner(), mapStringAsVarcharSession(), clickhouseCreateAndInsert("tpch.test_array_varchar"));
+    }
+
+    @Test
+    public void testArrayWithDateTypes()
+    {
+        for (ZoneId sessionZone : timezones()) {
+            Session session = Session.builder(getSession())
+                    .setTimeZoneKey(TimeZoneKey.getTimeZoneKey(sessionZone.getId()))
+                    .build();
+
+            SqlDataTypeTest.create()
+                    .addRoundTrip("Array(Date)", "['1970-02-03']", new ArrayType(DATE), "ARRAY[DATE '1970-02-03']")
+                    .addRoundTrip("Array(Date)", "['2017-07-01']", new ArrayType(DATE), "ARRAY[DATE '2017-07-01']") // summer on northern hemisphere (possible DST)
+                    .addRoundTrip("Array(Date)", "['2017-01-01']", new ArrayType(DATE), "ARRAY[DATE '2017-01-01']") // winter on northern hemisphere (possible DST on southern hemisphere)
+                    .addRoundTrip("Array(Date)", "['1970-01-01']", new ArrayType(DATE), "ARRAY[DATE '1970-01-01']")
+                    .addRoundTrip("Array(Date)", "['1983-04-01']", new ArrayType(DATE), "ARRAY[DATE '1983-04-01']")
+                    .addRoundTrip("Array(Date)", "['1983-10-01']", new ArrayType(DATE), "ARRAY[DATE '1983-10-01']")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_array_date_dst"));
+
+            SqlDataTypeTest.create()
+                    .addRoundTrip("Array(Date32)", "['1970-02-03']", new ArrayType(DATE), "ARRAY[DATE '1970-02-03']")
+                    .addRoundTrip("Array(Date32)", "['2017-07-01']", new ArrayType(DATE), "ARRAY[DATE '2017-07-01']") // summer on northern hemisphere (possible DST)
+                    .addRoundTrip("Array(Date32)", "['2017-01-01']", new ArrayType(DATE), "ARRAY[DATE '2017-01-01']") // winter on northern hemisphere (possible DST on southern hemisphere)
+                    .addRoundTrip("Array(Date32)", "['1970-01-01']", new ArrayType(DATE), "ARRAY[DATE '1970-01-01']")
+                    .addRoundTrip("Array(Date32)", "['1983-04-01']", new ArrayType(DATE), "ARRAY[DATE '1983-04-01']")
+                    .addRoundTrip("Array(Date32)", "['1983-10-01']", new ArrayType(DATE), "ARRAY[DATE '1983-10-01']")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_array_date32_dst"));
+        }
+    }
+
+    @Test
+    public void testArrayWithTimestampTypes()
+    {
+        for (ZoneId sessionZone : timezones()) {
+            Session session = Session.builder(getSession())
+                    .setTimeZoneKey(TimeZoneKey.getTimeZoneKey(sessionZone.getId()))
+                    .build();
+
+            arrayTimestampTest("timestamp")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_array_timestamp_dst"));
+            arrayTimestampTest("datetime")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_array_datetime_dst"));
+            arrayTimestampTest("DateTime64(0)")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_array_datetime64_0_dst"));
+
+            SqlDataTypeTest.create()
+                    .addRoundTrip("Array(DateTime64(0))", "['2024-01-01 12:34:56']", new ArrayType(createTimestampType(0)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56']")
+                    .addRoundTrip("Array(DateTime64(1))", "['2024-01-01 12:34:56.1']", new ArrayType(createTimestampType(1)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56.1']")
+                    .addRoundTrip("Array(DateTime64(2))", "['2024-01-01 12:34:56.12']", new ArrayType(createTimestampType(2)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56.12']")
+                    .addRoundTrip("Array(DateTime64(3))", "['2024-01-01 12:34:56.123']", new ArrayType(createTimestampType(3)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56.123']")
+                    .addRoundTrip("Array(DateTime64(4))", "['2024-01-01 12:34:56.1234']", new ArrayType(createTimestampType(4)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56.1234']")
+                    .addRoundTrip("Array(DateTime64(5))", "['2024-01-01 12:34:56.12345']", new ArrayType(createTimestampType(5)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56.12345']")
+                    .addRoundTrip("Array(DateTime64(6))", "['2024-01-01 12:34:56.123456']", new ArrayType(createTimestampType(6)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56.123456']")
+                    .addRoundTrip("Array(DateTime64(7))", "['2024-01-01 12:34:56.1234567']", new ArrayType(createTimestampType(7)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56.1234567']")
+                    .addRoundTrip("Array(DateTime64(8))", "['2024-01-01 12:34:56.12345678']", new ArrayType(createTimestampType(8)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56.12345678']")
+                    .addRoundTrip("Array(DateTime64(9))", "['2024-01-01 12:34:56.123456789']", new ArrayType(createTimestampType(9)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56.123456789']")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_array_datetime64_precisions"));
+        }
+    }
+
+    private SqlDataTypeTest arrayTimestampTest(String inputType)
+    {
+        String arrayType = format("Array(%s)", inputType);
+        ArrayType expectedType = new ArrayType(createTimestampType(0));
+        return SqlDataTypeTest.create()
+                .addRoundTrip(arrayType, "['1986-01-01 00:13:07']", expectedType, "ARRAY[TIMESTAMP '1986-01-01 00:13:07']") // time gap in Kathmandu
+                .addRoundTrip(arrayType, "['2018-03-25 03:17:17']", expectedType, "ARRAY[TIMESTAMP '2018-03-25 03:17:17']") // time gap in Vilnius
+                .addRoundTrip(arrayType, "['2018-10-28 01:33:17']", expectedType, "ARRAY[TIMESTAMP '2018-10-28 01:33:17']") // time doubled in JVM zone
+                .addRoundTrip(arrayType, "['2018-10-28 03:33:33']", expectedType, "ARRAY[TIMESTAMP '2018-10-28 03:33:33']"); // time doubled in Vilnius
+    }
+
+    @Test
+    public void testArrayWithTimestampWithTimeZoneTypes()
+    {
+        for (ZoneId sessionZone : timezones()) {
+            Session session = Session.builder(getSession())
+                    .setTimeZoneKey(TimeZoneKey.getTimeZoneKey(sessionZone.getId()))
+                    .build();
+
+            arrayTimestampWithTimeZoneTest("DateTime('UTC')", "UTC")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_array_datetime_tz"));
+
+            SqlDataTypeTest.create()
+                    .addRoundTrip("Array(DateTime64(0, 'UTC'))", "['2024-01-01 12:34:56']", new ArrayType(createTimestampWithTimeZoneType(0)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56 UTC']")
+                    .addRoundTrip("Array(DateTime64(1, 'UTC'))", "['2024-01-01 12:34:56.1']", new ArrayType(createTimestampWithTimeZoneType(1)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56.1 UTC']")
+                    .addRoundTrip("Array(DateTime64(2, 'UTC'))", "['2024-01-01 12:34:56.12']", new ArrayType(createTimestampWithTimeZoneType(2)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56.12 UTC']")
+                    .addRoundTrip("Array(DateTime64(3, 'UTC'))", "['2024-01-01 12:34:56.123']", new ArrayType(createTimestampWithTimeZoneType(3)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56.123 UTC']")
+                    .addRoundTrip("Array(DateTime64(4, 'UTC'))", "['2024-01-01 12:34:56.1234']", new ArrayType(createTimestampWithTimeZoneType(4)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56.1234 UTC']")
+                    .addRoundTrip("Array(DateTime64(5, 'UTC'))", "['2024-01-01 12:34:56.12345']", new ArrayType(createTimestampWithTimeZoneType(5)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56.12345 UTC']")
+                    .addRoundTrip("Array(DateTime64(6, 'UTC'))", "['2024-01-01 12:34:56.123456']", new ArrayType(createTimestampWithTimeZoneType(6)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56.123456 UTC']")
+                    .addRoundTrip("Array(DateTime64(7, 'UTC'))", "['2024-01-01 12:34:56.1234567']", new ArrayType(createTimestampWithTimeZoneType(7)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56.1234567 UTC']")
+                    .addRoundTrip("Array(DateTime64(8, 'UTC'))", "['2024-01-01 12:34:56.12345678']", new ArrayType(createTimestampWithTimeZoneType(8)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56.12345678 UTC']")
+                    .addRoundTrip("Array(DateTime64(9, 'UTC'))", "['2024-01-01 12:34:56.123456789']", new ArrayType(createTimestampWithTimeZoneType(9)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56.123456789 UTC']")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_array_datetime64_tz"));
+        }
+    }
+
+    @Test
+    public void testArrayWithTimestampNamedTimezone()
+    {
+        // Asia/Kolkata has had a constant offset of +05:30 since 1945 with no DST.
+        for (ZoneId sessionZone : timezones()) {
+            Session session = Session.builder(getSession())
+                    .setTimeZoneKey(TimeZoneKey.getTimeZoneKey(sessionZone.getId()))
+                    .build();
+
+            arrayTimestampWithTimeZoneTest("DateTime('Asia/Kolkata')", "+05:30")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_array_datetime_named_tz"));
+
+            SqlDataTypeTest.create()
+                    .addRoundTrip("Array(DateTime64(0, 'Asia/Kolkata'))", "['2024-01-01 12:34:56']", new ArrayType(createTimestampWithTimeZoneType(0)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56 +05:30']")
+                    .addRoundTrip("Array(DateTime64(3, 'Asia/Kolkata'))", "['2024-01-01 12:34:56.123']", new ArrayType(createTimestampWithTimeZoneType(3)), "ARRAY[TIMESTAMP '2024-01-01 12:34:56.123 +05:30']")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_array_datetime64_named_tz"));
+        }
+    }
+
+    private SqlDataTypeTest arrayTimestampWithTimeZoneTest(String inputType, String expectedZoneId)
+    {
+        String arrayType = format("Array(%s)", inputType);
+        ArrayType expectedType = new ArrayType(TIMESTAMP_TZ_SECONDS);
+        return SqlDataTypeTest.create()
+                .addRoundTrip(arrayType, "['1986-01-01 00:13:07']", expectedType, "ARRAY[TIMESTAMP '1986-01-01 00:13:07 %s']".formatted(expectedZoneId)) // time gap in Kathmandu
+                .addRoundTrip(arrayType, "['2018-03-25 03:17:17']", expectedType, "ARRAY[TIMESTAMP '2018-03-25 03:17:17 %s']".formatted(expectedZoneId)) // time gap in Vilnius
+                .addRoundTrip(arrayType, "['2018-10-28 01:33:17']", expectedType, "ARRAY[TIMESTAMP '2018-10-28 01:33:17 %s']".formatted(expectedZoneId)) // time doubled in JVM zone
+                .addRoundTrip(arrayType, "['2018-10-28 03:33:33']", expectedType, "ARRAY[TIMESTAMP '2018-10-28 03:33:33 %s']".formatted(expectedZoneId)); // time doubled in Vilnius
+    }
+
+    @Test
+    public void testArrayWithDecimal()
+    {
+        // value with trailing zeros: JDBC driver may return BigDecimal with lower scale than column scale
+        SqlDataTypeTest.create()
+                .addRoundTrip("Array(Decimal(10, 2))", "[123.45, 0.00, 1.00]",
+                        new ArrayType(createDecimalType(10, 2)),
+                        "ARRAY[CAST('123.45' AS decimal(10, 2)), CAST('0.00' AS decimal(10, 2)), CAST('1.00' AS decimal(10, 2))]")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_decimal_short"));
+
+        // long decimal (p > 18)
+        SqlDataTypeTest.create()
+                .addRoundTrip("Array(Decimal(19, 2))", "[12345678901234567.89, 1.00]",
+                        new ArrayType(createDecimalType(19, 2)),
+                        "ARRAY[CAST('12345678901234567.89' AS decimal(19, 2)), CAST('1.00' AS decimal(19, 2))]")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_decimal_long"));
+
+        // Decimal128(6) = Decimal(38, 6)
+        SqlDataTypeTest.create()
+                .addRoundTrip("Array(Decimal128(6))", "[12345678901234567890123456789012.123456]",
+                        new ArrayType(createDecimalType(38, 6)),
+                        "ARRAY[CAST('12345678901234567890123456789012.123456' AS decimal(38, 6))]")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_decimal128"));
+    }
+
+    @Test
+    public void testArrayWithNullableElements()
+    {
+        // Arrays with mixed null and non-null values — cannot use SqlDataTypeTest because
+        // verifyPredicate generates "WHERE col = ARRAY[..., NULL, ...]" which ClickHouse rejects
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_array_nullable",
+                "(c1 Array(Nullable(Int32)), c2 Array(Nullable(Float64)), c3 Array(Nullable(Date))) ENGINE=Log",
+                List.of("[42, NULL, -1], [2.718, NULL], ['2024-01-15', NULL]"))) {
+            assertThat(query("SELECT c1, c2, c3 FROM " + table.getName()))
+                    .matches("SELECT ARRAY[42, NULL, -1]," +
+                            " ARRAY[DOUBLE '2.718', NULL]," +
+                            " ARRAY[DATE '2024-01-15', NULL]");
+        }
+
+        // All-null arrays
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_array_all_null",
+                "(c1 Array(Nullable(Int32)), c2 Array(Nullable(Float64)), c3 Array(Nullable(Date))) ENGINE=Log",
+                List.of("[null, null], [null], [null, null, null]"))) {
+            assertThat(query("SELECT c1, c2, c3 FROM " + table.getName()))
+                    .matches("SELECT ARRAY[CAST(NULL AS integer), CAST(NULL AS integer)]," +
+                            " ARRAY[CAST(NULL AS double)]," +
+                            " ARRAY[CAST(NULL AS date), CAST(NULL AS date), CAST(NULL AS date)]");
+        }
+    }
+
+    @Test
+    public void testArrayWithUnsupportedElement()
+    {
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_array_unsupported",
+                "(id Int32," +
+                        " map_string_col Array(Map(String, String))," +
+                        " map_int_col Array(Map(String, Int32))," +
+                        " point_col Array(Point)," +
+                        " ring_col Array(Ring)) ENGINE=Log")) {
+            assertQueryFails("SELECT map_string_col FROM " + testTable.getName(), ".*Column 'map_string_col' cannot be resolved.*");
+            assertQueryFails("SELECT map_int_col FROM " + testTable.getName(), ".*Column 'map_int_col' cannot be resolved.*");
+            assertQueryFails("SELECT point_col FROM " + testTable.getName(), ".*Column 'point_col' cannot be resolved.*");
+            assertQueryFails("SELECT ring_col FROM " + testTable.getName(), ".*Column 'ring_col' cannot be resolved.*");
+        }
+    }
+
+    @Test
+    public void testArrayWithUnsupportedElementConvertToVarchar()
+    {
+        Session convertToVarchar = Session.builder(getSession())
+                .setCatalogSessionProperty("clickhouse", UNSUPPORTED_TYPE_HANDLING, CONVERT_TO_VARCHAR.name())
+                .build();
+        SqlDataTypeTest.create()
+                .addRoundTrip("Array(Map(String, String))", "[map('key', 'val')]", VARCHAR, "varchar '[{key=val}]'")
+                .addRoundTrip("Array(Map(String, Int32))", "[map('score', 100)]", VARCHAR, "varchar '[{score=100}]'")
+                .execute(getQueryRunner(), convertToVarchar, clickhouseCreateAndInsert("tpch.test_array_unsupported_varchar"));
+    }
+
+    @Test
+    public void testArrayWithElementTypeForcedToVarchar()
+            throws Exception
+    {
+        // jdbc-types-mapped-to-varchar forces an element type to VARCHAR, but JDBC returns the raw
+        // Java object (e.g. Integer) inside an Array. The whole Array column is mapped to VARCHAR.
+        try (QueryRunner queryRunner = ClickHouseQueryRunner.builder(clickhouseServer)
+                .addConnectorProperty("jdbc-types-mapped-to-varchar", "Int32")
+                .build()) {
+            try (TestTable table = new TestTable(clickhouseServer::execute, "tpch.test_array_forced_varchar",
+                    "(col Array(Int32)) ENGINE=Log")) {
+                clickhouseServer.execute("INSERT INTO " + table.getName() + " VALUES ([1, 2, 3])");
+                assertThat(queryRunner.execute(getSession(), "SELECT col FROM clickhouse." + table.getName()).getOnlyValue())
+                        .isEqualTo("[1,2,3]");
+            }
+        }
+    }
+
+    @Test
+    public void testTupleWithArrayField()
+    {
+        SqlDataTypeTest.create()
+                .addRoundTrip("Tuple(a Int32, b Array(Int32))", "(42, [1, 2, 3])",
+                        rowType(field("a", INTEGER), field("b", new ArrayType(INTEGER))),
+                        "CAST(ROW(42, ARRAY[1, 2, 3]) AS row(a integer, b array(integer)))")
+                .addRoundTrip("Tuple(a Array(String), b Int32)", "(['hello', 'world'], 7)",
+                        rowType(field("a", new ArrayType(VARBINARY)), field("b", INTEGER)),
+                        "CAST(ROW(ARRAY[to_utf8('hello'), to_utf8('world')], 7) AS row(a array(varbinary), b integer))")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_tuple_with_array"));
+    }
+
+    @Test
+    public void testNestedColumn()
+    {
+        // ClickHouse Nested type is flattened by the server into separate Array columns named
+        // "col.field". The JDBC driver exposes them as individual Array(T) columns, so the
+        // connector reads them as regular array columns without special handling.
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_nested",
+                "(id Int32, tags Nested(name String, score Int32)) ENGINE=Log",
+                List.of("1, ['Alice', 'Bob'], [95, 80]", "2, ['Charlie'], [70]"))) {
+            // ClickHouse flattens Nested into: tags.name Array(String), tags.score Array(Int32)
+            assertThat(query("SELECT * FROM " + table.getName() + " ORDER BY id"))
+                    .matches("VALUES " +
+                            "(1, ARRAY[to_utf8('Alice'), to_utf8('Bob')], ARRAY[95, 80]), " +
+                            "(2, ARRAY[to_utf8('Charlie')], ARRAY[70])");
+            assertThat(query("SELECT \"tags.name\", \"tags.score\" FROM " + table.getName() + " ORDER BY id"))
+                    .matches("VALUES " +
+                            "(ARRAY[to_utf8('Alice'), to_utf8('Bob')], ARRAY[95, 80]), " +
+                            "(ARRAY[to_utf8('Charlie')], ARRAY[70])");
+
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE cardinality(\"tags.name\") > 1"))
+                    .matches("VALUES 1");
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE contains(\"tags.score\", 70)"))
+                    .matches("VALUES 2");
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE \"tags.name\"[1] = to_utf8('Alice')"))
+                    .matches("VALUES 1");
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE \"tags.score\"[1] = 95"))
+                    .matches("VALUES 1");
+        }
     }
 
     protected static Session mapStringAsVarcharSession()

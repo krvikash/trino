@@ -258,8 +258,14 @@ to the following table:
   - `ROW([name1] T1, [name2] T2, ...)`
   - Read-only. Field names are optional; unnamed Tuples such as `Tuple(Int32,
     String)` map to anonymous ROW fields. Only element types listed in this
-    table are supported, including nested `Tuple`. Writing to Tuple columns is
-    not supported.
+    table are supported, including nested `Tuple` and `Array`. Writing to Tuple
+    columns is not supported.
+* - `Array(T)`
+  - `ARRAY(T)`
+  - Read-only. Element type `T` must be one of the types listed in this table.
+    Nested `Array` and `Tuple` element types are supported. Types such as `Map`
+    and geometric types (`Point`, `Ring`) are not supported as element types.
+    Writing to Array columns is not supported.
 :::
 
 No other types are supported.
