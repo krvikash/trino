@@ -66,7 +66,7 @@ public class GlobalConfig
     private boolean enableFSCacheMode = true;
     private boolean enableImportExport;
     private boolean enableExportAppendOnCloud = true;
-    private boolean enableOrPushdown = true;
+    private boolean enableOrPushdown;   // TODO: temporarily disabled due to https://starburstdata.atlassian.net/browse/ENG-7209
     private boolean enableRangeFilter = true;
     private boolean enableInverseWithNulls;
     private boolean enableLazyForSelective = true;
