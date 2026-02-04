@@ -17,9 +17,12 @@ import com.fasterxml.jackson.core.JsonPointer;
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ListMultimap;
 import com.google.inject.Inject;
+import com.starburstdata.plugin.openapi.OpenApiValidationExceptions.AmbiguousTableFunctionPath;
+import com.starburstdata.plugin.openapi.OpenApiValidationExceptions.FailedValidation;
 import io.airlift.log.Logger;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
@@ -39,10 +42,13 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.parser.OpenAPIV3Parser;
 import io.swagger.v3.parser.core.models.ParseOptions;
 import io.swagger.v3.parser.core.models.SwaggerParseResult;
+import io.trino.spi.StandardErrorCode;
+import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.SchemaNotFoundException;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.TableNotFoundException;
+import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.MapType;
@@ -51,11 +57,13 @@ import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
@@ -63,6 +71,7 @@ import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
@@ -105,6 +114,8 @@ public class OpenApiSpec
     private final Map<String, Map<PathItem.HttpMethod, List<SecurityRequirement>>> pathSecurityRequirements;
     private final Map<String, SecurityScheme> securitySchemas;
     private final List<SecurityRequirement> securityRequirements;
+
+    private final Set<ConnectorTableFunction> tableFunctions;
 
     @Inject
     public OpenApiSpec(OpenApiConfig config)
@@ -221,6 +232,52 @@ public class OpenApiSpec
                 .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
         this.securitySchemas = openApi.getComponents().getSecuritySchemes();
         this.securityRequirements = openApi.getSecurity();
+
+        ImmutableListMultimap.Builder<String, OpenApiRequestTableFunction> identifierToTableFunctionsBuilder =
+                ImmutableListMultimap.builder();
+        openApi.getPaths().forEach((String path, PathItem pathItem) -> {
+            String identifier = getIdentifier(path);
+            if (identifier.isEmpty()) {
+                return; // Table functions require non-empty names.
+            }
+            Operation getOperation = pathItem.getGet();
+            if (getOperation == null) {
+                return; // ENG-7359, we choose to only handle requests we know are read-only for now.
+            }
+            Optional<Schema<?>> okJsonResponseSchema = Optional.ofNullable(getOperation.getResponses())
+                    // OK is one of the few success codes that returns content that will drive our output columns.
+                    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status#successful_responses
+                    .flatMap(responses -> Optional.ofNullable(responses.get(HTTP_OK)))
+                    .flatMap(okResponse -> Optional.ofNullable(okResponse.getContent()))
+                    .flatMap(content -> Optional.ofNullable(content.get(MIME_JSON)))
+                    .flatMap(mediaType -> Optional.ofNullable((Schema<?>) mediaType.getSchema()));
+            if (okJsonResponseSchema.isEmpty()) {
+                return;
+            }
+            identifierToTableFunctionsBuilder.put(identifier, new OpenApiRequestTableFunction(path, identifier));
+        });
+        Map<String, Collection<OpenApiRequestTableFunction>> identifierToTableFunctions =
+                identifierToTableFunctionsBuilder.build().asMap();
+        List<FailedValidation> failedValidations = identifierToTableFunctions.entrySet()
+                .stream()
+                .filter(entry -> entry.getValue().size() > 1)
+                .map(entry -> new AmbiguousTableFunctionPath(
+                        entry.getKey(),
+                        entry.getValue()
+                                .stream()
+                                .map(OpenApiRequestTableFunction::getPath)
+                                .collect(toImmutableList())))
+                .collect(toImmutableList());
+        if (!failedValidations.isEmpty()) {
+            throw new TrinoException(
+                    StandardErrorCode.CONFIGURATION_INVALID,
+                    new OpenApiValidationExceptions(failedValidations));
+        }
+        this.tableFunctions = identifierToTableFunctions
+                .values()
+                .stream()
+                .flatMap(Collection::stream)
+                .collect(toImmutableSet());
     }
 
     private static String pathsToString(PathItem.HttpMethod method, List<String> paths)
@@ -815,5 +872,10 @@ public class OpenApiSpec
     public List<SecurityRequirement> getSecurityRequirements()
     {
         return securityRequirements;
+    }
+
+    public Set<ConnectorTableFunction> getTableFunctions()
+    {
+        return tableFunctions;
     }
 }

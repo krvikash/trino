@@ -21,7 +21,10 @@ import io.trino.spi.connector.ConnectorRecordSetProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.transaction.IsolationLevel;
+
+import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
@@ -30,6 +33,7 @@ public class OpenApiConnector
 {
     private final LifeCycleManager lifeCycleManager;
     private final OpenApiMetadata metadata;
+    private final OpenApiSpec spec;
     private final OpenApiSplitManager splitManager;
     private final OpenApiRecordSetProvider recordSetProvider;
 
@@ -37,11 +41,13 @@ public class OpenApiConnector
     public OpenApiConnector(
             LifeCycleManager lifeCycleManager,
             OpenApiMetadata metadata,
+            OpenApiSpec spec,
             OpenApiSplitManager splitManager,
             OpenApiRecordSetProvider recordSetProvider)
     {
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
+        this.spec = requireNonNull(spec, "spec is null");
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.recordSetProvider = requireNonNull(recordSetProvider, "recordSetProvider is null");
     }
@@ -68,6 +74,12 @@ public class OpenApiConnector
     public ConnectorRecordSetProvider getRecordSetProvider()
     {
         return recordSetProvider;
+    }
+
+    @Override
+    public Set<ConnectorTableFunction> getTableFunctions()
+    {
+        return spec.getTableFunctions();
     }
 
     @Override

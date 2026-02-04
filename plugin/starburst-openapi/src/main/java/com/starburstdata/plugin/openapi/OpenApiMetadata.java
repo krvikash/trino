@@ -13,6 +13,7 @@
  */
 package com.starburstdata.plugin.openapi;
 
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import io.trino.spi.StandardErrorCode;
 import io.trino.spi.TrinoException;
@@ -28,12 +29,15 @@ import io.trino.spi.connector.ConstraintApplicationResult;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.connector.TableColumnsMetadata;
+import io.trino.spi.connector.TableFunctionApplicationResult;
+import io.trino.spi.function.table.ConnectorTableFunctionHandle;
 
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.UnaryOperator.identity;
 import static java.util.stream.Collectors.toList;
@@ -79,8 +83,14 @@ public class OpenApiMetadata
             ConnectorSession connectorSession,
             ConnectorTableHandle connectorTableHandle)
     {
-        OpenApiTableHandle tableHandle = (OpenApiTableHandle) connectorTableHandle;
-        return spec.getTableMetadata(tableHandle.schemaTableName());
+        return switch (connectorTableHandle) {
+            case OpenApiTableHandle tableHandle -> spec.getTableMetadata(tableHandle.schemaTableName());
+            case OpenApiRequestTableHandle _ -> new ConnectorTableMetadata(
+                    new SchemaTableName("_generated", "_table"),
+                    ImmutableList.of(new ColumnMetadata("value", VARCHAR)));
+            default -> throw new IllegalArgumentException(
+                    "Unexpected handle class %s".formatted(connectorTableHandle.getClass().getCanonicalName()));
+        };
     }
 
     @Override
@@ -138,5 +148,18 @@ public class OpenApiMetadata
     {
         OpenApiTableHandle openApiTable = (OpenApiTableHandle) table;
         return openApiTable.applyFilter(constraint, getColumns(table), domainExpansionLimit);
+    }
+
+    @Override
+    public Optional<TableFunctionApplicationResult<ConnectorTableHandle>> applyTableFunction(
+            ConnectorSession session,
+            ConnectorTableFunctionHandle handle)
+    {
+        if (handle instanceof OpenApiTableFunctionHandle(OpenApiRequestTableHandle requestHandle)) {
+            return Optional.of(new TableFunctionApplicationResult<>(
+                    requestHandle,
+                    ImmutableList.of(new OpenApiColumnHandle("value", VARCHAR))));
+        }
+        return Optional.empty();
     }
 }

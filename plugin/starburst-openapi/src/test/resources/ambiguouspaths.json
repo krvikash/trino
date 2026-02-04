@@ -1,0 +1,78 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "test",
+        "version": 1.0,
+        "description": "Attempt to use as many adversarial features as possible to stress parsing."
+    },
+    "components": {},
+    "paths": {
+        "/collidingPath": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Not real.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/colliding_path": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Not real.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/non/unique": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Not real.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/non/{unique}": {
+            "parameters": [
+                { "name": "unique", "in": "path", "required": true, "schema": { "type": "string" } }
+            ],
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Not real.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

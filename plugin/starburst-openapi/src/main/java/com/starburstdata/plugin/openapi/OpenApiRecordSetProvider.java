@@ -28,12 +28,14 @@ import io.trino.spi.connector.RecordSet;
 import io.trino.spi.type.Type;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Verify.verify;
+import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
@@ -59,7 +61,21 @@ public class OpenApiRecordSetProvider
             ConnectorTableHandle table,
             List<? extends ColumnHandle> columnHandles)
     {
-        OpenApiTableHandle tableHandle = (OpenApiTableHandle) table;
+        return switch (table) {
+            case OpenApiTableHandle tableHandle ->
+                getRecordSet((OpenApiSplit) connectorSplit, tableHandle, columnHandles);
+            case OpenApiRequestTableHandle _ -> new InMemoryRecordSet(
+                        Collections.nCopies(columnHandles.size(), VARCHAR),
+                        ImmutableList.of(Collections.nCopies(columnHandles.size(), "TODO")));
+            default -> throw new IllegalArgumentException("Unexpected table class %s".formatted(table.getClass().getCanonicalName()));
+        };
+    }
+
+    private RecordSet getRecordSet(
+            OpenApiSplit split,
+            OpenApiTableHandle tableHandle,
+            List<? extends ColumnHandle> columnHandles)
+    {
         ConnectorTableMetadata tableMetadata = spec.getTableMetadata(tableHandle.schemaTableName());
         Map<String, Integer> columnIndexByName = IntStream.range(0, tableMetadata.getColumns().size()).boxed()
                 .collect(Collectors.toMap(i -> tableMetadata.getColumns().get(i).getName(), i -> i));
@@ -74,7 +90,6 @@ public class OpenApiRecordSetProvider
             mappedTypes.add(column.type());
         }
 
-        OpenApiSplit split = (OpenApiSplit) connectorSplit;
         Iterable<List<?>> rows = client.getRows(tableHandle.schemaTableName(), tableHandle.selectPaths(), tableHandle.selectMethod(), split.getConstraint());
         Iterable<List<?>> mappedRows = Iterables.transform(rows, row -> columnIndexes
                 .stream()

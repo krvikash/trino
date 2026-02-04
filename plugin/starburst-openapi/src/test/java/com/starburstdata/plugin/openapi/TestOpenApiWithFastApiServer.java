@@ -117,6 +117,31 @@ final class TestOpenApiWithFastApiServer
         assertQueryFails("SELECT * FROM openapi.default.error", "Server responded with error 418: \"Oops! Inevitable error happened. There goes a rainbow...\"");
     }
 
+    @Test
+    void testListFunctions()
+    {
+        assertThat(query("SHOW FUNCTIONS FROM openapi.default"))
+                .result()
+                .skippingTypesCheck()
+                .projected("Function")
+                .onlyColumnAsSet()
+                .containsExactlyInAnyOrder(
+                        "item_categories",
+                        "items_item_id",
+                        "error",
+                        "items");
+    }
+
+    @Test
+    void testStubsFunctions()
+    {
+        assertThat(query("SELECT * FROM TABLE(openapi.default.item_categories())"))
+                .result()
+                .onlyColumnAsSet()
+                .singleElement()
+                .isEqualTo("TODO");
+    }
+
     private TestTable generateDataset(String namePrefix, int elements)
     {
         return new TestTable(new TrinoSqlExecutor(getQueryRunner()), namePrefix, "AS SELECT CAST(sequential_number AS VARCHAR) AS item_id FROM TABLE(sequence(start=>0, stop=>%d))".formatted(elements - 1));

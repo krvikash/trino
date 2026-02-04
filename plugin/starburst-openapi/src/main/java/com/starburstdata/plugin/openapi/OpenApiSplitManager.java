@@ -76,6 +76,17 @@ public class OpenApiSplitManager
             DynamicFilter dynamicFilter,
             Constraint constraint)
     {
+        return switch (table) {
+            case OpenApiTableHandle tableHandle -> getSplits(tableHandle, dynamicFilter);
+            case OpenApiRequestTableHandle _ -> new FixedSplitSource(OpenApiRequestSplit.INSTANCE);
+            default -> throw new IllegalArgumentException("Unexpected table class %s".formatted(table.getClass().getCanonicalName()));
+        };
+    }
+
+    private ConnectorSplitSource getSplits(
+            OpenApiTableHandle table,
+            DynamicFilter dynamicFilter)
+    {
         if (!dynamicFilter.isAwaitable()) {
             return getSplitSource(table, dynamicFilter);
         }
