@@ -156,6 +156,7 @@ public final class FeatureExposures
                 .put(ICEBERG, "query_partition_filter_required_schemas", EXPOSED)
                 .put(ICEBERG, "remove_orphan_files_min_retention", EXPOSED)
                 .put(ICEBERG, "sorted_writing_enabled", EXPOSED)
+                .put(ICEBERG, "unsafe_sorting_properties_enabled", EXPOSED)
                 .put(ICEBERG, "statistics_enabled", EXPOSED)
                 .put(ICEBERG, "target_max_file_size", EXPOSED)
                 .put(ICEBERG, "use_file_size_from_metadata", EXPOSED)

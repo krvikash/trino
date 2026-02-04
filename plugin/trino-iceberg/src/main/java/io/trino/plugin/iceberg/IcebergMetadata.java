@@ -115,6 +115,7 @@ import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.ConstraintApplicationResult;
 import io.trino.spi.connector.DiscretePredicates;
 import io.trino.spi.connector.LimitApplicationResult;
+import io.trino.spi.connector.LocalProperty;
 import io.trino.spi.connector.MaterializedViewFreshness;
 import io.trino.spi.connector.ProjectionApplicationResult;
 import io.trino.spi.connector.RelationColumnsMetadata;
@@ -126,6 +127,7 @@ import io.trino.spi.connector.SaveMode;
 import io.trino.spi.connector.SchemaNotFoundException;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SchemaTablePrefix;
+import io.trino.spi.connector.SortingProperty;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableColumnsMetadata;
 import io.trino.spi.connector.TableNotFoundException;
@@ -349,6 +351,7 @@ import static io.trino.plugin.iceberg.IcebergSessionProperties.isMergeManifestsO
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isProjectionPushdownEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isQueryPartitionFilterRequired;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isStatisticsEnabled;
+import static io.trino.plugin.iceberg.IcebergSessionProperties.isUnsafeSortingPropertiesEnabled;
 import static io.trino.plugin.iceberg.IcebergTableName.isDataTable;
 import static io.trino.plugin.iceberg.IcebergTableName.isIcebergTableName;
 import static io.trino.plugin.iceberg.IcebergTableName.isMaterializedViewStorage;
@@ -1022,6 +1025,11 @@ public class IcebergMetadata
                     discreteTupleDomain);
         }
 
+        List<LocalProperty<ColumnHandle>> sortingProperties = ImmutableList.of();
+        if (isUnsafeSortingPropertiesEnabled(session)) {
+            sortingProperties = getSortingProperties(icebergTable, typeManager);
+        }
+
         return new ConnectorTableProperties(
                 // Using the predicate here directly avoids eagerly loading all partition values. Logically, this
                 // still keeps predicate and discretePredicates evaluation the same on every row of the table. This
@@ -1030,8 +1038,7 @@ public class IcebergMetadata
                 enforcedPredicate.transformKeys(ColumnHandle.class::cast),
                 table.getTablePartitioning().flatMap(IcebergTablePartitioning::toConnectorTablePartitioning),
                 Optional.ofNullable(discretePredicates),
-                // todo support sorting properties
-                ImmutableList.of());
+                sortingProperties);
     }
 
     @Override
@@ -1674,6 +1681,32 @@ public class IcebergMetadata
             return new SortFieldInfo(sortOrder.orderId(), supportedSortFields);
         }
         return new SortFieldInfo(SortOrder.unsorted().orderId(), supportedSortFields);
+    }
+
+    private static List<LocalProperty<ColumnHandle>> getSortingProperties(Table icebergTable, TypeManager typeManager)
+    {
+        Schema schema = icebergTable.schema();
+        SortOrder sortOrder = icebergTable.sortOrder();
+
+        SortFieldInfo sortInfo = getSupportedSortFields(schema, sortOrder);
+        if (sortInfo.supportedSortFields().isEmpty()) {
+            return ImmutableList.of();
+        }
+
+        Set<Integer> sortFieldIds = sortInfo.supportedSortFields().stream()
+                .map(TrinoSortField::sourceColumnId)
+                .collect(toImmutableSet());
+
+        Map<Integer, IcebergColumnHandle> columnHandlesById = getProjectedColumns(schema, typeManager, sortFieldIds).stream()
+                .collect(toImmutableMap(IcebergColumnHandle::getId, identity()));
+
+        ImmutableList.Builder<LocalProperty<ColumnHandle>> sortingProperties = ImmutableList.builder();
+        for (TrinoSortField sortField : sortInfo.supportedSortFields()) {
+            IcebergColumnHandle columnHandle = columnHandlesById.get(sortField.sourceColumnId());
+            sortingProperties.add(new SortingProperty<>(columnHandle, sortField.sortOrder()));
+        }
+
+        return sortingProperties.build();
     }
 
     private record SortFieldInfo(int sortOrderId, List<TrinoSortField> supportedSortFields) {}

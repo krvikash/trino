@@ -153,6 +153,7 @@ public abstract class BaseTestObjectStoreProperties
                         ('objectstore.respect_table_format', 'true', 'boolean'),
                         ('objectstore.size_based_split_weights_enabled', 'true', 'boolean'),
                         ('objectstore.sorted_writing_enabled', 'true', 'boolean'),
+                        ('objectstore.unsafe_sorting_properties_enabled', 'false', 'boolean'),
                         ('objectstore.split_generator_parallelism', '4', 'integer'),
                         ('objectstore.standard_split_weight_size', '128MB', 'varchar'),
                         ('objectstore.statistics_enabled', 'true', 'boolean'),

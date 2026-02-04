@@ -14,9 +14,12 @@
 package io.trino.plugin.iceberg;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
+import io.trino.sql.planner.plan.FilterNode;
+import io.trino.sql.planner.plan.TopNNode;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
@@ -28,6 +31,16 @@ import org.junit.jupiter.api.Test;
 import static io.trino.plugin.iceberg.IcebergTestUtils.checkOrcFileSorting;
 import static io.trino.plugin.iceberg.IcebergTestUtils.checkParquetFileSorting;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
+import static io.trino.sql.planner.assertions.PlanMatchPattern.anyTree;
+import static io.trino.sql.planner.assertions.PlanMatchPattern.limit;
+import static io.trino.sql.planner.assertions.PlanMatchPattern.node;
+import static io.trino.sql.planner.assertions.PlanMatchPattern.sort;
+import static io.trino.sql.planner.assertions.PlanMatchPattern.tableScan;
+import static io.trino.sql.planner.assertions.PlanMatchPattern.topN;
+import static io.trino.sql.tree.SortItem.NullOrdering.FIRST;
+import static io.trino.sql.tree.SortItem.NullOrdering.LAST;
+import static io.trino.sql.tree.SortItem.Ordering.ASCENDING;
+import static io.trino.sql.tree.SortItem.Ordering.DESCENDING;
 import static io.trino.testing.TestingConnectorSession.SESSION;
 import static org.apache.iceberg.FileFormat.PARQUET;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -84,6 +97,88 @@ public class TestIcebergSortedWriting
                 assertThat(isFileSorted(Location.of((String) filePath), "comment", format)).isTrue();
             }
             assertQuery("SELECT * FROM " + table.getName(), "SELECT * FROM lineitem");
+        }
+    }
+
+    @Test
+    public void testPreSortedInput()
+    {
+        // Using a small file size forces multiple files to be created
+        Session withSmallFileSize = Session.builder(getSession())
+                .setCatalogSessionProperty("iceberg", "target_max_file_size", "20kB")
+                .build();
+        try (TestTable table = new TestTable(
+                getQueryRunner()::execute,
+                "test_sorted_lineitem_table",
+                "WITH (sorted_by = ARRAY['orderkey ASC NULLS FIRST', 'linenumber ASC NULLS FIRST'], format = '" + PARQUET + "') AS TABLE tpch.tiny.lineitem WITH NO DATA")) {
+            assertUpdate(
+                    withSmallFileSize,
+                    "INSERT INTO " + table.getName() + " TABLE tpch.tiny.lineitem",
+                    "VALUES 60175");
+            int filesCount = computeActual("SELECT file_path from \"" + table.getName() + "$files\"").getOnlyColumnAsSet().size();
+            assertThat(filesCount).isGreaterThanOrEqualTo(6);
+
+            // TopNPartial is used by default
+            assertThat(
+                    query("SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 10"))
+                    .matches(anyTree(
+                            topN(
+                                    10, ImmutableList.of(sort("o", ASCENDING, FIRST)), TopNNode.Step.PARTIAL,
+                                    tableScan(table.getName(), ImmutableMap.of("o", "orderkey")))));
+
+            Session withUnsafeSortingProperty = Session.builder(getSession())
+                    .setCatalogSessionProperty("iceberg", "unsafe_sorting_properties_enabled", "true")
+                    .build();
+            // LimitPartial is used when sorting property is enabled
+            assertThat(
+                    query(withUnsafeSortingProperty, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 10"))
+                    .matches(anyTree(
+                            limit(
+                                    10, ImmutableList.of(), true, ImmutableList.of("o"),
+                                    tableScan(table.getName(), ImmutableMap.of("o", "orderkey")))));
+            // Filter between TopN and Scan
+            assertThat(
+                    query(withUnsafeSortingProperty, "SELECT * FROM " + table.getName() + " WHERE orderkey > 10 ORDER BY orderkey ASC NULLS FIRST LIMIT 10"))
+                    .matches(anyTree(
+                            limit(
+                                    10, ImmutableList.of(), true, ImmutableList.of("o"),
+                                    node(
+                                            FilterNode.class,
+                                            tableScan(table.getName(), ImmutableMap.of("o", "orderkey"))))));
+            // Multiple sorted columns
+            assertThat(
+                    query(withUnsafeSortingProperty, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST, linenumber ASC NULLS FIRST LIMIT 10"))
+                    .matches(anyTree(
+                            limit(
+                                    10, ImmutableList.of(), true, ImmutableList.of("o", "l"),
+                                    tableScan(table.getName(), ImmutableMap.of("o", "orderkey", "l", "linenumber")))));
+
+            // Sorting property mismatch on 2nd column
+            assertThat(
+                    query(withUnsafeSortingProperty, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST, linenumber LIMIT 10"))
+                    .matches(anyTree(
+                            topN(
+                                    10, ImmutableList.of(sort("o", ASCENDING, FIRST), sort("l", ASCENDING, LAST)), TopNNode.Step.PARTIAL,
+                                    tableScan(table.getName(), ImmutableMap.of("o", "orderkey", "l", "linenumber")))));
+            // Sorting property mismatch on 1st column
+            assertThat(
+                    query(withUnsafeSortingProperty, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC LIMIT 10"))
+                    .matches(anyTree(
+                            topN(
+                                    10, ImmutableList.of(sort("o", ASCENDING, LAST)), TopNNode.Step.PARTIAL,
+                                    tableScan(table.getName(), ImmutableMap.of("o", "orderkey")))));
+            assertThat(
+                    query(withUnsafeSortingProperty, "SELECT * FROM " + table.getName() + " ORDER BY orderkey DESC NULLS FIRST LIMIT 10"))
+                    .matches(anyTree(
+                            topN(
+                                    10, ImmutableList.of(sort("o", DESCENDING, FIRST)), TopNNode.Step.PARTIAL,
+                                    tableScan(table.getName(), ImmutableMap.of("o", "orderkey")))));
+
+            // Verify results
+            assertQuery(
+                    withUnsafeSortingProperty,
+                    "SELECT * FROM " + table.getName() + " WHERE orderkey BETWEEN 10 AND 14000 ORDER BY orderkey ASC NULLS FIRST LIMIT 100",
+                    "SELECT * FROM lineitem WHERE orderkey BETWEEN 10 AND 14000 ORDER BY orderkey ASC LIMIT 100");
         }
     }
 
