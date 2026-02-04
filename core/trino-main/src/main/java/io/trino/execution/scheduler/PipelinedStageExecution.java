@@ -499,13 +499,13 @@ public class PipelinedStageExecution
         Exchange exchange = getOutputSpoolingExchange();
         return taskStatus -> {
             OutputBufferStatus outputBufferStatus = taskStatus.outputBufferStatus();
-            if (outputBufferStatus.getOutputBuffersVersion().isEmpty()) {
+            if (outputBufferStatus.outputBuffersVersion().isEmpty()) {
                 return;
             }
-            if (!outputBufferStatus.isExchangeSinkInstanceHandleUpdateRequired()) {
+            if (!outputBufferStatus.exchangeSinkInstanceHandleUpdateRequired()) {
                 return;
             }
-            long remoteVersion = outputBufferStatus.getOutputBuffersVersion().getAsLong();
+            long remoteVersion = outputBufferStatus.outputBuffersVersion().getAsLong();
             while (true) {
                 long localVersion = respondedToVersion.get();
                 if (remoteVersion <= localVersion) {
@@ -792,7 +792,7 @@ public class PipelinedStageExecution
         return tasks.values().stream()
                 .map(RemoteTask::getTaskStatus)
                 .map(TaskStatus::outputBufferStatus)
-                .anyMatch(OutputBufferStatus::isOverutilized);
+                .anyMatch(OutputBufferStatus::overutilized);
     }
 
     @Override
