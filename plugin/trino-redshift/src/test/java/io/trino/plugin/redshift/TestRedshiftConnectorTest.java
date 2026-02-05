@@ -1080,6 +1080,7 @@ public class TestRedshiftConnectorTest
                 .build();
     }
 
+    @Test
     @Disabled // TODO (https://starburstdata.atlassian.net/browse/ENG-7330) Fix createSleepingView method
     @Override
     public void testCancellation() {}
