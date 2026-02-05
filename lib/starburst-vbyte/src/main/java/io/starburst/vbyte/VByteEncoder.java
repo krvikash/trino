@@ -13,6 +13,7 @@ import java.lang.foreign.MemorySegment;
 
 import static io.starburst.vbyte.VByteNative.SIZE_OF_INT;
 import static io.starburst.vbyte.VByteNative.SIZE_OF_LONG;
+import static java.lang.ref.Reference.reachabilityFence;
 
 public final class VByteEncoder
 {
@@ -37,7 +38,13 @@ public final class VByteEncoder
     {
         MemorySegment inputSegment = MemorySegment.ofArray(input).asSlice((long) inputOffset * SIZE_OF_INT, (long) inputLength * SIZE_OF_INT);
         MemorySegment outputSegment = MemorySegment.ofArray(output).asSlice(outputOffset, maxOutputLength);
-        return VByteNative.encode(inputSegment, inputLength, outputSegment);
+        try {
+            return VByteNative.encode(inputSegment, inputLength, outputSegment);
+        }
+        finally {
+            reachabilityFence(input);
+            reachabilityFence(output);
+        }
     }
 
     /**
@@ -49,6 +56,12 @@ public final class VByteEncoder
     {
         MemorySegment inputSegment = MemorySegment.ofArray(input).asSlice((long) inputOffset * SIZE_OF_LONG, (long) inputLength * SIZE_OF_LONG);
         MemorySegment outputSegment = MemorySegment.ofArray(output).asSlice(outputOffset, maxOutputLength);
-        return VByteNative.encode(inputSegment, inputLength * 2, outputSegment);
+        try {
+            return VByteNative.encode(inputSegment, inputLength * 2, outputSegment);
+        }
+        finally {
+            reachabilityFence(input);
+            reachabilityFence(output);
+        }
     }
 }
