@@ -255,7 +255,7 @@ public class WeGroupWarmerTest
                 .build();
         when(rowGroupDataService.get(eq(rowGroupKey))).thenReturn(rowGroupData);
         doAnswer(invocation -> {
-            boolean unusedDelete = localFile.delete();
+            boolean _ = localFile.delete();
             return null;
         }).when(rowGroupDataService).deleteData(eq(rowGroupData), eq(true));
 
@@ -302,7 +302,7 @@ public class WeGroupWarmerTest
                 .build();
         when(rowGroupDataService.get(eq(rowGroupKey))).thenReturn(rowGroupData);
         doAnswer(invocation -> {
-            boolean unusedDelete = localFile.delete();
+            boolean _ = localFile.delete();
             return null;
         }).when(rowGroupDataService).deleteData(eq(rowGroupData), eq(true));
         when(rowGroupDataService.reload(eq(rowGroupKey), eq(rowGroupData))).thenReturn(rowGroupData);
@@ -348,11 +348,11 @@ public class WeGroupWarmerTest
                 .build();
         when(rowGroupDataService.get(eq(rowGroupKey))).thenReturn(rowGroupData);
         doAnswer(invocation -> {
-            boolean unusedDelete = localFile.delete();
+            boolean _ = localFile.delete();
             return null;
         }).when(rowGroupDataService).deleteData(eq(rowGroupData), eq(true));
         when(rowGroupDataService.reload(eq(rowGroupKey), eq(rowGroupData))).thenAnswer(invocation -> {
-            boolean unusedDelete = localFile.delete();
+            boolean _ = localFile.delete();
             return null;
         });
 
@@ -386,7 +386,7 @@ public class WeGroupWarmerTest
         File localFile = new File(localFileName);
 
         FileUtils.createParentDirectories(localFile);
-        boolean unused = localFile.createNewFile();
+        boolean _ = localFile.createNewFile();
 
         List<WarmUpElement> warmUpElements = new ArrayList<>();
         List<WarmUpElement> warmWarmUpElements = new ArrayList<>();
@@ -478,7 +478,7 @@ public class WeGroupWarmerTest
         Assertions.assertEquals(4, savedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.HOT.equals(warmUpElement.getWarmState())).count());
         Assertions.assertEquals(0, savedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count());
 
-        boolean unused = results.localFile.delete();
+        boolean _ = results.localFile.delete();
     }
 
     @Test
@@ -514,7 +514,7 @@ public class WeGroupWarmerTest
         verify(rowGroupDataService, times(0)).flush(argumentCaptor1.capture());
         verify(rowGroupDataService, times(0)).save(argumentCaptor2.capture());
 
-        boolean unused = results.localFile.delete();
+        boolean _ = results.localFile.delete();
     }
 
     @Test
@@ -553,7 +553,7 @@ public class WeGroupWarmerTest
         Assertions.assertEquals(3, savedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.HOT.equals(warmUpElement.getWarmState())).count());
         Assertions.assertEquals(1, savedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count());
 
-        boolean unused = results.localFile.delete();
+        boolean _ = results.localFile.delete();
     }
 
     @Test
@@ -580,7 +580,7 @@ public class WeGroupWarmerTest
         Assertions.assertTrue(optionalRowGroupData.isEmpty());
         Assertions.assertEquals(0, warmupImportServiceStats.getimport_elements_started());
 
-        boolean unused = results.localFile.delete();
+        boolean _ = results.localFile.delete();
     }
 
     @Test
@@ -623,6 +623,6 @@ public class WeGroupWarmerTest
         Assertions.assertEquals(1, warmupImportServiceStats.getimport_elements_failed());
         Assertions.assertEquals(1, warmupImportServiceStats.getimport_elements_accomplished());
 
-        boolean unused = results.localFile.delete();
+        boolean _ = results.localFile.delete();
     }
 }

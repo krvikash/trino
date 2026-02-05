@@ -84,7 +84,7 @@ public class WorkerWarmupDemoterTaskTest
         Mockito.when(workerCapacityManager.getCurrentUsage()).thenReturn(2048L);
         Mockito.when(workerCapacityManager.getTotalCapacity()).thenReturn(4096L);
         Mockito.when(warmupDemoterService.tryDemoteStart()).thenAnswer(_ -> {
-            Future<?> unused = executorService.submit(() -> eventBus.post(new WarmupDemoterFinishEvent(true, new HashMap<>())));
+            Future<?> _ = executorService.submit(() -> eventBus.post(new WarmupDemoterFinishEvent(true, new HashMap<>())));
             return 1;
         });
         WarmupDemoterData warmupDemoterData = WarmupDemoterData.builder()

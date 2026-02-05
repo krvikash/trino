@@ -300,7 +300,7 @@ public class WorkerTaskExecutorService
             if (delayInSeconds > 0) {
                 statsWorkerTaskExecutorService.inctask_delayed();
                 DelayedTask delayedTask = new DelayedTask(this, task, conflictCallback);
-                ScheduledFuture<?> unused = scheduledCloudExecutorService.schedule(delayedTask, delayInSeconds, TimeUnit.SECONDS);
+                ScheduledFuture<?> _ = scheduledCloudExecutorService.schedule(delayedTask, delayInSeconds, TimeUnit.SECONDS);
             }
             else {
                 SubmissionResult submissionResult = submitTask(task, true);

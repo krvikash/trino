@@ -75,7 +75,7 @@ public class FixedLengthStringSliceBlockFiller
             int trimmedRecLength = SliceUtils.trimSlice(recordBuff, recLength, jufferOffset);
             outputSlice.setBytes(offsets[currPos], byteBufferInputStream, trimmedRecLength);
             jufferOffset += recLength;
-            long unused = byteBufferInputStream.skip(recLength - trimmedRecLength);
+            long _ = byteBufferInputStream.skip(recLength - trimmedRecLength);
             offsets[currPos + 1] = offsets[currPos] + trimmedRecLength;
         }
     }

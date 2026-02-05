@@ -174,7 +174,7 @@ public class CallHomeService
                 return Optional.of(callHomeJob.getNumberOfUploaded());
             }
             else {
-                Future<?> unused = scheduledExecutorService.schedule(callHomeJob, 0, TimeUnit.SECONDS);
+                Future<?> _ = scheduledExecutorService.schedule(callHomeJob, 0, TimeUnit.SECONDS);
             }
         }
         return Optional.empty();
