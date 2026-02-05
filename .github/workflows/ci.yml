@@ -933,6 +933,37 @@ jobs:
         with:
           github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
   # -----------------------------------------------------------
+  # Before synapse tests, start new SQL pool
+  # -----------------------------------------------------------
+  synapse-start-pool:
+    name: synapse-start-pool
+    permissions:
+      id-token: write
+      contents: read
+    runs-on: [ self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest ]
+    if: "github.event_name == 'schedule' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'synapse'))"
+    outputs:
+      sql-pool-name: ${{ steps.start-pool.outputs.SYNAPSE_SQL_POOL }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Azure Login
+        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3.0.0
+        with:
+          client-id: ${{ secrets.SYNAPSE_CLIENT_ID }}
+          tenant-id: ${{ secrets.SYNAPSE_TENANT_ID }}
+          subscription-id: ${{ secrets.SYNAPSE_SUBSCRIPTION_ID }}
+      - name: Start Pool
+        id: start-pool
+        uses: azure/cli@9eb25b8360668fb0ecbafa808d40e2197b2f5f52 # v3.0.0
+        env:
+          SYNAPSE_RESOURCE_GROUP: ${{ vars.SYNAPSE_RESOURCE_GROUP }}
+          SYNAPSE_WORKSPACE: ${{ vars.SYNAPSE_WORKSPACE }}
+        with:
+          inlineScript: |
+            SYNAPSE_SQL_POOL=$("$GITHUB_WORKSPACE"/.github/bin/synapse/start-sql-pool.sh)
+            echo "SYNAPSE_SQL_POOL=$SYNAPSE_SQL_POOL" >> "$GITHUB_OUTPUT"
+
+  # -----------------------------------------------------------
   # Weekly run all synapse tests, labeled PRs to limit CI costs
   # -----------------------------------------------------------
   synapse-weekly-tests:
@@ -944,6 +975,7 @@ jobs:
         profile: [ fte-tests, long-running-tests, type-mapping-tests ]
         modules: [ plugin/starburst-synapse ]
     timeout-minutes: 90
+    needs: [ synapse-start-pool ]
     if: "(github.event_name == 'schedule' && github.event.schedule == '0 0 * * 6') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'synapse'))"
     steps:
       - uses: actions/checkout@v6
@@ -967,12 +999,14 @@ jobs:
           SYNAPSE_ENDPOINT: ${{ vars.SYNAPSE_ENDPOINT }}
           SYNAPSE_USER: ${{ vars.SYNAPSE_USER }}
           SYNAPSE_PASSWORD: ${{ secrets.SYNAPSE_PASSWORD }}
+          SYNAPSE_SQL_POOL: ${{ needs.synapse-start-pool.outputs.sql-pool-name }}
         run: |
           export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
           $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }} \
             -Dtest.synapse.jdbc.endpoint="${SYNAPSE_ENDPOINT}" \
             -Dtest.synapse.jdbc.user="${SYNAPSE_USER}" \
-            -Dtest.synapse.jdbc.password="${SYNAPSE_PASSWORD}"
+            -Dtest.synapse.jdbc.password="${SYNAPSE_PASSWORD}" \
+            -Dtest.synapse.jdbc.sqlpool="${SYNAPSE_SQL_POOL}"
       - name: Sanitize artifact name
         if: always()
         run: |
@@ -1037,6 +1071,7 @@ jobs:
         modules:
           - plugin/starburst-synapse
     timeout-minutes: 30
+    needs: [ synapse-start-pool ]
     if: "(github.event_name == 'schedule' && github.event.schedule == '0 0 * * *' && !startsWith(github.ref, 'refs/heads/release-')) || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'synapse'))"
     steps:
       - uses: actions/checkout@v6
@@ -1060,12 +1095,14 @@ jobs:
           SYNAPSE_ENDPOINT: ${{ vars.SYNAPSE_ENDPOINT }}
           SYNAPSE_USER: ${{ vars.SYNAPSE_USER }}
           SYNAPSE_PASSWORD: ${{ secrets.SYNAPSE_PASSWORD }}
+          SYNAPSE_SQL_POOL: ${{ needs.synapse-start-pool.outputs.sql-pool-name }}
         run: |
           export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
           $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} \
             -Dtest.synapse.jdbc.endpoint="${SYNAPSE_ENDPOINT}" \
             -Dtest.synapse.jdbc.user="${SYNAPSE_USER}" \
-            -Dtest.synapse.jdbc.password="${SYNAPSE_PASSWORD}"
+            -Dtest.synapse.jdbc.password="${SYNAPSE_PASSWORD}" \
+            -Dtest.synapse.jdbc.sqlpool="${SYNAPSE_SQL_POOL}"
       - name: Sanitize artifact name
         if: always()
         run: |
@@ -1117,6 +1154,35 @@ jobs:
         uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
         with:
           github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
+  # --------------------------------------------------------------
+  # After synapse tests finish, tear down SQL pool
+  # --------------------------------------------------------------
+  synapse-stop-pool:
+    name: synapse-stop-pool
+    permissions:
+      id-token: write
+      contents: read
+    runs-on: [ self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest ]
+    # Run *after* the pool is started and the tests are done
+    needs: [ synapse-start-pool, synapse-weekly-tests, synapse-nightly-tests ]
+    # Ignore status of tests, but only stop the pool if it was started
+    if: "${{ always() && needs.synapse-start-pool.outputs.sql-pool-name != '' }}"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Azure Login
+        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3.0.0
+        with:
+          client-id: ${{ secrets.SYNAPSE_CLIENT_ID }}
+          tenant-id: ${{ secrets.SYNAPSE_TENANT_ID }}
+          subscription-id: ${{ secrets.SYNAPSE_SUBSCRIPTION_ID }}
+      - name: Stop Pool
+        uses: azure/cli@9eb25b8360668fb0ecbafa808d40e2197b2f5f52 # v3.0.0
+        env:
+          SYNAPSE_SQL_POOL: ${{ needs.synapse-start-pool.outputs.sql-pool-name }}
+          SYNAPSE_RESOURCE_GROUP: ${{ vars.SYNAPSE_RESOURCE_GROUP }}
+          SYNAPSE_WORKSPACE: ${{ vars.SYNAPSE_WORKSPACE }}
+        with:
+          inlineScript: "$GITHUB_WORKSPACE/.github/bin/synapse/stop-sql-pool.sh"
   # --------------------------------------------------------------
   # Weekly run all snowflake tests, labeled PRs to limit CI costs
   # --------------------------------------------------------------
@@ -2567,6 +2633,8 @@ jobs:
       - snowflake-weekly-tests
       - starburst-functions-ai-tests
       - synapse-nightly-tests
+      - synapse-start-pool
+      - synapse-stop-pool
       - synapse-weekly-tests
       - test
       - test-jdbc-compatibility
@@ -2594,6 +2662,8 @@ jobs:
           echo '${{ needs.snowflake-weekly-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "snowflake-weekly-tests" failed' >&2; exit 1; }
           echo '${{ needs.starburst-functions-ai-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "starburst-functions-ai-tests" failed' >&2; exit 1; }
           echo '${{ needs.synapse-nightly-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "synapse-nightly-tests" failed' >&2; exit 1; }
+          echo '${{ needs.synapse-start-pool.result }}' | grep -xE 'success|skipped' || { echo 'Job "synapse-start-pool" failed' >&2; exit 1; }
+          echo '${{ needs.synapse-stop-pool.result }}' | grep -xE 'success|skipped' || { echo 'Job "synapse-stop-pool" failed' >&2; exit 1; }
           echo '${{ needs.synapse-weekly-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "synapse-weekly-tests" failed' >&2; exit 1; }
           echo '${{ needs.test.result }}' | grep -xE 'success|skipped' || { echo 'Job "test" failed' >&2; exit 1; }
           echo '${{ needs.test-jdbc-compatibility.result }}' | grep -xE 'success|skipped' || { echo 'Job "test-jdbc-compatibility" failed' >&2; exit 1; }
