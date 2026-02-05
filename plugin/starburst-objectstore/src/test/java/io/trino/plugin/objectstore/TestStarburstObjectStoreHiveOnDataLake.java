@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.plugin.hive.TestingThriftHiveMetastoreBuilder.testingThriftHiveMetastoreBuilder;
+import static io.trino.plugin.objectstore.StarburstObjectStoreConnectorFactory.STARBURST_OBJECTSTORE;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.testing.containers.Minio.MINIO_ACCESS_KEY;
@@ -60,8 +61,8 @@ public class TestStarburstObjectStoreHiveOnDataLake
             queryRunner.createCatalog("tpch", "tpch");
 
             queryRunner.installPlugin(new ObjectStorePlugin());
-            queryRunner.createCatalog("hive", "objectstore", ImmutableMap.<String, String>builder()
-                    .put("object-store.table-type", TableType.HIVE.name())
+            queryRunner.createCatalog("hive", STARBURST_OBJECTSTORE, ImmutableMap.<String, String>builder()
+                    .put("great-lakes.table-type", TableType.HIVE.name())
                     .put("fs.hadoop.enabled", "false")
                     .put("fs.native-s3.enabled", "true")
                     .put("s3.aws-access-key", MINIO_ACCESS_KEY)

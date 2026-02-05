@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Set;
 
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
+import static io.trino.plugin.objectstore.StarburstObjectStoreConnectorFactory.STARBURST_OBJECTSTORE;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.testing.containers.Minio.MINIO_ACCESS_KEY;
@@ -73,7 +74,7 @@ final class TestObjectStoreSchemaDiscovery
                 .build();
         try {
             queryRunner.installPlugin(new ObjectStorePlugin());
-            queryRunner.createCatalog("objectstore", "objectstore", ImmutableMap.<String, String>builder()
+            queryRunner.createCatalog("objectstore", STARBURST_OBJECTSTORE, ImmutableMap.<String, String>builder()
                     .put("fs.native-s3.enabled", "true")
                     .put("s3.endpoint", hiveMinioDataLake.getMinio().getMinioAddress())
                     .put("s3.aws-access-key", MINIO_ACCESS_KEY)

@@ -28,6 +28,7 @@ import java.util.List;
 
 import static com.google.common.base.Verify.verify;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
+import static io.trino.plugin.objectstore.StarburstObjectStoreConnectorFactory.STARBURST_OBJECTSTORE;
 import static io.trino.plugin.objectstore.TestingObjectStoreUtils.getConnectorService;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 
@@ -55,8 +56,8 @@ public class TestStarburstObjectStoreIcebergGlueCatalogAccessOperations
 
             queryRunner.installPlugin(new IcebergPlugin());
             queryRunner.installPlugin(new ObjectStorePlugin());
-            queryRunner.createCatalog(CATALOG_NAME, "objectstore", ImmutableMap.<String, String>builder()
-                    .put("object-store.table-type", TableType.ICEBERG.name())
+            queryRunner.createCatalog(CATALOG_NAME, STARBURST_OBJECTSTORE, ImmutableMap.<String, String>builder()
+                    .put("great-lakes.table-type", TableType.ICEBERG.name())
                     .put("hive.metastore", "glue")
                     .put("hive.metastore.glue.default-warehouse-dir", "local://" + dataDir)
                     .put("fs.native-local.enabled", "true")

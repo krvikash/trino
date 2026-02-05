@@ -27,6 +27,7 @@ import java.util.Optional;
 import static com.google.common.base.Verify.verify;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.plugin.iceberg.IcebergFileFormat.PARQUET;
+import static io.trino.plugin.objectstore.StarburstObjectStoreConnectorFactory.STARBURST_OBJECTSTORE;
 import static io.trino.plugin.objectstore.TestingObjectStoreUtils.getConnectorService;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 
@@ -54,8 +55,8 @@ public class TestStarburstObjectStoreIcebergSystemTables
 
             queryRunner.installPlugin(new IcebergPlugin());
             queryRunner.installPlugin(new ObjectStorePlugin());
-            queryRunner.createCatalog("objectstore", "objectstore", ImmutableMap.<String, String>builder()
-                    .put("object-store.table-type", TableType.ICEBERG.name())
+            queryRunner.createCatalog("objectstore", STARBURST_OBJECTSTORE, ImmutableMap.<String, String>builder()
+                    .put("great-lakes.table-type", TableType.ICEBERG.name())
                     .put("hive.metastore", "file")
                     .put("hive.metastore.catalog.dir", "local://" + dataDir)
                     .put("fs.native-local.enabled", "true")

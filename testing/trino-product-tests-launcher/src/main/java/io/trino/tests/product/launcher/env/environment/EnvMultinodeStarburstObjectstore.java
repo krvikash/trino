@@ -34,7 +34,7 @@ public final class EnvMultinodeStarburstObjectstore
             Minio minio)
     {
         super(
-                "objectstore",
+                "great_lakes",
                 "multinode-starburst-objectstore",
                 dockerFiles,
                 standardMultinode,

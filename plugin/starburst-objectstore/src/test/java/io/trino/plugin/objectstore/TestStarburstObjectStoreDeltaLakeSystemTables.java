@@ -26,6 +26,7 @@ import java.util.Optional;
 
 import static com.google.common.base.Verify.verify;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
+import static io.trino.plugin.objectstore.StarburstObjectStoreConnectorFactory.STARBURST_OBJECTSTORE;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
@@ -47,9 +48,9 @@ public class TestStarburstObjectStoreDeltaLakeSystemTables
         verify(dataDirectory.toFile().mkdirs());
 
         try {
-            queryRunner.installPlugin(new TestingObjectStorePlugin("objectstore", Optional.empty(), Optional.empty(), Optional.of(dataDirectory)));
-            queryRunner.createCatalog("objectstore", "objectstore", ImmutableMap.<String, String>builder()
-                    .put("object-store.table-type", TableType.DELTA.name())
+            queryRunner.installPlugin(new TestingObjectStorePlugin(STARBURST_OBJECTSTORE, Optional.empty(), Optional.empty(), Optional.of(dataDirectory)));
+            queryRunner.createCatalog("objectstore", STARBURST_OBJECTSTORE, ImmutableMap.<String, String>builder()
+                    .put("great-lakes.table-type", TableType.DELTA.name())
                     .put("hive.metastore", "file")
                     .put("hive.metastore.catalog.dir", "file://" + dataDirectory)
                     .put("delta.register-table-procedure.enabled", "true")

@@ -26,7 +26,7 @@ import static io.trino.plugin.objectstore.InternalStarburstObjectStoreConnectorF
 public class StarburstObjectStoreConnectorFactory
         implements ConnectorFactory
 {
-    public static final String STARBURST_OBJECTSTORE = "objectstore";
+    public static final String STARBURST_OBJECTSTORE = "great_lakes";
 
     @Override
     public String getName()

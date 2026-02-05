@@ -40,10 +40,10 @@ public class TestObjectStoreConfig
     public void testExplicitPropertyMappings()
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
-                .put("object-store.table-type", "ICEBERG")
-                .put("object-store.information-schema-queries-threads", "13")
-                .put("object-store.iceberg-default-file-format", "ORC")
-                .put("object-store.iceberg-rest-catalog-used", "true")
+                .put("great-lakes.table-type", "ICEBERG")
+                .put("great-lakes.information-schema-queries-threads", "13")
+                .put("great-lakes.iceberg-default-file-format", "ORC")
+                .put("great-lakes.iceberg-rest-catalog-used", "true")
                 .put("galaxy.location-security.enabled", "true")
                 .buildOrThrow();
 

@@ -17,6 +17,7 @@ package io.trino.plugin.objectstore;
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.TestInstance;
 
+import static io.trino.plugin.objectstore.StarburstObjectStoreConnectorFactory.STARBURST_OBJECTSTORE;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 @TestInstance(PER_CLASS)
@@ -25,9 +26,9 @@ public class TestStarburstObjectStoreMetadataListing
 {
     public TestStarburstObjectStoreMetadataListing()
     {
-        super("objectstore", ImmutableMap.<String, String>builder()
+        super(STARBURST_OBJECTSTORE, ImmutableMap.<String, String>builder()
                 .put("hive.hive-views.enabled", "true")
-                .put("object-store.table-type", TableType.HIVE.name())
+                .put("great-lakes.table-type", TableType.HIVE.name())
                 .buildOrThrow());
     }
 }

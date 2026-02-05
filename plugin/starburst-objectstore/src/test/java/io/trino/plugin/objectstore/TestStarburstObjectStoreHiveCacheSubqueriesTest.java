@@ -23,6 +23,7 @@ import java.nio.file.Path;
 
 import static com.google.common.base.Verify.verify;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
+import static io.trino.plugin.objectstore.StarburstObjectStoreConnectorFactory.STARBURST_OBJECTSTORE;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 
 public class TestStarburstObjectStoreHiveCacheSubqueriesTest
@@ -48,8 +49,8 @@ public class TestStarburstObjectStoreHiveCacheSubqueriesTest
             verify(dataDir.toFile().mkdirs());
 
             queryRunner.installPlugin(new ObjectStorePlugin());
-            queryRunner.createCatalog("objectstore", "objectstore", ImmutableMap.<String, String>builder()
-                    .put("object-store.table-type", TableType.HIVE.name())
+            queryRunner.createCatalog("objectstore", STARBURST_OBJECTSTORE, ImmutableMap.<String, String>builder()
+                    .put("great-lakes.table-type", TableType.HIVE.name())
                     .put("hive.metastore", "file")
                     .put("hive.metastore.catalog.dir", "local://" + dataDir)
                     .put("fs.native-local.enabled", "true")

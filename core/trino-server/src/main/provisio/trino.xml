@@ -217,7 +217,7 @@
         </artifact>
     </artifactSet>
 
-    <artifactSet to="plugin/objectstore">
+    <artifactSet to="plugin/great-lakes">
         <artifact id="${project.groupId}:starburst-objectstore:zip:${project.version}">
             <unpack />
         </artifact>

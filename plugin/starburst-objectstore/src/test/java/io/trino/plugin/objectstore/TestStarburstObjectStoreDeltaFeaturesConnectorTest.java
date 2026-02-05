@@ -27,6 +27,7 @@ import java.util.Optional;
 
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.plugin.objectstore.ObjectStoreQueryRunner.initializeTpchTables;
+import static io.trino.plugin.objectstore.StarburstObjectStoreConnectorFactory.STARBURST_OBJECTSTORE;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.testing.TransactionBuilder.transaction;
 import static io.trino.testing.containers.Minio.MINIO_ACCESS_KEY;
@@ -57,7 +58,7 @@ public class TestStarburstObjectStoreDeltaFeaturesConnectorTest
             queryRunner.createCatalog("tpch", "tpch", Map.of());
 
             queryRunner.installPlugin(new ObjectStorePlugin());
-            queryRunner.createCatalog(catalog, "objectstore", ImmutableMap.<String, String>builder()
+            queryRunner.createCatalog(catalog, STARBURST_OBJECTSTORE, ImmutableMap.<String, String>builder()
                     .put("hive.metastore.uri", hiveMinioDataLake.getHiveMetastoreEndpoint().toString())
                     .put("hive.metastore.thrift.client.read-timeout", "1m") // read timed out sometimes happens with the default timeout
                     .put("delta.register-table-procedure.enabled", "true")
@@ -70,7 +71,7 @@ public class TestStarburstObjectStoreDeltaFeaturesConnectorTest
                     .put("s3.endpoint", hiveMinioDataLake.getMinio().getMinioAddress())
                     .put("s3.path-style-access", "true")
                     .put("s3.streaming.part-size", "5MB") // minimize memory usage
-                    .put("object-store.table-type", TableType.DELTA.name())
+                    .put("great-lakes.table-type", TableType.DELTA.name())
                     .buildOrThrow());
 
             queryRunner.execute("CREATE SCHEMA %1$s.%2$s WITH (location = 's3://%3$s/%2$s')".formatted(catalog, schema, bucketName));

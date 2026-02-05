@@ -52,6 +52,7 @@ import static com.google.inject.multibindings.MapBinder.newMapBinder;
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.util.Modules.EMPTY_MODULE;
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.trino.plugin.objectstore.StarburstObjectStoreConnectorFactory.STARBURST_OBJECTSTORE;
 import static java.util.Objects.requireNonNull;
 
 public class TestingObjectStoreConnectorFactory
@@ -80,7 +81,7 @@ public class TestingObjectStoreConnectorFactory
     public Connector create(String catalogName, Map<String, String> config, ConnectorContext context)
     {
         return switch (connectorName) {
-            case "objectstore" -> InternalStarburstObjectStoreConnectorFactory.createConnector(
+            case STARBURST_OBJECTSTORE -> InternalStarburstObjectStoreConnectorFactory.createConnector(
                     catalogName,
                     config,
                     metastore,

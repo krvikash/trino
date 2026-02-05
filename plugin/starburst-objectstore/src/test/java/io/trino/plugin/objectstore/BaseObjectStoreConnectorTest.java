@@ -129,7 +129,7 @@ public abstract class BaseObjectStoreConnectorTest
             queryRunner.installPlugin(new IcebergPlugin());
             queryRunner.installPlugin(new ObjectStorePlugin());
             queryRunner.createCatalog("objectstore", STARBURST_OBJECTSTORE, ImmutableMap.<String, String>builder()
-                    .put("object-store.table-type", tableType.name())
+                    .put("great-lakes.table-type", tableType.name())
                     .put("hive.metastore.uri", hiveMinio.hiveMetastoreEndpoint().toString())
                     .put("hive.non-managed-table-writes-enabled", "true")
                     .putAll(minio.getNativeS3Config())

@@ -390,7 +390,7 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password"))
-            .put("objectstore",
+            .put("great_lakes",
                     ImmutableSet.of(
                             "azure.access-key",
                             "azure.oauth.client-id",

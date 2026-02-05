@@ -17,6 +17,7 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigHidden;
+import io.airlift.configuration.LegacyConfig;
 import io.trino.plugin.iceberg.IcebergFileFormat;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -38,7 +39,8 @@ public class ObjectStoreConfig
     }
 
     @CanIgnoreReturnValue
-    @Config("object-store.table-type")
+    @Config("great-lakes.table-type")
+    @LegacyConfig("object-store.table-type")
     public ObjectStoreConfig setTableType(TableType tableType)
     {
         this.tableType = tableType;
@@ -51,7 +53,8 @@ public class ObjectStoreConfig
         return maxMetadataQueriesProcessingThreads;
     }
 
-    @Config("object-store.information-schema-queries-threads")
+    @Config("great-lakes.information-schema-queries-threads")
+    @LegacyConfig("object-store.information-schema-queries-threads")
     public ObjectStoreConfig setMaxMetadataQueriesProcessingThreads(int maxMetadataQueriesProcessingThreads)
     {
         this.maxMetadataQueriesProcessingThreads = maxMetadataQueriesProcessingThreads;
@@ -63,7 +66,8 @@ public class ObjectStoreConfig
         return defaultIcebergFileFormat;
     }
 
-    @Config("object-store.iceberg-default-file-format")
+    @Config("great-lakes.iceberg-default-file-format")
+    @LegacyConfig("object-store.iceberg-default-file-format")
     public ObjectStoreConfig setDefaultIcebergFileFormat(IcebergFileFormat defaultIcebergFileFormat)
     {
         this.defaultIcebergFileFormat = defaultIcebergFileFormat;
@@ -75,8 +79,9 @@ public class ObjectStoreConfig
         return isIcebergRestCatalogUsed;
     }
 
-    @ConfigDescription("Must be set to true when ObjectStore connector is configured with Iceberg REST catalog")
-    @Config("object-store.iceberg-rest-catalog-used")
+    @ConfigDescription("Must be set to true when Great Lakes connector is configured with Iceberg REST catalog")
+    @Config("great-lakes.iceberg-rest-catalog-used")
+    @LegacyConfig("object-store.iceberg-rest-catalog-used")
     public ObjectStoreConfig setIcebergRestCatalogUsed(boolean icebergRestCatalogUsed)
     {
         isIcebergRestCatalogUsed = icebergRestCatalogUsed;

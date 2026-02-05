@@ -15,12 +15,14 @@ package io.trino.plugin.objectstore;
 
 import com.google.common.collect.ImmutableMap;
 
+import static io.trino.plugin.objectstore.StarburstObjectStoreConnectorFactory.STARBURST_OBJECTSTORE;
+
 public class TestStarburstObjectStoreHiveFeaturesConnectorTest
         extends BaseTestObjectStoreHiveFeaturesConnectorTest
 {
     public TestStarburstObjectStoreHiveFeaturesConnectorTest()
     {
-        super("objectstore", ImmutableMap.<String, String>builder()
+        super(STARBURST_OBJECTSTORE, ImmutableMap.<String, String>builder()
                 // Hive setting synced from BaseHiveConnectorTest
                 .put("hive.allow-register-partition-procedure", "true")
                 // Reduce writer sort buffer size to ensure SortingFileWriter gets used
@@ -31,7 +33,7 @@ public class TestStarburstObjectStoreHiveFeaturesConnectorTest
                 .put("hive.max-partitions-per-scan", "1000")
                 .put("hive.max-partitions-for-eager-load", "1000")
                 // ObjectStore
-                .put("object-store.table-type", TableType.HIVE.name())
+                .put("great-lakes.table-type", TableType.HIVE.name())
                 .buildOrThrow());
     }
 }

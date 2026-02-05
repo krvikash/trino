@@ -18,13 +18,15 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 
+import static io.trino.plugin.objectstore.StarburstObjectStoreConnectorFactory.STARBURST_OBJECTSTORE;
+
 public class TestStarburstObjectStoreIcebergFeaturesConnectorTest
         extends BaseTestObjectStoreIcebergFeaturesConnectorTest
 {
     public TestStarburstObjectStoreIcebergFeaturesConnectorTest(@TempDir Path metastoreDirectory)
     {
-        super("objectstore", ImmutableMap.<String, String>builder()
-                .put("object-store.table-type", TableType.ICEBERG.name())
+        super(STARBURST_OBJECTSTORE, ImmutableMap.<String, String>builder()
+                .put("great-lakes.table-type", TableType.ICEBERG.name())
                 .put("hive.metastore", "file")
                 .put("hive.metastore.catalog.dir", metastoreDirectory.toString())
                 .put("fs.hadoop.enabled", "true")
