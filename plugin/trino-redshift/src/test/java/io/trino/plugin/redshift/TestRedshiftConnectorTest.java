@@ -36,6 +36,7 @@ import io.trino.testing.sql.SqlExecutor;
 import io.trino.testing.sql.TestTable;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.sql.Types;
@@ -1078,6 +1079,10 @@ public class TestRedshiftConnectorTest
                 .setCatalogSessionProperty(session.getCatalog().orElseThrow(), "join_pushdown_strategy", "EAGER")
                 .build();
     }
+
+    @Disabled // TODO (https://starburstdata.atlassian.net/browse/ENG-7330) Fix createSleepingView method
+    @Override
+    public void testCancellation() {}
 
     @Override
     protected String errorMessageForInsertIntoNotNullColumn(String columnName)
