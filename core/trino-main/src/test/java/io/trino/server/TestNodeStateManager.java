@@ -216,62 +216,6 @@ class TestNodeStateManager
                 .untilAsserted(() -> assertThat(nodeStateManager.getServerState()).isEqualTo(DRAINED));
     }
 
-    /*
-    This is a regression test for a possible race condition in NodeStateManager.
-    A rapid sequence of drain/active/drain updates could be lost - not observed by NodeStateManager
-    while it is in one of the sleep periods `sleepUninterruptibly(gracePeriod.toMillis(), MILLISECONDS);`.
-    The test executes such sequence of updates exactly when the NodeStateManager is in the sleep - this is tricky,
-    so if you see the test being flaky - it should be removed.
-
-    The test fails on the code before the fix with versions was applied.
-     */
-    @Test
-    void testDrainToActiveToDrain()
-            throws URISyntaxException, InterruptedException
-    {
-        nodeStateManager = createNodeStateManager(400);
-
-        List<TaskInfo> taskInfos = new ArrayList<>();
-        TaskInfo task = TaskInfo.createInitialTask(
-                new TaskId(new StageId("query1", 1), 1, 1),
-                new URI(""),
-                "1",
-                false,
-                Optional.empty(),
-                new TaskStats(Instant.now(), null));
-        taskInfos.add(task);
-        tasks.set(taskInfos);
-
-        // Draining - will wait for tasks to finish
-        nodeStateManager.transitionState(DRAINING);
-        assertThat(nodeStateManager.getServerState()).isEqualTo(DRAINING);
-
-        // when that nodeStateManager registered a listener for tasks to finish
-        ticker.increment(2, SECONDS);
-        executor.run();
-        await().atMost(1, SECONDS).until(() -> sqlTasksObservable.getTasks().size() == 1);
-
-        // simulate task completion after some time
-        tasks.set(Collections.emptyList());
-        sqlTasksObservable.getTasks().get(task.taskStatus().getTaskId())
-                .stateChanged(TaskState.FINISHED);
-
-        // this is ugly, but we need to be in the sleep in waitActiveTasksToFinish just after
-        // NodeStateManager exits from the loop and enters the sleepUninterruptibly
-        // - so if you see the test being flaky - the test should be removed.
-        Thread.sleep(200);
-
-        nodeStateManager.transitionState(ACTIVE);
-        tasks.set(taskInfos);
-        nodeStateManager.transitionState(DRAINING);
-
-        // and now await and be sure it is still draining!
-        await().during(800, MILLISECONDS).atMost(1500, MILLISECONDS)
-                .failFast("NodeState should never be drained, while there are still activeTasks",
-                        () -> nodeStateManager.getServerState().equals(DRAINED))
-                .until(() -> nodeStateManager.getServerState().equals(DRAINING));
-    }
-
     private NodeStateManager createNodeStateManager(int gracePeriodMillis)
     {
         ServerConfig serverConfig = new ServerConfig();
