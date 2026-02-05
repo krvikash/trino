@@ -205,7 +205,7 @@ public class TestSqlTask
 
         // complete the task by calling destroy on it
         TaskInfo info = sqlTask.destroyTaskResults(OUT);
-        assertThat(info.outputBuffers().getState()).isEqualTo(BufferState.FINISHED);
+        assertThat(info.outputBuffers().state()).isEqualTo(BufferState.FINISHED);
 
         taskInfo = sqlTask.getTaskInfo(info.taskStatus().version()).get();
         assertThat(taskInfo.taskStatus().state()).isEqualTo(TaskState.FINISHED);
@@ -423,7 +423,7 @@ public class TestSqlTask
 
         // complete the task by calling destroy on it
         TaskInfo info = sqlTask.destroyTaskResults(OUT);
-        assertThat(info.outputBuffers().getState()).isEqualTo(BufferState.FINISHED);
+        assertThat(info.outputBuffers().state()).isEqualTo(BufferState.FINISHED);
 
         assertEventually(new Duration(10, SECONDS), () -> {
             TaskStatus status = sqlTask.getTaskStatus(info.taskStatus().version()).get();
