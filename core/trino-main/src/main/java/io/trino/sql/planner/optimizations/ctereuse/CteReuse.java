@@ -229,8 +229,7 @@ public class CteReuse
                     newOperations,
                     multiGroupMerger,
                     plannerContext,
-                    session,
-                    plannerContext.getMetadata());
+                    session);
         }
 
         // handle all leftover hanging groups in multiGroupMerger
@@ -808,8 +807,7 @@ public class CteReuse
             Map<Value, Operation> newOperations,
             MultiGroupMerger multiGroupMerger,
             PlannerContext plannerContext,
-            Session session,
-            Metadata metadata)
+            Session session)
     {
         Operation unifiedOperation = unifiedStates.unifiedOperation();
         List<TraversalState> branches = unifiedStates.residualStates();
@@ -828,7 +826,7 @@ public class CteReuse
         setCheckpoint |= commonPartMergedAndCheckpointRequirement.requireCheckpoint();
 
         // analyze the next operations for all branches and find subgroups that can be merged
-        Subgroups subgroups = identifySubgroupsToMerge(commonPartMerged, operationToDownstream, nameAllocator, newOperations, multiGroupMerger, plannerContext, session, metadata);
+        Subgroups subgroups = identifySubgroupsToMerge(commonPartMerged, operationToDownstream, nameAllocator, newOperations, multiGroupMerger, plannerContext, session);
         verifySubgroups(subgroups, commonPartMerged.residualStates().size());
 
         // case 1: all branches belong to one single-group merge or to one multi-group merge. Merge and proceed.
@@ -864,8 +862,7 @@ public class CteReuse
                         newOperations,
                         multiGroupMerger,
                         plannerContext,
-                        session,
-                        metadata);
+                        session);
             }
         }
         // case 2: all branches are "hanging". register the hanging group for future reference
@@ -892,7 +889,7 @@ public class CteReuse
                     for (int branch : subgroupIndexes) {
                         checkpointReferences.addAll(branchToCheckpoint.getMappingForBranch(branch).getReferencesForCheckpoint(i));
                     }
-                    UnifiedStates backtrackSubgroup = checkpoint.extractSubgroup(checkpointReferences.build(), operationToDownstream, nameAllocator, newOperations, plannerContext, session, metadata);
+                    UnifiedStates backtrackSubgroup = checkpoint.extractSubgroup(checkpointReferences.build(), operationToDownstream, nameAllocator, newOperations, plannerContext, session);
                     Checkpoint backtrackCheckpoint = checkpoint.extractSubgroupCheckpoint(checkpointReferences.build());
                     mergeGroupRecursively(
                             backtrackSubgroup,
@@ -904,8 +901,7 @@ public class CteReuse
                             newOperations,
                             multiGroupMerger,
                             plannerContext,
-                            session,
-                            metadata);
+                            session);
                 }
             }
             // for all singleton branches, go back to all corresponding checkpoints, and compensate and wire all the corresponding branches
@@ -1147,11 +1143,10 @@ public class CteReuse
             Map<Value, Operation> newOperations,
             MultiGroupMerger multiGroupMerger,
             PlannerContext plannerContext,
-            Session session,
-            Metadata metadata)
+            Session session)
     {
         SingleGroupMerger.SingleGroupMergeDecomposition singleGroupSubgroups = SingleGroupMerger.identifySingleGroupSubgroupsToMerge(unifiedStates, nameAllocator);
-        MultiGroupMerger.MultiGroupMergeDecomposition multiGroupSubgroups = multiGroupMerger.identifyMultiGroupSubgroupsToMerge(unifiedStates, operationToDownstream, nameAllocator, newOperations, plannerContext, session, metadata);
+        MultiGroupMerger.MultiGroupMergeDecomposition multiGroupSubgroups = multiGroupMerger.identifyMultiGroupSubgroupsToMerge(unifiedStates, operationToDownstream, nameAllocator, newOperations, plannerContext, session);
 
         Set<Integer> categorizedIndexes = Sets.union(singleGroupSubgroups.getIndexes(), multiGroupSubgroups.getIndexes());
         List<Integer> remainingIndexes = IntStream.range(0, unifiedStates.residualStates().size())

@@ -19,7 +19,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.Sets;
 import io.trino.Session;
-import io.trino.metadata.Metadata;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.newir.Operation;
@@ -83,7 +82,7 @@ public class MultiGroupMerger
      * - multiGroupMerges -> (b0, b1) can be merged with group C
      * - hangingBranches -> (b2, b3)
      */
-    public MultiGroupMergeDecomposition identifyMultiGroupSubgroupsToMerge(CteReuse.UnifiedStates newGroup, Map<Operation, Operation> operationToDownstream, ProgramBuilder.ValueNameAllocator nameAllocator, Map<Value, Operation> newOperations, PlannerContext plannerContext, Session session, Metadata metadata)
+    public MultiGroupMergeDecomposition identifyMultiGroupSubgroupsToMerge(CteReuse.UnifiedStates newGroup, Map<Operation, Operation> operationToDownstream, ProgramBuilder.ValueNameAllocator nameAllocator, Map<Value, Operation> newOperations, PlannerContext plannerContext, Session session)
     {
         // find merging candidates across the new group and the hanging groups
         List<MultiGroupMergeCandidate> candidates = MULTI_GROUP_PROCESSORS.stream()
@@ -105,7 +104,7 @@ public class MultiGroupMerger
             Collection<List<Integer>> decomposition = hangingGroupDecomposition.getValue();
             if (!isSingleFullSubgroup(groupId, decomposition)) {
                 HangingGroup groupToSplit = hangingGroups.remove(groupId);
-                splitGroupRecursively(groupToSplit, decomposition, operationToDownstream, nameAllocator, newOperations, plannerContext, session, metadata);
+                splitGroupRecursively(groupToSplit, decomposition, operationToDownstream, nameAllocator, newOperations, plannerContext, session);
                 splitGroups = true;
             }
         }
@@ -219,8 +218,7 @@ public class MultiGroupMerger
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations,
             PlannerContext plannerContext,
-            Session session,
-            Metadata metadata)
+            Session session)
     {
         // extract unreferenced branches of the hanging group
         Set<Integer> groupIndexes = IntStream.range(0, groupToSplit.branches().size())
@@ -248,7 +246,7 @@ public class MultiGroupMerger
                 for (int branch : subgroupIndexes) {
                     checkpointReferences.addAll(groupToSplit.branchToCheckpoint().getMappingForBranch(branch).getReferencesForCheckpoint(i));
                 }
-                CteReuse.UnifiedStates backtrackSubgroup = checkpoint.extractSubgroup(checkpointReferences.build(), operationToDownstream, nameAllocator, newOperations, plannerContext, session, metadata);
+                CteReuse.UnifiedStates backtrackSubgroup = checkpoint.extractSubgroup(checkpointReferences.build(), operationToDownstream, nameAllocator, newOperations, plannerContext, session);
                 Checkpoint backtrackCheckpoint = checkpoint.extractSubgroupCheckpoint(checkpointReferences.build());
                 mergeGroupRecursively(
                         backtrackSubgroup,
@@ -260,8 +258,7 @@ public class MultiGroupMerger
                         newOperations,
                         this,
                         plannerContext,
-                        session,
-                        metadata);
+                        session);
             }
         }
         // if there is one remaining branch, handle it

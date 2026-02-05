@@ -15,7 +15,6 @@ package io.trino.sql.planner.optimizations.ctereuse;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.Session;
-import io.trino.metadata.Metadata;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.Exchange;
@@ -45,8 +44,7 @@ public sealed interface Checkpoint
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations,
             PlannerContext plannerContext,
-            Session session,
-            Metadata metadata);
+            Session session);
 
     Checkpoint extractSubgroupCheckpoint(List<Integer> subgroupIndexes);
 
@@ -72,8 +70,7 @@ public sealed interface Checkpoint
                 ProgramBuilder.ValueNameAllocator nameAllocator,
                 Map<Value, Operation> newOperations,
                 PlannerContext plannerContext,
-                Session session,
-                Metadata metadata)
+                Session session)
         {
             checkArgument(subgroupIndexes.size() > 1, "subgroup must have at least 2 elements");
 
@@ -81,10 +78,10 @@ public sealed interface Checkpoint
                     .map(tableScans::get)
                     .collect(toImmutableList());
 
-            List<CteReuse.UnifiedGroup> unifiedGroups = CteReuse.unifyTableSubgroups(subgroupScans, session, metadata);
+            List<CteReuse.UnifiedGroup> unifiedGroups = CteReuse.unifyTableSubgroups(subgroupScans, session, plannerContext.getMetadata());
             checkState(unifiedGroups.size() == 1 && getOnlyElement(unifiedGroups).tableScans().size() == subgroupScans.size(), "failed to unify a subgroup");
 
-            return CteReuse.initializeTraversalForGroup(getOnlyElement(unifiedGroups), metadata, operationToDownstream, nameAllocator, newOperations, plannerContext, session);
+            return CteReuse.initializeTraversalForGroup(getOnlyElement(unifiedGroups), plannerContext.getMetadata(), operationToDownstream, nameAllocator, newOperations, plannerContext, session);
         }
 
         @Override
@@ -124,8 +121,7 @@ public sealed interface Checkpoint
                 ProgramBuilder.ValueNameAllocator nameAllocator,
                 Map<Value, Operation> newOperations,
                 PlannerContext plannerContext,
-                Session session,
-                Metadata metadata)
+                Session session)
         {
             checkArgument(subgroupIndexes.size() > 1, "subgroup must have at least 2 elements");
 
