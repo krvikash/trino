@@ -137,7 +137,7 @@ public abstract class AbstractTestEncodingDecoding
     {
         ImmutableList.Builder<Column> columns = ImmutableList.builderWithExpectedSize(types.size());
         for (TypedColumn typedColumn : types) {
-            columns.add(createColumn(typedColumn.name(), typedColumn.type(), true));
+            columns.add(createColumn(typedColumn.name(), typedColumn.type(), true, true));
         }
         return createDecoder(columns.build());
     }

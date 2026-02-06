@@ -136,6 +136,7 @@ class Query
     @GuardedBy("this")
     private boolean exchangeFinished;
     private final boolean supportsParametricDateTime;
+    private final boolean supportsNumberType;
 
     @GuardedBy("this")
     private OptionalLong nextToken = OptionalLong.of(0);
@@ -263,6 +264,7 @@ class Query
         this.resultsProcessorExecutor = resultsProcessorExecutor;
         this.timeoutExecutor = timeoutExecutor;
         this.supportsParametricDateTime = session.getClientCapabilities().contains(ClientCapabilities.PARAMETRIC_DATETIME.toString());
+        this.supportsNumberType = session.getClientCapabilities().contains(ClientCapabilities.NUMBER.toString());
         this.serdeFactory = createExchangePagesSerdeFactory(blockEncodingSerde, session);
     }
 
@@ -704,7 +706,7 @@ class Query
 
             ImmutableList.Builder<Column> list = ImmutableList.builder();
             for (int i = 0; i < columnNames.size(); i++) {
-                list.add(createColumn(columnNames.get(i), columnTypes.get(i), supportsParametricDateTime));
+                list.add(createColumn(columnNames.get(i), columnTypes.get(i), supportsParametricDateTime, supportsNumberType));
             }
             columns = list.build();
             types = outputInfo.getColumnTypes();
