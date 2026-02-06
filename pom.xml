@@ -46,7 +46,6 @@
         <module>lib/starburst-license</module>
         <module>lib/starburst-schema-discovery</module>
         <module>lib/starburst-testing-auto-configuration</module>
-        <module>lib/starburst-vbyte</module>
         <module>lib/trino-array</module>
         <module>lib/trino-cache</module>
         <module>lib/trino-filesystem</module>
@@ -1223,12 +1222,6 @@
             <dependency>
                 <groupId>io.trino</groupId>
                 <artifactId>starburst-trino-testing</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>io.trino</groupId>
-                <artifactId>starburst-vbyte</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

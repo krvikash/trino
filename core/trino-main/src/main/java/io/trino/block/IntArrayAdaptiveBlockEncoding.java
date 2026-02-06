@@ -45,13 +45,6 @@ import static java.lang.System.arraycopy;
 public class IntArrayAdaptiveBlockEncoding
         implements BlockEncoding
 {
-    private final AdaptiveIntEncoding adaptiveIntEncoding;
-
-    public IntArrayAdaptiveBlockEncoding(boolean vByteEncodingEnabled)
-    {
-        this.adaptiveIntEncoding = new AdaptiveIntEncoding(vByteEncodingEnabled);
-    }
-
     @Override
     public String getName()
     {
@@ -73,14 +66,14 @@ public class IntArrayAdaptiveBlockEncoding
         int[] values = new int[positionCount];
 
         if (valueIsNullPacked == null) {
-            adaptiveIntEncoding.decode(input, values, positionCount);
+            AdaptiveIntEncoding.decode(input, values, positionCount);
             return new IntArrayBlock(positionCount, Optional.empty(), values);
         }
         boolean[] valueIsNull = decodeNullBits(valueIsNullPacked, positionCount);
 
         int nonNullPositionCount = input.readInt();
 
-        adaptiveIntEncoding.decode(input, values, nonNullPositionCount);
+        AdaptiveIntEncoding.decode(input, values, nonNullPositionCount);
         restoreNullPositions(positionCount, nonNullPositionCount, values, valueIsNull, valueIsNullPacked);
 
         return new IntArrayBlock(positionCount, Optional.of(valueIsNull), values);
@@ -127,7 +120,7 @@ public class IntArrayAdaptiveBlockEncoding
         encodeNullsAsBits(output, getRawValueIsNull(intArrayBlock), intArrayBlock.getRawValuesOffset(), positionCount);
 
         if (!intArrayBlock.mayHaveNull()) {
-            adaptiveIntEncoding.encode(output, intArrayBlock.getRawValues(), intArrayBlock.getRawValuesOffset(), positionCount);
+            AdaptiveIntEncoding.encode(output, intArrayBlock.getRawValues(), intArrayBlock.getRawValuesOffset(), positionCount);
         }
         else {
             int[] valuesWithoutNull = new int[positionCount];
@@ -141,7 +134,7 @@ public class IntArrayAdaptiveBlockEncoding
 
             output.writeInt(nonNullPositionCount);
 
-            adaptiveIntEncoding.encode(output, valuesWithoutNull, 0, nonNullPositionCount);
+            AdaptiveIntEncoding.encode(output, valuesWithoutNull, 0, nonNullPositionCount);
         }
     }
 }

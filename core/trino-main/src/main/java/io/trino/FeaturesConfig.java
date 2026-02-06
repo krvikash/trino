@@ -80,6 +80,7 @@ import static io.trino.sql.analyzer.RegexLibrary.JONI;
         "resource-group-manager",
         "spill-order-by",
         "spill-window-operator",
+        "exchange.vbyte-block-encoding-enabled",
 })
 public class FeaturesConfig
 {
@@ -103,7 +104,6 @@ public class FeaturesConfig
      * default value is overwritten for fault tolerant execution in {@link #applyFaultTolerantExecutionDefaults()}}
      */
     private CompressionCodec exchangeCompressionCodec = LZ4;
-    private boolean exchangeVbyteBlockEncodingEnabled = true;
     private boolean exchangeAdaptiveBlockEncodingEnabled = true;
     private boolean exchangeVectorizedSerdeEnabled = true;
     private boolean pagesIndexEagerCompactionEnabled;
@@ -372,19 +372,6 @@ public class FeaturesConfig
     public FeaturesConfig setExchangeCompressionCodec(CompressionCodec exchangeCompressionCodec)
     {
         this.exchangeCompressionCodec = exchangeCompressionCodec;
-        return this;
-    }
-
-    public boolean isExchangeVbyteBlockEncodingEnabled()
-    {
-        return exchangeVbyteBlockEncodingEnabled;
-    }
-
-    @Config("exchange.vbyte-block-encoding-enabled")
-    @ConfigDescription("Enable VByte block encoding for relevant types")
-    public FeaturesConfig setExchangeVbyteBlockEncodingEnabled(boolean exchangeVbyteBlockEncodingEnabled)
-    {
-        this.exchangeVbyteBlockEncodingEnabled = exchangeVbyteBlockEncodingEnabled;
         return this;
     }
 

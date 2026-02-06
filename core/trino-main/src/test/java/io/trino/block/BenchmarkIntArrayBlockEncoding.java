@@ -120,7 +120,7 @@ public class BenchmarkIntArrayBlockEncoding
         public void setup()
         {
             blockEncodingSerde = new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig(), new BlockEncodingSimdSupport(true)), TESTING_TYPE_MANAGER);
-            encoding = new IntArrayAdaptiveBlockEncoding(true);
+            encoding = new IntArrayAdaptiveBlockEncoding();
 
             blocks = new Block[BLOCK_COUNT];
             for (int i = 0; i < BLOCK_COUNT; i++) {

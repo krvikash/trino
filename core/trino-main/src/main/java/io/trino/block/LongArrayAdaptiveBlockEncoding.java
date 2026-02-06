@@ -28,10 +28,7 @@ import static io.trino.block.LongArrayAdaptiveBlockEncoding.EncodingMethod.BITPA
 import static io.trino.block.LongArrayAdaptiveBlockEncoding.EncodingMethod.BITPACKING_DELTA;
 import static io.trino.block.LongArrayAdaptiveBlockEncoding.EncodingMethod.RAW;
 import static io.trino.block.LongArrayAdaptiveBlockEncoding.EncodingMethod.RLE;
-import static io.trino.block.LongArrayAdaptiveBlockEncoding.EncodingMethod.V_BYTE;
 import static io.trino.block.LongArrayAdaptiveBlockEncoding.EncodingMethod.fromByte;
-import static io.trino.block.VByteUtils.vByteDecodeLongs;
-import static io.trino.block.VByteUtils.vByteEncodeLongs;
 import static io.trino.spi.block.BlockShim.getRawValueIsNull;
 import static io.trino.spi.block.EncoderUtil.decodeNullBits;
 import static io.trino.spi.block.EncoderUtil.encodeNullsAsBits;
@@ -55,13 +52,6 @@ import static java.lang.System.arraycopy;
 public class LongArrayAdaptiveBlockEncoding
         implements BlockEncoding
 {
-    private final boolean vByteEncodingEnabled;
-
-    public LongArrayAdaptiveBlockEncoding(boolean vByteEncodingEnabled)
-    {
-        this.vByteEncodingEnabled = vByteEncodingEnabled;
-    }
-
     @Override
     public String getName()
     {
@@ -143,9 +133,6 @@ public class LongArrayAdaptiveBlockEncoding
             case BITPACKING_DELTA:
                 BitPackingUtils.decodeDelta(input, values, length);
                 break;
-            case V_BYTE:
-                vByteDecodeLongs(input, length, values);
-                break;
             default:
                 throw new IllegalArgumentException("Unsupported encoding method: " + method);
         }
@@ -196,9 +183,6 @@ public class LongArrayAdaptiveBlockEncoding
                 break;
             case BITPACKING_DELTA:
                 BitPackingUtils.encodeDelta(output, values, offset, length);
-                break;
-            case V_BYTE:
-                vByteEncodeLongs(output, values, offset, length);
                 break;
             default:
                 throw new IllegalStateException("Unsupported encoding method: " + method);
@@ -307,14 +291,7 @@ public class LongArrayAdaptiveBlockEncoding
             method = BITPACKING;
         }
         if (maxDeltaBitPackingSizeInBytes < minSizeInBytes) {
-            minSizeInBytes = maxDeltaBitPackingSizeInBytes;
             method = BITPACKING_DELTA;
-        }
-        if (vByteEncodingEnabled) {
-            int vByteSizeInBytes = VByteUtils.estimateEncodedLongsSizeInBytes(length, maxValueWidth);
-            if (vByteSizeInBytes < minSizeInBytes) {
-                method = V_BYTE;
-            }
         }
 
         return new BlockAnalysis(method, runCount);
@@ -332,8 +309,7 @@ public class LongArrayAdaptiveBlockEncoding
         RAW,
         RLE,
         BITPACKING,
-        BITPACKING_DELTA,
-        V_BYTE;
+        BITPACKING_DELTA;
 
         public static EncodingMethod fromByte(byte id)
         {

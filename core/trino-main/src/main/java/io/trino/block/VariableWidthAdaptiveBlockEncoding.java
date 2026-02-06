@@ -33,13 +33,6 @@ import static java.lang.String.format;
 public class VariableWidthAdaptiveBlockEncoding
         implements BlockEncoding
 {
-    private final AdaptiveIntEncoding adaptiveIntEncoding;
-
-    public VariableWidthAdaptiveBlockEncoding(boolean vByteEncodingEnabled)
-    {
-        this.adaptiveIntEncoding = new AdaptiveIntEncoding(vByteEncodingEnabled);
-    }
-
     @Override
     public String getName()
     {
@@ -73,7 +66,7 @@ public class VariableWidthAdaptiveBlockEncoding
         }
 
         sliceOutput.appendInt(nonNullsCount);
-        adaptiveIntEncoding.encode(sliceOutput, lengths, 0, nonNullsCount);
+        AdaptiveIntEncoding.encode(sliceOutput, lengths, 0, nonNullsCount);
         encodeNullsAsBits(sliceOutput, getRawValueIsNull(variableWidthBlock), getRawArrayBase(variableWidthBlock), positionCount);
 
         sliceOutput
@@ -95,7 +88,7 @@ public class VariableWidthAdaptiveBlockEncoding
         // Read the lengths array into the end of the offsets array, since nonNullsCount <= positionCount
         int lengthIndex = offsets.length - nonNullsCount;
 
-        adaptiveIntEncoding.decode(sliceInput, offsets, lengthIndex, nonNullsCount);
+        AdaptiveIntEncoding.decode(sliceInput, offsets, lengthIndex, nonNullsCount);
 
         boolean[] valueIsNull = decodeNullBits(sliceInput, positionCount).orElse(null);
         // Transform lengths back to offsets

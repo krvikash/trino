@@ -25,13 +25,6 @@ import java.util.Optional;
 public class DictionaryAdaptiveBlockEncoding
         implements BlockEncoding
 {
-    private final AdaptiveIntEncoding adaptiveIntEncoding;
-
-    public DictionaryAdaptiveBlockEncoding(boolean vByteEncodingEnabled)
-    {
-        this.adaptiveIntEncoding = new AdaptiveIntEncoding(vByteEncodingEnabled);
-    }
-
     @Override
     public String getName()
     {
@@ -63,7 +56,7 @@ public class DictionaryAdaptiveBlockEncoding
         blockEncodingSerde.writeBlock(sliceOutput, dictionary);
 
         // ids
-        adaptiveIntEncoding.encode(sliceOutput, dictionaryBlock.getRawIds(), dictionaryBlock.getRawIdsOffset(), positionCount);
+        AdaptiveIntEncoding.encode(sliceOutput, dictionaryBlock.getRawIds(), dictionaryBlock.getRawIdsOffset(), positionCount);
     }
 
     @Override
@@ -77,7 +70,7 @@ public class DictionaryAdaptiveBlockEncoding
 
         // ids
         int[] ids = new int[positionCount];
-        adaptiveIntEncoding.decode(sliceInput, ids, positionCount);
+        AdaptiveIntEncoding.decode(sliceInput, ids, positionCount);
 
         // flatten the dictionary
         return dictionaryBlock.copyPositions(ids, 0, ids.length);

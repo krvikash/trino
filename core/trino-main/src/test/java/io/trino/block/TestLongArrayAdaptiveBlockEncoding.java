@@ -132,17 +132,6 @@ class TestLongArrayAdaptiveBlockEncoding
         assertThat(adaptiveSize).isLessThan(rawSize);
     }
 
-    @Test
-    public void testVByte()
-    {
-        Object[] values = generateValuesWithBitWidth(127, 8);
-        Block block = createBlockWithOffset(values);
-
-        int adaptiveSize = roundTripAndGetSize(block);
-        int adaptiveWithoutVByteSize = encodeAndGetSize(createAdaptiveWithoutVByteSerde(), block);
-        assertThat(adaptiveSize).isLessThan(adaptiveWithoutVByteSize);
-    }
-
     private static Object[] generateValuesWithBitWidth(int length, int bitWidth)
     {
         checkArgument(bitWidth >= 0 && bitWidth <= 64, "bitWidth must be in range 0..64");
@@ -208,18 +197,7 @@ class TestLongArrayAdaptiveBlockEncoding
     {
         BlockEncodingManager blockEncodingManager = new BlockEncodingManager(
                 new FeaturesConfig()
-                        .setExchangeVbyteBlockEncodingEnabled(false)
                         .setExchangeAdaptiveBlockEncodingEnabled(false),
-                new BlockEncodingSimdSupport(true));
-        return new InternalBlockEncodingSerde(blockEncodingManager, TESTING_TYPE_MANAGER);
-    }
-
-    private static BlockEncodingSerde createAdaptiveWithoutVByteSerde()
-    {
-        BlockEncodingManager blockEncodingManager = new BlockEncodingManager(
-                new FeaturesConfig()
-                        .setExchangeVbyteBlockEncodingEnabled(false)
-                        .setExchangeAdaptiveBlockEncodingEnabled(true),
                 new BlockEncodingSimdSupport(true));
         return new InternalBlockEncodingSerde(blockEncodingManager, TESTING_TYPE_MANAGER);
     }

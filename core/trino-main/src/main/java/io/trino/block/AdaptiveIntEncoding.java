@@ -23,25 +23,17 @@ import static io.trino.block.AdaptiveIntEncoding.EncodingMethod.BITPACKING;
 import static io.trino.block.AdaptiveIntEncoding.EncodingMethod.BITPACKING_DELTA;
 import static io.trino.block.AdaptiveIntEncoding.EncodingMethod.RAW;
 import static io.trino.block.AdaptiveIntEncoding.EncodingMethod.RLE;
-import static io.trino.block.AdaptiveIntEncoding.EncodingMethod.V_BYTE;
-import static io.trino.block.VByteUtils.vByteDecodeInts;
-import static io.trino.block.VByteUtils.vByteEncodeInts;
 
-class AdaptiveIntEncoding
+final class AdaptiveIntEncoding
 {
-    private final boolean vByteEncodingEnabled;
+    private AdaptiveIntEncoding() {}
 
-    public AdaptiveIntEncoding(boolean vByteEncodingEnabled)
-    {
-        this.vByteEncodingEnabled = vByteEncodingEnabled;
-    }
-
-    public void decode(SliceInput input, int[] values, int length)
+    public static void decode(SliceInput input, int[] values, int length)
     {
         decode(input, values, 0, length);
     }
 
-    public void decode(SliceInput input, int[] values, int offset, int length)
+    public static void decode(SliceInput input, int[] values, int offset, int length)
     {
         EncodingMethod method = EncodingMethod.fromByte(input.readByte());
         switch (method) {
@@ -57,15 +49,12 @@ class AdaptiveIntEncoding
             case BITPACKING_DELTA:
                 BitPackingUtils.decodeDelta(input, values, offset, length);
                 break;
-            case V_BYTE:
-                vByteDecodeInts(input, length, values, offset);
-                break;
             default:
                 throw new IllegalArgumentException("Unsupported block mode: " + method);
         }
     }
 
-    public void encode(SliceOutput output, int[] values, int offset, int length)
+    public static void encode(SliceOutput output, int[] values, int offset, int length)
     {
         BlockAnalysis analysis = selectedEncodingMethod(values, offset, length);
         EncodingMethod method = analysis.method();
@@ -83,9 +72,6 @@ class AdaptiveIntEncoding
                 break;
             case BITPACKING_DELTA:
                 BitPackingUtils.encodeDelta(output, values, offset, length);
-                break;
-            case V_BYTE:
-                vByteEncodeInts(output, values, offset, length);
                 break;
             default:
                 throw new IllegalStateException("Unsupported encoding method: " + method);
@@ -145,7 +131,7 @@ class AdaptiveIntEncoding
         }
     }
 
-    private BlockAnalysis selectedEncodingMethod(int[] values, int offset, int length)
+    private static BlockAnalysis selectedEncodingMethod(int[] values, int offset, int length)
     {
         if (length == 0) {
             return new BlockAnalysis(RAW, 0);
@@ -194,14 +180,7 @@ class AdaptiveIntEncoding
             method = BITPACKING;
         }
         if (deltaBitPackingSizeInBytes < minSizeInBytes) {
-            minSizeInBytes = deltaBitPackingSizeInBytes;
             method = BITPACKING_DELTA;
-        }
-        if (vByteEncodingEnabled) {
-            int vByteSizeInBytes = VByteUtils.estimateEncodedIntsSizeInBytes(length, maxValueWidth);
-            if (vByteSizeInBytes < minSizeInBytes) {
-                method = V_BYTE;
-            }
         }
 
         return new BlockAnalysis(method, runCount);
@@ -219,8 +198,7 @@ class AdaptiveIntEncoding
         RAW,
         RLE,
         BITPACKING,
-        BITPACKING_DELTA,
-        V_BYTE;
+        BITPACKING_DELTA;
 
         public static EncodingMethod fromByte(byte id)
         {

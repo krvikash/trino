@@ -14,8 +14,6 @@
 package io.trino.metadata;
 
 import com.google.inject.Inject;
-import io.airlift.log.Logger;
-import io.starburst.vbyte.VByteNative;
 import io.trino.FeaturesConfig;
 import io.trino.block.DictionaryAdaptiveBlockEncoding;
 import io.trino.block.IntArrayAdaptiveBlockEncoding;
@@ -46,8 +44,6 @@ import static java.util.Objects.requireNonNull;
 
 public final class BlockEncodingManager
 {
-    private static final Logger log = Logger.get(VByteNative.class);
-
     // for deserialization
     private final Map<String, BlockEncoding> blockEncodingsByName = new ConcurrentHashMap<>();
 
@@ -68,20 +64,11 @@ public final class BlockEncodingManager
         addBlockEncoding(new RowBlockEncoding());
         addBlockEncoding(new RunLengthBlockEncoding());
 
-        boolean vByteEncodingEnabled = false;
-        if (config.isExchangeVbyteBlockEncodingEnabled()) {
-            if (VByteNative.getLinkageError().isPresent()) {
-                log.warn(VByteNative.getLinkageError().orElseThrow(), "VByte block encoding disabled because of linkage error");
-            }
-            else {
-                vByteEncodingEnabled = true;
-            }
-        }
         if (config.isExchangeAdaptiveBlockEncodingEnabled()) {
-            addBlockEncoding(new IntArrayAdaptiveBlockEncoding(vByteEncodingEnabled));
-            addBlockEncoding(new LongArrayAdaptiveBlockEncoding(vByteEncodingEnabled));
-            addBlockEncoding(new DictionaryAdaptiveBlockEncoding(vByteEncodingEnabled));
-            addBlockEncoding(new VariableWidthAdaptiveBlockEncoding(vByteEncodingEnabled));
+            addBlockEncoding(new IntArrayAdaptiveBlockEncoding());
+            addBlockEncoding(new LongArrayAdaptiveBlockEncoding());
+            addBlockEncoding(new DictionaryAdaptiveBlockEncoding());
+            addBlockEncoding(new VariableWidthAdaptiveBlockEncoding());
         }
         else {
             addBlockEncoding(new IntArrayBlockEncoding(simdSupport.expandAndCompressInt()));
