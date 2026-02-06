@@ -1581,17 +1581,16 @@ public abstract class BaseIcebergConnectorTest
     @Test
     public void testSortOrderChange()
     {
-        Session withSmallRowGroups = withSmallRowGroups(getSession());
         try (TestTable table = newTrinoTable(
                 "test_sort_order_change",
                 "WITH (sorted_by = ARRAY['comment']) AS SELECT * FROM nation WITH NO DATA")) {
-            assertUpdate(withSmallRowGroups, "INSERT INTO " + table.getName() + " SELECT * FROM nation", 25);
+            assertUpdate("INSERT INTO " + table.getName() + " SELECT * FROM nation", 25);
             Set<String> sortedByComment = new HashSet<>();
             computeActual("SELECT file_path from \"" + table.getName() + "$files\"").getOnlyColumnAsSet()
                     .forEach(fileName -> sortedByComment.add((String) fileName));
 
             assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES sorted_by = ARRAY['name']");
-            assertUpdate(withSmallRowGroups, "INSERT INTO " + table.getName() + " SELECT * FROM nation", 25);
+            assertUpdate("INSERT INTO " + table.getName() + " SELECT * FROM nation", 25);
 
             for (MaterializedRow row : computeActual("SELECT file_path, sort_order_id from \"" + table.getName() + "$files\"").getMaterializedRows()) {
                 String path = (String) row.getField(0);
@@ -1612,7 +1611,7 @@ public abstract class BaseIcebergConnectorTest
     @Test
     public void testSortingDisabled()
     {
-        Session withSortingDisabled = Session.builder(withSmallRowGroups(getSession()))
+        Session withSortingDisabled = Session.builder(getSession())
                 .setCatalogSessionProperty(ICEBERG_CATALOG, "sorted_writing_enabled", "false")
                 .build();
         try (TestTable table = newTrinoTable(
@@ -1630,7 +1629,6 @@ public abstract class BaseIcebergConnectorTest
     @Test
     public void testOptimizeWithSortOrder()
     {
-        Session withSmallRowGroups = withSmallRowGroups(getSession());
         try (TestTable table = newTrinoTable(
                 "test_optimize_with_sort_order",
                 "WITH (sorted_by = ARRAY['comment']) AS SELECT * FROM nation WITH NO DATA")) {
@@ -1639,7 +1637,7 @@ public abstract class BaseIcebergConnectorTest
             assertUpdate("INSERT INTO " + table.getName() + " SELECT * FROM nation WHERE nationkey >= 20", 5);
             assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES sorted_by = ARRAY['comment']");
             // For optimize we need to set task_min_writer_count to 1, otherwise it will create more than one file.
-            assertUpdate(withSingleWriterPerTask(withSmallRowGroups), "ALTER TABLE " + table.getName() + " EXECUTE optimize");
+            assertUpdate(withSingleWriterPerTask(getSession()), "ALTER TABLE " + table.getName() + " EXECUTE optimize");
 
             for (MaterializedRow row : computeActual("SELECT file_path, sort_order_id from \"" + table.getName() + "$files\"").getMaterializedRows()) {
                 assertThat(isFileSorted((String) row.getField(0), "comment")).isTrue();
@@ -1652,15 +1650,13 @@ public abstract class BaseIcebergConnectorTest
     @Test
     public void testUpdateWithSortOrder()
     {
-        Session withSmallRowGroups = withSmallRowGroups(getSession());
         try (TestTable table = newTrinoTable(
                 "test_sorted_update",
                 "WITH (sorted_by = ARRAY['comment']) AS TABLE tpch.tiny.customer WITH NO DATA")) {
             assertUpdate(
-                    withSmallRowGroups,
                     "INSERT INTO " + table.getName() + " TABLE tpch.tiny.customer",
                     "VALUES 1500");
-            assertUpdate(withSmallRowGroups, "UPDATE " + table.getName() + " SET comment = substring(comment, 2)", 1500);
+            assertUpdate("UPDATE " + table.getName() + " SET comment = substring(comment, 2)", 1500);
             assertQuery(
                     "SELECT custkey, name, address, nationkey, phone, acctbal, mktsegment, comment FROM " + table.getName(),
                     "SELECT custkey, name, address, nationkey, phone, acctbal, mktsegment, substring(comment, 2) FROM customer");
@@ -1671,7 +1667,6 @@ public abstract class BaseIcebergConnectorTest
 
             // Verify MERGE INTO maintains sort order
             assertUpdate(
-                    withSmallRowGroups,
                     "MERGE INTO " + table.getName() + " t USING (SELECT custkey, comment FROM tpch.tiny.customer WHERE custkey <= 1000) s " +
                             "ON t.custkey = s.custkey " +
                             "WHEN MATCHED THEN UPDATE SET comment = s.comment",
@@ -1687,11 +1682,8 @@ public abstract class BaseIcebergConnectorTest
     public void testCreateWithSortOrder()
     {
         // Verify that CTAS with sorted_by creates sorted files
-        Session withSmallRowGroups = withSmallRowGroups(getSession());
         String tableName = "test_create_with_sort_order_" + randomNameSuffix();
-        assertUpdate(withSmallRowGroups,
-                "CREATE TABLE " + tableName + " WITH (sorted_by = ARRAY['comment']) AS SELECT * FROM nation",
-                25);
+        assertUpdate("CREATE TABLE " + tableName + " WITH (sorted_by = ARRAY['comment']) AS SELECT * FROM nation", 25);
         for (MaterializedRow row : computeActual("SELECT file_path, sort_order_id from \"" + tableName + "$files\"").getMaterializedRows()) {
             assertThat(isFileSorted((String) row.getField(0), "comment")).isTrue();
             assertThat(((Integer) row.getField(1))).isEqualTo(1);
@@ -1720,11 +1712,10 @@ public abstract class BaseIcebergConnectorTest
     @Test
     public void testDroppingSortColumn()
     {
-        Session withSmallRowGroups = withSmallRowGroups(getSession());
         try (TestTable table = newTrinoTable(
                 "test_dropping_sort_column",
                 "WITH (sorted_by = ARRAY['comment']) AS SELECT * FROM nation WITH NO DATA")) {
-            assertUpdate(withSmallRowGroups, "INSERT INTO " + table.getName() + " SELECT * FROM nation", 25);
+            assertUpdate("INSERT INTO " + table.getName() + " SELECT * FROM nation", 25);
             assertThat(query("ALTER TABLE " + table.getName() + " DROP COLUMN comment"))
                     .failure().hasMessageContaining("Cannot drop sort field: comment");
         }
