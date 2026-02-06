@@ -1,0 +1,22 @@
+name: JIRA Automation
+
+# Trigger on PR events
+on:
+  pull_request:
+    types: [opened, edited, closed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # Check for JIRA link when PR is opened or edited
+  check-jira-link:
+    if: github.event.action == 'opened' || github.event.action == 'edited'
+    uses: starburstdata/jira-workflows/.github/workflows/check-jira-link.yml@v3
+
+  # Close JIRA issues when PR is merged
+  close-jira-on-merge:
+    if: github.event.action == 'closed' && github.event.pull_request.merged == true
+    uses: starburstdata/jira-workflows/.github/workflows/close-jira-on-merge.yml@v3
+    secrets: inherit
