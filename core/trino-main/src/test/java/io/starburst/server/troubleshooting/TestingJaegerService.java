@@ -31,10 +31,11 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
 
-import static io.opentelemetry.sdk.internal.StandardComponentId.ExporterType.OTLP_GRPC_SPAN_EXPORTER;
+import static io.opentelemetry.sdk.common.internal.StandardComponentId.ExporterType.OTLP_GRPC_SPAN_EXPORTER;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -99,13 +100,12 @@ public class TestingJaegerService
     {
         requireNonNull(data, "data is null");
 
-        GrpcExporterBuilder<RawMarshaler> grpcExporterBuilder = new GrpcExporterBuilder<>(
+        GrpcExporterBuilder grpcExporterBuilder = new GrpcExporterBuilder(
                 OTLP_GRPC_SPAN_EXPORTER,
-                10L,
+                Duration.ofSeconds(10),
                 getGrpcUri(),
-                () -> null,
-                "/opentelemetry.proto.collector.trace.v1.TraceService/Export");
-        GrpcExporter<RawMarshaler> grpcExporter = grpcExporterBuilder.build();
+                "opentelemetry.proto.collector.trace.v1.TraceService/Export");
+        GrpcExporter grpcExporter = grpcExporterBuilder.build();
 
         byte[] decompressed = decompress(data);
         assertThat(decompressed).isNotEmpty();
