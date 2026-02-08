@@ -132,7 +132,8 @@ public class MatchState
     {
         QueryParams queryParams = queryArgs.queryParams();
         // +1 below is for the current bitmaps set that is used as an intermediate bitmap by native layer
-        final int matchTreeHeight = queryParams.getRootMatchNode().map(r -> r.getHeight() + 1).orElse(0);
+        // +1 more below is for safety we allocate more memory than needed and allow native to support a one level higher tree than java limit
+        final int matchTreeHeight = queryParams.getRootMatchNode().map(r -> r.getHeight() + 2).orElse(0);
         this.pageSize = pageSize;
         this.numBitmaps = queryArgs.numChunksInRange() * matchTreeHeight;
         this.numLuceneBitmaps = queryArgs.numChunksInRange() * queryParams.getNumLucene();
