@@ -131,7 +131,10 @@ public class ExpressionService
                 ImmutableSetMultimap.Builder<RegularColumn, WarpExpressionData> outWarpExpressionDataLeaves = ImmutableSetMultimap.builder();
                 Set<String> unsupportedNativeFunctions = WarpSessionProperties.getUnsupportedNativeFunctions(session, nativeConfig);
 
-                boolean validExpression = convertToFlatWarpExpressionDataList(warpExpressionOpt.get(), outWarpExpressionDataLeaves, unsupportedNativeFunctions, customStats, 0);
+                int maxTreeLevel = warpExpressionOpt.get() instanceof WarpCall warpCall && warpCall.getFunctionName().equals(OR_FUNCTION_NAME.getName())
+                        ? MAX_TREE_LEVEL - 1 // the expression might be wrapped with an AND later by PredicateContextFactory#create
+                        : MAX_TREE_LEVEL;
+                boolean validExpression = convertToFlatWarpExpressionDataList(warpExpressionOpt.get(), outWarpExpressionDataLeaves, unsupportedNativeFunctions, customStats, 0, maxTreeLevel);
                 List<WarpExpressionData> warpExpressionDataLeaves = new ArrayList<>(outWarpExpressionDataLeaves.build().values());
 
                 if (warpExpressionDataLeaves.isEmpty() ||
@@ -154,22 +157,24 @@ public class ExpressionService
         return res;
     }
 
-    private boolean convertToFlatWarpExpressionDataList(WarpExpression warpExpression,
-                                                          ImmutableSetMultimap.Builder<RegularColumn, WarpExpressionData> outWarpExpressionDataLeaves,
-                                                          Set<String> unsupportedNativeFunctions,
-                                                          Map<String, Long> customStats,
-                                                          int treeLevel)
+    private boolean convertToFlatWarpExpressionDataList(
+            WarpExpression warpExpression,
+            ImmutableSetMultimap.Builder<RegularColumn, WarpExpressionData> outWarpExpressionDataLeaves,
+            Set<String> unsupportedNativeFunctions,
+            Map<String, Long> customStats,
+            int treeLevel,
+            int maxTreeLevel)
     {
         if (warpExpression instanceof WarpCall warpCall) {
             if (warpCall.getFunctionName().equals(OR_FUNCTION_NAME.getName()) ||
                     warpCall.getFunctionName().equals(AND_FUNCTION_NAME.getName())) {
-                if (treeLevel == MAX_TREE_LEVEL) {
+                if (treeLevel == maxTreeLevel) {
                     pushdownPredicatesStats.incunsupported_expression_depth();
                     return false;
                 }
                 treeLevel++;
                 for (WarpExpression expression : warpCall.getArguments()) {
-                    if (!convertToFlatWarpExpressionDataList(expression, outWarpExpressionDataLeaves, unsupportedNativeFunctions, customStats, treeLevel)) {
+                    if (!convertToFlatWarpExpressionDataList(expression, outWarpExpressionDataLeaves, unsupportedNativeFunctions, customStats, treeLevel, maxTreeLevel)) {
                         return false;
                     }
                 }

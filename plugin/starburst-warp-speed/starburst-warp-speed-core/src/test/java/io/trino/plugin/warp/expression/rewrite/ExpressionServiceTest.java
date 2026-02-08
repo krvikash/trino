@@ -941,18 +941,35 @@ public class ExpressionServiceTest
 
         Call l4Expression = new Call(BOOLEAN, AND_FUNCTION_NAME, List.of(leftSide, rightSide));
         Call l3Expression = new Call(BOOLEAN, OR_FUNCTION_NAME, List.of(l4Expression, rightSide));
-        Call l2Expression = new Call(BOOLEAN, AND_FUNCTION_NAME, List.of(l3Expression, rightSide));
-        Call l1Expression = new Call(BOOLEAN, OR_FUNCTION_NAME, List.of(l2Expression, rightSide));
-        Call l0Expression = new Call(BOOLEAN, AND_FUNCTION_NAME, List.of(l1Expression, rightSide));
 
-        Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> result = expressionService.convertToWarpExpression(connectorSession, l1Expression, assignments, customStats);
+        Call l2ExpressionOr = new Call(BOOLEAN, OR_FUNCTION_NAME, List.of(l3Expression, rightSide));
+        Call l1ExpressionAnd = new Call(BOOLEAN, AND_FUNCTION_NAME, List.of(l2ExpressionOr, rightSide));
+
+        Call l2ExpressionAnd = new Call(BOOLEAN, AND_FUNCTION_NAME, List.of(l3Expression, rightSide));
+        Call l1ExpressionOR = new Call(BOOLEAN, OR_FUNCTION_NAME, List.of(l2ExpressionAnd, rightSide));
+        Call l0ExpressionAnd = new Call(BOOLEAN, AND_FUNCTION_NAME, List.of(l1ExpressionOR, rightSide));
+
+        // Max supported level (depth) is 4 when the root expression is AND
+        Optional<io.trino.plugin.warp.expression.rewrite.WarpExpression> result = expressionService.convertToWarpExpression(connectorSession, l1ExpressionAnd, assignments, customStats);
         assertThat(result).isNotEmpty();
         PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
         assertThat(pushdownPredicatesStats.getunsupported_expression_depth()).isEqualTo(0);
 
-        result = expressionService.convertToWarpExpression(connectorSession, l0Expression, assignments, customStats);
+        // Max supported level (depth) is 3 when the root expression is OR
+        result = expressionService.convertToWarpExpression(connectorSession, l2ExpressionOr, assignments, customStats);
+        assertThat(result).isNotEmpty();
+        pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
+        assertThat(pushdownPredicatesStats.getunsupported_expression_depth()).isEqualTo(0);
+
+        // Depth of 4 is not supported for OR root expression
+        result = expressionService.convertToWarpExpression(connectorSession, l1ExpressionOR, assignments, customStats);
         assertThat(result).isEmpty();
         assertThat(pushdownPredicatesStats.getunsupported_expression_depth()).isEqualTo(1);
+
+        // Depth of 5 is never supported
+        result = expressionService.convertToWarpExpression(connectorSession, l0ExpressionAnd, assignments, customStats);
+        assertThat(result).isEmpty();
+        assertThat(pushdownPredicatesStats.getunsupported_expression_depth()).isEqualTo(2);
     }
 
     @Test
