@@ -383,6 +383,15 @@ public final class DistributedQueryRunner
         addCoordinator(ImmutableMap.of());
     }
 
+    public void removeCoordinator(TestingTrinoServer server)
+            throws IOException
+    {
+        checkArgument(coordinators.contains(server), "Unknown server: %s", server);
+        server.close();
+        coordinators.remove(server);
+        refreshNodes();
+    }
+
     /**
      * Shutdown and remove a worker
      */
