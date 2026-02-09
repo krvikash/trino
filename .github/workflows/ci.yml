@@ -922,10 +922,11 @@ jobs:
           SNOWFLAKE_PRIVATE_KEY_2: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_2 }}
           SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE }}
           SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
+          SNOWFLAKE_CONNECTION_PARAMS: ${{ vars.SNOWFLAKE_CONNECTION_PARAMETERS }}
         run: |
           export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
           $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }} \
-          -Dsnowflake.test.server.url=jdbc:snowflake://"${SNOWFLAKE_ACCOUNT_NAME}".snowflakecomputing.com/ \
+          -Dsnowflake.test.server.url=jdbc:snowflake://"${SNOWFLAKE_ACCOUNT_NAME}".snowflakecomputing.com/?${SNOWFLAKE_CONNECTION_PARAMS} \
           -Dsnowflake.test.server.user="${SNOWFLAKE_USER}" \
           -Dsnowflake.test.server.password="${SNOWFLAKE_PASSWORD}" \
           -Dsnowflake.test.server.private-key="${SNOWFLAKE_PRIVATE_KEY}" \
@@ -946,10 +947,11 @@ jobs:
           SNOWFLAKE_AZURE_PRIVATE_KEY_2: ${{ secrets.SNOWFLAKE_AZURE_PRIVATE_KEY_2 }}
           SNOWFLAKE_AZURE_PRIVATE_KEY_2_PASSPHRASE: ${{ secrets.SNOWFLAKE_AZURE_PRIVATE_KEY_2_PASSPHRASE }}
           SNOWFLAKE_AZURE_REGION: ${{ vars.SNOWFLAKE_AZURE_REGION }}
+          SNOWFLAKE_CONNECTION_PARAMS: ${{ vars.SNOWFLAKE_CONNECTION_PARAMETERS }}
         run: |
           export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
           $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }} \
-          -Dsnowflake.test.server.url=jdbc:snowflake://"${SNOWFLAKE_AZURE_ACCOUNT_NAME}"."${SNOWFLAKE_AZURE_REGION}".azure.snowflakecomputing.com/ \
+          -Dsnowflake.test.server.url=jdbc:snowflake://"${SNOWFLAKE_AZURE_ACCOUNT_NAME}"."${SNOWFLAKE_AZURE_REGION}".azure.snowflakecomputing.com/?${SNOWFLAKE_CONNECTION_PARAMS} \
           -Dsnowflake.test.server.user=test_user \
           -Dsnowflake.test.server.password="${SNOWFLAKE_AZURE_PASSWORD}" \
           -Dsnowflake.test.server.private-key="${SNOWFLAKE_AZURE_PRIVATE_KEY}" \
@@ -1047,10 +1049,11 @@ jobs:
           SNOWFLAKE_PRIVATE_KEY_2: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_2 }}
           SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE }}
           SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
+          SNOWFLAKE_CONNECTION_PARAMS: ${{ vars.SNOWFLAKE_CONNECTION_PARAMETERS }}
         run: |
           export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
           $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }} \
-          -Dsnowflake.test.server.url=jdbc:snowflake://"${SNOWFLAKE_ACCOUNT_NAME}".snowflakecomputing.com/ \
+          -Dsnowflake.test.server.url=jdbc:snowflake://"${SNOWFLAKE_ACCOUNT_NAME}".snowflakecomputing.com/?${SNOWFLAKE_CONNECTION_PARAMS} \
           -Dsnowflake.test.server.user="${SNOWFLAKE_USER}" \
           -Dsnowflake.test.server.password="${SNOWFLAKE_PASSWORD}" \
           -Dsnowflake.test.server.private-key="${SNOWFLAKE_PRIVATE_KEY}" \
@@ -1693,13 +1696,14 @@ jobs:
           SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
           SNOWFLAKE_PRIVATE_KEY_2: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_2 }}
           SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE }}
+          SNOWFLAKE_CONNECTION_PARAMS: ${{ vars.SNOWFLAKE_CONNECTION_PARAMETERS }}
           SNOWFLAKE_DATABASE: ${{ vars.SNOWFLAKE_DATABASE }}
           SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
           SNOWFLAKE_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
         if: matrix.modules == 'plugin/trino-snowflake' && contains(matrix.profile, 'cloud-tests') && (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || env.SNOWFLAKE_URL != '')
         run: |
           $MAVEN test ${MAVEN_TEST} -pl :trino-snowflake -Pcloud-tests \
-            -Dsnowflake.test.server.url="${SNOWFLAKE_URL}" \
+            -Dsnowflake.test.server.url="${SNOWFLAKE_URL}?${SNOWFLAKE_CONNECTION_PARAMS}" \
             -Dsnowflake.test.server.user="${SNOWFLAKE_USER}" \
             -Dsnowflake.test.server.password="${SNOWFLAKE_PASSWORD}" \
             -Dsnowflake.test.server.private-key="${SNOWFLAKE_PRIVATE_KEY}" \
