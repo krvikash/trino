@@ -267,7 +267,7 @@ public class HashAggregationOperator
 
     private HashAggregationBuilder aggregationBuilder;
     private final LocalMemoryContext memoryContext;
-    private final FlatHashStrategy flatHashStrategy;
+    private final InterpretedHashGenerator hashGenerator;
 
     private WorkProcessor<Page> outputPages;
     private long totalInputRowsProcessed;
@@ -323,7 +323,7 @@ public class HashAggregationOperator
 
         this.memoryContext = operatorContext.localUserMemoryContext();
 
-        this.flatHashStrategy = flatHashStrategyCompiler.getFlatHashStrategy(groupByTypes);
+        this.hashGenerator = flatHashStrategyCompiler.getInterpretedHashGenerator(groupByTypes);
         this.columnsToBeLoaded = Ints.toArray(groupByChannels);
         this.cardinalityEstimator = createCardinalityEstimator();
     }
@@ -607,7 +607,7 @@ public class HashAggregationOperator
             hyperLogLog.makeDense();
             return new HllCardinalityEstimator(
                     columnsToBeLoaded,
-                    flatHashStrategy,
+                    hashGenerator,
                     hyperLogLog,
                     aggregationMetrics);
         }
@@ -657,16 +657,16 @@ public class HashAggregationOperator
             implements CardinalityEstimator
     {
         private final int[] columnsToBeLoaded;
-        private final FlatHashStrategy flatHashStrategy;
+        private final InterpretedHashGenerator hashGenerator;
         private final HyperLogLog hyperLogLog;
         private final AggregationMetrics aggregationMetrics;
         private long inputRowsProcessed;
         private long processedInputRows;
         private long processedCardinality;
 
-        public HllCardinalityEstimator(int[] columnsToBeLoaded, FlatHashStrategy flatHashStrategy, HyperLogLog hyperLogLog, AggregationMetrics aggregationMetrics)
+        public HllCardinalityEstimator(int[] columnsToBeLoaded, InterpretedHashGenerator hashGenerator, HyperLogLog hyperLogLog, AggregationMetrics aggregationMetrics)
         {
-            this.flatHashStrategy = requireNonNull(flatHashStrategy, "flatHash is null");
+            this.hashGenerator = requireNonNull(hashGenerator, "hashGenerator is null");
             this.hyperLogLog = hyperLogLog;
             this.columnsToBeLoaded = columnsToBeLoaded;
             this.aggregationMetrics = requireNonNull(aggregationMetrics, "aggregationMetrics is null");
@@ -679,7 +679,7 @@ public class HashAggregationOperator
             inputRowsProcessed += page.getPositionCount();
             Block[] blocks = getBlocksFromPage(page, columnsToBeLoaded);
             long[] hashes = new long[page.getPositionCount()];
-            flatHashStrategy.hashBlocksBatched(blocks, hashes, 0, hashes.length);
+            hashGenerator.hashBlocksBatched(blocks, hashes, 0, hashes.length);
             for (long hash : hashes) {
                 hyperLogLog.add(hash);
             }

@@ -52,7 +52,6 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.type.IpAddressType.IPADDRESS;
 import static java.util.Collections.nCopies;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 
 class TestFlatHashStrategy
 {
@@ -100,35 +99,24 @@ class TestFlatHashStrategy
     }
 
     @Test
-    void testBatchedRawHashesZeroLength()
-    {
-        List<Type> types = createTestingTypes(typeOperators);
-        FlatHashStrategy flatHashStrategy = compiler.getFlatHashStrategy(types);
-
-        int positionCount = 10;
-        // Attempting to touch any of the blocks would result in a NullPointerException
-        assertThatCode(() -> flatHashStrategy.hashBlocksBatched(new Block[types.size()], new long[positionCount], 0, 0))
-                .doesNotThrowAnyException();
-    }
-
-    @Test
     void testBatchedRawHashesMatchSinglePositionHashes()
     {
         List<Type> types = createTestingTypes(typeOperators);
         FlatHashStrategy flatHashStrategy = compiler.getFlatHashStrategy(types);
+        InterpretedHashGenerator hashGenerator = compiler.getInterpretedHashGenerator(types);
 
         int positionCount = 1024;
         Block[] blocks = createRandomData(types, positionCount, 0.25f);
 
         long[] hashes = new long[positionCount];
-        flatHashStrategy.hashBlocksBatched(blocks, hashes, 0, positionCount);
+        hashGenerator.hashBlocksBatched(blocks, hashes, 0, positionCount);
         assertHashesEqual(types, blocks, hashes, flatHashStrategy);
 
         // Convert all blocks to RunLengthEncoded and re-check results match
         for (int i = 0; i < blocks.length; i++) {
             blocks[i] = RunLengthEncodedBlock.create(blocks[i].getSingleValueBlock(0), positionCount);
         }
-        flatHashStrategy.hashBlocksBatched(blocks, hashes, 0, positionCount);
+        hashGenerator.hashBlocksBatched(blocks, hashes, 0, positionCount);
         assertHashesEqual(types, blocks, hashes, flatHashStrategy);
 
         // Ensure the formatting logic produces a real string and doesn't blow up since otherwise this code wouldn't be exercised

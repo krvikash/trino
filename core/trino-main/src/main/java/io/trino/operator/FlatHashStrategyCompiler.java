@@ -70,6 +70,7 @@ import static io.airlift.bytecode.expression.BytecodeExpressions.not;
 import static io.airlift.bytecode.expression.BytecodeExpressions.notEqual;
 import static io.trino.cache.SafeCaches.buildNonEvictableCache;
 import static io.trino.operator.HashGenerator.INITIAL_HASH_VALUE;
+import static io.trino.operator.InterpretedHashGenerator.createPagePrefixHashGenerator;
 import static io.trino.spi.function.InvocationConvention.InvocationArgumentConvention.BLOCK_POSITION_NOT_NULL;
 import static io.trino.spi.function.InvocationConvention.InvocationArgumentConvention.FLAT;
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.BLOCK_BUILDER;
@@ -90,16 +91,17 @@ public final class FlatHashStrategyCompiler
     static final int COLUMNS_PER_CHUNK = 500;
 
     private final LoadingCache<CacheKey, FlatHashStrategy> flatHashStrategies;
+    private final NullSafeHashCompiler nullSafeHashCompiler;
 
     @Inject
     public FlatHashStrategyCompiler(TypeOperators typeOperators, NullSafeHashCompiler nullSafeHashCompiler)
     {
-        requireNonNull(nullSafeHashCompiler, "nullSafeHashCompiler is null");
+        this.nullSafeHashCompiler = requireNonNull(nullSafeHashCompiler, "nullSafeHashCompiler is null");
         this.flatHashStrategies = buildNonEvictableCache(
                 CacheBuilder.newBuilder()
                         .recordStats()
                         .maximumSize(1000),
-                CacheLoader.from(key -> compileFlatHashStrategy(key.types(), typeOperators, nullSafeHashCompiler)));
+                CacheLoader.from(key -> compileFlatHashStrategy(key.types(), typeOperators)));
     }
 
     public FlatHashStrategy getFlatHashStrategy(List<Type> types)
@@ -112,6 +114,11 @@ public final class FlatHashStrategyCompiler
         return flatHashStrategies.getUnchecked(new CacheKey(types, blockTypes));
     }
 
+    public InterpretedHashGenerator getInterpretedHashGenerator(List<Type> types)
+    {
+        return createPagePrefixHashGenerator(types, nullSafeHashCompiler);
+    }
+
     @Managed
     @Nested
     public CacheStatsMBean getFlatHashStrategiesStats()
@@ -120,7 +127,7 @@ public final class FlatHashStrategyCompiler
     }
 
     @VisibleForTesting
-    public static FlatHashStrategy compileFlatHashStrategy(List<Type> types, TypeOperators typeOperators, NullSafeHashCompiler nullSafeHashCompiler)
+    public static FlatHashStrategy compileFlatHashStrategy(List<Type> types, TypeOperators typeOperators)
     {
         List<KeyField> keyFields = new ArrayList<>();
         int fixedOffset = 0;
@@ -155,21 +162,15 @@ public final class FlatHashStrategyCompiler
                 type(Object.class),
                 type(FlatHashStrategy.class));
 
-        FieldDefinition hashGeneratorField = definition.declareField(a(PRIVATE, FINAL), "hashGenerator", type(InterpretedHashGenerator.class));
-        BytecodeExpression typesExpression = loadConstant(callSiteBinder, ImmutableList.copyOf(types), List.class);
+        // the 'types' field is not used, but it makes debugging easier
+        // this is an instance field because a static field doesn't seem to show up in the IntelliJ debugger
+        FieldDefinition typesField = definition.declareField(a(PRIVATE, FINAL), "types", type(List.class, Type.class));
         MethodDefinition constructor = definition.declareConstructor(a(PUBLIC));
         constructor
                 .getBody()
                 .append(constructor.getThis())
                 .invokeConstructor(Object.class)
-                .append(constructor.getThis().setField(
-                        hashGeneratorField,
-                        invokeStatic(
-                                InterpretedHashGenerator.class,
-                                "createPagePrefixHashGenerator",
-                                InterpretedHashGenerator.class,
-                                typesExpression,
-                                loadConstant(callSiteBinder, nullSafeHashCompiler, NullSafeHashCompiler.class))))
+                .append(constructor.getThis().setField(typesField, loadConstant(callSiteBinder, ImmutableList.copyOf(types), List.class)))
                 .ret();
 
         boolean anyVariableWidth = (int) types.stream().filter(Type::isFlatVariableWidth).count() > 0;
@@ -186,7 +187,6 @@ public final class FlatHashStrategyCompiler
         generateIdenticalMethod(definition, chunkClasses);
         generateHashBlock(definition, chunkClasses);
         generateHashFlat(definition, chunkClasses, singleChunkClass);
-        generateHashBlocksBatched(definition, hashGeneratorField);
 
         try {
             DynamicClassLoader classLoader = new DynamicClassLoader(FlatHashStrategyCompiler.class.getClassLoader(), callSiteBinder.getBindings());
@@ -687,30 +687,6 @@ public final class FlatHashStrategyCompiler
         }
         body.append(result.ret());
         return methodDefinition;
-    }
-
-    private static void generateHashBlocksBatched(ClassDefinition definition, FieldDefinition hashGeneratorField)
-    {
-        Parameter blocks = arg("blocks", type(Block[].class));
-        Parameter hashes = arg("hashes", type(long[].class));
-        Parameter offset = arg("offset", type(int.class));
-        Parameter length = arg("length", type(int.class));
-
-        MethodDefinition methodDefinition = definition.declareMethod(
-                a(PUBLIC),
-                "hashBlocksBatched",
-                type(void.class),
-                blocks,
-                hashes,
-                offset,
-                length);
-
-        BytecodeBlock body = methodDefinition.getBody();
-        Scope scope = methodDefinition.getScope();
-
-        body.append(scope.getThis().getField(hashGeneratorField)
-                .invoke("hashBlocksBatched", void.class, blocks, hashes, offset, length)
-                .ret());
     }
 
     private static void generateHashFlat(ClassDefinition definition, List<ChunkClass> chunkClasses, boolean singleChunkClass)

@@ -14,7 +14,6 @@
 package io.trino.operator;
 
 import com.google.common.collect.ImmutableList;
-import io.trino.annotation.UsedByGeneratedCode;
 import io.trino.operator.scalar.CombineHashFunction;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
@@ -82,7 +81,6 @@ public class InterpretedHashGenerator
         }
     }
 
-    @UsedByGeneratedCode
     public void hashBlocksBatched(Block[] blocks, long[] hashes, int offset, int length)
     {
         if (length == 0) {
@@ -240,10 +238,10 @@ public class InterpretedHashGenerator
 
     private static boolean isDictionaryProcessingFaster(DictionaryBlock dictionaryBlock, int length)
     {
-        // if the dictionary block length is greater than the number of elements in the dictionary,
-        // it will be faster to compute hash for the dictionary values only once and re-use it
-        // instead of recalculating it.
-        return length > dictionaryBlock.getDictionary().getPositionCount();
+        // if the input positions length is greater than the number of elements in the dictionary by
+        // at least 20%, it will be faster to compute hash for the dictionary values only once and
+        // re-use it instead of recalculating it.
+        return length > dictionaryBlock.getDictionary().getPositionCount() * 1.2;
     }
 
     private static boolean isPositionalChannels(int[] hashChannels)

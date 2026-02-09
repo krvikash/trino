@@ -208,6 +208,8 @@ public final class NullSafeHashCompiler
         Variable hash = scope.declareVariable(long.class, "hash");
         Variable valueBlock = scope.declareVariable("valueBlock", body, dictionaryBlock.invoke("getUnderlyingValueBlock", ValueBlock.class));
         Variable index = scope.declareVariable(int.class, "index");
+        Variable rawIds = scope.declareVariable("rawIds", body, dictionaryBlock.invoke("getRawIds", int[].class));
+        Variable rawIdsOffset = scope.declareVariable("rawIdsOffset", body, dictionaryBlock.invoke("getRawIdsOffset", int.class));
 
         BytecodeBlock computeHashLoop = new BytecodeBlock()
                 .append(mayHaveNull.set(valueBlock.invoke("mayHaveNull", boolean.class)))
@@ -216,8 +218,8 @@ public final class NullSafeHashCompiler
                         .condition(lessThan(index, length))
                         .update(index.increment())
                         .body(new BytecodeBlock()
-                                // position = dictionaryBlock.getUnderlyingValuePosition(offset + index)
-                                .append(position.set(dictionaryBlock.invoke("getUnderlyingValuePosition", int.class, add(offset, index))))
+                                // position = rawIds[rawIdsOffset + offset + index]
+                                .append(position.set(rawIds.getElement(add(rawIdsOffset, add(offset, index)))))
                                 .append(new IfStatement("if (mayHaveNull && block.isNull(position))")
                                         .condition(and(mayHaveNull, valueBlock.invoke("isNull", boolean.class, position)))
                                         .ifTrue(hash.set(constantLong(NULL_HASH_CODE)))

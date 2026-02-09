@@ -57,6 +57,7 @@ public class FlatGroupByHash
     // It does that by avoiding any thread synchronization, having a simpler key, and being small.
     private final Map<Class<? extends Block>[], FlatHashStrategy> flatHashStrategyCache = new Object2ObjectOpenHashMap<>();
     private final FlatHash flatHash;
+    private final InterpretedHashGenerator hashGenerator;
     private final int groupByChannelCount;
 
     private final boolean processDictionary;
@@ -83,6 +84,7 @@ public class FlatGroupByHash
         this.hashTypes = requireNonNull(hashTypes, "hashTypes is null");
         this.flatHashStrategy = hashStrategyCompiler.getFlatHashStrategy(hashTypes);
         this.flatHash = new FlatHash(hashStrategyCompiler.getFlatHashStrategy(hashTypes), cacheHashValue, expectedSize, checkMemoryReservation);
+        this.hashGenerator = hashStrategyCompiler.getInterpretedHashGenerator(hashTypes);
         this.groupByChannelCount = hashTypes.size();
 
         checkArgument(expectedSize > 0, "expectedSize must be greater than zero");
@@ -97,6 +99,7 @@ public class FlatGroupByHash
     public FlatGroupByHash(FlatGroupByHash other)
     {
         this.flatHash = other.flatHash.copy();
+        this.hashGenerator = other.hashGenerator;
         this.hashStrategyCompiler = other.hashStrategyCompiler;
         this.flatHashStrategy = other.flatHashStrategy;
         this.hashTypes = other.hashTypes;
@@ -387,7 +390,7 @@ public class FlatGroupByHash
                     return false;
                 }
 
-                flatHash.computeHashes(blocks, hashes, lastPosition, batchSize, flatHashStrategy);
+                hashGenerator.hashBlocksBatched(blocks, hashes, lastPosition, batchSize);
                 for (int i = 0; i < batchSize; i++) {
                     flatHash.putIfAbsent(blocks, lastPosition + i, hashes[i], flatHashStrategy);
                 }
@@ -561,7 +564,7 @@ public class FlatGroupByHash
                     return false;
                 }
 
-                flatHash.computeHashes(blocks, hashes, lastPosition, batchSize, flatHashStrategy);
+                hashGenerator.hashBlocksBatched(blocks, hashes, lastPosition, batchSize);
                 for (int i = 0, position = lastPosition; i < batchSize; i++, position++) {
                     groupIds[position] = flatHash.putIfAbsent(blocks, position, hashes[i], flatHashStrategy);
                 }
