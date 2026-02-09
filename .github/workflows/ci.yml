@@ -921,6 +921,7 @@ jobs:
           SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
           SNOWFLAKE_PRIVATE_KEY_2: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_2 }}
           SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE }}
+          SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
         run: |
           export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
           $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }} \
@@ -930,7 +931,7 @@ jobs:
           -Dsnowflake.test.server.private-key="${SNOWFLAKE_PRIVATE_KEY}" \
           -Dsnowflake.test.server.private-key-2="${SNOWFLAKE_PRIVATE_KEY_2}" \
           -Dsnowflake.test.server.private-key-2-passphrase="${SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE}" \
-          -Dsnowflake.test.server.role=test_role \
+          -Dsnowflake.test.server.role="${SNOWFLAKE_ROLE}" \
           -Dsnowflake.test.warehouse=TRINO_PLUGINS_TEST_WH \
           -Dsnowflake.test.account-url=https://"${SNOWFLAKE_ACCOUNT_NAME}".snowflakecomputing.com
       - name: Run Snowflake Azure weekly tests
@@ -1047,6 +1048,7 @@ jobs:
           SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
           SNOWFLAKE_PRIVATE_KEY_2: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_2 }}
           SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE }}
+          SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
         run: |
           export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
           $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }} \
@@ -1056,7 +1058,7 @@ jobs:
           -Dsnowflake.test.server.private-key="${SNOWFLAKE_PRIVATE_KEY}" \
           -Dsnowflake.test.server.private-key-2="${SNOWFLAKE_PRIVATE_KEY_2}" \
           -Dsnowflake.test.server.private-key-2-passphrase="${SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE}" \
-          -Dsnowflake.test.server.role=test_role \
+          -Dsnowflake.test.server.role="${SNOWFLAKE_ROLE}" \
           -Dsnowflake.test.warehouse=TRINO_PLUGINS_TEST_WH \
           -Dsnowflake.test.account-url=https://"${SNOWFLAKE_ACCOUNT_NAME}".snowflakecomputing.com
       - name: Sanitize artifact name
