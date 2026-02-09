@@ -46,6 +46,7 @@ import static io.trino.spi.function.InvocationConvention.InvocationReturnConvent
 import static io.trino.spi.function.InvocationConvention.simpleConvention;
 import static io.trino.spi.predicate.Range.range;
 import static io.trino.spi.type.DoubleType.DOUBLE;
+import static io.trino.spi.type.NumberType.NUMBER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.TypeUtils.isFloatingPointNaN;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
@@ -119,8 +120,8 @@ public class JoinDomainBuilder
         this.maxFilterSizeInBytes = maxFilterSize.toBytes();
         this.notifyStateChange = requireNonNull(notifyStateChange, "notifyStateChange is null");
 
-        // Skipping DOUBLE and REAL in collectMinMaxValues to avoid dealing with NaN values
-        boolean collectMinMax = type.isOrderable() && type != DOUBLE && type != REAL;
+        // Skipping REAL, DOUBLE and NUMBER in collectMinMaxValues to avoid dealing with NaN values
+        boolean collectMinMax = type.isOrderable() && type != REAL && type != DOUBLE && type != NUMBER;
         this.collectBloomFilter = bloomFilterMaxDistinctValues > 0 && type.getJavaType() == long.class && collectMinMax;
 
         MethodHandle readOperator = typeOperators.getReadValueOperator(type, simpleConvention(NULLABLE_RETURN, FLAT));
