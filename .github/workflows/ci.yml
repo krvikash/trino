@@ -933,7 +933,6 @@ jobs:
           -Dsnowflake.test.server.private-key-2-passphrase="${SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE}" \
           -Dsnowflake.test.server.role="${SNOWFLAKE_ROLE}" \
           -Dsnowflake.test.warehouse=TRINO_PLUGINS_TEST_WH \
-          -Dsnowflake.test.account-url=https://"${SNOWFLAKE_ACCOUNT_NAME}".snowflakecomputing.com
       - name: Run Snowflake Azure weekly tests
         id: tests-weekly-snowflake-azure
         if: >-
@@ -958,7 +957,6 @@ jobs:
           -Dsnowflake.test.server.private-key-2-passphrase="${SNOWFLAKE_AZURE_PRIVATE_KEY_2_PASSPHRASE}" \
           -Dsnowflake.test.server.role=test_role \
           -Dsnowflake.test.warehouse=TRINO_PLUGINS_TEST_WH \
-          -Dsnowflake.test.account-url=https://"${SNOWFLAKE_AZURE_ACCOUNT_NAME}"."${SNOWFLAKE_AZURE_REGION}".azure.snowflakecomputing.com
       - name: Sanitize artifact name
         if: always()
         run: |
@@ -1060,7 +1058,6 @@ jobs:
           -Dsnowflake.test.server.private-key-2-passphrase="${SNOWFLAKE_PRIVATE_KEY_2_PASSPHRASE}" \
           -Dsnowflake.test.server.role="${SNOWFLAKE_ROLE}" \
           -Dsnowflake.test.warehouse=TRINO_PLUGINS_TEST_WH \
-          -Dsnowflake.test.account-url=https://"${SNOWFLAKE_ACCOUNT_NAME}".snowflakecomputing.com
       - name: Sanitize artifact name
         if: always()
         run: |
