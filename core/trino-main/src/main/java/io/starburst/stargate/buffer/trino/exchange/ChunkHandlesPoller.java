@@ -23,10 +23,14 @@ import io.starburst.stargate.buffer.data.client.DataApiException;
 import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.trino.spi.TrinoException;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.OptionalLong;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.util.concurrent.Futures.addCallback;
@@ -52,6 +56,9 @@ class ChunkHandlesPoller
     private volatile boolean pinging;
     private volatile ChunkDeliveryMode chunkDeliveryMode;
     private final Span exchangeSpan;
+
+    private AtomicInteger requestCounter = new AtomicInteger();
+    private AtomicReference<PollOrPingRequestContext> lastPollOrPingRequest = new AtomicReference<>();
 
     public ChunkHandlesPoller(
             ScheduledExecutorService executorService,
@@ -110,12 +117,54 @@ class ChunkHandlesPoller
         executorService.execute(this::doPollOrPing);
     }
 
+    private class PollOrPingRequestContext
+    {
+        private final int requestCounter;
+        private final Instant requestStart = Instant.now();
+        private Duration requestDuration;
+        private boolean finished;
+
+        public PollOrPingRequestContext(int requestCounter)
+        {
+            this.requestCounter = requestCounter;
+        }
+
+        public void finish()
+        {
+            if (finished) {
+                log.warn("poolOrPing request already finished %s", this);
+                return;
+            }
+            finished = true;
+
+            requestDuration = Duration.between(requestStart, Instant.now());
+            ChunkHandlesPoller.this.lastPollOrPingRequest.set(this);
+        }
+
+        @Override
+        public String toString()
+        {
+            return toStringHelper(this)
+                    .add("requestCounter", requestCounter)
+                    .add("requestStart", requestStart)
+                    .add("requestDuration", requestDuration)
+                    .toString();
+        }
+    }
+
+    private PollOrPingRequestContext startPollOrPingRequest()
+    {
+        return new PollOrPingRequestContext(requestCounter.getAndIncrement());
+    }
+
     private void doPollOrPing()
     {
         try {
             if (closed) {
                 return;
             }
+
+            PollOrPingRequestContext currentRequestContext = startPollOrPingRequest();
 
             if (pinging) {
                 ListenableFuture<BufferNodeExchangeMetrics> pingFuture = dataApi.pingExchange(dataNodeId, externalExchangeId);
@@ -125,6 +174,7 @@ class ChunkHandlesPoller
                     public void onSuccess(BufferNodeExchangeMetrics metrics)
                     {
                         try {
+                            currentRequestContext.finish();
                             if (closed) {
                                 return;
                             }
@@ -151,6 +201,7 @@ class ChunkHandlesPoller
                                 COMMUNICATION_FAILURE,
                                 "Error pinging exchange %s in data node %s".formatted(externalExchangeId, dataNodeId),
                                 failure);
+                        trinoException.addSuppressed(new RuntimeException("poller state: " + ChunkHandlesPoller.this));
                         callback.onFailure(trinoException);
                     }
                 }, executorService);
@@ -164,6 +215,7 @@ class ChunkHandlesPoller
                 public void onSuccess(ChunkList result)
                 {
                     try {
+                        currentRequestContext.finish();
                         if (closed) {
                             return;
                         }
@@ -195,6 +247,7 @@ class ChunkHandlesPoller
                             COMMUNICATION_FAILURE,
                             "Error listing closed chunks exchange %s in data node %s".formatted(externalExchangeId, dataNodeId),
                             failure);
+                    trinoException.addSuppressed(new RuntimeException("poller state: " + ChunkHandlesPoller.this));
                     callback.onFailure(trinoException);
                 }
             }, executorService);
@@ -287,6 +340,8 @@ class ChunkHandlesPoller
                 .add("closed", closed)
                 .add("pinging", pinging)
                 .add("chunkDeliveryMode", chunkDeliveryMode)
+                .add("requestCounter", requestCounter)
+                .add("lastPollOrPingRequest", lastPollOrPingRequest.get())
                 .toString();
     }
 }
