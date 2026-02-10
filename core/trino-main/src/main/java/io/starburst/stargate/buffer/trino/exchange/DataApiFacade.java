@@ -546,7 +546,7 @@ public class DataApiFacade
                 .withMaxRetries(config.maxRetries())
                 .withJitter(config.backoffJitter())
                 .onFailedAttempt(event -> {
-                    rateLimitingLogger.warn(event.getLastException(), "failed DataApi request attempt (%s, +%s)".formatted(event.getAttemptCount(), succinctDuration(event.getElapsedTime().toMillis(), MILLISECONDS)));
+                    rateLimitingLogger.warn(event.getLastException(), "failed DataApi request attempt (%s, %s, +%s)".formatted(event.getAttemptCount(), succinctDuration(event.getElapsedAttemptTime().toMillis(), MILLISECONDS), succinctDuration(event.getElapsedTime().toMillis(), MILLISECONDS)));
                     lifecycleListener.ifPresent(listener -> listener.onRetry(event.getLastException(), event.getElapsedAttemptTime().toNanos()));
                 })
                 .onFailure(event -> {
