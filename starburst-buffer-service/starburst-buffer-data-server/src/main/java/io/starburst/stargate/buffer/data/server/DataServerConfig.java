@@ -32,7 +32,7 @@ public class DataServerConfig
     private Duration broadcastInterval = succinctDuration(5, SECONDS);
     private Duration broadcastFailureInactivityThreshold = succinctDuration(30, SECONDS);
     private int drainingMaxAttempts = 8;
-    private Duration minDrainingDuration = succinctDuration(30, SECONDS);
+    private Duration minDrainingDuration = succinctDuration(60, SECONDS);
     private int maxInProgressAddDataPagesRequests = 150;
     private int inProgressAddDataPagesRequestsRateLimitThreshold = 110;
     private Duration inProgressAddDataPagesRequestsThrottlingCounterDecayDuration = succinctDuration(5, SECONDS);
