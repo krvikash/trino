@@ -23,6 +23,7 @@ import io.trino.decoder.RowDecoder;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -58,7 +59,7 @@ public class JsonRowDecoder
 
         Map<DecoderColumnHandle, FieldValueProvider> decodedRow = new HashMap<>();
 
-        for (Map.Entry<DecoderColumnHandle, JsonFieldDecoder> entry : fieldDecoders.entrySet()) {
+        for (Entry<DecoderColumnHandle, JsonFieldDecoder> entry : fieldDecoders.entrySet()) {
             DecoderColumnHandle columnHandle = entry.getKey();
             JsonFieldDecoder decoder = entry.getValue();
             JsonNode node = locateNode(tree, columnHandle);

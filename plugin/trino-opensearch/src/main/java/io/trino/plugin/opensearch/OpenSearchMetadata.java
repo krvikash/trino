@@ -93,6 +93,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
@@ -523,7 +524,7 @@ public class OpenSearchMetadata
         Map<ColumnHandle, Domain> supported = new HashMap<>();
         Map<ColumnHandle, Domain> unsupported = new HashMap<>();
         Map<ColumnHandle, Domain> domains = constraint.getSummary().getDomains().orElseThrow(() -> new IllegalArgumentException("constraint summary is NONE"));
-        for (Map.Entry<ColumnHandle, Domain> entry : domains.entrySet()) {
+        for (Entry<ColumnHandle, Domain> entry : domains.entrySet()) {
             OpenSearchColumnHandle column = (OpenSearchColumnHandle) entry.getKey();
 
             if (column.supportsPredicates()) {
@@ -720,7 +721,7 @@ public class OpenSearchMetadata
         ImmutableMap.Builder<ConnectorExpression, Variable> newVariablesBuilder = ImmutableMap.builder();
         ImmutableSet.Builder<OpenSearchColumnHandle> columns = ImmutableSet.builder();
 
-        for (Map.Entry<ConnectorExpression, ApplyProjectionUtil.ProjectedColumnRepresentation> entry : columnProjections.entrySet()) {
+        for (Entry<ConnectorExpression, ApplyProjectionUtil.ProjectedColumnRepresentation> entry : columnProjections.entrySet()) {
             ConnectorExpression expression = entry.getKey();
             ApplyProjectionUtil.ProjectedColumnRepresentation projectedColumn = entry.getValue();
 

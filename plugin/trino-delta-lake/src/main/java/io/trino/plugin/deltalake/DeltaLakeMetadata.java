@@ -1275,11 +1275,11 @@ public class DeltaLakeMetadata
             }
         }
 
-        for (Map.Entry<SchemaTableName, ConnectorViewDefinition> entry : getViews(session, schemaName).entrySet()) {
+        for (Entry<SchemaTableName, ConnectorViewDefinition> entry : getViews(session, schemaName).entrySet()) {
             relationColumns.put(entry.getKey(), RelationColumnsMetadata.forView(entry.getKey(), entry.getValue().getColumns()));
         }
 
-        for (Map.Entry<SchemaTableName, ConnectorMaterializedViewDefinition> entry : getMaterializedViews(session, schemaName).entrySet()) {
+        for (Entry<SchemaTableName, ConnectorMaterializedViewDefinition> entry : getMaterializedViews(session, schemaName).entrySet()) {
             relationColumns.put(entry.getKey(), RelationColumnsMetadata.forMaterializedView(entry.getKey(), entry.getValue().getColumns()));
         }
 
@@ -3145,7 +3145,7 @@ public class DeltaLakeMetadata
     {
         // using Hashmap because partition values can be null
         Map<String, String> partitionValuesMap = new HashMap<>();
-        for (Map.Entry<String, Optional<String>> entry : canonicalPartitionValues.entrySet()) {
+        for (Entry<String, Optional<String>> entry : canonicalPartitionValues.entrySet()) {
             partitionValuesMap.put(entry.getKey(), entry.getValue().orElse(null));
         }
         return unmodifiableMap(partitionValuesMap);
@@ -4256,7 +4256,7 @@ public class DeltaLakeMetadata
         ImmutableMap.Builder<ConnectorExpression, Variable> newVariablesBuilder = ImmutableMap.builder();
         ImmutableSet.Builder<DeltaLakeColumnHandle> projectedColumnsBuilder = ImmutableSet.builder();
 
-        for (Map.Entry<ConnectorExpression, ProjectedColumnRepresentation> entry : columnProjections.entrySet()) {
+        for (Entry<ConnectorExpression, ProjectedColumnRepresentation> entry : columnProjections.entrySet()) {
             ConnectorExpression expression = entry.getKey();
             ProjectedColumnRepresentation projectedColumn = entry.getValue();
 
@@ -4370,7 +4370,7 @@ public class DeltaLakeMetadata
                 .addAll(projectedColumn.getDereferenceIndices())
                 .build();
 
-        for (Map.Entry<String, ColumnHandle> entry : assignments.entrySet()) {
+        for (Entry<String, ColumnHandle> entry : assignments.entrySet()) {
             DeltaLakeColumnHandle column = (DeltaLakeColumnHandle) entry.getValue();
             if (column.baseColumnName().equals(baseColumnName) &&
                     column.projectionInfo()

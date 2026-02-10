@@ -137,6 +137,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -782,7 +783,7 @@ public class EventDrivenFaultTolerantQueryScheduler
         private final Stopwatch noEventsStopwatch = Stopwatch.createUnstarted();
         private final Stopwatch debugInfoStopwatch = Stopwatch.createUnstarted();
         private final Optional<EventDebugInfos> eventDebugInfos;
-        private final Queue<Map.Entry<TaskId, RuntimeException>> taskFailures = new ArrayDeque<>(TASK_FAILURES_LOG_SIZE);
+        private final Queue<Entry<TaskId, RuntimeException>> taskFailures = new ArrayDeque<>(TASK_FAILURES_LOG_SIZE);
 
         private boolean started;
 
@@ -1668,10 +1669,10 @@ public class EventDrivenFaultTolerantQueryScheduler
 
         private void processNodeAcquisitions()
         {
-            Iterator<Map.Entry<ScheduledTask, PreSchedulingTaskContext>> iterator = preSchedulingTaskContexts.entries().iterator();
+            Iterator<Entry<ScheduledTask, PreSchedulingTaskContext>> iterator = preSchedulingTaskContexts.entries().iterator();
             List<ScheduledTask> contextsToRemove = new ArrayList<>();
             while (iterator.hasNext()) {
-                Map.Entry<ScheduledTask, PreSchedulingTaskContext> entry = iterator.next();
+                Entry<ScheduledTask, PreSchedulingTaskContext> entry = iterator.next();
                 ScheduledTask scheduledTask = entry.getKey();
                 PreSchedulingTaskContext context = entry.getValue();
                 if (context.isWaitingForSinkInstanceHandle()) {
@@ -1729,7 +1730,7 @@ public class EventDrivenFaultTolerantQueryScheduler
             }
 
             // update pending acquires
-            for (Map.Entry<ScheduledTask, PreSchedulingTaskContext> entry : preSchedulingTaskContexts.entries()) {
+            for (Entry<ScheduledTask, PreSchedulingTaskContext> entry : preSchedulingTaskContexts.entries()) {
                 ScheduledTask scheduledTask = entry.getKey();
                 PreSchedulingTaskContext taskContext = entry.getValue();
 
@@ -2030,7 +2031,7 @@ public class EventDrivenFaultTolerantQueryScheduler
                 return unmodifiableCollection(contexts.values());
             }
 
-            public Set<Map.Entry<ScheduledTask, PreSchedulingTaskContext>> entries()
+            public Set<Entry<ScheduledTask, PreSchedulingTaskContext>> entries()
             {
                 return unmodifiableSet(contexts.entrySet());
             }
@@ -2102,7 +2103,7 @@ public class EventDrivenFaultTolerantQueryScheduler
     public static class StageExecution
     {
         private final TaskDescriptorStorage taskDescriptorStorage;
-        private final Queue<Map.Entry<TaskId, RuntimeException>> taskFailures;
+        private final Queue<Entry<TaskId, RuntimeException>> taskFailures;
 
         private final SqlStage stage;
         private final EventDrivenTaskSource taskSource;
@@ -2150,7 +2151,7 @@ public class EventDrivenFaultTolerantQueryScheduler
 
         private StageExecution(
                 TaskDescriptorStorage taskDescriptorStorage,
-                Queue<Map.Entry<TaskId, RuntimeException>> taskFailures,
+                Queue<Entry<TaskId, RuntimeException>> taskFailures,
                 SqlStage stage,
                 EventDrivenTaskSource taskSource,
                 FaultTolerantPartitioningScheme sinkPartitioningScheme,
@@ -3362,7 +3363,7 @@ public class EventDrivenFaultTolerantQueryScheduler
         {
             SplitsMapping.Builder updatedSplitsMapping = SplitsMapping.builder(this.splits);
 
-            for (Map.Entry<Integer, List<Split>> entry : Multimaps.asMap(splits).entrySet()) {
+            for (Entry<Integer, List<Split>> entry : Multimaps.asMap(splits).entrySet()) {
                 Integer sourcePartition = entry.getKey();
                 List<Split> partitionSplits = entry.getValue();
                 updatedSplitsMapping.addSplits(planNodeId, sourcePartition, partitionSplits);

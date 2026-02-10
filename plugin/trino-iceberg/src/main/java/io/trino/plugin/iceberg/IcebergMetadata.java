@@ -287,6 +287,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -1677,7 +1678,7 @@ public class IcebergMetadata
         Map<Integer, NestedField> indexById = TypeUtil.indexById(schemaAsStruct);
         Map<Integer, Integer> indexParents = indexParents(schemaAsStruct);
         Map<Integer, List<Integer>> indexPaths = indexById.entrySet().stream()
-                .collect(toImmutableMap(Map.Entry::getKey, entry -> ImmutableList.copyOf(buildPath(indexParents, entry.getKey()))));
+                .collect(toImmutableMap(Entry::getKey, entry -> ImmutableList.copyOf(buildPath(indexParents, entry.getKey()))));
 
         List<IcebergColumnHandle> partitioningColumns = partitionSpec.fields().stream()
                 .sorted(Comparator.comparingInt(PartitionField::sourceId))
@@ -3296,7 +3297,7 @@ public class IcebergMetadata
         Map<String, String> propertiesForCompression = calculateTableCompressionProperties(oldFileFormat, newFileFormat, icebergTable.properties(), properties.entrySet().stream()
                 .filter(e -> e.getValue().isPresent())
                 .collect(toImmutableMap(
-                        Map.Entry::getKey,
+                        Entry::getKey,
                         e -> e.getValue().get())));
 
         propertiesForCompression.forEach(updateProperties::set);
@@ -4374,7 +4375,7 @@ public class IcebergMetadata
             Map<Integer, Optional<String>> partitionKeys = getPartitionKeys(partitionData, partitionSpec);
             Map<ColumnHandle, NullableValue> partitionValues = getPartitionValues(partitionColumns, partitionKeys);
 
-            for (Map.Entry<ColumnHandle, NullableValue> entry : partitionValues.entrySet()) {
+            for (Entry<ColumnHandle, NullableValue> entry : partitionValues.entrySet()) {
                 IcebergColumnHandle columnHandle = (IcebergColumnHandle) entry.getKey();
                 NullableValue value = entry.getValue();
                 Domain newDomain = value.isNull() ? Domain.onlyNull(columnHandle.getType()) : Domain.singleValue(columnHandle.getType(), value.getValue());
@@ -4383,7 +4384,7 @@ public class IcebergMetadata
         }
         return withColumnDomains(domainsFromTasks.entrySet().stream()
                 .collect(toImmutableMap(
-                        Map.Entry::getKey,
+                        Entry::getKey,
                         entry -> Domain.union(entry.getValue()))));
     }
 
@@ -4770,7 +4771,7 @@ public class IcebergMetadata
         ImmutableMap.Builder<ConnectorExpression, Variable> newVariablesBuilder = ImmutableMap.builder();
         ImmutableSet.Builder<IcebergColumnHandle> projectedColumnsBuilder = ImmutableSet.builder();
 
-        for (Map.Entry<ConnectorExpression, ProjectedColumnRepresentation> entry : columnProjections.entrySet()) {
+        for (Entry<ConnectorExpression, ProjectedColumnRepresentation> entry : columnProjections.entrySet()) {
             ConnectorExpression expression = entry.getKey();
             ProjectedColumnRepresentation projectedColumn = entry.getValue();
 
@@ -5077,7 +5078,7 @@ public class IcebergMetadata
         if (shouldUseIncremental) {
             Map<String, String> sourceTableToSnapshot = MAP_SPLITTER.split(dependencies.get());
             checkState(sourceTableToSnapshot.size() == 1, "Expected %s to contain only single source table in snapshot summary", sourceTableToSnapshot);
-            Map.Entry<String, String> sourceTable = getOnlyElement(sourceTableToSnapshot.entrySet());
+            Entry<String, String> sourceTable = getOnlyElement(sourceTableToSnapshot.entrySet());
             String[] schemaTable = sourceTable.getKey().split("\\.");
             IcebergTableHandle handle = (IcebergTableHandle) getOnlyElement(sourceTableHandles);
             SchemaTableName sourceSchemaTable = new SchemaTableName(schemaTable[0], schemaTable[1]);
@@ -5524,7 +5525,7 @@ public class IcebergMetadata
         for (ComputedStatistics computedStatistic : computedStatistics) {
             verify(computedStatistic.getGroupingColumns().isEmpty() && computedStatistic.getGroupingValues().isEmpty(), "Unexpected grouping");
             verify(computedStatistic.getTableStatistics().isEmpty(), "Unexpected table statistics");
-            for (Map.Entry<ColumnStatisticMetadata, Block> entry : computedStatistic.getColumnStatistics().entrySet()) {
+            for (Entry<ColumnStatisticMetadata, Block> entry : computedStatistic.getColumnStatistics().entrySet()) {
                 ColumnStatisticMetadata statisticMetadata = entry.getKey();
                 if (statisticMetadata.getConnectorAggregationId().equals(NUMBER_OF_DISTINCT_VALUES_NAME)) {
                     Integer columnId = verifyNotNull(

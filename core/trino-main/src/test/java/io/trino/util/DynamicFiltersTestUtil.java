@@ -29,6 +29,7 @@ import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.planner.Symbol;
 
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.OptionalLong;
 import java.util.Set;
@@ -101,11 +102,11 @@ public final class DynamicFiltersTestUtil
         dynamicFilter.update(tupleDomain);
         Map<ColumnHandle, Type> types = tupleDomain.getDomains().orElse(ImmutableMap.of())
                 .entrySet().stream()
-                .collect(toImmutableMap(Map.Entry::getKey, entry -> entry.getValue().getType()));
+                .collect(toImmutableMap(Entry::getKey, entry -> entry.getValue().getType()));
         int index = 0;
         ImmutableMap.Builder<Symbol, ColumnHandle> columns = ImmutableMap.builder();
         ImmutableMap.Builder<Symbol, Integer> layout = ImmutableMap.builder();
-        for (Map.Entry<ColumnHandle, Integer> entry : channels.entrySet()) {
+        for (Entry<ColumnHandle, Integer> entry : channels.entrySet()) {
             ColumnHandle column = entry.getKey();
             Symbol symbol = new Symbol(types.get(column), "col" + index++);
             columns.put(symbol, column);
