@@ -195,7 +195,7 @@ public class TestDataframeMetadataProvider
                 .isEqualTo("""
                 SELECT nationkey key
                 FROM
-                 \stpch.tiny.nation
+                  tpch.tiny.nation
                     """);
         assertThat(dataframeMetadataProvider.aliasOutput("SELECT avg(1)")).isEqualTo("SELECT avg(1) \"avg(1)\"\n\n");
         assertThat(dataframeMetadataProvider.aliasOutput("SELECT * FROM (SELECT avg(1))"))
