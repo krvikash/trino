@@ -186,7 +186,14 @@ public final class SynapseQueryRunner
         log.info("Loading from %s.%s complete in %s", sourceCatalog, sourceSchema, nanosSince(startTime).toString(SECONDS));
     }
 
-    private static void copyTableIfNotExist(QueryRunner queryRunner, String sourceCatalog, String sourceSchema, String sourceTable, Session session)
+    // CREATE TABLE IF NOT EXISTS isn't an atomic operation, so multiple tests running concurrently
+    // pointing at the same database can lead to race conditions and failures from trying to create
+    // a table that already exists. Synchronizing prevents this within a given test process.
+    // Additional care must also be taken to avoid concurrent test initializations across different
+    // processes if they are using the same database.
+    // We could synchronize more granularly, e.g. a lock per table name, but this is just used to
+    // initialize tests so isn't worth that work and complexity.
+    private static synchronized void copyTableIfNotExist(QueryRunner queryRunner, String sourceCatalog, String sourceSchema, String sourceTable, Session session)
     {
         QualifiedObjectName table = new QualifiedObjectName(sourceCatalog, sourceSchema, sourceTable);
         long start = System.nanoTime();
