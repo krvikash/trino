@@ -13,9 +13,14 @@
  */
 package io.trino.plugin.iceberg.catalog.glue;
 
+import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.security.ConnectorIdentity;
 
 public interface GlueClientProvider
 {
     TrinoGlueClient get(ConnectorIdentity connectorIdentity);
+
+    void invalidateCache();
+
+    void invalidateCache(SchemaTableName tableName);
 }

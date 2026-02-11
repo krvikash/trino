@@ -19,11 +19,13 @@ import software.amazon.awssdk.services.glue.model.DatabaseInput;
 import software.amazon.awssdk.services.glue.model.Table;
 import software.amazon.awssdk.services.glue.model.TableInput;
 
+import java.io.Closeable;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
 public interface TrinoGlueClient
+        extends Closeable
 {
     Database getDatabase(String databaseName);
 
@@ -42,4 +44,8 @@ public interface TrinoGlueClient
     void createTable(String databaseName, TableInput table);
 
     Stream<Table> streamTables(String databaseName);
+
+    default void invalidateCache() {}
+
+    default void invalidateCache(SchemaTableName tableName) {}
 }

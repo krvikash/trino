@@ -23,6 +23,7 @@ import software.amazon.awssdk.services.glue.model.GetTablesResponse;
 import software.amazon.awssdk.services.glue.model.Table;
 import software.amazon.awssdk.services.glue.model.TableInput;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -121,5 +122,12 @@ public class StatsRecordingGlueClient
                         .stream()
                         .map(GetTablesResponse::tableList)
                         .flatMap(List::stream));
+    }
+
+    @Override
+    public void close()
+            throws IOException
+    {
+        // GlueClient is managed by Airlift
     }
 }

@@ -1618,6 +1618,7 @@ public class TrinoGlueCatalog
     {
         if (invalidateCaches) {
             glueTableCache.invalidate(tableName);
+            glueClient.invalidateCache(tableName);
         }
 
         try {

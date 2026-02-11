@@ -36,6 +36,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.MaterializedViewNotFoundException;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.security.AiModelAccessControl;
+import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.security.PrincipalType;
 import io.trino.spi.security.TrinoPrincipal;
 import org.junit.jupiter.api.Test;
@@ -111,7 +112,7 @@ public class TestTrinoGlueCatalog
                         FILE_IO_FACTORY,
                         TESTING_TYPE_MANAGER,
                         catalogConfig,
-                        _ -> new StatsRecordingGlueClient(glueClient, new GlueMetastoreStats())),
+                        new TestingGlueClientProvider(glueClient)),
                 "test",
                 new StatsRecordingGlueClient(glueClient, new GlueMetastoreStats()),
                 useSystemSecurity,
@@ -273,7 +274,7 @@ public class TestTrinoGlueCatalog
                         FILE_IO_FACTORY,
                         TESTING_TYPE_MANAGER,
                         catalogConfig,
-                        _ -> new StatsRecordingGlueClient(glueClient, new GlueMetastoreStats())),
+                        new TestingGlueClientProvider(glueClient)),
                 "test",
                 new StatsRecordingGlueClient(glueClient, new GlueMetastoreStats()),
                 false,
@@ -322,5 +323,30 @@ public class TestTrinoGlueCatalog
                         .buildOrThrow(),
                 replace,
                 ignoreExisting);
+    }
+
+    private static class TestingGlueClientProvider
+            implements GlueClientProvider
+    {
+        private final TrinoGlueClient glueClient;
+
+        private TestingGlueClientProvider(GlueClient glueClient)
+        {
+            this.glueClient = new StatsRecordingGlueClient(glueClient, new GlueMetastoreStats());
+        }
+
+        @Override
+        public TrinoGlueClient get(ConnectorIdentity connectorIdentity)
+        {
+            return glueClient;
+        }
+
+        @Override
+        public void invalidateCache()
+        {}
+
+        @Override
+        public void invalidateCache(SchemaTableName tableName)
+        {}
     }
 }
