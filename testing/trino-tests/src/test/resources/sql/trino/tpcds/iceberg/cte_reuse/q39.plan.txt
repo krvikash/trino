@@ -16,7 +16,7 @@ IR version = 1
                 %5624 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=20000]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %5625 = call(%5620, %5621, %5622, %5623, %5624) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %5627 = field_reference(%971) : ("row(bigint,bigint,integer,bigint)") -> "bigint" ()
                     {field_reference:index = "0"}
                 %5628 = constant() : () -> "varchar" ()
@@ -28,7 +28,7 @@ IR version = 1
                 %5631 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=0]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %5632 = call(%5627, %5628, %5629, %5630, %5631) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %5634 = field_reference(%971) : ("row(bigint,bigint,integer,bigint)") -> "bigint" ()
                     {field_reference:index = "3"}
                 %5635 = constant() : () -> "varchar" ()
@@ -40,7 +40,7 @@ IR version = 1
                 %5638 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=20000]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %5639 = call(%5634, %5635, %5636, %5637, %5638) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %5643 = logical(%5625, %5632, %5639) : ("boolean", "boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
                 %5644 = return(%5643) : ("boolean") -> "boolean" ()
@@ -90,7 +90,7 @@ IR version = 1
                         %1766 = return(%1765) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     })
-                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""stddev""},""returnType"":""double"",""argumentTypes"":[""bigint""]},""catalogHandle"":""system:normal:system"",""functionId"":""stddev(bigint):double"",""functionKind"":""AGGREGATE"",""deterministic"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "PARTIAL", aggregate_call:result_type = "row(bigint,double,double)"}
+                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""stddev""},""returnType"":""double"",""argumentTypes"":[""bigint""]},""catalogHandle"":""system:normal:system"",""functionId"":""stddev(bigint):double"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "PARTIAL", aggregate_call:result_type = "row(bigint,double,double)"}
                 %1768 = aggregate_call(%1750) : ("multiset(row(bigint,bigint,bigint,bigint))") -> "row(double,bigint)" ({
                     ^arguments (%62 : "row(bigint,bigint,bigint,bigint)")
                         %1769 = field_reference(%62) : ("row(bigint,bigint,bigint,bigint)") -> "bigint" ()
@@ -117,7 +117,7 @@ IR version = 1
                         %1777 = return(%1776) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     })
-                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""avg""},""returnType"":""double"",""argumentTypes"":[""bigint""]},""catalogHandle"":""system:normal:system"",""functionId"":""avg(bigint):double"",""functionKind"":""AGGREGATE"",""deterministic"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "PARTIAL", aggregate_call:result_type = "row(double,bigint)"}
+                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""avg""},""returnType"":""double"",""argumentTypes"":[""bigint""]},""catalogHandle"":""system:normal:system"",""functionId"":""avg(bigint):double"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "PARTIAL", aggregate_call:result_type = "row(double,bigint)"}
                 %1779 = row(%1757, %1768) : ("row(bigint,double,double)", "row(double,bigint)") -> "row(row(bigint,double,double),row(double,bigint))" ()
                 %1780 = return(%1779) : ("row(row(bigint,double,double),row(double,bigint))") -> "row(row(bigint,double,double),row(double,bigint))" ()
                     {ir.terminal = "true"}
@@ -580,7 +580,7 @@ IR version = 1
                         %3897 = return(%3896) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     })
-                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""stddev""},""returnType"":""double"",""argumentTypes"":[""bigint""]},""catalogHandle"":""system:normal:system"",""functionId"":""stddev(bigint):double"",""functionKind"":""AGGREGATE"",""deterministic"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "FINAL", aggregate_call:result_type = "double"}
+                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""stddev""},""returnType"":""double"",""argumentTypes"":[""bigint""]},""catalogHandle"":""system:normal:system"",""functionId"":""stddev(bigint):double"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "FINAL", aggregate_call:result_type = "double"}
                 %3899 = aggregate_call(%3865) : ("multiset(row(bigint,bigint,row(bigint,double,double),row(double,bigint),integer,varchar))") -> "double" ({
                     ^arguments (%3872 : "row(bigint,bigint,row(bigint,double,double),row(double,bigint),integer,varchar)")
                         %3900 = field_reference(%3872) : ("row(bigint,bigint,row(bigint,double,double),row(double,bigint),integer,varchar)") -> "row(double,bigint)" ()
@@ -607,7 +607,7 @@ IR version = 1
                         %3908 = return(%3907) : ("empty row") -> "empty row" ()
                             {ir.terminal = "true"}
                     })
-                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""avg""},""returnType"":""double"",""argumentTypes"":[""bigint""]},""catalogHandle"":""system:normal:system"",""functionId"":""avg(bigint):double"",""functionKind"":""AGGREGATE"",""deterministic"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "FINAL", aggregate_call:result_type = "double"}
+                    {aggregate_call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""avg""},""returnType"":""double"",""argumentTypes"":[""bigint""]},""catalogHandle"":""system:normal:system"",""functionId"":""avg(bigint):double"",""functionKind"":""AGGREGATE"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", aggregate_call:distinct = "false", aggregate_call:step = "FINAL", aggregate_call:result_type = "double"}
                 %3910 = row(%3888, %3899) : ("double", "double") -> "row(double,double)" ()
                 %3911 = return(%3910) : ("row(double,double)") -> "row(double,double)" ()
                     {ir.terminal = "true"}
@@ -640,7 +640,7 @@ IR version = 1
                 %4245 = field_reference(%3912) : ("row(varchar,bigint,bigint,integer,double,double)") -> "double" ()
                     {field_reference:index = "5"}
                 %4246 = call(%4244, %4245) : ("double", "double") -> "double" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$divide""},""returnType"":""double"",""argumentTypes"":[""double"",""double""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$divide(double,double):double"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$divide""},""returnType"":""double"",""argumentTypes"":[""double"",""double""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$divide(double,double):double"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %4247 = constant() : () -> "double" ()
                     {constant:value = "[type=double, value=1.0]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %4248 = comparison(%4246, %4247) : ("double", "double") -> "boolean" ()
@@ -663,7 +663,7 @@ IR version = 1
                 %4258 = field_reference(%3912) : ("row(varchar,bigint,bigint,integer,double,double)") -> "double" ()
                     {field_reference:index = "5"}
                 %4259 = call(%4257, %4258) : ("double", "double") -> "double" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$divide""},""returnType"":""double"",""argumentTypes"":[""double"",""double""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$divide(double,double):double"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$divide""},""returnType"":""double"",""argumentTypes"":[""double"",""double""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$divide(double,double):double"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %4260 = constant() : () -> "double" ()
                     {constant:value = "[type=double, value=1.5]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %4261 = comparison(%4259, %4260) : ("double", "double") -> "boolean" ()
@@ -722,7 +722,7 @@ IR version = 1
                 %4571 = field_reference(%382) : ("row(bigint,bigint,integer,double,double)") -> "double" ()
                     {field_reference:index = "4"}
                 %4572 = call(%4570, %4571) : ("double", "double") -> "double" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$divide""},""returnType"":""double"",""argumentTypes"":[""double"",""double""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$divide(double,double):double"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$divide""},""returnType"":""double"",""argumentTypes"":[""double"",""double""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$divide(double,double):double"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %4573 = switch(%4567, %4568, %4569, %4572) : ("double", "double", "double", "double") -> "double" ()
                 %4575 = field_reference(%382) : ("row(bigint,bigint,integer,double,double)") -> "double" ()
                     {field_reference:index = "3"}
@@ -785,7 +785,7 @@ IR version = 1
                 %4917 = field_reference(%4579) : ("row(bigint,bigint,integer,double,double,double)") -> "double" ()
                     {field_reference:index = "3"}
                 %4918 = call(%4916, %4917) : ("double", "double") -> "double" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$divide""},""returnType"":""double"",""argumentTypes"":[""double"",""double""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$divide(double,double):double"",""functionKind"":""SCALAR"",""deterministic"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$divide""},""returnType"":""double"",""argumentTypes"":[""double"",""double""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$divide(double,double):double"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}"}
                 %4919 = constant() : () -> "double" ()
                     {constant:value = "[type=double, value=1.5]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %4920 = comparison(%4918, %4919) : ("double", "double") -> "boolean" ()
