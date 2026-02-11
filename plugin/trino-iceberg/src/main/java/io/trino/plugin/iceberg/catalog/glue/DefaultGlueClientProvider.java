@@ -14,24 +14,23 @@
 package io.trino.plugin.iceberg.catalog.glue;
 
 import com.google.inject.Inject;
+import io.trino.plugin.hive.metastore.glue.GlueMetastoreStats;
 import io.trino.spi.security.ConnectorIdentity;
 import software.amazon.awssdk.services.glue.GlueClient;
-
-import static java.util.Objects.requireNonNull;
 
 public class DefaultGlueClientProvider
         implements GlueClientProvider
 {
-    private final GlueClient glueClient;
+    private final StatsRecordingGlueClient glueClient;
 
     @Inject
-    public DefaultGlueClientProvider(GlueClient glueClient)
+    public DefaultGlueClientProvider(GlueClient glueClient, GlueMetastoreStats stats)
     {
-        this.glueClient = requireNonNull(glueClient, "glueClient is null");
+        this.glueClient = new StatsRecordingGlueClient(glueClient, stats);
     }
 
     @Override
-    public GlueClient get(ConnectorIdentity connectorIdentity)
+    public StatsRecordingGlueClient get(ConnectorIdentity connectorIdentity)
     {
         return glueClient;
     }

@@ -15,7 +15,6 @@ package io.trino.plugin.iceberg.catalog.glue;
 
 import com.google.inject.Inject;
 import io.trino.filesystem.TrinoFileSystemFactory;
-import io.trino.plugin.hive.metastore.glue.GlueMetastoreStats;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperations;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
@@ -36,7 +35,6 @@ public class GlueIcebergTableOperationsProvider
     private final TypeManager typeManager;
     private final boolean cacheTableMetadata;
     private final GlueClientProvider glueClientProvider;
-    private final GlueMetastoreStats stats;
 
     @Inject
     public GlueIcebergTableOperationsProvider(
@@ -44,14 +42,12 @@ public class GlueIcebergTableOperationsProvider
             ForwardingFileIoFactory fileIoFactory,
             TypeManager typeManager,
             IcebergGlueCatalogConfig catalogConfig,
-            GlueMetastoreStats stats,
             GlueClientProvider glueClientProvider)
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.fileIoFactory = requireNonNull(fileIoFactory, "fileIoFactory is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.cacheTableMetadata = catalogConfig.isCacheTableMetadata();
-        this.stats = requireNonNull(stats, "stats is null");
         this.glueClientProvider = requireNonNull(glueClientProvider, "glueClientProvider is null");
     }
 
@@ -68,7 +64,6 @@ public class GlueIcebergTableOperationsProvider
                 typeManager,
                 cacheTableMetadata,
                 glueClientProvider.get(session.getIdentity()),
-                stats,
                 // Share Glue Table cache between Catalog and TableOperations so that, when doing metadata queries (e.g. information_schema.columns)
                 // the GetTableRequest is issued once per table.
                 ((TrinoGlueCatalog) catalog)::getTable,

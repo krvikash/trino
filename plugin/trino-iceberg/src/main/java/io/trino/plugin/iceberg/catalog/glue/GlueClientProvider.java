@@ -14,9 +14,8 @@
 package io.trino.plugin.iceberg.catalog.glue;
 
 import io.trino.spi.security.ConnectorIdentity;
-import software.amazon.awssdk.services.glue.GlueClient;
 
 public interface GlueClientProvider
 {
-    GlueClient get(ConnectorIdentity connectorIdentity);
+    StatsRecordingGlueClient get(ConnectorIdentity connectorIdentity);
 }

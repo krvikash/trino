@@ -122,7 +122,6 @@ public class TrinoGlueCatalogFactory
                 tableOperationsProvider,
                 trinoVersion,
                 glueClientProvider.get(identity),
-                stats,
                 isUsingSystemSecurity,
                 defaultSchemaLocation,
                 isUniqueTableLocation,
