@@ -64,12 +64,12 @@ public class FunctionsMetadata
     @Override
     public Collection<FunctionMetadata> getFunctions(ConnectorSession session, SchemaFunctionName name)
     {
-        if (!listSchemaNames(session).contains(name.getSchemaName())) {
+        if (!listSchemaNames(session).contains(name.schemaName())) {
             return ImmutableList.of();
         }
         boolean batchCallingEnabled = isBatchCallingEnabled(session);
         Map<Signature, List<FunctionMetadata>> candidates = functions.stream()
-                .filter(function -> function.getCanonicalName().equals(name.getFunctionName()))
+                .filter(function -> function.getCanonicalName().equals(name.functionName()))
                 .collect(groupingBy(FunctionMetadata::getSignature));
         ImmutableList.Builder<FunctionMetadata> builder = ImmutableList.builder();
         for (List<FunctionMetadata> functions : candidates.values()) {

@@ -2362,7 +2362,7 @@ public class PlanPrinter
     {
         CatalogSchemaFunctionName name = function.signature().getName();
         if (isInlineFunction(name) || isBuiltinFunctionName(name)) {
-            return name.getFunctionName();
+            return name.functionName();
         }
         return name.toString();
     }

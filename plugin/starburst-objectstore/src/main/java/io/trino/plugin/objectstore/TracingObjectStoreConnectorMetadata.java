@@ -983,8 +983,8 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     @Override
     public Collection<FunctionMetadata> getFunctions(ConnectorSession session, SchemaFunctionName name)
     {
-        Span span = startSpan("getFunctions", name.getSchemaName())
-                .setAttribute(TrinoAttributes.FUNCTION, name.getFunctionName());
+        Span span = startSpan("getFunctions", name.schemaName())
+                .setAttribute(TrinoAttributes.FUNCTION, name.functionName());
         try (var _ = scopedSpan(span)) {
             return delegate.getFunctions(session, name);
         }
@@ -1029,8 +1029,8 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     @Override
     public Collection<LanguageFunction> getLanguageFunctions(ConnectorSession session, SchemaFunctionName name)
     {
-        Span span = startSpan("getLanguageFunctions", name.getSchemaName())
-                .setAttribute(TrinoAttributes.FUNCTION, name.getFunctionName());
+        Span span = startSpan("getLanguageFunctions", name.schemaName())
+                .setAttribute(TrinoAttributes.FUNCTION, name.functionName());
         try (var _ = scopedSpan(span)) {
             return delegate.getLanguageFunctions(session, name);
         }
@@ -1039,8 +1039,8 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     @Override
     public boolean languageFunctionExists(ConnectorSession session, SchemaFunctionName name, String signatureToken)
     {
-        Span span = startSpan("languageFunctionExists", name.getSchemaName())
-                .setAttribute(TrinoAttributes.FUNCTION, name.getFunctionName());
+        Span span = startSpan("languageFunctionExists", name.schemaName())
+                .setAttribute(TrinoAttributes.FUNCTION, name.functionName());
         try (var _ = scopedSpan(span)) {
             return delegate.languageFunctionExists(session, name, signatureToken);
         }
@@ -1049,8 +1049,8 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     @Override
     public void createLanguageFunction(ConnectorSession session, SchemaFunctionName name, LanguageFunction function, boolean replace)
     {
-        Span span = startSpan("createLanguageFunction", name.getSchemaName())
-                .setAttribute(TrinoAttributes.FUNCTION, name.getFunctionName());
+        Span span = startSpan("createLanguageFunction", name.schemaName())
+                .setAttribute(TrinoAttributes.FUNCTION, name.functionName());
         try (var _ = scopedSpan(span)) {
             delegate.createLanguageFunction(session, name, function, replace);
         }
@@ -1059,8 +1059,8 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     @Override
     public void dropLanguageFunction(ConnectorSession session, SchemaFunctionName name, String signatureToken)
     {
-        Span span = startSpan("dropLanguageFunction", name.getSchemaName())
-                .setAttribute(TrinoAttributes.FUNCTION, name.getFunctionName());
+        Span span = startSpan("dropLanguageFunction", name.schemaName())
+                .setAttribute(TrinoAttributes.FUNCTION, name.functionName());
         try (var _ = scopedSpan(span)) {
             delegate.dropLanguageFunction(session, name, signatureToken);
         }

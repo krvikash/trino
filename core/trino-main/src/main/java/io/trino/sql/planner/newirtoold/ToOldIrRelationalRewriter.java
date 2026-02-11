@@ -215,7 +215,7 @@ public class ToOldIrRelationalRewriter
         ImmutableMap.Builder<Symbol, AggregationNode.Aggregation> aggregationsBuilder = ImmutableMap.builder();
         for (int i = 0; i < aggregations.size(); i++) {
             AggregationNode.Aggregation aggregate = aggregations.get(i);
-            aggregationsBuilder.put(symbolAllocator.newSymbol(aggregate.getResolvedFunction().name().getFunctionName(), aggregateTypes.get(i)), aggregate);
+            aggregationsBuilder.put(symbolAllocator.newSymbol(aggregate.getResolvedFunction().name().functionName(), aggregateTypes.get(i)), aggregate);
         }
 
         // build grouping sets descriptor
@@ -847,7 +847,7 @@ public class ToOldIrRelationalRewriter
         ImmutableMap.Builder<Symbol, WindowNode.Function> windowFunctionsBuilder = ImmutableMap.builder();
         for (int i = 0; i < windowFunctions.size(); i++) {
             WindowNode.Function windowFunction = windowFunctions.get(i);
-            windowFunctionsBuilder.put(symbolAllocator.newSymbol(windowFunction.getResolvedFunction().name().getFunctionName(), windowFunctionTypes.get(i)), windowFunction);
+            windowFunctionsBuilder.put(symbolAllocator.newSymbol(windowFunction.getResolvedFunction().name().functionName(), windowFunctionTypes.get(i)), windowFunction);
         }
 
         List<Symbol> partitionBy = scalarRewriter.getSelectedSymbols(window.partitioningSelector(), source.getOutputSymbols());

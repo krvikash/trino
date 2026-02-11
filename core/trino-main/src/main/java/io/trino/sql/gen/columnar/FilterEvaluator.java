@@ -140,7 +140,7 @@ public sealed interface FilterEvaluator
     static boolean isNotExpression(CallExpression callExpression)
     {
         CatalogSchemaFunctionName functionName = callExpression.resolvedFunction().name();
-        return isBuiltinFunctionName(functionName) && functionName.getFunctionName().equals("$not");
+        return isBuiltinFunctionName(functionName) && functionName.functionName().equals("$not");
     }
 
     private static Optional<Supplier<FilterEvaluator>> createBetweenEvaluator(
