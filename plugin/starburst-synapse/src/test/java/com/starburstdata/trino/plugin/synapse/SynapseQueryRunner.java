@@ -110,6 +110,7 @@ public final class SynapseQueryRunner
             connectorProperties.putIfAbsent("connection-url", JDBC_URL);
             connectorProperties.putIfAbsent("connection-user", USERNAME);
             connectorProperties.putIfAbsent("connection-password", PASSWORD);
+            connectorProperties.putIfAbsent("connection-pool.max-size", String.valueOf(maxPoolSize()));
 
             createUser(synapseServer, ALICE_USER, TEST_SCHEMA);
             createUser(synapseServer, BOB_USER, TEST_SCHEMA);
@@ -143,6 +144,17 @@ public final class SynapseQueryRunner
             closeAllSuppress(e, queryRunner);
             throw e;
         }
+    }
+
+    private static int maxPoolSize()
+    {
+        // Assume JUnit will run one test per processor concurrently, which is the default behavior.
+        // https://docs.junit.org/6.0.2/writing-tests/parallel-execution.html
+        int estimatedConcurrentTests = Runtime.getRuntime().availableProcessors();
+        // Each test running in a single thread could require more than one concurrent connection;
+        // allowing more connections than tests running makes deadlocks across tests less likely.
+        // Then clamp the max pool size to at least 10 since that's the default max pool size.
+        return Integer.max(estimatedConcurrentTests * 2, 10);
     }
 
     private static void createUser(SynapseServer synapseServer, String user, String schema)
