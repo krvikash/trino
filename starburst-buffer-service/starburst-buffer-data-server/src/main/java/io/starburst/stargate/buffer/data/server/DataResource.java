@@ -81,7 +81,6 @@ import java.util.OptionalLong;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -90,25 +89,20 @@ import java.util.function.Supplier;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
-import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
 import static com.google.common.util.concurrent.Futures.addCallback;
 import static com.google.common.util.concurrent.Futures.allAsList;
 import static com.google.common.util.concurrent.Futures.nonCancellationPropagating;
 import static com.google.common.util.concurrent.Futures.withTimeout;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
-import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.BufferServiceLimits.validateAttemptId;
 import static io.starburst.stargate.buffer.BufferServiceLimits.validateTaskId;
 import static io.starburst.stargate.buffer.data.client.ChunkDeliveryMode.STANDARD;
 import static io.starburst.stargate.buffer.data.client.DataClientHeaders.MAX_WAIT;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.DRAINING;
-import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.OVERLOADED;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER;
-import static io.starburst.stargate.buffer.data.client.HttpDataClient.CLIENT_ID_HEADER;
-import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.RATE_LIMIT_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLED_CHUNK_LENGTH_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLED_CHUNK_OFFSET_HEADER;
@@ -116,7 +110,10 @@ import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_F
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA;
 import static io.starburst.stargate.buffer.data.execution.ChunkDataLease.CHUNK_SLICES_METADATA_SIZE;
-import static jakarta.ws.rs.core.MediaType.TEXT_PLAIN;
+import static io.starburst.stargate.buffer.data.server.DataRequestHelper.getAsyncTimeout;
+import static io.starburst.stargate.buffer.data.server.DataRequestHelper.getClientId;
+import static io.starburst.stargate.buffer.data.server.HttpResponseHelper.errorResponse;
+import static io.starburst.stargate.buffer.data.server.HttpResponseHelper.okResponse;
 import static java.lang.String.format;
 import static java.util.Collections.emptyList;
 import static java.util.Objects.requireNonNull;
@@ -127,7 +124,6 @@ public class DataResource
 {
     private static final Logger logger = Logger.get(DataResource.class);
 
-    private static final Duration CLIENT_MAX_WAIT_LIMIT = succinctDuration(60, TimeUnit.SECONDS);
     private static final int SKIP_BUFFER_SIZE = 8192;
 
     private final long bufferNodeId;
@@ -197,7 +193,7 @@ public class DataResource
     {
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
-            return Response.ok().entity(bufferNodeInfoService.getNodeInfo()).build();
+            return Response.ok(bufferNodeInfoService.getNodeInfo()).build();
         }
         catch (RuntimeException e) {
             reportException(e, "error on GET /info");
@@ -252,6 +248,7 @@ public class DataResource
 
     @GET
     @Path("{exchangeId}/markAllClosedChunksReceived")
+    @Produces(MediaType.TEXT_PLAIN)
     public Response markAllClosedChunksReceived(
             @PathParam("exchangeId") String exchangeId,
             @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId)
@@ -259,7 +256,7 @@ public class DataResource
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
             chunkManager.markAllClosedChunksReceived(exchangeId);
-            return okResponse();
+            return Response.ok().build();
         }
         catch (RuntimeException e) {
             reportException(e, "error on GET /%s/markAllClosedChunksReceived", exchangeId);
@@ -269,6 +266,7 @@ public class DataResource
 
     @GET
     @Path("{exchangeId}/setChunkDeliveryMode")
+    @Produces(MediaType.TEXT_PLAIN)
     public Response setChunkDeliveryMode(
             @PathParam("exchangeId") String exchangeId,
             @QueryParam("chunkDeliveryMode") ChunkDeliveryMode chunkDeliveryMode,
@@ -277,7 +275,7 @@ public class DataResource
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
             chunkManager.setChunkDeliveryMode(exchangeId, chunkDeliveryMode);
-            return okResponse();
+            return Response.ok().build();
         }
         catch (RuntimeException e) {
             reportException(e, "error on GET /%s/setChunkDeliveryMode?chunkDeliveryMode=%s", exchangeId, chunkDeliveryMode);
@@ -557,11 +555,7 @@ public class DataResource
                                         @Override
                                         public void onSuccess(List<Void> value)
                                         {
-                                            OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(clientId, inProgressTracker.getInProgressAddDataPagesRequests());
-                                            Response response = rateLimit.isPresent() ? okResponse(Map.of(
-                                                    RATE_LIMIT_HEADER, Double.toString(rateLimit.getAsDouble()),
-                                                    AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER, Long.toString(addDataPagesThrottlingCalculator.getAverageProcessTimeInMillis())))
-                                                    : okResponse();
+                                            Response response = okResponse(getRateLimitHeaders(clientId));
 
                                             if (!asyncResponse.isDone()) {
                                                 asyncResponse.resume(response);
@@ -678,23 +672,6 @@ public class DataResource
     {
         addDataPagesThrottlingCalculator.recordProcessTimeInMillis(System.currentTimeMillis() - start);
         addDataPagesThrottlingCalculator.updateCounterStat(clientId, 1);
-    }
-
-    private static String getClientId(HttpServletRequest request)
-    {
-        String clientId = request.getHeader(CLIENT_ID_HEADER);
-        if (clientId == null) {
-            clientId = request.getRemoteHost();
-        }
-        return clientId;
-    }
-
-    Duration getAsyncTimeout(@Nullable Duration clientMaxWait)
-    {
-        if (clientMaxWait == null || clientMaxWait.toMillis() == 0 || clientMaxWait.compareTo(CLIENT_MAX_WAIT_LIMIT) > 0) {
-            return CLIENT_MAX_WAIT_LIMIT;
-        }
-        return succinctDuration(clientMaxWait.toMillis() * 0.95, MILLISECONDS);
     }
 
     @GET
@@ -823,6 +800,7 @@ public class DataResource
 
     @GET
     @Path("{exchangeId}/register")
+    @Produces(MediaType.TEXT_PLAIN)
     public Response registerExchange(
             @PathParam("exchangeId") String exchangeId,
             @QueryParam("chunkDeliveryMode") @Nullable ChunkDeliveryMode chunkDeliveryMode,
@@ -844,7 +822,7 @@ public class DataResource
             chunkDeliveryMode = Optional.ofNullable(chunkDeliveryMode).orElse(STANDARD);
             Optional<Span> exchangeSpan = Optional.ofNullable(serializedExchangeSpan).map(spanJsonCodec::fromJson);
             chunkManager.registerExchange(exchangeId, chunkDeliveryMode, exchangeSpan);
-            return okResponse();
+            return Response.ok().build();
         }
         catch (RuntimeException e) {
             reportException(e, "error on GET /%s/register", exchangeId);
@@ -854,6 +832,7 @@ public class DataResource
 
     @GET
     @Path("{exchangeId}/finish")
+    @Produces(MediaType.TEXT_PLAIN)
     public void finishExchange(
             @Suspended AsyncResponse asyncResponse,
             @PathParam("exchangeId") String exchangeId,
@@ -870,7 +849,7 @@ public class DataResource
                 public void onSuccess(Void result)
                 {
                     if (!asyncResponse.isDone()) {
-                        asyncResponse.resume(okResponse());
+                        asyncResponse.resume(Response.ok().build());
                     }
                 }
 
@@ -912,6 +891,7 @@ public class DataResource
 
     @DELETE
     @Path("{exchangeId}")
+    @Produces(MediaType.TEXT_PLAIN)
     public Response removeExchange(
             @PathParam("exchangeId") String exchangeId,
             @QueryParam("targetBufferNodeId") @Nullable Long targetBufferNodeId)
@@ -919,7 +899,7 @@ public class DataResource
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
             chunkManager.removeExchange(exchangeId);
-            return okResponse();
+            return Response.ok().build();
         }
         catch (RuntimeException e) {
             reportException(e, "error on DELETE /%s", exchangeId);
@@ -993,57 +973,6 @@ public class DataResource
             asyncResponse.resume(okResponse(getRateLimitHeaders(clientId)));
         }
         recordAddDataPagesRequest(processingStart, clientId);
-    }
-
-    private static Response errorResponse(Throwable throwable)
-    {
-        return errorResponse(throwable, ImmutableMap.of());
-    }
-
-    private static Response okResponse()
-    {
-        return okResponse(Map.of());
-    }
-
-    private static Response okResponse(Map<String, String> headers)
-    {
-        Response.ResponseBuilder responseBuilder = Response
-                .status(Status.OK)
-                .header(CONTENT_TYPE, TEXT_PLAIN);
-        headers.forEach(responseBuilder::header);
-        return responseBuilder.build();
-    }
-
-    private static Response errorResponse(Throwable throwable, Map<String, String> headers)
-    {
-        Response.ResponseBuilder responseBuilder = Response
-                .status(Status.INTERNAL_SERVER_ERROR)
-                .header(CONTENT_TYPE, TEXT_PLAIN);
-
-        if (throwable instanceof DataServerException dataServerException) {
-            responseBuilder
-                    .header(ERROR_CODE_HEADER, dataServerException.getErrorCode())
-                    .entity(throwable.getMessage());
-        }
-        else {
-            responseBuilder
-                    .header(ERROR_CODE_HEADER, INTERNAL_ERROR)
-                    .entity(throwable.getMessage());
-        }
-
-        headers.forEach(responseBuilder::header);
-        return responseBuilder.build();
-    }
-
-    private static Response errorResponse(ErrorCode errorCode, String message, Map<String, String> headers)
-    {
-        Response.ResponseBuilder responseBuilder = Response
-                .status(Status.INTERNAL_SERVER_ERROR)
-                .header(CONTENT_TYPE, TEXT_PLAIN)
-                .header(ERROR_CODE_HEADER, errorCode)
-                .entity(message);
-        headers.forEach(responseBuilder::header);
-        return responseBuilder.build();
     }
 
     private static class ReleasableReadListener

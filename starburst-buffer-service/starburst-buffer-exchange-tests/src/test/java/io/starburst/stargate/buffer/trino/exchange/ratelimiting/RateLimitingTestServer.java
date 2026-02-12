@@ -60,7 +60,6 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -69,14 +68,15 @@ import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
 import static com.google.inject.name.Names.named;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
-import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.client.DataClientHeaders.MAX_WAIT;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.OVERLOADED;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER;
-import static io.starburst.stargate.buffer.data.client.HttpDataClient.CLIENT_ID_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.ERROR_CODE_HEADER;
 import static io.starburst.stargate.buffer.data.client.HttpDataClient.RATE_LIMIT_HEADER;
+import static io.starburst.stargate.buffer.data.server.DataRequestHelper.getAsyncTimeout;
+import static io.starburst.stargate.buffer.data.server.DataRequestHelper.getClientId;
+import static io.starburst.stargate.buffer.data.server.HttpResponseHelper.errorResponse;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -95,7 +95,7 @@ public class RateLimitingTestServer
         ImmutableList.Builder<Module> modules = ImmutableList.builder();
         modules.add(
                 new TestingNodeModule("test"),
-                new TestingHttpServerModule(),
+                new TestingHttpServerModule("testing"),
                 new JsonModule(),
                 new JaxrsModule(),
                 new AbstractConfigurationAwareModule() {
@@ -145,8 +145,6 @@ public class RateLimitingTestServer
     @Path("/api/v1/buffer/data")
     public static class TestingDataResource
     {
-        private static final Duration CLIENT_MAX_WAIT_LIMIT = succinctDuration(60, TimeUnit.SECONDS);
-
         private final AddDataPagesThrottlingCalculator addDataPagesThrottlingCalculator;
         private final int maxInProgressAddDataPagesRequests;
         private final Duration requestProcessingTime;
@@ -321,41 +319,6 @@ public class RateLimitingTestServer
                 String value = entry.getValue();
                 responseBuilder.header(key, value);
             }
-        }
-
-        private static String getClientId(HttpServletRequest request)
-        {
-            String clientId = request.getHeader(CLIENT_ID_HEADER);
-            if (clientId == null) {
-                clientId = request.getRemoteHost();
-            }
-            return clientId;
-        }
-
-        private static Response errorResponse(Throwable throwable, Map<String, String> headers)
-        {
-            Response.ResponseBuilder responseBuilder;
-            if (throwable instanceof DataServerException dataServerException) {
-                responseBuilder = Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                        .header(ERROR_CODE_HEADER, dataServerException.getErrorCode())
-                        .entity(throwable.getMessage());
-            }
-            else {
-                responseBuilder = Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                        .header(ERROR_CODE_HEADER, INTERNAL_ERROR)
-                        .entity(throwable.getMessage());
-            }
-
-            headers.forEach(responseBuilder::header);
-            return responseBuilder.build();
-        }
-
-        Duration getAsyncTimeout(@Nullable Duration clientMaxWait)
-        {
-            if (clientMaxWait == null || clientMaxWait.toMillis() == 0 || clientMaxWait.compareTo(CLIENT_MAX_WAIT_LIMIT) > 0) {
-                return CLIENT_MAX_WAIT_LIMIT;
-            }
-            return succinctDuration(clientMaxWait.toMillis() * 0.95, MILLISECONDS);
         }
     }
 }
