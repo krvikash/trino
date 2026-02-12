@@ -24,8 +24,6 @@ import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.GroupIdNode;
-import io.trino.sql.planner.plan.JoinNode;
-import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.MaterializedRow;
 import io.trino.testing.QueryRunner;
@@ -48,7 +46,6 @@ import static io.trino.SystemSessionProperties.DISTINCT_AGGREGATIONS_STRATEGY;
 import static io.trino.spi.connector.ConnectorMetadata.MODIFYING_ROWS_MESSAGE;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
-import static io.trino.sql.planner.assertions.PlanMatchPattern.anyTree;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.node;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.tableScan;
 import static io.trino.testing.MaterializedResult.resultBuilder;
@@ -531,12 +528,9 @@ public class TestSingleStoreConnectorTest
         assertThat(query(joinPushdownEnabled, "SELECT c.name, n.name FROM customer c JOIN nation n ON c.custkey = n.nationkey WHERE address < 'TcGe5gaZNgVePxU5kRrvXBfkasDTea'"))
                 .isFullyPushedDown();
 
-        // join on varchar columns is not pushed down
+        // join on varchar columns
         assertThat(query(joinPushdownEnabled, "SELECT c.name, n.name FROM customer c JOIN nation n ON c.address = n.name"))
-                .isNotFullyPushedDown(
-                        node(JoinNode.class,
-                                anyTree(node(TableScanNode.class)),
-                                anyTree(node(TableScanNode.class))));
+                .isFullyPushedDown();
 
         // varchar IS (NOT) NULL predicate
         try (TestTable table = newTrinoTable("test_null", "(id INT, data VARCHAR)", ImmutableList.of("1, 'test'", "2, NULL"))) {
@@ -727,6 +721,57 @@ public class TestSingleStoreConnectorTest
             assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar NOT LIKE 'a%'")).isFullyPushedDown();
             assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE some_varchar NOT LIKE 'aa' OR other_column = 'aa'")).isFullyPushedDown();
             assertThat(query(session, "SELECT some_varchar FROM " + table.getName() + " WHERE NOT (some_varchar LIKE '%a' OR other_column = 'bb')")).isFullyPushedDown();
+        }
+    }
+
+    @Test
+    void testJoinsWithBinary()
+    {
+        Session session = Session.builder(getSession())
+                .setCatalogSessionProperty("singlestore", "enable_string_pushdown_with_binary", "true")
+                .setCatalogSessionProperty("singlestore", "join_pushdown_enabled", "true")
+                .build();
+
+        try (TestTable leftTable = new TestTable(
+                onRemoteDatabase(),
+                "tpch.single_store_join_with_binary_left",
+                """
+                (
+                some_varchar_255 varchar(255),
+                some_varchar_10000 varchar(10000),
+                some_longtext longtext
+                )
+                """,
+                List.of(
+                        "null, null, null",
+                        "'AA', 'AA', 'AA'",
+                        "'aa', 'aa', 'aa'",
+                        "'aa  ', 'aa  ', 'aa  '",
+                        "'bb', 'bb', 'bb'",
+                        "'cc', 'cc', 'cc'"
+                ));
+                TestTable rightTable = new TestTable(
+                        onRemoteDatabase(),
+                        "tpch.single_store_join_with_binary_right",
+                        """
+                        (
+                        some_varchar_255 varchar(255),
+                        some_varchar_10000 varchar(10000),
+                        some_longtext longtext
+                        )
+                        """,
+                        List.of(
+                                "null, null, null",
+                                "'AA', 'AA', 'AA'",
+                                "'aa', 'aa', 'aa'",
+                                "'aa  ', 'aa  ', 'aa  '",
+                                "'bb', 'bb', 'bb'",
+                                "'cc', 'cc', 'cc'"
+                        ))) {
+            assertThat(query(session, "SELECT r.some_varchar_255 FROM %s l LEFT JOIN %s r ON l.some_varchar_255 = r.some_varchar_255".formatted(leftTable.getName(), rightTable.getName()))).isFullyPushedDown();
+            assertThat(query(session, "SELECT r.some_varchar_255 FROM %s l LEFT JOIN %s r ON l.some_varchar_255 = r.some_varchar_10000".formatted(leftTable.getName(), rightTable.getName()))).isFullyPushedDown();
+            assertThat(query(session, "SELECT r.some_varchar_255 FROM %s l LEFT JOIN %s r ON l.some_varchar_255 = r.some_longtext".formatted(leftTable.getName(), rightTable.getName()))).isFullyPushedDown();
+            assertThat(query(session, "SELECT r.some_varchar_255 FROM %s l LEFT JOIN %s r ON l.some_varchar_10000 = r.some_longtext".formatted(leftTable.getName(), rightTable.getName()))).isFullyPushedDown();
         }
     }
 
