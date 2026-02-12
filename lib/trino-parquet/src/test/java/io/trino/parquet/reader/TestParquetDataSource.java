@@ -182,6 +182,42 @@ public class TestParquetDataSource
         assertThat(memoryContext.getBytes()).isEqualTo(50);
     }
 
+    @Test
+    public void testReadBufferSizeWithInitialBufferSize()
+            throws IOException
+    {
+        Slice testingInput = createTestingInput();
+        TestingParquetDataSource dataSource = new TestingParquetDataSource(
+                testingInput,
+                ParquetReaderOptions.builder()
+                        .withMaxBufferSize(DataSize.ofBytes(700))
+                        .withInitialBufferSize(DataSize.ofBytes(100))
+                        .build());
+        AggregatedMemoryContext memoryContext = newSimpleAggregatedMemoryContext();
+        Map<String, ChunkedInputStream> inputStreams = dataSource.planRead(
+                ImmutableListMultimap.<String, DiskRange>builder()
+                        .put("1", new DiskRange(0, 2000))
+                        .put("2", new DiskRange(400, 100))
+                        .put("2", new DiskRange(600, 200))
+                        .put("3", new DiskRange(1100, 50))
+                        .put("3", new DiskRange(1500, 50))
+                        .build(),
+                memoryContext);
+        assertThat(memoryContext.getBytes()).isEqualTo(0);
+
+        // Reads for a column should start with initial buffer size and grow as needed upto max buffer size
+        inputStreams.get("1").getSlice(100);
+        assertThat(memoryContext.getBytes()).isEqualTo(100);
+        inputStreams.get("1").getSlice(100);
+        assertThat(memoryContext.getBytes()).isEqualTo(200);
+        inputStreams.get("1").getSlice(200);
+        assertThat(memoryContext.getBytes()).isEqualTo(400);
+        inputStreams.get("1").getSlice(400);
+        assertThat(memoryContext.getBytes()).isEqualTo(700);
+        inputStreams.get("1").getSlice(900);
+        assertThat(memoryContext.getBytes()).isEqualTo(600);
+    }
+
     private static Slice createTestingInput()
     {
         Slice testingInput = Slices.allocate(4000);

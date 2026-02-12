@@ -61,6 +61,11 @@ public class IcebergTableHandle
     // semantically limit is applied after enforcedPredicate
     private final OptionalLong limit;
 
+    // When there is a partial limit above the scan, we reduce
+    // the size of the read buffers in parquet to avoid over-reading
+    // from the filesystem when the output consumed from page source is small.
+    private final boolean preferSmallInitialReads;
+
     private final Set<IcebergColumnHandle> projectedColumns;
     private final Optional<String> nameMappingJson;
 
@@ -88,6 +93,7 @@ public class IcebergTableHandle
             @JsonProperty("unenforcedPredicate") TupleDomain<IcebergColumnHandle> unenforcedPredicate,
             @JsonProperty("enforcedPredicate") TupleDomain<IcebergColumnHandle> enforcedPredicate,
             @JsonProperty("limit") OptionalLong limit,
+            @JsonProperty("useSmallReadsPerSplit") boolean useSmallReadsPerSplit,
             @JsonProperty("projectedColumns") Set<IcebergColumnHandle> projectedColumns,
             @JsonProperty("nameMappingJson") Optional<String> nameMappingJson,
             @JsonProperty("tableLocation") String tableLocation,
@@ -105,6 +111,7 @@ public class IcebergTableHandle
                 unenforcedPredicate,
                 enforcedPredicate,
                 limit,
+                useSmallReadsPerSplit,
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
@@ -129,6 +136,7 @@ public class IcebergTableHandle
             TupleDomain<IcebergColumnHandle> unenforcedPredicate,
             TupleDomain<IcebergColumnHandle> enforcedPredicate,
             OptionalLong limit,
+            boolean preferSmallInitialReads,
             Set<IcebergColumnHandle> projectedColumns,
             Optional<String> nameMappingJson,
             String tableLocation,
@@ -151,6 +159,7 @@ public class IcebergTableHandle
         this.unenforcedPredicate = requireNonNull(unenforcedPredicate, "unenforcedPredicate is null");
         this.enforcedPredicate = requireNonNull(enforcedPredicate, "enforcedPredicate is null");
         this.limit = requireNonNull(limit, "limit is null");
+        this.preferSmallInitialReads = preferSmallInitialReads;
         this.projectedColumns = ImmutableSet.copyOf(requireNonNull(projectedColumns, "projectedColumns is null"));
         this.nameMappingJson = requireNonNull(nameMappingJson, "nameMappingJson is null");
         this.tableLocation = requireNonNull(tableLocation, "tableLocation is null");
@@ -294,6 +303,12 @@ public class IcebergTableHandle
         return forAnalyze;
     }
 
+    @JsonProperty
+    public boolean useSmallReadsPerSplit()
+    {
+        return preferSmallInitialReads;
+    }
+
     public SchemaTableName getSchemaTableName()
     {
         return new SchemaTableName(schemaName, tableName);
@@ -317,6 +332,7 @@ public class IcebergTableHandle
                 unenforcedPredicate,
                 enforcedPredicate,
                 limit,
+                preferSmallInitialReads,
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
@@ -343,6 +359,7 @@ public class IcebergTableHandle
                 unenforcedPredicate,
                 enforcedPredicate,
                 limit,
+                preferSmallInitialReads,
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
@@ -369,6 +386,7 @@ public class IcebergTableHandle
                 unenforcedPredicate,
                 enforcedPredicate,
                 limit,
+                preferSmallInitialReads,
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
@@ -395,6 +413,7 @@ public class IcebergTableHandle
                 unenforcedPredicate,
                 enforcedPredicate,
                 limit,
+                preferSmallInitialReads,
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
@@ -421,6 +440,7 @@ public class IcebergTableHandle
                 unenforcedPredicate,
                 enforcedPredicate,
                 limit,
+                preferSmallInitialReads,
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
@@ -452,6 +472,34 @@ public class IcebergTableHandle
                 TupleDomain.all(),
                 enforcedPredicate,
                 limit,
+                preferSmallInitialReads,
+                projectedColumns,
+                nameMappingJson,
+                tableLocation,
+                storageProperties,
+                tablePartitioning,
+                branch,
+                recordScannedFiles,
+                maxScannedFileSize,
+                forceReadingAllFiles,
+                constraintColumns,
+                forAnalyze);
+    }
+
+    public IcebergTableHandle withSmallReadsPerSplit(boolean useSmallReadsPerSplit)
+    {
+        return new IcebergTableHandle(
+                schemaName,
+                tableName,
+                tableType,
+                snapshotId,
+                tableSchemaJson,
+                partitionSpecJson,
+                formatVersion,
+                unenforcedPredicate,
+                enforcedPredicate,
+                limit,
+                useSmallReadsPerSplit,
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
@@ -495,7 +543,8 @@ public class IcebergTableHandle
                 Objects.equals(maxScannedFileSize, that.maxScannedFileSize) &&
                 forceReadingAllFiles == that.forceReadingAllFiles &&
                 Objects.equals(constraintColumns, that.constraintColumns) &&
-                Objects.equals(forAnalyze, that.forAnalyze);
+                Objects.equals(forAnalyze, that.forAnalyze) &&
+                preferSmallInitialReads == that.preferSmallInitialReads;
     }
 
     @Override
@@ -521,7 +570,8 @@ public class IcebergTableHandle
                 maxScannedFileSize,
                 forceReadingAllFiles,
                 constraintColumns,
-                forAnalyze);
+                forAnalyze,
+                preferSmallInitialReads);
     }
 
     @Override
@@ -539,6 +589,9 @@ public class IcebergTableHandle
                     .collect(joining(", ", "[", "]")));
         }
         limit.ifPresent(limit -> builder.append(" LIMIT ").append(limit));
+        if (preferSmallInitialReads) {
+            builder.append(" prefer_small_inital_reads");
+        }
         return builder.toString();
     }
 }

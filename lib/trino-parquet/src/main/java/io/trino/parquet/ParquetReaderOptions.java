@@ -16,6 +16,7 @@ package io.trino.parquet;
 import io.airlift.units.DataSize;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.Comparators.min;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static java.util.Objects.requireNonNull;
 
@@ -34,6 +35,7 @@ public class ParquetReaderOptions
     private final int maxReadBlockRowCount;
     private final DataSize maxMergeDistance;
     private final DataSize maxBufferSize;
+    private final DataSize initialBufferSize;
     private final boolean useColumnIndex;
     private final boolean useBloomFilter;
     private final DataSize smallFileThreshold;
@@ -49,6 +51,7 @@ public class ParquetReaderOptions
         maxReadBlockRowCount = DEFAULT_MAX_READ_BLOCK_ROW_COUNT;
         maxMergeDistance = DEFAULT_MAX_MERGE_DISTANCE;
         maxBufferSize = DEFAULT_MAX_BUFFER_SIZE;
+        initialBufferSize = DEFAULT_MAX_BUFFER_SIZE;
         useColumnIndex = true;
         useBloomFilter = true;
         smallFileThreshold = DEFAULT_SMALL_FILE_THRESHOLD;
@@ -64,6 +67,7 @@ public class ParquetReaderOptions
             int maxReadBlockRowCount,
             DataSize maxMergeDistance,
             DataSize maxBufferSize,
+            DataSize initialBufferSize,
             boolean useColumnIndex,
             boolean useBloomFilter,
             DataSize smallFileThreshold,
@@ -78,6 +82,10 @@ public class ParquetReaderOptions
         this.maxReadBlockRowCount = maxReadBlockRowCount;
         this.maxMergeDistance = requireNonNull(maxMergeDistance, "maxMergeDistance is null");
         this.maxBufferSize = requireNonNull(maxBufferSize, "maxBufferSize is null");
+        checkArgument(maxBufferSize.toBytes() > 0, "maxBufferSize must by larger than zero but is %s", maxBufferSize);
+        requireNonNull(initialBufferSize, "initialBufferSize is null");
+        checkArgument(initialBufferSize.toBytes() > 0, "initialBufferSize must be larger than zero but is %s", initialBufferSize);
+        this.initialBufferSize = min(initialBufferSize, maxBufferSize);
         this.useColumnIndex = useColumnIndex;
         this.useBloomFilter = useBloomFilter;
         this.smallFileThreshold = requireNonNull(smallFileThreshold, "smallFileThreshold is null");
@@ -132,6 +140,11 @@ public class ParquetReaderOptions
         return vectorizedDecodingEnabled;
     }
 
+    public DataSize getInitialBufferSize()
+    {
+        return initialBufferSize;
+    }
+
     public DataSize getMaxBufferSize()
     {
         return maxBufferSize;
@@ -169,6 +182,7 @@ public class ParquetReaderOptions
         private int maxReadBlockRowCount;
         private DataSize maxMergeDistance;
         private DataSize maxBufferSize;
+        private DataSize initialBufferSize;
         private boolean useColumnIndex;
         private boolean useBloomFilter;
         private DataSize smallFileThreshold;
@@ -185,6 +199,7 @@ public class ParquetReaderOptions
             this.maxReadBlockRowCount = parquetReaderOptions.maxReadBlockRowCount;
             this.maxMergeDistance = parquetReaderOptions.maxMergeDistance;
             this.maxBufferSize = parquetReaderOptions.maxBufferSize;
+            this.initialBufferSize = parquetReaderOptions.initialBufferSize;
             this.useColumnIndex = parquetReaderOptions.useColumnIndex;
             this.useBloomFilter = parquetReaderOptions.useBloomFilter;
             this.smallFileThreshold = parquetReaderOptions.smallFileThreshold;
@@ -221,6 +236,12 @@ public class ParquetReaderOptions
         public Builder withMaxBufferSize(DataSize maxBufferSize)
         {
             this.maxBufferSize = requireNonNull(maxBufferSize, "maxBufferSize is null");
+            return this;
+        }
+
+        public Builder withInitialBufferSize(DataSize initialBufferSize)
+        {
+            this.initialBufferSize = requireNonNull(initialBufferSize, "initialBufferSize is null");
             return this;
         }
 
@@ -274,6 +295,7 @@ public class ParquetReaderOptions
                     maxReadBlockRowCount,
                     maxMergeDistance,
                     maxBufferSize,
+                    initialBufferSize,
                     useColumnIndex,
                     useBloomFilter,
                     smallFileThreshold,

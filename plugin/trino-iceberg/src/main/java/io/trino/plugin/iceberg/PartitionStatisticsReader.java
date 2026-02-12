@@ -95,7 +95,8 @@ public final class PartitionStatisticsReader
                 null,
                 null,
                 Optional.empty(),
-                formatVersion(table))) {
+                formatVersion(table),
+                false)) {
             ImmutableList.Builder<PartitionStats> rows = ImmutableList.builder();
             while (!pageSource.isFinished()) {
                 SourcePage page = pageSource.getNextSourcePage();

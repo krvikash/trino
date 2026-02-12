@@ -810,6 +810,7 @@ public class IcebergMetadata
                 TupleDomain.all(),
                 TupleDomain.all(),
                 OptionalLong.empty(),
+                false,
                 ImmutableSet.of(),
                 Optional.ofNullable(tableProperties.get(TableProperties.DEFAULT_NAME_MAPPING)),
                 table.location(),
@@ -4240,6 +4241,7 @@ public class IcebergMetadata
                 table.getUnenforcedPredicate(), // known to be ALL
                 table.getEnforcedPredicate(),
                 OptionalLong.of(limit),
+                table.useSmallReadsPerSplit(),
                 table.getProjectedColumns(),
                 table.getNameMappingJson(),
                 table.getTableLocation(),
@@ -4352,6 +4354,7 @@ public class IcebergMetadata
                         newUnenforcedConstraint,
                         newEnforcedConstraint,
                         table.getLimit(),
+                        table.useSmallReadsPerSplit(),
                         table.getProjectedColumns(),
                         table.getNameMappingJson(),
                         table.getTableLocation(),
@@ -4561,6 +4564,7 @@ public class IcebergMetadata
                 TupleDomain.all(),
                 TupleDomain.all(),
                 OptionalLong.empty(),
+                false,
                 Sets.union(firstTable.getProjectedColumns(), secondTable.getProjectedColumns()),
                 firstTable.getNameMappingJson(),
                 firstTable.getTableLocation(),
@@ -4696,6 +4700,7 @@ public class IcebergMetadata
                 // Skip $file_modified_time in cache key as the statistics do not depend on it
                 originalHandle.getEnforcedPredicate().filter((column, _) -> FILE_MODIFIED_TIME.getId() != column.getId()),
                 OptionalLong.empty(), // limit is currently not included in stats and is not enforced by the connector
+                false, // useSmallReadsPerSplit does not affect stats
                 ImmutableSet.of(), // projectedColumns are used to request statistics only for the required columns, but are not part of cache key
                 originalHandle.getNameMappingJson(),
                 originalHandle.getTableLocation(),
@@ -5208,6 +5213,18 @@ public class IcebergMetadata
     public WriterScalingOptions getInsertWriterScalingOptions(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         return WriterScalingOptions.ENABLED;
+    }
+
+    @Override
+    public Optional<ConnectorTableHandle> applyPartialLimit(ConnectorSession session, ConnectorTableHandle handle, long limitHint)
+    {
+        IcebergTableHandle tableHandle = (IcebergTableHandle) handle;
+        // Apply small reads per split optimization when limit hint is less than 100,000
+        if (limitHint < 100_000 && !tableHandle.useSmallReadsPerSplit()) {
+            return Optional.of(tableHandle.withSmallReadsPerSplit(true));
+        }
+
+        return Optional.empty();
     }
 
     public Optional<Long> getIncrementalRefreshFromSnapshot()

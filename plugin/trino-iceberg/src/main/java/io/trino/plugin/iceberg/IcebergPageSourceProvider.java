@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.slice.Slice;
+import io.airlift.units.DataSize;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoInputFile;
@@ -145,6 +146,7 @@ import static io.airlift.slice.SizeOf.SIZE_OF_LONG;
 import static io.airlift.slice.SizeOf.instanceSize;
 import static io.airlift.slice.SizeOf.sizeOf;
 import static io.airlift.slice.Slices.utf8Slice;
+import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.orc.OrcReader.INITIAL_BATCH_SIZE;
 import static io.trino.orc.OrcReader.ProjectedLayout;
@@ -302,7 +304,8 @@ public class IcebergPageSourceProvider
                 split.getDataSequenceNumber(),
                 split.getFirstRowId(),
                 tableHandle.getNameMappingJson().map(NameMappingParser::fromJson),
-                tableHandle.getFormatVersion());
+                tableHandle.getFormatVersion(),
+                tableHandle.useSmallReadsPerSplit());
     }
 
     public ConnectorPageSource createPageSource(
@@ -326,7 +329,8 @@ public class IcebergPageSourceProvider
             Long dataSequenceNumber,
             Long firstRowId,
             Optional<NameMapping> nameMapping,
-            int formatVersion)
+            int formatVersion,
+            boolean useSmallReadsPerSplit)
     {
         Map<Integer, Optional<String>> partitionKeys = getPartitionKeys(partitionData, partitionSpec);
         TupleDomain<IcebergColumnHandle> effectivePredicate = getUnenforcedPredicate(
@@ -390,7 +394,8 @@ public class IcebergPageSourceProvider
                 partitionKeys,
                 dataSequenceNumber,
                 firstRowId,
-                formatVersion);
+                formatVersion,
+                useSmallReadsPerSplit);
 
         ConnectorPageSource pageSource = readerPageSourceWithRowPositions.pageSource();
 
@@ -543,7 +548,8 @@ public class IcebergPageSourceProvider
                 ImmutableMap.of(),
                 delete.dataSequenceNumber(),
                 null,
-                formatVersion)
+                formatVersion,
+                false)
                 .pageSource();
     }
 
@@ -651,7 +657,8 @@ public class IcebergPageSourceProvider
             Map<Integer, Optional<String>> partitionKeys,
             Long dataSequenceNumber,
             Long firstRowId,
-            int formatVersion)
+            int formatVersion,
+            boolean useSmallReadsPerSplit)
     {
         return switch (fileFormat) {
             case ORC -> createOrcPageSource(
@@ -688,6 +695,7 @@ public class IcebergPageSourceProvider
                     partitionData,
                     dataColumns,
                     ParquetReaderOptions.builder(parquetReaderOptions)
+                            .withInitialBufferSize(useSmallReadsPerSplit ? DataSize.of(1, MEGABYTE) : parquetReaderOptions.getInitialBufferSize())
                             .withMaxReadBlockSize(getParquetMaxReadBlockSize(session))
                             .withMaxReadBlockRowCount(getParquetMaxReadBlockRowCount(session))
                             .withSmallFileThreshold(getParquetSmallFileThreshold(session))

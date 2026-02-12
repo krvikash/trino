@@ -62,6 +62,7 @@ public class IcebergCacheMetadata
                 icebergTableHandle.getUnenforcedPredicate(),
                 icebergTableHandle.getEnforcedPredicate(),
                 icebergTableHandle.getLimit(),
+                icebergTableHandle.useSmallReadsPerSplit(),
                 icebergTableHandle.getProjectedColumns(),
                 icebergTableHandle.getNameMappingJson(),
                 icebergTableHandle.getTableLocation(),

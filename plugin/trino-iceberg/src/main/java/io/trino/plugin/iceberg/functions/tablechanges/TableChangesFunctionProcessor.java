@@ -135,7 +135,8 @@ public class TableChangesFunctionProcessor
                 null,
                 functionHandle.nameMappingJson().map(NameMappingParser::fromJson),
                 // looks like version doesn't matter for table changes
-                2);
+                2,
+                false);
         this.delegateColumnMap = delegateColumnMap;
 
         this.changeTypeIndex = changeTypeIndex;

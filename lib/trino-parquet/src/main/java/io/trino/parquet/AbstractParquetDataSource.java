@@ -152,7 +152,7 @@ public abstract class AbstractParquetDataSource
         ImmutableListMultimap.Builder<K, DiskRange> smallRangesBuilder = ImmutableListMultimap.builder();
         ImmutableListMultimap.Builder<K, DiskRange> largeRangesBuilder = ImmutableListMultimap.builder();
         for (Map.Entry<K, DiskRange> entry : diskRanges.entries()) {
-            if (entry.getValue().length() <= options.getMaxBufferSize().toBytes()) {
+            if (entry.getValue().length() <= options.getInitialBufferSize().toBytes()) {
                 smallRangesBuilder.put(entry);
             }
             else {
@@ -175,14 +175,18 @@ public abstract class AbstractParquetDataSource
 
     private List<DiskRange> splitLargeRange(DiskRange range)
     {
+        // The read buffer is ramped up from small to max size so that
+        // larger reads are used when larger output is consumed from page source.
         int maxBufferSizeBytes = toIntExact(options.getMaxBufferSize().toBytes());
-        checkArgument(maxBufferSizeBytes > 0, "maxBufferSize must by larger than zero but is %s bytes", maxBufferSizeBytes);
+        int initialBufferSizeBytes = toIntExact(options.getInitialBufferSize().toBytes());
         ImmutableList.Builder<DiskRange> ranges = ImmutableList.builder();
         long endOffset = range.offset() + range.length();
         long offset = range.offset();
-        while (offset + maxBufferSizeBytes < endOffset) {
-            ranges.add(new DiskRange(offset, maxBufferSizeBytes));
-            offset += maxBufferSizeBytes;
+        long currentBufferSize = initialBufferSizeBytes;
+        while (offset + currentBufferSize <= endOffset) {
+            ranges.add(new DiskRange(offset, currentBufferSize));
+            offset += currentBufferSize;
+            currentBufferSize = min(2 * currentBufferSize, maxBufferSizeBytes);
         }
 
         long lengthLeft = endOffset - offset;

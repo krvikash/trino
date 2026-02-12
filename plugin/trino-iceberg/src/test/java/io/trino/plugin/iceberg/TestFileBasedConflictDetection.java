@@ -271,6 +271,7 @@ class TestFileBasedConflictDetection
                 TupleDomain.all(),
                 TupleDomain.all(),
                 OptionalLong.empty(),
+                false,
                 ImmutableSet.of(),
                 Optional.empty(),
                 "dummy_table_location",
