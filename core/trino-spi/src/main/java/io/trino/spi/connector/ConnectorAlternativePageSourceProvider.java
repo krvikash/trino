@@ -27,18 +27,7 @@ public interface ConnectorAlternativePageSourceProvider
             ConnectorTransactionHandle transaction,
             ConnectorSession session,
             List<ColumnHandle> columns,
-            DynamicFilter dynamicFilter,
-            boolean splitAddressEnforced);
-
-    @Deprecated
-    default ConnectorPageSource createPageSource(
-            ConnectorTransactionHandle transaction,
-            ConnectorSession session,
-            List<ColumnHandle> columns,
-            DynamicFilter dynamicFilter)
-    {
-        return createPageSource(transaction, session, columns, dynamicFilter, true);
-    }
+            DynamicFilter dynamicFilter);
 
     /**
      * Closes this page source provider.

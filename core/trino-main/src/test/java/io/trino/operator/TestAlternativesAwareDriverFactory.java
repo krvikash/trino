@@ -73,7 +73,7 @@ public class TestAlternativesAwareDriverFactory
     {
         AtomicInteger currentAlternative = new AtomicInteger(0);
         ConnectorAlternativeChooser connectorAlternativeChooser = (session, split, alternatives) ->
-                new ConnectorAlternativeChooser.Choice(currentAlternative.get(), (transaction, session1, columns, dynamicFilter, splitAddressEnforced) -> {
+                new ConnectorAlternativeChooser.Choice(currentAlternative.get(), (transaction, session1, columns, dynamicFilter) -> {
                     throw new UnsupportedOperationException();
                 });
 

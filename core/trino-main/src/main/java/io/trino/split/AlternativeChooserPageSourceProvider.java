@@ -46,24 +46,17 @@ public class AlternativeChooserPageSourceProvider
     }
 
     @Override
-    public ConnectorPageSource createPageSource(ConnectorTransactionHandle transaction, ConnectorSession session, ConnectorSplit split, ConnectorTableHandle table, List<ColumnHandle> columns, DynamicFilter dynamicFilter)
-    {
-        return createPageSource(transaction, session, split, table, columns, dynamicFilter, true);
-    }
-
-    @Override
     public ConnectorPageSource createPageSource(
             ConnectorTransactionHandle transaction,
             ConnectorSession session,
             ConnectorSplit split,
             ConnectorTableHandle table,
             List<ColumnHandle> columns,
-            DynamicFilter dynamicFilter,
-            boolean splitAddressEnforced)
+            DynamicFilter dynamicFilter)
     {
         ConnectorAlternativeChooser.Choice choice = alternativeChooser.chooseAlternative(session, split, ImmutableList.of(table));
         try (ConnectorAlternativePageSourceProvider provider = choice.pageSourceProvider()) {
-            return provider.createPageSource(transaction, session, columns, dynamicFilter, splitAddressEnforced);
+            return provider.createPageSource(transaction, session, columns, dynamicFilter);
         }
     }
 

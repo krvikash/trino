@@ -20,7 +20,6 @@ import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.MetricsConfig;
 import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.connector.TestingConnectorPageSource;
-import io.trino.plugin.warp.connector.TestingConnectorPageSourceProvider;
 import io.trino.plugin.warp.dispatcher.dal.RowGroupDataDao;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
@@ -52,6 +51,7 @@ import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
+import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
@@ -106,7 +106,7 @@ public class DispatcherPageSourceProviderTest
     private RowGroupKey rowGroupKey;
 
     private DispatcherPageSourceProvider dispatcherPageSourceProvider;
-    private TestingConnectorPageSourceProvider proxiedPageSourceProvider;
+    private ConnectorPageSourceProvider proxiedPageSourceProvider;
     private ConnectorPageSourceProviderFactory connectorPageSourceProviderFactory;
     private DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private QueryClassifier queryClassifier;
@@ -152,7 +152,7 @@ public class DispatcherPageSourceProviderTest
                 dispatcherSplit.getFileModifiedTime(),
                 dispatcherSplit.getDeletedFilesHash());
 
-        proxiedPageSourceProvider = mock(TestingConnectorPageSourceProvider.class);
+        proxiedPageSourceProvider = mock(ConnectorPageSourceProvider.class);
         connectorPageSourceProviderFactory = mock(ConnectorPageSourceProviderFactory.class);
         when(connectorPageSourceProviderFactory.createPageSourceProvider()).thenReturn(proxiedPageSourceProvider);
 
@@ -192,8 +192,7 @@ public class DispatcherPageSourceProviderTest
                 dispatcherSplit,
                 dispatcherTableHandle,
                 columnHandles,
-                dynamicFilter,
-                true)) {
+                dynamicFilter)) {
             assertThat(((DispatcherWrapperPageSource) wrapperPageSource).getConnectorPageSource())
                     .isInstanceOf(TestingConnectorPageSource.class);
         }
@@ -222,8 +221,7 @@ public class DispatcherPageSourceProviderTest
                 dispatcherSplit,
                 dispatcherTableHandle,
                 columnHandles,
-                dynamicFilter,
-                true);
+                dynamicFilter);
         pageSource = ((DispatcherWrapperPageSource) pageSource).getConnectorPageSource();
         assertThat(pageSource).isInstanceOf(TestingConnectorPageSource.class);
     }
@@ -255,8 +253,7 @@ public class DispatcherPageSourceProviderTest
                 dispatcherSplit,
                 dispatcherTableHandle,
                 columnHandles,
-                dynamicFilter,
-                true)) {
+                dynamicFilter)) {
             assertThat(((DispatcherWrapperPageSource) pageSource).getConnectorPageSource())
                     .isInstanceOf(TestingConnectorPageSource.class);
             verify(workerWarmingService, times(1))
@@ -284,8 +281,7 @@ public class DispatcherPageSourceProviderTest
                 dispatcherSplit,
                 dispatcherTableHandle,
                 allColumns,
-                dynamicFilter,
-                true)) {
+                dynamicFilter)) {
             assertThat(((DispatcherWrapperPageSource) pageSource).getConnectorPageSource())
                     .isInstanceOf(DispatcherPageSource.class);
 
@@ -309,8 +305,7 @@ public class DispatcherPageSourceProviderTest
                 dispatcherSplit,
                 dispatcherTableHandle,
                 Collections.emptyList(),
-                DynamicFilter.EMPTY,
-                true);
+                DynamicFilter.EMPTY);
 
         pageSource = ((DispatcherWrapperPageSource) pageSource).getConnectorPageSource();
         assertThat(pageSource).isInstanceOf(PrefilledPageSource.class);
@@ -343,8 +338,7 @@ public class DispatcherPageSourceProviderTest
                 dispatcherSplit,
                 dispatcherTableHandle,
                 columns,
-                new CompletedDynamicFilter(predicate),
-                true);
+                new CompletedDynamicFilter(predicate));
         pageSource = ((DispatcherWrapperPageSource) pageSource).getConnectorPageSource();
         assertThat(pageSource).isInstanceOf(DispatcherPageSource.class);
         assertThat(((DispatcherPageSource) pageSource).getPageSourceDecision())
@@ -389,8 +383,7 @@ public class DispatcherPageSourceProviderTest
                 dispatcherSplit,
                 dispatcherTableHandle,
                 columns,
-                new CompletedDynamicFilter(predicate),
-                true);
+                new CompletedDynamicFilter(predicate));
         pageSource = ((DispatcherWrapperPageSource) pageSource).getConnectorPageSource();
         assertThat(pageSource).isInstanceOf(DispatcherPageSource.class);
         assertThat(((DispatcherPageSource) pageSource).getPageSourceDecision())
@@ -423,8 +416,7 @@ public class DispatcherPageSourceProviderTest
                 dispatcherSplit,
                 dispatcherTableHandle,
                 columns,
-                dynamicFilter,
-                true);
+                dynamicFilter);
 
         pageSource = ((DispatcherWrapperPageSource) pageSource).getConnectorPageSource();
         assertThat(pageSource).isInstanceOf(DispatcherPageSource.class);
@@ -462,8 +454,7 @@ public class DispatcherPageSourceProviderTest
                 dispatcherSplit,
                 dispatcherTableHandle,
                 columns,
-                new CompletedDynamicFilter(predicate),
-                true);
+                new CompletedDynamicFilter(predicate));
 
         pageSource = ((DispatcherWrapperPageSource) pageSource).getConnectorPageSource();
         assertThat(pageSource).isInstanceOf(DispatcherPageSource.class);

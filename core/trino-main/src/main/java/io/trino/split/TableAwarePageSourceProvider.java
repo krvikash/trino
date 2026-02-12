@@ -67,8 +67,7 @@ public class TableAwarePageSourceProvider
                         tableHandle.transaction(),
                         session.toConnectorSession(tableHandle.catalogHandle()),
                         columns,
-                        dynamicFilter,
-                        split.isSplitAddressEnforced()))
+                        dynamicFilter))
                 .orElseGet(() -> pageSourceProvider.createPageSource(session, split, tableHandle, columns, dynamicFilter));
     }
 

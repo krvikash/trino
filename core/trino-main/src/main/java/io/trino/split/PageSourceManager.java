@@ -86,8 +86,7 @@ public class PageSourceManager
                     split.getConnectorSplit(),
                     table.connectorHandle(),
                     columns,
-                    dynamicFilter,
-                    split.isSplitAddressEnforced());
+                    dynamicFilter);
         }
 
         @Override
