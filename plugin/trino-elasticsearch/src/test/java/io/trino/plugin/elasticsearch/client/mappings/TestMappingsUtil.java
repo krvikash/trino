@@ -15,6 +15,7 @@ package io.trino.plugin.elasticsearch.client.mappings;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
+import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -62,6 +63,7 @@ final class TestMappingsUtil
     void testCreateUnionSameMappings()
             throws MergingMappingException
     {
+        @Language("JSON")
         String mappings1 = """
                 {
                   "mappings": {
@@ -74,6 +76,7 @@ final class TestMappingsUtil
                 }
                 """;
 
+        @Language("JSON")
         String mappings2 = """
                 {
                   "mappings": {
@@ -86,6 +89,7 @@ final class TestMappingsUtil
                 }
                 """;
 
+        @Language("JSON")
         String expectedMappings = """
                 {
                   "mappings": {
@@ -105,6 +109,7 @@ final class TestMappingsUtil
     void testCreateUnionLeftHasMoreFields()
             throws MergingMappingException
     {
+        @Language("JSON")
         String mappings1 = """
                 {
                   "mappings": {
@@ -117,6 +122,7 @@ final class TestMappingsUtil
                 }
                 """;
 
+        @Language("JSON")
         String mappings2 = """
                 {
                   "mappings": {
@@ -128,6 +134,7 @@ final class TestMappingsUtil
                 }
                 """;
 
+        @Language("JSON")
         String expectedMappings = """
                 {
                   "mappings": {
@@ -147,6 +154,7 @@ final class TestMappingsUtil
     void testCreateUnionRightHasMoreFields()
             throws MergingMappingException
     {
+        @Language("JSON")
         String mappings1 = """
                 {
                   "mappings": {
@@ -158,6 +166,7 @@ final class TestMappingsUtil
                 }
                 """;
 
+        @Language("JSON")
         String mappings2 = """
                 {
                   "mappings": {
@@ -170,6 +179,7 @@ final class TestMappingsUtil
                 }
                 """;
 
+        @Language("JSON")
         String expectedMappings = """
                 {
                   "mappings": {
@@ -188,6 +198,7 @@ final class TestMappingsUtil
     void testCreateUnionBothHaveMoreFields()
             throws MergingMappingException
     {
+        @Language("JSON")
         String mappings1 = """
                 {
                   "mappings": {
@@ -199,6 +210,7 @@ final class TestMappingsUtil
                 }
                 """;
 
+        @Language("JSON")
         String mappings2 = """
                 {
                   "mappings": {
@@ -210,6 +222,7 @@ final class TestMappingsUtil
                 }
                 """;
 
+        @Language("JSON")
         String expectedMappings = """
                 {
                   "mappings": {
@@ -228,6 +241,7 @@ final class TestMappingsUtil
     void testCreateUnionWhenMissingType()
             throws MergingMappingException
     {
+        @Language("JSON")
         String mappings1 = """
                 {
                   "mappings": {
@@ -238,6 +252,7 @@ final class TestMappingsUtil
                 }
                 """;
 
+        @Language("JSON")
         String mappings2 = """
                 {
                   "mappings": {
@@ -248,6 +263,7 @@ final class TestMappingsUtil
                 }
                 """;
 
+        @Language("JSON")
         String expectedMappings = """
                 {
                   "mappings": {
@@ -264,6 +280,7 @@ final class TestMappingsUtil
     void testCreateUnionWhenMissingTypeForUniqueField()
             throws MergingMappingException
     {
+        @Language("JSON")
         String mappings1 = """
                 {
                   "mappings": {
@@ -274,6 +291,7 @@ final class TestMappingsUtil
                 }
                 """;
 
+        @Language("JSON")
         String mappings2 = """
                 {
                   "mappings": {
@@ -285,6 +303,7 @@ final class TestMappingsUtil
                 }
                 """;
 
+        @Language("JSON")
         String expectedMappings = """
                 {
                   "mappings": {
@@ -303,6 +322,7 @@ final class TestMappingsUtil
     void testCreateUnionBothHaveMoreFieldsInNested()
             throws MergingMappingException
     {
+        @Language("JSON")
         String mappings1 = """
                 {
                   "mappings": {
@@ -320,6 +340,7 @@ final class TestMappingsUtil
                 }
                 """;
 
+        @Language("JSON")
         String mappings2 = """
                 {
                   "mappings": {
@@ -337,6 +358,7 @@ final class TestMappingsUtil
                 }
                 """;
 
+        @Language("JSON")
         String expectedMappings = """
                 {
                   "mappings": {
@@ -361,6 +383,7 @@ final class TestMappingsUtil
     void testShouldCreateConflictTypeWithArrayOfTypeWhenInconsistentMappingForField()
             throws MergingMappingException
     {
+        @Language("JSON")
         String mappings1 = """
                 {
                   "mappings": {
@@ -373,6 +396,7 @@ final class TestMappingsUtil
                 }
                 """;
 
+        @Language("JSON")
         String mappings2 = """
                 {
                   "mappings": {
@@ -385,6 +409,7 @@ final class TestMappingsUtil
                 }
                 """;
 
+        @Language("JSON")
         String expectedMappings = """
                 {
                   "mappings": {
@@ -409,6 +434,7 @@ final class TestMappingsUtil
     void testShouldCreateArrayOfTypesWhenInconsistentMappingForFieldAndSubfield()
             throws MergingMappingException
     {
+        @Language("JSON")
         String mappings1 = """
                 {
                   "mappings": {
@@ -427,6 +453,7 @@ final class TestMappingsUtil
                 }
                 """;
 
+        @Language("JSON")
         String mappings2 = """
                 {
                   "mappings": {
@@ -445,6 +472,7 @@ final class TestMappingsUtil
                 }
                 """;
 
+        @Language("JSON")
         String expectedMappings = """
                 {
                   "mappings": {
@@ -474,6 +502,7 @@ final class TestMappingsUtil
     @Test
     void testShouldNotCreateArrayOfTypesForPropertyNameOtherThanType()
     {
+        @Language("JSON")
         String mappings1 = """
                 {
                   "mappings": {
@@ -486,6 +515,7 @@ final class TestMappingsUtil
                 }
                 """;
 
+        @Language("JSON")
         String mappings2 = """
                 {
                   "mappings": {
@@ -505,6 +535,7 @@ final class TestMappingsUtil
     @Test
     void testShouldComplainOnNotCompatibleFields()
     {
+        @Language("JSON")
         String mappings1 = """
                 {
                   "mappings": {
@@ -517,6 +548,7 @@ final class TestMappingsUtil
                 }
                 """;
 
+        @Language("JSON")
         String mappings2 = """
                 {
                   "mappings": {
