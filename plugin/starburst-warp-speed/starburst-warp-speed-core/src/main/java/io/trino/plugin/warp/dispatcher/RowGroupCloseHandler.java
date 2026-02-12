@@ -16,21 +16,18 @@ package io.trino.plugin.warp.dispatcher;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.log.ShapingLogger;
-import org.apache.commons.lang3.function.TriConsumer;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class RowGroupCloseHandler
-        implements TriConsumer<RowGroupData, String, ShapingLogger>
 {
     private static final io.airlift.log.Logger logger = Logger.get(RowGroupCloseHandler.class);
 
     private final AtomicBoolean handled = new AtomicBoolean();
     private final List<String> callers = new ArrayList<>();
 
-    @Override
     public void accept(RowGroupData rowGroupData, String caller, ShapingLogger shapingLogger)
     {
         if (!handled.getAndSet(true)) {
