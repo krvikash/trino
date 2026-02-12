@@ -100,6 +100,7 @@ public class DataServerMainModule
         binder.bind(DataServerStats.class).in(SINGLETON);
         newExporter(binder).export(DataServerStats.class).withGeneratedName();
         binder.bind(AddDataPagesThrottlingCalculator.class).in(SINGLETON);
+        binder.bind(AddDataPagesInProgressTracker.class).in(SINGLETON);
         binder.bind(BufferNodeStateManager.class).in(SINGLETON);
         binder.bind(DataServerStatusProvider.class).in(SINGLETON);
         binder.bind(DrainService.class).in(SINGLETON);

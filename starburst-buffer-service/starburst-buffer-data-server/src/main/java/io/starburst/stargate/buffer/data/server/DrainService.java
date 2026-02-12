@@ -36,19 +36,19 @@ public class DrainService
 
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(daemonThreadsNamed("data-server-drain-service"));
     private final BufferNodeStateManager bufferNodeStateManager;
-    private final DataResource dataResource;
+    private final AddDataPagesInProgressTracker inProgressTracker;
     private final ChunkManager chunkManager;
     private final Optional<DiscoveryBroadcast> discoveryBroadcast;
 
     @Inject
     public DrainService(
             BufferNodeStateManager bufferNodeStateManager,
-            DataResource dataResource,
+            AddDataPagesInProgressTracker inProgressTracker,
             ChunkManager chunkManager,
             Optional<DiscoveryBroadcast> discoveryBroadcast)
     {
         this.bufferNodeStateManager = requireNonNull(bufferNodeStateManager, "bufferNodeStateManager is null");
-        this.dataResource = requireNonNull(dataResource, "dataResource is null");
+        this.inProgressTracker = requireNonNull(inProgressTracker, "inProgressTracker is null");
         this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
         this.discoveryBroadcast = requireNonNull(discoveryBroadcast, "discoveryBroadcast is null");
     }
@@ -90,7 +90,7 @@ public class DrainService
     {
         long waitStart = System.currentTimeMillis();
         while (true) {
-            int inProgressAddDataPagesRequests = dataResource.getInProgressAddDataPagesRequests();
+            int inProgressAddDataPagesRequests = inProgressTracker.getInProgressAddDataPagesRequests();
             if (inProgressAddDataPagesRequests == 0) {
                 log.info("No more remaining in flight addData requests");
                 break;

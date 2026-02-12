@@ -42,6 +42,7 @@ import io.starburst.stargate.buffer.data.execution.ChunkDataResult;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.SliceLease;
+import io.starburst.stargate.buffer.data.server.AddDataPagesInProgressTracker.InProgressLatch;
 import jakarta.annotation.Nullable;
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.ReadListener;
@@ -83,7 +84,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
@@ -147,11 +147,9 @@ public class DataResource
     private final DistributionStat readDataSizeDistribution;
     private final BufferNodeInfoService bufferNodeInfoService;
     private final AddDataPagesThrottlingCalculator addDataPagesThrottlingCalculator;
+    private final AddDataPagesInProgressTracker inProgressTracker;
     private final JsonCodec<Span> spanJsonCodec;
     private final int maxInProgressAddDataPagesRequests;
-
-    // tracks addDataPages requests for which HTTP response may have already been returned (e.g. due to timeout) but we still need to finish processing incoming data
-    private final AtomicInteger inProgressAddDataPagesRequests = new AtomicInteger();
 
     @Inject
     public DataResource(
@@ -166,6 +164,7 @@ public class DataResource
             ScheduledExecutorService timeoutExecutor,
             BufferNodeInfoService bufferNodeInfoService,
             AddDataPagesThrottlingCalculator addDataPagesThrottlingCalculator,
+            AddDataPagesInProgressTracker inProgressTracker,
             JsonCodec<Span> spanJsonCodec)
     {
         this.bufferNodeId = requireNonNull(bufferNodeId, "bufferNodeId is null").getLongValue();
@@ -179,6 +178,7 @@ public class DataResource
         this.timeoutExecutor = requireNonNull(timeoutExecutor, "timeoutExecutor is null");
         this.bufferNodeInfoService = requireNonNull(bufferNodeInfoService, "bufferNodeInfoService is null");
         this.addDataPagesThrottlingCalculator = requireNonNull(addDataPagesThrottlingCalculator, "addDataPagesThrottlingCalculator is null");
+        this.inProgressTracker = requireNonNull(inProgressTracker, "inProgressTracker is null");
         this.spanJsonCodec = requireNonNull(spanJsonCodec, "spanJsonCodec is null");
         this.maxInProgressAddDataPagesRequests = config.getMaxInProgressAddDataPagesRequests();
 
@@ -331,18 +331,18 @@ public class DataResource
             return;
         }
 
-        InProgressLatch inProgressLatch = incrementInProgressAddDataPagesRequests();
+        InProgressLatch inProgressLatch = inProgressTracker.incrementAndGetLatch();
 
         try {
             if (bufferNodeStateManager.isDrainingStarted()) {
-                inProgressLatch.decrement();
+                inProgressLatch.release();
                 logger.debug("rejecting POST /%s/addDataPages/%s/%s/%s; node already DRAINING", exchangeId, taskId, attemptId, dataPagesId);
                 consumeRequestAndCompleteAsyncResponse(clientId, asyncResponse, inputStream, processingStart, Optional.of(new DataServerException(DRAINING, "Node %d is draining and not accepting any more data".formatted(bufferNodeId))));
                 return;
             }
 
             if (inProgressLatch.currentRequestsCount() > maxInProgressAddDataPagesRequests) {
-                inProgressLatch.decrement();
+                inProgressLatch.release();
                 stats.getOverloadedAddDataPagesCount().update(1);
                 addDataPagesThrottlingCalculator.recordThrottlingEvent();
                 logger.debug("rejecting POST /%s/addDataPages/%s/%s/%s; exceeded maximum in progress addDataPages requests (%s > %s)",
@@ -358,7 +358,7 @@ public class DataResource
         }
         catch (Throwable e) {
             // ensure we are not loosing counter
-            inProgressLatch.decrement();
+            inProgressLatch.release();
             throw e;
         }
 
@@ -368,7 +368,7 @@ public class DataResource
             timeoutExecutor.schedule(sliceLease::cancel, asyncTimeout, MILLISECONDS);
         }
         catch (Throwable e) {
-            inProgressLatch.decrement();
+            inProgressLatch.release();
             throw e;
         }
 
@@ -407,7 +407,7 @@ public class DataResource
                 sliceLease.release();
             }
             finally {
-                inProgressLatch.decrement();
+                inProgressLatch.release();
             }
             throw e;
         }
@@ -557,7 +557,7 @@ public class DataResource
                                         @Override
                                         public void onSuccess(List<Void> value)
                                         {
-                                            OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(clientId, inProgressAddDataPagesRequests.get());
+                                            OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(clientId, inProgressTracker.getInProgressAddDataPagesRequests());
                                             Response response = rateLimit.isPresent() ? okResponse(Map.of(
                                                     RATE_LIMIT_HEADER, Double.toString(rateLimit.getAsDouble()),
                                                     AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER, Long.toString(addDataPagesThrottlingCalculator.getAverageProcessTimeInMillis())))
@@ -638,7 +638,7 @@ public class DataResource
                                         sliceLease.release();
                                     }
                                     finally {
-                                        inProgressLatch.decrement();
+                                        inProgressLatch.release();
                                         recordAddDataPagesRequest(processingStart, clientId);
 
                                         // break reference chain from Jetty's HttpInput (implementation of ServletInputStream) to registered ReadListener.
@@ -658,7 +658,7 @@ public class DataResource
                     executor);
         }
         catch (Throwable e) {
-            inProgressLatch.decrement();
+            inProgressLatch.release();
             throw e;
         }
     }
@@ -687,37 +687,6 @@ public class DataResource
             clientId = request.getRemoteHost();
         }
         return clientId;
-    }
-
-    private InProgressLatch incrementInProgressAddDataPagesRequests()
-    {
-        int currentRequestsCount = inProgressAddDataPagesRequests.incrementAndGet();
-        stats.updateInProgressAddDataPagesRequests(currentRequestsCount);
-        return new InProgressLatch(currentRequestsCount);
-    }
-
-    private class InProgressLatch
-    {
-        private final long currentRequestsCount;
-        private final AtomicBoolean decremented = new AtomicBoolean(false);
-
-        public InProgressLatch(int currentRequestsCount)
-        {
-            this.currentRequestsCount = currentRequestsCount;
-        }
-
-        public void decrement()
-        {
-            if (decremented.compareAndSet(false, true)) {
-                int currentRequestsCount = inProgressAddDataPagesRequests.decrementAndGet();
-                stats.updateInProgressAddDataPagesRequests(currentRequestsCount);
-            }
-        }
-
-        public long currentRequestsCount()
-        {
-            return currentRequestsCount;
-        }
     }
 
     Duration getAsyncTimeout(@Nullable Duration clientMaxWait)
@@ -958,11 +927,6 @@ public class DataResource
         }
     }
 
-    public int getInProgressAddDataPagesRequests()
-    {
-        return inProgressAddDataPagesRequests.get();
-    }
-
     private void checkTargetBufferNodeId(@Nullable Long targetBufferNodeId)
     {
         if (targetBufferNodeId == null) {
@@ -975,7 +939,7 @@ public class DataResource
 
     private Map<String, String> getRateLimitHeaders(String clientId)
     {
-        OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(clientId, inProgressAddDataPagesRequests.get());
+        OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(clientId, inProgressTracker.getInProgressAddDataPagesRequests());
         if (rateLimit.isPresent()) {
             return ImmutableMap.of(
                     RATE_LIMIT_HEADER, Double.toString(rateLimit.getAsDouble()),
