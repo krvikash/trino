@@ -11,6 +11,8 @@ package com.starburstdata.trino.plugin.synapse;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import io.airlift.log.Logger;
 import io.trino.testing.sql.SqlExecutor;
 
@@ -18,6 +20,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.function.Function;
 
@@ -38,6 +41,18 @@ public class SynapseServer
 
     static final String JDBC_URL = "jdbc:sqlserver://" + ENDPOINT + ":" + PORT + ";database=" + DATABASE;
 
+    private static final RetryPolicy<Object> INIT_CONNECTION_RETRY_POLICY = RetryPolicy.builder()
+            .handleIf(e ->
+                    e.getMessage() != null &&
+                            e.getMessage().contains("Failed to initialize pool: The connection is closed"))
+            .withBackoff(Duration.ofSeconds(10), Duration.ofMinutes(5), 1.5)
+            .withJitter(0.25)
+            .withMaxRetries(5)
+            .onRetry(event -> LOG.warn("Retrying SynapseServer initialization (attempt %d) due to: %s",
+                    event.getAttemptCount(),
+                    event.getLastException().getMessage()))
+            .build();
+
     private final HikariDataSource dataSource;
 
     public SynapseServer()
@@ -49,7 +64,7 @@ public class SynapseServer
         hikariConfig.setRegisterMbeans(false);
         hikariConfig.setMaxLifetime(MINUTES.toMillis(1));
 
-        this.dataSource = new HikariDataSource(hikariConfig);
+        this.dataSource = Failsafe.with(INIT_CONNECTION_RETRY_POLICY).get(() -> new HikariDataSource(hikariConfig));
     }
 
     public SqlExecutor getSqlExecutor()
