@@ -1105,6 +1105,12 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
+    public Optional<ConnectorTableHandle> applyPartialLimit(ConnectorSession session, ConnectorTableHandle handle, long limitHint)
+    {
+        return delegate.applyPartialLimit(session, handle, limitHint);
+    }
+
+    @Override
     public WriterScalingOptions getInsertWriterScalingOptions(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         return delegate.getInsertWriterScalingOptions(session, getDelegate(tableHandle));

@@ -1686,6 +1686,15 @@ public class TracingMetadata
     }
 
     @Override
+    public Optional<TableHandle> applyPartialLimit(Session session, TableHandle tableHandle, long limitHint)
+    {
+        Span span = startSpan("applyPartialLimit", tableHandle);
+        try (var _ = scopedSpan(span)) {
+            return delegate.applyPartialLimit(session, tableHandle, limitHint);
+        }
+    }
+
+    @Override
     public void setEntityAuthorization(Session session, EntityKindAndName entityKindAndName, TrinoPrincipal principal)
     {
         Span span = startSpan("setEntityAuthorization", entityKindAndName.name().stream().collect(Collectors.joining(".")));

@@ -1139,6 +1139,12 @@ public abstract class AbstractMockMetadata
     }
 
     @Override
+    public Optional<TableHandle> applyPartialLimit(Session session, TableHandle tableHandle, long limitHint)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void setEntityAuthorization(Session session, EntityKindAndName entityKindAndName, TrinoPrincipal principal)
     {
         throw new UnsupportedOperationException();

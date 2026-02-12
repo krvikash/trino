@@ -1382,4 +1382,12 @@ public class ClassLoaderSafeConnectorMetadata
             return delegate.getInsertWriterScalingOptions(session, tableHandle);
         }
     }
+
+    @Override
+    public Optional<ConnectorTableHandle> applyPartialLimit(ConnectorSession session, ConnectorTableHandle handle, long limitHint)
+    {
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
+            return delegate.applyPartialLimit(session, handle, limitHint);
+        }
+    }
 }

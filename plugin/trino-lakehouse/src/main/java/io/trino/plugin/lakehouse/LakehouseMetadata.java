@@ -980,6 +980,12 @@ public class LakehouseMetadata
         return forHandle(tableHandle).getInsertWriterScalingOptions(session, tableHandle);
     }
 
+    @Override
+    public Optional<ConnectorTableHandle> applyPartialLimit(ConnectorSession session, ConnectorTableHandle tableHandle, long limitHint)
+    {
+        return forHandle(tableHandle).applyPartialLimit(session, tableHandle, limitHint);
+    }
+
     private ConnectorMetadata forHandle(ConnectorTableHandle handle)
     {
         return switch (handle) {

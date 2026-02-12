@@ -420,6 +420,13 @@ public class DispatcherMetadata
     }
 
     @Override
+    public Optional<ConnectorTableHandle> applyPartialLimit(ConnectorSession session, ConnectorTableHandle tableHandle, long limitHint)
+    {
+        DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) tableHandle;
+        return proxiedConnectorMetadata.applyPartialLimit(session, dispatcherTableHandle.getProxyConnectorTableHandle(), limitHint);
+    }
+
+    @Override
     public void setTableAuthorization(ConnectorSession session, SchemaTableName tableName, TrinoPrincipal principal)
     {
         proxiedConnectorMetadata.setTableAuthorization(session, tableName, principal);

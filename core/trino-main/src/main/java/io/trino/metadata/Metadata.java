@@ -920,6 +920,17 @@ public interface Metadata
      */
     WriterScalingOptions getInsertWriterScalingOptions(Session session, TableHandle tableHandle);
 
+    /**
+     * This method is used by the engine to provide a hint to the connector that the scan output maybe limited to a certain number of rows.
+     * The connector is not required to apply the limit hint, and the connector should still produce the full scan output from the page source when the engine requests it.
+     * This can be used when there is a PartialLimitN above the table scan, where the output read from the connector page source is likely to be small, but a limit is not guaranteed.
+     * Connectors can choose to apply the limit hint to the table handle to optimize query execution.
+     * For example, lake connectors can use this to reduce their read buffers from storage and avoid over-reading data when only a small number of rows are likely to be consumed from the page source.
+     *
+     * @return new table handle with the limit hint applied, or empty if the limit hint was not applied
+     */
+    Optional<TableHandle> applyPartialLimit(Session session, TableHandle tableHandle, long limitHint);
+
     void setEntityAuthorization(Session session, EntityKindAndName entityKindAndName, TrinoPrincipal principal);
 
     /**

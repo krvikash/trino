@@ -1649,6 +1649,13 @@ public class ObjectStoreMetadata
     }
 
     @Override
+    public Optional<ConnectorTableHandle> applyPartialLimit(ConnectorSession session, ConnectorTableHandle tableHandle, long limitHint)
+    {
+        TableType tableType = tableType(tableHandle);
+        return delegate(tableType).applyPartialLimit(unwrap(tableType, session), tableHandle, limitHint);
+    }
+
+    @Override
     public Optional<UnificationResult<ConnectorTableHandle>> unifyTables(ConnectorSession session, ConnectorTableHandle first, ConnectorTableHandle second)
     {
         TableType firstTableType = tableType(first);

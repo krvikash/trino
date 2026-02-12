@@ -3063,6 +3063,17 @@ public final class MetadataManager
     }
 
     @Override
+    public Optional<TableHandle> applyPartialLimit(Session session, TableHandle tableHandle, long limitHint)
+    {
+        CatalogHandle catalogHandle = tableHandle.catalogHandle();
+        ConnectorMetadata metadata = getMetadata(session, catalogHandle);
+
+        ConnectorSession connectorSession = session.toConnectorSession(catalogHandle);
+        return metadata.applyPartialLimit(connectorSession, tableHandle.connectorHandle(), limitHint)
+                .map(newHandle -> new TableHandle(catalogHandle, newHandle, tableHandle.transaction()));
+    }
+
+    @Override
     public void setEntityAuthorization(Session session, EntityKindAndName entityKindAndName, TrinoPrincipal principal)
     {
         String ownedKind = entityKindAndName.entityKind();
