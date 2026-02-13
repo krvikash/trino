@@ -37,6 +37,8 @@ import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.plugin.hive.parquet.ParquetWriterConfig;
 import io.trino.plugin.hive.util.SortTempFileFactory;
 import io.trino.plugin.iceberg.cache.IcebergCacheKeyProvider;
+import io.trino.plugin.iceberg.catalog.MetastoreCacheInvalidator;
+import io.trino.plugin.iceberg.catalog.NoopMetastoreCacheInvalidator;
 import io.trino.plugin.iceberg.fileio.ForwardingFileIoFactory;
 import io.trino.plugin.iceberg.functions.IcebergFunctionProvider;
 import io.trino.plugin.iceberg.functions.tablechanges.TableChangesFunctionProcessorProviderFactory;
@@ -45,6 +47,7 @@ import io.trino.plugin.iceberg.procedure.AddFilesTableFromTableProcedure;
 import io.trino.plugin.iceberg.procedure.AddFilesTableProcedure;
 import io.trino.plugin.iceberg.procedure.DropExtendedStatsTableProcedure;
 import io.trino.plugin.iceberg.procedure.ExpireSnapshotsTableProcedure;
+import io.trino.plugin.iceberg.procedure.FlushMetadataCacheProcedure;
 import io.trino.plugin.iceberg.procedure.IcebergGenerateEmbeddingsProcedure;
 import io.trino.plugin.iceberg.procedure.OptimizeManifestsTableProcedure;
 import io.trino.plugin.iceberg.procedure.OptimizeTableProcedure;
@@ -138,6 +141,11 @@ public class IcebergModule
         procedures.addBinding().toProvider(RollbackToSnapshotProcedure.class).in(Scopes.SINGLETON);
         procedures.addBinding().toProvider(RegisterTableProcedure.class).in(Scopes.SINGLETON);
         procedures.addBinding().toProvider(UnregisterTableProcedure.class).in(Scopes.SINGLETON);
+        procedures.addBinding().toProvider(FlushMetadataCacheProcedure.class).in(Scopes.SINGLETON);
+
+        newOptionalBinder(binder, MetastoreCacheInvalidator.class)
+                .setDefault()
+                .toInstance(NoopMetastoreCacheInvalidator.INSTANCE);
 
         Multibinder<TableProcedureMetadata> tableProcedures = newSetBinder(binder, TableProcedureMetadata.class);
         tableProcedures.addBinding().toProvider(OptimizeTableProcedure.class).in(Scopes.SINGLETON);

@@ -240,6 +240,7 @@ public final class FeatureExposures
                 .put(HIVE, "drop_stats", EXPOSED) // TODO similar to drop_extended_stats exposed by Delta
                 .put(DELTA, "drop_extended_stats", EXPOSED) // TODO similar to drop_stats exposed by hive and similar to DROP_EXTENDED_STATS *table procedure* exposed by Iceberg
                 .put(HIVE, "flush_metadata_cache", INACCESSIBLE) // see ObjectStoreFlushMetadataCache
+                .put(ICEBERG, "flush_metadata_cache", INACCESSIBLE) // see ObjectStoreFlushMetadataCache
                 .put(DELTA, "flush_metadata_cache", INACCESSIBLE) // see ObjectStoreFlushMetadataCache
                 .put(ICEBERG, "migrate", INACCESSIBLE) // supported via ALTER TABLE SET PROPERTIES syntax
                 .put(HIVE, "register_partition", EXPOSED)

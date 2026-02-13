@@ -68,6 +68,7 @@ public final class ObjectStoreFlushMetadataCache
     }
 
     private final Procedure hiveFlushMetadata;
+    private final Procedure icebergFlushMetadata;
     private final Procedure deltaFlushMetadata;
 
     @Inject
@@ -81,11 +82,9 @@ public final class ObjectStoreFlushMetadataCache
                 .filter(procedure -> procedure.getName().equals(PROCEDURE_NAME))
                 .collect(onlyElement());
 
-        verify(
-                icebergConnector.getProcedures().stream()
-                        .noneMatch(procedure -> procedure.getName().equals(PROCEDURE_NAME)),
-                "Unexpected %s procedure in Iceberg",
-                PROCEDURE_NAME);
+        this.icebergFlushMetadata = icebergConnector.getProcedures().stream()
+                .filter(procedure -> procedure.getName().equals(PROCEDURE_NAME))
+                .collect(onlyElement());
 
         this.deltaFlushMetadata = deltaConnector.getProcedures().stream()
                 .filter(procedure -> procedure.getName().equals(PROCEDURE_NAME))
@@ -110,7 +109,7 @@ public final class ObjectStoreFlushMetadataCache
 
         Map<String, Procedure.Argument> argumentsByName = uniqueIndex(arguments, Procedure.Argument::getName);
 
-        for (Procedure delegate : List.of(hiveFlushMetadata, deltaFlushMetadata)) {
+        for (Procedure delegate : List.of(hiveFlushMetadata, icebergFlushMetadata, deltaFlushMetadata)) {
             for (Procedure.Argument delegateArgument : delegate.getArguments()) {
                 Procedure.Argument actual = argumentsByName.get(delegateArgument.getName());
                 checkState(actual != null, "Argument not exposed: %s", delegateArgument.getName());
@@ -140,6 +139,7 @@ public final class ObjectStoreFlushMetadataCache
             @Nullable List<String> partitionValues)
     {
         try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(getClass().getClassLoader())) {
+            icebergFlushMetadata.getMethodHandle().invoke(session, schemaName, tableName);
             // hiveFlushMetadata needs to be invoked regardless of table type, since it flushes also table listings
             hiveFlushMetadata.getMethodHandle().invoke(session, schemaName, tableName, partitionColumns, partitionValues);
             try {

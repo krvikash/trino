@@ -17,10 +17,13 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.plugin.hive.metastore.thrift.ThriftMetastoreModule;
+import io.trino.plugin.iceberg.catalog.IcebergHiveMetastoreCacheInvalidator;
 import io.trino.plugin.iceberg.catalog.IcebergHiveMetastoreModule;
 import io.trino.plugin.iceberg.catalog.IcebergTableOperationsProvider;
+import io.trino.plugin.iceberg.catalog.MetastoreCacheInvalidator;
 import io.trino.plugin.iceberg.catalog.TrinoCatalogFactory;
 
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 
 public class IcebergHiveMetastoreCatalogModule
@@ -35,5 +38,10 @@ public class IcebergHiveMetastoreCatalogModule
 
         install(new IcebergHiveMetastoreModule());
         install(new ThriftMetastoreModule());
+
+        newOptionalBinder(binder, MetastoreCacheInvalidator.class)
+                .setBinding()
+                .to(IcebergHiveMetastoreCacheInvalidator.class)
+                .in(Scopes.SINGLETON);
     }
 }
