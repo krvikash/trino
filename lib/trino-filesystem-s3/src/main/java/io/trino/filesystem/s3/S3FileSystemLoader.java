@@ -229,7 +229,7 @@ public final class S3FileSystemLoader
                 .addExecutionInterceptor(AwsSdkTelemetry.builder(openTelemetry)
                         .setCaptureExperimentalSpanAttributes(true)
                         .setRecordIndividualHttpError(true)
-                        .build().newExecutionInterceptor())
+                        .build().createExecutionInterceptor())
                 .retryStrategy(getRetryStrategy(config.getRetryMode()).toBuilder()
                         .maxAttempts(config.getMaxErrorRetries())
                         .build())
