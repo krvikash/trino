@@ -224,7 +224,7 @@
         <extraJavaVectorArgs>--add-modules=jdk.incubator.vector</extraJavaVectorArgs>
 
         <dep.databricks.jdbc.version>2.7.1</dep.databricks.jdbc.version>
-        <dep.databricks.version>0.71.0</dep.databricks.version>
+        <dep.databricks.version>0.88.0</dep.databricks.version>
         <dep.sap-hana-jdbc.version>2.26.12</dep.sap-hana-jdbc.version>
 
         <!-- released from https://github.com/starburstdata/starburst-dataframe -->
