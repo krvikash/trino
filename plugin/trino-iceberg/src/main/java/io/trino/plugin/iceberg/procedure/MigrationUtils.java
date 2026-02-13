@@ -14,6 +14,7 @@
 package io.trino.plugin.iceberg.procedure;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.log.Logger;
@@ -25,6 +26,7 @@ import io.trino.filesystem.TrinoInputFile;
 import io.trino.metastore.HiveMetastore;
 import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.Partition;
+import io.trino.metastore.Partitions;
 import io.trino.metastore.Storage;
 import io.trino.parquet.ParquetDataSource;
 import io.trino.parquet.ParquetReaderOptions;
@@ -46,6 +48,8 @@ import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.Metrics;
 import org.apache.iceberg.MetricsConfig;
+import org.apache.iceberg.PartitionData;
+import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.StructLike;
@@ -55,6 +59,7 @@ import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.mapping.MappingUtil;
 import org.apache.iceberg.mapping.NameMapping;
+import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Types;
 
 import java.io.IOException;
@@ -64,12 +69,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static io.trino.plugin.base.util.Procedures.checkProcedureArgument;
 import static io.trino.plugin.hive.HiveMetadata.extractHiveStorageFormat;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_COMMIT_ERROR;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isMergeManifestsOnWrite;
@@ -175,10 +180,8 @@ public final class MigrationUtils
         Table table = catalog.loadTable(session, targetName);
         PartitionSpec partitionSpec = table.spec();
 
-        checkProcedureArgument(partitionSpec.isUnpartitioned(), "The procedure does not support partitioned tables");
-
         try {
-            List<DataFile> dataFiles = buildDataFilesFromLocation(fileSystem, recursiveDirectory, format, location, partitionSpec, Optional.empty(), table.schema());
+            List<DataFile> dataFiles = buildDataFilesFromLocation(fileSystem, recursiveDirectory, format, location, partitionSpec, table.schema());
             addFiles(session, table, dataFiles, icebergScanExecutor);
         }
         catch (Exception e) {
@@ -192,17 +195,18 @@ public final class MigrationUtils
             HiveStorageFormat format,
             String location,
             PartitionSpec partitionSpec,
-            Optional<StructLike> partition,
             Schema schema)
             throws IOException
     {
         if (fileSystem.directoryExists(Location.of(location)).orElse(false)) {
+            Optional<StructLike> partition = inferPartition(true, location, partitionSpec);
             return MigrationUtils.buildDataFiles(fileSystem, recursive, format, location, partitionSpec, partition, schema);
         }
 
         TrinoInputFile file = fileSystem.newInputFile(Location.of(location));
         if (file.exists()) {
             Metrics metrics = loadMetrics(file, format, schema);
+            Optional<StructLike> partition = inferPartition(false, location, partitionSpec);
             return ImmutableList.of(buildDataFile(file.location().toString(), file.length(), partition, partitionSpec, format.name(), metrics));
         }
 
@@ -329,5 +333,48 @@ public final class MigrationUtils
         catch (Exception e) {
             throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to add files: " + firstNonNull(e.getMessage(), e), e);
         }
+    }
+
+    private static Optional<StructLike> inferPartition(boolean isDirectory, String location, PartitionSpec partitionSpec)
+    {
+        if (partitionSpec.isUnpartitioned()) {
+            return Optional.empty();
+        }
+
+        // Remove empty segments to handle trailing slashes in directory locations
+        List<String> segments = Splitter.on('/').omitEmptyStrings().splitToList(location);
+
+        int partitionSize = partitionSpec.fields().size();
+        int partitionEndIndexExclusive = segments.size() - (isDirectory ? 0 : 1);
+        int partitionStartIndex = partitionEndIndexExclusive - partitionSize;
+        if (partitionStartIndex < 0) {
+            throw new TrinoException(NOT_SUPPORTED, "Invalid partition location: " + location);
+        }
+
+        for (int i = 0; i < partitionEndIndexExclusive; i++) {
+            if ((i < partitionStartIndex && segments.get(i).contains("=")) || (i >= partitionStartIndex && !segments.get(i).contains("="))) {
+                String expectedPartitionPath = PARTITION_JOINER.join(partitionSpec.fields().stream().collect(Collectors.toMap(PartitionField::name, _ -> "value")));
+                throw new TrinoException(
+                        NOT_SUPPORTED,
+                        "Invalid partition location, expected path with partitions defined as '%s': %s".formatted(expectedPartitionPath, location));
+            }
+        }
+
+        PartitionData partitionData = new PartitionData(partitionSpec.partitionType());
+        for (int i = 0; i < partitionSize; i++) {
+            String partitionSegment = segments.get(partitionStartIndex + i);
+            int splitIndex = partitionSegment.indexOf('=');
+            String partitionKey = Partitions.unescapePathName(partitionSegment.substring(0, splitIndex));
+
+            String fieldName = partitionSpec.fields().get(i).name();
+            if (!partitionKey.equals(fieldName)) {
+                throw new TrinoException(NOT_SUPPORTED, "Invalid partition location, expected partition key '%s' but was '%s': %s".formatted(fieldName, partitionKey, location));
+            }
+
+            String partitionValue = Partitions.unescapePathName(partitionSegment.substring(splitIndex + 1));
+            partitionData.set(i, Conversions.fromPartitionString(partitionData.getType(i), partitionValue));
+        }
+
+        return Optional.of(partitionData);
     }
 }

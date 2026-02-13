@@ -34,6 +34,9 @@ import static com.google.common.base.Verify.verify;
 import static io.trino.plugin.iceberg.IcebergQueryRunner.ICEBERG_CATALOG;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TestingSession.testSessionBuilder;
+import static java.net.URLEncoder.encode;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
@@ -537,23 +540,291 @@ final class TestIcebergAddFilesProcedure
     }
 
     @Test
-    void testAddFilesToPartitionTableWithLocation()
+    void testAddFilesFromNonPartitionTableToPartitionTable()
     {
-        String hiveTableName = "test_add_files_location_" + randomNameSuffix();
-        String icebergTableName = "test_add_files_location_" + randomNameSuffix();
+        String hiveTableName = "hive.tpch.test_add_files_location_" + randomNameSuffix();
+        String icebergTableName = "iceberg.tpch.test_add_files_location_" + randomNameSuffix();
 
-        assertUpdate("CREATE TABLE iceberg.tpch." + icebergTableName + " WITH (partitioning = ARRAY['part']) AS SELECT 1 x, 'test' part", 1);
-        assertUpdate("CREATE TABLE hive.tpch." + hiveTableName + " AS SELECT 2 x", 1);
+        assertUpdate("CREATE TABLE " + icebergTableName + " WITH (partitioning = ARRAY['part']) AS SELECT 1 x, 'test' part", 1);
+        assertUpdate("CREATE TABLE " + hiveTableName + " AS SELECT 2 x", 1);
 
-        String path = (String) computeScalar("SELECT \"$path\" FROM hive.tpch." + hiveTableName);
+        String path = (String) computeScalar("SELECT \"$path\" FROM " + hiveTableName);
         String directory = Location.of(path).parentDirectory().toString();
 
         assertQueryFails(
                 "ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + directory + "', 'ORC')",
-                ".*The procedure does not support partitioned tables");
+                "Failed to add files: Invalid partition location, expected path with partitions defined as 'part=value':.*");
 
-        assertUpdate("DROP TABLE hive.tpch." + hiveTableName);
-        assertUpdate("DROP TABLE iceberg.tpch." + icebergTableName);
+        assertUpdate("DROP TABLE " + hiveTableName);
+        assertUpdate("DROP TABLE " + icebergTableName);
+    }
+
+    @Test
+    void testAddFilesFromPartitionTableToDifferentPartitionTable()
+    {
+        String hiveTableName = "hive.tpch.test_add_files_location_" + randomNameSuffix();
+        String icebergTableName = "iceberg.tpch.test_add_files_location_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + icebergTableName + " WITH (partitioning = ARRAY['part']) AS SELECT 1 x, 'test' part", 1);
+        assertUpdate("CREATE TABLE " + hiveTableName + " WITH (partitioned_by = ARRAY['part1', 'part2']) AS SELECT 2 x, 'test1' part1, 'test2' part2", 1);
+
+        String path = (String) computeScalar("SELECT \"$path\" FROM " + hiveTableName);
+        String directory = Location.of(path).parentDirectory().toString();
+
+        assertQueryFails(
+                "ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + directory + "', 'ORC')",
+                "Failed to add files: Invalid partition.*");
+
+        assertUpdate("DROP TABLE " + hiveTableName);
+        assertUpdate("DROP TABLE " + icebergTableName);
+    }
+
+    @Test
+    void testAddFilesFromPartitionTableToPartitionTable()
+    {
+        for (String format : List.of("ORC", "PARQUET", "AVRO")) {
+            String hiveTableName = "hive.tpch.test_add_files_location_" + randomNameSuffix();
+            String icebergTableName = "iceberg.tpch.test_add_files_location_" + randomNameSuffix();
+
+            assertUpdate("CREATE TABLE %s WITH (format = '%s', partitioning = ARRAY['part']) AS SELECT 1 x, 'iceberg' part".formatted(icebergTableName, format), 1);
+            assertUpdate("CREATE TABLE %s WITH (format = '%s', partitioned_by = ARRAY['part']) AS SELECT 2 x, 'hive' part".formatted(hiveTableName, format), 1);
+
+            String path = (String) computeScalar("SELECT \"$path\" FROM " + hiveTableName);
+
+            assertUpdate("ALTER TABLE %s EXECUTE add_files('%s', '%s')".formatted(icebergTableName, path, format));
+
+            assertQuery("SELECT \"$partition\", * FROM " + icebergTableName,
+                    "VALUES ('part=iceberg', 1, 'iceberg'), ('part=hive', 2, 'hive')");
+            assertQuery("SELECT * FROM " + icebergTableName,
+                    "VALUES (1, 'iceberg'), (2, 'hive')");
+
+            assertUpdate("DROP TABLE " + hiveTableName);
+            assertUpdate("DROP TABLE " + icebergTableName);
+        }
+    }
+
+    @Test
+    void testAddFilesFromPartitionTableToDifferentlyPartitionedTable()
+    {
+        String hiveTableName = "hive.tpch.test_add_files_location_" + randomNameSuffix();
+        String icebergTableName = "iceberg.tpch.test_add_files_location_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + icebergTableName + " WITH (partitioning = ARRAY['part1']) AS SELECT 1 x, 'iceberg' part1", 1);
+        assertUpdate("CREATE TABLE " + hiveTableName + " WITH (partitioned_by = ARRAY['part2']) AS SELECT 2 x, 'hive' part2", 1);
+
+        String path = (String) computeScalar("SELECT \"$path\" FROM " + hiveTableName);
+
+        assertQueryFails("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + path + "', 'ORC')",
+                "Failed to add files: Invalid partition location, expected partition key 'part1' but was 'part2':.*");
+
+        assertUpdate("DROP TABLE " + hiveTableName);
+        assertUpdate("DROP TABLE " + icebergTableName);
+    }
+
+    @Test
+    void testAddFilesFromPartitionTableToDifferentlyOrderedPartitionTable()
+    {
+        String hiveTableName = "hive.tpch.test_add_files_location_" + randomNameSuffix();
+        String icebergTableName = "iceberg.tpch.test_add_files_location_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + icebergTableName + " WITH (partitioning = ARRAY['part1', 'part2']) AS SELECT 1 x, 'iceberg1' part1, 'iceberg2' part2", 1);
+        assertUpdate("CREATE TABLE " + hiveTableName + " WITH (partitioned_by = ARRAY['part2', 'part1']) AS SELECT 2 x, 'hive2' part2, 'hive1' part1", 1);
+
+        String path = (String) computeScalar("SELECT \"$path\" FROM " + hiveTableName);
+
+        assertQueryFails("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + path + "', 'ORC')",
+                "Failed to add files: Invalid partition location, expected partition key 'part1' but was 'part2':.*");
+
+        assertUpdate("DROP TABLE " + hiveTableName);
+        assertUpdate("DROP TABLE " + icebergTableName);
+    }
+
+    @Test
+    void testAddFilesFromPartitionTableToTableWithPartitionSuperset()
+    {
+        String hiveTableName = "hive.tpch.test_add_files_location_" + randomNameSuffix();
+        String icebergTableName = "iceberg.tpch.test_add_files_location_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + icebergTableName + " WITH (partitioning = ARRAY['part1', 'part2']) AS SELECT 1 x, 'iceberg1' part1, 'iceberg2' part2", 1);
+        assertUpdate("CREATE TABLE " + hiveTableName + " WITH (partitioned_by = ARRAY['part1']) AS SELECT 2 x, 'hive1' part1", 1);
+
+        String path = (String) computeScalar("SELECT \"$path\" FROM " + hiveTableName);
+
+        assertQueryFails("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + path + "', 'ORC')",
+                "Failed to add files: Invalid partition location, expected path with partitions defined as 'part1=value/part2=value':.*");
+
+        assertUpdate("DROP TABLE " + hiveTableName);
+        assertUpdate("DROP TABLE " + icebergTableName);
+    }
+
+    @Test
+    void testAddFilesFromPartitionTableToTableWithPartitionTransform()
+    {
+        String hiveTableName = "hive.tpch.test_add_files_location_" + randomNameSuffix();
+        String icebergTableName = "iceberg.tpch.test_add_files_location_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + icebergTableName + " WITH (partitioning = ARRAY['bucket(part, 8)']) AS SELECT 1 x, 'iceberg' part", 1);
+        assertUpdate("CREATE TABLE " + hiveTableName + " WITH (partitioned_by = ARRAY['part']) AS SELECT 2 x, 'hive' part", 1);
+
+        String path = (String) computeScalar("SELECT \"$path\" FROM " + hiveTableName);
+
+        assertQueryFails("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + path + "', 'ORC')",
+                "Failed to add files: Invalid partition location, expected partition key 'part_bucket' but was 'part':.*");
+
+        assertUpdate("DROP TABLE " + hiveTableName);
+        assertUpdate("DROP TABLE " + icebergTableName);
+    }
+
+    @Test
+    void testAddFilesFromPartitionTableToPartitionTableWithSpecialCharacters()
+    {
+        for (String format : List.of("ORC", "PARQUET", "AVRO")) {
+            String hiveTableName = "hive.tpch.test_add_files_location_" + randomNameSuffix();
+            String icebergTableName = "iceberg.tpch.test_add_files_location_" + randomNameSuffix();
+            String specialChars = "\"#%''*/:=?\\{[]^";
+            String encodedChars = encode(specialChars.replace("''", "'"), UTF_8);
+
+            assertUpdate("CREATE TABLE %s WITH (format = '%s', partitioning = ARRAY['part']) AS SELECT 1 x, 'iceberg_%s' part".formatted(icebergTableName, format, specialChars), 1);
+            assertUpdate("CREATE TABLE %s WITH (format = '%s', partitioned_by = ARRAY['part']) AS SELECT 2 x, 'hive_%s' part".formatted(hiveTableName, format, specialChars), 1);
+
+            String path = (String) computeScalar("SELECT \"$path\" FROM " + hiveTableName);
+
+            assertUpdate("ALTER TABLE %s EXECUTE add_files('%s', '%s')".formatted(icebergTableName, path, format));
+
+            assertQuery("SELECT \"$partition\", * FROM " + icebergTableName,
+                    "VALUES ('part=iceberg_%1$s', 1, 'iceberg_%2$s'), ('part=hive_%1$s', 2, 'hive_%2$s')".formatted(encodedChars, specialChars));
+            assertQuery("SELECT * FROM " + icebergTableName,
+                    "VALUES (1, 'iceberg_%1$s'), (2, 'hive_%1$s')".formatted(specialChars));
+
+            assertUpdate("DROP TABLE " + hiveTableName);
+            assertUpdate("DROP TABLE " + icebergTableName);
+        }
+    }
+
+    @Test
+    void testAddFilesFromMultiPartitionTableToPartitionTable()
+    {
+        for (String format : List.of("ORC", "PARQUET", "AVRO")) {
+            String hiveTableName = "hive.tpch.test_add_files_location_" + randomNameSuffix();
+            String icebergTableName = "iceberg.tpch.test_add_files_location_" + randomNameSuffix();
+
+            assertUpdate("CREATE TABLE %s WITH (format = '%s', partitioning = ARRAY['part1', 'part2']) AS SELECT 1 x, 'iceberg1' part1, 'iceberg2' part2".formatted(icebergTableName, format), 1);
+            assertUpdate("CREATE TABLE %s WITH (format = '%s', partitioned_by = ARRAY['part1', 'part2']) AS SELECT 2 x, 'hive1' part1, 'hive2' part2".formatted(hiveTableName, format), 1);
+
+            String path = (String) computeScalar("SELECT \"$path\" FROM " + hiveTableName);
+
+            assertUpdate("ALTER TABLE %s EXECUTE add_files('%s', '%s')".formatted(icebergTableName, path, format));
+
+            assertQuery("SELECT \"$partition\", * FROM " + icebergTableName,
+                    "VALUES ('part1=iceberg1/part2=iceberg2', 1, 'iceberg1', 'iceberg2'), ('part1=hive1/part2=hive2', 2, 'hive1', 'hive2')");
+            assertQuery("SELECT * FROM " + icebergTableName,
+                    "VALUES (1, 'iceberg1', 'iceberg2'), (2, 'hive1', 'hive2')");
+
+            assertUpdate("DROP TABLE " + hiveTableName);
+            assertUpdate("DROP TABLE " + icebergTableName);
+        }
+    }
+
+    @Test
+    void testAddFilesParentDirectoryFromPartitionTableToPartitionTable()
+    {
+        for (String format : List.of("ORC", "PARQUET", "AVRO")) {
+            String hiveTableName = "hive.tpch.test_add_files_location_" + randomNameSuffix();
+            String icebergTableName = "iceberg.tpch.test_add_files_location_" + randomNameSuffix();
+
+            assertUpdate("CREATE TABLE %s WITH (format = '%s', partitioning = ARRAY['part']) AS SELECT 1 x, 'iceberg' part".formatted(icebergTableName, format), 1);
+            assertUpdate("CREATE TABLE %s WITH (format = '%s', partitioned_by = ARRAY['part']) AS SELECT 2 x, 'hive' part".formatted(hiveTableName, format), 1);
+
+            String path = (String) computeScalar("SELECT \"$path\" FROM " + hiveTableName);
+            String directory = Location.of(path).parentDirectory().toString();
+
+            assertUpdate("ALTER TABLE %s EXECUTE add_files('%s', '%s')".formatted(icebergTableName, directory, format));
+
+            assertQuery("SELECT \"$partition\", * FROM " + icebergTableName, "VALUES ('part=iceberg', 1, 'iceberg'), ('part=hive', 2, 'hive')");
+            assertQuery("SELECT * FROM " + icebergTableName, "VALUES (1, 'iceberg'), (2, 'hive')");
+
+            assertUpdate("DROP TABLE " + hiveTableName);
+            assertUpdate("DROP TABLE " + icebergTableName);
+        }
+    }
+
+    @Test
+    void testAddFilesToTablePartitionedOnTimestamp()
+    {
+        String hiveTableName = "hive.tpch.test_add_files_location_" + randomNameSuffix();
+        String icebergTableName = "iceberg.tpch.test_add_files_location_" + randomNameSuffix();
+
+        for (String format : List.of("ORC", "PARQUET", "AVRO")) {
+            assertUpdate("CREATE TABLE %s (x INT, part TIMESTAMP) WITH (format = '%s', partitioning = ARRAY['part'])".formatted(icebergTableName, format));
+            assertUpdate("INSERT INTO %s VALUES (1, TIMESTAMP '2024-01-01 12:34:56')".formatted(icebergTableName), 1);
+            assertUpdate("CREATE TABLE %s (x INT, part TIMESTAMP) WITH (format = '%s', partitioned_by = ARRAY['part'])".formatted(hiveTableName, format));
+            assertUpdate("INSERT INTO %s VALUES (2, TIMESTAMP '2024-01-01 11:11:11')".formatted(hiveTableName), 1);
+
+            String path = (String) computeScalar("SELECT \"$path\" FROM " + hiveTableName);
+
+            assertQueryFails(
+                    "ALTER TABLE %s EXECUTE add_files('%s', '%s')".formatted(icebergTableName, path, format),
+                    "Failed to add files: Unsupported type for fromPartitionString: timestamp");
+
+            assertUpdate("DROP TABLE " + hiveTableName);
+            assertUpdate("DROP TABLE " + icebergTableName);
+        }
+    }
+
+    @Test
+    void testAddFilesToPartitionTableForEachNonTimestampPrimitiveHiveType()
+    {
+        record PartitionColumn(String name, String type, String hiveValue, String icebergValue) {}
+
+        List<PartitionColumn> partitionColumns = List.of(
+                new PartitionColumn("part_tinyint", "TINYINT", "127", "126"),
+                new PartitionColumn("part_smallint", "SMALLINT", "32767", "32766"),
+                new PartitionColumn("part_int", "INT", "2147483647", "2147483646"),
+                new PartitionColumn("part_bigint", "BIGINT", "9223372036854775807", "9223372036854775806"),
+                new PartitionColumn("part_boolean", "BOOLEAN", "true", "false"),
+                new PartitionColumn("part_real", "REAL", "1.23", "0.45"),
+                new PartitionColumn("part_double", "DOUBLE", "4.56", "5.67"),
+                new PartitionColumn("part_varchar", "VARCHAR", "'hive'", "'iceberg'"),
+                new PartitionColumn("part_date", "DATE", "DATE '2024-01-04'", "DATE '2023-01-04'"),
+                new PartitionColumn("part_decimal", "DECIMAL(10, 2)", "123.45", "1.23"));
+
+        String columnDefinitions = partitionColumns.stream()
+                .map(c -> c.name() + " " + c.type())
+                .collect(joining(", "));
+        String partitionArray = partitionColumns.stream()
+                .map(c -> "'" + c.name() + "'")
+                .collect(joining(", "));
+        String columnNames = partitionColumns.stream()
+                .map(PartitionColumn::name)
+                .collect(joining(", "));
+        String hiveValuesList = partitionColumns.stream()
+                .map(PartitionColumn::hiveValue)
+                .collect(joining(", "));
+        String icebergValuesList = partitionColumns.stream()
+                .map(PartitionColumn::icebergValue)
+                .collect(joining(", "));
+
+        for (String format : List.of("ORC", "PARQUET", "AVRO")) {
+            String hiveTableName = "hive.tpch.test_add_files_location_" + randomNameSuffix();
+            String icebergTableName = "iceberg.tpch.test_add_files_location_" + randomNameSuffix();
+
+            assertUpdate("CREATE TABLE %s (x INT, %s) WITH (format = '%s', partitioned_by = ARRAY[%s])".formatted(hiveTableName, columnDefinitions, format, partitionArray));
+            assertUpdate("INSERT INTO %s VALUES (1, %s)".formatted(hiveTableName, hiveValuesList), 1);
+
+            assertUpdate("CREATE TABLE %s (x INT, %s) WITH (format = '%s', partitioning = ARRAY[%s])".formatted(icebergTableName, columnDefinitions, format, partitionArray));
+            assertUpdate("INSERT INTO %s VALUES (2, %s)".formatted(icebergTableName, icebergValuesList), 1);
+
+            String path = (String) computeScalar("SELECT \"$path\" FROM " + hiveTableName);
+
+            assertUpdate("ALTER TABLE %s EXECUTE add_files('%s', '%s')".formatted(icebergTableName, path, format));
+
+            assertQuery(
+                    "SELECT x, %s FROM %s".formatted(columnNames, icebergTableName),
+                    "VALUES (1, %s), (2, %s)".formatted(hiveValuesList, icebergValuesList));
+
+            assertUpdate("DROP TABLE " + hiveTableName);
+            assertUpdate("DROP TABLE " + icebergTableName);
+        }
     }
 
     @Test
