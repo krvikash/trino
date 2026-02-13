@@ -83,8 +83,8 @@ public abstract class BaseObjectStoreConnectorTest
     protected final String bucketName = "test-bucket-" + randomNameSuffix();
     protected final boolean isGalaxyMetastore;
     private final TableType tableType;
-    private MinioStorage minio;
-    private HiveMetastore metastore;
+    protected MinioStorage minio;
+    protected HiveMetastore metastore;
 
     protected BaseObjectStoreConnectorTest(boolean isGalaxyMetastore, TableType tableType)
     {
@@ -880,10 +880,8 @@ public abstract class BaseObjectStoreConnectorTest
 
         String tableLocation = getTableLocation(tableName);
         dropTableFromMetastore("tpch", tableName);
-        if (tableType != TableType.ICEBERG) {
-            // Table existence can be cached by the connector, unless we delegate to IcebergMetadata first, which currently does cache between queries.
-            assertUpdate("CALL system.flush_metadata_cache(SCHEMA_NAME => CURRENT_SCHEMA, TABLE_NAME => '" + tableName + "')");
-        }
+
+        assertUpdate("CALL system.flush_metadata_cache(SCHEMA_NAME => CURRENT_SCHEMA, TABLE_NAME => '" + tableName + "')");
 
         assertQueryFails("SELECT * FROM " + tableName, ".*Table '.*' does not exist");
 
@@ -904,10 +902,7 @@ public abstract class BaseObjectStoreConnectorTest
 
         String tableLocation = getTableLocation(tableName);
         dropTableFromMetastore("tpch", tableName);
-        if (tableType != TableType.ICEBERG) {
-            // Table existence can be cached by the connector, unless we delegate to IcebergMetadata first, which currently does cache between queries.
-            assertUpdate("CALL system.flush_metadata_cache(SCHEMA_NAME => CURRENT_SCHEMA, TABLE_NAME => '" + tableName + "')");
-        }
+        assertUpdate("CALL system.flush_metadata_cache(SCHEMA_NAME => CURRENT_SCHEMA, TABLE_NAME => '" + tableName + "')");
 
         switch (tableType) {
             case ICEBERG -> {
