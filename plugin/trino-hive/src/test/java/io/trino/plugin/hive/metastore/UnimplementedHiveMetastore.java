@@ -136,6 +136,12 @@ public class UnimplementedHiveMetastore
     }
 
     @Override
+    public void flushTableCache(String databaseName, String tableName)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void createTable(Table table, PrincipalPrivileges principalPrivileges)
     {
         throw new UnsupportedOperationException();

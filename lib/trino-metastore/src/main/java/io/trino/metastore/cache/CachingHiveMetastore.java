@@ -709,6 +709,17 @@ public final class CachingHiveMetastore
     }
 
     @Override
+    public void flushTableCache(String databaseName, String tableName)
+    {
+        try {
+            delegate.flushTableCache(databaseName, tableName);
+        }
+        finally {
+            invalidateTable(databaseName, tableName);
+        }
+    }
+
+    @Override
     public void commentColumn(String databaseName, String tableName, String columnName, Optional<String> comment)
     {
         try {

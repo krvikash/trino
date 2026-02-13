@@ -49,6 +49,7 @@ public final class MetastoreInvocations
                 .map(name -> name.substring(TRACE_PREFIX.length()))
                 .filter(name -> !name.equals("listRoleGrants"))
                 .filter(name -> !name.equals("listTablePrivileges"))
+                .filter(name -> !name.equals("flushTableCache"))
                 .map(MetastoreMethod::fromMethodName)
                 .collect(toImmutableMultiset());
     }

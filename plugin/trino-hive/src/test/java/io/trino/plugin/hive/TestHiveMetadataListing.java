@@ -428,6 +428,12 @@ public class TestHiveMetadataListing
         }
 
         @Override
+        public void flushTableCache(String databaseName, String tableName)
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public void commentColumn(String databaseName, String tableName, String columnName, Optional<String> comment)
         {
             throw new UnsupportedOperationException();

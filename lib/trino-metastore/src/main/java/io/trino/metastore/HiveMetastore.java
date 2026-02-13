@@ -112,6 +112,12 @@ public interface HiveMetastore
 
     void setTableOwner(String databaseName, String tableName, HivePrincipal principal);
 
+    /**
+     * Flushes cached table metadata. Caching implementations must first delegate
+     * to the underlying metastore, then invalidate their own cache.
+     */
+    void flushTableCache(String databaseName, String tableName);
+
     void commentColumn(String databaseName, String tableName, String columnName, Optional<String> comment);
 
     void addColumn(String databaseName, String tableName, String columnName, HiveType columnType, String columnComment);

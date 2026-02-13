@@ -287,6 +287,16 @@ public class TracingHiveMetastore
     }
 
     @Override
+    public void flushTableCache(String databaseName, String tableName)
+    {
+        Span span = tracer.spanBuilder("HiveMetastore.flushTableCache")
+                .setAttribute(SCHEMA, databaseName)
+                .setAttribute(TABLE, tableName)
+                .startSpan();
+        withTracing(span, () -> delegate.flushTableCache(databaseName, tableName));
+    }
+
+    @Override
     public void commentColumn(String databaseName, String tableName, String columnName, Optional<String> comment)
     {
         Span span = tracer.spanBuilder("HiveMetastore.commentColumn")

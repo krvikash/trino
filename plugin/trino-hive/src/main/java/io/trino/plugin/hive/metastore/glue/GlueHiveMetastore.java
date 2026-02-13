@@ -790,6 +790,12 @@ public class GlueHiveMetastore
     }
 
     @Override
+    public void flushTableCache(String databaseName, String tableName)
+    {
+        glueCache.invalidateTable(databaseName, tableName, true);
+    }
+
+    @Override
     public Map<String, HiveColumnStatistics> getTableColumnStatistics(String databaseName, String tableName, Set<String> columnNames)
     {
         return glueCache.getTableColumnStatistics(

@@ -59,6 +59,8 @@ final class TestIcebergHiveCatalogExternalWriteTest
                 .put("s3.region", "us-east-1")
                 .put("s3.path-style-access", "true")
                 .put("iceberg.file-format", PARQUET.name())
+                // Enable metastore cache shared across queries - this is where external writes can cause stale reads
+                .put("hive.metastore-cache-ttl", "30m")
                 .buildOrThrow();
     }
 

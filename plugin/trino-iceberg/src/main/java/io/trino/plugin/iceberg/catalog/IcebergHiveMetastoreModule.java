@@ -40,7 +40,7 @@ public class IcebergHiveMetastoreModule
 
         install(new CachingHiveMetastoreModule());
 
-        // ensure caching metastore wrapper isn't created, as it's not leveraged by Iceberg
+        // ensure caching metastore wrapper isn't created by default
         configBinder(binder).bindConfigDefaults(CachingHiveMetastoreConfig.class, config ->
                 config.setStatsCacheTtl(new Duration(0, TimeUnit.SECONDS)));
 

@@ -198,6 +198,12 @@ public class MeasuredHiveMetastore
     }
 
     @Override
+    public void flushTableCache(String databaseName, String tableName)
+    {
+        wrap("flushTableCache", () -> delegate.flushTableCache(databaseName, tableName));
+    }
+
+    @Override
     public void commentColumn(String databaseName, String tableName, String columnName, Optional<String> comment)
     {
         wrap("commentColumn", () -> delegate.commentColumn(databaseName, tableName, columnName, comment));
