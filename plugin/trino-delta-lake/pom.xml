@@ -613,17 +613,22 @@
                 <groupId>org.basepom.maven</groupId>
                 <artifactId>duplicate-finder-maven-plugin</artifactId>
                 <configuration>
-                    <ignoredResourcePatterns>
-                        <!-- com.databricks:databricks-jdbc:2.7.1, com.google.cloud.bigdataoss:gcs-connector:3.0.4:jar:shaded, org.apache.httpcomponents:httpclient:4.5.13 -->
+                    <ignoredResourcePatterns combine.children="append">
+                        <!-- com.google.protobuf:protobuf-java and com.databricks:databricks-jdbc proto file duplicate -->
+                        <ignoredResourcePattern>google/protobuf/.*\.proto$</ignoredResourcePattern>
+                        <!-- com.databricks.jdbc:databricks-sdk-java and com.databricks:databricks-jdbc file duplicate -->
+                        <ignoredResourcePattern>oauth/failed_response.html.tmpl</ignoredResourcePattern>
+                        <ignoredResourcePattern>oauth/successful_response.html</ignoredResourcePattern>
+                        <!-- org.apache.commons:commons-configuration2 and com.databricks:databricks-jdbc file duplicate -->
+                        <ignoredResourcePattern>PropertyList-1.0.dtd</ignoredResourcePattern>
+                        <ignoredResourcePattern>properties.dtd</ignoredResourcePattern>
+                        <!-- com.databricks:databricks-jdbc:3.1.1, com.google.cloud.bigdataoss:gcs-connector:3.0.4:jar:shaded, org.apache.httpcomponents:httpclient:4.5.13 -->
                         <ignoredResourcePattern>mozilla/public-suffix-list.txt</ignoredResourcePattern>
-                        <!-- com.databricks:databricks-jdbc:2.7.1, org.apache.logging.log4j:log4j-api -->
-                        <ignoredResourcePattern>Log4j-charsets.properties</ignoredResourcePattern>
                         <!-- Duplicate in test classpath: trino-delta-lake/target/test-classes and trino-hive:tests -->
                         <ignoredResourcePattern>ozone-filesystem-hadoop3-1.4.0.jar</ignoredResourcePattern>
                     </ignoredResourcePatterns>
                 </configuration>
             </plugin>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>

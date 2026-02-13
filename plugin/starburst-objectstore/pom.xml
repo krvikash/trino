@@ -856,6 +856,12 @@
                         <!-- org.apache.orc:orc-core and org.alluxio:alluxio-shaded-client proto file duplicate -->
                         <ignoredResourcePattern>google/protobuf/.*\.proto$</ignoredResourcePattern>
                         <ignoredResourcePattern>iceberg-build.properties</ignoredResourcePattern>
+                        <!-- com.databricks.jdbc:databricks-sdk-java and com.databricks:databricks-jdbc file duplicate -->
+                        <ignoredResourcePattern>oauth/failed_response.html.tmpl</ignoredResourcePattern>
+                        <ignoredResourcePattern>oauth/successful_response.html</ignoredResourcePattern>
+                        <!-- org.apache.commons:commons-configuration2 and com.databricks:databricks-jdbc file duplicate -->
+                        <ignoredResourcePattern>PropertyList-1.0.dtd</ignoredResourcePattern>
+                        <ignoredResourcePattern>properties.dtd</ignoredResourcePattern>
                     </ignoredResourcePatterns>
 
                     <ignoredClassPatterns>

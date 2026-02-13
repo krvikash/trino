@@ -657,11 +657,15 @@
                 <groupId>org.basepom.maven</groupId>
                 <artifactId>duplicate-finder-maven-plugin</artifactId>
                 <configuration>
-                    <ignoredResourcePatterns>
-                        <!-- com.databricks:databricks-jdbc:2.7.1, com.google.cloud.bigdataoss:gcs-connector:3.0.4:jar:shaded, org.apache.httpcomponents:httpclient:4.5.13 -->
+                    <ignoredResourcePatterns combine.children="append">
+                        <!-- com.google.protobuf:protobuf-java and com.databricks:databricks-sdk-java proto file duplicate -->
+                        <ignoredResourcePattern>google/protobuf/.*\.proto$</ignoredResourcePattern>
+                        <!-- org.apache.commons:commons-configuration2 and com.databricks:databricks-sdk-java  file duplicate -->
+                        <ignoredResourcePattern>oauth/failed_response.html.tmpl</ignoredResourcePattern>
+                        <ignoredResourcePattern>PropertyList-1.0.dtd</ignoredResourcePattern>
+                        <ignoredResourcePattern>properties.dtd</ignoredResourcePattern>
+                        <!-- com.databricks:databricks-jdbc:3.1.1, com.google.cloud.bigdataoss:gcs-connector:3.0.4:jar:shaded, org.apache.httpcomponents:httpclient:4.5.13 -->
                         <ignoredResourcePattern>mozilla/public-suffix-list.txt</ignoredResourcePattern>
-                        <!-- com.databricks:databricks-jdbc:2.7.1, org.apache.logging.log4j:log4j-api -->
-                        <ignoredResourcePattern>Log4j-charsets.properties</ignoredResourcePattern>
                     </ignoredResourcePatterns>
                 </configuration>
             </plugin>
