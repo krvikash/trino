@@ -44,6 +44,7 @@ import io.starburst.stargate.buffer.data.spooling.s3.S3Utils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
@@ -746,8 +747,9 @@ public class TestChunkManager
                 new DataPage(1, 1, utf8Slice("partial3")));
     }
 
-    @Test
+    @RepeatedTest(5) // test probabilistic race
     public void testRegisterExchangeWhileDraining()
+            throws InterruptedException
     {
         long maxBytes = 64L;
         MemoryAllocator memoryAllocator = new MemoryAllocator(
@@ -771,10 +773,12 @@ public class TestChunkManager
 
         // wait until chunkManager::drainAllChunks finishes all existing exchanges
         assertEventually(new Duration(1, SECONDS), () -> assertThat(chunkManager.getExchangeAndHeartbeat(EXCHANGE_0).isFinished()).isTrue());
+        Thread.sleep(200);
         // it is waiting for markAllClosedChunksReceived on all exchanges now
 
-        // register one more exchange
+        // register one more exchange and immediatelly close the other
         chunkManager.registerExchange(EXCHANGE_1, STANDARD, Optional.empty());
+        chunkManager.markAllClosedChunksReceived(EXCHANGE_0);
 
         // finish should be triggered on new exchange too
         assertEventually(new Duration(1, SECONDS), () -> chunkManager.getExchangeAndHeartbeat(EXCHANGE_1).isFinished());
@@ -784,7 +788,6 @@ public class TestChunkManager
         listClosedChunkUntilNoMore(chunkManager, EXCHANGE_1, OptionalLong.empty());
 
         // mark all chunks received (simulate Trino behavior)
-        chunkManager.markAllClosedChunksReceived(EXCHANGE_0);
         chunkManager.markAllClosedChunksReceived(EXCHANGE_1);
 
         // drainAllChunk should complete timely
