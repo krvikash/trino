@@ -32,6 +32,8 @@ public class TestStarburstObjectStoreHiveFeaturesConnectorTest
                 // Hive setting synced from HiveQueryRunner
                 .put("hive.max-partitions-per-scan", "1000")
                 .put("hive.max-partitions-for-eager-load", "1000")
+                // This is needed for sorted table memory tracking test to work long enough for memory tracking to kick in
+                .put("hive.max-partitions-per-writers", "15000")
                 // ObjectStore
                 .put("great-lakes.table-type", TableType.HIVE.name())
                 .buildOrThrow());
