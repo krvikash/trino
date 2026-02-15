@@ -34,6 +34,8 @@ import static io.trino.sql.dialect.ir.IrAttributeUtils.deterministic;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.hasSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.safe;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.unsafe;
+import static io.trino.sql.dialect.ir.IrDialect.IR;
+import static io.trino.sql.dialect.ir.IrDialect.TERMINAL;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalStringListAttributeMetadata;
 import static java.util.stream.Collectors.partitioningBy;
 
@@ -59,6 +61,15 @@ public class OutputOperationMetadata
     {
         // note: Output operation also has the ir.terminal attribute, but it is not operation-specific.
         return ImmutableSet.of(COLUMN_NAMES_ATTRIBUTE_METADATA);
+    }
+
+    @Override
+    public Set<AttributeKey> inherentOperationAttributeKeys()
+    {
+        return ImmutableSet.<AttributeKey>builder()
+                .addAll(TrinoOperationMetadata.super.inherentOperationAttributeKeys())
+                .add(new AttributeKey(IR, TERMINAL))
+                .build();
     }
 
     @Override

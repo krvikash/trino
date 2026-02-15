@@ -28,6 +28,8 @@ import java.util.function.BiFunction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.trino.sql.dialect.ir.IrDialect.IR;
+import static io.trino.sql.dialect.ir.IrDialect.TERMINAL;
 import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.passIrLevelAttributes;
 import static java.util.stream.Collectors.partitioningBy;
 
@@ -47,6 +49,15 @@ public class QueryOperationMetadata
     {
         // note: Query operation has the ir.terminal attribute, but it is not operation-specific.
         return ImmutableSet.of();
+    }
+
+    @Override
+    public Set<AttributeKey> inherentOperationAttributeKeys()
+    {
+        return ImmutableSet.<AttributeKey>builder()
+                .addAll(TrinoOperationMetadata.super.inherentOperationAttributeKeys())
+                .add(new AttributeKey(IR, TERMINAL))
+                .build();
     }
 
     @Override
