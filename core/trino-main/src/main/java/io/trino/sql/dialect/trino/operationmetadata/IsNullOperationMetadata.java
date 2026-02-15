@@ -55,7 +55,7 @@ public class IsNullOperationMetadata
         checkArgument(regions.isEmpty(), "IsNull operation does not have regions");
 
         Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
-                .collect(partitioningBy(entry -> operationAttributeKeys().contains(entry.getKey())));
+                .collect(partitioningBy(entry -> inherentOperationAttributeKeys().contains(entry.getKey())));
         Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
 
         return new IsNull(

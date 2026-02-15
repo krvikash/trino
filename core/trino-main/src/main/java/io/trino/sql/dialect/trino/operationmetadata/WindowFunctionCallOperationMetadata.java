@@ -96,7 +96,7 @@ public class WindowFunctionCallOperationMetadata
         checkArgument(regions.size() == 6, "WindowFunctionCall operation must have exactly six regions");
 
         Map<Boolean, List<Map.Entry<AttributeKey, Object>>> partitionedAttributes = attributes.entrySet().stream()
-                .collect(partitioningBy(entry -> operationAttributeKeys().contains(entry.getKey())));
+                .collect(partitioningBy(entry -> inherentOperationAttributeKeys().contains(entry.getKey())));
         Map<AttributeKey, Object> operationAttributes = ImmutableMap.copyOf(partitionedAttributes.get(true));
         Map<AttributeKey, Object> derivedAttributes = ImmutableMap.copyOf(partitionedAttributes.get(false));
 

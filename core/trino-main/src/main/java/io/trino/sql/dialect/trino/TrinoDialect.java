@@ -261,11 +261,11 @@ public final class TrinoDialect
     }
 
     @Override
-    public Set<AttributeKey> getOperationAttributeKeys(OperationId id)
+    public Set<AttributeKey> getInherentOperationAttributeKeys(OperationId id)
     {
         // there are no overloads, so we can identify operation by name only
         TrinoOperationMetadata operationMetadata = operations.get(id.name());
-        return operationMetadata.operationAttributeKeys();
+        return operationMetadata.inherentOperationAttributeKeys();
     }
 
     @Override

@@ -60,7 +60,7 @@ public abstract class Dialect
 
     public abstract BiFunction<Map<AttributeKey, Object>, List<Map<AttributeKey, Object>>, Map<AttributeKey, Object>> getAttributeDerivationForOperation(OperationId id);
 
-    public abstract Set<AttributeKey> getOperationAttributeKeys(OperationId id);
+    public abstract Set<AttributeKey> getInherentOperationAttributeKeys(OperationId id);
 
     public abstract Operation createOperation(String name, String resultName, List<Value> arguments, List<Region> regions, Map<AttributeKey, Object> attributes);
 }

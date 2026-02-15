@@ -178,7 +178,7 @@ public class IrDialect
     }
 
     @Override
-    public Set<AttributeKey> getOperationAttributeKeys(OperationId id)
+    public Set<AttributeKey> getInherentOperationAttributeKeys(OperationId id)
     {
         throw new UnsupportedOperationException("the ir dialect does not support any operations");
     }

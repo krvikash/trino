@@ -38,7 +38,7 @@ public interface TrinoOperationMetadata
      */
     Set<TrinoAttributeMetadata<?>> operationAttributes();
 
-    default Set<AttributeKey> operationAttributeKeys()
+    default Set<AttributeKey> inherentOperationAttributeKeys()
     {
         return operationAttributes().stream()
                 .map(TrinoAttributeMetadata::trinoAttributeSignature)
