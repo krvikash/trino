@@ -63,7 +63,11 @@ public abstract class BaseIcebergExternalWriteTest
             // Insert from second cluster (external system). If the second cluster has stale metadata, the following INSERT will fail.
             secondCluster.execute("INSERT INTO %s.%s VALUES (2)".formatted(schemaName, tableName));
 
-            // We intentionally don't check the result from the first cluster, as at this point it may have stale metadata.
+            // First cluster has stale metadata - flush cache to see the external write
+            firstCluster.execute("CALL system.flush_metadata_cache(schema_name => '" + schemaName + "', table_name => '" + tableName + "')");
+            assertThat(getRowCount(firstCluster, schemaName, tableName))
+                    .isEqualTo(2);
+
             assertThat(getRowCount(secondCluster, schemaName, tableName))
                     .isEqualTo(2);
         }
