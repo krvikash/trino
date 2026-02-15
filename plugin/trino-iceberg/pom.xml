@@ -911,6 +911,7 @@
                                 <exclude>**/TestTrinoSnowflakeCatalog.java</exclude>
                                 <exclude>**/TestDatabricksUnityRestCatalog.java</exclude>
                                 <exclude>**/TestIcebergAiFunctions.java</exclude>
+                                <exclude>**/TestIcebergGlueCatalogExternalWriteTest.java</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
@@ -979,6 +980,7 @@
                                 <include>**/TestIcebergSnowflakeCatalogConnectorSmokeTest.java</include>
                                 <include>**/TestTrinoSnowflakeCatalog.java</include>
                                 <include>**/TestDatabricksUnityRestCatalog.java</include>
+                                <include>**/TestIcebergGlueCatalogExternalWriteTest.java</include>
                             </includes>
                         </configuration>
                     </plugin>
