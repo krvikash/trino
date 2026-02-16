@@ -104,7 +104,7 @@ class MockDataNode
             case DRAINING, DRAINED -> BufferNodeState.DRAINING;
             case GONE -> throw new IllegalArgumentException("not supported");
         };
-        return new BufferNodeInfo(nodeId, URI.create("http://mock." + nodeId), Optional.of(stats), bufferNodeState, Instant.now());
+        return new BufferNodeInfo(nodeId, URI.create("http://mock." + nodeId), Optional.empty(), Optional.of(stats), bufferNodeState, Instant.now());
     }
 
     @Override

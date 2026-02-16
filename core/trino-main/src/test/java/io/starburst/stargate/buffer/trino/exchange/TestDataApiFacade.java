@@ -546,7 +546,7 @@ public class TestDataApiFacade
         @Override
         public BufferNodeInfo getInfo()
         {
-            return new BufferNodeInfo(NODE_ID, URI.create("http://testing"), Optional.empty(), BufferNodeState.ACTIVE, Instant.now());
+            return new BufferNodeInfo(NODE_ID, URI.create("http://testing"), Optional.empty(), Optional.empty(), BufferNodeState.ACTIVE, Instant.now());
         }
 
         @Override

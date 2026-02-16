@@ -80,7 +80,7 @@ public class TestDiscoveryServer
                         Set.of()));
 
         BufferNodeStats node1Stats1 = new BufferNodeStats(10, 11, 12, 13, 14, 15, 16, 17, 18);
-        BufferNodeInfo node1Info1 = new BufferNodeInfo(1, URI.create("http://address1"), Optional.of(node1Stats1), ACTIVE, Instant.now());
+        BufferNodeInfo node1Info1 = new BufferNodeInfo(1, URI.create("http://address1"), Optional.of(URI.create("http://vt_address1")), Optional.of(node1Stats1), ACTIVE, Instant.now());
         discoveryClient.updateBufferNode(node1Info1);
 
         assertThat(discoveryClient.getBufferNodes()).isEqualTo(
@@ -97,9 +97,9 @@ public class TestDiscoveryServer
 
         // add two more nodes
         BufferNodeStats node2Stats1 = new BufferNodeStats(20, 21, 22, 23, 24, 25, 26, 27, 28);
-        BufferNodeInfo node2Info1 = new BufferNodeInfo(2, URI.create("http://address2"), Optional.of(node2Stats1), STARTING, Instant.now());
+        BufferNodeInfo node2Info1 = new BufferNodeInfo(2, URI.create("http://address2"), Optional.empty(), Optional.of(node2Stats1), STARTING, Instant.now());
         BufferNodeStats node3Stats1 = new BufferNodeStats(30, 31, 32, 33, 34, 35, 36, 37, 38);
-        BufferNodeInfo node3Info1 = new BufferNodeInfo(3, URI.create("http://address3"), Optional.of(node3Stats1), ACTIVE, Instant.now());
+        BufferNodeInfo node3Info1 = new BufferNodeInfo(3, URI.create("http://address3"), Optional.of(URI.create("http://vt_address3")), Optional.of(node3Stats1), ACTIVE, Instant.now());
         discoveryClient.updateBufferNode(node2Info1);
         discoveryClient.updateBufferNode(node3Info1);
         assertThat(discoveryClient.getBufferNodes()).isEqualTo(
@@ -117,9 +117,9 @@ public class TestDiscoveryServer
         // move time and update node 1 and node 3
         ticker.increment(1000, TimeUnit.MILLISECONDS);
         BufferNodeStats node1Stats2 = new BufferNodeStats(110, 111, 112, 113, 114, 115, 116, 117, 118);
-        BufferNodeInfo node1Info2 = new BufferNodeInfo(1, URI.create("http://address1"), Optional.of(node1Stats2), ACTIVE, Instant.now());
+        BufferNodeInfo node1Info2 = new BufferNodeInfo(1, URI.create("http://address1"), Optional.of(URI.create("http://vt_address1")), Optional.of(node1Stats2), ACTIVE, Instant.now());
         BufferNodeStats node3Stats2 = new BufferNodeStats(330, 331, 332, 333, 334, 335, 336, 337, 338);
-        BufferNodeInfo node3Info2 = new BufferNodeInfo(3, URI.create("http://address3"), Optional.of(node3Stats2), DRAINED, Instant.now());
+        BufferNodeInfo node3Info2 = new BufferNodeInfo(3, URI.create("http://address3"), Optional.of(URI.create("http://vt_address3")), Optional.of(node3Stats2), DRAINED, Instant.now());
         discoveryClient.updateBufferNode(node1Info2);
         discoveryClient.updateBufferNode(node3Info2);
         assertThat(discoveryClient.getBufferNodes()).isEqualTo(
@@ -164,8 +164,8 @@ public class TestDiscoveryServer
 
         // add a node
         BufferNodeStats stats = new BufferNodeStats(20, 21, 22, 23, 24, 25, 26, 27, 28);
-        BufferNodeInfo info = new BufferNodeInfo(1, URI.create("http://some_address"), Optional.of(stats), STARTING, Instant.now());
-        BufferNodeInfo infoWithOtherUri = new BufferNodeInfo(1, URI.create("http://other_address"), Optional.of(stats), STARTING, Instant.now());
+        BufferNodeInfo info = new BufferNodeInfo(1, URI.create("http://some_address"), Optional.empty(), Optional.of(stats), STARTING, Instant.now());
+        BufferNodeInfo infoWithOtherUri = new BufferNodeInfo(1, URI.create("http://other_address"), Optional.empty(), Optional.of(stats), STARTING, Instant.now());
         discoveryClient.updateBufferNode(info);
         assertThat(discoveryClient.getBufferNodes()).isEqualTo(
                 new BufferNodeInfoResponse(
@@ -182,6 +182,17 @@ public class TestDiscoveryServer
                 new BufferNodeInfoResponse(
                         true,
                         Set.of(info)));
+
+        // update with same uri and different virtual threads uri
+        BufferNodeStats updatedStats = new BufferNodeStats(120, 121, 122, 123, 124, 125, 126, 127, 128);
+        BufferNodeInfo infoUpdated = new BufferNodeInfo(1, URI.create("http://some_address"), Optional.of(URI.create("http://vt_some_address")), Optional.of(updatedStats), ACTIVE, Instant.now());
+        discoveryClient.updateBufferNode(infoUpdated);
+
+        // virtual threads uri update should be allowed
+        assertThat(discoveryClient.getBufferNodes()).isEqualTo(
+                new BufferNodeInfoResponse(
+                        true,
+                        Set.of(infoUpdated)));
 
         // move in time so entry for node 1 becomes stale
         ticker.increment(DEFAULT_BUFFER_NODE_DISCOVERY_STALENESS_THRESHOLD.toMillis() + 1, TimeUnit.MILLISECONDS);

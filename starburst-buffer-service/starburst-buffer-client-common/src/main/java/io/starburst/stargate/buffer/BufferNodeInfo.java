@@ -18,6 +18,7 @@ import static java.util.Objects.requireNonNull;
 public record BufferNodeInfo(
         long nodeId,
         URI uri,
+        Optional<URI> virtualThreadsUri,
         Optional<BufferNodeStats> stats,
         BufferNodeState state,
         Instant timestamp)
@@ -25,6 +26,7 @@ public record BufferNodeInfo(
     public BufferNodeInfo
     {
         requireNonNull(uri, "uri is null");
+        requireNonNull(virtualThreadsUri, "virtualThreadsUri is null");
         requireNonNull(stats, "stats is null");
         requireNonNull(state, "state is null");
     }

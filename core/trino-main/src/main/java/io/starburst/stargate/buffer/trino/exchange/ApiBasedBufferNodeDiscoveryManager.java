@@ -161,7 +161,7 @@ public class ApiBasedBufferNodeDiscoveryManager
                 log.warn("Discovery server reported node which was DRAINED previously %s", bufferNodeInfosWithDrained.get(drainedNodeId));
                 continue;
             }
-            bufferNodeInfosWithDrained.put(drainedNodeId, new BufferNodeInfo(drainedNodeId, URI.create("http://drained_" + drainedNodeId), Optional.empty(), DRAINED, Instant.now()));
+            bufferNodeInfosWithDrained.put(drainedNodeId, new BufferNodeInfo(drainedNodeId, URI.create("http://drained_" + drainedNodeId), Optional.empty(), Optional.empty(), DRAINED, Instant.now()));
         }
         return new BufferNodesState(
                 System.currentTimeMillis(),

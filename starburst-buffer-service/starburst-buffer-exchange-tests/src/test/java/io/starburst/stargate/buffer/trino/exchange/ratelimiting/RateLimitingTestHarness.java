@@ -225,7 +225,7 @@ public class RateLimitingTestHarness
                             Optional<BufferNodeStats> dummyStats = Optional.of(new BufferNodeStats(100, 100, 100, 100, 100, 100, 100, 100, 100));
                             return new BufferNodesState(
                                     now.toEpochMilli(),
-                                    ImmutableMap.of(BUFFER_NODE_ID, new BufferNodeInfo(BUFFER_NODE_ID, server.getBaseUri(), dummyStats, BufferNodeState.ACTIVE, now)));
+                                    ImmutableMap.of(BUFFER_NODE_ID, new BufferNodeInfo(BUFFER_NODE_ID, server.getBaseUri(), Optional.empty(), dummyStats, BufferNodeState.ACTIVE, now)));
                         }
 
                         @Override

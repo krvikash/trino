@@ -215,7 +215,7 @@ class TestApiBasedBufferNodeDiscoveryManager
     private static BufferNodeInfo bufferNode(int nodeId, BufferNodeState state)
     {
         Optional<BufferNodeStats> stats = state == ACTIVE ? Optional.of(new BufferNodeStats(1, 2, 3, 4, 5, 6, 7, 8, 9)) : Optional.empty();
-        return new BufferNodeInfo(nodeId, URI.create("http://blah" + nodeId), stats, state, Instant.now());
+        return new BufferNodeInfo(nodeId, URI.create("http://blah" + nodeId), Optional.empty(), stats, state, Instant.now());
     }
 
     private static class BufferNodesStateAssert

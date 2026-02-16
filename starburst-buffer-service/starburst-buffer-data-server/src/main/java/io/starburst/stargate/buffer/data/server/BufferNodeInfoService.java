@@ -28,6 +28,7 @@ public class BufferNodeInfoService
 {
     private final long bufferNodeId;
     private final URI baseUri;
+    private final Optional<URI> virtualThreadsBaseUri;
     private final MemoryAllocator memoryAllocator;
     private final BufferNodeStateManager stateManager;
     private final DataServerStats dataServerStats;
@@ -37,6 +38,7 @@ public class BufferNodeInfoService
             BufferNodeId bufferNodeId,
             MemoryAllocator memoryAllocator,
             HttpServerInfo httpServerInfo,
+            @VirtualThreadsDataServer Optional<HttpServerInfo> virtualThreadsHttpServerInfo,
             NodeInfo airliftNodeInfo,
             BufferNodeStateManager stateManager,
             DataServerStats dataServerStats)
@@ -46,7 +48,15 @@ public class BufferNodeInfoService
         this.stateManager = requireNonNull(stateManager, "stateManager is null");
         this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
 
-        baseUri = uriBuilderFrom(getBaseUri(httpServerInfo))
+        this.baseUri = buildURI(httpServerInfo, airliftNodeInfo);
+
+        this.virtualThreadsBaseUri = virtualThreadsHttpServerInfo
+                .map(serverInfo -> buildURI(serverInfo, airliftNodeInfo));
+    }
+
+    private URI buildURI(HttpServerInfo httpServerInfo, NodeInfo airliftNodeInfo)
+    {
+        return uriBuilderFrom(getBaseUri(httpServerInfo))
                 .host(airliftNodeInfo.getExternalAddress())
                 .build();
     }
@@ -61,7 +71,7 @@ public class BufferNodeInfoService
 
     public BufferNodeInfo getNodeInfo()
     {
-        return new BufferNodeInfo(bufferNodeId, baseUri, getBufferNodeStats(), stateManager.getState(), Instant.now());
+        return new BufferNodeInfo(bufferNodeId, baseUri, virtualThreadsBaseUri, getBufferNodeStats(), stateManager.getState(), Instant.now());
     }
 
     private Optional<BufferNodeStats> getBufferNodeStats()
