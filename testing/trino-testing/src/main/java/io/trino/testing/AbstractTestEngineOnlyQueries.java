@@ -6693,7 +6693,7 @@ public abstract class AbstractTestEngineOnlyQueries
         assertThat(computeActual("SELECT NUMBER '" + maxValue + "'").getOnlyValue())
                 .isEqualTo(new BigDecimal(maxValue));
 
-        String minPositiveValue = "1e" + -TrinoNumberShim.getScaleMinValue();
+        String minPositiveValue = "1e" + -TrinoNumberShim.getScaleMaxValue();
         assertThat(computeActual("SELECT NUMBER '" + minPositiveValue + "'").getOnlyValue())
                 .isEqualTo(new BigDecimal(minPositiveValue));
 
