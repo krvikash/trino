@@ -92,7 +92,7 @@ public class DataServerMainModule
         configBinder(binder).bindConfig(DataServerConfig.class, configPrefix.orElse(null));
         jaxrsBinder(binder).bind(DataResource.class);
 
-        jaxrsBinder(binder, VirtualThreadsDataServer.class).bind(DataResource.class);
+        jaxrsBinder(binder, VirtualThreadsDataServer.class).bind(BlockingDataResource.class);
         newOptionalBinder(binder, Key.get(HttpServerInfo.class, VirtualThreadsDataServer.class));
 
         jaxrsBinder(binder).bind(LifecycleResource.class);
