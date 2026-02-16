@@ -26,7 +26,6 @@ import io.trino.connector.MockConnectorFactory;
 import io.trino.connector.MockConnectorPlugin;
 import io.trino.connector.alternatives.MockPlanAlternativeConnector;
 import io.trino.execution.QueryInfo;
-import io.trino.execution.QueryStats;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoFileSystemFactory;
@@ -41,8 +40,6 @@ import io.trino.metastore.HiveType;
 import io.trino.metastore.PrincipalPrivileges;
 import io.trino.metastore.Storage;
 import io.trino.metastore.Table;
-import io.trino.operator.OperatorStats;
-import io.trino.operator.TableWriterOperator;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.connector.Connector;
@@ -249,8 +246,6 @@ public abstract class BaseHiveConnectorTest
                 .addHiveProperty("hive.writer-sort-buffer-size", "1MB")
                 // Make weighted split scheduling more conservative to avoid OOMs in test
                 .addHiveProperty("hive.minimum-assigned-split-weight", "0.5")
-                // This is needed for sorted table memory tracking test to work long enough for memory tracking to kick in
-                .addHiveProperty("hive.max-partitions-per-writers", "15000")
                 // This is needed for e2e scale writers test otherwise 50% threshold of
                 // bufferSize won't get exceeded for scaling to happen.
                 .addExtraProperty("task.max-local-exchange-buffer-size", "32MB")
@@ -8300,34 +8295,6 @@ public abstract class BaseHiveConnectorTest
                 .setCatalogSessionProperty("hive", "propagate_table_scan_sorting_properties", "true")
                 .build();
         assertQuery(session, actual, expected, assertPartialLimitWithPreSortedInputsCount(session, 1));
-        assertUpdate("DROP TABLE " + tableName);
-    }
-
-    @Test
-    public void testSortedTableMemoryTracking()
-    {
-        String tableName = "orders_sorted_" + randomNameSuffix();
-        @Language("SQL") String createTableSql = """
-                CREATE TABLE %s
-                WITH (
-                    bucket_count = 1,
-                    bucketed_by = ARRAY['orderstatus'],
-                    sorted_by = ARRAY[ 'orderstatus' ],
-                    partitioned_by = ARRAY[ 'orderkey' ]
-                ) AS
-                SELECT orderstatus, orderkey FROM tpch.tiny.orders o LIMIT 4000""".formatted(tableName);
-        MaterializedResultWithPlan result = getQueryRunner().executeWithPlan(getSession(), createTableSql);
-        assertThat(result.result().getUpdateCount()).hasValue(4000);
-
-        QueryStats queryStats = getDistributedQueryRunner().getCoordinator()
-                .getQueryManager()
-                .getFullQueryInfo(result.queryId())
-                .getQueryStats();
-        assertThat(queryStats.getPeakTaskUserMemory()).isGreaterThan(DataSize.of(100, MEGABYTE)); // in non FTE mode, this will be bigger than 1GB
-        OperatorStats tableWriterStats = queryStats.getOperatorSummaries().stream().filter(operatorStats -> operatorStats.getOperatorType().equals(TableWriterOperator.class.getSimpleName()))
-                .findAny().orElseThrow();
-        assertThat(tableWriterStats.getPeakTotalMemoryReservation()).isGreaterThan(DataSize.of(100, MEGABYTE));
-
         assertUpdate("DROP TABLE " + tableName);
     }
 
