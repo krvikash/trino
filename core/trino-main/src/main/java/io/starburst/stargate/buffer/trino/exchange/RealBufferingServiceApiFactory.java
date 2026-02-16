@@ -15,6 +15,8 @@ import io.starburst.stargate.buffer.data.client.DataApi;
 import io.starburst.stargate.buffer.data.client.DataApiFactory;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 
+import java.net.URI;
+
 import static java.util.Objects.requireNonNull;
 
 public class RealBufferingServiceApiFactory
@@ -22,14 +24,17 @@ public class RealBufferingServiceApiFactory
 {
     private final DiscoveryApi discoveryApi;
     private final DataApiFactory dataApiFactory;
+    private final boolean useVirtualThreadsUri;
 
     @Inject
     public RealBufferingServiceApiFactory(
             DiscoveryApi discoveryApi,
-            DataApiFactory dataApiFactory)
+            DataApiFactory dataApiFactory,
+            BufferExchangeConfig config)
     {
         this.discoveryApi = requireNonNull(discoveryApi, "discoveryApi is null");
         this.dataApiFactory = requireNonNull(dataApiFactory, "dataApiFactory is null");
+        this.useVirtualThreadsUri = requireNonNull(config, "config is null").isUseVirtualThreadsUri();
     }
 
     @Override
@@ -41,6 +46,9 @@ public class RealBufferingServiceApiFactory
     @Override
     public DataApi createDataApi(BufferNodeInfo bufferNodeInfo)
     {
-        return dataApiFactory.createDataApi(bufferNodeInfo.uri(), bufferNodeInfo.nodeId());
+        URI dataServerUri = useVirtualThreadsUri
+                ? bufferNodeInfo.virtualThreadsUri().orElse(bufferNodeInfo.uri())
+                : bufferNodeInfo.uri();
+        return dataApiFactory.createDataApi(dataServerUri, bufferNodeInfo.nodeId());
     }
 }

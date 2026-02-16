@@ -74,6 +74,7 @@ public class BufferExchangeConfig
     private int dataClientAddDataPagesCircuitBreakerFailureThreshold = 100;
     private int dataClientAddDataPagesCircuitBreakerSuccessThreshold = 5;
     private Duration dataClientAddDataPagesCircuitBreakerDelay = succinctDuration(5.0, SECONDS);
+    private boolean useVirtualThreadsUri;
 
     public URI getDiscoveryServiceUri()
     {
@@ -588,6 +589,19 @@ public class BufferExchangeConfig
     public BufferExchangeConfig setDataClientAddDataPagesCircuitBreakerDelay(Duration dataClientAddDataPagesCircuitBreakerDelay)
     {
         this.dataClientAddDataPagesCircuitBreakerDelay = dataClientAddDataPagesCircuitBreakerDelay;
+        return this;
+    }
+
+    public boolean isUseVirtualThreadsUri()
+    {
+        return useVirtualThreadsUri;
+    }
+
+    @Config("exchange.buffer-data.use-virtual-threads-uri")
+    @ConfigDescription("Use virtual threads URI for buffer data server communication when available")
+    public BufferExchangeConfig setUseVirtualThreadsUri(boolean useVirtualThreadsUri)
+    {
+        this.useVirtualThreadsUri = useVirtualThreadsUri;
         return this;
     }
 }

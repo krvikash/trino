@@ -77,7 +77,8 @@ class TestBufferExchangeConfig
                 .setDataClientAddDataPagesRetryBackoffJitter(0.5)
                 .setDataClientAddDataPagesCircuitBreakerFailureThreshold(100)
                 .setDataClientAddDataPagesCircuitBreakerSuccessThreshold(5)
-                .setDataClientAddDataPagesCircuitBreakerDelay(succinctDuration(5.0, SECONDS)));
+                .setDataClientAddDataPagesCircuitBreakerDelay(succinctDuration(5.0, SECONDS))
+                .setUseVirtualThreadsUri(false));
     }
 
     @Test
@@ -124,6 +125,7 @@ class TestBufferExchangeConfig
                 .put("exchange.buffer-data.add-data-pages-circuit-breaker-failure-threshold", "11")
                 .put("exchange.buffer-data.add-data-pages-circuit-breaker-success-threshold", "6")
                 .put("exchange.buffer-data.add-data-pages-circuit-breaker-delay", "31s")
+                .put("exchange.buffer-data.use-virtual-threads-uri", "true")
                 .buildOrThrow();
 
         BufferExchangeConfig expected = new BufferExchangeConfig()
@@ -165,7 +167,8 @@ class TestBufferExchangeConfig
                 .setDataClientAddDataPagesRetryBackoffJitter(0.25)
                 .setDataClientAddDataPagesCircuitBreakerFailureThreshold(11)
                 .setDataClientAddDataPagesCircuitBreakerSuccessThreshold(6)
-                .setDataClientAddDataPagesCircuitBreakerDelay(succinctDuration(31, SECONDS));
+                .setDataClientAddDataPagesCircuitBreakerDelay(succinctDuration(31, SECONDS))
+                .setUseVirtualThreadsUri(true);
 
         assertFullMapping(properties, expected, ImmutableSet.of("exchange.use-embedded-buffer-service"));
     }
@@ -214,6 +217,7 @@ class TestBufferExchangeConfig
                 .put("exchange.buffer-data.add-data-pages-circuit-breaker-failure-threshold", "11")
                 .put("exchange.buffer-data.add-data-pages-circuit-breaker-success-threshold", "6")
                 .put("exchange.buffer-data.add-data-pages-circuit-breaker-delay", "31s")
+                .put("exchange.buffer-data.use-virtual-threads-uri", "true")
                 .buildOrThrow();
 
         BufferExchangeConfig expected = new BufferExchangeConfig()
@@ -255,7 +259,8 @@ class TestBufferExchangeConfig
                 .setDataClientAddDataPagesRetryBackoffJitter(0.25)
                 .setDataClientAddDataPagesCircuitBreakerFailureThreshold(11)
                 .setDataClientAddDataPagesCircuitBreakerSuccessThreshold(6)
-                .setDataClientAddDataPagesCircuitBreakerDelay(succinctDuration(31, SECONDS));
+                .setDataClientAddDataPagesCircuitBreakerDelay(succinctDuration(31, SECONDS))
+                .setUseVirtualThreadsUri(true);
 
         assertFullMapping(properties, expected, ImmutableSet.of("exchange.buffer-discovery.uri"));
     }
