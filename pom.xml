@@ -3390,6 +3390,7 @@
                                     -Xep:CatchAndPrintStackTrace:ERROR \
                                     -Xep:CatchFail:ERROR \
                                     -Xep:ClassCanBeStatic:ERROR \
+                                    -Xep:ClassInitializationDeadlock:ERROR \
                                     -Xep:ClassName:ERROR \
                                     -Xep:ClassNewInstance:ERROR \
                                     -Xep:CollectionUndefinedEquality:ERROR \
