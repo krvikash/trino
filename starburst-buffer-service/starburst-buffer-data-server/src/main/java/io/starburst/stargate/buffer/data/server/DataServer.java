@@ -10,11 +10,15 @@
 package io.starburst.stargate.buffer.data.server;
 
 import com.google.common.collect.ImmutableList;
+import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import io.airlift.bootstrap.ApplicationConfigurationException;
 import io.airlift.bootstrap.Bootstrap;
+import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.airlift.http.server.HttpServerConfig;
 import io.airlift.http.server.HttpServerModule;
+import io.airlift.http.server.ServerFeature;
 import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.jmx.JmxModule;
 import io.airlift.json.JsonModule;
@@ -28,8 +32,12 @@ import io.starburst.stargate.buffer.status.StatusModule;
 import org.weakref.jmx.guice.MBeanModule;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.inject.multibindings.Multibinder.newSetBinder;
+import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.airlift.http.server.ServerFeature.VIRTUAL_THREADS;
 import static io.starburst.stargate.buffer.BufferNodeState.STARTED;
 import static io.starburst.stargate.buffer.data.server.DataServerApplicationModules.getDataServerApplicationModule;
+import static io.starburst.stargate.buffer.data.server.HttpServerFeaturesConfig.VIRTUAL_THREADS_CONFIG_PREFIX;
 import static java.util.Objects.requireNonNullElse;
 
 public final class DataServer
@@ -48,14 +56,15 @@ public final class DataServer
         ImmutableList.Builder<Module> modules = ImmutableList.builder();
         modules.add(new NodeModule(),
                 new HttpServerModule(),
-                new JsonModule(),
                 new JaxrsModule(),
+                new JsonModule(),
                 new MBeanModule(),
                 new JmxModule(),
                 new JmxOpenMetricsModule(),
                 new LogJmxModule(),
                 new TracingModule("buffer-data-server", version),
                 new StatusModule());
+        modules.add(getVirtualThreadsServerModule());
         modules.add(getDataServerApplicationModule());
 
         Bootstrap app = new Bootstrap(modules.build());
@@ -74,5 +83,30 @@ public final class DataServer
             log.error(e);
             System.exit(1);
         }
+    }
+
+    private static AbstractConfigurationAwareModule getVirtualThreadsServerModule()
+    {
+        return new AbstractConfigurationAwareModule()
+        {
+            @Override
+            protected void setup(Binder binder)
+            {
+                HttpServerFeaturesConfig featuresConfig = buildConfigObject(HttpServerFeaturesConfig.class);
+                if (featuresConfig.isVirtualThreadsEnabled()) {
+                    configBinder(binder)
+                            .bindConfigDefaults(
+                                    HttpServerConfig.class,
+                                    VirtualThreadsDataServer.class,
+                                    config -> config.setHttpPort(8085));
+
+                    newSetBinder(binder, ServerFeature.class, VirtualThreadsDataServer.class)
+                            .addBinding().toInstance(VIRTUAL_THREADS);
+
+                    install(new HttpServerModule("virtual-thread-http-server", VirtualThreadsDataServer.class, VIRTUAL_THREADS_CONFIG_PREFIX));
+                    install(new JaxrsModule(VirtualThreadsDataServer.class));
+                }
+            }
+        };
     }
 }

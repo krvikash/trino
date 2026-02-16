@@ -12,11 +12,13 @@ package io.starburst.stargate.buffer.data.server;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
 import com.google.inject.Binder;
+import com.google.inject.Key;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import io.airlift.concurrent.BoundedExecutor;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.http.server.HttpServerConfig;
+import io.airlift.http.server.HttpServerInfo;
 import io.airlift.json.JsonBinder;
 import io.airlift.tracing.SpanSerialization;
 import io.opentelemetry.api.trace.Span;
@@ -89,6 +91,10 @@ public class DataServerMainModule
         configBinder(binder).bindConfig(MemoryAllocatorConfig.class, configPrefix.orElse(null));
         configBinder(binder).bindConfig(DataServerConfig.class, configPrefix.orElse(null));
         jaxrsBinder(binder).bind(DataResource.class);
+
+        jaxrsBinder(binder, VirtualThreadsDataServer.class).bind(DataResource.class);
+        newOptionalBinder(binder, Key.get(HttpServerInfo.class, VirtualThreadsDataServer.class));
+
         jaxrsBinder(binder).bind(LifecycleResource.class);
         binder.bind(MemoryAllocator.class).in(SINGLETON);
         binder.bind(BufferNodeId.class).toInstance(new BufferNodeId(bufferNodeId));
