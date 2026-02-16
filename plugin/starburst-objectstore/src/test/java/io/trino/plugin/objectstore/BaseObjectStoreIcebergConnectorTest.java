@@ -13,22 +13,29 @@
  */
 package io.trino.plugin.objectstore;
 
+import com.google.common.collect.ImmutableList;
 import io.trino.Session;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.testing.MaterializedResult;
+import io.trino.testing.MaterializedRow;
 import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.sql.TestTable;
+import org.assertj.core.api.AbstractThrowableAssert;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Verify.verify;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.plugin.iceberg.IcebergTestUtils.checkOrcFileSorting;
 import static io.trino.plugin.objectstore.TableType.ICEBERG;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -115,8 +122,14 @@ public abstract class BaseObjectStoreIcebergConnectorTest
     @Override
     protected void verifyConcurrentAddColumnFailurePermissible(Exception e)
     {
-        assertThat(e)
-                .hasMessageContaining("Cannot update Iceberg table: supplied previous location does not match current location");
+        if (isGalaxyMetastore) {
+            assertThat(e)
+                    .hasMessageContaining("Cannot update Iceberg table: supplied previous location does not match current location");
+        }
+        else {
+            assertThat(e)
+                    .hasMessageMatching("Failed to add column: Metadata location .* is not same as table metadata location .* for .*");
+        }
     }
 
     @Override
@@ -170,6 +183,50 @@ public abstract class BaseObjectStoreIcebergConnectorTest
     }
 
     @Override
+    protected OptionalInt maxTableNameLength()
+    {
+        if (isGalaxyMetastore) {
+            return super.maxTableNameLength();
+        }
+        return OptionalInt.of(128);
+    }
+
+    @Override
+    protected OptionalInt maxSchemaNameLength()
+    {
+        if (isGalaxyMetastore) {
+            return super.maxSchemaNameLength();
+        }
+        return OptionalInt.of(128);
+    }
+
+    @Test
+    @Override
+    public void testRenameSchemaToLongName()
+    {
+        if (isGalaxyMetastore) {
+            super.testRenameSchemaToLongName();
+        }
+        else {
+            assertThatThrownBy(super::testRenameSchemaToLongName)
+                    .hasMessage("Hive metastore does not support renaming schemas");
+        }
+    }
+
+    @Test
+    @Override
+    public void testDropSchemaCascadeFailure()
+    {
+        if (isGalaxyMetastore) {
+            super.testDropSchemaCascadeFailure();
+        }
+        else {
+            assertThatThrownBy(super::testDropSchemaCascadeFailure)
+                    .hasMessageContaining("test_system_table$partitions is not a valid object name");
+        }
+    }
+
+    @Override
     @Test
     public void testShowCreateTable()
     {
@@ -191,6 +248,19 @@ public abstract class BaseObjectStoreIcebergConnectorTest
                 "   location = 's3://test-bucket-\\E\\w+\\Q/tpch/orders-\\E.*\\Q',\n" +
                 "   type = 'ICEBERG'\n" +
                 ")\\E");
+    }
+
+    @Test
+    @Override
+    public void testRenameSchema()
+    {
+        if (isGalaxyMetastore) {
+            super.testRenameSchema();
+        }
+        else {
+            assertThatThrownBy(super::testRenameSchema)
+                    .hasMessage("Hive metastore does not support renaming schemas");
+        }
     }
 
     @Override
@@ -321,6 +391,17 @@ public abstract class BaseObjectStoreIcebergConnectorTest
     protected Double basicTableStatisticsExpectedNdv(int actualNdv)
     {
         return (double) actualNdv;
+    }
+
+    @Override
+    protected void verifyRefreshMaterializedViewFailureWithoutMultiWriteInTransactionSupport(AbstractThrowableAssert abstractThrowableAssert)
+    {
+        if (isGalaxyMetastore) {
+            super.verifyRefreshMaterializedViewFailureWithoutMultiWriteInTransactionSupport(abstractThrowableAssert);
+        }
+        else {
+            abstractThrowableAssert.hasMessageMatching("Catalog only supports writes using autocommit: \\w+");
+        }
     }
 
     @Test
@@ -526,19 +607,35 @@ public abstract class BaseObjectStoreIcebergConnectorTest
     @Test
     public void testIcebergTablesSystemTable()
     {
-        assertThat(computeActual("SHOW SCHEMAS").getOnlyColumnAsSet())
-                .containsExactlyInAnyOrder(
-                        "information_schema",
-                        "system",
-                        "tpch");
+        ImmutableList.Builder<String> expectedSchemasBuilder = ImmutableList.<String>builder()
+                .add("information_schema")
+                .add("system")
+                .add("tpch");
+        if (!isGalaxyMetastore) {
+            expectedSchemasBuilder.add("default");
+        }
 
-        assertQuery("SELECT * FROM information_schema.schemata",
-                """
-                VALUES
-                ('objectstore', 'information_schema'),
-                ('objectstore', 'system'),
-                ('objectstore', 'tpch')
-                """);
+        List<String> expectedSchemas = expectedSchemasBuilder.build();
+        Set<Object> actualSchemas = computeActual("SHOW SCHEMAS").getOnlyColumnAsSet();
+
+        List<MaterializedRow> expectedSchemataRows = expectedSchemas.stream()
+                .map(schema -> new MaterializedRow(ImmutableList.of("objectstore", schema)))
+                .collect(toImmutableList());
+        List<MaterializedRow> actualSchemataRows = computeActual("SELECT * FROM information_schema.schemata").getMaterializedRows();
+
+        if (isGalaxyMetastore) {
+            assertThat(actualSchemas)
+                    .containsExactlyInAnyOrderElementsOf(expectedSchemas);
+            assertThat(actualSchemataRows)
+                    .containsExactlyInAnyOrderElementsOf(expectedSchemataRows);
+        }
+        else {
+            // Avoid using exact match since other tests may create additional schemas
+            assertThat(actualSchemas)
+                    .containsAll(expectedSchemas);
+            assertThat(actualSchemataRows)
+                    .containsAll(expectedSchemataRows);
+        }
 
         assertThat(computeActual("SHOW TABLES FROM system").getOnlyColumnAsSet())
                 .containsExactlyInAnyOrder("iceberg_tables");
