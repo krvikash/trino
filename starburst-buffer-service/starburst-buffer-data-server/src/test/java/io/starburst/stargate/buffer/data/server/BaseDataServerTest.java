@@ -45,6 +45,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -81,19 +82,27 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.abort;
 
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
-public class TestDataServer
+abstract class BaseDataServerTest
 {
     private static final String EXCHANGE_0 = "exchange-0";
     private static final String EXCHANGE_1 = "exchange-1";
     private static final long BUFFER_NODE_ID = 0;
     private static final DataSize DATA_SERVER_AVAILABLE_MEMORY = DataSize.of(130, MEGABYTE);
 
+    private final boolean useBlockingResource;
+
     private TestingDataServer dataServer;
     private HttpClient httpClient;
     private HttpDataClient dataClient;
     private JsonCodec<Span> spanJsonCodec;
+    private URI dataServerUri;
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
+
+    BaseDataServerTest(boolean useBlockingResource)
+    {
+        this.useBlockingResource = useBlockingResource;
+    }
 
     @BeforeEach
     public void setup()
@@ -101,7 +110,8 @@ public class TestDataServer
         JsonCodecFactory jsonCodecFactory = new JsonCodecFactory(new ObjectMapperProvider()
                 .withJsonSerializers(Map.of(Span.class, new SpanSerialization.SpanSerializer(OpenTelemetry.noop()))));
         spanJsonCodec = jsonCodecFactory.jsonCodec(Span.class);
-        dataServer = TestingDataServer.builder()
+
+        TestingDataServer.Builder builder = TestingDataServer.builder()
                 .withDiscoveryApiModule(new TestingDiscoveryApiModule())
                 .setConfigProperty("spooling.directory", System.getProperty("java.io.tmpdir") + "/spooling-storage-" + UUID.randomUUID())
                 .setConfigProperty("discovery-broadcast-interval", "10ms")
@@ -109,11 +119,19 @@ public class TestDataServer
                 .setConfigProperty("memory.allocation-low-watermark", "0.99")
                 .setConfigProperty("memory.allocation-high-watermark", "0.99")
                 .setConfigProperty("draining.min-duration", "2s")
-                .setConfigProperty("chunk.max-size", "32MB")
-                .build();
+                .setConfigProperty("chunk.max-size", "32MB");
+        if (useBlockingResource) {
+            builder
+                    .setConfigProperty("virtual-threads.enabled", "true")
+                    .setConfigProperty("virtual-threads.http-server.http.port", "0") //random port
+                    .withBlockingResource();
+        }
+        dataServer = builder.build();
+
+        dataServerUri = useBlockingResource ? dataServer.getVirtualThreadsBaseUri().orElse(dataServer.getBaseUri()) : dataServer.getBaseUri();
         httpClient = new JettyHttpClient(new HttpClientConfig().setMaxResponseContentLength(DataSize.of(64, MEGABYTE)));
         dataClient = new HttpDataClient(
-                dataServer.getBaseUri(),
+                dataServerUri,
                 BUFFER_NODE_ID,
                 httpClient,
                 succinctDuration(60, SECONDS),
@@ -333,7 +351,7 @@ public class TestDataServer
                 .isInstanceOf(DataApiException.class)
                 .matches(dataApiException -> ((DataApiException) dataApiException).getErrorCode() == USER_ERROR)
                 .hasMessage("error on POST %s/api/v1/buffer/data/%s/addDataPages/0/0/0?targetBufferNodeId=0: Data page too large (33554426 > 33554425)"
-                        .formatted(dataServer.getBaseUri(), EXCHANGE_0));
+                        .formatted(dataServerUri, EXCHANGE_0));
         finishExchange(EXCHANGE_0);
     }
 
@@ -344,7 +362,7 @@ public class TestDataServer
 
         Request drainRequest = Request.builder()
                 .setMethod("GET")
-                .setUri(uriBuilderFrom(requireNonNull(dataServer.getBaseUri(), "baseUri is null"))
+                .setUri(uriBuilderFrom(requireNonNull(dataServerUri, "baseUri is null"))
                         .replacePath("/api/v1/buffer/data/drain")
                         .build())
                 .build();
@@ -356,7 +374,7 @@ public class TestDataServer
         assertThatThrownBy(() -> addDataPage(EXCHANGE_0, 1, 1, 1, 1L, utf8Slice("dummy")))
                 .isInstanceOf(DataApiException.class)
                 .hasMessage("error on POST %s/api/v1/buffer/data/%s/addDataPages/1/1/1?targetBufferNodeId=0: Node %d is draining and not accepting any more data"
-                        .formatted(dataServer.getBaseUri(), EXCHANGE_0, BUFFER_NODE_ID));
+                        .formatted(dataServerUri, EXCHANGE_0, BUFFER_NODE_ID));
 
         Future<ChunkList> chunkListFuture = executor.submit(() -> {
             OptionalLong pagingId = OptionalLong.empty();
@@ -395,7 +413,7 @@ public class TestDataServer
         return BufferNodeState.valueOf(httpClient.execute(
                 Request.builder()
                         .setMethod("GET")
-                        .setUri(uriBuilderFrom(requireNonNull(dataServer.getBaseUri(), "baseUri is null"))
+                        .setUri(uriBuilderFrom(requireNonNull(dataServerUri, "baseUri is null"))
                                 .replacePath("/api/v1/buffer/data/state")
                                 .build())
                         .build(), createStringResponseHandler()).getBody().trim());
@@ -408,19 +426,19 @@ public class TestDataServer
 
         assertThatThrownBy(() -> finishExchange(EXCHANGE_1))
                 .isInstanceOf(DataApiException.class)
-                .hasMessage("error on GET %s/api/v1/buffer/data/exchange-1/finish?targetBufferNodeId=0: exchange %s not found".formatted(dataServer.getBaseUri(), EXCHANGE_1));
+                .hasMessage("error on GET %s/api/v1/buffer/data/exchange-1/finish?targetBufferNodeId=0: exchange %s not found".formatted(dataServerUri, EXCHANGE_1));
         assertThatThrownBy(() -> getFutureValue(dataClient.listClosedChunks(EXCHANGE_0, OptionalLong.of(Long.MAX_VALUE))))
                 .isInstanceOf(DataApiException.class)
                 .hasMessageContaining("pagingId %s does not equal nextPagingId 0".formatted(Long.MAX_VALUE));
         assertThatThrownBy(() -> getChunkData(EXCHANGE_0, new ChunkHandle(BUFFER_NODE_ID, 0, 3L, 0)))
                 .isInstanceOf(DataApiException.class)
-                .hasMessage("error on GET %s/api/v1/buffer/data/0/exchange-0/pages/0/3?targetBufferNodeId=0: No closed chunk found for bufferNodeId %d, exchange %s, chunk 3".formatted(dataServer.getBaseUri(), BUFFER_NODE_ID, EXCHANGE_0));
+                .hasMessage("error on GET %s/api/v1/buffer/data/0/exchange-0/pages/0/3?targetBufferNodeId=0: No closed chunk found for bufferNodeId %d, exchange %s, chunk 3".formatted(dataServerUri, BUFFER_NODE_ID, EXCHANGE_0));
 
         finishExchange(EXCHANGE_0);
 
         assertThatThrownBy(() -> addDataPage(EXCHANGE_0, 0, 0, 0, 0L, utf8Slice("exception")))
                 .isInstanceOf(DataApiException.class)
-                .hasMessage("error on POST %s/api/v1/buffer/data/exchange-0/addDataPages/0/0/0?targetBufferNodeId=0: exchange %s already finished".formatted(dataServer.getBaseUri(), EXCHANGE_0));
+                .hasMessage("error on POST %s/api/v1/buffer/data/exchange-0/addDataPages/0/0/0?targetBufferNodeId=0: exchange %s already finished".formatted(dataServerUri, EXCHANGE_0));
 
         removeExchange(EXCHANGE_0);
     }
@@ -429,7 +447,7 @@ public class TestDataServer
     public void testInvalidTargetDataNodeId()
     {
         HttpDataClient invalidDataClient = new HttpDataClient(
-                dataServer.getBaseUri(),
+                dataServerUri,
                 BUFFER_NODE_ID + 1,
                 httpClient, succinctDuration(60, SECONDS),
                 new BlackholeSpooledChunkReader(),

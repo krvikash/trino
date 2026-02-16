@@ -91,11 +91,12 @@ public class DataServerMainModule
         configBinder(binder).bindConfig(MemoryAllocatorConfig.class, configPrefix.orElse(null));
         configBinder(binder).bindConfig(DataServerConfig.class, configPrefix.orElse(null));
         jaxrsBinder(binder).bind(DataResource.class);
+        jaxrsBinder(binder).bind(LifecycleResource.class);
 
         jaxrsBinder(binder, VirtualThreadsDataServer.class).bind(BlockingDataResource.class);
+        jaxrsBinder(binder, VirtualThreadsDataServer.class).bind(LifecycleResource.class);
         newOptionalBinder(binder, Key.get(HttpServerInfo.class, VirtualThreadsDataServer.class));
 
-        jaxrsBinder(binder).bind(LifecycleResource.class);
         binder.bind(MemoryAllocator.class).in(SINGLETON);
         binder.bind(BufferNodeId.class).toInstance(new BufferNodeId(bufferNodeId));
         binder.bind(BufferNodeInfoService.class).in(SINGLETON);

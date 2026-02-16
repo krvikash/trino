@@ -85,7 +85,7 @@ public final class DataServer
         }
     }
 
-    private static AbstractConfigurationAwareModule getVirtualThreadsServerModule()
+    public static AbstractConfigurationAwareModule getVirtualThreadsServerModule()
     {
         return new AbstractConfigurationAwareModule()
         {

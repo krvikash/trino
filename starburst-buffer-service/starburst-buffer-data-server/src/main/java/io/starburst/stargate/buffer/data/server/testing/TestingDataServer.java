@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.data.server.testing;
 
 import com.google.common.io.Closer;
 import com.google.inject.Injector;
+import com.google.inject.Key;
 import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.bootstrap.LifeCycleManager;
@@ -27,6 +28,7 @@ import io.starburst.stargate.buffer.data.server.DataServerMainModule;
 import io.starburst.stargate.buffer.data.server.DataServerStatusProvider;
 import io.starburst.stargate.buffer.data.server.SpoolingStorageModule;
 import io.starburst.stargate.buffer.data.server.StandaloneDiscoveryApiModule;
+import io.starburst.stargate.buffer.data.server.VirtualThreadsDataServer;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import io.starburst.stargate.buffer.status.StatusModule;
 import io.starburst.stargate.buffer.status.StatusProvider;
@@ -47,12 +49,14 @@ import java.util.function.Supplier;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static io.starburst.stargate.buffer.BufferNodeState.ACTIVE;
 import static io.starburst.stargate.buffer.BufferNodeState.STARTED;
+import static io.starburst.stargate.buffer.data.server.DataServer.getVirtualThreadsServerModule;
 import static java.util.Objects.requireNonNull;
 
 public class TestingDataServer
         implements Closeable
 {
     private final URI baseUri;
+    private final Optional<URI> virtualThreadsBaseUri;
     private final DataServerStatusProvider statusProvider;
     private final Closer closer = Closer.create();
     private final Optional<DiscoveryApi> discovery;
@@ -61,14 +65,15 @@ public class TestingDataServer
     private TestingDataServer(long nodeId,
             Supplier<Optional<Module>> discoveryApiModule,
             Map<String, String> configProperties,
-            boolean useBlackholeStorage)
+            boolean useBlackholeStorage,
+            boolean useBlockingResource)
     {
         this.nodeId = nodeId;
         Map<String, String> finalConfigProperties = new HashMap<>(configProperties);
         finalConfigProperties.put("trino.plane-id", "aws-us-east1-1");
         List<Module> modules = new ArrayList<>(Arrays.asList(
                 new TestingNodeModule("test"),
-                new TestingHttpServerModule(),
+                new TestingHttpServerModule("test"),
                 new JsonModule(),
                 new JaxrsModule(),
                 new MBeanModule(),
@@ -80,7 +85,8 @@ public class TestingDataServer
                         .withBufferNodeId(nodeId)
                         .withDiscoveryBroadcast(discoveryApiModule.get().isPresent())
                         .build(),
-                useBlackholeStorage ? new BlackholeSpoolingStorageModule() : new SpoolingStorageModule(Optional.empty())));
+                useBlackholeStorage ? new BlackholeSpoolingStorageModule() : new SpoolingStorageModule(Optional.empty()),
+                getVirtualThreadsServerModule()));
         discoveryApiModule.get().ifPresent(modules::add);
 
         Bootstrap app = new Bootstrap(modules);
@@ -102,15 +108,29 @@ public class TestingDataServer
         closer.register(lifeCycleManager::stop);
 
         HttpServerInfo httpServerInfo = injector.getInstance(HttpServerInfo.class);
-        baseUri = UriBuilder.fromUri(httpServerInfo.getHttpsUri() != null ? httpServerInfo.getHttpsUri() : httpServerInfo.getHttpUri())
-                .host("localhost")
-                .build();
+        baseUri = getUri(httpServerInfo);
+
+        if (useBlockingResource) {
+            HttpServerInfo vtHttpServerInfo = injector.getInstance(Key.get(HttpServerInfo.class, VirtualThreadsDataServer.class));
+            virtualThreadsBaseUri = Optional.of(getUri(vtHttpServerInfo));
+        }
+        else {
+            virtualThreadsBaseUri = Optional.empty();
+        }
+
         if (discoveryApiModule.get().isPresent()) {
             discovery = Optional.of(injector.getInstance(DiscoveryApi.class));
         }
         else {
             discovery = Optional.empty();
         }
+    }
+
+    private static URI getUri(HttpServerInfo httpServerInfo)
+    {
+        return UriBuilder.fromUri(httpServerInfo.getHttpsUri() != null ? httpServerInfo.getHttpsUri() : httpServerInfo.getHttpUri())
+                .host("localhost")
+                .build();
     }
 
     public StatusProvider getStatusProvider()
@@ -133,6 +153,7 @@ public class TestingDataServer
         private Supplier<Optional<Module>> discoveryApiModule = Optional::empty;
         private Map<String, String> configProperties = new HashMap<>();
         private boolean useBlackholeStorage;
+        private boolean useBlockingResource;
 
         public Builder withDefaultDiscoveryApiModule()
         {
@@ -165,6 +186,12 @@ public class TestingDataServer
             return this;
         }
 
+        public Builder withBlockingResource()
+        {
+            this.useBlockingResource = true;
+            return this;
+        }
+
         public TestingDataServer build()
         {
             return build(0);
@@ -175,13 +202,18 @@ public class TestingDataServer
             if (!configProperties.containsKey("spooling.directory")) {
                 configProperties.put("spooling.directory", "%s/spooling-storage-%s".formatted(System.getProperty("java.io.tmpdir"), nodeId));
             }
-            return new TestingDataServer(nodeId, discoveryApiModule, configProperties, useBlackholeStorage);
+            return new TestingDataServer(nodeId, discoveryApiModule, configProperties, useBlackholeStorage, useBlockingResource);
         }
     }
 
     public URI getBaseUri()
     {
         return baseUri;
+    }
+
+    public Optional<URI> getVirtualThreadsBaseUri()
+    {
+        return virtualThreadsBaseUri;
     }
 
     public long getNodeId()
