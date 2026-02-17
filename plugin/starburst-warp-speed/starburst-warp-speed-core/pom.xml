@@ -495,7 +495,14 @@
                         <!-- iceberg-api, -core, -nessie, and -parquet contain iceberg-build.properties -->
                         <ignoredResourcePattern>iceberg-build.properties</ignoredResourcePattern>
                         <ignoredResourcePattern>mime.types</ignoredResourcePattern>
+                        <!-- net.snowflake:snowflake-jdbc and org.conscrypt:conscrypt-openjdk-uber: file duplicate -->
+                        <ignoredResourcePattern>org/conscrypt/conscrypt.properties</ignoredResourcePattern>
                     </ignoredResourcePatterns>
+
+                    <ignoredClassPatterns>
+                        <!-- net.snowflake:snowflake-jdbc, org.conscrypt:conscrypt-openjdk-uber -->
+                        <ignoredClassPattern>org.conscrypt.*</ignoredClassPattern>
+                    </ignoredClassPatterns>
                 </configuration>
             </plugin>
         </plugins>

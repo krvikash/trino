@@ -879,11 +879,15 @@
                         <ignoredResourcePattern>iceberg-build.properties</ignoredResourcePattern>
                         <ignoredResourcePattern>mozilla/public-suffix-list.txt</ignoredResourcePattern>
                         <ignoredResourcePattern>mime.types</ignoredResourcePattern>
+                        <ignoredResourcePattern>org/conscrypt/conscrypt.properties</ignoredResourcePattern>
                         <!-- com.databricks:databricks-jdbc:2.7.1, org.apache.logging.log4j:log4j-api -->
                         <ignoredResourcePattern>Log4j-charsets.properties</ignoredResourcePattern>
                         <!-- Duplicate in test classpath: trino-iceberg/target/test-classes and trino-hive:tests -->
                         <ignoredResourcePattern>ozone-filesystem-hadoop3-1.4.0.jar</ignoredResourcePattern>
                     </ignoredResourcePatterns>
+                    <ignoredClassPatterns>
+                        <ignoredClassPattern>org.conscrypt.*</ignoredClassPattern>
+                    </ignoredClassPatterns>
                 </configuration>
             </plugin>
         </plugins>

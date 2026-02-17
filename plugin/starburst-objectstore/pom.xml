@@ -862,11 +862,15 @@
                         <!-- org.apache.commons:commons-configuration2 and com.databricks:databricks-jdbc file duplicate -->
                         <ignoredResourcePattern>PropertyList-1.0.dtd</ignoredResourcePattern>
                         <ignoredResourcePattern>properties.dtd</ignoredResourcePattern>
+                        <!-- net.snowflake:snowflake-jdbc and org.conscrypt:conscrypt-openjdk-uber: file duplicate -->
+                        <ignoredResourcePattern>org/conscrypt/conscrypt.properties</ignoredResourcePattern>
                     </ignoredResourcePatterns>
 
                     <ignoredClassPatterns>
                         <!-- org.apache.hudi:hudi-hadoop-common:1.1.0, org.apache.parquet:parquet-common:1.16.0 -->
                         <ignoredClassPattern>org.apache.parquet.conf.ParquetConfiguration</ignoredClassPattern>
+                        <!-- net.snowflake:snowflake-jdbc, org.conscrypt:conscrypt-openjdk-uber -->
+                        <ignoredClassPattern>org.conscrypt.*</ignoredClassPattern>
                     </ignoredClassPatterns>
                 </configuration>
             </plugin>
