@@ -163,7 +163,7 @@ public class DataResource
         try {
             checkTargetBufferNodeId(targetBufferNodeId);
         }
-        catch (RuntimeException e) {
+        catch (Throwable e) {
             if (!asyncResponse.isDone()) {
                 asyncResponse.resume(errorResponse(e));
             }
@@ -230,7 +230,7 @@ public class DataResource
             validateTaskId(taskId);
             validateAttemptId(attemptId);
         }
-        catch (RuntimeException e) {
+        catch (Throwable e) {
             reportException(logger, e, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
             consumeRequestAndCompleteAsyncResponse(clientId, asyncResponse, inputStream, processingStart, Optional.of(e));
             return;
@@ -597,7 +597,7 @@ public class DataResource
         try {
             chunkDataResult = chunkManager.getChunkData(bufferNodeId, exchangeId, partitionId, chunkId);
         }
-        catch (RuntimeException e) {
+        catch (Throwable e) {
             reportException(logger, e, "error on GET /%s/%s/pages/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId);
             asyncResponse.resume(errorResponse(e));
             return;
@@ -726,7 +726,7 @@ public class DataResource
                 }
             }, responseExecutor);
         }
-        catch (RuntimeException e) {
+        catch (Throwable e) {
             reportException(logger, e, "error on GET /%s/finish", exchangeId);
             if (!asyncResponse.isDone()) {
                 asyncResponse.resume(errorResponse(e));

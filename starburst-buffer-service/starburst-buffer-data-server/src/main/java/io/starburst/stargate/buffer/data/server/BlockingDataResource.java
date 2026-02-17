@@ -180,7 +180,7 @@ public class BlockingDataResource
             validateTaskId(taskId);
             validateAttemptId(attemptId);
         }
-        catch (RuntimeException e) {
+        catch (Throwable e) {
             reportException(logger, e, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
             return consumeRequestAndBuildResponse(clientId, inputStream, processingStart, Optional.of(e));
         }
@@ -421,7 +421,7 @@ public class BlockingDataResource
             checkTargetBufferNodeId(targetBufferNodeId);
             chunkDataResult = chunkManager.getChunkData(bufferNodeId, exchangeId, partitionId, chunkId);
         }
-        catch (RuntimeException e) {
+        catch (Throwable e) {
             reportException(logger, e, "error on GET /%s/%s/pages/%s/%s", bufferNodeId, exchangeId, partitionId, chunkId);
             return errorResponse(e);
         }

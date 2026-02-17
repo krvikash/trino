@@ -106,7 +106,7 @@ public abstract class BaseDataResource
             checkTargetBufferNodeId(targetBufferNodeId);
             return Response.ok(bufferNodeInfoService.getNodeInfo()).build();
         }
-        catch (RuntimeException e) {
+        catch (Throwable e) {
             reportException(logger, e, "error on GET /info");
             return errorResponse(e);
         }
@@ -124,7 +124,7 @@ public abstract class BaseDataResource
             chunkManager.markAllClosedChunksReceived(exchangeId);
             return Response.ok().build();
         }
-        catch (RuntimeException e) {
+        catch (Throwable e) {
             reportException(logger, e, "error on GET /%s/markAllClosedChunksReceived", exchangeId);
             return errorResponse(e);
         }
@@ -143,7 +143,7 @@ public abstract class BaseDataResource
             chunkManager.setChunkDeliveryMode(exchangeId, chunkDeliveryMode);
             return Response.ok().build();
         }
-        catch (RuntimeException e) {
+        catch (Throwable e) {
             reportException(logger, e, "error on GET /%s/setChunkDeliveryMode?chunkDeliveryMode=%s", exchangeId, chunkDeliveryMode);
             return errorResponse(e);
         }
@@ -175,7 +175,7 @@ public abstract class BaseDataResource
             chunkManager.registerExchange(exchangeId, mode, exchangeSpan);
             return Response.ok().build();
         }
-        catch (RuntimeException e) {
+        catch (Throwable e) {
             reportException(logger, e, "error on GET /%s/register", exchangeId);
             return errorResponse(e);
         }
@@ -192,7 +192,7 @@ public abstract class BaseDataResource
             checkTargetBufferNodeId(targetBufferNodeId);
             return Response.ok(chunkManager.pingExchange(exchangeId)).build();
         }
-        catch (RuntimeException e) {
+        catch (Throwable e) {
             reportException(logger, e, "error on GET /%s/ping", exchangeId);
             return errorResponse(e);
         }
@@ -210,7 +210,7 @@ public abstract class BaseDataResource
             chunkManager.removeExchange(exchangeId);
             return Response.ok().build();
         }
-        catch (RuntimeException e) {
+        catch (Throwable e) {
             reportException(logger, e, "error on DELETE /%s", exchangeId);
             return errorResponse(e);
         }
