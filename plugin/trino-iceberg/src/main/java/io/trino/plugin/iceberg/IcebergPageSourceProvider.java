@@ -285,7 +285,8 @@ public class IcebergPageSourceProvider
                 .collect(toImmutableList());
         IcebergTableHandle tableHandle = (IcebergTableHandle) connectorTable;
         Schema schema = SchemaParser.fromJson(tableHandle.getTableSchemaJson());
-        PartitionSpec partitionSpec = PartitionSpecParser.fromJson(schema, split.getPartitionSpecJson());
+        String partitionSpecJson = tableHandle.getPartitionSpecJsons().get(split.getSpecId());
+        PartitionSpec partitionSpec = PartitionSpecParser.fromJson(schema, partitionSpecJson);
         org.apache.iceberg.types.Type[] partitionColumnTypes = partitionSpec.fields().stream()
                 .map(field -> field.transform().getResultType(schema.findType(field.sourceId())))
                 .toArray(org.apache.iceberg.types.Type[]::new);
@@ -631,7 +632,8 @@ public class IcebergPageSourceProvider
         IcebergTableHandle icebergTableHandle = (IcebergTableHandle) tableHandle;
         IcebergSplit icebergSplit = (IcebergSplit) split;
         Schema tableSchema = SchemaParser.fromJson(icebergTableHandle.getTableSchemaJson());
-        PartitionSpec partitionSpec = PartitionSpecParser.fromJson(tableSchema, icebergSplit.getPartitionSpecJson());
+        String partitionSpecJson = icebergTableHandle.getPartitionSpecJsons().get(icebergSplit.getSpecId());
+        PartitionSpec partitionSpec = PartitionSpecParser.fromJson(tableSchema, partitionSpecJson);
         Map<Integer, Optional<String>> partitionKeys = getPartitionKeys(tableSchema, partitionSpec, icebergSplit.getPartitionDataJson());
 
         return new SplitSpec(tableSchema, partitionSpec, partitionKeys);

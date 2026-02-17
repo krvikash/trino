@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.iceberg.procedure;
 
+import com.google.common.collect.ImmutableMap;
 import io.starburst.ai.client.EmbeddingType;
 import io.trino.plugin.iceberg.IcebergColumnHandle;
 import io.trino.plugin.iceberg.IcebergFileFormat;
@@ -31,7 +32,8 @@ public record IcebergGenerateEmbeddingsHandle(
         int dataColumnFieldId,
         Optional<Long> snapshotId,
         String schemaAsJson,
-        String partitionSpecAsJson,
+        int specId,
+        Map<Integer, String> partitionSpecJsons,
         List<IcebergColumnHandle> tableColumns,
         List<TrinoSortField> sortOrder,
         IcebergFileFormat fileFormat,
@@ -45,7 +47,7 @@ public record IcebergGenerateEmbeddingsHandle(
         requireNonNull(embeddingType, "embeddingType is null");
         requireNonNull(snapshotId, "snapshotId is null");
         requireNonNull(schemaAsJson, "schemaAsJson is null");
-        requireNonNull(partitionSpecAsJson, "partitionSpecAsJson is null");
+        partitionSpecJsons = ImmutableMap.copyOf(partitionSpecJsons);
         requireNonNull(tableColumns, "tableColumns is null");
         requireNonNull(sortOrder, "sortOrder is null");
         requireNonNull(fileFormat, "fileFormat is null");

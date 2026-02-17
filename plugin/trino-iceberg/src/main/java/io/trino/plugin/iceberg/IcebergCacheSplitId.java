@@ -27,7 +27,6 @@ public class IcebergCacheSplitId
     private final long start;
     private final long length;
     private final long fileSize;
-    private final String partitionSpecJson;
     private final String partitionDataJson;
     private final List<DeleteFile> deletes;
 
@@ -36,7 +35,6 @@ public class IcebergCacheSplitId
             long start,
             long length,
             long fileSize,
-            String partitionSpecJson,
             String partitionDataJson,
             List<DeleteFile> deletes)
     {
@@ -44,7 +42,6 @@ public class IcebergCacheSplitId
         this.start = start;
         this.length = length;
         this.fileSize = fileSize;
-        this.partitionSpecJson = requireNonNull(partitionSpecJson, "partitionSpecJson is null");
         this.partitionDataJson = requireNonNull(partitionDataJson, "partitionDataJson is null");
         this.deletes = ImmutableList.copyOf(requireNonNull(deletes, "deletes is null"));
     }
@@ -71,12 +68,6 @@ public class IcebergCacheSplitId
     public long getFileSize()
     {
         return fileSize;
-    }
-
-    @JsonProperty
-    public String getPartitionSpecJson()
-    {
-        return partitionSpecJson;
     }
 
     @JsonProperty

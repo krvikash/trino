@@ -41,10 +41,6 @@ import io.trino.spi.predicate.ValueSet;
 import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.type.LongTimestampWithTimeZone;
 import io.trino.spi.type.Type;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.PartitionSpecParser;
-import org.apache.iceberg.Schema;
-import org.apache.iceberg.types.Types;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -58,6 +54,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -263,7 +260,7 @@ public class TestIcebergCacheIds
     @Test
     public void testSplitId()
     {
-        String unpartitionedPartitionSpecJson = PartitionSpecParser.toJson(PartitionSpec.unpartitioned());
+        int unpartitionedPartitionSpecJson = 1;
         String unpartitionedPartitionDataJson = PartitionData.toJson(new PartitionData(new Object[] {}));
         assertThat(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedPartitionDataJson, List.of())))
                 .isEqualTo(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedPartitionDataJson, List.of())));
@@ -288,18 +285,11 @@ public class TestIcebergCacheIds
         assertThat(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedPartitionDataJson, List.of())))
                 .isNotEqualTo(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 100, IcebergFileFormat.PARQUET, unpartitionedPartitionSpecJson, unpartitionedPartitionDataJson, List.of())));
 
-        // different partitionSpecJson should make ids different
-        String partitionSpecJson1 = PartitionSpecParser.toJson(
-                PartitionSpec.builderFor(new Schema(
-                                List.of(Types.NestedField.required(0, "field 1", Types.IntegerType.get()))))
-                        .build());
-        String partitionSpecJson2 = PartitionSpecParser.toJson(
-                PartitionSpec.builderFor(new Schema(
-                                List.of(Types.NestedField.required(0, "field 1", Types.IntegerType.get()),
-                                        Types.NestedField.required(1, "field 2", Types.IntegerType.get()))))
-                        .build());
-        assertThat(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, partitionSpecJson1, unpartitionedPartitionDataJson, List.of())))
-                .isNotEqualTo(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 100, IcebergFileFormat.PARQUET, partitionSpecJson2, unpartitionedPartitionDataJson, List.of())));
+        // different spec id should make ids different
+        int partitionSpecId1 = 1;
+        int partitionSpecId2 = 2;
+        assertThat(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, partitionSpecId1, unpartitionedPartitionDataJson, List.of())))
+                .isNotEqualTo(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 100, IcebergFileFormat.PARQUET, partitionSpecId2, unpartitionedPartitionDataJson, List.of())));
 
         // different partitionDataJson should make ids different
         assertThat(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedPartitionDataJson, List.of())))
@@ -322,7 +312,7 @@ public class TestIcebergCacheIds
             long length,
             long fileSize,
             IcebergFileFormat fileFormat,
-            String partitionSpecJson,
+            int specId,
             String partitionDataJson,
             List<DeleteFile> deletes)
     {
@@ -333,7 +323,7 @@ public class TestIcebergCacheIds
                 fileSize,
                 0L,
                 fileFormat,
-                partitionSpecJson,
+                specId,
                 partitionDataJson,
                 deletes,
                 SplitWeight.standard(),
@@ -357,7 +347,8 @@ public class TestIcebergCacheIds
                 TableType.DATA,
                 snapshotId,
                 tableSchemaJson,
-                partitionSpecJson,
+                partitionSpecJson.isPresent() ? OptionalInt.of(1) : OptionalInt.empty(),
+                partitionSpecJson.map(spec -> ImmutableMap.of(1, spec)).orElse(ImmutableMap.of()),
                 2,
                 TupleDomain.all(),
                 TupleDomain.all(),
@@ -390,7 +381,8 @@ public class TestIcebergCacheIds
                 TableType.DATA,
                 Optional.of(1L),
                 tableSchemaJson,
-                partitionSpecJson,
+                partitionSpecJson.isPresent() ? OptionalInt.of(1) : OptionalInt.empty(),
+                partitionSpecJson.map(spec -> ImmutableMap.of(1, spec)).orElse(ImmutableMap.of()),
                 2,
                 TupleDomain.all(),
                 TupleDomain.all(),
@@ -425,7 +417,8 @@ public class TestIcebergCacheIds
                 TableType.DATA,
                 Optional.of(1L),
                 tableSchemaJson,
-                partitionSpecJson,
+                partitionSpecJson.isPresent() ? OptionalInt.of(1) : OptionalInt.empty(),
+                partitionSpecJson.map(spec -> ImmutableMap.of(1, spec)).orElse(ImmutableMap.of()),
                 2,
                 unenforcedPredicate,
                 enforcedPredicate,
@@ -454,7 +447,8 @@ public class TestIcebergCacheIds
                 TableType.DATA,
                 Optional.of(1L),
                 "tableSchemaJson",
-                Optional.of("partitionSpecJson"),
+                OptionalInt.empty(),
+                ImmutableMap.of(),
                 2,
                 TupleDomain.all(),
                 TupleDomain.all(),

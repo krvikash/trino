@@ -37,11 +37,14 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.predicate.TupleDomain;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.PartitionSpecParser;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
 
@@ -72,7 +75,8 @@ public class IcebergProxiedConnectorTransformerTest
                 TableType.DATA,
                 Optional.of(1L),
                 "tableSchemaJson",
-                Optional.of("partitionSpecJson"),
+                OptionalInt.empty(),
+                ImmutableMap.of(),
                 1,
                 TupleDomain.all(),
                 TupleDomain.all(),
@@ -108,7 +112,8 @@ public class IcebergProxiedConnectorTransformerTest
                 icebergTableHandle.getTableType(),
                 icebergTableHandle.getSnapshotId(),
                 icebergTableHandle.getTableSchemaJson(),
-                icebergTableHandle.getPartitionSpecJson(),
+                icebergTableHandle.getSpecId(),
+                icebergTableHandle.getPartitionSpecJsons(),
                 icebergTableHandle.getFormatVersion(),
                 TupleDomain.all(),
                 TupleDomain.all(),
@@ -141,7 +146,8 @@ public class IcebergProxiedConnectorTransformerTest
                 TableType.DATA,
                 Optional.of(1L),
                 "tableSchemaJson",
-                Optional.of("partitionSpecJson"),
+                OptionalInt.empty(),
+                ImmutableMap.of(),
                 1,
                 TupleDomain.all(),
                 TupleDomain.all(),
@@ -177,7 +183,8 @@ public class IcebergProxiedConnectorTransformerTest
                 icebergTableHandle.getTableType(),
                 icebergTableHandle.getSnapshotId(),
                 icebergTableHandle.getTableSchemaJson(),
-                icebergTableHandle.getPartitionSpecJson(),
+                icebergTableHandle.getSpecId(),
+                icebergTableHandle.getPartitionSpecJsons(),
                 icebergTableHandle.getFormatVersion(),
                 icebergTableHandle.getUnenforcedPredicate(),
                 TupleDomain.all(),
@@ -224,7 +231,8 @@ public class IcebergProxiedConnectorTransformerTest
                           ]
                         }
                         """,
-                Optional.empty(),
+                OptionalInt.of(0),
+                ImmutableMap.of(0, PartitionSpecParser.toJson(PartitionSpec.unpartitioned())),
                 1,
                 TupleDomain.all(),
                 TupleDomain.all(),
@@ -249,9 +257,7 @@ public class IcebergProxiedConnectorTransformerTest
                 1024L,
                 100L,
                 IcebergFileFormat.ORC,
-                """
-                        { "spec-id": 0, "fields": [] }
-                        """,
+                0,
                 """
                         { "partitionValues": [] }
                         """,

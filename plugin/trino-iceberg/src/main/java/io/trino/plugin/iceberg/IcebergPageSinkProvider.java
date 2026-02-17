@@ -322,7 +322,8 @@ public class IcebergPageSinkProvider
     {
         IcebergGenerateEmbeddingsHandle generateEmbeddingsHandle = (IcebergGenerateEmbeddingsHandle) executeHandle.procedureHandle();
         Schema schema = SchemaParser.fromJson(generateEmbeddingsHandle.schemaAsJson());
-        PartitionSpec partitionSpec = PartitionSpecParser.fromJson(schema, generateEmbeddingsHandle.partitionSpecAsJson());
+        String partitionSpecJson = generateEmbeddingsHandle.partitionSpecJsons().get(generateEmbeddingsHandle.specId());
+        PartitionSpec partitionSpec = PartitionSpecParser.fromJson(schema, partitionSpecJson);
         LocationProvider locationProvider = getLocationProvider(executeHandle.schemaTableName(),
                 executeHandle.tableLocation(), generateEmbeddingsHandle.tableStorageProperties());
         ConnectorPageSink delegatePageSink = new IcebergPageSink(

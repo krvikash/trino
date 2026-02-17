@@ -88,7 +88,8 @@ public class IcebergProxiedConnectorTransformer
                 icebergTableHandle.getTableType(),
                 icebergTableHandle.getSnapshotId(),
                 icebergTableHandle.getTableSchemaJson(),
-                icebergTableHandle.getPartitionSpecJson(),
+                icebergTableHandle.getSpecId(),
+                icebergTableHandle.getPartitionSpecJsons(),
                 icebergTableHandle.getFormatVersion(),
                 TupleDomain.all(),
                 TupleDomain.all(),
@@ -124,7 +125,8 @@ public class IcebergProxiedConnectorTransformer
                 tableHandle.getTableType(),
                 tableHandle.getSnapshotId(),
                 tableHandle.getTableSchemaJson(),
-                tableHandle.getPartitionSpecJson(),
+                tableHandle.getSpecId(),
+                tableHandle.getPartitionSpecJsons(),
                 tableHandle.getFormatVersion(),
                 TupleDomain.all(),
                 TupleDomain.all(),
@@ -153,7 +155,7 @@ public class IcebergProxiedConnectorTransformer
                 original.getFileSize(),
                 original.getFileRecordCount(),
                 original.getFileFormat(),
-                original.getPartitionSpecJson(),
+                original.getSpecId(),
                 original.getPartitionDataJson(),
                 original.getDeletes(),
                 original.getSplitWeight(),
@@ -184,7 +186,8 @@ public class IcebergProxiedConnectorTransformer
     private List<PartitionKey> getPartitionKeysMap(IcebergSplit icebergSplit, IcebergTableHandle icebergTableHandle)
     {
         Schema tableSchema = SchemaParser.fromJson(icebergTableHandle.getTableSchemaJson());
-        PartitionSpec partitionSpec = PartitionSpecParser.fromJson(tableSchema, icebergSplit.getPartitionSpecJson());
+        String partitionSpecJson = icebergTableHandle.getPartitionSpecJsons().get(icebergSplit.getSpecId());
+        PartitionSpec partitionSpec = PartitionSpecParser.fromJson(tableSchema, partitionSpecJson);
         Map<Integer, Pair<String, org.apache.iceberg.types.Type>> columnIdToName = partitionSpec.fields().stream()
                 .filter(partitionField -> partitionField.transform().isIdentity())
                 .collect(Collectors.toMap(PartitionField::sourceId, (partitionField) -> Pair.of(partitionField.name(), partitionField.transform().getResultType(tableSchema.findType(partitionField.sourceId())))));

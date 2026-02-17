@@ -193,7 +193,7 @@ public class IcebergSplitManager
                 icebergSplit.getFileSize(),
                 icebergSplit.getFileRecordCount(),
                 icebergSplit.getFileFormat(),
-                icebergSplit.getPartitionSpecJson(),
+                icebergSplit.getSpecId(),
                 icebergSplit.getPartitionDataJson(),
                 icebergSplit.getDeletes(),
                 // weight does not impact split rows
@@ -207,7 +207,6 @@ public class IcebergSplitManager
                 icebergSplit.getStart(),
                 icebergSplit.getLength(),
                 icebergSplit.getFileSize(),
-                icebergSplit.getPartitionSpecJson(),
                 icebergSplit.getPartitionDataJson(),
                 icebergSplit.getDeletes()))));
     }
