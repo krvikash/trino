@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.stream.Stream;
 
@@ -262,7 +263,7 @@ class TestFileBasedConflictDetection
                 TableType.DATA,
                 OptionalLong.empty(),
                 SchemaParser.toJson(TABLE_SCHEMA),
-                Optional.of(partitionSpec.specId()),
+                OptionalInt.of(partitionSpec.specId()),
                 ImmutableMap.of(partitionSpec.specId(), partitionSpecJson),
                 1,
                 TupleDomain.all(),
