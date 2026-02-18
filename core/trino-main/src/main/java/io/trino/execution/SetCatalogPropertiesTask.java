@@ -37,6 +37,7 @@ import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static io.trino.execution.ParameterExtractor.bindParameters;
 import static io.trino.spi.StandardErrorCode.INVALID_CATALOG_PROPERTY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
+import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 
 public class SetCatalogPropertiesTask
@@ -69,7 +70,7 @@ public class SetCatalogPropertiesTask
     {
         Session session = stateMachine.getSession();
 
-        String catalogName = statement.getName().getValue();
+        String catalogName = statement.getName().getValue().toLowerCase(ENGLISH);
 
         Map<String, Optional<String>> properties = getProperties(statement, parameters, session);
 

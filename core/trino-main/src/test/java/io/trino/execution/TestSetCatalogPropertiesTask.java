@@ -95,6 +95,40 @@ public class TestSetCatalogPropertiesTask
     }
 
     @Test
+    public void testCatalogNameCaseSensitivity()
+    {
+        String createCatalogSql =
+                """
+                CREATE CATALOG %s USING %s
+                WITH (
+                %s)""";
+        String suffix = randomNameSuffix();
+        String catalog = "catalog_" + suffix;
+        String catalogUpperCase = "Catalog_" + suffix;
+
+        executeCreateCatalog(catalog, ImmutableList.of(
+                new Property(new Identifier("tpch.double-type-mapping"), new StringLiteral("DOUBLE"))));
+        assertThat(catalogExists(catalog)).isTrue();
+        assertThat((String) queryRunner.execute("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                .isEqualTo(createCatalogSql, catalog, CONNECTOR_NAME,
+                        """
+                           "tpch.double-type-mapping" = 'DOUBLE'
+                        """);
+
+        executeSetCatalogProperties(catalogUpperCase, ImmutableList.of(
+                new Property(new Identifier("tpch.column-naming"), new StringLiteral("STANDARD")),
+                new Property(new Identifier("tpch.predicate-pushdown-enabled"), new StringLiteral("false"))));
+
+        assertThat((String) queryRunner.execute("SHOW CREATE CATALOG " + catalog).getOnlyValue())
+                .isEqualTo(createCatalogSql, catalog, CONNECTOR_NAME,
+                        """
+                           "tpch.column-naming" = 'STANDARD',
+                           "tpch.double-type-mapping" = 'DOUBLE',
+                           "tpch.predicate-pushdown-enabled" = 'false'
+                        """);
+    }
+
+    @Test
     void testAddDuplicatedCatalogProperties()
     {
         testSetProperties(
