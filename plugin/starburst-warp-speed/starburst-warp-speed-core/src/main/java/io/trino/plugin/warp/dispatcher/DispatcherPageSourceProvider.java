@@ -79,6 +79,17 @@ public class DispatcherPageSourceProvider
                 logger.debug("createPageSource: handle=%s, split=%s, table=%s, columns=%s, dynamicFilter=%s",
                         transactionHandle, split, table, columns, dynamicFilter.getCurrentPredicate().toString());
             }
+
+            if (!(split instanceof DispatcherSplit) && !(table instanceof DispatcherTableHandle)) {
+                return connectorPageSourceProviderFactory.createPageSourceProvider().createPageSource(
+                        transactionHandle,
+                        session,
+                        split,
+                        table,
+                        columns,
+                        dynamicFilter);
+            }
+
             DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) table;
 
             CustomStatsContext customStatsContext = new CustomStatsContext(metricsManager, dispatcherTableHandle.getCustomStats());
