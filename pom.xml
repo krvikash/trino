@@ -203,8 +203,6 @@
         <air.test.jvm.additional-arguments.default>
             -XX:G1HeapRegionSize=32M
             -XX:+UnlockDiagnosticVMOptions
-            <!-- # Allow loading dynamic agent used by JOL -->
-            -XX:+EnableDynamicAgentLoading
             ${extraJavaVectorArgs}
             <!-- for arrow-memory -->
             --add-opens=java.base/java.nio=org.apache.arrow.memory.core,ALL-UNNAMED
@@ -2571,12 +2569,6 @@
                 <groupId>org.mariadb.jdbc</groupId>
                 <artifactId>mariadb-java-client</artifactId>
                 <version>3.3.4</version>
-            </dependency>
-
-            <dependency>
-                <groupId>org.openjdk.jol</groupId>
-                <artifactId>jol-core</artifactId>
-                <version>0.17</version>
             </dependency>
 
             <dependency>

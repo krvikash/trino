@@ -90,12 +90,6 @@
             <scope>provided</scope>
         </dependency>
 
-        <dependency>
-            <groupId>org.openjdk.jol</groupId>
-            <artifactId>jol-core</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
         <!-- We must not use the CData drivers in compile scope because their license prohibits redistribution -->
         <dependency>
             <groupId>com.cdata</groupId>

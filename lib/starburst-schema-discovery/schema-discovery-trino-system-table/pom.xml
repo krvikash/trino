@@ -41,13 +41,6 @@
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>slice</artifactId>
-            <exclusions>
-                <!-- exclude for now as Trino uses a later version -->
-                <exclusion>
-                    <groupId>org.openjdk.jol</groupId>
-                    <artifactId>jol-core</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>
