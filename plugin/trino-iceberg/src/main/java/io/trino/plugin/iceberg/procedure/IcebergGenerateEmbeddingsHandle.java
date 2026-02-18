@@ -21,7 +21,7 @@ import io.trino.plugin.iceberg.TrinoSortField;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.OptionalLong;
 
 import static java.util.Objects.requireNonNull;
 
@@ -30,7 +30,7 @@ public record IcebergGenerateEmbeddingsHandle(
         EmbeddingType embeddingType,
         int embeddingColumnFieldId,
         int dataColumnFieldId,
-        Optional<Long> snapshotId,
+        OptionalLong snapshotId,
         String schemaAsJson,
         int specId,
         Map<Integer, String> partitionSpecJsons,

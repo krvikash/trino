@@ -28,6 +28,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -60,8 +61,8 @@ public class DeleteManager
             List<DeleteFile> deleteFiles,
             List<IcebergColumnHandle> readColumns,
             Schema tableSchema,
-            Optional<Long> startRowPosition,
-            Optional<Long> endRowPosition,
+            OptionalLong startRowPosition,
+            OptionalLong endRowPosition,
             DeletionVectorReader deletionVectorReader,
             DeletePageSourceProvider deletePageSourceProvider)
     {

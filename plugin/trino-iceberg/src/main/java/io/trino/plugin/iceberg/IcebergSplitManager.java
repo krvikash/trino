@@ -131,12 +131,12 @@ public class IcebergSplitManager
 
     private Scan<?, FileScanTask, CombinedScanTask> getScan(IcebergMetadata icebergMetadata, Table icebergTable, IcebergTableHandle table, MetricsReporter metricsReporter, ExecutorService executor)
     {
-        Long fromSnapshot = icebergMetadata.getIncrementalRefreshFromSnapshot().orElse(null);
-        if (fromSnapshot != null) {
+        if (icebergMetadata.getIncrementalRefreshFromSnapshot().isPresent()) {
+            long snapshotId = icebergMetadata.getIncrementalRefreshFromSnapshot().getAsLong();
             // check if fromSnapshot is still part of the table's snapshot history
-            if (SnapshotUtil.isAncestorOf(icebergTable, fromSnapshot)) {
+            if (SnapshotUtil.isAncestorOf(icebergTable, snapshotId)) {
                 boolean containsModifiedRows = false;
-                for (Snapshot snapshot : SnapshotUtil.ancestorsBetween(icebergTable, icebergTable.currentSnapshot().snapshotId(), fromSnapshot)) {
+                for (Snapshot snapshot : SnapshotUtil.ancestorsBetween(icebergTable, icebergTable.currentSnapshot().snapshotId(), snapshotId)) {
                     if (snapshot.operation().equals(DataOperations.OVERWRITE) || snapshot.operation().equals(DataOperations.DELETE)) {
                         containsModifiedRows = true;
                         break;
@@ -144,7 +144,7 @@ public class IcebergSplitManager
                 }
                 if (!containsModifiedRows) {
                     return icebergTable.newIncrementalAppendScan()
-                            .fromSnapshotExclusive(fromSnapshot)
+                            .fromSnapshotExclusive(snapshotId)
                             .planWith(executor)
                             .metricsReporter(metricsReporter);
                 }
@@ -154,7 +154,7 @@ public class IcebergSplitManager
             icebergMetadata.disableIncrementalRefresh();
         }
         return icebergTable.newScan()
-                .useSnapshot(table.getSnapshotId().get())
+                .useSnapshot(table.getSnapshotId().getAsLong())
                 .planWith(executor)
                 .metricsReporter(metricsReporter);
     }

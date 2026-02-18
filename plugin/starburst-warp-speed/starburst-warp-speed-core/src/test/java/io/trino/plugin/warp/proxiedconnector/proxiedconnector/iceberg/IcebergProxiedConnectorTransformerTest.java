@@ -73,7 +73,7 @@ public class IcebergProxiedConnectorTransformerTest
                 "schema",
                 "table",
                 TableType.DATA,
-                Optional.of(1L),
+                OptionalLong.of(1L),
                 "tableSchemaJson",
                 OptionalInt.empty(),
                 ImmutableMap.of(),
@@ -144,7 +144,7 @@ public class IcebergProxiedConnectorTransformerTest
                 "schema",
                 "table",
                 TableType.DATA,
-                Optional.of(1L),
+                OptionalLong.of(1L),
                 "tableSchemaJson",
                 OptionalInt.empty(),
                 ImmutableMap.of(),
@@ -216,7 +216,7 @@ public class IcebergProxiedConnectorTransformerTest
                 SCHEMA_NAME,
                 TABLE_NAME,
                 TableType.DATA,
-                Optional.of(SNAPSHOT_ID),
+                OptionalLong.of(SNAPSHOT_ID),
                 """
                         {
                           "type": "struct",

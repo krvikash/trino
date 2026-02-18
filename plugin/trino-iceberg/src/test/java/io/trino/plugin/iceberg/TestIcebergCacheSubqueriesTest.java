@@ -95,7 +95,7 @@ public class TestIcebergCacheSubqueriesTest
                     select name from %s where year = 2000
                     union all
                     select name from %s FOR VERSION AS OF %s where year = 2000
-                    """.formatted(testTable.getName(), testTable.getName(), icebergTableHandle.getSnapshotId().get());
+                    """.formatted(testTable.getName(), testTable.getName(), icebergTableHandle.getSnapshotId().getAsLong());
 
             assertUpdate("insert into %s(year, name) values (2000, 'value3'), (2001, 'value4')".formatted(testTable.getName()), 2);
             MaterializedResultWithPlan result = executeWithPlan(withCacheEnabled(), selectQuery);

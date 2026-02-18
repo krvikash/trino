@@ -41,7 +41,7 @@ public class IcebergTableHandle
     private final String schemaName;
     private final String tableName;
     private final TableType tableType;
-    private final Optional<Long> snapshotId;
+    private final OptionalLong snapshotId;
     private final String tableSchemaJson;
     // Empty means the partitioning spec is not known (can be the case for certain time travel queries).
     private final Optional<Integer> specId;
@@ -89,7 +89,7 @@ public class IcebergTableHandle
             @JsonProperty("schemaName") String schemaName,
             @JsonProperty("tableName") String tableName,
             @JsonProperty("tableType") TableType tableType,
-            @JsonProperty("snapshotId") Optional<Long> snapshotId,
+            @JsonProperty("snapshotId") OptionalLong snapshotId,
             @JsonProperty("tableSchemaJson") String tableSchemaJson,
             @JsonProperty("specId") Optional<Integer> specId,
             @JsonProperty("partitionSpecJsons") Map<Integer, String> partitionSpecJsons,
@@ -134,7 +134,7 @@ public class IcebergTableHandle
             String schemaName,
             String tableName,
             TableType tableType,
-            Optional<Long> snapshotId,
+            OptionalLong snapshotId,
             String tableSchemaJson,
             Optional<Integer> specId,
             Map<Integer, String> partitionSpecJsons,
@@ -204,7 +204,7 @@ public class IcebergTableHandle
 
     // Empty only when reading from a table that has no snapshots yet.
     @JsonProperty
-    public Optional<Long> getSnapshotId()
+    public OptionalLong getSnapshotId()
     {
         return snapshotId;
     }

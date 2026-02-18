@@ -171,7 +171,7 @@ public class TestIcebergCacheIds
 
         // table id without snapshot id is empty
         assertThat(icebergMetadata.getCacheTableId(
-                createIcebergTableHandle(schemaTableName, Optional.empty(), "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")))
+                createIcebergTableHandle(schemaTableName, OptionalLong.empty(), "tableSchemaJson", partitionSpecJson, Set.of(), Optional.empty(), "location")))
                 .isEqualTo(Optional.empty());
 
         // `schemaName` should be part of table id
@@ -334,7 +334,7 @@ public class TestIcebergCacheIds
 
     private static IcebergTableHandle createIcebergTableHandle(
             SchemaTableName schemaTableName,
-            Optional<Long> snapshotId,
+            OptionalLong snapshotId,
             String tableSchemaJson,
             Optional<String> partitionSpecJson,
             Set<IcebergColumnHandle> projectedColumns,
@@ -379,7 +379,7 @@ public class TestIcebergCacheIds
                 schemaTableName.getSchemaName(),
                 schemaTableName.getTableName(),
                 TableType.DATA,
-                Optional.of(1L),
+                OptionalLong.of(1L),
                 tableSchemaJson,
                 partitionSpecJson.isPresent() ? OptionalInt.of(1) : OptionalInt.empty(),
                 partitionSpecJson.map(spec -> ImmutableMap.of(1, spec)).orElse(ImmutableMap.of()),
@@ -415,7 +415,7 @@ public class TestIcebergCacheIds
                 schemaTableName.getSchemaName(),
                 schemaTableName.getTableName(),
                 TableType.DATA,
-                Optional.of(1L),
+                OptionalLong.of(1L),
                 tableSchemaJson,
                 partitionSpecJson.isPresent() ? OptionalInt.of(1) : OptionalInt.empty(),
                 partitionSpecJson.map(spec -> ImmutableMap.of(1, spec)).orElse(ImmutableMap.of()),
@@ -445,7 +445,7 @@ public class TestIcebergCacheIds
                 schemaTableName.getSchemaName(),
                 schemaTableName.getTableName(),
                 TableType.DATA,
-                Optional.of(1L),
+                OptionalLong.of(1L),
                 "tableSchemaJson",
                 OptionalInt.empty(),
                 ImmutableMap.of(),
