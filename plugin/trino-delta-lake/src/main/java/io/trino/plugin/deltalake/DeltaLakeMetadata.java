@@ -73,6 +73,7 @@ import io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.ColumnMap
 import io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.IsolationLevel;
 import io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.UnsupportedTypeException;
 import io.trino.plugin.deltalake.transactionlog.DeltaLakeTransactionLogEntry;
+import io.trino.plugin.deltalake.transactionlog.DeltaLakeVersionChecksum;
 import io.trino.plugin.deltalake.transactionlog.MetadataEntry;
 import io.trino.plugin.deltalake.transactionlog.ProtocolEntry;
 import io.trino.plugin.deltalake.transactionlog.RemoveFileEntry;
@@ -170,6 +171,7 @@ import io.trino.spi.type.VarcharType;
 import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
@@ -250,6 +252,7 @@ import static io.trino.plugin.deltalake.DeltaLakeErrorCode.DELTA_LAKE_INVALID_TA
 import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.getHiveCatalogName;
 import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.isCollectExtendedStatisticsColumnStatisticsOnWrite;
 import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.isExtendedStatisticsEnabled;
+import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.isLoadMetadataFromChecksumFile;
 import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.isProjectionPushdownEnabled;
 import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.isQueryPartitionFilterRequired;
 import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.isStoreTableMetadataInMetastoreEnabled;
@@ -318,8 +321,10 @@ import static io.trino.plugin.deltalake.transactionlog.MetadataEntry.DELTA_IN_CO
 import static io.trino.plugin.deltalake.transactionlog.MetadataEntry.DELTA_IN_COMMIT_TIMESTAMP_ENABLED_VERSION_PROPERTY;
 import static io.trino.plugin.deltalake.transactionlog.MetadataEntry.configurationForNewTable;
 import static io.trino.plugin.deltalake.transactionlog.TemporalTimeTravelUtil.findLatestVersionUsingTemporal;
+import static io.trino.plugin.deltalake.transactionlog.TransactionLogParser.findLatestCommitVersion;
 import static io.trino.plugin.deltalake.transactionlog.TransactionLogParser.getMandatoryCurrentVersion;
 import static io.trino.plugin.deltalake.transactionlog.TransactionLogParser.readLastCheckpoint;
+import static io.trino.plugin.deltalake.transactionlog.TransactionLogParser.readVersionChecksumFile;
 import static io.trino.plugin.deltalake.transactionlog.TransactionLogUtil.getTransactionLogDir;
 import static io.trino.plugin.deltalake.transactionlog.TransactionLogUtil.getTransactionLogJsonEntryPath;
 import static io.trino.plugin.deltalake.transactionlog.checkpoint.TransactionLogTail.getEntriesFromJson;
@@ -505,6 +510,10 @@ public class DeltaLakeMetadata
     private final DeltaLakeTableMetadataScheduler metadataScheduler;
     private final Map<SchemaTableName, TableUpdateInfo> tableUpdateInfos = new ConcurrentHashMap<>();
     private final Map<SchemaTableName, Long> latestTableVersions = new ConcurrentHashMap<>();
+    // Per-transaction memoization of _last_checkpoint contents (Optional.empty() records the negative case).
+    // Populated when loadDescriptorFromChecksum or getSnapshot resolves the checkpoint, and consulted by
+    // subsequent snapshot loads in the same transaction.
+    private final Map<SchemaTableName, Optional<LastCheckpoint>> latestCheckpoints = new ConcurrentHashMap<>();
     private final Map<QueriedTable, TableSnapshot> queriedSnapshots = new ConcurrentHashMap<>();
     private final Executor metadataFetchingExecutor;
     private final TransactionLogReaderFactory transactionLogReaderFactory;
@@ -516,6 +525,15 @@ public class DeltaLakeMetadata
         QueriedTable
         {
             requireNonNull(schemaTableName, "schemaTableName is null");
+        }
+    }
+
+    private record DeltaLakeTableDescriptor(long version, MetadataEntry metadataEntry, ProtocolEntry protocolEntry)
+    {
+        DeltaLakeTableDescriptor
+        {
+            requireNonNull(metadataEntry, "metadataEntry is null");
+            requireNonNull(protocolEntry, "protocolEntry is null");
         }
     }
 
@@ -622,12 +640,19 @@ public class DeltaLakeMetadata
 
     public TableSnapshot getSnapshot(ConnectorSession session, DeltaMetastoreTable metastoreTable, Optional<Long> atVersion)
     {
-        return getSnapshot(metastoreTable.schemaTableName(), atVersion, () -> transactionLogAccess.loadSnapshot(session, metastoreTable, atVersion));
+        SchemaTableName tableName = metastoreTable.schemaTableName();
+        return getSnapshot(tableName, atVersion, () -> transactionLogAccess.loadSnapshot(session, metastoreTable, atVersion, resolveLastCheckpoint(tableName, fileSystemFactory.create(session, metastoreTable), metastoreTable.location())));
     }
 
     public TableSnapshot getSnapshot(ConnectorSession session, DeltaLakeTableHandle tableHandle, Optional<Long> atVersion)
     {
-        return getSnapshot(tableHandle.getSchemaTableName(), atVersion, () -> transactionLogAccess.loadSnapshot(session, tableHandle, atVersion));
+        SchemaTableName tableName = tableHandle.getSchemaTableName();
+        return getSnapshot(tableName, atVersion, () -> transactionLogAccess.loadSnapshot(session, tableHandle, atVersion, resolveLastCheckpoint(tableName, fileSystemFactory.create(session, tableHandle), tableHandle.getLocation())));
+    }
+
+    private Optional<LastCheckpoint> resolveLastCheckpoint(SchemaTableName tableName, TrinoFileSystem fileSystem, String tableLocation)
+    {
+        return latestCheckpoints.computeIfAbsent(tableName, _ -> readLastCheckpoint(fileSystem, tableLocation));
     }
 
     private interface SnapshotSupplier
@@ -806,27 +831,22 @@ public class DeltaLakeMetadata
 
         String tableLocation = table.location();
         TrinoFileSystem fileSystem = fileSystemFactory.create(session, table);
-        TableSnapshot tableSnapshot = getSnapshot(session, table, endVersion.map(version -> getVersion(session, fileSystem, tableLocation, version, metadataFetchingExecutor)));
 
-        MetadataAndProtocolEntries logEntries;
+        DeltaLakeTableDescriptor descriptor;
         try {
-            logEntries = transactionLogAccess.getMetadataAndProtocolEntry(session, fileSystem, tableSnapshot);
+            descriptor = loadDescriptor(session, table, fileSystem, tableLocation, endVersion);
         }
         catch (TrinoException e) {
             if (e.getErrorCode().equals(DELTA_LAKE_INVALID_SCHEMA.toErrorCode())) {
-                return new CorruptedDeltaLakeTableHandle(tableName, table.catalogManaged(), managed, table.tableId(), tableLocation, e);
+                return new CorruptedDeltaLakeTableHandle(tableName, table.catalogManaged(), table.managed(), table.tableId(), tableLocation, e);
             }
             throw e;
         }
-        MetadataEntry metadataEntry = logEntries.metadata().orElse(null);
-        if (metadataEntry == null) {
-            return new CorruptedDeltaLakeTableHandle(tableName, table.catalogManaged(), managed, table.tableId(), tableLocation, new TrinoException(DELTA_LAKE_INVALID_SCHEMA, "Metadata not found in transaction log for " + tableSnapshot.getTable()));
-        }
 
-        ProtocolEntry protocolEntry = logEntries.protocol().orElse(null);
-        if (protocolEntry == null) {
-            return new CorruptedDeltaLakeTableHandle(tableName, table.catalogManaged(), managed, table.tableId(), tableLocation, new TrinoException(DELTA_LAKE_INVALID_SCHEMA, "Protocol not found in transaction log for " + tableSnapshot.getTable()));
-        }
+        MetadataEntry metadataEntry = descriptor.metadataEntry();
+        ProtocolEntry protocolEntry = descriptor.protocolEntry();
+        long snapshotVersion = descriptor.version();
+
         if (protocolEntry.minReaderVersion() > MAX_READER_VERSION) {
             LOG.debug("Skip %s because the reader version is unsupported: %d", tableName, protocolEntry.minReaderVersion());
             return null;
@@ -839,8 +859,8 @@ public class DeltaLakeMetadata
         verifySupportedColumnMapping(getColumnMappingMode(metadataEntry, protocolEntry));
         if (metadataScheduler.canStoreTableMetadata(session, metadataEntry.getSchemaString(), Optional.ofNullable(metadataEntry.getDescription())) &&
                 endVersion.isEmpty() &&
-                !isSameTransactionVersion(metastoreTable.get(), tableSnapshot)) {
-            tableUpdateInfos.put(tableName, new TableUpdateInfo(session, tableSnapshot.getVersion(), metadataEntry.getSchemaString(), Optional.ofNullable(metadataEntry.getDescription())));
+                !isSameTransactionVersion(metastoreTable.get(), snapshotVersion)) {
+            tableUpdateInfos.put(tableName, new TableUpdateInfo(session, snapshotVersion, metadataEntry.getSchemaString(), Optional.ofNullable(metadataEntry.getDescription())));
         }
         return new DeltaLakeTableHandle(
                 tableName.getSchemaName(),
@@ -855,7 +875,7 @@ public class DeltaLakeMetadata
                 false,
                 Optional.empty(),
                 Optional.empty(),
-                tableSnapshot.getVersion(),
+                snapshotVersion,
                 endVersion.isPresent());
     }
 
@@ -903,6 +923,96 @@ public class DeltaLakeMetadata
                 throw new TrinoException(DELTA_LAKE_INVALID_SCHEMA, "Error getting snapshot for " + table, e);
             }
         });
+    }
+
+    private DeltaLakeTableDescriptor loadDescriptor(
+            ConnectorSession session,
+            DeltaMetastoreTable table,
+            TrinoFileSystem fileSystem,
+            String tableLocation,
+            Optional<ConnectorTableVersion> endVersion)
+    {
+        Optional<Long> endTableVersion = endVersion.map(version -> getVersion(session, fileSystem, tableLocation, version, metadataFetchingExecutor));
+
+        if (isLoadMetadataFromChecksumFile(session)) {
+            Optional<DeltaLakeTableDescriptor> descriptor = loadDescriptorFromChecksum(table.schemaTableName(), fileSystem, tableLocation, endTableVersion);
+            if (descriptor.isPresent()) {
+                latestTableVersions.put(table.schemaTableName(), descriptor.get().version());
+                return descriptor.get();
+            }
+        }
+
+        return loadDescriptorFromTransactionLog(session, table, fileSystem, endTableVersion);
+    }
+
+    private Optional<DeltaLakeTableDescriptor> loadDescriptorFromChecksum(
+            SchemaTableName tableName,
+            TrinoFileSystem fileSystem,
+            String tableLocation,
+            Optional<Long> endTableVersion)
+    {
+        long latestCommitVersion = endTableVersion.orElseGet(() -> resolveLatestCommitVersion(tableName, fileSystem, tableLocation));
+
+        Optional<DeltaLakeVersionChecksum> versionChecksum;
+        try {
+            versionChecksum = readVersionChecksumFile(fileSystem, tableLocation, latestCommitVersion);
+        }
+        catch (IOException | UncheckedIOException e) {
+            throw new TrinoException(DELTA_LAKE_FILESYSTEM_ERROR, format("Failed to read checksum file for version %d of table %s", latestCommitVersion, tableName), e);
+        }
+        if (versionChecksum.isEmpty()) {
+            return Optional.empty();
+        }
+        DeltaLakeVersionChecksum checksum = versionChecksum.get();
+        if (checksum.metadata().isEmpty() || checksum.protocol().isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new DeltaLakeTableDescriptor(latestCommitVersion, checksum.metadata().orElseThrow(), checksum.protocol().orElseThrow()));
+    }
+
+    // Reuse the version resolved earlier in this transaction to skip _last_checkpoint and transaction log listing
+    private long resolveLatestCommitVersion(SchemaTableName tableName, TrinoFileSystem fileSystem, String tableLocation)
+    {
+        Long knownVersion = latestTableVersions.get(tableName);
+        if (knownVersion != null) {
+            return knownVersion;
+        }
+        Optional<LastCheckpoint> lastCheckpoint;
+        OptionalLong commit;
+        try {
+            lastCheckpoint = readLastCheckpoint(fileSystem, tableLocation);
+            commit = findLatestCommitVersion(fileSystem, tableLocation, lastCheckpoint);
+        }
+        catch (IOException | UncheckedIOException e) {
+            throw new TrinoException(DELTA_LAKE_FILESYSTEM_ERROR, format("Failed to determine latest commit version for %s", tableName), e);
+        }
+        if (commit.isEmpty()) {
+            throw new TrinoException(DELTA_LAKE_INVALID_SCHEMA, format("Delta table %s has no commits", tableName));
+        }
+        latestCheckpoints.put(tableName, lastCheckpoint);
+        return commit.getAsLong();
+    }
+
+    private DeltaLakeTableDescriptor loadDescriptorFromTransactionLog(
+            ConnectorSession session,
+            DeltaMetastoreTable table,
+            TrinoFileSystem fileSystem,
+            Optional<Long> endTableVersion)
+    {
+        TableSnapshot tableSnapshot = getSnapshot(session, table, endTableVersion);
+        MetadataAndProtocolEntries logEntries = transactionLogAccess.getMetadataAndProtocolEntry(session, fileSystem, tableSnapshot);
+
+        MetadataEntry metadataEntry = logEntries.metadata().orElse(null);
+        if (metadataEntry == null) {
+            throw new TrinoException(DELTA_LAKE_INVALID_SCHEMA, "Metadata not found in transaction log for " + tableSnapshot.getTable());
+        }
+
+        ProtocolEntry protocolEntry = logEntries.protocol().orElse(null);
+        if (protocolEntry == null) {
+            throw new TrinoException(DELTA_LAKE_INVALID_SCHEMA, "Protocol not found in transaction log for " + tableSnapshot.getTable());
+        }
+
+        return new DeltaLakeTableDescriptor(tableSnapshot.getVersion(), metadataEntry, protocolEntry);
     }
 
     @Override

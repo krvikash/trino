@@ -192,6 +192,7 @@ public final class FeatureExposures
                 .put(DELTA, "hive_catalog_name", INACCESSIBLE)
                 .put(DELTA, "idle_writer_min_file_size", EXPOSED)
                 .put(DELTA, "legacy_create_table_with_existing_location_enabled", EXPOSED)
+                .put(DELTA, "load_metadata_from_checksum_file", EXPOSED)
                 .put(DELTA, "max_initial_split_size", EXPOSED)
                 .put(DELTA, "max_split_size", EXPOSED)
                 .put(DELTA, "parquet_ignore_statistics", EXPOSED)

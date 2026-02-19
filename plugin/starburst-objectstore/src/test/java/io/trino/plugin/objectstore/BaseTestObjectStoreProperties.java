@@ -96,6 +96,7 @@ public abstract class BaseTestObjectStoreProperties
                         ('objectstore.ignore_corrupted_statistics', 'false', 'boolean'),
                         ('objectstore.incremental_refresh_enabled', 'true', 'boolean'),
                         ('objectstore.insert_existing_partitions_behavior', 'APPEND', 'varchar'),
+                        ('objectstore.load_metadata_from_checksum_file', 'true', 'boolean'),
                         ('objectstore.max_outstanding_splits', '1000', 'integer'),
                         ('objectstore.max_splits_per_second', '2147483647', 'integer'),
                         ('objectstore.max_partitions_per_writer', '100', 'integer'),
