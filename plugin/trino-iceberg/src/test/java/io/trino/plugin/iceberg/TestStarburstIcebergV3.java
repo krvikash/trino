@@ -66,7 +66,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 @TestInstance(PER_CLASS)
-public class TestIcebergV3
+public class TestStarburstIcebergV3
         extends AbstractTestQueryFramework
 {
     private HiveMetastore metastore;
