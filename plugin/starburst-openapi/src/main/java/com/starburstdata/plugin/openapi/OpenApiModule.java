@@ -32,6 +32,7 @@ public class OpenApiModule
         binder.bind(OpenApiMetadata.class).in(SINGLETON);
         binder.bind(OpenApiSplitManager.class).in(SINGLETON);
         binder.bind(OpenApiRecordSetProvider.class).in(SINGLETON);
+        binder.bind(OpenApiPageSourceProvider.class).in(SINGLETON);
         binder.bind(OpenApiClient.class).in(SINGLETON);
         configBinder(binder).bindConfig(OpenApiConfig.class);
 

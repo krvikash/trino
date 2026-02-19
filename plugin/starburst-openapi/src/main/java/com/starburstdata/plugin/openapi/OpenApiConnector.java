@@ -17,7 +17,7 @@ import com.google.inject.Inject;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorMetadata;
-import io.trino.spi.connector.ConnectorRecordSetProvider;
+import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
@@ -35,7 +35,7 @@ public class OpenApiConnector
     private final OpenApiMetadata metadata;
     private final OpenApiSpec spec;
     private final OpenApiSplitManager splitManager;
-    private final OpenApiRecordSetProvider recordSetProvider;
+    private final OpenApiPageSourceProvider pageSourceProvider;
 
     @Inject
     public OpenApiConnector(
@@ -43,13 +43,13 @@ public class OpenApiConnector
             OpenApiMetadata metadata,
             OpenApiSpec spec,
             OpenApiSplitManager splitManager,
-            OpenApiRecordSetProvider recordSetProvider)
+            OpenApiPageSourceProvider pageSourceProvider)
     {
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.spec = requireNonNull(spec, "spec is null");
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
-        this.recordSetProvider = requireNonNull(recordSetProvider, "recordSetProvider is null");
+        this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
     }
 
     @Override
@@ -71,9 +71,9 @@ public class OpenApiConnector
     }
 
     @Override
-    public ConnectorRecordSetProvider getRecordSetProvider()
+    public ConnectorPageSourceProvider getPageSourceProvider()
     {
-        return recordSetProvider;
+        return pageSourceProvider;
     }
 
     @Override
