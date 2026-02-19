@@ -44,7 +44,7 @@ import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Like {@link io.trino.operator.join.PartitionedLookupSource} but simplified,
+ * Like {@link io.trino.operator.join.spilling.PartitionedLookupSource} but simplified,
  * without spill support.
  */
 @NotThreadSafe
