@@ -13,7 +13,6 @@ import java.util.Set;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.airlift.configuration.ConfigBinder.configBinder;
-import static io.airlift.configuration.SwitchModule.switchModule;
 
 public class InternalCoordinatorLocatorModule
         extends AbstractConfigurationAwareModule
@@ -21,14 +20,11 @@ public class InternalCoordinatorLocatorModule
     @Override
     protected void setup(Binder binder)
     {
-        install(switchModule(
-                NodeInventoryConfig.class,
-                NodeInventoryConfig::getType,
-                type -> switch (type) {
-                    case AIRLIFT_DISCOVERY -> new AirliftNodeInventoryCoordinatorLocatorModule();
-                    case ANNOUNCE -> new AnnounceNodeInventoryCoordinatorLocatorModule();
-                    case DNS -> new DnsNodeInventoryCoordinatorLocatorModule();
-                }));
+        install(switch (buildConfigObject(NodeInventoryConfig.class).getType()) {
+            case AIRLIFT_DISCOVERY -> new AirliftNodeInventoryCoordinatorLocatorModule();
+            case ANNOUNCE -> new AnnounceNodeInventoryCoordinatorLocatorModule();
+            case DNS -> new DnsNodeInventoryCoordinatorLocatorModule();
+        });
     }
 
     private static class AnnounceNodeInventoryCoordinatorLocatorModule
