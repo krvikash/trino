@@ -71,7 +71,7 @@ public class GcsStorageFactory
                 storageOptionsBuilder.setProjectId(projectId);
             }
 
-            if (!setVendingCredentials(storageOptionsBuilder, identity)) {
+            if (!setOAuthCredentials(storageOptionsBuilder, identity)) {
                 gcsAuth.setAuth(storageOptionsBuilder, identity);
             }
 
@@ -97,7 +97,7 @@ public class GcsStorageFactory
         }
     }
 
-    private static boolean setVendingCredentials(StorageOptions.Builder builder, ConnectorIdentity identity)
+    private static boolean setOAuthCredentials(StorageOptions.Builder builder, ConnectorIdentity identity)
     {
         if (identity.getExtraCredentials().containsKey(EXTRA_CREDENTIALS_OAUTH_TOKEN_PROPERTY)) {
             String accessToken = nullToEmpty(identity.getExtraCredentials().get(EXTRA_CREDENTIALS_OAUTH_TOKEN_PROPERTY));
