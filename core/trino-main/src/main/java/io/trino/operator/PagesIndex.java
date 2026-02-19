@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -439,7 +440,7 @@ public class PagesIndex
 
     public Supplier<LookupSource> createLookupSourceSupplier(Session session, List<Integer> joinChannels)
     {
-        return createLookupSourceSupplier(session, joinChannels, Optional.empty(), Optional.empty(), ImmutableList.of());
+        return createLookupSourceSupplier(session, joinChannels, Optional.empty(), OptionalInt.empty(), ImmutableList.of());
     }
 
     public PagesHashStrategy createPagesHashStrategy(List<Integer> joinChannels)
@@ -477,7 +478,7 @@ public class PagesIndex
             Session session,
             List<Integer> joinChannels,
             Optional<JoinFilterFunctionFactory> filterFunctionFactory,
-            Optional<Integer> sortChannel,
+            OptionalInt sortChannel,
             List<JoinFilterFunctionFactory> searchFunctionFactories)
     {
         return createLookupSourceSupplier(session, joinChannels, filterFunctionFactory, sortChannel, searchFunctionFactories, Optional.empty(), defaultHashArraySizeSupplier());
@@ -486,9 +487,9 @@ public class PagesIndex
     public PagesSpatialIndexSupplier createPagesSpatialIndex(
             Session session,
             int geometryChannel,
-            Optional<Integer> radiusChannel,
+            OptionalInt radiusChannel,
             OptionalDouble constantRadius,
-            Optional<Integer> partitionChannel,
+            OptionalInt partitionChannel,
             SpatialPredicate spatialRelationshipTest,
             Optional<JoinFilterFunctionFactory> filterFunctionFactory,
             List<Integer> outputChannels,
@@ -503,7 +504,7 @@ public class PagesIndex
             Session session,
             List<Integer> joinChannels,
             Optional<JoinFilterFunctionFactory> filterFunctionFactory,
-            Optional<Integer> sortChannel,
+            OptionalInt sortChannel,
             List<JoinFilterFunctionFactory> searchFunctionFactories,
             Optional<List<Integer>> outputChannels,
             HashArraySizeSupplier hashArraySizeSupplier)
@@ -628,7 +629,7 @@ public class PagesIndex
 
     public long getEstimatedMemoryRequiredToCreateLookupSource(
             HashArraySizeSupplier hashArraySizeSupplier,
-            Optional<Integer> sortChannel,
+            OptionalInt sortChannel,
             List<Integer> joinChannels)
     {
         // channels and valueAddresses are shared between PagesIndex and JoinHashSupplier and are accounted as part of lookupSourceEstimatedRetainedSizeInBytes
