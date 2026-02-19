@@ -26,7 +26,6 @@ import java.sql.SQLException;
 
 import static com.google.inject.Scopes.SINGLETON;
 import static com.starburstdata.trino.plugin.sqlserver.StarburstSqlServerSessionProperties.getOverrideCatalog;
-import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
@@ -38,17 +37,18 @@ public class CatalogOverridingModule
     @Override
     protected void setup(Binder binder)
     {
-        install(conditionalModule(
-                StarburstSqlServerConfig.class,
-                StarburstSqlServerConfig::isOverrideCatalogEnabled,
-                moduleBinder -> moduleBinder.bind(ConnectionFactory.class)
-                        .annotatedWith(ForBaseJdbc.class)
-                        .to(CatalogOverridingConnectionFactory.class)
-                        .in(SINGLETON),
-                moduleBinder -> moduleBinder.bind(ConnectionFactory.class)
-                        .annotatedWith(ForBaseJdbc.class)
-                        .to(Key.get(ConnectionFactory.class, ForCatalogOverriding.class))
-                        .in(SINGLETON)));
+        if (buildConfigObject(StarburstSqlServerConfig.class).isOverrideCatalogEnabled()) {
+            binder.bind(ConnectionFactory.class)
+                    .annotatedWith(ForBaseJdbc.class)
+                    .to(CatalogOverridingConnectionFactory.class)
+                    .in(SINGLETON);
+        }
+        else {
+            binder.bind(ConnectionFactory.class)
+                    .annotatedWith(ForBaseJdbc.class)
+                    .to(Key.get(ConnectionFactory.class, ForCatalogOverriding.class))
+                    .in(SINGLETON);
+        }
     }
 
     public static class CatalogOverridingConnectionFactory

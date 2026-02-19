@@ -29,7 +29,6 @@ import io.trino.server.buffer.EmbeddedBufferServiceDataModule;
 import io.trino.server.ui.NoWebUiAuthenticationFilter;
 import io.trino.server.ui.WebUiAuthenticationFilter;
 
-import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 
 public class WorkerModule
@@ -49,10 +48,9 @@ public class WorkerModule
 
         // embedded buffer service
         configBinder(binder).bindConfig(EmbeddedBufferServiceConfig.class);
-        install(conditionalModule(
-                EmbeddedBufferServiceConfig.class,
-                EmbeddedBufferServiceConfig::isEmbeddedBufferServiceEnabled,
-                new EmbeddedBufferServiceDataModule()));
+        if (buildConfigObject(EmbeddedBufferServiceConfig.class).isEmbeddedBufferServiceEnabled()) {
+            install(new EmbeddedBufferServiceDataModule());
+        }
         // language functions
         binder.bind(WorkerLanguageFunctionProvider.class).in(Scopes.SINGLETON);
         binder.bind(LanguageFunctionProvider.class).to(WorkerLanguageFunctionProvider.class).in(Scopes.SINGLETON);

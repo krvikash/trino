@@ -43,7 +43,6 @@ import static com.databricks.sdk.service.catalog.DataSourceFormat.ORC;
 import static com.databricks.sdk.service.catalog.DataSourceFormat.PARQUET;
 import static com.databricks.sdk.service.catalog.DataSourceFormat.TEXT;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
-import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 
@@ -68,15 +67,14 @@ public class DeltaLakeUnityMetastoreModule
                 .in(Scopes.SINGLETON);
         binder.bind(Key.get(boolean.class, AllowHiveTableRename.class)).toInstance(false);
 
-        install(conditionalModule(
-                DeltaLakeConfig.class,
-                config -> config.getHiveCatalogName().isPresent(),
-                hiveAndDeltaFormatsBinder -> hiveAndDeltaFormatsBinder
-                        .bind(SupportedUnityTableFormatsProvider.class)
-                        .toInstance(() -> ImmutableSet.of(DELTA, PARQUET, AVRO, ORC, CSV, JSON, TEXT)),
-                hiveFormatsBinder -> hiveFormatsBinder
-                        .bind(SupportedUnityTableFormatsProvider.class)
-                        .toInstance(() -> ImmutableSet.of(DELTA))));
+        if (buildConfigObject(DeltaLakeConfig.class).getHiveCatalogName().isPresent()) {
+            binder.bind(SupportedUnityTableFormatsProvider.class)
+                    .toInstance(() -> ImmutableSet.of(DELTA, PARQUET, AVRO, ORC, CSV, JSON, TEXT));
+        }
+        else {
+            binder.bind(SupportedUnityTableFormatsProvider.class)
+                    .toInstance(() -> ImmutableSet.of(DELTA));
+        }
 
         newOptionalBinder(binder, TransactionLogReaderFactory.class)
                 .setBinding().to(UnityTransactionLogReaderFactory.class).in(Scopes.SINGLETON);
@@ -87,9 +85,8 @@ public class DeltaLakeUnityMetastoreModule
         // Databricks denied sharing the exact value as its undocumented but confirmed that it's greater than 512K when given Glue's reference.
         binder.bind(Key.get(int.class, MaxTableParameterLength.class)).toInstance(512000);
 
-        install(conditionalModule(
-                UnityMetastoreConfig.class,
-                UnityMetastoreConfig::isVendedCredentialsEnabled,
-                _ -> newOptionalBinder(binder, VendedCredentialsProvider.class).setBinding().to(UnityVendedCredentialsProvider.class).in(Scopes.SINGLETON)));
+        if (buildConfigObject(UnityMetastoreConfig.class).isVendedCredentialsEnabled()) {
+            newOptionalBinder(binder, VendedCredentialsProvider.class).setBinding().to(UnityVendedCredentialsProvider.class).in(Scopes.SINGLETON);
+        }
     }
 }

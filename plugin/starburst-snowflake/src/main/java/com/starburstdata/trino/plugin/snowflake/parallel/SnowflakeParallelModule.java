@@ -26,7 +26,6 @@ import net.snowflake.client.core.OCSPMode;
 
 import static com.google.inject.Scopes.SINGLETON;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
-import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.plugin.jdbc.JdbcModule.bindSessionPropertiesProvider;
 import static java.lang.String.join;
@@ -50,16 +49,13 @@ public class SnowflakeParallelModule
                 .toProvider(DefaultStreamProvider.class)
                 .in(SINGLETON);
 
-        install(conditionalModule(
-                SnowflakeConfig.class,
-                SnowflakeConfig::isProxyEnabled,
-                proxyBinder -> {
-                    configBinder(proxyBinder).bindConfig(SnowflakeProxyConfig.class);
-                    newOptionalBinder(proxyBinder, StarburstResultStreamProvider.class)
-                            .setBinding()
-                            .toProvider(ProxiedStreamProvider.class)
-                            .in(SINGLETON);
-                }));
+        if (buildConfigObject(SnowflakeConfig.class).isProxyEnabled()) {
+            configBinder(binder).bindConfig(SnowflakeProxyConfig.class);
+            newOptionalBinder(binder, StarburstResultStreamProvider.class)
+                    .setBinding()
+                    .toProvider(ProxiedStreamProvider.class)
+                    .in(SINGLETON);
+        }
     }
 
     public static class DefaultStreamProvider

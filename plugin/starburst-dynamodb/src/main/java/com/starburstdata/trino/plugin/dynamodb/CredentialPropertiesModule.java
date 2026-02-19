@@ -16,7 +16,6 @@ import io.trino.plugin.jdbc.credential.CredentialPropertiesProvider;
 
 import static com.google.inject.Scopes.SINGLETON;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
-import static io.airlift.configuration.ConditionalModule.conditionalModule;
 
 public class CredentialPropertiesModule
         extends AbstractConfigurationAwareModule
@@ -26,23 +25,21 @@ public class CredentialPropertiesModule
     {
         newOptionalBinder(binder, CredentialPropertiesProvider.class).setDefault().to(Ec2CredentialPropertiesProvider.class).in(Scopes.SINGLETON);
 
-        install(conditionalModule(
-                DynamoDbConfig.class,
-                config -> config.getAwsAccessKey().isPresent(),
-                internalBinder ->
-                        newOptionalBinder(internalBinder, CredentialPropertiesProvider.class)
-                                .setBinding()
-                                .to(ConfigCredentialPropertiesProvider.class)
-                                .in(SINGLETON)));
+        DynamoDbConfig dynamoDbConfig = buildConfigObject(DynamoDbConfig.class);
 
-        install(conditionalModule(
-                DynamoDbConfig.class,
-                DynamoDbConfig::isUseDefaultAwsChainProvider,
-                internalBinder ->
-                        newOptionalBinder(internalBinder, CredentialPropertiesProvider.class)
-                                .setBinding()
-                                .to(AwsChainCredentialPropertiesProvider.class)
-                                .in(SINGLETON)));
+        if (dynamoDbConfig.getAwsAccessKey().isPresent()) {
+            newOptionalBinder(binder, CredentialPropertiesProvider.class)
+                    .setBinding()
+                    .to(ConfigCredentialPropertiesProvider.class)
+                    .in(SINGLETON);
+        }
+
+        if (dynamoDbConfig.isUseDefaultAwsChainProvider()) {
+            newOptionalBinder(binder, CredentialPropertiesProvider.class)
+                    .setBinding()
+                    .to(AwsChainCredentialPropertiesProvider.class)
+                    .in(SINGLETON);
+        }
 
         binder.bind(AwsRolePropertiesProvider.class).in(SINGLETON);
     }

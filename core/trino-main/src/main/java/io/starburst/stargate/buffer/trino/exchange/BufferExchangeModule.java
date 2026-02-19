@@ -39,7 +39,6 @@ import java.util.function.Supplier;
 
 import static com.google.common.base.Verify.verify;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
-import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
@@ -84,10 +83,12 @@ public class BufferExchangeModule
         binder.bind(DataApiFacade.class).in(Scopes.SINGLETON);
         binder.bind(DataApiFacadeStats.class).in(Scopes.SINGLETON);
         newExporter(binder).export(DataApiFacadeStats.class).withGeneratedName();
-        bindPartitionNodeMapper(PartitionNodeMappingMode.PINNING_SINGLE, PinningPartitionNodeMapperFactory.class);
-        bindPartitionNodeMapper(PartitionNodeMappingMode.PINNING_MULTI, SmartPinningPartitionNodeMapperFactory.class);
-        bindPartitionNodeMapper(PartitionNodeMappingMode.RANDOM, RandomPartitionNodeMapperFactory.class);
-        bindPartitionNodeMapper(PartitionNodeMappingMode.LOCAL_PRIORITY, LocalPriorityPartitionNodeMapperFactory.class);
+        binder.bind(PartitionNodeMapperFactory.class).to(switch (buildConfigObject(BufferExchangeConfig.class).getPartitionNodeMappingMode()) {
+            case PINNING_SINGLE -> PinningPartitionNodeMapperFactory.class;
+            case PINNING_MULTI -> SmartPinningPartitionNodeMapperFactory.class;
+            case RANDOM -> RandomPartitionNodeMapperFactory.class;
+            case LOCAL_PRIORITY -> LocalPriorityPartitionNodeMapperFactory.class;
+        }).in(Scopes.SINGLETON);
 
         BufferExchangeConfig bufferExchangeConfig = buildConfigObject(BufferExchangeConfig.class);
         if (bufferExchangeConfig.isUseEmbeddedBufferService()) {
@@ -109,14 +110,6 @@ public class BufferExchangeModule
                 binder.bind(ApiFactory.class).toInstance(apiFactory.get());
             }
         }
-    }
-
-    private void bindPartitionNodeMapper(PartitionNodeMappingMode mode, Class<? extends PartitionNodeMapperFactory> implementation)
-    {
-        super.install(conditionalModule(
-                BufferExchangeConfig.class,
-                bufferExchangeConfig -> bufferExchangeConfig.getPartitionNodeMappingMode() == mode,
-                localBinder -> localBinder.bind(PartitionNodeMapperFactory.class).to(implementation).in(Scopes.SINGLETON)));
     }
 
     private static class RealBufferingServiceApiFactoryModule

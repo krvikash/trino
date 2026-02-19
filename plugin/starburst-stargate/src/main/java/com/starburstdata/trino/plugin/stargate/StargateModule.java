@@ -34,7 +34,6 @@ import java.lang.annotation.Target;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
-import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static java.util.Objects.requireNonNull;
 
@@ -57,11 +56,12 @@ public class StargateModule
                 .setDefault()
                 .toInstance(Boolean.FALSE);
 
-        install(conditionalModule(
-                StargateConfig.class,
-                StargateConfig::isSslEnabled,
-                new SslModule(),
-                new NoSslModule()));
+        if (buildConfigObject(StargateConfig.class).isSslEnabled()) {
+            install(new SslModule());
+        }
+        else {
+            install(new NoSslModule());
+        }
 
         configBinder(binder).bindConfigDefaults(JdbcMetadataConfig.class, config -> {
             config.setDomainCompactionThreshold(STARGATE_DEFAULT_DOMAIN_COMPACTION_THRESHOLD);

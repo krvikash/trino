@@ -48,7 +48,6 @@ import static com.google.inject.Scopes.SINGLETON;
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static com.starburstdata.trino.plugin.sqlserver.CatalogOverridingModule.ForCatalogOverriding;
-import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.plugin.jdbc.JdbcModule.bindSessionPropertiesProvider;
 import static io.trino.plugin.jdbc.JdbcModule.bindTablePropertiesProvider;
@@ -74,17 +73,18 @@ public class StarburstSqlServerClientModule
         binder.bind(LicenseVerifier.class).toInstance(licenseVerifier);
 
         install(new ExtraCredentialsBasedIdentityCacheMappingModule());
-        install(conditionalModule(
-                StarburstSqlServerConfig.class,
-                StarburstSqlServerConfig::getDatabasePrefixForSchemaEnabled,
-                internalBinder -> internalBinder.bind(JdbcClient.class)
-                        .annotatedWith(ForBaseJdbc.class)
-                        .to(StarburstSqlServerMultiDatabaseClient.class)
-                        .in(SINGLETON),
-                internalBinder -> internalBinder.bind(JdbcClient.class)
-                        .annotatedWith(ForBaseJdbc.class)
-                        .to(StarburstSqlServerClient.class)
-                        .in(SINGLETON)));
+        if (buildConfigObject(StarburstSqlServerConfig.class).getDatabasePrefixForSchemaEnabled()) {
+            binder.bind(JdbcClient.class)
+                    .annotatedWith(ForBaseJdbc.class)
+                    .to(StarburstSqlServerMultiDatabaseClient.class)
+                    .in(SINGLETON);
+        }
+        else {
+            binder.bind(JdbcClient.class)
+                    .annotatedWith(ForBaseJdbc.class)
+                    .to(StarburstSqlServerClient.class)
+                    .in(SINGLETON);
+        }
 
         newOptionalBinder(binder, Key.get(int.class, MaxDomainCompactionThreshold.class)).setBinding().toInstance(SQL_SERVER_MAX_LIST_EXPRESSIONS);
 
@@ -100,10 +100,9 @@ public class StarburstSqlServerClientModule
         install(new JdbcJoinPushdownSupportModule());
 
         newSetBinder(binder, ConnectorTableFunction.class).addBinding().toProvider(Query.class).in(Scopes.SINGLETON);
-        install(conditionalModule(
-                SqlServerConfig.class,
-                SqlServerConfig::isStoredProcedureTableFunctionEnabled,
-                internalBinder -> newSetBinder(internalBinder, ConnectorTableFunction.class).addBinding().toProvider(Procedure.class).in(Scopes.SINGLETON)));
+        if (buildConfigObject(SqlServerConfig.class).isStoredProcedureTableFunctionEnabled()) {
+            newSetBinder(binder, ConnectorTableFunction.class).addBinding().toProvider(Procedure.class).in(Scopes.SINGLETON);
+        }
 
         // Using optional binder for overriding ConnectionFactory in Galaxy
         newOptionalBinder(binder, Key.get(ConnectionFactory.class, ForCatalogOverriding.class))

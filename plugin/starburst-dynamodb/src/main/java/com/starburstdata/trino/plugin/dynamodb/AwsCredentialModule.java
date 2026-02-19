@@ -15,7 +15,6 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
-import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 
 public class AwsCredentialModule
@@ -28,12 +27,10 @@ public class AwsCredentialModule
 
         newOptionalBinder(binder, AwsCredentialsProvider.class);
 
-        install(conditionalModule(
-                DynamoDbConfig.class,
-                DynamoDbConfig::isUseDefaultAwsChainProvider,
-                awsChainCredentialsBinder ->
-                        newOptionalBinder(awsChainCredentialsBinder, AwsCredentialsProvider.class)
-                                .setBinding()
-                                .toInstance(DefaultCredentialsProvider.create())));
+        if (buildConfigObject(DynamoDbConfig.class).isUseDefaultAwsChainProvider()) {
+            newOptionalBinder(binder, AwsCredentialsProvider.class)
+                    .setBinding()
+                    .toInstance(DefaultCredentialsProvider.create());
+        }
     }
 }

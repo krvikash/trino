@@ -15,7 +15,6 @@ import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.starburst.ai.client.AiClientConfig.StorageType;
 import io.starburst.ai.client.bedrock.AwsBedrockClientFactory;
 import io.starburst.ai.client.bedrock.AwsBedrockEmbeddingCodecsModule;
 import io.starburst.ai.client.openai.OpenAiClientFactory;
@@ -28,7 +27,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.bootstrap.ClosingBinder.closingBinder;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
-import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static java.util.concurrent.Executors.newCachedThreadPool;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
@@ -56,19 +54,15 @@ public class AiClientModule
         binder.bind(ReloadingModelClientProvider.class).in(Scopes.SINGLETON);
         newExporter(binder).export(ReloadingModelClientProvider.class).withGeneratedName();
         binder.bind(ModelClientProviderWithDao.class).to(ReloadingModelClientProvider.class).in(Scopes.SINGLETON);
-        install(conditionalModule(AiClientConfig.class,
-                        aiClientConfig -> aiClientConfig.getStorageType() == StorageType.NONE,
-                        innerBinder -> innerBinder.bind(ModelConnectionSpecsLoader.class).toInstance(ModelConnectionSpecsLoader.EMPTY_LOADER)));
-        install(conditionalModule(AiClientConfig.class,
-                aiClientConfig -> aiClientConfig.getStorageType() == StorageType.FILE,
-                new FileBackedModelSpecModule()));
-        install(conditionalModule(AiClientConfig.class,
-                aiClientConfig -> aiClientConfig.getStorageType() == StorageType.EXTERNAL,
-                externalBinder -> {
-                    AiClientConfig aiClientConfig = buildConfigObject(AiClientConfig.class);
-                    checkState(aiClientConfig.isClientCacheRefreshEnabled(), "Client cache refresh is not enabled");
-                    externalBinder.bind(ModelConnectionSpecsLoader.class).toInstance(externalModelConnectionSpecsLoader);
-                }));
+        AiClientConfig aiClientConfig = buildConfigObject(AiClientConfig.class);
+        switch (aiClientConfig.getStorageType()) {
+            case NONE -> binder.bind(ModelConnectionSpecsLoader.class).toInstance(ModelConnectionSpecsLoader.EMPTY_LOADER);
+            case FILE -> install(new FileBackedModelSpecModule());
+            case EXTERNAL -> {
+                checkState(aiClientConfig.isClientCacheRefreshEnabled(), "Client cache refresh is not enabled");
+                binder.bind(ModelConnectionSpecsLoader.class).toInstance(externalModelConnectionSpecsLoader);
+            }
+        }
 
         closingBinder(binder).registerExecutor(Key.get(ScheduledExecutorService.class, ForAiClient.class));
         closingBinder(binder).registerExecutor(Key.get(ExecutorService.class, ForAiClient.class));

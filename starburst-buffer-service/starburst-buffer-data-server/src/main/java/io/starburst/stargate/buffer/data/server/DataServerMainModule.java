@@ -44,7 +44,6 @@ import static com.google.inject.Scopes.SINGLETON;
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
-import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.server.HttpServerConfig.ProcessForwardedMode.ACCEPT;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
@@ -119,10 +118,9 @@ public class DataServerMainModule
             binder.bind(DiscoveryBroadcast.class).in(SINGLETON);
         }
 
-        install(conditionalModule(
-                DataServerConfig.class,
-                DataServerConfig::isTestingEnableStatsLogging,
-                innerBinder -> innerBinder.bind(DataServerStatsLogger.class).in(SINGLETON)));
+        if (buildConfigObject(DataServerConfig.class).isTestingEnableStatsLogging()) {
+            binder.bind(DataServerStatsLogger.class).in(SINGLETON);
+        }
 
         configBinder(binder).bindConfigDefaults(HttpServerConfig.class, config -> {
             config.setProcessForwarded(ACCEPT);

@@ -33,7 +33,6 @@ import static com.databricks.sdk.service.catalog.DataSourceFormat.PARQUET;
 import static com.databricks.sdk.service.catalog.DataSourceFormat.TEXT;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
-import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 
 public class UnityMetastoreModule
@@ -61,15 +60,14 @@ public class UnityMetastoreModule
                 .setDefault()
                 .to(UnityHiveMetastoreFactory.class)
                 .in(Scopes.SINGLETON);
-        install(conditionalModule(
-                HiveConfig.class,
-                config -> config.getDeltaLakeCatalogName().isPresent(),
-                hiveAndDeltaFormatsBinder -> hiveAndDeltaFormatsBinder
-                        .bind(SupportedUnityTableFormatsProvider.class)
-                        .toInstance(() -> ImmutableSet.of(PARQUET, AVRO, ORC, CSV, JSON, TEXT, DELTA)),
-                hiveFormatsBinder -> hiveFormatsBinder
-                        .bind(SupportedUnityTableFormatsProvider.class)
-                        .toInstance(() -> ImmutableSet.of(PARQUET, AVRO, ORC, CSV, JSON, TEXT))));
+        if (buildConfigObject(HiveConfig.class).getDeltaLakeCatalogName().isPresent()) {
+            binder.bind(SupportedUnityTableFormatsProvider.class)
+                    .toInstance(() -> ImmutableSet.of(PARQUET, AVRO, ORC, CSV, JSON, TEXT, DELTA));
+        }
+        else {
+            binder.bind(SupportedUnityTableFormatsProvider.class)
+                    .toInstance(() -> ImmutableSet.of(PARQUET, AVRO, ORC, CSV, JSON, TEXT));
+        }
         binder.bind(Key.get(boolean.class, AllowHiveTableRename.class)).toInstance(false);
     }
 }
