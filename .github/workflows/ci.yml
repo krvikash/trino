@@ -1952,6 +1952,8 @@ jobs:
           path: |
             testing/trino-product-tests/target/classes
             testing/trino-product-tests/target/test-classes
+            testing/trino-product-tests/target/iceberg-spark-runtime.jar
+            testing/trino-product-tests/target/iceberg-aws-bundle.jar
           # the OAuth2 proxy environments mount .htpasswd files from the test resources
           include-hidden-files: true
           retention-days: 1
