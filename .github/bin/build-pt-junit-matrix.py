@@ -83,7 +83,7 @@ BUCKETS = [
         ("SuiteParquet", ("SuiteParquet",)),
     ]),
     ("iceberg", [
-        ("SuiteIceberg", ("SuiteIceberg",)),
+        ("SuiteIceberg", LEGACY_COVERAGE_REMOVED),
     ]),
     ("delta-lake", [
         ("SuiteDeltaLakeOss", ("SuiteDeltaLakeOss",)),
