@@ -51,8 +51,21 @@ def maven_version(pom):
 
     parent = child_node(project, 'parent')
     version = child_node(parent, 'version')
-    return node_text(version)
+    return resolve_maven_version(node_text(version))
 
+def resolve_maven_version(version_text):
+    if version_text != '${revision}':
+        return version_text
+    # In the docker sphinx build only ../../../ (i.e., docs/) is mounted, so
+    # docs/build bind-mounts the root pom at docs/.root-pom.xml.
+    for path in ('../../../.root-pom.xml', '../../../../pom.xml'):
+        if os.path.exists(path):
+            dom = xml.dom.minidom.parse(path)
+            project = dom.childNodes[0]
+            properties = child_node(project, 'properties')
+            revision = child_node(properties, 'revision')
+            return node_text(revision)
+    raise FileNotFoundError('root pom not found for revision resolution')
 
 def get_version():
     version = os.environ.get('TRINO_VERSION', '').strip()
