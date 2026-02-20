@@ -65,11 +65,6 @@
         </dependency>
 
         <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java</artifactId>
-        </dependency>
-
-        <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>okhttp-jvm</artifactId>
         </dependency>
@@ -465,6 +460,12 @@
         </dependency>
 
         <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>junit-extensions</artifactId>
             <scope>test</scope>
@@ -598,11 +599,19 @@
                         <!-- Legacy product tests execute test classes from the executable artifact, so Kafka must be
                              available at runtime even though the analyzer does not see it from main classes. -->
                         <ignoredUnusedDeclaredDependency>org.apache.kafka:kafka-clients</ignoredUnusedDeclaredDependency>
+                        <!-- TestKafkaJsonReadsSmokeTest in src/main calls SchemaRegistryClient.register, which is
+                             overloaded on org.apache.avro.Schema. javac needs Avro on the compile classpath to resolve
+                             the overload even though no main class references it, so the analyzer cannot see the use. -->
+                        <ignoredUnusedDeclaredDependency>org.apache.avro:avro</ignoredUnusedDeclaredDependency>
                     </ignoredUnusedDeclaredDependencies>
                     <ignoredNonTestScopedDependencies>
                         <!-- Legacy product tests execute test classes from the executable artifact, so Kafka must be
                              available at runtime even though the analyzer classifies it as test-only. -->
                         <ignoredNonTestScopedDependency>org.apache.kafka:kafka-clients</ignoredNonTestScopedDependency>
+                        <!-- TestKafkaJsonReadsSmokeTest in src/main calls SchemaRegistryClient.register, which is
+                             overloaded on org.apache.avro.Schema. javac needs Avro on the compile classpath to resolve
+                             the overload even though no main class references it, so the analyzer sees it as test-only. -->
+                        <ignoredNonTestScopedDependency>org.apache.avro:avro</ignoredNonTestScopedDependency>
                     </ignoredNonTestScopedDependencies>
                 </configuration>
             </plugin>
