@@ -18,6 +18,7 @@ import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.gcs.GcsFileSystemFactory;
+import io.trino.filesystem.gcs.GcsLocation;
 import io.trino.plugin.warp.cloudstorage.CloudObjectMetadata;
 import io.trino.plugin.warp.cloudstorage.CloudStorageService;
 

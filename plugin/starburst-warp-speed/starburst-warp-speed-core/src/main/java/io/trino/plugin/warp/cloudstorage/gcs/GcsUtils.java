@@ -16,6 +16,7 @@ package io.trino.plugin.warp.cloudstorage.gcs;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.Storage;
+import io.trino.filesystem.gcs.GcsLocation;
 
 import java.util.Optional;
 

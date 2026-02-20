@@ -18,9 +18,9 @@ import io.trino.filesystem.Location;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
-record GcsLocation(Location location)
+public record GcsLocation(Location location)
 {
-    GcsLocation
+    public GcsLocation
     {
         // Note: Underscores are allowed in bucket names, see https://cloud.google.com/storage/docs/buckets#naming.
 

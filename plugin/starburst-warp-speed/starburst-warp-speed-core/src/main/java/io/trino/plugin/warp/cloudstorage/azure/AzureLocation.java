@@ -22,6 +22,7 @@ import java.util.Optional;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
+//todo: this probably can be merged with `io.trino.filesystem.azure.AzureLocation` but we probably should enable test/product tests for warp+azure first
 class AzureLocation
 {
     private static final String INVALID_LOCATION_MESSAGE = "Invalid Azure location. Expected form is 'abfs://[<containerName>@]<accountName>.dfs.core.windows.net/<filePath>': %s";

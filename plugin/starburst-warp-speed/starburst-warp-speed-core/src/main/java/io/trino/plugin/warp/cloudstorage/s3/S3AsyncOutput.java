@@ -15,6 +15,7 @@ package io.trino.plugin.warp.cloudstorage.s3;
 
 import io.trino.filesystem.Location;
 import io.trino.filesystem.s3.S3FileSystemConfig;
+import io.trino.filesystem.s3.S3Location;
 import io.trino.filesystem.s3.S3SseCustomerKey;
 import io.trino.plugin.warp.cloudstorage.CloudObjectMetadata;
 import software.amazon.awssdk.core.async.AsyncRequestBody;

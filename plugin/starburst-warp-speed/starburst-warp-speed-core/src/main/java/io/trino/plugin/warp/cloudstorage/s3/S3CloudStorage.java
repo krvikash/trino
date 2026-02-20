@@ -20,6 +20,7 @@ import io.airlift.log.Logger;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.s3.S3FileSystemConfig;
 import io.trino.filesystem.s3.S3FileSystemFactory;
+import io.trino.filesystem.s3.S3Location;
 import io.trino.filesystem.s3.S3SseCustomerKey;
 import io.trino.plugin.warp.cloudstorage.CloudObjectMetadata;
 import io.trino.plugin.warp.cloudstorage.CloudStorageService;

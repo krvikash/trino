@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.cloudstorage.s3;
 
+import io.trino.filesystem.s3.S3Location;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 
 import java.io.FileNotFoundException;

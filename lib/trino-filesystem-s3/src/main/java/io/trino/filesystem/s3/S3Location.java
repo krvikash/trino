@@ -20,9 +20,9 @@ import java.util.Set;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
-record S3Location(Location location)
+public record S3Location(Location location)
 {
-    S3Location
+    public S3Location
     {
         requireNonNull(location, "location is null");
         checkArgument(location.scheme().isPresent(), "No scheme for S3 location: %s", location);
