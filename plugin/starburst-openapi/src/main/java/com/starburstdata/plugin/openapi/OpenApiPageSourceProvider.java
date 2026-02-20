@@ -13,11 +13,9 @@
  */
 package com.starburstdata.plugin.openapi;
 
-import com.google.common.collect.ImmutableList;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import io.trino.spi.Page;
-import io.trino.spi.block.Block;
-import io.trino.spi.block.BlockBuilder;
+import io.airlift.http.client.HttpClient;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
@@ -26,13 +24,11 @@ import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
-import io.trino.spi.connector.FixedPageSource;
 import io.trino.spi.connector.RecordPageSource;
 
-import java.util.Arrays;
+import java.net.URI;
 import java.util.List;
 
-import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -40,11 +36,24 @@ public class OpenApiPageSourceProvider
         implements ConnectorPageSourceProvider
 {
     private final OpenApiRecordSetProvider recordSetProvider;
+    private final URI baseUri;
+    private final OpenApiSpec openApiSpec;
+    private final ObjectMapper objectMapper;
+    private final HttpClient httpClient;
 
     @Inject
-    public OpenApiPageSourceProvider(OpenApiRecordSetProvider recordSetProvider)
+    public OpenApiPageSourceProvider(
+            OpenApiConfig openApiConfig,
+            OpenApiRecordSetProvider recordSetProvider,
+            OpenApiSpec openApiSpec,
+            ObjectMapper objectMapper,
+            @ForOpenApi HttpClient httpClient)
     {
         this.recordSetProvider = requireNonNull(recordSetProvider, "recordSetProvider is null");
+        this.baseUri = openApiConfig.getBaseUri();
+        this.openApiSpec = requireNonNull(openApiSpec, "openApiSpec is null");
+        this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
+        this.httpClient = requireNonNull(httpClient, "httpClient is null");
     }
 
     @Override
@@ -63,14 +72,14 @@ public class OpenApiPageSourceProvider
                     split,
                     table,
                     columns));
-            case OpenApiRequestTableHandle _ -> {
-                BlockBuilder blockBuilder = VARCHAR.createBlockBuilder(null, 0);
-                VARCHAR.writeString(blockBuilder, "TODO");
-                Block block = blockBuilder.build();
-                Block[] blocks = new Block[columns.size()];
-                Arrays.fill(blocks, block);
-                yield new FixedPageSource(ImmutableList.of(new Page(blocks)));
-            }
+            case OpenApiRequestTableHandle handle -> new OpenApiPageSource<>(
+                    httpClient,
+                    openApiSpec.getPaginationStrategy(handle.path()),
+                    handle.toInitialRequest(baseUri),
+                    openApiSpec.getDecoder(handle.path()),
+                    columns,
+                    objectMapper,
+                    openApiSpec.getAuthenticator(handle.path()));
             default -> throw new IllegalArgumentException(format(
                     "Unknown table class: %s",
                     table.getClass().getCanonicalName()));

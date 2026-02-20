@@ -23,6 +23,9 @@ import com.google.common.collect.ListMultimap;
 import com.google.inject.Inject;
 import com.starburstdata.plugin.openapi.OpenApiValidationExceptions.AmbiguousTableFunctionPath;
 import com.starburstdata.plugin.openapi.OpenApiValidationExceptions.FailedValidation;
+import com.starburstdata.plugin.openapi.authentication.OpenApiAuthenticator;
+import com.starburstdata.plugin.openapi.conversions.OpenApiDecoder;
+import com.starburstdata.plugin.openapi.pagination.OpenApiPaginationStrategy;
 import io.airlift.log.Logger;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
@@ -72,6 +75,8 @@ import java.util.stream.Stream;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.starburstdata.plugin.openapi.conversions.OpenApiDecoder.ONE_COLUMN_DECODER;
+import static com.starburstdata.plugin.openapi.pagination.OpenApiPaginationStrategy.READ_ONCE_STRATEGY;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
@@ -116,6 +121,9 @@ public class OpenApiSpec
     private final List<SecurityRequirement> securityRequirements;
 
     private final Set<ConnectorTableFunction> tableFunctions;
+    private final Map<String, OpenApiDecoder> pathToDecoder;
+    private final Map<String, OpenApiPaginationStrategy<?>> pathToPaginationStrategy;
+    private final Map<String, OpenApiAuthenticator> pathToAuthenticator;
 
     @Inject
     public OpenApiSpec(OpenApiConfig config)
@@ -235,6 +243,9 @@ public class OpenApiSpec
 
         ImmutableListMultimap.Builder<String, OpenApiRequestTableFunction> identifierToTableFunctionsBuilder =
                 ImmutableListMultimap.builder();
+        ImmutableMap.Builder<String, OpenApiDecoder> pathToDecoderBuilder = ImmutableMap.builder();
+        ImmutableMap.Builder<String, OpenApiPaginationStrategy<?>> pathToPaginationStrategyBuilder = ImmutableMap.builder();
+        ImmutableMap.Builder<String, OpenApiAuthenticator> pathToAuthenticatorBuilder = ImmutableMap.builder();
         openApi.getPaths().forEach((String path, PathItem pathItem) -> {
             String identifier = getIdentifier(path);
             if (identifier.isEmpty()) {
@@ -254,7 +265,11 @@ public class OpenApiSpec
             if (okJsonResponseSchema.isEmpty()) {
                 return;
             }
-            identifierToTableFunctionsBuilder.put(identifier, new OpenApiRequestTableFunction(path, identifier));
+            OpenApiDecoder decoder = ONE_COLUMN_DECODER;
+            pathToDecoderBuilder.put(path, decoder);
+            pathToPaginationStrategyBuilder.put(path, READ_ONCE_STRATEGY);
+            pathToAuthenticatorBuilder.put(path, OpenApiAuthenticator.NONE);
+            identifierToTableFunctionsBuilder.put(identifier, new OpenApiRequestTableFunction(path, identifier, decoder.getColumnHandles()));
         });
         Map<String, Collection<OpenApiRequestTableFunction>> identifierToTableFunctions =
                 identifierToTableFunctionsBuilder.build().asMap();
@@ -278,6 +293,9 @@ public class OpenApiSpec
                 .stream()
                 .flatMap(Collection::stream)
                 .collect(toImmutableSet());
+        this.pathToDecoder = pathToDecoderBuilder.buildOrThrow();
+        this.pathToPaginationStrategy = pathToPaginationStrategyBuilder.buildOrThrow();
+        this.pathToAuthenticator = pathToAuthenticatorBuilder.buildOrThrow();
     }
 
     private static String pathsToString(PathItem.HttpMethod method, List<String> paths)
@@ -817,6 +835,21 @@ public class OpenApiSpec
         }
         // unknown and unsupported types will be returned as strings, which at least can be parsed with json functions
         return Optional.of(FALLBACK_TYPE);
+    }
+
+    public OpenApiAuthenticator getAuthenticator(String path)
+    {
+        return pathToAuthenticator.get(path);
+    }
+
+    public OpenApiPaginationStrategy<?> getPaginationStrategy(String path)
+    {
+        return pathToPaginationStrategy.get(path);
+    }
+
+    public OpenApiDecoder getDecoder(String path)
+    {
+        return pathToDecoder.get(path);
     }
 
     private record TypeTuple(Type type, Schema<?> schema) {}

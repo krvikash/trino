@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Verify.verify;
+import static java.lang.String.format;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
@@ -59,35 +60,32 @@ public class OpenApiRecordSetProvider
             ConnectorTableHandle table,
             List<? extends ColumnHandle> columnHandles)
     {
-        if (!(table instanceof OpenApiTableHandle)) {
-            throw new IllegalArgumentException("Unexpected table class %s".formatted(table.getClass().getCanonicalName()));
+        if (table instanceof OpenApiTableHandle tableHandle && connectorSplit instanceof OpenApiSplit split) {
+            ConnectorTableMetadata tableMetadata = spec.getTableMetadata(tableHandle.schemaTableName());
+            Map<String, Integer> columnIndexByName = IntStream.range(0, tableMetadata.getColumns().size()).boxed()
+                    .collect(Collectors.toMap(i -> tableMetadata.getColumns().get(i).getName(), i -> i));
+
+            List<Integer> columnIndexes = new ArrayList<>(columnHandles.size());
+            ImmutableList.Builder<Type> mappedTypes = ImmutableList.builderWithExpectedSize(columnHandles.size());
+            for (ColumnHandle columnHandle : columnHandles) {
+                OpenApiColumnHandle column = (OpenApiColumnHandle) columnHandle;
+                Integer index = columnIndexByName.get(column.name().toLowerCase(ENGLISH));
+                verify(index != null, "Column %s not found in %s", column.name(), columnIndexByName.keySet());
+                columnIndexes.add(index);
+                mappedTypes.add(column.type());
+            }
+
+            Iterable<List<?>> rows = client.getRows(tableHandle.schemaTableName(), tableHandle.selectPaths(), tableHandle.selectMethod(), split.getConstraint());
+            Iterable<List<?>> mappedRows = Iterables.transform(rows, row -> columnIndexes
+                    .stream()
+                    .map(row::get)
+                    .collect(toList()));
+
+            return new InMemoryRecordSet(mappedTypes.build(), mappedRows);
         }
-        if (!(connectorSplit instanceof OpenApiSplit)) {
-            throw new IllegalArgumentException("Unexpected split class %s".formatted(connectorSplit.getClass().getCanonicalName()));
-        }
-        OpenApiTableHandle tableHandle = (OpenApiTableHandle) table;
-        OpenApiSplit split = (OpenApiSplit) connectorSplit;
-
-        ConnectorTableMetadata tableMetadata = spec.getTableMetadata(tableHandle.schemaTableName());
-        Map<String, Integer> columnIndexByName = IntStream.range(0, tableMetadata.getColumns().size()).boxed()
-                .collect(Collectors.toMap(i -> tableMetadata.getColumns().get(i).getName(), i -> i));
-
-        List<Integer> columnIndexes = new ArrayList<>(columnHandles.size());
-        ImmutableList.Builder<Type> mappedTypes = ImmutableList.builderWithExpectedSize(columnHandles.size());
-        for (ColumnHandle columnHandle : columnHandles) {
-            OpenApiColumnHandle column = (OpenApiColumnHandle) columnHandle;
-            Integer index = columnIndexByName.get(column.name().toLowerCase(ENGLISH));
-            verify(index != null, "Column %s not found in %s", column.name(), columnIndexByName.keySet());
-            columnIndexes.add(index);
-            mappedTypes.add(column.type());
-        }
-
-        Iterable<List<?>> rows = client.getRows(tableHandle.schemaTableName(), tableHandle.selectPaths(), tableHandle.selectMethod(), split.getConstraint());
-        Iterable<List<?>> mappedRows = Iterables.transform(rows, row -> columnIndexes
-                .stream()
-                .map(row::get)
-                .collect(toList()));
-
-        return new InMemoryRecordSet(mappedTypes.build(), mappedRows);
+        throw new IllegalArgumentException(format(
+                "Unexpected table class %s or split class %s",
+                table.getClass().getCanonicalName(),
+                connectorSplit.getClass().getCanonicalName()));
     }
 }

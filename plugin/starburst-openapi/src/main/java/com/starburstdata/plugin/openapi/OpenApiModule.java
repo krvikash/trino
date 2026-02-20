@@ -13,10 +13,12 @@
  */
 package com.starburstdata.plugin.openapi;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Binder;
 import com.starburstdata.plugin.openapi.authentication.OpenApiAuthentication;
 import com.starburstdata.plugin.openapi.authentication.OpenApiAuthenticationClient;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.airlift.json.ObjectMapperProvider;
 
 import static com.google.inject.Scopes.SINGLETON;
 import static io.airlift.configuration.ConfigBinder.configBinder;
@@ -33,6 +35,7 @@ public class OpenApiModule
         binder.bind(OpenApiSplitManager.class).in(SINGLETON);
         binder.bind(OpenApiRecordSetProvider.class).in(SINGLETON);
         binder.bind(OpenApiPageSourceProvider.class).in(SINGLETON);
+        binder.bind(ObjectMapper.class).toProvider(ObjectMapperProvider.class).in(SINGLETON);
         binder.bind(OpenApiClient.class).in(SINGLETON);
         configBinder(binder).bindConfig(OpenApiConfig.class);
 

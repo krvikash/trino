@@ -26,6 +26,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 
 final class TestOpenApiWithFastApiServer
         extends AbstractTestQueryFramework
@@ -139,7 +140,8 @@ final class TestOpenApiWithFastApiServer
                 .result()
                 .onlyColumnAsSet()
                 .singleElement()
-                .isEqualTo("TODO");
+                .asInstanceOf(STRING)
+                .contains("Portal Gun");
     }
 
     private TestTable generateDataset(String namePrefix, int elements)

@@ -98,10 +98,14 @@ public class OpenApiAuthentication
     @Override
     public Request filterRequest(Request request)
     {
+        String path = request.getHeader("X-Trino-OpenAPI-Path");
+        if (path == null) {
+            return request; // From OpenApiPageSource authenticates differently.
+        }
         URI uri = request.getUri();
         PathItem.HttpMethod method = PathItem.HttpMethod.valueOf(request.getMethod());
         Request.Builder builder = fromRequest(request);
-        List<SecurityRequirement> requirements = getRequirements(request.getHeader("X-Trino-OpenAPI-Path"), method);
+        List<SecurityRequirement> requirements = getRequirements(path, method);
         applyAuthFilters(builder, requirements, uri);
         if (requirements == null || requirements.isEmpty()) {
             switch (defaultAuthenticationType) {
