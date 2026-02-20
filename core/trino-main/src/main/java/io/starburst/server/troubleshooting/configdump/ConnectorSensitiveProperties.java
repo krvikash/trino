@@ -621,6 +621,15 @@ public final class ConnectorSensitiveProperties
                             "http-client.trust-store-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password"))
+            .put("starburst_kdb",
+                    ImmutableSet.of(
+                            "http-client.http-proxy.password",
+                            "http-client.https.automatic-shared-secret",
+                            "http-client.key-store-password",
+                            "http-client.trust-store-password",
+                            "kdb.password",
+                            "ldap.ssl.keystore.password",
+                            "ldap.ssl.truststore.password"))
             .put("starburst_openapi",
                     ImmutableSet.of(
                             "http-client.http-proxy.password",

@@ -166,6 +166,12 @@
         </artifact>
     </artifactSet>
 
+    <artifactSet to="plugin/kdb">
+        <artifact id="${project.groupId}:starburst-kdb:zip:${project.version}">
+            <unpack />
+        </artifact>
+    </artifactSet>
+
     <artifactSet to="plugin/lakehouse">
         <artifact id="${project.groupId}:trino-lakehouse:zip:${project.version}">
             <unpack />

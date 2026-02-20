@@ -1479,6 +1479,7 @@ jobs:
             !:starburst-dynamodb,
             !:starburst-functions,
             !:starburst-functions-client,
+            !:starburst-kdb,
             !:starburst-license,
             !:starburst-objectstore,
             !:starburst-oracle,
@@ -1727,6 +1728,7 @@ jobs:
             - { modules: plugin/starburst-dynamodb }
             - { modules: plugin/starburst-functions }
             - { modules: lib/starburst-functions-client }
+            - { modules: plugin/starburst-kdb }
             - { modules: plugin/starburst-objectstore, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
             - { modules: plugin/starburst-objectstore, profile: hive-tests, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
             - { modules: plugin/starburst-objectstore, profile: iceberg-delta, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
@@ -2378,6 +2380,7 @@ jobs:
             - suite-hive4
             - suite-clients
             - suite-functions
+            - suite-kdb
             - suite-tpch
             - suite-tpcds
             - suite-storage-formats-detailed

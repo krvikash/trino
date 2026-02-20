@@ -70,6 +70,7 @@
         <module>plugin/starburst-dynamodb</module>
         <module>plugin/starburst-functions</module>
         <module>plugin/starburst-internal-testing</module>
+        <module>plugin/starburst-kdb</module>
         <module>plugin/starburst-objectstore</module>
         <module>plugin/starburst-openapi</module>
         <module>plugin/starburst-oracle</module>
@@ -1174,6 +1175,12 @@
             <dependency>
                 <groupId>io.trino</groupId>
                 <artifactId>starburst-internal-testing</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.trino</groupId>
+                <artifactId>starburst-kdb</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
