@@ -1628,7 +1628,6 @@ jobs:
             - suite-delta-lake-databricks-unity-azure-credentials-vending
             - suite-hive-databricks-unity
             - suite-iceberg-databricks-unity
-            - suite-exasol
             - suite-ranger
             - suite-gcs
             - suite-hive4
