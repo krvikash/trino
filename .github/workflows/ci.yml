@@ -1624,13 +1624,6 @@ jobs:
             - suite-stargate
             - suite-open-api
             # End of Starburst suites
-            - suite-1
-            - suite-2
-            - suite-3
-            # suite-4 does not exist
-            - suite-5
-            - suite-6-non-generic
-            - suite-7-non-generic
             - suite-azure
             - suite-delta-lake-databricks133
             - suite-delta-lake-databricks143
@@ -1770,10 +1763,6 @@ jobs:
             # this suite is designed specifically for apache-hive3. TODO remove the suite once we can run all regular tests on apache-hive3.
             - config: apache-hive3
               suite: suite-hms-only
-            # Workaround for https://github.com/microsoft/mssql-docker/issues/899
-            - config: default
-              suite: suite-7-non-generic
-              runson: ubuntu-20.04
             - config: default
               suite: suite-warp-speed
               runners: [ self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest ]
