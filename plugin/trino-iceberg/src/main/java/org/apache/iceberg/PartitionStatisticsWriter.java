@@ -251,7 +251,7 @@ public class PartitionStatisticsWriter
     {
         PartitionMap<PartitionStats> statsMap = PartitionMap.create(table.specs());
         Schema schema = PartitionStatsHandler.schema(partitionType, formatVersion(table));
-        InputFile inputFile = table.io().newInputFile(previousStatsFile.path());
+        InputFile inputFile = table.io().newInputFile(previousStatsFile.path(), previousStatsFile.fileSizeInBytes());
         try (PartitionStatisticsReader.PartitionStatsIterator statsIterator = partitionStatisticsReader.readPartitionStats(session, table, schema, inputFile)) {
             statsIterator.forEachRemaining(partitionStats -> statsMap.put(partitionStats.specId(), partitionStats.partition(), partitionStats));
         }

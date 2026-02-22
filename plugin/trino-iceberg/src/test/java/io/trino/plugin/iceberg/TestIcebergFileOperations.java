@@ -1148,7 +1148,7 @@ public class TestIcebergFileOperations
                 .addCopies(new FileOperation(MANIFEST, "InputFile.newStream"), 2)
                 .add(new FileOperation(STATS, "InputFile.newStream"))
                 .add(new FileOperation(STATS, "OutputFile.create"))
-                .addCopies(new FileOperation(PARTITION_STATS, "InputFile.length"), 2)
+                .add(new FileOperation(PARTITION_STATS, "InputFile.length"))
                 .add(new FileOperation(PARTITION_STATS, "InputFile.newInput"))
                 .add(new FileOperation(PARTITION_STATS, "OutputFile.create"))
                 .build());
