@@ -172,21 +172,24 @@ public final class TableStatisticsReader
                 Types.StructType partitionType = Partitioning.partitionType(icebergTable);
                 Schema schema = PartitionStatsHandler.schema(partitionType, formatVersion(icebergTable));
                 InputFile inputFile = icebergTable.io().newInputFile(statsFile.path(), statsFile.fileSizeInBytes());
-                for (PartitionStats stat : partitionStatisticsReader.readPartitionStats(session, icebergTable, schema, inputFile)) {
-                    if (!enforcedConstraint.isAll()) {
-                        Evaluator evaluator = new Evaluator(partitionType, toIcebergExpression(enforcedConstraint));
-                        if (!evaluator.eval(stat.partition())) {
-                            continue;
+                try (PartitionStatisticsReader.PartitionStatsIterator statsIterator = partitionStatisticsReader.readPartitionStats(session, icebergTable, schema, inputFile)) {
+                    while (statsIterator.hasNext()) {
+                        PartitionStats stat = statsIterator.next();
+                        if (!enforcedConstraint.isAll()) {
+                            Evaluator evaluator = new Evaluator(partitionType, toIcebergExpression(enforcedConstraint));
+                            if (!evaluator.eval(stat.partition())) {
+                                continue;
+                            }
                         }
-                    }
 
-                    if (stat.totalRecords() != null) {
-                        recordCount += stat.totalRecords();
-                    }
-                    else {
-                        recordCount += stat.dataRecordCount();
-                        deletedRecordCount += stat.equalityDeleteRecordCount();
-                        deletedRecordCount += stat.positionDeleteRecordCount();
+                        if (stat.totalRecords() != null) {
+                            recordCount += stat.totalRecords();
+                        }
+                        else {
+                            recordCount += stat.dataRecordCount();
+                            deletedRecordCount += stat.equalityDeleteRecordCount();
+                            deletedRecordCount += stat.positionDeleteRecordCount();
+                        }
                     }
                 }
 

@@ -13,8 +13,10 @@
  */
 package io.trino.plugin.iceberg;
 
+import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.errorprone.annotations.MustBeClosed;
 import com.google.inject.Inject;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorSession;
@@ -64,7 +66,8 @@ public final class PartitionStatisticsReader
         this.pageSourceProviderFactory = requireNonNull(pageSourceProviderFactory, "pageSourceProviderFactory is null");
     }
 
-    public List<PartitionStats> readPartitionStats(ConnectorSession session, Table table, Schema schema, InputFile inputFile)
+    @MustBeClosed
+    public PartitionStatsIterator readPartitionStats(ConnectorSession session, Table table, Schema schema, InputFile inputFile)
     {
         FileFormat fileFormat = FileFormat.fromFileName(inputFile.location());
         IcebergPageSourceProvider pageSourceProvider = (IcebergPageSourceProvider) pageSourceProviderFactory.createPageSourceProvider();
@@ -73,7 +76,7 @@ public final class PartitionStatisticsReader
                 .map(column -> getColumnHandle(column, typeManager))
                 .collect(toImmutableList());
 
-        try (ConnectorPageSource pageSource = pageSourceProvider.createPageSource(
+        ConnectorPageSource pageSource = pageSourceProvider.createPageSource(
                 session,
                 projectedColumns,
                 schema,
@@ -96,30 +99,64 @@ public final class PartitionStatisticsReader
                 null,
                 Optional.empty(),
                 formatVersion(table),
-                false)) {
-            ImmutableList.Builder<PartitionStats> rows = ImmutableList.builder();
-            while (!pageSource.isFinished()) {
-                SourcePage page = pageSource.getNextSourcePage();
-                if (page == null) {
+                false);
+
+        return new PartitionStatsIterator(pageSource, schema);
+    }
+
+    public final class PartitionStatsIterator
+            extends AbstractIterator<PartitionStats>
+            implements AutoCloseable
+    {
+        private final ConnectorPageSource pageSource;
+        private final Schema schema;
+        private SourcePage currentPage;
+        private int currentPosition;
+
+        private PartitionStatsIterator(ConnectorPageSource pageSource, Schema schema)
+        {
+            this.pageSource = requireNonNull(pageSource, "pageSource is null");
+            this.schema = requireNonNull(schema, "schema is null");
+        }
+
+        @Override
+        protected PartitionStats computeNext()
+        {
+            while (currentPage == null || currentPosition >= currentPage.getPositionCount()) {
+                if (pageSource.isFinished()) {
+                    return endOfData();
+                }
+                currentPage = pageSource.getNextSourcePage();
+                currentPosition = 0;
+                if (currentPage == null) {
                     continue;
                 }
-
-                for (int position = 0; position < page.getPositionCount(); position++) {
-                    GenericRecord record = GenericRecord.create(schema);
-                    for (int column = 0; column < schema.columns().size(); column++) {
-                        Types.NestedField field = schema.columns().get(column);
-                        org.apache.iceberg.types.Type icebergType = field.type();
-                        Type trinoType = toTrinoType(icebergType, typeManager);
-                        Object trinoValue = readNativeValue(trinoType, page.getBlock(column), position);
-                        record.set(column, convertTrinoValueToIceberg(icebergType, trinoType, trinoValue, position));
-                    }
-                    rows.add(toPartitionStats(record));
+                if (currentPage.getPositionCount() == 0) {
+                    currentPage = null;
                 }
             }
-            return rows.build();
+
+            GenericRecord record = GenericRecord.create(schema);
+            for (int column = 0; column < schema.columns().size(); column++) {
+                Types.NestedField field = schema.columns().get(column);
+                org.apache.iceberg.types.Type icebergType = field.type();
+                Type trinoType = toTrinoType(icebergType, typeManager);
+                Object trinoValue = readNativeValue(trinoType, currentPage.getBlock(column), currentPosition);
+                record.set(column, convertTrinoValueToIceberg(icebergType, trinoType, trinoValue, currentPosition));
+            }
+            currentPosition++;
+            return toPartitionStats(record);
         }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
+
+        @Override
+        public void close()
+        {
+            try {
+                pageSource.close();
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
         }
     }
 
