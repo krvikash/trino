@@ -1617,7 +1617,6 @@ jobs:
             - suite-all-connectors-smoke
             - suite-delta-lake-oss
             - suite-kafka
-            - suite-cassandra
             - suite-clickhouse
             - suite-iceberg
             #- suite-snowflake # This is OSS Snowflake connector suite. We run Starburst Snowflake suite instead.
