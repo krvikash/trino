@@ -1644,7 +1644,6 @@ jobs:
             - suite-hive-databricks-unity
             - suite-iceberg-databricks-unity
             - suite-gcs
-            - suite-hive4
             - suite-kdb
             - suite-sas
             - suite-storage-formats-detailed
