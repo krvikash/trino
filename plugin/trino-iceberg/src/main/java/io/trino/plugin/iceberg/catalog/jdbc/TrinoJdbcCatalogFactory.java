@@ -47,6 +47,7 @@ public class TrinoJdbcCatalogFactory
     private final ForwardingFileIoFactory fileIoFactory;
     private final IcebergJdbcClient jdbcClient;
     private final String jdbcCatalogName;
+    private final IcebergJdbcCatalogConfig.SchemaVersion schemaVersion;
     private final String defaultWarehouseDir;
     private final boolean isUniqueTableLocation;
     private final Map<String, String> catalogProperties;
@@ -73,12 +74,13 @@ public class TrinoJdbcCatalogFactory
         this.isUniqueTableLocation = requireNonNull(icebergConfig, "icebergConfig is null").isUniqueTableLocation();
         this.jdbcClient = requireNonNull(jdbcClient, "jdbcClient is null");
         this.jdbcCatalogName = jdbcConfig.getCatalogName();
+        this.schemaVersion = jdbcConfig.getSchemaVersion();
         this.defaultWarehouseDir = jdbcConfig.getDefaultWarehouseDir();
 
         ImmutableMap.Builder<String, String> properties = ImmutableMap.builder();
         properties.put(URI, jdbcConfig.getConnectionUrl());
         properties.put(WAREHOUSE_LOCATION, defaultWarehouseDir);
-        properties.put(PROPERTY_PREFIX + "schema-version", jdbcConfig.getSchemaVersion().toString());
+        properties.put(PROPERTY_PREFIX + "schema-version", schemaVersion.toString());
         jdbcConfig.getConnectionUser().ifPresent(user -> properties.put(PROPERTY_PREFIX + "user", user));
         jdbcConfig.getConnectionPassword().ifPresent(password -> properties.put(PROPERTY_PREFIX + "password", password));
         jdbcConfig.getRetryableStatusCodes().ifPresent(codes -> properties.put("retryable_status_codes", codes));
@@ -113,6 +115,7 @@ public class TrinoJdbcCatalogFactory
                 fileSystemFactory,
                 fileIoFactory,
                 isUniqueTableLocation,
-                defaultWarehouseDir);
+                defaultWarehouseDir,
+                schemaVersion);
     }
 }
