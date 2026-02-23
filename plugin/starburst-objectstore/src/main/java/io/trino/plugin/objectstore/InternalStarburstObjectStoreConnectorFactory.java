@@ -237,7 +237,7 @@ public final class InternalStarburstObjectStoreConnectorFactory
                 hiveConfig,
                 usedPropertiesConsumer,
                 context,
-                combine(
+                () -> combine(
                         hiveModule,
                         // HMS is not compatible with trino in terms of identifiers, so schema discovery needs to translate incompatible names
                         new HiveSchemaDiscoveryModule(isHiveMetastoreUsed ? VALID_IN_HIVE_AND_TRINO : VALID_IN_TRINO),

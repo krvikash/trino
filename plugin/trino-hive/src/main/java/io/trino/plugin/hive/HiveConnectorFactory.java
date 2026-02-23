@@ -60,6 +60,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
@@ -79,14 +80,14 @@ public class HiveConnectorFactory
     public Connector create(String catalogName, Map<String, String> config, ConnectorContext context)
     {
         checkStrictSpiVersionMatch(context, this);
-        return createConnector(catalogName, config, context, EMPTY_MODULE, Optional.empty(), false, Optional.empty());
+        return createConnector(catalogName, config, context, () -> EMPTY_MODULE, Optional.empty(), false, Optional.empty());
     }
 
     public static Connector createConnector(
             String catalogName,
             Map<String, String> config,
             ConnectorContext context,
-            Module module,
+            Supplier<Module> module,
             Optional<HiveMetastore> metastore,
             boolean metastoreImpersonationEnabled,
             Optional<TrinoFileSystemFactory> fileSystemFactory)
@@ -100,7 +101,7 @@ public class HiveConnectorFactory
             Map<String, String> optionalConfig, // Used from Starburst ObjectStore connector. Unused properties are verified later.
             Consumer<Set<String>> usedConfigPropertiesConsumer,
             ConnectorContext context,
-            Module module,
+            Supplier<Module> module,
             Optional<HiveMetastore> metastore,
             boolean metastoreImpersonationEnabled,
             Optional<TrinoFileSystemFactory> fileSystemFactory)
@@ -123,7 +124,7 @@ public class HiveConnectorFactory
                     new MBeanServerModule(),
                     new ConnectorContextModule(catalogName, context),
                     binder -> newSetBinder(binder, SessionPropertiesProvider.class).addBinding().to(HiveSessionProperties.class).in(Scopes.SINGLETON),
-                    module);
+                    module.get());
 
             app
                     .doNotInitializeLogging()

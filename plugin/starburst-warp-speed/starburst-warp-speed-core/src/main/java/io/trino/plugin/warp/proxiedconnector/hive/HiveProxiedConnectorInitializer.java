@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import static com.google.inject.util.Modules.EMPTY_MODULE;
 import static io.trino.plugin.warp.proxiedconnector.utils.ConfigurationUtils.getHiveFilteredConfig;
 
 public class HiveProxiedConnectorInitializer
@@ -47,11 +48,10 @@ public class HiveProxiedConnectorInitializer
         try {
             // copy from HiveConnectorFactory::create - hive create a new classloader when calling the create method. we want to use the same classloader as the dispatcher
             Map<String, String> hiveConfig = getHiveFilteredConfig(config);
-            Module moduleInstance = binder -> {};
             return HiveConnectorFactory.createConnector(catalogName,
                     hiveConfig,
                     context,
-                    moduleInstance,
+                    () -> EMPTY_MODULE,
                     Optional.empty(),
                     false,
                     Optional.empty());
