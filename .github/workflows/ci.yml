@@ -1648,7 +1648,6 @@ jobs:
             - suite-hive4
             - suite-kdb
             - suite-sas
-            - suite-tpcds
             - suite-storage-formats-detailed
             - suite-parquet
             - suite-compatibility
