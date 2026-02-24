@@ -129,7 +129,7 @@ public class IcebergProxiedConnectorTransformer
                 TupleDomain.all(),
                 TupleDomain.all(),
                 tableHandle.getLimit(),
-                tableHandle.useSmallReadsPerSplit(),
+                tableHandle.preferSmallInitialReads(),
                 tableHandle.getProjectedColumns(),
                 tableHandle.getNameMappingJson(),
                 tableHandle.getTableLocation(),

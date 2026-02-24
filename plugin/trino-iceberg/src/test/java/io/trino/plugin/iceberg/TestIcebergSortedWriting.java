@@ -140,7 +140,7 @@ public class TestIcebergSortedWriting
                             topN(
                                     10, ImmutableList.of(sort("o", ASCENDING, FIRST)), TopNNode.Step.PARTIAL,
                                     tableScan(
-                                            handle -> !((IcebergTableHandle) handle).useSmallReadsPerSplit(),
+                                            handle -> !((IcebergTableHandle) handle).preferSmallInitialReads(),
                                             TupleDomain.all(),
                                             ImmutableMap.of("o", equalTo("orderkey"))))));
 
@@ -154,17 +154,17 @@ public class TestIcebergSortedWriting
                             limit(
                                     10, ImmutableList.of(), true, ImmutableList.of("o"),
                                     tableScan(
-                                            handle -> ((IcebergTableHandle) handle).useSmallReadsPerSplit(),
+                                            handle -> ((IcebergTableHandle) handle).preferSmallInitialReads(),
                                             TupleDomain.all(),
                                             ImmutableMap.of("o", equalTo("orderkey"))))));
-            // useSmallReadsPerSplit should be false with large LIMIT
+            // preferSmallInitialReads should be false with large LIMIT
             assertThat(
                     query(withUnsafeSortingProperty, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 100001"))
                     .matches(anyTree(
                             limit(
                                     100001, ImmutableList.of(), true, ImmutableList.of("o"),
                                     tableScan(
-                                            handle -> !((IcebergTableHandle) handle).useSmallReadsPerSplit(),
+                                            handle -> !((IcebergTableHandle) handle).preferSmallInitialReads(),
                                             TupleDomain.all(),
                                             ImmutableMap.of("o", equalTo("orderkey"))))));
             // Filter between TopN and Scan
@@ -176,7 +176,7 @@ public class TestIcebergSortedWriting
                                     node(
                                             FilterNode.class,
                                             tableScan(
-                                                    handle -> ((IcebergTableHandle) handle).useSmallReadsPerSplit(),
+                                                    handle -> ((IcebergTableHandle) handle).preferSmallInitialReads(),
                                                     TupleDomain.all(),
                                                     ImmutableMap.of("o", equalTo("orderkey")))))));
             // Multiple sorted columns
@@ -186,7 +186,7 @@ public class TestIcebergSortedWriting
                             limit(
                                     10, ImmutableList.of(), true, ImmutableList.of("o", "l"),
                                     tableScan(
-                                            handle -> ((IcebergTableHandle) handle).useSmallReadsPerSplit(),
+                                            handle -> ((IcebergTableHandle) handle).preferSmallInitialReads(),
                                             TupleDomain.all(),
                                             ImmutableMap.of("o", equalTo("orderkey"), "l", equalTo("linenumber"))))));
 

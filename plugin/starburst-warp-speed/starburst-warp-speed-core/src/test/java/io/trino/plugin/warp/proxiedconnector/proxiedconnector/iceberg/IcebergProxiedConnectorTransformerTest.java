@@ -182,7 +182,7 @@ public class IcebergProxiedConnectorTransformerTest
                 icebergTableHandle.getUnenforcedPredicate(),
                 TupleDomain.all(),
                 icebergTableHandle.getLimit(),
-                icebergTableHandle.useSmallReadsPerSplit(),
+                icebergTableHandle.preferSmallInitialReads(),
                 icebergTableHandle.getProjectedColumns(),
                 icebergTableHandle.getNameMappingJson(),
                 icebergTableHandle.getTableLocation(),

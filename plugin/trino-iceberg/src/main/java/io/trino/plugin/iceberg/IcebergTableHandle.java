@@ -93,7 +93,7 @@ public class IcebergTableHandle
             @JsonProperty("unenforcedPredicate") TupleDomain<IcebergColumnHandle> unenforcedPredicate,
             @JsonProperty("enforcedPredicate") TupleDomain<IcebergColumnHandle> enforcedPredicate,
             @JsonProperty("limit") OptionalLong limit,
-            @JsonProperty("useSmallReadsPerSplit") boolean useSmallReadsPerSplit,
+            @JsonProperty("preferSmallInitialReads") boolean preferSmallInitialReads,
             @JsonProperty("projectedColumns") Set<IcebergColumnHandle> projectedColumns,
             @JsonProperty("nameMappingJson") Optional<String> nameMappingJson,
             @JsonProperty("tableLocation") String tableLocation,
@@ -111,7 +111,7 @@ public class IcebergTableHandle
                 unenforcedPredicate,
                 enforcedPredicate,
                 limit,
-                useSmallReadsPerSplit,
+                preferSmallInitialReads,
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
@@ -304,7 +304,7 @@ public class IcebergTableHandle
     }
 
     @JsonProperty
-    public boolean useSmallReadsPerSplit()
+    public boolean preferSmallInitialReads()
     {
         return preferSmallInitialReads;
     }
@@ -486,7 +486,7 @@ public class IcebergTableHandle
                 forAnalyze);
     }
 
-    public IcebergTableHandle withSmallReadsPerSplit(boolean useSmallReadsPerSplit)
+    public IcebergTableHandle withPreferSmallInitialReads(boolean preferSmallInitialReads)
     {
         return new IcebergTableHandle(
                 schemaName,
@@ -499,7 +499,7 @@ public class IcebergTableHandle
                 unenforcedPredicate,
                 enforcedPredicate,
                 limit,
-                useSmallReadsPerSplit,
+                preferSmallInitialReads,
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,

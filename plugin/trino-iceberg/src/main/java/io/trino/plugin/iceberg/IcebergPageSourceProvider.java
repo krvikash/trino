@@ -305,7 +305,7 @@ public class IcebergPageSourceProvider
                 split.getFirstRowId(),
                 tableHandle.getNameMappingJson().map(NameMappingParser::fromJson),
                 tableHandle.getFormatVersion(),
-                tableHandle.useSmallReadsPerSplit());
+                tableHandle.preferSmallInitialReads());
     }
 
     public ConnectorPageSource createPageSource(
@@ -330,7 +330,7 @@ public class IcebergPageSourceProvider
             Long firstRowId,
             Optional<NameMapping> nameMapping,
             int formatVersion,
-            boolean useSmallReadsPerSplit)
+            boolean preferSmallInitialReads)
     {
         Map<Integer, Optional<String>> partitionKeys = getPartitionKeys(partitionData, partitionSpec);
         TupleDomain<IcebergColumnHandle> effectivePredicate = getUnenforcedPredicate(
@@ -395,7 +395,7 @@ public class IcebergPageSourceProvider
                 dataSequenceNumber,
                 firstRowId,
                 formatVersion,
-                useSmallReadsPerSplit);
+                preferSmallInitialReads);
 
         ConnectorPageSource pageSource = readerPageSourceWithRowPositions.pageSource();
 
@@ -658,7 +658,7 @@ public class IcebergPageSourceProvider
             Long dataSequenceNumber,
             Long firstRowId,
             int formatVersion,
-            boolean useSmallReadsPerSplit)
+            boolean preferSmallInitialReads)
     {
         return switch (fileFormat) {
             case ORC -> createOrcPageSource(
@@ -697,7 +697,7 @@ public class IcebergPageSourceProvider
                     fileSchema,
                     dataColumns,
                     ParquetReaderOptions.builder(parquetReaderOptions)
-                            .withInitialBufferSize(useSmallReadsPerSplit ? DataSize.of(1, MEGABYTE) : parquetReaderOptions.getInitialBufferSize())
+                            .withInitialBufferSize(preferSmallInitialReads ? DataSize.of(1, MEGABYTE) : parquetReaderOptions.getInitialBufferSize())
                             .withMaxReadBlockSize(getParquetMaxReadBlockSize(session))
                             .withMaxReadBlockRowCount(getParquetMaxReadBlockRowCount(session))
                             .withSmallFileThreshold(getParquetSmallFileThreshold(session))
