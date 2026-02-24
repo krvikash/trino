@@ -31,7 +31,6 @@ import io.starburst.stargate.buffer.data.spooling.s3.S3ClientConfig;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.base.jmx.PrefixObjectNameGeneratorModule;
 import io.trino.server.InternalCommunicationConfig;
-import io.trino.server.ServerConfig;
 import io.trino.server.StartupStatus;
 import io.trino.server.buffer.EmbeddedBufferServiceConfig;
 import io.trino.server.security.SecurityConfig;
@@ -85,19 +84,13 @@ public class BufferExchangeManagerFactory
         @Provides
         @Singleton
         public Optional<EmbeddedBufferServiceConfigs> getEmbeddedBufferServiceConfigs(
-                ServerConfig serverConfig,
                 EmbeddedBufferServiceConfig embeddedBufferServiceConfig,
                 Optional<SpoolingDirectoryConfig> spoolingDirectoryConfig,
                 Optional<S3ClientConfig> s3ClientConfig,
                 Optional<AzureBlobClientConfig> azureBlobClientConfig)
         {
             if (embeddedBufferServiceConfig.isEmbeddedBufferServiceEnabled()) {
-                verify(spoolingDirectoryConfig.isPresent() || serverConfig.isCoordinator(), "SpoolingDirectoryConfig must be bound on worker node if embeddedBufferServiceConfig is enabled");
-
-                if (spoolingDirectoryConfig.isEmpty()) {
-                    // coordinator
-                    return Optional.empty();
-                }
+                verify(spoolingDirectoryConfig.isPresent(), "SpoolingDirectoryConfig must be bound on worker node if embeddedBufferServiceConfig is enabled");
                 return Optional.of(new EmbeddedBufferServiceConfigs(spoolingDirectoryConfig.orElseThrow(), s3ClientConfig, azureBlobClientConfig));
             }
             return Optional.empty();

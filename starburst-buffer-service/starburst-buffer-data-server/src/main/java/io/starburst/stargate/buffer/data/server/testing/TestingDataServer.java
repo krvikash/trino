@@ -85,7 +85,7 @@ public class TestingDataServer
                         .withBufferNodeId(nodeId)
                         .withDiscoveryBroadcast(discoveryApiModule.get().isPresent())
                         .build(),
-                useBlackholeStorage ? new BlackholeSpoolingStorageModule() : new SpoolingStorageModule(Optional.empty()),
+                useBlackholeStorage ? new BlackholeSpoolingStorageModule() : new SpoolingStorageModule(Optional.empty(), false),
                 getVirtualThreadsServerModule()));
         discoveryApiModule.get().ifPresent(modules::add);
 

@@ -156,7 +156,9 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
 import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static io.starburst.stargate.buffer.data.server.DataServerApplicationModules.getSpoolingConfigurationModule;
 import static io.trino.server.InternalCommunicationHttpClientModule.internalHttpClientModule;
+import static io.trino.server.buffer.EmbeddedBufferServiceConfig.EMBEDDED_BUFFER_SERVICE_CONFIG_PREFIX;
 import static io.trino.util.Executors.decorateWithVersion;
 import static java.util.concurrent.Executors.newCachedThreadPool;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
@@ -439,11 +441,13 @@ public class CoordinatorModule
         EmbeddedBufferServiceConfig embeddedBufferServiceConfig = buildConfigObject(EmbeddedBufferServiceConfig.class);
         if (embeddedBufferServiceConfig.isEmbeddedBufferServiceEnabled()) {
             install(new EmbeddedBufferServiceDiscoveryModule());
-        }
-        if (buildConfigObject(NodeSchedulerConfig.class).isIncludeCoordinator()) {
-            // if coordinator is doing worker job start up data server too
-            if (embeddedBufferServiceConfig.isEmbeddedBufferServiceEnabled()) {
+            if (buildConfigObject(NodeSchedulerConfig.class).isIncludeCoordinator()) {
+                // if coordinator is doing worker job start up data server too
                 install(new EmbeddedBufferServiceDataModule());
+            }
+            else {
+                // just bind storage manager configs
+                install(getSpoolingConfigurationModule(EMBEDDED_BUFFER_SERVICE_CONFIG_PREFIX));
             }
         }
 
