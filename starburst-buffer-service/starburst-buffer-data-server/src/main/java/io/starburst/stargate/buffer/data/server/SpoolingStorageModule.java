@@ -47,6 +47,7 @@ public class SpoolingStorageModule
     @Override
     protected void setup(Binder binder)
     {
+        configBinder(binder).bindConfig(SpoolingDirectoryConfig.class, configPrefix.orElse(null));
         URI spoolingBaseDirectory = buildConfigObject(SpoolingDirectoryConfig.class, configPrefix.orElse(null)).getSpoolingDirectory();
         String scheme = spoolingBaseDirectory.getScheme();
         if (scheme == null || scheme.equals("file")) {

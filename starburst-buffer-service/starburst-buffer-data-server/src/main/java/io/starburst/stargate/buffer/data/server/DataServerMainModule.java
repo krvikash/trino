@@ -26,7 +26,6 @@ import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManager.ForChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.execution.SpooledChunksByExchange;
-import io.starburst.stargate.buffer.data.execution.SpoolingDirectoryConfig;
 import io.starburst.stargate.buffer.data.memory.FullHeapMemoryConfig;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
@@ -79,7 +78,6 @@ public class DataServerMainModule
         JsonBinder.jsonBinder(binder).addDeserializerBinding(Span.class).to(SpanSerialization.SpanDeserializer.class);
         jsonCodecBinder(binder).bindJsonCodec(Span.class);
 
-        configBinder(binder).bindConfig(SpoolingDirectoryConfig.class, configPrefix.orElse(null));
         configBinder(binder).bindConfig(ChunkManagerConfig.class, configPrefix.orElse(null));
         if (useStaticMemoryConfig) {
             configBinder(binder).bindConfig(StaticMemoryConfig.class, configPrefix.orElse(null));
