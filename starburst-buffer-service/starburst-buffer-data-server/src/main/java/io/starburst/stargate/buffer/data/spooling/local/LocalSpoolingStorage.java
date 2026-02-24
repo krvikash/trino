@@ -20,7 +20,7 @@ import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
-import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
+import io.starburst.stargate.buffer.data.execution.SpoolingDirectoryConfig;
 import io.starburst.stargate.buffer.data.spooling.MergedFileNameGenerator;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 import jakarta.annotation.PreDestroy;
@@ -54,7 +54,7 @@ public class LocalSpoolingStorage
 
     @Inject
     public LocalSpoolingStorage(
-            ChunkManagerConfig config,
+            SpoolingDirectoryConfig config,
             MergedFileNameGenerator mergedFileNameGenerator)
     {
         this.spoolingDirectory = requireNonNull(config.getSpoolingDirectory(), "spoolingDirectory is null");

@@ -21,13 +21,10 @@ import jakarta.annotation.PostConstruct;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
-import java.net.URI;
-
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.Duration.succinctDuration;
-import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.PATH_SEPARATOR;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
@@ -41,7 +38,6 @@ public class ChunkManagerConfig
     private DataSize chunkMaxSize = DataSize.of(64, MEGABYTE);
     private DataSize chunkSliceSize = DataSize.of(128, KILOBYTE);
     private Duration exchangeStalenessThreshold = DEFAULT_EXCHANGE_STALENESS_THRESHOLD;
-    private URI spoolingDirectory;
     private Duration chunkSpoolInterval = succinctDuration(50, MILLISECONDS);
     // It is important to keep number of spooling threads on lower end.
     // With default chunks size and merging configuration single spooling request can have up to 16MB*10=160MB. It was
@@ -108,24 +104,6 @@ public class ChunkManagerConfig
     public ChunkManagerConfig setExchangeStalenessThreshold(Duration exchangeStalenessThreshold)
     {
         this.exchangeStalenessThreshold = exchangeStalenessThreshold;
-        return this;
-    }
-
-    @NotNull
-    public URI getSpoolingDirectory()
-    {
-        return spoolingDirectory;
-    }
-
-    @Config("spooling.directory")
-    public ChunkManagerConfig setSpoolingDirectory(String spoolingDirectory)
-    {
-        if (spoolingDirectory != null) {
-            if (!spoolingDirectory.endsWith(PATH_SEPARATOR)) {
-                spoolingDirectory += PATH_SEPARATOR;
-            }
-            this.spoolingDirectory = URI.create(spoolingDirectory);
-        }
         return this;
     }
 

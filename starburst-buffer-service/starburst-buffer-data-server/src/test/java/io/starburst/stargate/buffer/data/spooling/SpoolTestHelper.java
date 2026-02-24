@@ -15,7 +15,7 @@ import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.azure.AzureBlobSpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.local.LocalSpooledChunkReader;
 import io.starburst.stargate.buffer.data.client.spooling.s3.S3SpooledChunkReader;
-import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
+import io.starburst.stargate.buffer.data.execution.SpoolingDirectoryConfig;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import io.starburst.stargate.buffer.data.spooling.azure.AzureBlobSpoolingConfig;
@@ -45,7 +45,7 @@ public final class SpoolTestHelper
         try {
             return new S3SpoolingStorage(
                     new BufferNodeId(0L),
-                    new ChunkManagerConfig().setSpoolingDirectory("s3://" + minioStorage.getBucketName() + (path.isEmpty() ? "" : "/" + path)),
+                    new SpoolingDirectoryConfig().setSpoolingDirectory("s3://" + minioStorage.getBucketName() + (path.isEmpty() ? "" : "/" + path)),
                     S3Utils.createS3Client(new S3ClientConfig()
                             .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
                             .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
@@ -82,7 +82,7 @@ public final class SpoolTestHelper
     {
         return new AzureBlobSpoolingStorage(
                 new BufferNodeId(0L),
-                new ChunkManagerConfig().setSpoolingDirectory("abfs://" + containerName + "@test.dfs.core.windows.net" + (path.isEmpty() ? "" : "/" + path)),
+                new SpoolingDirectoryConfig().setSpoolingDirectory("abfs://" + containerName + "@test.dfs.core.windows.net" + (path.isEmpty() ? "" : "/" + path)),
                 new MergedFileNameGenerator(),
                 new DataServerStats(),
                 client,
@@ -99,7 +99,7 @@ public final class SpoolTestHelper
     public static SpoolingStorage createLocalSpoolingStorage()
     {
         return new LocalSpoolingStorage(
-                new ChunkManagerConfig().setSpoolingDirectory(System.getProperty("java.io.tmpdir") + "/spooling-storage"),
+                new SpoolingDirectoryConfig().setSpoolingDirectory(System.getProperty("java.io.tmpdir") + "/spooling-storage"),
                 new MergedFileNameGenerator());
     }
 

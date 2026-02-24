@@ -12,7 +12,7 @@ package io.starburst.stargate.buffer.data.server;
 import com.azure.storage.blob.BlobServiceAsyncClient;
 import com.google.inject.Binder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
+import io.starburst.stargate.buffer.data.execution.SpoolingDirectoryConfig;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.azure.AzureBlobClientConfig;
 import io.starburst.stargate.buffer.data.spooling.azure.AzureBlobSpoolingConfig;
@@ -47,7 +47,7 @@ public class SpoolingStorageModule
     @Override
     protected void setup(Binder binder)
     {
-        URI spoolingBaseDirectory = buildConfigObject(ChunkManagerConfig.class, configPrefix.orElse(null)).getSpoolingDirectory();
+        URI spoolingBaseDirectory = buildConfigObject(SpoolingDirectoryConfig.class, configPrefix.orElse(null)).getSpoolingDirectory();
         String scheme = spoolingBaseDirectory.getScheme();
         if (scheme == null || scheme.equals("file")) {
             binder.bind(SpoolingStorage.class).to(LocalSpoolingStorage.class).in(SINGLETON);

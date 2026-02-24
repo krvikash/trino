@@ -29,7 +29,7 @@ import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
-import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
+import io.starburst.stargate.buffer.data.execution.SpoolingDirectoryConfig;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import io.starburst.stargate.buffer.data.spooling.AbstractSpoolingStorage;
@@ -65,7 +65,7 @@ public class AzureBlobSpoolingStorage
     @Inject
     public AzureBlobSpoolingStorage(
             BufferNodeId bufferNodeId,
-            ChunkManagerConfig chunkManagerConfig,
+            SpoolingDirectoryConfig spoolingDirectoryConfig,
             MergedFileNameGenerator mergedFileNameGenerator,
             DataServerStats dataServerStats,
             BlobServiceAsyncClient blobServiceAsyncClient,
@@ -73,7 +73,7 @@ public class AzureBlobSpoolingStorage
     {
         super(bufferNodeId, mergedFileNameGenerator, dataServerStats);
 
-        URI spoolingDirectory = requireNonNull(chunkManagerConfig.getSpoolingDirectory(), "spoolingDirectory is null");
+        URI spoolingDirectory = requireNonNull(spoolingDirectoryConfig.getSpoolingDirectory(), "spoolingDirectory is null");
         AzureSpoolUtils.AzureUriInfo azureUriInfo = getAzureUriInfo(spoolingDirectory);
         this.hostName = azureUriInfo.hostName();
         this.containerName = azureUriInfo.containerName();

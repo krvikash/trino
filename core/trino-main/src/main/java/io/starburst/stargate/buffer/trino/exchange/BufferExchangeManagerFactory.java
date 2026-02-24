@@ -25,6 +25,7 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.stargate.buffer.data.client.spooling.SpoolingStorageType;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
+import io.starburst.stargate.buffer.data.execution.SpoolingDirectoryConfig;
 import io.starburst.stargate.buffer.data.spooling.azure.AzureBlobClientConfig;
 import io.starburst.stargate.buffer.data.spooling.s3.S3ClientConfig;
 import io.trino.plugin.base.jmx.MBeanServerModule;
@@ -66,6 +67,7 @@ public class BufferExchangeManagerFactory
             binder.bind(BufferExchangeManagerFactory.InternalCommunicationDependencies.class).in(Scopes.SINGLETON);
             binder.bind(BufferExchangeManagerFactoryRegistrar.class).in(Scopes.SINGLETON);
 
+            newOptionalBinder(binder, SpoolingDirectoryConfig.class);
             newOptionalBinder(binder, ChunkManagerConfig.class);
             newOptionalBinder(binder, S3ClientConfig.class);
             newOptionalBinder(binder, AzureBlobClientConfig.class);
@@ -85,18 +87,18 @@ public class BufferExchangeManagerFactory
         public Optional<EmbeddedBufferServiceConfigs> getEmbeddedBufferServiceConfigs(
                 ServerConfig serverConfig,
                 EmbeddedBufferServiceConfig embeddedBufferServiceConfig,
-                Optional<ChunkManagerConfig> dataServerConfig,
+                Optional<SpoolingDirectoryConfig> spoolingDirectoryConfig,
                 Optional<S3ClientConfig> s3ClientConfig,
                 Optional<AzureBlobClientConfig> azureBlobClientConfig)
         {
             if (embeddedBufferServiceConfig.isEmbeddedBufferServiceEnabled()) {
-                verify(dataServerConfig.isPresent() || serverConfig.isCoordinator(), "DataServerConfig must be bound on worker node if embeddedBufferServiceConfig is enabled");
+                verify(spoolingDirectoryConfig.isPresent() || serverConfig.isCoordinator(), "SpoolingDirectoryConfig must be bound on worker node if embeddedBufferServiceConfig is enabled");
 
-                if (dataServerConfig.isEmpty()) {
+                if (spoolingDirectoryConfig.isEmpty()) {
                     // coordinator
                     return Optional.empty();
                 }
-                return Optional.of(new EmbeddedBufferServiceConfigs(dataServerConfig.orElseThrow(), s3ClientConfig, azureBlobClientConfig));
+                return Optional.of(new EmbeddedBufferServiceConfigs(spoolingDirectoryConfig.orElseThrow(), s3ClientConfig, azureBlobClientConfig));
             }
             return Optional.empty();
         }
@@ -187,7 +189,7 @@ public class BufferExchangeManagerFactory
         }
 
         embeddedDataServerConfigs.ifPresent(configs -> {
-            URI spoolingDirectory = configs.chunkManagerConfig().getSpoolingDirectory();
+            URI spoolingDirectory = configs.spoolingDirectoryConfig().getSpoolingDirectory();
             String scheme = spoolingDirectory.getScheme();
             SpoolingStorageType spoolingStorageType = switch (scheme) {
                 case null -> SpoolingStorageType.LOCAL;
@@ -282,13 +284,13 @@ public class BufferExchangeManagerFactory
         }
     }
 
-    public record EmbeddedBufferServiceConfigs(ChunkManagerConfig chunkManagerConfig,
-                                        Optional<S3ClientConfig> s3ClientConfig,
-                                        Optional<AzureBlobClientConfig> azureBlobClientConfig)
+    public record EmbeddedBufferServiceConfigs(SpoolingDirectoryConfig spoolingDirectoryConfig,
+                                               Optional<S3ClientConfig> s3ClientConfig,
+                                               Optional<AzureBlobClientConfig> azureBlobClientConfig)
     {
         public EmbeddedBufferServiceConfigs
         {
-            requireNonNull(chunkManagerConfig, "chunkManagerConfig is null");
+            requireNonNull(spoolingDirectoryConfig, "spoolingDirectoryConfig is null");
             requireNonNull(s3ClientConfig, "s3ClientConfig is null");
             requireNonNull(azureBlobClientConfig, "azureBlobClientConfig is null");
         }

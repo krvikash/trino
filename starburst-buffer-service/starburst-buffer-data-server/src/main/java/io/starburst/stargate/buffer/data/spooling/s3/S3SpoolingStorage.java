@@ -28,7 +28,7 @@ import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
-import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
+import io.starburst.stargate.buffer.data.execution.SpoolingDirectoryConfig;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import io.starburst.stargate.buffer.data.spooling.AbstractSpoolingStorage;
@@ -99,7 +99,7 @@ public class S3SpoolingStorage
     @Inject
     public S3SpoolingStorage(
             BufferNodeId bufferNodeId,
-            ChunkManagerConfig chunkManagerConfig,
+            SpoolingDirectoryConfig spoolingDirectoryConfig,
             S3AsyncClient s3AsyncClient,
             MergedFileNameGenerator mergedFileNameGenerator,
             DataServerStats dataServerStats,
@@ -110,7 +110,7 @@ public class S3SpoolingStorage
         super(bufferNodeId, mergedFileNameGenerator, dataServerStats);
 
         this.s3AsyncClient = s3AsyncClient;
-        URI spoolingDirectoryUri = requireNonNull(chunkManagerConfig.getSpoolingDirectory(), "spoolingDirectory is null");
+        URI spoolingDirectoryUri = requireNonNull(spoolingDirectoryConfig.getSpoolingDirectory(), "spoolingDirectory is null");
         S3UriInfo s3UriInfo = getS3UriInfo(spoolingDirectoryUri);
         this.bucketName = s3UriInfo.bucket();
         this.path = s3UriInfo.path();
