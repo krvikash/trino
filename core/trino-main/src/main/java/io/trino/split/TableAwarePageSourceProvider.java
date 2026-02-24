@@ -82,4 +82,9 @@ public class TableAwarePageSourceProvider
     {
         connectorAlternativePageSourceProvider.ifPresent(ConnectorAlternativePageSourceProvider::close);
     }
+
+    public long getMemoryUsage()
+    {
+        return pageSourceProvider.getMemoryUsage();
+    }
 }

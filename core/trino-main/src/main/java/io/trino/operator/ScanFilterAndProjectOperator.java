@@ -97,6 +97,7 @@ public class ScanFilterAndProjectOperator
             DataSize minOutputPageSize,
             int minOutputPageRowCount)
     {
+        this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
         pages = split.flatTransform(
                 new SplitToPages(
                         session,
@@ -109,7 +110,6 @@ public class ScanFilterAndProjectOperator
                         memoryTrackingContext.aggregateUserMemoryContext(),
                         minOutputPageSize,
                         minOutputPageRowCount));
-        this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceFactory is null");
     }
 
     @Override
@@ -328,7 +328,7 @@ public class ScanFilterAndProjectOperator
             }
 
             SourcePage page = pageSource.getNextSourcePage();
-            pageSourceMemoryContext.setBytes(pageSource.getMemoryUsage());
+            pageSourceMemoryContext.setBytes(pageSource.getMemoryUsage() + pageSourceProvider.getMemoryUsage());
 
             // update operator stats
             processedPositions += page == null ? 0 : page.getPositionCount();

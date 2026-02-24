@@ -116,5 +116,11 @@ public class PageSourceManager
             ConnectorSession connectorSession = session.toConnectorSession(catalogHandle);
             return pageSourceProvider.prunePredicate(connectorSession, split.getConnectorSplit(), table.connectorHandle(), predicate);
         }
+
+        @Override
+        public long getMemoryUsage()
+        {
+            return pageSourceProvider.getMemoryUsage();
+        }
     }
 }

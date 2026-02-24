@@ -129,6 +129,13 @@ public class DeleteManager
         return positionDeletes.or(() -> equalityDeletes);
     }
 
+    public long getEstimatedSizeInBytes()
+    {
+        return equalityDeleteFiltersBySchema.values().stream()
+                .mapToLong(EqualityDeleteFilterBuilder::getEstimatedSizeInBytes)
+                .sum();
+    }
+
     public interface DeletionVectorReader
     {
         DeletionVector read(DeleteFile deleteFile);

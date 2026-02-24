@@ -52,4 +52,9 @@ public interface PageSourceProvider
     {
         throw new UnsupportedOperationException();
     }
+
+    default long getMemoryUsage()
+    {
+        return 0;
+    }
 }

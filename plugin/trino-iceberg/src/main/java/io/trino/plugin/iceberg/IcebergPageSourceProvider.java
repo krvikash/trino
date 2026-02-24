@@ -489,6 +489,15 @@ public class IcebergPageSourceProvider
                 formatVersion);
     }
 
+    @Override
+    public long getMemoryUsage()
+    {
+        return unpartitionedTableDeleteManager.getEstimatedSizeInBytes() +
+                partitionedDeleteManagers.values().stream()
+                        .mapToLong(DeleteManager::getEstimatedSizeInBytes)
+                        .sum();
+    }
+
     private DeleteManager getDeleteManager(PartitionSpec partitionSpec, PartitionData partitionData)
     {
         if (partitionSpec.isUnpartitioned()) {
