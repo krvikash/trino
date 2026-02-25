@@ -11,13 +11,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.sql.dialect.trino.operationmetadata;
+package io.trino.sql.dialect.ir;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import io.trino.metadata.ResolvedFunction;
-import io.trino.sql.dialect.ir.IrAttributeUtils;
 import io.trino.sql.newir.Operation.AttributeKey;
 
 import java.util.List;
@@ -36,9 +35,9 @@ import static io.trino.sql.dialect.ir.IrDialect.IR;
 import static io.trino.sql.dialect.ir.IrDialect.REPEATABILITY;
 import static io.trino.sql.dialect.ir.IrDialect.SAFE;
 
-public class AttributeDerivationUtils
+public class IrAttributeDerivationUtils
 {
-    private AttributeDerivationUtils()
+    private IrAttributeDerivationUtils()
     {}
 
     public static Map<AttributeKey, Object> defaultDeriveIrLevelAttributes(List<Map<AttributeKey, Object>> childAttributes)

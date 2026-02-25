@@ -32,6 +32,7 @@ import java.util.function.BiFunction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.trino.sql.dialect.ir.IrAttributeDerivationUtils.getRepeatabilityAttribute;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.deterministic;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.hasNoSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.hasSideEffects;
@@ -39,7 +40,6 @@ import static io.trino.sql.dialect.ir.IrAttributeUtils.isKnownDeterministic;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.nonIdempotent;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.safe;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.unsafe;
-import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.getRepeatabilityAttribute;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalBooleanAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalIntegerListAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalLongAttributeMetadata;

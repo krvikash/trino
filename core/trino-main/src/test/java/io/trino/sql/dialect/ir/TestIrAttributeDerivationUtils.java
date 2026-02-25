@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.sql.dialect.trino.operationmetadata;
+package io.trino.sql.dialect.ir;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -24,6 +24,12 @@ import java.util.Map;
 
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
+import static io.trino.sql.dialect.ir.IrAttributeDerivationUtils.defaultComposeIrLevelAttributes;
+import static io.trino.sql.dialect.ir.IrAttributeDerivationUtils.defaultDeriveFunctionCallIrLevelAttributes;
+import static io.trino.sql.dialect.ir.IrAttributeDerivationUtils.defaultDeriveIrLevelAttributes;
+import static io.trino.sql.dialect.ir.IrAttributeDerivationUtils.defaultDeriveIrLevelAttributesWithPassthroughSource;
+import static io.trino.sql.dialect.ir.IrAttributeDerivationUtils.getRepeatabilityAttribute;
+import static io.trino.sql.dialect.ir.IrAttributeDerivationUtils.passIrLevelAttributes;
 import static io.trino.sql.dialect.ir.IrDialect.HAS_SIDE_EFFECTS;
 import static io.trino.sql.dialect.ir.IrDialect.IR;
 import static io.trino.sql.dialect.ir.IrDialect.REPEATABILITY;
@@ -31,15 +37,9 @@ import static io.trino.sql.dialect.ir.IrDialect.Repeatability.DETERMINISTIC;
 import static io.trino.sql.dialect.ir.IrDialect.Repeatability.NON_DETERMINISTIC;
 import static io.trino.sql.dialect.ir.IrDialect.Repeatability.NON_IDEMPOTENT;
 import static io.trino.sql.dialect.ir.IrDialect.SAFE;
-import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultComposeIrLevelAttributes;
-import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultDeriveFunctionCallIrLevelAttributes;
-import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultDeriveIrLevelAttributes;
-import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultDeriveIrLevelAttributesWithPassthroughSource;
-import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.getRepeatabilityAttribute;
-import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.passIrLevelAttributes;
 import static org.assertj.core.api.Assertions.assertThat;
 
-class TestAttributeDerivationUtils
+class TestIrAttributeDerivationUtils
 {
     private static final Map<AttributeKey, Object> UNKNOWN_ATTRIBUTES = ImmutableMap.of();
 

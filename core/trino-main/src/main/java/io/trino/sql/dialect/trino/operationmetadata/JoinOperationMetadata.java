@@ -32,7 +32,7 @@ import java.util.Set;
 import java.util.function.BiFunction;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultDeriveIrLevelAttributes;
+import static io.trino.sql.dialect.ir.IrAttributeDerivationUtils.defaultDeriveIrLevelAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalBooleanAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalEnumAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalObjectAttributeMetadata;

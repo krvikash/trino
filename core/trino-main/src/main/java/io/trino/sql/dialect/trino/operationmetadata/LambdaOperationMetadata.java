@@ -28,7 +28,7 @@ import java.util.function.BiFunction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.passIrLevelAttributes;
+import static io.trino.sql.dialect.ir.IrAttributeDerivationUtils.passIrLevelAttributes;
 import static java.util.stream.Collectors.partitioningBy;
 
 public class LambdaOperationMetadata

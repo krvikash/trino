@@ -27,8 +27,8 @@ import java.util.Set;
 import java.util.function.BiFunction;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.sql.dialect.ir.IrAttributeDerivationUtils.defaultComposeIrLevelAttributes;
 import static io.trino.sql.dialect.trino.operation.TrinoOperation.emptySourceAttributes;
-import static io.trino.sql.dialect.trino.operationmetadata.AttributeDerivationUtils.defaultComposeIrLevelAttributes;
 import static java.util.stream.Collectors.partitioningBy;
 
 public class RowOperationMetadata
