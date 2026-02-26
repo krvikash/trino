@@ -53,6 +53,7 @@ import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.DeleteFileSet;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -222,7 +223,8 @@ public class IcebergPageSinkProvider
                         .collect(toImmutableList()))));
         // TODO: remove once the DeleteFile supporting the dataSequenceNumber in serialization and deserialization
         //  https://github.com/apache/iceberg/issues/13320
-        ImmutableMap.Builder<String, Long> dataSequenceNumbers = ImmutableMap.builder();
+        // Use HashMap since the delete files can be duplicated in the list of previous delete files
+        Map<String, Long> dataSequenceNumbers = new HashMap<>();
         ImmutableMap.Builder<String, Long> firstRowIds = ImmutableMap.builder();
         for (PositionDeleteFiles previousDeleteFile : tableHandle.previousDeleteFiles()) {
             dataSequenceNumbers.put(previousDeleteFile.dataFileLocation(), previousDeleteFile.dataSequenceNumber());
@@ -266,7 +268,7 @@ public class IcebergPageSinkProvider
                     tableHandle.fileIoProperties(),
                     tableHandle.previousDeleteFiles().stream()
                             .collect(toImmutableMap(PositionDeleteFiles::dataFileLocation, PositionDeleteFiles::dataFileRecordCount)),
-                    dataSequenceNumbers.buildOrThrow(),
+                    dataSequenceNumbers,
                     firstRowIds.buildOrThrow(),
                     merge.getTableHandle().getNameMappingJson());
             case COPY_ON_WRITE -> new CopyOnWriteIcebergMergeSink(
@@ -288,7 +290,7 @@ public class IcebergPageSinkProvider
                     tableHandle.fileIoProperties(),
                     tableHandle.previousDeleteFiles().stream()
                             .collect(toImmutableMap(PositionDeleteFiles::dataFileLocation, PositionDeleteFiles::dataFileRecordCount)),
-                    dataSequenceNumbers.buildOrThrow(),
+                    dataSequenceNumbers,
                     firstRowIds.buildOrThrow(),
                     merge.getTableHandle().getNameMappingJson(),
                     tableHandle.formatVersion());

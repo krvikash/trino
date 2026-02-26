@@ -121,6 +121,8 @@ import static org.apache.iceberg.FileContent.EQUALITY_DELETES;
 import static org.apache.iceberg.FileContent.POSITION_DELETES;
 import static org.apache.iceberg.FileFormat.ORC;
 import static org.apache.iceberg.FileFormat.PARQUET;
+import static org.apache.iceberg.RowLevelOperationMode.COPY_ON_WRITE;
+import static org.apache.iceberg.RowLevelOperationMode.MERGE_ON_READ;
 import static org.apache.iceberg.TableProperties.DEFAULT_NAME_MAPPING;
 import static org.apache.iceberg.TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED;
 import static org.apache.iceberg.TableProperties.METADATA_PREVIOUS_VERSIONS_MAX;
@@ -284,6 +286,58 @@ public class TestIcebergV2
 
         icebergTable.newRowDelta().addDeletes(writer.toDeleteFile()).commit();
         assertQuery("SELECT count(*) FROM " + tableName, "VALUES 24");
+    }
+
+    @Test
+    void testV2TableWithPositionDeleteReferredByMultipleDataFiles()
+            throws Exception
+    {
+        testV2TableWithPositionDeleteReferredByMultipleDataFiles(COPY_ON_WRITE.modeName());
+        testV2TableWithPositionDeleteReferredByMultipleDataFiles(MERGE_ON_READ.modeName());
+    }
+
+    private void testV2TableWithPositionDeleteReferredByMultipleDataFiles(String mergeMode)
+            throws Exception
+    {
+        try (TestTable table = newTrinoTable("test_v2_row_delete_referred_by_multiple_data_files_", "WITH (merge_mode = '%s') AS SELECT * FROM tpch.tiny.nation".formatted(mergeMode))) {
+            String tableName = table.getName();
+            assertUpdate("INSERT INTO " + tableName + " SELECT * FROM tpch.tiny.nation", 25);
+            assertThat(query("SELECT count(*) FROM " + tableName))
+                    .matches("VALUES BIGINT '50'");
+
+            Table icebergTable = loadTable(tableName);
+            List<String> dataFilePaths = computeActual("SELECT file_path FROM \"" + tableName + "$files\"").getOnlyColumnAsSet().stream()
+                    .map(String::valueOf)
+                    .sorted()
+                    .collect(toImmutableList());
+            assertThat(dataFilePaths).hasSize(2);
+
+            FileIO fileIo = FILE_IO_FACTORY.create(fileSystemFactory.create(SESSION));
+            PositionDeleteWriter<Record> writer = Parquet.writeDeletes(fileIo.newOutputFile("local:///delete_file_" + UUID.randomUUID()))
+                    .createWriterFunc(GenericParquetWriter::create)
+                    .forTable(icebergTable)
+                    .overwrite()
+                    .rowSchema(icebergTable.schema())
+                    .withSpec(PartitionSpec.unpartitioned())
+                    .buildPositionWriter();
+
+            try (Closeable ignored = writer) {
+                PositionDelete<Record> positionDelete = PositionDelete.create();
+                PositionDelete<Record> record = positionDelete.set(dataFilePaths.get(0), 0, GenericRecord.create(icebergTable.schema()));
+                writer.write(record);
+
+                positionDelete = PositionDelete.create();
+                record = positionDelete.set(dataFilePaths.get(1), 0, GenericRecord.create(icebergTable.schema()));
+                writer.write(record);
+            }
+
+            icebergTable.newRowDelta().addDeletes(writer.toDeleteFile()).commit();
+            assertThat(query("SELECT count(*) FROM " + tableName))
+                    .matches("VALUES BIGINT '48'");
+
+            // make sure we can update the table after writing the position delete
+            assertUpdate("UPDATE " + tableName + " SET comment = 'updated'", 48);
+        }
     }
 
     @Test
