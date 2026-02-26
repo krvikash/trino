@@ -202,6 +202,9 @@ public class TestingDataServer
             if (!configProperties.containsKey("spooling.directory")) {
                 configProperties.put("spooling.directory", "%s/spooling-storage-%s".formatted(System.getProperty("java.io.tmpdir"), nodeId));
             }
+            if (!useBlackholeStorage) {
+                configProperties.putIfAbsent("testing.allow-local-spooling", "true");
+            }
             return new TestingDataServer(nodeId, discoveryApiModule, configProperties, useBlackholeStorage, useBlockingResource);
         }
     }

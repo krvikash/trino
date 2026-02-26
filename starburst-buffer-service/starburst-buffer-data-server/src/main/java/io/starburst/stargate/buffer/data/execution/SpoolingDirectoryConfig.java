@@ -10,6 +10,8 @@
 package io.starburst.stargate.buffer.data.execution;
 
 import io.airlift.configuration.Config;
+import io.airlift.configuration.ConfigDescription;
+import io.airlift.configuration.ConfigHidden;
 import jakarta.validation.constraints.NotNull;
 
 import java.net.URI;
@@ -19,6 +21,7 @@ import static io.starburst.stargate.buffer.data.client.spooling.SpoolUtils.PATH_
 public class SpoolingDirectoryConfig
 {
     private URI spoolingDirectory;
+    private boolean allowLocalSpooling;
 
     @NotNull
     public URI getSpoolingDirectory()
@@ -35,6 +38,20 @@ public class SpoolingDirectoryConfig
             }
             this.spoolingDirectory = URI.create(spoolingDirectory);
         }
+        return this;
+    }
+
+    public boolean isAllowLocalSpooling()
+    {
+        return allowLocalSpooling;
+    }
+
+    @ConfigHidden
+    @Config("testing.allow-local-spooling")
+    @ConfigDescription("Allow to use local filesystem for spooling. This is intended for testing purposes only and should not be used in production.")
+    public SpoolingDirectoryConfig setAllowLocalSpooling(boolean allowLocalSpooling)
+    {
+        this.allowLocalSpooling = allowLocalSpooling;
         return this;
     }
 }

@@ -690,7 +690,8 @@ public final class IcebergQueryRunner
             File exchangeManagerDirectory = createTempDirectory("exchange_manager").toFile();
             ImmutableMap.Builder<String, String> extraProperties = ImmutableMap.<String, String>builder()
                     .put("embedded-buffer-service-enabled", "true")
-                    .put("buffer.spooling.directory", exchangeManagerDirectory.getAbsolutePath());
+                    .put("buffer.spooling.directory", exchangeManagerDirectory.getAbsolutePath())
+                    .put("buffer.testing.allow-local-spooling", "true");
             exchangeManagerDirectory.deleteOnExit();
 
             Logger log = Logger.get(DefaultIcebergQueryRunnerMain.class);

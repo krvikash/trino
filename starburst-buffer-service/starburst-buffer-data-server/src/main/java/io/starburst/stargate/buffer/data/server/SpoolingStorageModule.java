@@ -32,6 +32,7 @@ import static com.google.inject.Scopes.SINGLETON;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage.CompatibilityMode.AWS;
 import static io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage.CompatibilityMode.GCP;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public class SpoolingStorageModule
@@ -50,10 +51,17 @@ public class SpoolingStorageModule
     protected void setup(Binder binder)
     {
         configBinder(binder).bindConfig(SpoolingDirectoryConfig.class, configPrefix.orElse(null));
-        URI spoolingBaseDirectory = buildConfigObject(SpoolingDirectoryConfig.class, configPrefix.orElse(null)).getSpoolingDirectory();
+        SpoolingDirectoryConfig spoolingDirectoryConfig = buildConfigObject(SpoolingDirectoryConfig.class, configPrefix.orElse(null));
+        URI spoolingBaseDirectory = spoolingDirectoryConfig.getSpoolingDirectory();
         String scheme = spoolingBaseDirectory.getScheme();
         if (scheme == null || scheme.equals("file")) {
-            if (!bindConfigsOnly) {
+            if (!spoolingDirectoryConfig.isAllowLocalSpooling()) {
+                String prefix = configPrefix.map(p -> p + ".").orElse("");
+                binder.addError(format(
+                        "Local filesystem spooling is not supported. Use s3://, gs://, or abfs:// scheme for '%sspooling.directory'",
+                        prefix));
+            }
+            else if (!bindConfigsOnly) {
                 binder.bind(SpoolingStorage.class).to(LocalSpoolingStorage.class).in(SINGLETON);
             }
         }

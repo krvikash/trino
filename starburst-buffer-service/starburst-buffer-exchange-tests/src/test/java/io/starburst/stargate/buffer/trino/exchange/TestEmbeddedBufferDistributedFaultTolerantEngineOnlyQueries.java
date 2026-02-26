@@ -41,6 +41,7 @@ public class TestEmbeddedBufferDistributedFaultTolerantEngineOnlyQueries
         File exchangeManagerDirectory = createTempDirectory("exchange_manager").toFile();
         extraProperties.put("embedded-buffer-service-enabled", "true");
         extraProperties.put("buffer.spooling.directory", exchangeManagerDirectory.getAbsolutePath());
+        extraProperties.put("buffer.testing.allow-local-spooling", "true");
 
         // By default, FaultTolerantExecutionConnectorTestHelper.getExtraProperties sets
         // executor-pool-size to 10. Such small value may cause queries to fail if tests are run in parallel.

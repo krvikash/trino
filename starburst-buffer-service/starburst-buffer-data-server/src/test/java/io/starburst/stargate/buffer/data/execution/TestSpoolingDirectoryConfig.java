@@ -24,7 +24,8 @@ public class TestSpoolingDirectoryConfig
     public void assertDefaults()
     {
         assertRecordedDefaults(recordDefaults(SpoolingDirectoryConfig.class)
-                .setSpoolingDirectory(null));
+                .setSpoolingDirectory(null)
+                .setAllowLocalSpooling(false));
     }
 
     @Test
@@ -32,10 +33,12 @@ public class TestSpoolingDirectoryConfig
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("spooling.directory", "s3://spooling-bucket")
+                .put("testing.allow-local-spooling", "true")
                 .buildOrThrow();
 
         SpoolingDirectoryConfig expected = new SpoolingDirectoryConfig()
-                .setSpoolingDirectory("s3://spooling-bucket/");
+                .setSpoolingDirectory("s3://spooling-bucket/")
+                .setAllowLocalSpooling(true);
 
         assertFullMapping(properties, expected);
     }
