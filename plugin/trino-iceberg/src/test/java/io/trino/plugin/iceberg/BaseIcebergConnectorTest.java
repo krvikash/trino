@@ -196,20 +196,15 @@ public abstract class BaseIcebergConnectorTest
     private static final Pattern WITH_CLAUSE_EXTRACTOR = Pattern.compile(".*(WITH\\s*\\([^)]*\\))\\s*$", Pattern.DOTALL);
 
     protected final IcebergFileFormat format;
-    private final int formatVersion;
+    protected final int formatVersion;
 
     protected TrinoFileSystem fileSystem;
     protected TimeUnit storageTimePrecision;
 
-    protected BaseIcebergConnectorTest(IcebergFileFormat format)
+    protected BaseIcebergConnectorTest(IcebergFileFormat format, int formatVersion)
     {
         this.format = requireNonNull(format, "format is null");
-        this.formatVersion = formatVersion();
-    }
-
-    protected int formatVersion()
-    {
-        return 3;
+        this.formatVersion = formatVersion;
     }
 
     @Override
@@ -225,7 +220,7 @@ public abstract class BaseIcebergConnectorTest
         return IcebergQueryRunner.builder()
                 .setIcebergProperties(ImmutableMap.<String, String>builder()
                         .put("iceberg.file-format", format.name())
-                        .put("iceberg.format-version", Integer.toString(formatVersion))
+                        .put("iceberg.format-version", String.valueOf(formatVersion))
                         // Only allow some extra properties. Add "sorted_by" so that we can test that the property is disallowed by the connector explicitly.
                         .put("iceberg.allowed-extra-properties", "extra.property.one,extra.property.two,extra.property.three,sorted_by")
                         // Allows testing the sorting writer flushing to the file system with smaller tables
@@ -291,32 +286,28 @@ public abstract class BaseIcebergConnectorTest
         return switch (connectorBehavior) {
             case SUPPORTS_CREATE_OR_REPLACE_TABLE,
                  SUPPORTS_CTE_REUSE,
-                 SUPPORTS_DEFAULT_COLUMN_VALUE,
                  SUPPORTS_REPORTING_WRITTEN_BYTES -> true;
             case SUPPORTS_ADD_COLUMN_NOT_NULL_CONSTRAINT,
                  SUPPORTS_LIMIT_PUSHDOWN,
                  SUPPORTS_REFRESH_VIEW,
                  SUPPORTS_RENAME_MATERIALIZED_VIEW_ACROSS_SCHEMAS,
                  SUPPORTS_TOPN_PUSHDOWN -> false;
+            case SUPPORTS_DEFAULT_COLUMN_VALUE -> formatVersion >= 3;
             default -> super.hasBehavior(connectorBehavior);
         };
     }
 
-    @Override
     @Test
+    @Override
     public void testCreateTableWithDefaultColumn()
     {
         if (formatVersion < 3) {
             String tableName = "test_default_value_" + randomNameSuffix();
-            assertThatThrownBy(() -> assertUpdate("CREATE TABLE " + tableName + " (x int DEFAULT 1)"))
-                    .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
+            assertQueryFails("CREATE TABLE " + tableName + " (x int DEFAULT 1)", "Default column values are not supported for Iceberg table format version < 3");
             return;
         }
 
-        try (TestTable table = newTrinoTable(
-                "test_default_value_", "(x int DEFAULT 1)")) {
-            assertThat(getColumnDefault(table.getName(), "x")).isEqualTo("1");
-        }
+        super.testCreateTableWithDefaultColumn();
     }
 
     @Test
@@ -9361,6 +9352,41 @@ public abstract class BaseIcebergConnectorTest
                 },
                 _ -> {});
         assertUpdate("DROP MATERIALIZED VIEW " + materializedViewName);
+    }
+
+    @Test
+    void testRowLineageWithMaterializedViews()
+    {
+        if (formatVersion < 3) {
+            return;
+        }
+
+        try (TestTable table = newTrinoTable("test_materialized_views", "(id int, name varchar) WITH (format_version = 3)")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 'Alice'), (2, 'Bob')", 2);
+
+            String materializedViewName = "test_materialized_view_" + randomNameSuffix();
+            assertUpdate("CREATE MATERIALIZED VIEW " + materializedViewName + " AS SELECT id, name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + table.getName());
+
+            assertUpdate("REFRESH MATERIALIZED VIEW " + materializedViewName, 2);
+
+            assertThat(query("SELECT id, name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + materializedViewName + " ORDER BY id"))
+                    .matches("""
+                            VALUES (1, VARCHAR 'Alice', BIGINT '0', BIGINT '2'),
+                                   (2, VARCHAR 'Bob', BIGINT '1', BIGINT '2')
+                            """);
+
+            assertUpdate("UPDATE " + table.getName() + " SET name = 'Alice Updated' WHERE id = 1", 1);
+
+            assertUpdate("REFRESH MATERIALIZED VIEW " + materializedViewName, 2);
+
+            assertThat(query("SELECT id, name, \"$row_id\", \"$last_updated_sequence_number\" FROM " + materializedViewName + " ORDER BY id"))
+                    .matches("""
+                            VALUES (1, VARCHAR 'Alice Updated', BIGINT '0', BIGINT '3'),
+                                   (2, VARCHAR 'Bob', BIGINT '1', BIGINT '2')
+                            """);
+
+            assertUpdate("DROP MATERIALIZED VIEW " + materializedViewName);
+        }
     }
 
     private static TableFinishInfo getTableFinishInfo(QueryStats queryStats)

@@ -38,20 +38,13 @@ import static io.trino.plugin.iceberg.IcebergTestUtils.withSmallRowGroups;
 import static io.trino.testing.QueryAssertions.assertEqualsIgnoreOrder;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class TestIcebergParquetConnectorTest
+public abstract class BaseIcebergParquetConnectorTest
         extends BaseIcebergConnectorTest
 {
-    public TestIcebergParquetConnectorTest()
+    public BaseIcebergParquetConnectorTest(int formatVersion)
     {
-        super(PARQUET);
-    }
-
-    @Override
-    protected int formatVersion()
-    {
-        return 2;
+        super(PARQUET, formatVersion);
     }
 
     @Override
@@ -201,84 +194,6 @@ public class TestIcebergParquetConnectorTest
                     FROM TABLE(system.table_changes(CURRENT_SCHEMA, '%s', %s, %s))
                     """.formatted(table.getName(), initialSnapshot, snapshotAfterInsert),
                     "SELECT orderkey, partkey, suppkey, 'insert', %s, '%s', 0 FROM lineitem".formatted(snapshotAfterInsert, snapshotAfterInsertTime));
-        }
-    }
-
-    @Test
-    @Override
-    public void testSetDefaultColumn()
-    {
-        if (formatVersion() >= 3) {
-            super.testSetDefaultColumn();
-        }
-        else {
-            assertThatThrownBy(super::testSetDefaultColumn)
-                    .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
-        }
-    }
-
-    @Test
-    @Override
-    public void testDropDefaultColumn()
-    {
-        if (formatVersion() >= 3) {
-            super.testDropDefaultColumn();
-        }
-        else {
-            assertThatThrownBy(super::testDropDefaultColumn)
-                    .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
-        }
-    }
-
-    @Test
-    @Override
-    public void testInsertDefaultNullIntoNotNullColumn()
-    {
-        if (formatVersion() >= 3) {
-            super.testInsertDefaultNullIntoNotNullColumn();
-        }
-        else {
-            assertThatThrownBy(super::testInsertDefaultNullIntoNotNullColumn)
-                    .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
-        }
-    }
-
-    @Test
-    @Override
-    public void testMergeDefaultNullIntoNotNullColumn()
-    {
-        if (formatVersion() >= 3) {
-            super.testMergeDefaultNullIntoNotNullColumn();
-        }
-        else {
-            assertThatThrownBy(super::testMergeDefaultNullIntoNotNullColumn)
-                    .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
-        }
-    }
-
-    @Test
-    @Override
-    public void testAddDefaultColumn()
-    {
-        if (formatVersion() >= 3) {
-            super.testAddDefaultColumn();
-        }
-        else {
-            assertThatThrownBy(super::testAddDefaultColumn)
-                    .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
-        }
-    }
-
-    @Test
-    @Override
-    public void testMergeWithDefaultColumnValue()
-    {
-        if (formatVersion() >= 3) {
-            super.testMergeWithDefaultColumnValue();
-        }
-        else {
-            assertThatThrownBy(super::testMergeWithDefaultColumnValue)
-                    .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
         }
     }
 

@@ -13,12 +13,11 @@
  */
 package io.trino.plugin.iceberg;
 
-public class TestIcebergParquetV3ConnectorTest
-        extends TestIcebergParquetConnectorTest
+class TestIcebergV2MinioOrcConnectorTest
+        extends BaseIcebergMinioOrcConnectorTest
 {
-    @Override
-    protected int formatVersion()
+    TestIcebergV2MinioOrcConnectorTest()
     {
-        return 3;
+        super(2);
     }
 }

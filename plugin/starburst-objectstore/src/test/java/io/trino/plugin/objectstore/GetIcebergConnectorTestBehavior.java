@@ -25,7 +25,7 @@ class GetIcebergConnectorTestBehavior
 {
     GetIcebergConnectorTestBehavior()
     {
-        super(new IcebergConfig().getFileFormat());
+        super(new IcebergConfig().getFileFormat(), 3);
     }
 
     @Override

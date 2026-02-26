@@ -2262,6 +2262,40 @@ public class IcebergMetadata
     }
 
     @Override
+    public Set<ColumnHandle> getColumnHandlesForTableExecute(ConnectorSession session, ConnectorTableHandle tableHandle, ConnectorTableExecuteHandle tableExecuteHandle)
+    {
+        IcebergTableExecuteHandle executeHandle = (IcebergTableExecuteHandle) tableExecuteHandle;
+        IcebergTableHandle icebergTableHandle = (IcebergTableHandle) tableHandle;
+        return switch (executeHandle.procedureId()) {
+            case OPTIMIZE -> getColumnHandlesForOptimize(session, icebergTableHandle, icebergTableHandle.getFormatVersion());
+            case OPTIMIZE_MANIFESTS, OPTIMIZE_POSITION_DELETES, DROP_EXTENDED_STATS, ROLLBACK_TO_SNAPSHOT, EXPIRE_SNAPSHOTS, REMOVE_ORPHAN_FILES, ADD_FILES, ADD_FILES_FROM_TABLE, GENERATE_EMBEDDINGS ->
+                    throw new IllegalArgumentException("Unknown procedure '" + executeHandle.procedureId() + "'");
+        };
+    }
+
+    private Set<ColumnHandle> getColumnHandlesForOptimize(ConnectorSession session, IcebergTableHandle tableHandle, int formatVersion)
+    {
+        Map<String, ColumnHandle> columnHandles = getColumnHandles(session, tableHandle);
+        return getTableMetadata(session, tableHandle).getColumns().stream()
+                .filter(column -> isOptimizeReadColumn(formatVersion, column))
+                .map(ColumnMetadata::getName)
+                .map(columnName -> requireNonNull(columnHandles.get(columnName), "Cannot find column handle for " + columnName))
+                .collect(toImmutableSet());
+    }
+
+    private static boolean isOptimizeReadColumn(int formatVersion, ColumnMetadata column)
+    {
+        if (!column.isHidden()) {
+            return true;
+        }
+        if (formatVersion < 3) {
+            return false;
+        }
+        String columnName = column.getName();
+        return columnName.equals(ROW_ID.getColumnName()) || columnName.equals(LAST_UPDATED_SEQUENCE_NUMBER.getColumnName());
+    }
+
+    @Override
     public Optional<ConnectorTableLayout> getLayoutForTableExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle)
     {
         IcebergTableExecuteHandle executeHandle = (IcebergTableExecuteHandle) tableExecuteHandle;

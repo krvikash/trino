@@ -61,15 +61,9 @@ public abstract class BaseTestObjectStoreIcebergFeaturesConnectorTest
 
     protected BaseTestObjectStoreIcebergFeaturesConnectorTest(String connectorName, Map<String, String> objectStoreProperties)
     {
-        super(new IcebergConfig().getFileFormat());
+        super(new IcebergConfig().getFileFormat(), 2);
         this.connectorName = requireNonNull(connectorName, "connectorName is null");
         this.objectStoreProperties = ImmutableMap.copyOf(objectStoreProperties);
-    }
-
-    @Override
-    protected int formatVersion()
-    {
-        return 2;
     }
 
     @Override
