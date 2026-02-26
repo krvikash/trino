@@ -3956,7 +3956,7 @@ public class IcebergMetadata
         int formatVersion = formatVersion(icebergTable);
         validateFormatVersion(formatVersion, maxFormatVersion);
         RowLevelOperationMode operationMode = rowLevelOperationMode(icebergTable);
-        if (operationMode != COPY_ON_WRITE && formatVersion < 3) {
+        if (operationMode == MERGE_ON_READ) {
             return ImmutableList.of();
         }
 
@@ -3980,16 +3980,14 @@ public class IcebergMetadata
                                 .collect(toImmutableList()),
                         task.deletes().stream().collect(toImmutableMap(DeleteFile::location, DeleteFile::dataSequenceNumber))));
 
-                if (operationMode == COPY_ON_WRITE) {
-                    fileMetrics.put(file.location(), new Metrics(
-                            file.recordCount(),
-                            file.columnSizes(),
-                            file.valueCounts(),
-                            file.nullValueCounts(),
-                            file.nanValueCounts(),
-                            file.lowerBounds(),
-                            file.upperBounds()));
-                }
+                fileMetrics.put(file.location(), new Metrics(
+                        file.recordCount(),
+                        file.columnSizes(),
+                        file.valueCounts(),
+                        file.nullValueCounts(),
+                        file.nanValueCounts(),
+                        file.lowerBounds(),
+                        file.upperBounds()));
             }
         }
         catch (IOException e) {
