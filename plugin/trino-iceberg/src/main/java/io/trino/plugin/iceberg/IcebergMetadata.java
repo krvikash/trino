@@ -148,6 +148,7 @@ import io.trino.spi.function.FunctionDependencyDeclaration;
 import io.trino.spi.function.FunctionId;
 import io.trino.spi.function.FunctionMetadata;
 import io.trino.spi.function.SchemaFunctionName;
+import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
@@ -196,7 +197,6 @@ import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestReader;
 import org.apache.iceberg.MetadataColumns;
-import org.apache.iceberg.Metrics;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionSpecParser;
@@ -615,7 +615,7 @@ public class IcebergMetadata
     private final Duration materializedViewRefreshSnapshotRetentionPeriod;
     private final Map<IcebergTableHandle, AtomicReference<TableStatistics>> tableStatisticsCache = new ConcurrentHashMap<>();
     private final NonEvictableCache<SchemaTableName, IcebergTableCredentials> tableCredentialsCache;
-    private final Map<String, Metrics> fileMetrics = new HashMap<>();
+    private final Map<String, org.apache.iceberg.Metrics> fileMetrics = new HashMap<>();
     private final DeletionVectorWriter deletionVectorWriter;
 
     private Transaction transaction;
@@ -3205,7 +3205,7 @@ public class IcebergMetadata
     }
 
     @Override
-    public io.trino.spi.metrics.Metrics getMetrics(ConnectorSession session)
+    public Metrics getMetrics(ConnectorSession session)
     {
         return catalog.getMetrics();
     }
@@ -4154,7 +4154,7 @@ public class IcebergMetadata
                                 .collect(toImmutableList()),
                         task.deletes().stream().collect(toImmutableMap(DeleteFile::location, DeleteFile::dataSequenceNumber))));
 
-                fileMetrics.put(file.location(), new Metrics(
+                fileMetrics.put(file.location(), new org.apache.iceberg.Metrics(
                         file.recordCount(),
                         file.columnSizes(),
                         file.valueCounts(),

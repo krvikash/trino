@@ -16,6 +16,7 @@ package io.trino.plugin.objectstore;
 import com.google.inject.Inject;
 import io.trino.plugin.deltalake.functions.tablechanges.TableChangesTableFunctionHandle;
 import io.trino.plugin.hive.functions.Unload.UnloadFunctionHandle;
+import io.trino.plugin.iceberg.functions.tablechanges.TableChangesFunctionHandle;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
@@ -85,7 +86,7 @@ public class ObjectStoreFunctionProvider
         if (functionHandle instanceof TableChangesTableFunctionHandle) {
             return new DeltaLakeTableChangesProcessorProvider(deltaConnector, objectStoreSessionProperties, functionHandle);
         }
-        if (functionHandle instanceof io.trino.plugin.iceberg.functions.tablechanges.TableChangesFunctionHandle) {
+        if (functionHandle instanceof TableChangesFunctionHandle) {
             return new IcebergTableChangesProcessorProvider(icebergConnector, objectStoreSessionProperties, functionHandle);
         }
 

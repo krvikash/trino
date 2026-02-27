@@ -59,7 +59,7 @@ final class IcebergVariantTypeUtil
     {
         OutputFile outputFile = localOutput(outputFilePath);
 
-        try (FileAppender<org.apache.iceberg.data.Record> writer = Parquet.write(outputFile)
+        try (FileAppender<Record> writer = Parquet.write(outputFile)
                 .schema(SCHEMA)
                 .variantShreddingFunc((_, _) -> null)
                 .createWriterFunc(fileSchema -> InternalWriter.create(SCHEMA.asStruct(), fileSchema))

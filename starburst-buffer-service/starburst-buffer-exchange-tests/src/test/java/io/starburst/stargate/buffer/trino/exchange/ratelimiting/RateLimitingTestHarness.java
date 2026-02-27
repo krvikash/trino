@@ -68,8 +68,8 @@ public class RateLimitingTestHarness
 
     private final int maxInProgressAddDataPagesRequests;
     private final int inProgressAddDataPagesRequestsRateLimitThreshold;
-    private final io.airlift.units.Duration inProgressAddDataPagesRequestsThrottlingCounterDecayDuration;
-    private final io.airlift.units.Duration requestProcessingTime;
+    private final Duration inProgressAddDataPagesRequestsThrottlingCounterDecayDuration;
+    private final Duration requestProcessingTime;
     private final Set<TestClientNode> clientNodes;
     private final ListeningExecutorService executorService;
     private final ScheduledExecutorService retryExecutor;
@@ -79,8 +79,8 @@ public class RateLimitingTestHarness
     RateLimitingTestHarness(
             int maxInProgressAddDataPagesRequests,
             int inProgressAddDataPagesRequestsRateLimitThreshold,
-            io.airlift.units.Duration inProgressAddDataPagesRequestsThrottlingCounterDecayDuration,
-            io.airlift.units.Duration requestProcessingTime,
+            Duration inProgressAddDataPagesRequestsThrottlingCounterDecayDuration,
+            Duration requestProcessingTime,
             Set<TestClientNode> clientNodes)
     {
         this.maxInProgressAddDataPagesRequests = maxInProgressAddDataPagesRequests;
@@ -129,8 +129,8 @@ public class RateLimitingTestHarness
     {
         private int maxInProgressAddDataPagesRequests = 100;
         private int inProgressAddDataPagesRequestsRateLimitThreshold = 50;
-        private io.airlift.units.Duration inProgressAddDataPagesRequestsThrottlingCounterDecayDuration = succinctDuration(5, SECONDS);
-        private io.airlift.units.Duration requestProcessingTime = succinctDuration(10, MILLISECONDS);
+        private Duration inProgressAddDataPagesRequestsThrottlingCounterDecayDuration = succinctDuration(5, SECONDS);
+        private Duration requestProcessingTime = succinctDuration(10, MILLISECONDS);
 
         private final Multimap<String, TestClient> clients = HashMultimap.create();
 
@@ -146,13 +146,13 @@ public class RateLimitingTestHarness
             return this;
         }
 
-        public Builder setInProgressAddDataPagesRequestsThrottlingCounterDecayDuration(io.airlift.units.Duration inProgressAddDataPagesRequestsThrottlingCounterDecayDuration)
+        public Builder setInProgressAddDataPagesRequestsThrottlingCounterDecayDuration(Duration inProgressAddDataPagesRequestsThrottlingCounterDecayDuration)
         {
             this.inProgressAddDataPagesRequestsThrottlingCounterDecayDuration = inProgressAddDataPagesRequestsThrottlingCounterDecayDuration;
             return this;
         }
 
-        public Builder setRequestProcessingTime(io.airlift.units.Duration requestProcessingTime)
+        public Builder setRequestProcessingTime(Duration requestProcessingTime)
         {
             this.requestProcessingTime = requestProcessingTime;
             return this;
@@ -261,7 +261,7 @@ public class RateLimitingTestHarness
                                     server.getBaseUri(),
                                     BUFFER_NODE_ID,
                                     new JettyHttpClient(),
-                                    io.airlift.units.Duration.succinctDuration(30, TimeUnit.SECONDS),
+                                    Duration.succinctDuration(30, TimeUnit.SECONDS),
                                     dummySpooledChunkReader,
                                     false,
                                     Optional.of(nodeId),

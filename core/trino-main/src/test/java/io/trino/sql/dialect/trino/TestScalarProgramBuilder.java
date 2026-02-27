@@ -41,6 +41,7 @@ import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
 import io.trino.sql.dialect.trino.operation.Switch;
 import io.trino.sql.ir.Expression;
+import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.WhenClause;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
@@ -142,12 +143,12 @@ final class TestScalarProgramBuilder
     public void testBind()
     {
         io.trino.sql.ir.Bind bindExpression = new io.trino.sql.ir.Bind(
-                ImmutableList.of(new io.trino.sql.ir.Reference(BIGINT, "a")),
+                ImmutableList.of(new Reference(BIGINT, "a")),
                 new io.trino.sql.ir.Lambda(
                         ImmutableList.of(new Symbol(BIGINT, "x")),
                         new io.trino.sql.ir.Comparison(
                                 io.trino.sql.ir.Comparison.Operator.LESS_THAN,
-                                new io.trino.sql.ir.Reference(BIGINT, "x"),
+                                new Reference(BIGINT, "x"),
                                 new io.trino.sql.ir.Constant(BIGINT, 0L))));
 
         FieldReference fieldReferenceOperationA = new FieldReference("%0", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
@@ -463,7 +464,7 @@ final class TestScalarProgramBuilder
                 ImmutableList.of(new Symbol(BIGINT, "x")),
                 new io.trino.sql.ir.Comparison(
                         io.trino.sql.ir.Comparison.Operator.LESS_THAN,
-                        new io.trino.sql.ir.Reference(BIGINT, "x"),
+                        new Reference(BIGINT, "x"),
                         new io.trino.sql.ir.Constant(BIGINT, 0L)));
 
         Block.Parameter lambdaArgument = new Block.Parameter("%1", irType(anonymousRow(BIGINT)));
@@ -500,12 +501,12 @@ final class TestScalarProgramBuilder
                 new io.trino.sql.ir.Logical(
                         io.trino.sql.ir.Logical.Operator.OR,
                         ImmutableList.of(
-                                new io.trino.sql.ir.Reference(BOOLEAN, "b"), // correlated symbol
-                                new io.trino.sql.ir.Reference(BOOLEAN, "x"), // lambda argument
+                                new Reference(BOOLEAN, "b"), // correlated symbol
+                                new Reference(BOOLEAN, "x"), // lambda argument
                                 new io.trino.sql.ir.Comparison(
                                         io.trino.sql.ir.Comparison.Operator.LESS_THAN,
-                                        new io.trino.sql.ir.Reference(BIGINT, "a"), // correlated symbol
-                                        new io.trino.sql.ir.Reference(BIGINT, "y"))))); // lambda argument
+                                        new Reference(BIGINT, "a"), // correlated symbol
+                                        new Reference(BIGINT, "y"))))); // lambda argument
 
         Block.Parameter lambdaArgument = new Block.Parameter("%1", irType(anonymousRow(BOOLEAN, BIGINT)));
         FieldReference fieldReferenceOperationB = new FieldReference("%2", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
@@ -548,7 +549,7 @@ final class TestScalarProgramBuilder
                 ImmutableList.of(
                         new Symbol(BOOLEAN, "x"),
                         new Symbol(BOOLEAN, "x")),
-                new io.trino.sql.ir.Reference(BOOLEAN, "x"));
+                new Reference(BOOLEAN, "x"));
 
         Block.Parameter lambdaArgument = new Block.Parameter("%1", irType(anonymousRow(BOOLEAN, BOOLEAN)));
         FieldReference fieldReferenceOperation = new FieldReference("%2", lambdaArgument, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
@@ -621,7 +622,7 @@ final class TestScalarProgramBuilder
     @Test
     public void testReference()
     {
-        io.trino.sql.ir.Reference referenceExpression = new io.trino.sql.ir.Reference(BIGINT, "a");
+        Reference referenceExpression = new Reference(BIGINT, "a");
 
         FieldReference fieldReferenceOperation = new FieldReference("%0", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
 
@@ -698,7 +699,7 @@ final class TestScalarProgramBuilder
     @Test
     public void testNoMappingForSymbol()
     {
-        io.trino.sql.ir.Reference referenceExpression = new io.trino.sql.ir.Reference(BIGINT, "A");
+        Reference referenceExpression = new Reference(BIGINT, "A");
         ScalarProgramBuilder scalarProgramBuilder = new ScalarProgramBuilder(new ValueNameAllocator());
         Block.Builder blockBuilder = new Block.Builder(Optional.empty(), ImmutableList.of(INPUT_ROW_PARAMETER));
 

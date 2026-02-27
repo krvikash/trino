@@ -22,6 +22,7 @@ import io.airlift.node.NodeInfo;
 import io.airlift.tracing.SpanSerialization;
 import io.airlift.units.DataSize;
 import io.opentelemetry.api.trace.Span;
+import io.starburst.stargate.buffer.data.client.ForBufferDataClient;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import io.starburst.stargate.buffer.discovery.client.ForBufferDiscoveryClient;
 import io.starburst.stargate.buffer.discovery.client.HttpDiscoveryClient;
@@ -135,14 +136,14 @@ public class BufferExchangeModule
 
             // data http client
             if (useInternalCommunication) {
-                install(internalHttpClientModule("exchange.buffer-data", io.starburst.stargate.buffer.data.client.ForBufferDataClient.class)
+                install(internalHttpClientModule("exchange.buffer-data", ForBufferDataClient.class)
                         .withConfigDefaults(config -> config
                                 .setMaxResponseContentLength(DataSize.of(64, MEGABYTE)) // should equal to chunk.max-size
                                 .setIdleTimeout(succinctDuration(30, SECONDS)))
                         .build());
             }
             else {
-                httpClientBinder(binder).bindHttpClient("exchange.buffer-data", io.starburst.stargate.buffer.data.client.ForBufferDataClient.class)
+                httpClientBinder(binder).bindHttpClient("exchange.buffer-data", ForBufferDataClient.class)
                         .withConfigDefaults(config -> config
                                 .setMaxResponseContentLength(DataSize.of(64, MEGABYTE)) // should equal to chunk.max-size
                                 .setIdleTimeout(succinctDuration(30, SECONDS)));

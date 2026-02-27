@@ -47,6 +47,7 @@ import io.trino.sql.planner.TestingConnectorTransactionHandle;
 import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.AggregationNode.Aggregation;
 import io.trino.sql.planner.plan.AggregationNode.GroupingSetDescriptor;
+import io.trino.sql.planner.plan.AssignUniqueId;
 import io.trino.sql.planner.plan.Assignments;
 import io.trino.sql.planner.plan.DataOrganizationSpecification;
 import io.trino.sql.planner.plan.DynamicFilterId;
@@ -158,7 +159,7 @@ class TestToOldIrRelationalRewriter
     @Test
     public void testAssignUniqueId()
     {
-        io.trino.sql.planner.plan.AssignUniqueId assignUniqueIdNode = new io.trino.sql.planner.plan.AssignUniqueId(
+        AssignUniqueId assignUniqueIdNode = new AssignUniqueId(
                 new PlanNodeId("0"),
                 VALUES_NODE,
                 new Symbol(BIGINT, "unique"));

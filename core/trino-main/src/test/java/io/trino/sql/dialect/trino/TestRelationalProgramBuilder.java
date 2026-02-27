@@ -151,6 +151,7 @@ import static io.trino.sql.dialect.trino.operationmetadata.TopNRankingOperationM
 import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameBoundType.FOLLOWING;
 import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameBoundType.PRECEDING;
 import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameType.RANGE;
+import static io.trino.sql.ir.Comparison.Operator;
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
 import static io.trino.sql.planner.plan.JoinType.LEFT;
 import static java.lang.Boolean.TRUE;
@@ -927,7 +928,7 @@ final class TestRelationalProgramBuilder
                 new PlanNodeId("filter"),
                 VALUES_NODE,
                 new io.trino.sql.ir.Comparison(
-                        io.trino.sql.ir.Comparison.Operator.GREATER_THAN,
+                        Operator.GREATER_THAN,
                         new Reference(BIGINT, "a"),
                         new io.trino.sql.ir.Constant(BIGINT, 5L)));
 
@@ -1459,7 +1460,7 @@ final class TestRelationalProgramBuilder
                         new Reference(BOOLEAN, "b"),
                         new Symbol(BOOLEAN, "c"),
                         new io.trino.sql.ir.Comparison(
-                                io.trino.sql.ir.Comparison.Operator.GREATER_THAN,
+                                Operator.GREATER_THAN,
                                 new Reference(BIGINT, "a"),
                                 new io.trino.sql.ir.Constant(BIGINT, 5L)))));
 

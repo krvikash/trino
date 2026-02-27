@@ -39,7 +39,6 @@ import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_WRITER_OPEN_ERROR
 import static io.trino.plugin.iceberg.IcebergTableProperties.validateCompression;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static java.util.Objects.requireNonNull;
-import static org.apache.iceberg.FileFormat.AVRO;
 import static org.apache.iceberg.TableProperties.AVRO_COMPRESSION;
 
 public final class IcebergAvroFileWriter
@@ -68,7 +67,7 @@ public final class IcebergAvroFileWriter
         this.icebergSchema = requireNonNull(icebergSchema, "icebergSchema is null");
         this.types = ImmutableList.copyOf(requireNonNull(types, "types is null"));
 
-        validateCompression(io.trino.plugin.iceberg.IcebergFileFormat.AVRO, Optional.of(hiveCompressionCodec));
+        validateCompression(IcebergFileFormat.AVRO, Optional.of(hiveCompressionCodec));
 
         try {
             avroWriter = Avro.write(file)
@@ -86,7 +85,7 @@ public final class IcebergAvroFileWriter
     @Override
     public FileFormat fileFormat()
     {
-        return AVRO;
+        return FileFormat.AVRO;
     }
 
     @Override

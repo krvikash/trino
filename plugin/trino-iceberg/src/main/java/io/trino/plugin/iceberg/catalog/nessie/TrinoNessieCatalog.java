@@ -19,6 +19,7 @@ import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import io.trino.cache.EvictableCacheBuilder;
 import io.trino.filesystem.TrinoFileSystemFactory;
+import io.trino.metastore.Table;
 import io.trino.metastore.TableInfo;
 import io.trino.plugin.base.util.MaybeLazy;
 import io.trino.plugin.iceberg.WorkScheduler;
@@ -102,14 +103,14 @@ public class TrinoNessieCatalog
     }
 
     @Override
-    public MaybeLazy<List<ColumnMetadata>> getTableColumnMetadata(ConnectorSession session, io.trino.metastore.Table metastoreTable)
+    public MaybeLazy<List<ColumnMetadata>> getTableColumnMetadata(ConnectorSession session, Table metastoreTable)
     {
         // Used by ObjectStore only and ObjectStore cannot be used with Nessie catalog.
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public MaybeLazy<Optional<String>> getTableComment(ConnectorSession session, io.trino.metastore.Table metastoreTable)
+    public MaybeLazy<Optional<String>> getTableComment(ConnectorSession session, Table metastoreTable)
     {
         // Used by ObjectStore only and ObjectStore cannot be used with Nessie catalog.
         throw new UnsupportedOperationException();

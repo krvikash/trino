@@ -24,6 +24,7 @@ import io.trino.plugin.hudi.HudiSplit;
 import io.trino.plugin.hudi.HudiTableHandle;
 import io.trino.plugin.iceberg.IcebergSplit;
 import io.trino.plugin.iceberg.IcebergTableHandle;
+import io.trino.plugin.iceberg.functions.tablechanges.TableChangesFunctionHandle;
 import io.trino.spi.cache.CacheSplitId;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
@@ -106,7 +107,7 @@ public class ObjectStoreSplitManager
         ObjectStoreTransactionHandle transactionHandle = (ObjectStoreTransactionHandle) transaction;
         return switch (function) {
             case TableChangesTableFunctionHandle _ -> deltaSplitManager.getSplits(transactionHandle.getDeltaHandle(), sessionProperties.unwrap(DELTA, session), function);
-            case io.trino.plugin.iceberg.functions.tablechanges.TableChangesFunctionHandle _ -> icebergSplitManager.getSplits(transactionHandle.getIcebergHandle(), sessionProperties.unwrap(ICEBERG, session), function);
+            case TableChangesFunctionHandle _ -> icebergSplitManager.getSplits(transactionHandle.getIcebergHandle(), sessionProperties.unwrap(ICEBERG, session), function);
             default -> throw new VerifyException("Unhandled class: " + function.getClass().getName());
         };
     }

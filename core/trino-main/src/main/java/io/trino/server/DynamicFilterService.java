@@ -87,6 +87,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import static com.google.common.base.Functions.identity;
 import static com.google.common.base.MoreObjects.toStringHelper;
@@ -604,7 +605,7 @@ public class DynamicFilterService
                     if (operation instanceof SemiJoin semiJoin && isSemiJoinBuildSideReplicated(semiJoin, operations)) {
                         return Optional.ofNullable(SemiJoinOperationMetadata.DYNAMIC_FILTER_ID.getAttribute(semiJoin.attributes())).stream();
                     }
-                    return java.util.stream.Stream.of();
+                    return Stream.of();
                 })
                 .map(DynamicFilterId::new)
                 .collect(toImmutableSet());

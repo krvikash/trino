@@ -22,6 +22,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SourcePage;
 
 import java.util.List;
+import java.util.function.ObjLongConsumer;
 
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -158,7 +159,7 @@ final class ColumnarFilterEvaluatorWithProjectedArguments
         }
 
         @Override
-        public void retainedBytesForEachPart(java.util.function.ObjLongConsumer<Object> consumer) {}
+        public void retainedBytesForEachPart(ObjLongConsumer<Object> consumer) {}
 
         @Override
         public int getChannelCount()

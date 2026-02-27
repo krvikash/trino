@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.sql.dialect.trino.operation.Comparison;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.ir.Comparison.Operator;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.newir.Region;
@@ -111,7 +112,7 @@ public class ComparisonOperationMetadata
             return value;
         }
 
-        public static ComparisonOperator of(io.trino.sql.ir.Comparison.Operator operator)
+        public static ComparisonOperator of(Operator operator)
         {
             return switch (operator) {
                 case EQUAL -> EQUAL;

@@ -240,7 +240,7 @@ class TestNodeStateManager
     {
         ServerConfig serverConfig = new ServerConfig();
         serverConfig.setCoordinator(false);
-        serverConfig.setGracePeriod(new io.airlift.units.Duration(gracePeriodMillis, MILLISECONDS));
+        serverConfig.setGracePeriod(new Duration(gracePeriodMillis, MILLISECONDS));
 
         Supplier<List<TaskInfo>> taskInfoSupplier = () -> tasks.get();
         return new NodeStateManager(

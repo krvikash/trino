@@ -981,22 +981,22 @@ public class UnityHiveMetastore
     private static DataSourceFormat getDataSourceFormat(StorageFormat storageFormat)
     {
         if (AVRO.toStorageFormat().equals(storageFormat)) {
-            return com.databricks.sdk.service.catalog.DataSourceFormat.AVRO;
+            return DataSourceFormat.AVRO;
         }
         if (ORC.toStorageFormat().equals(storageFormat)) {
-            return com.databricks.sdk.service.catalog.DataSourceFormat.ORC;
+            return DataSourceFormat.ORC;
         }
         if (PARQUET.toStorageFormat().equals(storageFormat)) {
-            return com.databricks.sdk.service.catalog.DataSourceFormat.PARQUET;
+            return DataSourceFormat.PARQUET;
         }
         if (CSV.toStorageFormat().equals(storageFormat)) {
-            return com.databricks.sdk.service.catalog.DataSourceFormat.CSV;
+            return DataSourceFormat.CSV;
         }
         if (JSON.toStorageFormat().equals(storageFormat)) {
-            return com.databricks.sdk.service.catalog.DataSourceFormat.JSON;
+            return DataSourceFormat.JSON;
         }
         if (TEXTFILE.toStorageFormat().equals(storageFormat)) {
-            return com.databricks.sdk.service.catalog.DataSourceFormat.TEXT;
+            return DataSourceFormat.TEXT;
         }
         throw new TrinoException(NOT_SUPPORTED, "Unsupported data source format: " + storageFormat);
     }

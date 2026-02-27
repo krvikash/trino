@@ -78,9 +78,9 @@ final class TestProgramBuilderAndPrinter
                                                 new PlanNodeId("102"),
                                                 ImmutableList.of(new Symbol(BIGINT, "a"), new Symbol(BOOLEAN, "b")),
                                                 ImmutableList.of(
-                                                        new io.trino.sql.ir.Row(ImmutableList.of(new io.trino.sql.ir.Constant(BIGINT, 3L), new io.trino.sql.ir.Constant(BOOLEAN, true))),
-                                                        new io.trino.sql.ir.Row(ImmutableList.of(new io.trino.sql.ir.Constant(BIGINT, 5L), new io.trino.sql.ir.Constant(BOOLEAN, false))))),
-                                        new io.trino.sql.ir.Constant(BOOLEAN, true)),
+                                                        new Row(ImmutableList.of(new Constant(BIGINT, 3L), new Constant(BOOLEAN, true))),
+                                                        new Row(ImmutableList.of(new Constant(BIGINT, 5L), new Constant(BOOLEAN, false))))),
+                                        new Constant(BOOLEAN, true)),
                                 ImmutableList.of("col_a"),
                                 ImmutableList.of(new Symbol(BIGINT, "a"))))
                 .print(TESTING_PRINT_OPTIONS))
@@ -146,23 +146,23 @@ final class TestProgramBuilderAndPrinter
                                                 new PlanNodeId("102"),
                                                 ImmutableList.of(new Symbol(BIGINT, "a"), new Symbol(BOOLEAN, "b")),
                                                 ImmutableList.of(
-                                                        new io.trino.sql.ir.Row(ImmutableList.of(new io.trino.sql.ir.Constant(BIGINT, 1L), new io.trino.sql.ir.Constant(BOOLEAN, true))),
-                                                        new io.trino.sql.ir.Row(ImmutableList.of(new io.trino.sql.ir.Constant(BIGINT, 2L), new io.trino.sql.ir.Constant(BOOLEAN, false))))),
+                                                        new Row(ImmutableList.of(new Constant(BIGINT, 1L), new Constant(BOOLEAN, true))),
+                                                        new Row(ImmutableList.of(new Constant(BIGINT, 2L), new Constant(BOOLEAN, false))))),
                                         new CorrelatedJoinNode(
                                                 new PlanNodeId("103"),
                                                 new ValuesNode(
                                                         new PlanNodeId("104"),
                                                         ImmutableList.of(new Symbol(BIGINT, "c"), new Symbol(BOOLEAN, "d")),
                                                         ImmutableList.of(
-                                                                new io.trino.sql.ir.Row(ImmutableList.of(new io.trino.sql.ir.Constant(BIGINT, 3L), new io.trino.sql.ir.Constant(BOOLEAN, true))),
-                                                                new io.trino.sql.ir.Row(ImmutableList.of(new io.trino.sql.ir.Constant(BIGINT, 4L), new io.trino.sql.ir.Constant(BOOLEAN, false))))),
+                                                                new Row(ImmutableList.of(new Constant(BIGINT, 3L), new Constant(BOOLEAN, true))),
+                                                                new Row(ImmutableList.of(new Constant(BIGINT, 4L), new Constant(BOOLEAN, false))))),
                                                 new FilterNode(
                                                         new PlanNodeId("105"),
                                                         new ValuesNode(
                                                                 new PlanNodeId("106"),
                                                                 ImmutableList.of(new Symbol(BIGINT, "e"), new Symbol(BOOLEAN, "f")),
                                                                 ImmutableList.of(
-                                                                        new io.trino.sql.ir.Row(ImmutableList.of(new Reference(BIGINT, "a"), new Reference(BOOLEAN, "b"))), // correlated level 1
+                                                                        new Row(ImmutableList.of(new Reference(BIGINT, "a"), new Reference(BOOLEAN, "b"))), // correlated level 1
                                                                         new Row(ImmutableList.of(new Reference(BIGINT, "c"), new Reference(BOOLEAN, "d"))))), // correlated level 2
                                                         new Logical(AND, ImmutableList.of(new Reference(BOOLEAN, "b"), new Reference(BOOLEAN, "d")))), // correlated on 2 levels
                                                 ImmutableList.of(new Symbol(BIGINT, "c"), new Symbol(BOOLEAN, "d")),

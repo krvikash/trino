@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.sql.dialect.trino.operation.Logical;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.ir.Logical.Operator;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Operation.AttributeKey;
 import io.trino.sql.newir.Region;
@@ -93,7 +94,7 @@ public class LogicalOperationMetadata
         AND,
         OR;
 
-        public static LogicalOperator of(io.trino.sql.ir.Logical.Operator operator)
+        public static LogicalOperator of(Operator operator)
         {
             return switch (operator) {
                 case AND -> AND;

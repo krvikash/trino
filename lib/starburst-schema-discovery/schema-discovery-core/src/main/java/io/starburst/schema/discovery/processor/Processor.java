@@ -821,8 +821,8 @@ public class Processor
 
     private int compareMatches(ProcessorGuess guess1, ProcessorGuess guess2)
     {
-        int guess1Confidence = (guess1.formatGuess().confidence() == io.starburst.schema.discovery.internal.FormatGuess.Confidence.HIGH) ? 0 : 1;
-        int guess2Confidence = (guess2.formatGuess().confidence() == io.starburst.schema.discovery.internal.FormatGuess.Confidence.HIGH) ? 0 : 1;
+        int guess1Confidence = guess1.formatGuess().confidence() == FormatGuess.Confidence.HIGH ? 0 : 1;
+        int guess2Confidence = (guess2.formatGuess().confidence() == FormatGuess.Confidence.HIGH) ? 0 : 1;
         int diff = guess1Confidence - guess2Confidence;
         if (diff == 0) {
             int ordinalDiff = guess1.format().ordinal() - guess2.format().ordinal();    // TODO - can't think of anything better than ordinal

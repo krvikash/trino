@@ -15,6 +15,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import org.junit.jupiter.api.Test;
 
+import java.util.Optional;
+
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.starburst.ai.client.JsonSchemaParameterType.ARRAY;
 import static io.starburst.ai.client.JsonSchemaParameterType.INTEGER;
@@ -288,7 +290,7 @@ public class TestToolDefinitionAndResponse
                                     ImmutableList.of(),
                                     true,
                                     ImmutableList.of(),
-                                    java.util.Optional.of(
+                                    Optional.of(
                                             new ToolParameter(
                                                     "user",
                                                     OBJECT,
@@ -298,7 +300,7 @@ public class TestToolDefinitionAndResponse
                                                     ImmutableList.of(
                                                             new ToolParameter("name", STRING, "User name", true),
                                                             new ToolParameter("age", INTEGER, "User age", false)),
-                                                    java.util.Optional.empty())))));
+                                                    Optional.empty())))));
         }
 
         @Override
@@ -332,13 +334,13 @@ public class TestToolDefinitionAndResponse
                                                     ImmutableList.of(),
                                                     true,
                                                     ImmutableList.of(),
-                                                    java.util.Optional.of(
+                                                    Optional.of(
                                                             new ToolParameter(
                                                                     "column",
                                                                     STRING,
                                                                     "Column name",
                                                                     false)))),
-                                    java.util.Optional.empty())));
+                                    Optional.empty())));
         }
 
         @Override

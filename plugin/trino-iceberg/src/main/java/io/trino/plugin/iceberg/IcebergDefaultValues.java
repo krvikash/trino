@@ -27,8 +27,10 @@ import org.apache.iceberg.util.DateTimeUtil;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
@@ -126,7 +128,7 @@ public final class IcebergDefaultValues
             case DATE -> {
                 // Iceberg stores as Integer (days since epoch)
                 int days = (Integer) icebergDefault;
-                yield "DATE '" + java.time.LocalDate.ofEpochDay(days) + "'";
+                yield "DATE '" + LocalDate.ofEpochDay(days) + "'";
             }
             case TIME -> {
                 // Iceberg stores as Long (microseconds since midnight)
@@ -138,12 +140,12 @@ public final class IcebergDefaultValues
                 // Iceberg stores as Long (microseconds since epoch)
                 long micros = (Long) icebergDefault;
                 Instant instant = Instant.ofEpochSecond(micros / 1_000_000, (micros % 1_000_000) * 1000);
-                LocalDateTime localDateTime = LocalDateTime.ofInstant(instant, java.time.ZoneOffset.UTC);
+                LocalDateTime localDateTime = LocalDateTime.ofInstant(instant, ZoneOffset.UTC);
                 // Format with space separator (Trino SQL format) instead of 'T' (ISO 8601)
                 // Use 'uuuu' (proleptic year) instead of 'yyyy' to correctly handle year 0
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss.SSSSSS");
                 // Check if this is timestamp with time zone
-                if (icebergType instanceof org.apache.iceberg.types.Types.TimestampType timestampType && timestampType.shouldAdjustToUTC()) {
+                if (icebergType instanceof Types.TimestampType timestampType && timestampType.shouldAdjustToUTC()) {
                     yield "TIMESTAMP '" + localDateTime.format(formatter) + " UTC'";
                 }
                 yield "TIMESTAMP '" + localDateTime.format(formatter) + "'";
@@ -266,7 +268,7 @@ public final class IcebergDefaultValues
             if (sqlExpression.toUpperCase(ENGLISH).startsWith(datePattern) && sqlExpression.endsWith("'")) {
                 String dateString = sqlExpression.substring(datePattern.length(), sqlExpression.length() - 1);
                 try {
-                    return toIntExact(java.time.LocalDate.parse(dateString).toEpochDay());
+                    return toIntExact(LocalDate.parse(dateString).toEpochDay());
                 }
                 catch (DateTimeParseException e) {
                     throw new TrinoException(INVALID_ARGUMENTS, "Invalid date default value: " + sqlExpression);
@@ -304,7 +306,7 @@ public final class IcebergDefaultValues
                             .append(DateTimeFormatter.ISO_LOCAL_TIME)
                             .toFormatter();
                     LocalDateTime ldt = LocalDateTime.parse(timestampString, formatter);
-                    Instant instant = ldt.toInstant(java.time.ZoneOffset.UTC);
+                    Instant instant = ldt.toInstant(ZoneOffset.UTC);
                     return instant.getEpochSecond() * 1_000_000 + instant.getNano() / 1000;
                 }
                 catch (DateTimeParseException e) {

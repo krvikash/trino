@@ -14,6 +14,7 @@
 package io.trino.testing.mock;
 
 import io.trino.spi.Page;
+import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
@@ -29,7 +30,9 @@ import io.trino.spi.type.Type;
 import java.util.List;
 import java.util.Map;
 
+import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.spi.type.VarcharType.VARCHAR;
+import static java.util.Arrays.stream;
 
 public class CompiledWithOssPageSourceProvider
         implements ConnectorPageSourceProvider
@@ -63,13 +66,13 @@ public class CompiledWithOssPageSourceProvider
             for (int col = 0; col < columns.size(); col++) {
                 String columnName = ((CompiledWithOssColumnHandle) columns.get(col)).columnName();
                 Type type = COLUMN_TYPES.get(columnName);
-                type.writeSlice(blockBuilders[col], io.airlift.slice.Slices.utf8Slice(COLUMN_DATA.get(columnName).get(row)));
+                type.writeSlice(blockBuilders[col], utf8Slice(COLUMN_DATA.get(columnName).get(row)));
             }
         }
 
-        Page page = new Page(rowCount, java.util.Arrays.stream(blockBuilders)
+        Page page = new Page(rowCount, stream(blockBuilders)
                 .map(BlockBuilder::build)
-                .toArray(io.trino.spi.block.Block[]::new));
+                .toArray(Block[]::new));
         return new FixedPageSource(List.of(page));
     }
 }

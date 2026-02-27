@@ -23,6 +23,7 @@ import com.starburstdata.dataframe.type.NullType;
 import com.starburstdata.dataframe.type.ShortType;
 import com.starburstdata.dataframe.type.StringType;
 import com.starburstdata.dataframe.type.StructType;
+import com.starburstdata.dataframe.type.TimeNTZType;
 import com.starburstdata.dataframe.type.TimestampNTZType;
 import com.starburstdata.dataframe.type.YearMonthIntervalType;
 import io.trino.spi.type.ArrayType;
@@ -112,7 +113,7 @@ public class DataTypeMapper
             return new com.starburstdata.dataframe.type.TimeType(Optional.of(timeWithTimeZoneType.getPrecision()));
         }
         if (type instanceof TimeType timeType) {
-            return new com.starburstdata.dataframe.type.TimeNTZType(Optional.of(timeType.getPrecision()));
+            return new TimeNTZType(Optional.of(timeType.getPrecision()));
         }
         if (type instanceof IntervalDayTimeType) {
             return new DayTimeIntervalType();
