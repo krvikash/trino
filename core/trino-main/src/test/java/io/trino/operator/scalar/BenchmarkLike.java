@@ -128,12 +128,14 @@ public class BenchmarkLike
         private JoniRegexp joniPattern;
         private LikeMatcher optimizedMatcher;
         private LikeMatcher nonOptimizedMatcher;
+        private LikeMatcher fjsMatcher;
 
         @Setup
         public void setup()
         {
             optimizedMatcher = LikeMatcher.compile(benchmarkCase.pattern(), Optional.empty(), true);
             nonOptimizedMatcher = LikeMatcher.compile(benchmarkCase.pattern(), Optional.empty(), false);
+            fjsMatcher = LikeMatcher.compile(benchmarkCase.pattern(), Optional.empty(), true, false);
             joniPattern = compileJoni(benchmarkCase.pattern(), '0', false);
 
             bytes = benchmarkCase.text().getBytes(UTF_8);
@@ -160,6 +162,12 @@ public class BenchmarkLike
     }
 
     @Benchmark
+    public boolean matchFjs(Data data)
+    {
+        return data.fjsMatcher.match(data.bytes, 0, data.bytes.length);
+    }
+
+    @Benchmark
     public JoniRegexp compileJoni(Data data)
     {
         return compileJoni(data.benchmarkCase.pattern(), (char) 0, false);
@@ -175,6 +183,12 @@ public class BenchmarkLike
     public LikeMatcher compileNonOptimized(Data data)
     {
         return LikeMatcher.compile(data.benchmarkCase.pattern(), Optional.empty(), false);
+    }
+
+    @Benchmark
+    public LikeMatcher compileFjs(Data data)
+    {
+        return LikeMatcher.compile(data.benchmarkCase.pattern(), Optional.empty(), true, false);
     }
 
     @Benchmark
@@ -194,6 +208,13 @@ public class BenchmarkLike
     public boolean dynamicNonOptimized(Data data)
     {
         return LikeMatcher.compile(data.benchmarkCase.pattern(), Optional.empty(), false)
+                .match(data.bytes, 0, data.bytes.length);
+    }
+
+    @Benchmark
+    public boolean dynamicFjs(Data data)
+    {
+        return LikeMatcher.compile(data.benchmarkCase.pattern(), Optional.empty(), true, false)
                 .match(data.bytes, 0, data.bytes.length);
     }
 

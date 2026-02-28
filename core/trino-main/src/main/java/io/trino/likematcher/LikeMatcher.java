@@ -57,6 +57,11 @@ public class LikeMatcher
 
     public static LikeMatcher compile(String pattern, Optional<Character> escape, boolean optimize)
     {
+        return compile(pattern, escape, optimize, SimdMatcher.isSupported());
+    }
+
+    public static LikeMatcher compile(String pattern, Optional<Character> escape, boolean optimize, boolean simdSupported)
+    {
         List<Pattern> parsed = parse(pattern, escape);
 
         // Calculate minimum and maximum size for candidate strings
@@ -138,6 +143,9 @@ public class LikeMatcher
                 else {
                     matcher = Optional.of(new NfaMatcher(parsed, patternStart, patternEnd, exact));
                 }
+            }
+            else if (simdSupported) {
+                matcher = Optional.of(new SimdMatcher(parsed, patternStart, patternEnd, exact));
             }
             else {
                 matcher = Optional.of(new FjsMatcher(parsed, patternStart, patternEnd, exact));

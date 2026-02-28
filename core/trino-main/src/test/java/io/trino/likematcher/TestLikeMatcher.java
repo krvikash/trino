@@ -158,6 +158,18 @@ public class TestLikeMatcher
         boolean withPadding = LikeMatcher.compile(pattern, escape, false).match(bytes, padding.length(), bytes.length - padding.length() * 2);  // exclude padding
         assertThat(withPadding).isEqualTo(optimizedWithoutPadding);
 
+        boolean withoutPaddingAndWithoutSimd = LikeMatcher.compile(pattern, escape, true, false).match(value.getBytes(StandardCharsets.UTF_8));
+        assertThat(withoutPaddingAndWithoutSimd).isEqualTo(optimizedWithoutPadding);
+
+        boolean withPaddingAndWithoutSimd = LikeMatcher.compile(pattern, escape, true, false).match(bytes, padding.length(), bytes.length - padding.length() * 2);  // exclude padding
+        assertThat(withPaddingAndWithoutSimd).isEqualTo(optimizedWithoutPadding);
+
+        boolean withoutPaddingAndWithSimd = LikeMatcher.compile(pattern, escape, true, true).match(value.getBytes(StandardCharsets.UTF_8));
+        assertThat(withoutPaddingAndWithSimd).isEqualTo(optimizedWithoutPadding);
+
+        boolean withPaddingAndWithSimd = LikeMatcher.compile(pattern, escape, true, true).match(bytes, padding.length(), bytes.length - padding.length() * 2);  // exclude padding
+        assertThat(withPaddingAndWithSimd).isEqualTo(optimizedWithoutPadding);
+
         return withPadding;
     }
 }
