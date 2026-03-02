@@ -2459,7 +2459,7 @@ jobs:
           secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
           login-docker: true
       - name: Product tests artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: product tests and server tarball
       - name: Fix artifact permissions
