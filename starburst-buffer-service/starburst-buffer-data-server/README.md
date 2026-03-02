@@ -33,7 +33,7 @@ When `virtual-threads.enabled=true`, the Data Server starts two HTTP servers in 
 └──────────────────────────────────────────────────────┘
 ```
 
-Both servers share the same business logic components. The main server uses the async `DataResource`, while the virtual threads server uses `BlockingDataResource` with synchronous I/O. `BufferNodeInfoService` advertises both URIs via `BufferNodeInfo`, and Trino clients can opt in to the virtual threads URI via `exchange.buffer-data.experimental.use-virtual-threads-uri`.
+Both servers share the same business logic components. The main server uses the async `DataResource`, while the virtual threads server uses `BlockingDataResource` with synchronous I/O. `BufferNodeInfoService` advertises both URIs via `BufferNodeInfo`, and Trino clients can opt in to the virtual threads URI via `exchange.buffer-data.use-virtual-threads-uri`.
 
 When `virtual-threads.enabled=false` (default), only the main HTTP server starts with `DataResource`.
 
@@ -59,7 +59,7 @@ When enabled, the virtual threads server accepts all standard `http-server.*` pr
 
 | Property | Default | Description |
 |---|---|---|
-| `exchange.buffer-data.experimental.use-virtual-threads-uri` | `false` | Direct Trino workers to use the virtual threads server URI when available |
+| `exchange.buffer-data.use-virtual-threads-uri` | `false` | Direct Trino workers to use the virtual threads server URI when available |
 
 ### Spooling Storage
 
@@ -67,10 +67,12 @@ Storage backend is selected by the URI scheme of `spooling.directory`:
 
 | Scheme | Backend |
 |---|---|
-| `file://` or plain path | Local filesystem |
 | `s3://` | Amazon S3 (or compatible) |
 | `gs://` | Google Cloud Storage |
 | `abfs://` | Azure Blob Storage |
+| `file://` or plain path | Local filesystem (requires `testing.allow-local-spooling=true`) |
+
+Local filesystem spooling is blocked by default and intended only for testing and local development. To enable it, set the hidden property `testing.allow-local-spooling=true` (or `buffer.testing.allow-local-spooling=true` in embedded mode).
 
 ## Running in Standalone Mode
 
@@ -90,7 +92,7 @@ retry-policy=TASK
 exchange-manager.name=buffer
 exchange.buffer-discovery.uri=http://starburst-buffer-discovery-server:port
 # Optional: direct workers to use the virtual threads server on data nodes
-exchange.buffer-data.experimental.use-virtual-threads-uri=true
+exchange.buffer-data.use-virtual-threads-uri=true
 ```
 
 The `exchange.buffer-discovery.uri` points to the coordinator's main HTTP server, where the Discovery Server API runs and tracks active buffer data nodes.
@@ -130,8 +132,10 @@ Minimal `etc/config.properties`:
 
 ```properties
 node.id=data-server-1
-node.environment=production
+node.environment=test
 http-server.http.port=8090
+# Allowing local spooling for local development only - not supported for production
+testing.allow-local-spooling=true
 spooling.directory=/tmp/trino-buffer-data
 discovery-service.uri=http://starburst-buffer-discovery-server:port
 ```
@@ -140,10 +144,12 @@ With virtual threads enabled:
 
 ```properties
 node.id=data-server-1
-node.environment=production
+node.environment=test
 http-server.http.port=8090
 virtual-threads.enabled=true
 virtual-threads.http-server.http.port=8085
+# Allowing local spooling for local development only - not supported for production
+testing.allow-local-spooling=true
 spooling.directory=/tmp/trino-buffer-data
 discovery-service.uri=http://starburst-buffer-discovery-server:port
 ```
@@ -161,7 +167,9 @@ Add to `etc/config.properties` in the main Trino configuration:
 embedded-buffer-service-enabled=true
 
 # Buffer configuration
-buffer.spooling.directory=/tmp/trino-buffer-data
+# Allowing local spooling for local development only - not supported for production
+testing.allow-local-spooling=true
+spooling.directory=/tmp/trino-buffer-data
 ```
 
 ### How It Works
