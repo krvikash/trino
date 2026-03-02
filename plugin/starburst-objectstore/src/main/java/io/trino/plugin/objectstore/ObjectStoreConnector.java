@@ -27,7 +27,7 @@ import io.opentelemetry.api.trace.Tracer;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorCacheMetadata;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorMetadata;
 import io.trino.plugin.deltalake.DeltaLakeMetadata;
-import io.trino.plugin.hive.HiveConnector;
+import io.trino.plugin.hive.HiveConfig;
 import io.trino.plugin.hive.HiveTransactionHandle;
 import io.trino.plugin.hive.TransactionalMetadata;
 import io.trino.plugin.iceberg.IcebergFileFormat;
@@ -142,6 +142,7 @@ public class ObjectStoreConnector
             FunctionProvider functionProvider,
             FeatureExposures featureExposures,
             ObjectStoreConfig objectStoreConfig,
+            HiveConfig hiveConfig,
             Tracer tracer,
             CatalogName catalogName)
     {
@@ -159,7 +160,7 @@ public class ObjectStoreConnector
         this.nodePartitioningProvider = requireNonNull(nodePartitioningProvider, "nodePartitioningProvider is null");
         this.schemaProperties = schemaProperties();
         this.tableProperties = requireNonNull(tableProperties, "tableProperties is null");
-        boolean hivePartitionProjectionEnabled = ((HiveConnector) hiveConnector).isPartitionProjectionEnabled();
+        boolean hivePartitionProjectionEnabled = hiveConfig.isPartitionProjectionEnabled();
         this.columnProperties = columnProperties(delegates, hivePartitionProjectionEnabled);
         this.materializedViewProperties = requireNonNull(materializedViewProperties, "materializedViewProperties is null");
         this.sessionProperties = requireNonNull(sessionProperties, "sessionProperties is null");
@@ -174,7 +175,7 @@ public class ObjectStoreConnector
         this.migrateHiveToIcebergProcedure = isIcebergRestCatalogUsed
                 ? Optional.empty()
                 : Optional.of(icebergConnector.getProcedures().stream().filter(procedure -> procedure.getName().equals("migrate")).collect(onlyElement()));
-        this.hiveRecursiveDirWalkerEnabled = ((HiveConnector) hiveConnector).isRecursiveDirWalkerEnabled();
+        this.hiveRecursiveDirWalkerEnabled = hiveConfig.getRecursiveDirWalkerEnabled();
         this.parallelInformationSchemaQueryingExecutor = newFixedThreadPool(objectStoreConfig.getMaxMetadataQueriesProcessingThreads(), daemonThreadsNamed("osc-information-schema-%s"));
         this.tableFunctions = ImmutableSet.copyOf(requireNonNull(tableFunctions, "tableFunctions is null"));
         this.functionProvider = requireNonNull(functionProvider, "functionProvider is null");
