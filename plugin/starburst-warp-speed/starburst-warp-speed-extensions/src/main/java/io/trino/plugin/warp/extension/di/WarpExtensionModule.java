@@ -69,7 +69,7 @@ public class WarpExtensionModule
     @Override
     public void setup(Binder binder)
     {
-        install(new WarpClientModule());
+        install(new WarpClientModule(connectorContext));
 
         ImmutableSet.Builder<Class<? extends BooleanSupplier>> booleanSuppliers = ImmutableSet.builder();
         boolean isCoordinator = connectorContext.getCurrentNode().isCoordinator();

@@ -104,4 +104,9 @@ public interface ConnectorContext
     {
         throw new UnsupportedOperationException();
     }
+
+    default String getNodeEnvironment()
+    {
+        throw new UnsupportedOperationException();
+    }
 }

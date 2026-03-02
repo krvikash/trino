@@ -16,6 +16,7 @@ package io.trino.connector;
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.inject.Inject;
 import io.airlift.configuration.secrets.SecretsResolver;
+import io.airlift.node.NodeInfo;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
 import io.trino.connector.informationschema.InformationSchemaConnector;
@@ -81,6 +82,7 @@ public class DefaultCatalogFactory
     private final ConcurrentMap<ConnectorName, ConnectorFactory> connectorFactories = new ConcurrentHashMap<>();
     private final LocalMemoryManager localMemoryManager;
     private final SecretsResolver secretsResolver;
+    private final NodeInfo nodeInfo;
 
     @Inject
     public DefaultCatalogFactory(
@@ -100,7 +102,8 @@ public class DefaultCatalogFactory
             ModelConnectionSpecsLoader modelConnectionSpecsLoader,
             OptimizerConfig optimizerConfig,
             LocalMemoryManager localMemoryManager,
-            SecretsResolver secretsResolver)
+            SecretsResolver secretsResolver,
+            NodeInfo nodeInfo)
     {
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
@@ -119,6 +122,7 @@ public class DefaultCatalogFactory
         this.modelConnectionSpecsLoader = requireNonNull(modelConnectionSpecsLoader, "modelConnectionSpecsLoader is null");
         this.localMemoryManager = requireNonNull(localMemoryManager, "localMemoryManager is null");
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
+        this.nodeInfo = requireNonNull(nodeInfo, "nodeInfo is null");
     }
 
     @Override
@@ -215,7 +219,8 @@ public class DefaultCatalogFactory
                 pageSorter,
                 pageIndexerFactory,
                 pageStreamFactory,
-                catalogVersion);
+                catalogVersion,
+                nodeInfo.getEnvironment());
 
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(connectorFactory.getClass().getClassLoader())) {
             // TODO: connector factory should take CatalogName

@@ -16,21 +16,25 @@ package io.trino.plugin.warp.di;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.airlift.node.NodeConfig;
 import io.airlift.node.NodeInfo;
 import io.trino.plugin.warp.execution.ForWarp;
 import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.server.security.SecurityConfig;
+import io.trino.spi.connector.ConnectorContext;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.server.InternalCommunicationHttpClientModule.internalHttpClientModule;
+import static java.util.Objects.requireNonNull;
 
 public class WarpClientModule
         extends AbstractConfigurationAwareModule
 {
-    public WarpClientModule()
+    private final ConnectorContext connectorContext;
+
+    public WarpClientModule(ConnectorContext connectorContext)
     {
+        this.connectorContext = requireNonNull(connectorContext, "connectorContext is null");
     }
 
     @Override
@@ -38,8 +42,7 @@ public class WarpClientModule
     {
         binder.bind(SslContextFactory.Client.class).toInstance(new SslContextFactory.Client(true));
         configBinder(binder).bindConfig(SecurityConfig.class);
-        configBinder(binder).bindConfig(NodeConfig.class);
-        binder.bind(NodeInfo.class);
+        binder.bind(NodeInfo.class).toInstance(new NodeInfo(connectorContext.getNodeEnvironment()));
         install(internalHttpClientModule("varada", ForWarp.class)
                 .build());
 

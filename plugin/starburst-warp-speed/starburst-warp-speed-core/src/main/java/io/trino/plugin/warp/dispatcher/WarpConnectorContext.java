@@ -131,4 +131,10 @@ public class WarpConnectorContext
     {
         return connectorContext.getCatalogVersion();
     }
+
+    @Override
+    public String getNodeEnvironment()
+    {
+        return connectorContext.getNodeEnvironment();
+    }
 }

@@ -44,6 +44,7 @@ public class ConnectorContextInstance
     private final AiModelAccessControl aiModelAccessControl;
     private final ModelConnectionSpecsLoader modelConnectionSpecsLoader;
     private final CatalogVersion catalogVersion;
+    private final String nodeEnvironment;
 
     public ConnectorContextInstance(
             OpenTelemetry openTelemetry,
@@ -57,7 +58,8 @@ public class ConnectorContextInstance
             PageSorter pageSorter,
             PageIndexerFactory pageIndexerFactory,
             PageStreamFactory pageStreamFactory,
-            CatalogVersion catalogVersion)
+            CatalogVersion catalogVersion,
+            String nodeEnvironment)
     {
         this.openTelemetry = requireNonNull(openTelemetry, "openTelemetry is null");
         this.tracer = requireNonNull(tracer, "tracer is null");
@@ -71,6 +73,7 @@ public class ConnectorContextInstance
         this.pageIndexerFactory = requireNonNull(pageIndexerFactory, "pageIndexerFactory is null");
         this.pageStreamFactory = requireNonNull(pageStreamFactory, "pageStreamFactory is null");
         this.catalogVersion = requireNonNull(catalogVersion, "catalogVersion is null");
+        this.nodeEnvironment = requireNonNull(nodeEnvironment, "nodeEnvironment is null");
     }
 
     @Override
@@ -143,5 +146,11 @@ public class ConnectorContextInstance
     public CatalogVersion getCatalogVersion()
     {
         return catalogVersion;
+    }
+
+    @Override
+    public String getNodeEnvironment()
+    {
+        return nodeEnvironment;
     }
 }
