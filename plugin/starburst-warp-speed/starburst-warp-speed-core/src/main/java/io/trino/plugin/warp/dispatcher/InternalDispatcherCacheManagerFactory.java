@@ -85,6 +85,7 @@ public class InternalDispatcherCacheManagerFactory
                 modules);
         Injector injector = app
                 .doNotInitializeLogging()
+                .disableSystemProperties()
                 .setRequiredConfigurationProperties(Collections.emptyMap())
                 .setOptionalConfigurationProperties(config)
                 .initialize();
