@@ -69,8 +69,6 @@ import static com.google.common.collect.Sets.symmetricDifference;
 import static com.google.common.collect.Streams.forEachPair;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.trino.plugin.objectstore.FeatureExposure.UNDEFINED;
-import static io.trino.plugin.objectstore.FeatureExposures.procedureExposureDecisions;
-import static io.trino.plugin.objectstore.FeatureExposures.systemTableExposureDecisions;
 import static io.trino.plugin.objectstore.FeatureExposures.tableProcedureExposureDecisions;
 import static io.trino.plugin.objectstore.MethodHandles.translateArguments;
 import static io.trino.plugin.objectstore.PropertyMetadataValidation.verifyPropertyMetadata;
@@ -99,6 +97,7 @@ public class ObjectStoreConnector
     private final Connector hudiConnector;
     private final LifeCycleManager lifeCycleManager;
     private final TypeManager typeManager;
+    private final FeatureExposures featureExposures;
     private final ObjectStoreSplitManager splitManager;
     private final ObjectStorePageSourceProvider pageSourceProvider;
     private final ObjectStorePageSinkProvider pageSinkProvider;
@@ -141,6 +140,7 @@ public class ObjectStoreConnector
             Set<Procedure> objectStoreProcedures,
             Set<ConnectorTableFunction> tableFunctions,
             FunctionProvider functionProvider,
+            FeatureExposures featureExposures,
             ObjectStoreConfig objectStoreConfig,
             Tracer tracer,
             CatalogName catalogName)
@@ -151,6 +151,7 @@ public class ObjectStoreConnector
         this.deltaConnector = delegates.deltaConnector();
         this.hudiConnector = delegates.hudiConnector();
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
+        this.featureExposures = requireNonNull(featureExposures, "featureExposures is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
@@ -242,11 +243,11 @@ public class ObjectStoreConnector
     {
         Map<String, Procedure> procedures = new HashMap<>();
         objectStoreProcedures.forEach(procedure -> procedures.put(procedure.getName(), procedure));
-        Table<TableType, String, FeatureExposure> featureExposures = HashBasedTable.create(procedureExposureDecisions());
+        Table<TableType, String, FeatureExposure> procedureExposures = HashBasedTable.create(featureExposures.procedureExposureDecisions());
         delegates.byType().forEach((type, connector) -> {
             for (Procedure procedure : connector.getProcedures()) {
                 String name = procedure.getName();
-                switch (requireNonNullElse(featureExposures.remove(type, name), UNDEFINED)) {
+                switch (requireNonNullElse(procedureExposures.remove(type, name), UNDEFINED)) {
                     case INACCESSIBLE -> { /* skipped */ }
                     case UNDEFINED -> throw new IllegalStateException("Unknown procedure provided by %s: %s".formatted(type, name));
                     case EXPOSED -> {
@@ -269,10 +270,10 @@ public class ObjectStoreConnector
 
         // `migrate` Iceberg procedure should be removed as Iceberg REST catalog doesn't support it.
         if (isIcebergRestCatalogUsed) {
-            featureExposures.remove(ICEBERG, "migrate");
+            procedureExposures.remove(ICEBERG, "migrate");
         }
-        if (!featureExposures.isEmpty()) {
-            throw new IllegalStateException("Procedures no longer provided: " + Maps.transformValues(featureExposures.rowMap(), Map::keySet));
+        if (!procedureExposures.isEmpty()) {
+            throw new IllegalStateException("Procedures no longer provided: " + Maps.transformValues(procedureExposures.rowMap(), Map::keySet));
         }
 
         return ImmutableSet.copyOf(procedures.values());
@@ -328,10 +329,10 @@ public class ObjectStoreConnector
         return ImmutableSet.copyOf(tableProcedures.values());
     }
 
-    private static Set<SystemTable> systemTables(DelegateConnectors delegates)
+    private Set<SystemTable> systemTables(DelegateConnectors delegates)
     {
         Map<SchemaTableName, SystemTable> systemTables = new HashMap<>();
-        Table<TableType, SchemaTableName, FeatureExposure> systemTableExposures = HashBasedTable.create(systemTableExposureDecisions());
+        Table<TableType, SchemaTableName, FeatureExposure> systemTableExposures = HashBasedTable.create(featureExposures.systemTableExposureDecisions());
         delegates.byType().forEach((type, connector) -> {
             for (SystemTable systemTable : connector.getSystemTables()) {
                 SchemaTableName name = systemTable.getTableMetadata().getTable();

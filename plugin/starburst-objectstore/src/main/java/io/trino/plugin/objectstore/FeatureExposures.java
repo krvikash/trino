@@ -15,7 +15,10 @@ package io.trino.plugin.objectstore;
 
 import com.google.common.collect.ImmutableTable;
 import com.google.common.collect.Table;
+import com.google.inject.Inject;
 import io.trino.spi.connector.SchemaTableName;
+
+import java.util.Optional;
 
 import static io.trino.plugin.objectstore.FeatureExposure.EXPOSED;
 import static io.trino.plugin.objectstore.FeatureExposure.INACCESSIBLE;
@@ -23,14 +26,30 @@ import static io.trino.plugin.objectstore.TableType.DELTA;
 import static io.trino.plugin.objectstore.TableType.HIVE;
 import static io.trino.plugin.objectstore.TableType.HUDI;
 import static io.trino.plugin.objectstore.TableType.ICEBERG;
+import static java.util.Objects.requireNonNull;
 
 public final class FeatureExposures
 {
-    private FeatureExposures() {}
+    private final Optional<Table<TableType, String, FeatureExposure>> additionalSessionExposures;
+    private final Optional<Table<TableType, String, FeatureExposure>> additionalProcedureExposures;
+    private final Optional<Table<TableType, SchemaTableName, FeatureExposure>> additionalSystemTableExposures;
 
-    public static Table<TableType, String, FeatureExposure> sessionExposureDecisions()
+    @Inject
+    public FeatureExposures(
+            @AdditionalSessionExposures Optional<Table<TableType, String, FeatureExposure>> additionalSessionExposures,
+            @AdditionalProcedureExposures Optional<Table<TableType, String, FeatureExposure>> additionalProcedureExposures,
+            @AdditionalSystemTableExposures Optional<Table<TableType, SchemaTableName, FeatureExposure>> additionalSystemTableExposures)
     {
-        return ImmutableTable.<TableType, String, FeatureExposure>builder()
+        this.additionalSessionExposures = requireNonNull(additionalSessionExposures, "additionalSessionExposures is null");
+        this.additionalProcedureExposures = requireNonNull(additionalProcedureExposures, "additionalProcedureExposures is null");
+        this.additionalSystemTableExposures = requireNonNull(additionalSystemTableExposures, "additionalSystemTableExposures is null");
+    }
+
+    public Table<TableType, String, FeatureExposure> sessionExposureDecisions()
+    {
+        ImmutableTable.Builder<TableType, String, FeatureExposure> builder = ImmutableTable.builder();
+        additionalSessionExposures.ifPresent(builder::putAll);
+        return builder
                 // sorted by connector in (Hive, Iceberg, Delta, Hudi) order, then by session property name
                 // TODO Note the map may contain entries for session properties no longer exposed by delegate connectors. The set of session properties is config-dependent which makes detection hard.
                 .put(HIVE, "bucket_execution_enabled", EXPOSED)
@@ -211,9 +230,11 @@ public final class FeatureExposures
                 .buildOrThrow();
     }
 
-    public static Table<TableType, String, FeatureExposure> procedureExposureDecisions()
+    public Table<TableType, String, FeatureExposure> procedureExposureDecisions()
     {
-        return ImmutableTable.<TableType, String, FeatureExposure>builder()
+        ImmutableTable.Builder<TableType, String, FeatureExposure> builder = ImmutableTable.builder();
+        additionalProcedureExposures.ifPresent(builder::putAll);
+        return builder
                 // sorted by procedure name, then by connector in (Hive, Iceberg, Delta, Hudi) order
                 .put(HIVE, "create_empty_partition", EXPOSED)
                 .put(HIVE, "drop_stats", EXPOSED) // TODO similar to drop_extended_stats exposed by Delta
@@ -253,9 +274,11 @@ public final class FeatureExposures
                 .buildOrThrow();
     }
 
-    public static Table<TableType, SchemaTableName, FeatureExposure> systemTableExposureDecisions()
+    public Table<TableType, SchemaTableName, FeatureExposure> systemTableExposureDecisions()
     {
-        return ImmutableTable.<TableType, SchemaTableName, FeatureExposure>builder()
+        ImmutableTable.Builder<TableType, SchemaTableName, FeatureExposure> builder = ImmutableTable.builder();
+        additionalSystemTableExposures.ifPresent(builder::putAll);
+        return builder
                 .put(ICEBERG, new SchemaTableName("system", "iceberg_tables"), EXPOSED)
                 .buildOrThrow();
     }

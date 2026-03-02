@@ -13,20 +13,27 @@
  */
 package io.trino.plugin.objectstore;
 
+import com.google.common.collect.Table;
 import com.google.inject.Binder;
+import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
+import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.Multibinder;
 import io.trino.plugin.objectstore.functions.tablechanges.TableChangesFunctionProvider;
 import io.trino.plugin.objectstore.functions.unload.OjbectStoreUnloadFunctionProvider;
 import io.trino.plugin.objectstore.procedure.ObjectStoreFlushMetadataCache;
 import io.trino.plugin.objectstore.procedure.ObjectStoreRegisterTableProcedure;
 import io.trino.plugin.objectstore.procedure.ObjectStoreUnregisterTableProcedure;
+import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.function.FunctionProvider;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.procedure.Procedure;
 
+import java.util.Optional;
+
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 
 public class ObjectStoreModule
@@ -56,5 +63,16 @@ public class ObjectStoreModule
         binder.bind(FunctionProvider.class).to(ObjectStoreFunctionProvider.class).in(Scopes.SINGLETON);
 
         configBinder(binder).bindConfig(ObjectStoreConfig.class);
+
+        binder.bind(FeatureExposures.class).in(Scopes.SINGLETON);
+        newOptionalBinder(binder, Key.get(new TypeLiteral<Optional<Table<TableType, String, FeatureExposure>>>() {}, AdditionalSessionExposures.class))
+                .setDefault()
+                .toInstance(Optional.empty());
+        newOptionalBinder(binder, Key.get(new TypeLiteral<Optional<Table<TableType, String, FeatureExposure>>>() {}, AdditionalProcedureExposures.class))
+                .setDefault()
+                .toInstance(Optional.empty());
+        newOptionalBinder(binder, Key.get(new TypeLiteral<Optional<Table<TableType, SchemaTableName, FeatureExposure>>>() {}, AdditionalSystemTableExposures.class))
+                .setDefault()
+                .toInstance(Optional.empty());
     }
 }

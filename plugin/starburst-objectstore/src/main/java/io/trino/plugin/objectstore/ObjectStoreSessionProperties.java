@@ -37,7 +37,6 @@ import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.plugin.objectstore.FeatureExposure.UNDEFINED;
-import static io.trino.plugin.objectstore.FeatureExposures.sessionExposureDecisions;
 import static io.trino.plugin.objectstore.PropertyMetadataValidation.VerifyDefaultValue.IGNORE_DEFAULT_VALUE;
 import static io.trino.plugin.objectstore.PropertyMetadataValidation.VerifyDefaultValue.VERIFY_DEFAULT_VALUE;
 import static io.trino.plugin.objectstore.PropertyMetadataValidation.VerifyDescription.IGNORE_DESCRIPTION;
@@ -53,8 +52,10 @@ public class ObjectStoreSessionProperties
     private final Table<String, TableType, Optional<Object>> defaultPropertyValue;
 
     @Inject
-    public ObjectStoreSessionProperties(DelegateConnectors delegates)
+    public ObjectStoreSessionProperties(DelegateConnectors delegates, FeatureExposures featureExposures)
     {
+        requireNonNull(featureExposures, "featureExposures is null");
+
         Set<String> ignoredDescriptions = ImmutableSet.<String>builder()
                 .add("compression_codec")
                 .add("projection_pushdown_enabled")
@@ -67,11 +68,11 @@ public class ObjectStoreSessionProperties
         Table<String, TableType, PropertyMetadata<?>> delegateProperties = HashBasedTable.create();
         ImmutableMultimap.Builder<String, TableType> maskedProperties = ImmutableMultimap.builder();
         ImmutableTable.Builder<String, TableType, Optional<Object>> defaultPropertyValue = ImmutableTable.builder();
-        Table<TableType, String, FeatureExposure> featureExposures = HashBasedTable.create(sessionExposureDecisions());
+        Table<TableType, String, FeatureExposure> sessionExposures = HashBasedTable.create(featureExposures.sessionExposureDecisions());
         delegates.byType().forEach((type, connector) -> {
             for (PropertyMetadata<?> property : connector.getSessionProperties()) {
                 String name = property.getName();
-                switch (requireNonNullElse(featureExposures.remove(type, name), UNDEFINED)) {
+                switch (requireNonNullElse(sessionExposures.remove(type, name), UNDEFINED)) {
                     case INACCESSIBLE -> {
                         maskedProperties.put(name, type);
                         defaultPropertyValue.put(name, type, Optional.ofNullable(property.getDefaultValue()));
