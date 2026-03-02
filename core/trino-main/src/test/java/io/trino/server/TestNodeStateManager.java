@@ -342,9 +342,7 @@ class TestNodeStateManager
         }
 
         @Override
-        public void shutdown()
-        {
-        }
+        public void shutdown() {}
 
         @Override
         public List<Runnable> shutdownNow()
@@ -418,9 +416,7 @@ class TestNodeStateManager
         }
 
         @Override
-        public void execute(Runnable command)
-        {
-        }
+        public void execute(Runnable command) {}
     }
 
     private static class TestPreShutdownAction

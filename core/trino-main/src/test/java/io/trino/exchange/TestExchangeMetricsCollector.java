@@ -284,9 +284,7 @@ public class TestExchangeMetricsCollector
         }
 
         @Override
-        public void noMoreSinks()
-        {
-        }
+        public void noMoreSinks() {}
 
         @Override
         public CompletableFuture<ExchangeSinkInstanceHandle> instantiateSink(ExchangeSinkHandle sinkHandle, int taskAttemptId, Optional<Node> taskNode)
@@ -301,14 +299,10 @@ public class TestExchangeMetricsCollector
         }
 
         @Override
-        public void sinkFinished(ExchangeSinkHandle sinkHandle, int taskAttemptId)
-        {
-        }
+        public void sinkFinished(ExchangeSinkHandle sinkHandle, int taskAttemptId) {}
 
         @Override
-        public void allRequiredSinksFinished()
-        {
-        }
+        public void allRequiredSinksFinished() {}
 
         @Override
         public ExchangeSourceHandleSource getSourceHandles()
@@ -317,9 +311,7 @@ public class TestExchangeMetricsCollector
         }
 
         @Override
-        public void close()
-        {
-        }
+        public void close() {}
 
         @Override
         public Metrics getMetrics()

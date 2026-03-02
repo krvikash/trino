@@ -1985,7 +1985,8 @@ public class TestDeltaLakeBasic
     @Test
     public void testVariantTypes()
     {
-        assertThat(query("""
+        assertThat(query(
+                """
                 SELECT
                  col_boolean,
                  col_long,
@@ -2002,7 +2003,8 @@ public class TestDeltaLakeBasic
                  col_struct
                 FROM variant_types"""))
                 .skippingTypesCheck()
-                .matches("""
+                .matches(
+                        """
                         VALUES
                         ('true',
                         '1',
@@ -3092,13 +3094,14 @@ public class TestDeltaLakeBasic
         copyDirectoryContents(new File(Resources.getResource(sourceResourceName).toURI()).toPath(), sourceLocation);
         assertUpdate("CALL system.register_table(CURRENT_SCHEMA, '%s', '%s')".formatted(sourceTable, sourceLocation.toUri()));
 
-        @Language("SQL") String sourceTableValues = """
-                VALUES
-                (1, 'A', TIMESTAMP '2024-01-01'),
-                (2, 'B', TIMESTAMP '2024-01-01'),
-                (3, 'C', TIMESTAMP '2024-02-02'),
-                (4, 'D', TIMESTAMP '2024-02-02')
-                """;
+        @Language("SQL") String sourceTableValues =
+        """
+        VALUES
+        (1, 'A', TIMESTAMP '2024-01-01'),
+        (2, 'B', TIMESTAMP '2024-01-01'),
+        (3, 'C', TIMESTAMP '2024-02-02'),
+        (4, 'D', TIMESTAMP '2024-02-02')
+        """;
 
         assertQuery("SELECT * FROM " + sourceTable, sourceTableValues);
 
@@ -3116,7 +3119,8 @@ public class TestDeltaLakeBasic
         assertQuery("SELECT * FROM " + clonedTable, sourceTableValues);
 
         // update on cloned table
-        @Language("SQL") String expectedValuesAfterUpdate = """
+        @Language("SQL") String expectedValuesAfterUpdate =
+        """
                 VALUES
                 (1, 'A', TIMESTAMP '2024-01-01'),
                 (2, 'updated', TIMESTAMP '2024-01-01'),
@@ -3127,22 +3131,24 @@ public class TestDeltaLakeBasic
         assertQuery("SELECT * FROM " + clonedTable, expectedValuesAfterUpdate);
 
         // merge on cloned table, including insert,update,delete
-        String mergeSql = """
-                MERGE INTO %s t
-                USING (VALUES (1, 'yyy', TIMESTAMP '2025-01-01'), (2, 'merged', TIMESTAMP '2025-02-02'), (5, 'kkk', TIMESTAMP '2025-03-03')) AS s(id, v, part)
-                ON (t.id = s.id)
-                WHEN MATCHED AND s.v = 'yyy' THEN DELETE
-                WHEN MATCHED THEN UPDATE SET v = s.v
-                WHEN NOT MATCHED THEN INSERT (id, v, part) VALUES(s.id, s.v, s.part)
-                """.formatted(clonedTable);
+        String mergeSql =
+        """
+        MERGE INTO %s t
+        USING (VALUES (1, 'yyy', TIMESTAMP '2025-01-01'), (2, 'merged', TIMESTAMP '2025-02-02'), (5, 'kkk', TIMESTAMP '2025-03-03')) AS s(id, v, part)
+        ON (t.id = s.id)
+        WHEN MATCHED AND s.v = 'yyy' THEN DELETE
+        WHEN MATCHED THEN UPDATE SET v = s.v
+        WHEN NOT MATCHED THEN INSERT (id, v, part) VALUES(s.id, s.v, s.part)
+        """.formatted(clonedTable);
 
-        @Language("SQL") String expectedValuesAfterMerge = """
-                VALUES
-                (2, 'merged', TIMESTAMP '2024-01-01'),
-                (3, 'C', TIMESTAMP '2024-02-02'),
-                (4, 'updated', TIMESTAMP '2024-02-02'),
-                (5, 'kkk', TIMESTAMP '2025-03-03')
-                """;
+        @Language("SQL") String expectedValuesAfterMerge =
+        """
+        VALUES
+        (2, 'merged', TIMESTAMP '2024-01-01'),
+        (3, 'C', TIMESTAMP '2024-02-02'),
+        (4, 'updated', TIMESTAMP '2024-02-02'),
+        (5, 'kkk', TIMESTAMP '2025-03-03')
+        """;
 
         assertUpdate(mergeSql, 3);
         assertQuery("SELECT * FROM " + clonedTable, expectedValuesAfterMerge);
@@ -3199,7 +3205,8 @@ public class TestDeltaLakeBasic
         assertUpdate("CALL system.register_table(CURRENT_SCHEMA, '%s', '%s')".formatted(tableName, tableLocation.toUri()));
 
         assertThat(query("SELECT * FROM " + tableName))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                         (1, VARCHAR 'Alice', 25),
                         (2, VARCHAR 'Bob', 30),
@@ -3223,7 +3230,8 @@ public class TestDeltaLakeBasic
         assertUpdate("CALL system.register_table(CURRENT_SCHEMA, '%s', '%s')".formatted(tableName, tableLocation.toUri()));
 
         assertThat(query("SELECT * FROM " + tableName))
-                .matches("""
+                .matches(
+                        """
                         VALUES
                         (1, VARCHAR 'Alice', 25),
                         (2, VARCHAR 'Bob', 30),
@@ -3265,7 +3273,6 @@ public class TestDeltaLakeBasic
     private static List<DeltaLakeTransactionLogEntry> getEntriesFromJson(long entryNumber, String transactionLogDir)
             throws IOException
     {
-
         return TransactionLogTail.getEntriesFromJson(entryNumber, FILE_SYSTEM.newInputFile(getTransactionLogJsonEntryPath(transactionLogDir, entryNumber)), DEFAULT_TRANSACTION_LOG_MAX_CACHED_SIZE)
                 .orElseThrow()
                 .getEntriesList(FILE_SYSTEM);
