@@ -21,7 +21,6 @@ import com.google.inject.multibindings.OptionalBinder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.http.server.HttpServerModule;
 import io.airlift.json.JsonModule;
-import io.airlift.node.NodeModule;
 import io.trino.plugin.warp.annotation.ForWarmupRuleCloudFetcher;
 import io.trino.plugin.warp.config.CacheManagerConfig;
 import io.trino.plugin.warp.di.InitializationModule;
@@ -89,7 +88,6 @@ public class WarpExtensionModule
                         cacheManagerConfig.getIsCache(),
                         booleanSuppliers.build()));
         if (!Boolean.parseBoolean(config.getOrDefault(WarpExtensionConfig.USE_HTTP_SERVER_PORT, "true"))) {
-            install(new NodeModule());
             install(new HttpServerModule());
             install(new JsonModule());
 
