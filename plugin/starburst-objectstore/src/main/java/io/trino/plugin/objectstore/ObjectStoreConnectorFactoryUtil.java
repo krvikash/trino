@@ -23,6 +23,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
 import io.trino.spi.connector.ConnectorPageSinkProvider;
+import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSplitManager;
 
@@ -65,9 +66,15 @@ public final class ObjectStoreConnectorFactoryUtil
         return binder -> {
             binder.bind(Connector.class).annotatedWith(annotation).toInstance(connector);
             binder.bind(ConnectorSplitManager.class).annotatedWith(annotation).toInstance(connector.getSplitManager());
-            binder.bind(ConnectorPageSourceProviderFactory.class).annotatedWith(annotation).toInstance(connector.getPageSourceProviderFactory());
             binder.bind(ConnectorPageSinkProvider.class).annotatedWith(annotation).toInstance(connector.getPageSinkProvider());
             binder.bind(ConnectorNodePartitioningProvider.class).annotatedWith(annotation).toInstance(connector.getNodePartitioningProvider());
+
+            if (annotation == ForIceberg.class) {
+                binder.bind(ConnectorPageSourceProviderFactory.class).annotatedWith(annotation).toInstance(connector.getPageSourceProviderFactory());
+            }
+            else {
+                binder.bind(ConnectorPageSourceProvider.class).annotatedWith(annotation).toInstance(connector.getPageSourceProvider());
+            }
         };
     }
 

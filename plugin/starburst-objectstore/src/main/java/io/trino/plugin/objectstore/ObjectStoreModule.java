@@ -46,7 +46,7 @@ public class ObjectStoreModule
         binder.bind(DelegateConnectors.class).in(Scopes.SINGLETON);
         binder.bind(ObjectStoreConnector.class).in(Scopes.SINGLETON);
         binder.bind(ObjectStoreSplitManager.class).in(Scopes.SINGLETON);
-        binder.bind(ObjectStorePageSourceProvider.class).in(Scopes.SINGLETON);
+        binder.bind(ObjectStorePageSourceProviderFactory.class).in(Scopes.SINGLETON);
         binder.bind(ObjectStorePageSinkProvider.class).in(Scopes.SINGLETON);
         binder.bind(ObjectStoreNodePartitioningProvider.class).in(Scopes.SINGLETON);
         binder.bind(ObjectStoreTableProperties.class).in(Scopes.SINGLETON);

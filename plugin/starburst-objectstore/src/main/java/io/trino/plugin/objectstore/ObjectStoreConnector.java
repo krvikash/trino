@@ -39,7 +39,7 @@ import io.trino.spi.connector.ConnectorCapabilities;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
 import io.trino.spi.connector.ConnectorPageSinkProvider;
-import io.trino.spi.connector.ConnectorPageSourceProvider;
+import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
@@ -99,7 +99,7 @@ public class ObjectStoreConnector
     private final TypeManager typeManager;
     private final FeatureExposures featureExposures;
     private final ObjectStoreSplitManager splitManager;
-    private final ObjectStorePageSourceProvider pageSourceProvider;
+    private final ObjectStorePageSourceProviderFactory pageSourceProviderFactory;
     private final ObjectStorePageSinkProvider pageSinkProvider;
     private final ObjectStoreNodePartitioningProvider nodePartitioningProvider;
     private final List<PropertyMetadata<?>> schemaProperties;
@@ -131,7 +131,7 @@ public class ObjectStoreConnector
             LifeCycleManager lifeCycleManager,
             TypeManager typeManager,
             ObjectStoreSplitManager splitManager,
-            ObjectStorePageSourceProvider pageSourceProvider,
+            ObjectStorePageSourceProviderFactory pageSourceProviderFactory,
             ObjectStorePageSinkProvider pageSinkProvider,
             ObjectStoreNodePartitioningProvider nodePartitioningProvider,
             ObjectStoreTableProperties tableProperties,
@@ -155,7 +155,7 @@ public class ObjectStoreConnector
         this.featureExposures = requireNonNull(featureExposures, "featureExposures is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
-        this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
+        this.pageSourceProviderFactory = requireNonNull(pageSourceProviderFactory, "pageSourceProviderFactory is null");
         this.pageSinkProvider = requireNonNull(pageSinkProvider, "pageSinkProvider is null");
         this.nodePartitioningProvider = requireNonNull(nodePartitioningProvider, "nodePartitioningProvider is null");
         this.schemaProperties = schemaProperties();
@@ -483,9 +483,9 @@ public class ObjectStoreConnector
     }
 
     @Override
-    public ConnectorPageSourceProvider getPageSourceProvider()
+    public ConnectorPageSourceProviderFactory getPageSourceProviderFactory()
     {
-        return pageSourceProvider;
+        return pageSourceProviderFactory;
     }
 
     @Override
