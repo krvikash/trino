@@ -63,8 +63,12 @@ public class LakehousePageSourceProviderFactory
     @Override
     public ConnectorPageSourceProvider createPageSourceProvider()
     {
+        // createPageSourceProvider is called for each scan within a query
+        // we hold on to ConnectorPageSourceProvider instance to allow IcebergPageSourceProvider to reuse equality deletes between splits of the same scan
         return new ConnectorPageSourceProvider()
         {
+            private volatile ConnectorPageSourceProvider delegate;
+
             @Override
             public ConnectorPageSource createPageSource(
                     ConnectorTransactionHandle transaction,
@@ -75,7 +79,25 @@ public class LakehousePageSourceProviderFactory
                     List<ColumnHandle> columns,
                     DynamicFilter dynamicFilter)
             {
-                return forHandle(split, table).createPageSource(transaction, session, split, table, tableCredentials, columns, dynamicFilter);
+                if (delegate == null) {
+                    synchronized (this) {
+                        if (delegate == null) {
+                            delegate = forHandle(split, table);
+                        }
+                    }
+                }
+                return delegate.createPageSource(transaction, session, split, table, tableCredentials, columns, dynamicFilter);
+            }
+
+            @Override
+            public long getMemoryUsage()
+            {
+                ConnectorPageSourceProvider provider = delegate;
+                if (provider == null) {
+                    // No page source was created, so no memory is used
+                    return 0;
+                }
+                return provider.getMemoryUsage();
             }
         };
     }
