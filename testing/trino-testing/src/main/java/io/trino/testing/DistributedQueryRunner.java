@@ -31,6 +31,7 @@ import io.trino.Session.SessionBuilder;
 import io.trino.cache.CacheMetadata;
 import io.trino.client.ClientSession;
 import io.trino.client.StatementClient;
+import io.trino.connector.CatalogManagerConfig.CatalogMangerKind;
 import io.trino.connector.ConnectorServicesProvider;
 import io.trino.connector.CoordinatorDynamicCatalogManager;
 import io.trino.cost.StatsCalculator;
@@ -102,6 +103,7 @@ import static io.airlift.log.Level.WARN;
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.airlift.units.Duration.nanosSince;
 import static io.trino.client.StatementClientFactory.newStatementClient;
+import static io.trino.connector.CatalogManagerConfig.CatalogMangerKind.DYNAMIC;
 import static io.trino.execution.querystats.PlanOptimizersStatsCollector.createPlanOptimizersStatsCollector;
 import static java.lang.Boolean.parseBoolean;
 import static java.lang.System.getenv;
@@ -153,6 +155,7 @@ public final class DistributedQueryRunner
             List<AutoCloseable> extraCloseables,
             TestingTrinoClientFactory testingTrinoClientFactory,
             Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader,
+            CatalogMangerKind catalogMangerKind,
             boolean bindAllInterfaces)
             throws Exception
     {
@@ -185,6 +188,7 @@ public final class DistributedQueryRunner
                         systemAccessControls,
                         eventListeners,
                         modelConnectionSpecsLoader,
+                        catalogMangerKind,
                         bindAllInterfaces);
             };
 
@@ -208,6 +212,7 @@ public final class DistributedQueryRunner
                         Optional.of(ImmutableList.of()),
                         ImmutableList.of(),
                         modelConnectionSpecsLoader,
+                        catalogMangerKind,
                         bindAllInterfaces);
 
             for (int i = 0; i < workerCount; i++) {
@@ -261,6 +266,7 @@ public final class DistributedQueryRunner
             Optional<List<SystemAccessControl>> systemAccessControls,
             List<EventListener> eventListeners,
             Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader,
+            CatalogMangerKind catalogMangerKind,
             boolean bindAllInterfaces)
     {
         if (!extraProperties.containsKey("discovery.uri") && !this.coordinators.isEmpty()) {
@@ -285,6 +291,7 @@ public final class DistributedQueryRunner
                     plugins.forEach(newServer::installPlugin);
                 },
                 modelConnectionSpecsLoader,
+                catalogMangerKind,
                 bindAllInterfaces));
         servers.add(server);
 
@@ -320,6 +327,7 @@ public final class DistributedQueryRunner
             List<EventListener> eventListeners,
             Consumer<TestingTrinoServer> additionalConfiguration,
             Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader,
+            CatalogMangerKind catalogMangerKind,
             boolean bindAllInterfaces)
     {
         long start = System.nanoTime();
@@ -334,8 +342,10 @@ public final class DistributedQueryRunner
             propertiesBuilder.put("node-scheduler.include-coordinator", "true");
             propertiesBuilder.put("join-distribution-type", "PARTITIONED");
 
-            // Use few threads in tests to preserve resources on CI
-            propertiesBuilder.put("catalog-prune.http-client.min-threads", "1"); // default 8
+            if (catalogMangerKind == DYNAMIC) {
+                // Use few threads in tests to preserve resources on CI
+                propertiesBuilder.put("catalog-prune.http-client.min-threads", "1"); // default 8
+            }
             propertiesBuilder.put("memory-manager.http-client.min-threads", "1"); // default 8
             propertiesBuilder.put("scheduler.http-client.min-threads", "1"); // default 8
             propertiesBuilder.put("worker-info.http-client.min-threads", "1"); // default 8
@@ -356,6 +366,7 @@ public final class DistributedQueryRunner
                 .setAdditionalConfiguration(additionalConfiguration)
                 .setModelConnectionSpecsLoader(modelConnectionSpecsLoader)
                 .setBindAllInterfaces(bindAllInterfaces)
+                .setCatalogMangerKind(catalogMangerKind)
                 .build();
 
         String nodeRole = coordinator ? "coordinator" : "worker";
@@ -796,6 +807,7 @@ public final class DistributedQueryRunner
         private TestingTrinoClientFactory testingTrinoClientFactory = TestingTrinoClient::new;
         private Optional<String> encoding = Optional.empty();
         private Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader = Optional.empty();
+        private CatalogMangerKind catalogMangerKind = DYNAMIC;
         private boolean bindAllInterfaces;
 
         protected Builder(Session defaultSession)
@@ -972,6 +984,13 @@ public final class DistributedQueryRunner
         }
 
         @CanIgnoreReturnValue
+        public SELF withCatalogManagerKind(CatalogMangerKind catalogMangerKind)
+        {
+            this.catalogMangerKind = catalogMangerKind;
+            return self();
+        }
+
+        @CanIgnoreReturnValue
         public SELF withTracing()
         {
             this.withTracing = true;
@@ -1079,6 +1098,7 @@ public final class DistributedQueryRunner
                     extraCloseables.build(),
                     testingTrinoClientFactory,
                     modelConnectionSpecsLoader,
+                    catalogMangerKind,
                     bindAllInterfaces);
             extraCloseables = null;
 
