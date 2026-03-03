@@ -340,7 +340,7 @@ public class ObjectStoreConnector
 
                 switch (requireNonNullElse(systemTableExposures.remove(type, name), UNDEFINED)) {
                     case INACCESSIBLE -> { /* skipped */ }
-                    case UNDEFINED -> throw new IllegalStateException("Unknown table procedure provided by %s: %s".formatted(type, name));
+                    case UNDEFINED -> throw new IllegalStateException("Unknown system table provided by %s: %s".formatted(type, name));
                     case EXPOSED -> {
                         SystemTable existing = systemTables.putIfAbsent(name, systemTable);
                         if (existing == null) {
