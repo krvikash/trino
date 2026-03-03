@@ -13,6 +13,7 @@
  */
 package io.trino.testing;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -35,6 +36,7 @@ import io.trino.cache.CacheManagerRegistry;
 import io.trino.cache.CacheMetadata;
 import io.trino.cache.CachePerformanceTracker;
 import io.trino.cache.CacheStats;
+import io.trino.block.BlockJsonSerde;
 import io.trino.connector.CatalogFactory;
 import io.trino.connector.CatalogHandle;
 import io.trino.connector.CatalogServiceProviderModule;
@@ -89,6 +91,7 @@ import io.trino.execution.scheduler.NodeSchedulerConfig;
 import io.trino.execution.scheduler.UniformNodeSelectorFactory;
 import io.trino.execution.warnings.WarningCollector;
 import io.trino.memory.LocalMemoryManager;
+import io.trino.json.ir.IrJsonPath;
 import io.trino.memory.MemoryManagerConfig;
 import io.trino.memory.NodeMemoryConfig;
 import io.trino.metadata.AnalyzePropertyManager;
@@ -167,6 +170,7 @@ import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeOperators;
+import io.trino.spi.type.TypeSignature;
 import io.trino.spiller.GenericSpillerFactory;
 import io.trino.split.AlternativeChooser;
 import io.trino.split.PageSinkManager;
@@ -228,6 +232,7 @@ import io.trino.type.BlockTypeOperators;
 import io.trino.type.InternalTypeManager;
 import io.trino.type.JsonPath2016Type;
 import io.trino.type.TypeDeserializer;
+import io.trino.type.TypeSignatureDeserializer;
 import io.trino.util.FinalizerService;
 import org.intellij.lang.annotations.Language;
 
@@ -427,7 +432,16 @@ public class PlanTester
                 tableFunctionRegistry,
                 typeManager,
                 catalogManager));
-        typeRegistry.addType(new JsonPath2016Type(new TypeDeserializer(typeManager), blockEncodingSerde));
+        ObjectMapper mapper = new ObjectMapperProvider()
+                .withJsonDeserializers(ImmutableMap.of(
+                        Type.class, new TypeDeserializer(typeManager),
+                        TypeSignature.class, new TypeSignatureDeserializer(),
+                        Block.class, new BlockJsonSerde.Deserializer(blockEncodingSerde)))
+                .withJsonSerializers(ImmutableMap.of(
+                        Block.class, new BlockJsonSerde.Serializer(blockEncodingSerde)))
+                .get();
+        JsonCodec<IrJsonPath> irJsonPathJsonCodec = new JsonCodecFactory(mapper).jsonCodec(IrJsonPath.class);
+        typeRegistry.addType(new JsonPath2016Type(irJsonPathJsonCodec));
         this.joinCompiler = new JoinCompiler(typeOperators);
         this.hashStrategyCompiler = new FlatHashStrategyCompiler(typeOperators, new NullSafeHashCompiler(typeOperators));
         PageIndexerFactory pageIndexerFactory = new GroupByHashPageIndexerFactory(hashStrategyCompiler);
