@@ -308,6 +308,12 @@ jobs:
         with:
           has-failed-tests: ${{ steps.tests-old.outcome == 'failure' || steps.tests-current.outcome == 'failure' }}
           upload-heap-dump: ${{ env.SECRETS_PRESENT == '' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+      - name: Launch Flake Tracker
+        if: failure() && github.ref == 'refs/heads/master' && (steps.tests-old.outcome == 'failure' || steps.tests-current.outcome == 'failure')
+        continue-on-error: true
+        uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
+        with:
+          github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
 
   hive-tests:
     needs: path-filters
@@ -393,6 +399,12 @@ jobs:
           check_name: ${{ github.job }} (${{ matrix.config }}) with secrets
           conclusion: ${{ job.status }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Launch Flake Tracker
+        if: failure() && steps.tests.outcome == 'failure' && github.ref == 'refs/heads/master'
+        continue-on-error: true
+        uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
+        with:
+          github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
 
   # ------------------------------------------------------------------------
   # Only run redshift tests on a schedule, labeled PRs, or workflow_dispatch
@@ -500,7 +512,12 @@ jobs:
           slack-channel: C09HT9ETS73 # galaxy-data-management-notify channel ID
           slack-text: |
             :boom: Redshift cloud tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
-
+      - name: Launch Flake Tracker
+        if: failure() && steps.tests.outcome == 'failure' && github.ref == 'refs/heads/master'
+        continue-on-error: true
+        uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
+        with:
+          github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
   # ------------------------------------------------------------------------
   # Only run redshift tests on a schedule, labeled PRs, or workflow_dispatch
   # ------------------------------------------------------------------------
@@ -607,7 +624,12 @@ jobs:
           slack-channel: C09HT9ETS73 # galaxy-data-management-notify channel ID
           slack-text: |
             :boom: Redshift FTE tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
-
+      - name: Launch Flake Tracker
+        if: failure() && steps.tests.outcome == 'failure' && github.ref == 'refs/heads/master'
+        continue-on-error: true
+        uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
+        with:
+          github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
   # ----------------------------------------------------------------------------
   # Only run salesforce tests on a schedule, labeled PRs, or workflow_dispatch to avoid salesforce rate limits
   # ----------------------------------------------------------------------------
@@ -694,7 +716,12 @@ jobs:
           slack-channel: C09HT9ETS73 # galaxy-data-management-notify channel ID
           slack-text: |
             :boom: Salesforce connector tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
-
+      - name: Launch Flake Tracker
+        if: failure() && steps.tests.outcome == 'failure' && github.ref == 'refs/heads/master'
+        continue-on-error: true
+        uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
+        with:
+          github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
   # -----------------------------------------------------------
   # Weekly run all synapse tests, labeled PRs to limit CI costs
   # -----------------------------------------------------------
@@ -781,7 +808,12 @@ jobs:
           slack-channel: C09HT9ETS73 # galaxy-data-management-notify channel ID
           slack-text: |
             :boom: Synapse weekly tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
-
+      - name: Launch Flake Tracker
+        if: failure() && steps.tests.outcome == 'failure' && github.ref == 'refs/heads/master'
+        continue-on-error: true
+        uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
+        with:
+          github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
   # --------------------------------------------------------------------------------
   # Only run default profile synapse tests nightly, labeled PRs, to limit CI costs.
   # The release-* branches are excluded
@@ -869,7 +901,12 @@ jobs:
           slack-channel: C09HT9ETS73 # galaxy-data-management-notify channel ID
           slack-text: |
             :boom: Synapse nightly tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
-
+      - name: Launch Flake Tracker
+        if: failure() && steps.tests.outcome == 'failure' && github.ref == 'refs/heads/master'
+        continue-on-error: true
+        uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
+        with:
+          github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
   # --------------------------------------------------------------
   # Weekly run all snowflake tests, labeled PRs to limit CI costs
   # --------------------------------------------------------------
@@ -1004,7 +1041,12 @@ jobs:
           slack-channel: C09HT9ETS73 # galaxy-data-management-notify channel ID
           slack-text: |
             :boom: Snowflake weekly tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
-
+      - name: Launch Flake Tracker
+        if: failure() && (steps.tests-weekly-snowflake-aws.outcome == 'failure' || steps.tests-weekly-snowflake-azure.outcome == 'failure') && github.ref == 'refs/heads/master'
+        continue-on-error: true
+        uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
+        with:
+          github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
   # --------------------------------------------------------------------------------------
   # Only run smoke-test profile snowflake tests nightly, labeled PRs to limit CI costs.
   # The release-* branches are excluded
@@ -1106,7 +1148,12 @@ jobs:
           slack-channel: C09HT9ETS73 # galaxy-data-management-notify channel ID
           slack-text: |
             :boom: Snowflake nightly tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
-
+      - name: Launch Flake Tracker
+        if: failure() && steps.tests-nightly-snowflake-aws.outcome == 'failure' && github.ref == 'refs/heads/master'
+        continue-on-error: true
+        uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
+        with:
+          github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
   test-other-modules:
     needs: path-filters
     if: github.event_name != 'pull_request' || needs.path-filters.outputs.non_docs == 'true'
@@ -1224,6 +1271,12 @@ jobs:
         with:
           has-failed-tests: ${{ steps.tests.outcome == 'failure' }}
           upload-heap-dump: ${{ env.SECRETS_PRESENT == '' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+      - name: Launch Flake Tracker
+        if: failure() && steps.tests.outcome == 'failure' && github.ref == 'refs/heads/master'
+        continue-on-error: true
+        uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
+        with:
+          github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
 
   starburst-functions-ai-tests:
     runs-on: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest]
@@ -1286,6 +1339,12 @@ jobs:
         with:
           has-failed-tests: ${{ steps.tests.outcome == 'failure' }}
           upload-heap-dump: ${{ env.SECRETS_PRESENT == '' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+      - name: Launch Flake Tracker
+        if: failure() && steps.tests.outcome == 'failure' && github.ref == 'refs/heads/master'
+        continue-on-error: true
+        uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
+        with:
+          github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
 
   build-test-matrix:
     needs: path-filters
@@ -1837,6 +1896,12 @@ jobs:
               || steps.tests-snowflake.outcome == 'failure'
             }}
           upload-heap-dump: ${{ env.SECRETS_PRESENT == '' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+      - name: Launch Flake Tracker
+        if: failure() && github.ref == 'refs/heads/master'
+        continue-on-error: true
+        uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
+        with:
+          github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
       - name: Update PR check
         uses: ./.github/actions/update-check
         if: >-
@@ -2237,6 +2302,12 @@ jobs:
           check_name: ${{ github.job }} with secrets
           conclusion: ${{ job.status }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Launch Flake Tracker
+        if: failure() && steps.tests.outcome == 'failure' && github.ref == 'refs/heads/master'
+        continue-on-error: true
+        uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
+        with:
+          github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
 
   build-success:
     if: ${{ always() }} # if `failure()` would not work for cancellations, `!success()` would not work for skipped jobs
