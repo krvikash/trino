@@ -21,7 +21,6 @@ import com.fasterxml.jackson.core.StreamReadFeature;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.MapperFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.google.common.reflect.TypeParameter;
@@ -41,8 +40,8 @@ import static java.util.Objects.requireNonNull;
 
 public class TrinoJsonCodec<T>
 {
-    // copy of https://github.com/airlift/airlift/blob/master/json/src/main/java/io/airlift/json/ObjectMapperProvider.java
-    static final Supplier<ObjectMapper> OBJECT_MAPPER_SUPPLIER = () -> {
+    // copy of https://github.com/airlift/airlift/blob/master/json/src/main/java/io/airlift/json/JsonMapperProvider.java
+    static final Supplier<JsonMapper> JSON_MAPPER_SUPPLIER = () -> {
         JsonFactory jsonFactory = JsonFactory.builder()
                 /*
                  * When multiple threads deserialize JSON responses concurrently,
@@ -85,7 +84,7 @@ public class TrinoJsonCodec<T>
 
     public static <T> TrinoJsonCodec<T> jsonCodec(Class<T> type)
     {
-        return new TrinoJsonCodec<>(OBJECT_MAPPER_SUPPLIER.get(), type);
+        return new TrinoJsonCodec<>(JSON_MAPPER_SUPPLIER.get(), type);
     }
 
     public static <T> TrinoJsonCodec<List<T>> listJsonCodec(Class<T> type)
@@ -94,14 +93,14 @@ public class TrinoJsonCodec<T>
                 .where(new TypeParameter<T>() {}, type)
                 .getType();
 
-        return new TrinoJsonCodec<>(OBJECT_MAPPER_SUPPLIER.get(), listType);
+        return new TrinoJsonCodec<>(JSON_MAPPER_SUPPLIER.get(), listType);
     }
 
-    private final ObjectMapper mapper;
+    private final JsonMapper mapper;
     private final Type type;
     private final JavaType javaType;
 
-    private TrinoJsonCodec(ObjectMapper mapper, Type type)
+    private TrinoJsonCodec(JsonMapper mapper, Type type)
     {
         this.mapper = requireNonNull(mapper, "mapper is null");
         this.type = requireNonNull(type, "type is null");

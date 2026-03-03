@@ -14,9 +14,9 @@
 package io.trino.plugin.warp.extension.execution.demoter;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.eventbus.EventBus;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarmupDemoterService;
 import io.trino.plugin.warp.dispatcher.warmup.demoter.WarpDeleteService;
@@ -103,9 +103,9 @@ public class WorkerWarmupDemoterTaskTest
     public void testDefaultValues()
             throws JsonProcessingException
     {
-        ObjectMapper objectMapper = new ObjectMapperProvider().get();
+        JsonMapper jsonMapper = new JsonMapperProvider().get();
         String jsonStr = "{\"@class\":\"io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterData\"}";
-        WarmupDemoterData warmupDemoterData = objectMapper.readerFor(WarmupDemoterData.class).readValue(jsonStr);
+        WarmupDemoterData warmupDemoterData = jsonMapper.readerFor(WarmupDemoterData.class).readValue(jsonStr);
         assertThat(warmupDemoterData.getBatchSize()).isEqualTo(-1);
     }
 

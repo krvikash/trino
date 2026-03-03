@@ -198,7 +198,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
 
         executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupTask.TASK_NAME_SET, List.of(warmupColRuleDataLucene, warmupColRuleDataData), HttpMethod.POST, HttpURLConnection.HTTP_OK);
 
-        result = objectMapper.readerFor(new TypeReference<List<WarmupColRuleData>>() {})
+        result = jsonMapper.readerFor(new TypeReference<List<WarmupColRuleData>>() {})
                 .readValue(executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupRuleService.TASK_NAME_GET, null, HttpMethod.GET, HttpURLConnection.HTTP_OK));
 
         assertThat(result).hasSize(2);
@@ -269,7 +269,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
             throws IOException
     {
         String str = executeRestCommand(PredicateCacheTask.PREDICATES_DUMP, "", null, HttpMethod.GET, HttpURLConnection.HTTP_OK);
-        PredicateCacheTask.PredicateCacheDump result = objectMapper.readerFor(PredicateCacheTask.PredicateCacheDump.class).readValue(str);
+        PredicateCacheTask.PredicateCacheDump result = jsonMapper.readerFor(PredicateCacheTask.PredicateCacheDump.class).readValue(str);
         assertThat(result.bufferPoolDumpMap().size()).isEqualTo(PredicateBufferPoolType.values().length);
     }
 

@@ -14,10 +14,10 @@
 package io.trino.plugin.warp.dispatcher;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.log.ShapingLogger;
@@ -39,7 +39,7 @@ public class DispatcherCacheMetadata
     private final ConnectorCacheMetadata proxiedConnectorCacheMetadata;
     private final DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider;
     public final int predicateThreshold;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
     private final ShapingLogger shapingLogger;
 
     @Inject
@@ -47,13 +47,13 @@ public class DispatcherCacheMetadata
             @ForWarp ConnectorCacheMetadata proxiedConnectorCacheMetadata,
             DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider,
             GlobalConfig globalConfig,
-            ObjectMapperProvider objectMapperProvider,
+            JsonMapperProvider jsonMapperProvider,
             ShapingLoggerFactory shapingLoggerFactory)
     {
         this.proxiedConnectorCacheMetadata = requireNonNull(proxiedConnectorCacheMetadata);
         this.dispatcherTableHandleBuilderProvider = requireNonNull(dispatcherTableHandleBuilderProvider);
         predicateThreshold = requireNonNull(globalConfig).getPredicateSimplifyThreshold();
-        objectMapper = requireNonNull(objectMapperProvider).get();
+        jsonMapper = requireNonNull(jsonMapperProvider).get();
         shapingLogger = requireNonNull(shapingLoggerFactory).getInstance(DispatcherCacheMetadata.class);
     }
 
@@ -71,7 +71,7 @@ public class DispatcherCacheMetadata
                 values.put("warpExpression ", dispatcherTableHandle.getWarpExpression().get());
             }
             values.put("cacheId", result.get().toString());
-            String cacheTableId = objectMapper.writeValueAsString(values.buildOrThrow());
+            String cacheTableId = jsonMapper.writeValueAsString(values.buildOrThrow());
             result = Optional.of(new CacheTableId(cacheTableId));
         }
         catch (JsonProcessingException e) {

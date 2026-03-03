@@ -33,7 +33,7 @@ import static io.airlift.http.client.Request.Builder.prepareDelete;
 import static io.airlift.http.client.Request.Builder.prepareGet;
 import static io.airlift.http.client.Request.Builder.preparePost;
 import static io.airlift.http.client.StaticBodyGenerator.createStaticBodyGenerator;
-import static io.trino.tests.product.warp.utils.DemoterUtils.objectMapper;
+import static io.trino.tests.product.warp.utils.DemoterUtils.jsonMapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class RestUtils
@@ -112,7 +112,7 @@ public class RestUtils
 
         HttpClient client = new JettyHttpClient();
         if (inObj != null) {
-            String input = objectMapper.writeValueAsString(inObj);
+            String input = jsonMapper.writeValueAsString(inObj);
             request.setBodyGenerator(createStaticBodyGenerator(input.getBytes(Charset.defaultCharset())));
         }
         StringResponseHandler stringResponseHandler = StringResponseHandler.createStringResponseHandler();

@@ -16,9 +16,9 @@ package io.trino.plugin.warp.extension.di;
 import com.fasterxml.jackson.databind.DeserializationConfig;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.MapperFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationConfig;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.guava.GuavaModule;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.joda.JodaModule;
@@ -28,7 +28,6 @@ import com.google.inject.Binder;
 import com.google.inject.matcher.Matchers;
 import io.airlift.jaxrs.JaxrsBinder;
 import io.airlift.jaxrs.JaxrsModule;
-import io.airlift.jaxrs.JsonMapper;
 import io.swagger.v3.jaxrs2.integration.resources.OpenApiResource;
 import io.swagger.v3.oas.integration.SwaggerConfiguration;
 import io.trino.plugin.warp.annotation.Audit;
@@ -65,17 +64,17 @@ public class WarpJaxrsModule
     {
         super.setup(binder);
 
-        ObjectMapper objectMapper = new ObjectMapper();
+        JsonMapper jsonMapper = new JsonMapper();
         // ignore unknown fields (for backwards compatibility)
-        objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        jsonMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 
         // do not allow converting a float to an integer
-        objectMapper.disable(DeserializationFeature.ACCEPT_FLOAT_AS_INT);
+        jsonMapper.disable(DeserializationFeature.ACCEPT_FLOAT_AS_INT);
 
         // use ISO dates
-        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        jsonMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
-        final DeserializationConfig newDeserializationConfig = objectMapper.getDeserializationConfig().with(MapperFeature.AUTO_DETECT_CREATORS)
+        final DeserializationConfig newDeserializationConfig = jsonMapper.getDeserializationConfig().with(MapperFeature.AUTO_DETECT_CREATORS)
                 .with(MapperFeature.AUTO_DETECT_FIELDS)
                 .with(MapperFeature.AUTO_DETECT_SETTERS)
                 .with(MapperFeature.AUTO_DETECT_GETTERS)
@@ -85,7 +84,7 @@ public class WarpJaxrsModule
                 .with(MapperFeature.INFER_PROPERTY_MUTATORS)
                 .with(MapperFeature.ALLOW_FINAL_FIELDS_AS_MUTATORS);
 
-        final SerializationConfig newSerializationConfig = objectMapper.getSerializationConfig().with(MapperFeature.AUTO_DETECT_CREATORS)
+        final SerializationConfig newSerializationConfig = jsonMapper.getSerializationConfig().with(MapperFeature.AUTO_DETECT_CREATORS)
                 .with(MapperFeature.AUTO_DETECT_FIELDS)
                 .with(MapperFeature.AUTO_DETECT_SETTERS)
                 .with(MapperFeature.AUTO_DETECT_GETTERS)
@@ -94,17 +93,16 @@ public class WarpJaxrsModule
                 .with(MapperFeature.CAN_OVERRIDE_ACCESS_MODIFIERS)
                 .with(MapperFeature.INFER_PROPERTY_MUTATORS)
                 .with(MapperFeature.ALLOW_FINAL_FIELDS_AS_MUTATORS);
-        objectMapper.setConfig(newSerializationConfig);
-        objectMapper.setConfig(newDeserializationConfig);
+        jsonMapper.setConfig(newSerializationConfig);
+        jsonMapper.setConfig(newDeserializationConfig);
 
-        objectMapper.registerModules(
+        jsonMapper.registerModules(
                 new JavaTimeModule(),
                 new Jdk8Module(),
                 new JodaModule(),
                 new ParameterNamesModule(),
                 new GuavaModule());
-        JsonMapper mapper = new JsonMapper(objectMapper);
-        JaxrsBinder.jaxrsBinder(binder).bindInstance(mapper);
+        JaxrsBinder.jaxrsBinder(binder).bindInstance(jsonMapper);
 
         OpenApiResource openApiResource = new OpenApiResource();
         openApiResource.setOpenApiConfiguration(

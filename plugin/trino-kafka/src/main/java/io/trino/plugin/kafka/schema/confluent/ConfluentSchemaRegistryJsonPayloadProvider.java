@@ -14,7 +14,7 @@
 package io.trino.plugin.kafka.schema.confluent;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.inject.Inject;
 import io.trino.decoder.json.JsonPayloadProvider;
 
@@ -32,12 +32,12 @@ public class ConfluentSchemaRegistryJsonPayloadProvider
     private static final int CONFLUENT_PAYLOAD_HEADER_SIZE = 5;
     private static final int MAGIC_BYTE = 0;
 
-    private final ObjectMapper objectMapper;
+    private final JsonMapper mapper;
 
     @Inject
-    public ConfluentSchemaRegistryJsonPayloadProvider(ObjectMapper objectMapper)
+    public ConfluentSchemaRegistryJsonPayloadProvider(JsonMapper mapper)
     {
-        this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
+        this.mapper = requireNonNull(mapper, "mapper is null");
     }
 
     @Override
@@ -45,7 +45,7 @@ public class ConfluentSchemaRegistryJsonPayloadProvider
             throws IOException
     {
         try (InputStream inputStream = parseBytes(data)) {
-            return objectMapper.readTree(inputStream);
+            return mapper.readTree(inputStream);
         }
     }
 

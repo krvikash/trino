@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static io.trino.tests.product.warp.utils.DemoterUtils.objectMapper;
+import static io.trino.tests.product.warp.utils.DemoterUtils.jsonMapper;
 import static io.trino.tests.product.warp.utils.WarmTypeForStrings.lucene_data_basic;
 import static io.trino.tests.product.warp.utils.WarmTypeForStrings.lucene_data_only;
 import static io.trino.tests.product.warp.utils.WarmTypeForStrings.no_lucene;
@@ -87,7 +87,7 @@ public class RuleUtils
             throws IOException
     {
         String rules = restUtils.executeGetCommand(port, WARMUP_PATH, TASK_NAME_GET);
-        return objectMapper.readerFor(new TypeReference<List<WarmupColRuleData>>() {}).readValue(rules);
+        return jsonMapper.readerFor(new TypeReference<List<WarmupColRuleData>>() {}).readValue(rules);
     }
 
     private List<WarmUpType> calcWarmupTypesForColumn(TestFormat.Column column, WarmTypeForStrings warmTypeForStrings)
@@ -119,10 +119,10 @@ public class RuleUtils
         SetMultimap<String, Object> metricsMultiMap = HashMultimap.create();
         try {
             String pretty = restUtils.executeTrinoCommand(prefix, "pretty", null, HttpMethod.GET, HttpURLConnection.HTTP_OK);
-            List<JsonNode> customMetrics = objectMapper.readTree(pretty).get("queryStats").get("operatorSummaries").findValues(summaryType).stream().filter(x -> !x.isEmpty()).toList();
+            List<JsonNode> customMetrics = jsonMapper.readTree(pretty).get("queryStats").get("operatorSummaries").findValues(summaryType).stream().filter(x -> !x.isEmpty()).toList();
 
             for (JsonNode jsonNode : customMetrics) {
-                Map<String, Object> customMetricsAsMap = objectMapper.readerFor(new TypeReference<Map<String, Object>>() {}).readValue(jsonNode);
+                Map<String, Object> customMetricsAsMap = jsonMapper.readerFor(new TypeReference<Map<String, Object>>() {}).readValue(jsonNode);
                 customMetricsAsMap.entrySet().stream()
                         .filter(entry -> entry.getKey().startsWith("dispatcher"))
                         .forEach(entry -> metricsMultiMap.put(

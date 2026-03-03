@@ -136,7 +136,7 @@ public class TestDispatcherWarmCloudFetcherIT
                 null,
                 HttpMethod.GET,
                 HttpURLConnection.HTTP_OK);
-        Map<String, List<WarmupColRuleData>> workerWarmupColRuleDatasMap = objectMapper.readerFor(new TypeReference<Map<String, List<WarmupColRuleData>>>() {})
+        Map<String, List<WarmupColRuleData>> workerWarmupColRuleDatasMap = jsonMapper.readerFor(new TypeReference<Map<String, List<WarmupColRuleData>>>() {})
                 .readValue(restStrResult);
         assertThat(workerWarmupColRuleDatasMap).hasSize(1);
         workerWarmupColRuleDatasMap.forEach((_, value) -> {
@@ -162,7 +162,7 @@ public class TestDispatcherWarmCloudFetcherIT
                 null,
                 HttpMethod.GET,
                 HttpURLConnection.HTTP_OK);
-        List<WarmupColRuleData> warmupColRuleDataList = objectMapper.readerFor(new TypeReference<List<WarmupColRuleData>>() {})
+        List<WarmupColRuleData> warmupColRuleDataList = jsonMapper.readerFor(new TypeReference<List<WarmupColRuleData>>() {})
                 .readValue(restStrResult);
         assertThat(warmupColRuleDataList.stream()
                 .map(warmupColRuleData -> new WarmupColRuleData(0,
@@ -191,7 +191,7 @@ public class TestDispatcherWarmCloudFetcherIT
             throw new RuntimeException("failed creating file " + warmRulesFilePath);
         }
         Files.write(warmRulesFilePath,
-                CompressionUtil.compressGzip(objectMapper.writeValueAsString(getRules(types))));
+                CompressionUtil.compressGzip(jsonMapper.writeValueAsString(getRules(types))));
     }
 
     private List<WarmupColRuleData> getRules(WarmUpType... types)

@@ -13,14 +13,14 @@
  */
 package io.trino.plugin.warp.dispatcher.dal;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
@@ -49,7 +49,7 @@ public class RowGroupDataDao
     private final ShapingLogger shapingLogger;
 
     private final GlobalConfig globalConfig;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
     private final LoadingCache<RowGroupKey, Optional<RowGroupData>> cache;
     private final StorageEngineConstants storageEngineConstants;
 
@@ -59,13 +59,13 @@ public class RowGroupDataDao
     public RowGroupDataDao(
             GlobalConfig globalConfig,
             StorageEngineConstants storageEngineConstants,
-            ObjectMapperProvider objectMapperProvider,
+            JsonMapperProvider jsonMapperProvider,
             ShapingLoggerFactory shapingLoggerFactory)
     {
         this.globalConfig = requireNonNull(globalConfig);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
 
-        objectMapper = requireNonNull(objectMapperProvider).get();
+        jsonMapper = requireNonNull(jsonMapperProvider).get();
         shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
 
         CacheLoader<RowGroupKey, Optional<RowGroupData>> loader = new CacheLoader<>()
@@ -103,7 +103,7 @@ public class RowGroupDataDao
                             throw new RuntimeException("corrupted RowGroupData file");
                         }
                         String str = CompressionUtil.decompressGzip(bytes);
-                        return Optional.of(objectMapper.readerFor(RowGroupData.class).readValue(str));
+                        return Optional.of(jsonMapper.readerFor(RowGroupData.class).readValue(str));
                     }
                     catch (IOException e) {
                         shapingLogger.error(e, "failed reading file [%s]", rowGroupDataFile.getAbsolutePath());
@@ -261,7 +261,7 @@ public class RowGroupDataDao
             randomAccessFile.seek(offset);
 
             // write object
-            String str = objectMapper.writeValueAsString(rowGroupData);
+            String str = jsonMapper.writeValueAsString(rowGroupData);
             byte[] bytes = CompressionUtil.compressGzip(str);
 
             logger.debug("flushInternal writing %d bytes %s", bytes.length, str);

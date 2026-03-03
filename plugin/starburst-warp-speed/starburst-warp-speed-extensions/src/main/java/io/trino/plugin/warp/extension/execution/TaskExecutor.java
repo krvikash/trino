@@ -16,13 +16,13 @@ package io.trino.plugin.warp.extension.execution;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.annotation.Audit;
 import io.trino.plugin.warp.dispatcher.connectors.ConnectorTaskExecutor;
@@ -64,14 +64,14 @@ public class TaskExecutor
     private static final Logger logger = Logger.get(TaskExecutor.class);
     private final Set<BooleanSupplier> isEnabledSuppliers;
     private final Map<String, TaskInvocationMethod> executionMap;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
     @Inject
     public TaskExecutor(Set<TaskResource> set,
             @Named(NAMED_TASK_EXEC_ENABLE_SUPPLIER) Set<BooleanSupplier> isEnabledSuppliers)
     {
         this.isEnabledSuppliers = isEnabledSuppliers;
-        objectMapper = new ObjectMapperProvider().get();
+        jsonMapper = new JsonMapperProvider().get();
         executionMap = new HashMap<>();
         buildExecutionMapping(set);
     }
@@ -279,10 +279,10 @@ public class TaskExecutor
     private Object invokeTaskData(String taskName, String dataStr, TaskInvocationMethod taskInvocationMethod, Class parameterClass)
             throws JsonProcessingException, IllegalAccessException, InvocationTargetException
     {
-        Map<String, Object> dataMap = objectMapper.readerFor(new TypeReference<Map<String, Object>>() {}).readValue(dataStr);
+        Map<String, Object> dataMap = jsonMapper.readerFor(new TypeReference<Map<String, Object>>() {}).readValue(dataStr);
         Class<TaskData> taskDataClass = parameterClass;
         dataMap.put("@class", taskDataClass);
-        TaskData data = objectMapper.readValue(objectMapper.writeValueAsString(dataMap), taskDataClass);
+        TaskData data = jsonMapper.readValue(jsonMapper.writeValueAsString(dataMap), taskDataClass);
 
         logger.debug("executing task %s data %s", taskName, data);
         return taskInvocationMethod.invocationMethod.invoke(taskInvocationMethod.taskResource, data);
@@ -293,7 +293,7 @@ public class TaskExecutor
     {
         TaskInvocationParameter taskInvocationParameter = taskInvocationMethod.taskInvocationParameters.stream().findFirst().orElseThrow();
         Class typeClass = taskInvocationParameter.typedClass;
-        List<Object> dataList = objectMapper.readerFor(new TypeReference<List<Object>>() {}).readValue(dataStr);
+        List<Object> dataList = jsonMapper.readerFor(new TypeReference<List<Object>>() {}).readValue(dataStr);
 
         if (Objects.isNull(typeClass)) {
             return List.of(dataList);
@@ -301,7 +301,7 @@ public class TaskExecutor
 
         return List.of(dataList.stream().map(data -> {
             try {
-                return objectMapper.readerFor(typeClass).readValue(objectMapper.writeValueAsString(data));
+                return jsonMapper.readerFor(typeClass).readValue(jsonMapper.writeValueAsString(data));
             }
             catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
@@ -314,10 +314,10 @@ public class TaskExecutor
     {
         if (taskInvocationMethod.taskInvocationParameters.size() == 1 &&
                 taskInvocationMethod.taskInvocationParameters.get(0).typedClass != null) {
-            ObjectReader paramReader = objectMapper.readerFor(taskInvocationMethod.taskInvocationParameters.get(0).typedClass);
+            ObjectReader paramReader = jsonMapper.readerFor(taskInvocationMethod.taskInvocationParameters.get(0).typedClass);
             return List.of(paramReader.readValue(dataStr));
         }
-        Map<String, Object> dataMap = objectMapper.readerFor(new TypeReference<Map<String, Object>>() {}).readValue(dataStr);
+        Map<String, Object> dataMap = jsonMapper.readerFor(new TypeReference<Map<String, Object>>() {}).readValue(dataStr);
         return dataMap.entrySet()
                 .stream()
                 .map(entry -> {
@@ -326,7 +326,7 @@ public class TaskExecutor
                             .findFirst();
                     if (optionalTaskInvocationParameter.isPresent()) {
                         try {
-                            return objectMapper.readValue(objectMapper.writeValueAsString(entry.getValue()), optionalTaskInvocationParameter.orElseThrow().clazz);
+                            return jsonMapper.readValue(jsonMapper.writeValueAsString(entry.getValue()), optionalTaskInvocationParameter.orElseThrow().clazz);
                         }
                         catch (JsonProcessingException e) {
                             logger.error("failed with taskInvocationMethod=%s on entry=%s class=%s",

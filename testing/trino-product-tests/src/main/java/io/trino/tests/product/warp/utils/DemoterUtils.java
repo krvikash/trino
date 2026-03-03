@@ -15,9 +15,9 @@
 package io.trino.tests.product.warp.utils;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.inject.Inject;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.trino.plugin.warp.execution.debugtools.WarmupDemoterWarmupElementData;
@@ -57,7 +57,7 @@ public class DemoterUtils
     private static final int DEFAULT_DEMOTER_CLEANUP_THRESHOLD = 70;
 
     private static final double DEMOTE_CLEAN_UP_USAGE = 0;
-    public static final ObjectMapper objectMapper = new ObjectMapperProvider().get();
+    public static final JsonMapper jsonMapper = new JsonMapperProvider().get();
 
     private static final List<WarmUpType> allWarmUpTypes = List.of(WARM_UP_TYPE_DATA, WARM_UP_TYPE_BASIC, WARM_UP_TYPE_LUCENE);
 
@@ -130,7 +130,7 @@ public class DemoterUtils
             else {
                 result = restUtils.executePostCommandWithReturnValue(port, WarmupDemoterTask.WARMUP_DEMOTER_PATH, WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME, warmupDemoterData);
             }
-            res = objectMapper.readerFor(new TypeReference<Map<String, Object>>() {}).readValue(result);
+            res = jsonMapper.readerFor(new TypeReference<Map<String, Object>>() {}).readValue(result);
             logger.debug("%s", res);
             if (warmupDemoterData.isExecuteDemoter()) {
                 QueryResult demoterStatsAfter = JMXCachingManager.getDemoterStats();

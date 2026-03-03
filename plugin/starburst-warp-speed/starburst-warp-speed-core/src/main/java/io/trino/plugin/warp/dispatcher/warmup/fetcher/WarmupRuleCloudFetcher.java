@@ -18,7 +18,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.annotation.ForWarmupRuleCloudFetcher;
 import io.trino.plugin.warp.api.warmup.WarmupColRuleData;
@@ -56,7 +56,7 @@ public class WarmupRuleCloudFetcher
     private final CloudVendorService cloudVendorService;
     private final WarmupRuleService warmupRuleService;
     private final CatalogName catalogName;
-    private final ObjectMapperProvider objectMapperProvider;
+    private final JsonMapperProvider jsonMapperProvider;
 
     private final ShapingLogger shapingLogger;
 
@@ -74,7 +74,7 @@ public class WarmupRuleCloudFetcher
             WarmupRuleService warmupRuleService,
             CatalogName catalogName,
             MetricsManager metricsManager,
-            ObjectMapperProvider objectMapperProvider,
+            JsonMapperProvider jsonMapperProvider,
             ShapingLoggerFactory shapingLoggerFactory)
     {
         this(warmupRuleCloudFetcherConfig,
@@ -82,7 +82,7 @@ public class WarmupRuleCloudFetcher
                 warmupRuleService,
                 catalogName,
                 metricsManager,
-                objectMapperProvider,
+                jsonMapperProvider,
                 shapingLoggerFactory,
                 new Timer());
     }
@@ -94,7 +94,7 @@ public class WarmupRuleCloudFetcher
             WarmupRuleService warmupRuleService,
             CatalogName catalogName,
             MetricsManager metricsManager,
-            ObjectMapperProvider objectMapperProvider,
+            JsonMapperProvider jsonMapperProvider,
             ShapingLoggerFactory shapingLoggerFactory,
             Timer timer)
     {
@@ -102,7 +102,7 @@ public class WarmupRuleCloudFetcher
         this.cloudVendorService = requireNonNull(cloudVendorService);
         this.warmupRuleService = requireNonNull(warmupRuleService);
         this.catalogName = requireNonNull(catalogName);
-        this.objectMapperProvider = requireNonNull(objectMapperProvider);
+        this.jsonMapperProvider = requireNonNull(jsonMapperProvider);
         this.timer = requireNonNull(timer);
 
         shapingLogger = shapingLoggerFactory.getInstance(
@@ -163,7 +163,7 @@ public class WarmupRuleCloudFetcher
                     WarmupRuleResult warmupRuleResult = warmupRuleService.replaceAll(optionalJson
                             .map(json -> {
                                 try {
-                                    List<WarmupColRuleData> warmupColRuleDataList = objectMapperProvider.get()
+                                    List<WarmupColRuleData> warmupColRuleDataList = jsonMapperProvider.get()
                                             .readerFor(new TypeReference<List<WarmupColRuleData>>() {})
                                             .readValue(json);
                                     return warmupColRuleDataList.stream().map(WarmupRuleApiMapper::toModel).toList();

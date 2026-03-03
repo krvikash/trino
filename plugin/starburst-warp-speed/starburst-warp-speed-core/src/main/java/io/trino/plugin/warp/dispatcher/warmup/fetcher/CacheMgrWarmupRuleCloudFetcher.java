@@ -18,7 +18,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.annotation.ForWarmupRuleCloudFetcher;
 import io.trino.plugin.warp.cloudvendors.CloudVendorService;
@@ -49,7 +49,7 @@ public class CacheMgrWarmupRuleCloudFetcher
     private final WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig;
     private final CloudVendorService cloudVendorService;
     private final CacheMgrWarmupRuleService warmupRuleService;
-    private final ObjectMapperProvider objectMapperProvider;
+    private final JsonMapperProvider jsonMapperProvider;
     private final ShapingLogger shapingLogger;
 
     @SuppressWarnings("FieldCanBeLocal")
@@ -65,14 +65,14 @@ public class CacheMgrWarmupRuleCloudFetcher
             @ForWarmupRuleCloudFetcher CloudVendorService cloudVendorService,
             CacheMgrWarmupRuleService warmupRuleService,
             MetricsManager metricsManager,
-            ObjectMapperProvider objectMapperProvider,
+            JsonMapperProvider jsonMapperProvider,
             ShapingLoggerFactory shapingLoggerFactory)
     {
         this(warmupRuleCloudFetcherConfig,
                 cloudVendorService,
                 warmupRuleService,
                 metricsManager,
-                objectMapperProvider,
+                jsonMapperProvider,
                 shapingLoggerFactory,
                 new Timer());
     }
@@ -83,14 +83,14 @@ public class CacheMgrWarmupRuleCloudFetcher
             CloudVendorService cloudVendorService,
             CacheMgrWarmupRuleService warmupRuleService,
             MetricsManager metricsManager,
-            ObjectMapperProvider objectMapperProvider,
+            JsonMapperProvider jsonMapperProvider,
             ShapingLoggerFactory shapingLoggerFactory,
             Timer timer)
     {
         this.warmupRuleCloudFetcherConfig = requireNonNull(warmupRuleCloudFetcherConfig);
         this.cloudVendorService = requireNonNull(cloudVendorService);
         this.warmupRuleService = requireNonNull(warmupRuleService);
-        this.objectMapperProvider = requireNonNull(objectMapperProvider);
+        this.jsonMapperProvider = requireNonNull(jsonMapperProvider);
         this.timer = requireNonNull(timer);
 
         shapingLogger = shapingLoggerFactory.getInstance(
@@ -148,7 +148,7 @@ public class CacheMgrWarmupRuleCloudFetcher
 
                     optionalJson.ifPresent(json -> {
                         try {
-                            List<CacheManagerRule> cacheManagerRules = objectMapperProvider.get()
+                            List<CacheManagerRule> cacheManagerRules = jsonMapperProvider.get()
                                     .readerFor(new TypeReference<List<CacheManagerRule>>() {})
                                     .readValue(json);
 

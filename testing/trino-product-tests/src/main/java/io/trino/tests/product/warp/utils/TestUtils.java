@@ -22,7 +22,7 @@ import java.net.URI;
 import java.util.Iterator;
 import java.util.List;
 
-import static io.trino.tests.product.warp.utils.DemoterUtils.objectMapper;
+import static io.trino.tests.product.warp.utils.DemoterUtils.jsonMapper;
 
 public class TestUtils
 {
@@ -45,7 +45,7 @@ public class TestUtils
     public static Iterator<TestFormat> executeDataProvider(String filePath)
             throws Exception
     {
-        List<TestFormat> tests = objectMapper.readerFor(new TypeReference<List<TestFormat>>() {})
+        List<TestFormat> tests = jsonMapper.readerFor(new TypeReference<List<TestFormat>>() {})
                 .readValue(new URI(filePath).toURL());
         return tests.stream()
                 .filter(TestFormat::pt_enable)

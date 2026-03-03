@@ -203,7 +203,7 @@ public class TestDispatcherRestIT
                 Duration.ofMinutes(10),
                 ImmutableSet.of());
         String restResult = executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupTask.TASK_NAME_SET, List.of(warmupColRuleDataError), HttpMethod.POST, HttpURLConnection.HTTP_OK);
-        RuleResultDTO ruleResultDTO = objectMapper.readerFor(RuleResultDTO.class).readValue(restResult);
+        RuleResultDTO ruleResultDTO = jsonMapper.readerFor(RuleResultDTO.class).readValue(restResult);
         assertThat(ruleResultDTO.appliedRules().isEmpty()).isTrue();
         assertThat(ruleResultDTO.rejectedRules().isEmpty()).isFalse();
         assertThat(getWarmupRules()).isEqualTo(warmupColRuleDataListResult); //nothing has changed
@@ -214,7 +214,7 @@ public class TestDispatcherRestIT
                 null,
                 HttpMethod.GET,
                 HttpURLConnection.HTTP_OK);
-        Map<String, List<WarmupColRuleData>> workerWarmupColRuleDatasMap = objectMapper.readerFor(new TypeReference<Map<String, List<WarmupColRuleData>>>() {})
+        Map<String, List<WarmupColRuleData>> workerWarmupColRuleDatasMap = jsonMapper.readerFor(new TypeReference<Map<String, List<WarmupColRuleData>>>() {})
                 .readValue(restResult);
 
         final List<WarmupColRuleData> result = new ArrayList<>(warmupColRuleDataListResult);
@@ -432,7 +432,7 @@ public class TestDispatcherRestIT
                         new DateSlidingWindowWarmupPredicateRule("col2", 30, "XXX", "")));
 
         String restResult = executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupTask.TASK_NAME_SET, List.of(warmupColRuleData, warmupColRuleData), HttpMethod.POST, HttpURLConnection.HTTP_OK);
-        RuleResultDTO ruleResultDTO = objectMapper.readerFor(RuleResultDTO.class).readValue(restResult);
+        RuleResultDTO ruleResultDTO = jsonMapper.readerFor(RuleResultDTO.class).readValue(restResult);
         assertThat(ruleResultDTO.appliedRules().size()).isEqualTo(1);
         assertThat(ruleResultDTO.rejectedRules().size()).isEqualTo(1);
         assertThat(ruleResultDTO.rejectedRules().getFirst().errors().toString().contains("can't add 2 rules with the same key")).isTrue();
@@ -457,7 +457,7 @@ public class TestDispatcherRestIT
                 ImmutableSet.of(new PartitionValueWarmupPredicateRule("col1", "2")));
 
         String restResult = executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupTask.TASK_NAME_SET, List.of(warmupColRuleData), HttpMethod.POST, HttpURLConnection.HTTP_OK);
-        RuleResultDTO ruleResultDTO = objectMapper.readerFor(RuleResultDTO.class).readValue(restResult);
+        RuleResultDTO ruleResultDTO = jsonMapper.readerFor(RuleResultDTO.class).readValue(restResult);
         assertThat(ruleResultDTO.rejectedRules().size()).isEqualTo(1);
         assertThat(ruleResultDTO.rejectedRules().getFirst().errors().toString().contains("Warmup type WARM_UP_TYPE_LUCENE doesn't support column type integer")).isTrue();
         assertThat(ruleResultDTO.appliedRules().size()).isZero();
@@ -542,7 +542,7 @@ public class TestDispatcherRestIT
                 ImmutableSet.of());
         String restResult = executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupTask.TASK_NAME_REPLACE, List.of(newWarmupColRuleData, newWarmupColRuleData), HttpMethod.POST, HttpURLConnection.HTTP_OK);
 
-        RuleResultDTO result = objectMapper.readerFor(RuleResultDTO.class).readValue(restResult);
+        RuleResultDTO result = jsonMapper.readerFor(RuleResultDTO.class).readValue(restResult);
 
         assertThat(result.appliedRules().size()).isEqualTo(1);
         assertThat(result.appliedRules().getFirst().getPriority()).isEqualTo(10);
@@ -558,7 +558,7 @@ public class TestDispatcherRestIT
         assertThat(result.nodesWarmupElementsCount().size()).isEqualTo(1);
 
         String str = executeRestCommand(RowGroupTask.ROW_GROUP_PATH, RowGroupTask.ROW_GROUP_COUNT_WITH_FILES_TASK_NAME, null, HttpMethod.GET, HttpURLConnection.HTTP_OK);
-        result = objectMapper.readerFor(RowGroupCountResult.class).readValue(str);
+        result = jsonMapper.readerFor(RowGroupCountResult.class).readValue(str);
         assertThat(result.nodesWarmupElementsCount()).hasSize(1);
         assertThat(result.rowGroupFilePathSet()).hasSize(1);
         executeRestCommand(RowGroupTask.ROW_GROUP_PATH, RowGroupTask.ROW_GROUP_RESET_TASK_NAME, null, HttpMethod.POST, HttpURLConnection.HTTP_NO_CONTENT);
@@ -578,7 +578,7 @@ public class TestDispatcherRestIT
             throws IOException
     {
         String str = executeRestCommand(WarmingResource.WARMING, WarmingResource.WARMING_STATUS, null, HttpMethod.GET, HttpURLConnection.HTTP_OK);
-        WarmingStatusData result = objectMapper.readerFor(WarmingStatusData.class).readValue(str);
+        WarmingStatusData result = jsonMapper.readerFor(WarmingStatusData.class).readValue(str);
         assertThat(result.nodesStatus()).isNotEmpty();
         assertThat(result.warming()).isFalse();
     }
@@ -590,7 +590,7 @@ public class TestDispatcherRestIT
     {
         ReleaseNotesRequestData requestData = new ReleaseNotesRequestData(ReleaseNoteContentType.LATEST);
         String str = executeRestCommand(ReleaseNotesResource.RELEASE_NOTES_PATH, "", requestData, HttpMethod.POST, HttpURLConnection.HTTP_OK);
-        List<ReleaseNoteVersionData> result = objectMapper.readValue(str, new TypeReference<>() {});
+        List<ReleaseNoteVersionData> result = jsonMapper.readValue(str, new TypeReference<>() {});
 
         assertThat(result).isNotEmpty();
     }
@@ -600,7 +600,7 @@ public class TestDispatcherRestIT
             throws IOException
     {
         String str = executeRestCommand(HEALTH_PATH, ClusterHealthTask.TASK_NAME, null, HttpMethod.GET, HttpURLConnection.HTTP_OK);
-        HealthResult result = objectMapper.readerFor(HealthResult.class).readValue(str);
+        HealthResult result = jsonMapper.readerFor(HealthResult.class).readValue(str);
 
         assertThat(result).isNotNull();
         assertThat(result.getHealthNodes().size()).isEqualTo(1);

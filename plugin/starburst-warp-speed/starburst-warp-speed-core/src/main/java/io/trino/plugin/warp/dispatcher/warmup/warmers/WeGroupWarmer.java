@@ -13,11 +13,11 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup.warmers;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.annotation.ForWarp;
@@ -68,7 +68,7 @@ public class WeGroupWarmer
     private final RowGroupDataService rowGroupDataService;
     private final CloudVendorService cloudVendorService;
     private final NativeStorageStateHandler nativeStorageStateHandler;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
     private final WarmupImportServiceStats warmupImportServiceStats;
 
     @Inject
@@ -79,7 +79,7 @@ public class WeGroupWarmer
             RowGroupDataService rowGroupDataService,
             @ForWarp CloudVendorService cloudVendorService,
             NativeStorageStateHandler nativeStorageStateHandler,
-            ObjectMapperProvider objectMapperProvider,
+            JsonMapperProvider jsonMapperProvider,
             MetricsManager metricsManager,
             ShapingLoggerFactory shapingLoggerFactory)
     {
@@ -89,7 +89,7 @@ public class WeGroupWarmer
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.cloudVendorService = requireNonNull(cloudVendorService);
         this.nativeStorageStateHandler = requireNonNull(nativeStorageStateHandler);
-        this.objectMapper = requireNonNull(objectMapperProvider).get();
+        this.jsonMapper = requireNonNull(jsonMapperProvider).get();
 
         warmupImportServiceStats = metricsManager.registerMetric(new WarmupImportServiceStats());
         shapingLogger = shapingLoggerFactory.getInstance(this.getClass());
@@ -344,7 +344,7 @@ public class WeGroupWarmer
             }
 
             String str = CompressionUtil.decompressGzip(buffer);
-            RowGroupData cloudRowGroupData = objectMapper.readerFor(RowGroupData.class).readValue(str);
+            RowGroupData cloudRowGroupData = jsonMapper.readerFor(RowGroupData.class).readValue(str);
 
             List<WarmUpElement> warmUpElements = (List<WarmUpElement>) rowGroupData.getWarmUpElements();
             List<WarmUpElement> cloudWarmUpElements = (List<WarmUpElement>) cloudRowGroupData.getWarmUpElements();

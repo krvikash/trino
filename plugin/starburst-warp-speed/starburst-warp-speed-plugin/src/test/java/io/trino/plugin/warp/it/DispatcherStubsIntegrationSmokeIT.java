@@ -66,7 +66,6 @@ import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.it.DispatcherQueryRunner.configDefaultTtlInSeconds;
 import static java.lang.String.format;
-import static java.util.Map.entry;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
@@ -187,7 +186,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                     HttpURLConnection.HTTP_OK,
                     target);
 
-            Map<String, Object> res = objectMapper.readerFor(new TypeReference<Map<String, Object>>() {}).readValue(result);
+            Map<String, Object> res = jsonMapper.readerFor(new TypeReference<Map<String, Object>>() {}).readValue(result);
             Double highestPriority = (Double) res.entrySet()
                     .stream()
                     .filter((entry) -> entry.getKey().endsWith(WorkerWarmupDemoterTask.HIGHEST_PRIORITY_KEY))
@@ -233,7 +232,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                     .executeDemoter(false)
                     .defaultRuleTtlInSeconds(configDefaultTtlInSeconds)
                     .build();
-            Map<String, Object> res = objectMapper.readerFor(new TypeReference<Map<String, Object>>() {})
+            Map<String, Object> res = jsonMapper.readerFor(new TypeReference<Map<String, Object>>() {})
                     .readValue(executeRestCommand(WarmupDemoterTask.WARMUP_DEMOTER_PATH,
                             WarmupDemoterTask.WARMUP_DEMOTER_START_TASK_NAME,
                             warmupDemoterData,
@@ -668,7 +667,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                 HttpMethod.POST,
                 HttpURLConnection.HTTP_OK,
                 Target.COORDINATOR);
-        Map<String, Object> res = objectMapper.readerFor(new TypeReference<Map<String, Object>>() {}).readValue(result);
+        Map<String, Object> res = jsonMapper.readerFor(new TypeReference<Map<String, Object>>() {}).readValue(result);
         if (warmupDemoterData.isExecuteDemoter()) {
             boolean valid = validateStat(before, jmxTable, DEMOTE_JMX_NAMES);
             assertThat(valid).isTrue();

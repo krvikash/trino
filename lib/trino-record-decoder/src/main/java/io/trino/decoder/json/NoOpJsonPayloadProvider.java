@@ -14,7 +14,7 @@
 package io.trino.decoder.json;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.inject.Inject;
 
 import java.io.IOException;
@@ -24,18 +24,18 @@ import static java.util.Objects.requireNonNull;
 public class NoOpJsonPayloadProvider
         implements JsonPayloadProvider
 {
-    private final ObjectMapper objectMapper;
+    private final JsonMapper mapper;
 
     @Inject
-    public NoOpJsonPayloadProvider(ObjectMapper objectMapper)
+    public NoOpJsonPayloadProvider(JsonMapper mapper)
     {
-        this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
+        this.mapper = requireNonNull(mapper, "mapper is null");
     }
 
     @Override
     public JsonNode provide(byte[] data)
             throws IOException
     {
-        return objectMapper.readTree(data);
+        return mapper.readTree(data);
     }
 }

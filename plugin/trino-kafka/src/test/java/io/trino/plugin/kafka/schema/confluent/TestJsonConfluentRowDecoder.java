@@ -15,6 +15,7 @@ package io.trino.plugin.kafka.schema.confluent;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Ints;
@@ -183,7 +184,7 @@ final class TestJsonConfluentRowDecoder
 
     public static JsonRowDecoderFactory getJsonRowDecoderFactory()
     {
-        return new ConfluentJsonRowDecoderFactory(new ConfluentSchemaRegistryJsonPayloadProvider(new ObjectMapper()));
+        return new ConfluentJsonRowDecoderFactory(new ConfluentSchemaRegistryJsonPayloadProvider(new JsonMapper()));
     }
 
     private static void assertRowsAreEqual(Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodedRow, String expected)

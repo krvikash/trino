@@ -13,13 +13,13 @@
  */
 package io.trino.plugin.objectstore.hive.schemadiscovery;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Resources;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.trino.Session;
 import io.trino.plugin.hive.containers.Hive3MinioDataLake;
 import io.trino.plugin.hive.containers.HiveMinioDataLake;
@@ -55,7 +55,7 @@ final class TestObjectStoreSchemaDiscovery
             .add("schema-discovery/orc/from-trino.orc")
             .add("schema-discovery/parquet/from-trino.parquet")
             .build();
-    private static final ObjectMapper MAPPER = new ObjectMapperProvider().get();
+    private static final JsonMapper MAPPER = new JsonMapperProvider().get();
     private static final String BUCKET_NAME = "test-schema-discovery-" + randomNameSuffix();
 
     @Override

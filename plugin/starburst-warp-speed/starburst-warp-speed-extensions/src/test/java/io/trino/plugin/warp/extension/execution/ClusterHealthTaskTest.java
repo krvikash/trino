@@ -14,9 +14,9 @@
 package io.trino.plugin.warp.extension.execution;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.collect.ImmutableList;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.trino.plugin.warp.api.health.HealthNode;
 import io.trino.plugin.warp.api.health.HealthResult;
 import org.junit.jupiter.api.Test;
@@ -39,10 +39,10 @@ public class ClusterHealthTaskTest
                 ImmutableList.of(healthNode),
                 1L);
 
-        ObjectMapper objectMapper = new ObjectMapperProvider().get();
-        String resultStr = objectMapper.writeValueAsString(result);
+        JsonMapper jsonMapper = new JsonMapperProvider().get();
+        String resultStr = jsonMapper.writeValueAsString(result);
 
-        HealthResult expected = objectMapper.readerFor(HealthResult.class).readValue(resultStr);
+        HealthResult expected = jsonMapper.readerFor(HealthResult.class).readValue(resultStr);
         assertThat(result).isEqualTo(expected);
     }
 }

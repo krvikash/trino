@@ -14,10 +14,10 @@
 package io.trino.plugin.warp.metrics;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.MetricsConfig;
 import io.trino.plugin.warp.log.ShapingLogger;
@@ -46,7 +46,7 @@ public class PrintMetricsTimerTask
 
     private final ShapingLogger shapingLogger;
     private final MetricsManager metricsManager;
-    private final ObjectMapper objectMapper = new ObjectMapperProvider().get();
+    private final JsonMapper jsonMapper = new JsonMapperProvider().get();
     private final CatalogNameProvider catalogNameProvider;
 
     @Inject
@@ -91,10 +91,10 @@ public class PrintMetricsTimerTask
             if (!fullJson.isEmpty()) {
                 try {
                     if (isScheduledPrint) {
-                        dumpLogger.info(objectMapper.writeValueAsString(fullJson));
+                        dumpLogger.info(jsonMapper.writeValueAsString(fullJson));
                     }
                     else {
-                        shapingLogger.info(objectMapper.writeValueAsString(fullJson));
+                        shapingLogger.info(jsonMapper.writeValueAsString(fullJson));
                     }
                 }
                 catch (JsonProcessingException e) {

@@ -17,7 +17,7 @@ import io.airlift.http.client.Request;
 import io.airlift.http.client.jetty.JettyHttpClient;
 import io.airlift.json.JsonCodec;
 import io.airlift.json.JsonCodecFactory;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.slice.Slice;
 import io.airlift.tracing.SpanSerialization;
 import io.airlift.units.DataSize;
@@ -107,7 +107,7 @@ abstract class BaseDataServerTest
     @BeforeEach
     public void setup()
     {
-        JsonCodecFactory jsonCodecFactory = new JsonCodecFactory(new ObjectMapperProvider()
+        JsonCodecFactory jsonCodecFactory = new JsonCodecFactory(new JsonMapperProvider()
                 .withJsonSerializers(Map.of(Span.class, new SpanSerialization.SpanSerializer(OpenTelemetry.noop()))));
         spanJsonCodec = jsonCodecFactory.jsonCodec(Span.class);
 

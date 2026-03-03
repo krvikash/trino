@@ -14,7 +14,7 @@
 package io.trino.plugin.warp.dispatcher.warmup.warmers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
@@ -122,8 +122,8 @@ public class WeGroupWarmerTest
         cloudVendorService = mock(CloudVendorService.class);
         when(cloudVendorService.getLocation(anyString())).thenCallRealMethod();
 
-        ObjectMapperProvider objectMapperProvider = new ObjectMapperProvider();
-        objectMapper = objectMapperProvider.get();
+        JsonMapperProvider jsonMapperProvider = new JsonMapperProvider();
+        objectMapper = jsonMapperProvider.get();
 
         MetricsManager metricsManager = mock(MetricsManager.class);
         warmupImportServiceStats = WarmupImportServiceStats.create();
@@ -135,7 +135,7 @@ public class WeGroupWarmerTest
                 rowGroupDataService,
                 cloudVendorService,
                 mock(NativeStorageStateHandler.class),
-                objectMapperProvider,
+                jsonMapperProvider,
                 metricsManager,
                 new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
     }

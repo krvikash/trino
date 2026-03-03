@@ -18,7 +18,7 @@ import com.google.common.eventbus.EventBus;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.slice.Slice;
 import io.opentelemetry.api.OpenTelemetry;
 import io.trino.plugin.warp.WarpSessionProperties;
@@ -170,9 +170,9 @@ public class WarpMainModule
 
     @Provides
     @Singleton
-    public ObjectMapperProvider provideObjectMapperProvider(TypeManager typeManager)
+    public JsonMapperProvider provideJsonMapperProvider(TypeManager typeManager)
     {
-        ObjectMapperProvider provider = new ObjectMapperProvider();
+        JsonMapperProvider provider = new JsonMapperProvider();
         provider.setJsonSerializers(ImmutableMap.of(
                 Slice.class, new SliceSerializer()));
         provider.setJsonDeserializers(ImmutableMap.of(

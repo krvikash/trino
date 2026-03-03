@@ -18,7 +18,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.MoreCollectors;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
@@ -128,7 +128,7 @@ public class RowGroupDataDaoTest
         rowGroupDataDao = new RowGroupDataDao(
                 globalConfig,
                 storageEngineConstants,
-                new ObjectMapperProvider(),
+                new JsonMapperProvider(),
                 new ShapingLoggerFactory(new CatalogName("catalog"), new SharedConfig()));
     }
 
@@ -320,7 +320,7 @@ public class RowGroupDataDaoTest
         RowGroupDataDao rowGroupDataDao2 = new RowGroupDataDao(
                 globalConfig,
                 storageEngineConstants,
-                new ObjectMapperProvider(),
+                new JsonMapperProvider(),
                 new ShapingLoggerFactory(new CatalogName("catalog"), new SharedConfig()));
         assertThat(rowGroupDataDao2.get(rowGroupData.getRowGroupKey())).isEqualTo(rowGroupData);
     }
@@ -329,7 +329,7 @@ public class RowGroupDataDaoTest
     public void testSerializeAndDeserialize()
             throws JsonProcessingException
     {
-        ObjectMapperProvider provider = new ObjectMapperProvider();
+        JsonMapperProvider provider = new JsonMapperProvider();
         provider.setJsonSerializers(ImmutableMap.of(
                 Slice.class, new SliceSerializer()));
         provider.setJsonDeserializers(ImmutableMap.of(

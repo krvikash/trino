@@ -53,7 +53,7 @@ import static io.trino.tests.product.TestGroups.WARP_SPEED_DELTA_LAKE;
 import static io.trino.tests.product.TestGroups.WARP_SPEED_HIVE;
 import static io.trino.tests.product.TestGroups.WARP_SPEED_ICEBERG;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
-import static io.trino.tests.product.warp.utils.DemoterUtils.objectMapper;
+import static io.trino.tests.product.warp.utils.DemoterUtils.jsonMapper;
 
 public class TestSynthetic
 {
@@ -193,7 +193,7 @@ public class TestSynthetic
             throws Exception
     {
         logger.info("running %s", filePath);
-        List<TestFormat> tests = objectMapper.readerFor(new TypeReference<List<TestFormat>>() {})
+        List<TestFormat> tests = jsonMapper.readerFor(new TypeReference<List<TestFormat>>() {})
                 .readValue(new URI(filePath).toURL());
         return tests.stream()
                 .map(testFormat -> TestFormat.builder(testFormat).build(tableType.name()))

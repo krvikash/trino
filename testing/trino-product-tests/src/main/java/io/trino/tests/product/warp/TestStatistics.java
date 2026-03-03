@@ -40,7 +40,7 @@ import java.util.Set;
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.TestGroups.WARP_SPEED_HIVE;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
-import static io.trino.tests.product.warp.utils.DemoterUtils.objectMapper;
+import static io.trino.tests.product.warp.utils.DemoterUtils.jsonMapper;
 import static io.trino.tests.product.warp.utils.RuleUtils.TASK_NAME_SET;
 import static io.trino.tests.product.warp.utils.RuleUtils.WARMUP_PATH;
 import static java.lang.String.format;
@@ -140,7 +140,7 @@ public class TestStatistics
 
         try {
             String result = restUtils.executePostCommandWithReturnValue(RestUtils.CATALOG_1_PORT, WARMUP_PATH, TASK_NAME_SET, rules);
-            RuleResultDTO res = objectMapper.readerFor(new TypeReference<RuleResultDTO>() {}).readValue(result);
+            RuleResultDTO res = jsonMapper.readerFor(new TypeReference<RuleResultDTO>() {}).readValue(result);
 
             assertThat(res.rejectedRules().isEmpty() && !res.appliedRules().isEmpty())
                     .as("some rules are rejected. %s", res.rejectedRules())

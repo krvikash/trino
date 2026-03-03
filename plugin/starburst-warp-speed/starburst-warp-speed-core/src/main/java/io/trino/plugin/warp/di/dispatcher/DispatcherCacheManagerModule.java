@@ -19,7 +19,7 @@ import com.google.inject.Binder;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.matcher.Matchers;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.slice.Slice;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.cloudvendors.CloudVendorModule;
@@ -226,9 +226,9 @@ public class DispatcherCacheManagerModule
 
     @Provides
     @Singleton
-    public ObjectMapperProvider provideObjectMapperProvider()
+    public JsonMapperProvider provideJsonMapperProvider()
     {
-        ObjectMapperProvider provider = new ObjectMapperProvider();
+        JsonMapperProvider provider = new JsonMapperProvider();
         provider.setJsonSerializers(ImmutableMap.of(
                 Slice.class, new SliceSerializer()));
         provider.withKeyDeserializers(ImmutableMap.of(

@@ -17,7 +17,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.json.JsonCodec;
 import io.airlift.json.JsonCodecFactory;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.tracing.Tracing;
 import io.trino.block.BlockJsonSerde;
 import io.trino.filesystem.cache.DefaultCachingHostAddressProvider;
@@ -482,13 +482,13 @@ public class TestIcebergCacheIds
 
     public static <T> JsonCodec<T> createJsonCodec(Class<T> clazz)
     {
-        ObjectMapperProvider objectMapperProvider = new ObjectMapperProvider();
+        JsonMapperProvider jsonMapperProvider = new JsonMapperProvider();
         TypeDeserializer typeDeserializer = new TypeDeserializer(TESTING_TYPE_MANAGER);
-        objectMapperProvider.setJsonDeserializers(
+        jsonMapperProvider.setJsonDeserializers(
                 ImmutableMap.of(
                         Block.class, new BlockJsonSerde.Deserializer(TESTING_BLOCK_ENCODING_SERDE),
                         Type.class, typeDeserializer));
-        objectMapperProvider.setJsonSerializers(ImmutableMap.of(Block.class, new BlockJsonSerde.Serializer(TESTING_BLOCK_ENCODING_SERDE)));
-        return new JsonCodecFactory(objectMapperProvider).jsonCodec(clazz);
+        jsonMapperProvider.setJsonSerializers(ImmutableMap.of(Block.class, new BlockJsonSerde.Serializer(TESTING_BLOCK_ENCODING_SERDE)));
+        return new JsonCodecFactory(jsonMapperProvider).jsonCodec(clazz);
     }
 }

@@ -18,7 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.json.JsonCodecFactory;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.opentelemetry.api.trace.Span;
 import io.trino.cache.CacheConfig;
 import io.trino.cache.CacheManagerRegistry;
@@ -204,7 +204,7 @@ public final class TaskTestUtils
                 new ExchangeManagerRegistry(noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), noopTracer(), new SecretsResolver(ImmutableMap.of()), new ExchangeManagerConfig()),
                 new CacheManagerRegistry(new CacheConfig(), new LocalMemoryManager(new NodeMemoryConfig()), TESTING_BLOCK_ENCODING_SERDE, cacheStats, CURRENT_NODE, TestingInternalNodeManager.createDefault()),
                 new CachePerformanceTracker(),
-                new JsonCodecFactory(new ObjectMapperProvider()).jsonCodec(TupleDomain.class),
+                new JsonCodecFactory(new JsonMapperProvider()).jsonCodec(TupleDomain.class),
                 new NodeVersion("test"),
                 new CompilerConfig());
     }

@@ -459,6 +459,10 @@
                         <!-- com.google.protobuf:protobuf-java and com.squareup.wire:wire-schema proto file duplicate -->
                         <ignoredResourcePattern>google/protobuf/.*\.proto$</ignoredResourcePattern>
                     </ignoredResourcePatterns>
+                    <ignoredClassPatterns>
+                        <!-- com.kjetland:mbknor-jackson-jsonschema_2.13 and io.yokota:mbknor-jackson-jsonschema-java8 -->
+                        <ignoredClassPattern>com.kjetland.jackson.jsonSchema.*</ignoredClassPattern>
+                    </ignoredClassPatterns>
                 </configuration>
             </plugin>
             <!-- TODO: Instead of using this plugin to generate classes we should invoke the parser directly (https://github.com/trinodb/trino/issues/16039) -->

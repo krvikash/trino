@@ -39,7 +39,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
-import static io.trino.tests.product.warp.utils.DemoterUtils.objectMapper;
+import static io.trino.tests.product.warp.utils.DemoterUtils.jsonMapper;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -307,7 +307,7 @@ public class QueryUtils
     {
         List<ValueNode> values = new ArrayList<>();
         for (Object expectedValue : expectedValues) {
-            ValueNode value = objectMapper.convertValue(expectedValue, ValueNode.class);
+            ValueNode value = jsonMapper.convertValue(expectedValue, ValueNode.class);
             values.add(value);
         }
         return values;

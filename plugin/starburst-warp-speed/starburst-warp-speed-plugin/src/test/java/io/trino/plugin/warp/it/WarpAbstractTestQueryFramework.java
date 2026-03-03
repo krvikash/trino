@@ -13,13 +13,13 @@
  */
 package io.trino.plugin.warp.it;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.collect.MoreCollectors;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.StringResponseHandler;
 import io.airlift.http.client.jetty.JettyHttpClient;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.log.Logger;
 import io.trino.Session;
 import io.trino.plugin.warp.extension.di.HttpServerLifeCycleHandler;
@@ -58,7 +58,7 @@ public abstract class WarpAbstractTestQueryFramework
 {
     private static final Logger logger = Logger.get(WarpAbstractTestQueryFramework.class);
 
-    protected final ObjectMapper objectMapper = new ObjectMapperProvider().get();
+    protected final JsonMapper jsonMapper = new JsonMapperProvider().get();
     protected final Set<String> createdSchemas = new HashSet<>();
     protected final Set<String> createdTables = new HashSet<>();
     protected Path hiveDir;
@@ -223,7 +223,7 @@ public abstract class WarpAbstractTestQueryFramework
         }
         HttpClient client = new JettyHttpClient();
         if (inObj != null) {
-            String input = objectMapper.writeValueAsString(inObj);
+            String input = jsonMapper.writeValueAsString(inObj);
             request.setBodyGenerator(createStaticBodyGenerator(input.getBytes(Charset.defaultCharset())));
         }
         StringResponseHandler stringResponseHandler = StringResponseHandler.createStringResponseHandler();

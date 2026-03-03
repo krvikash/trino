@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.warp.cloudvendors.local;
 
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.trino.plugin.warp.cloudvendors.model.StorageObjectMetadata;
 import io.trino.plugin.warp.tools.util.CompressionUtil;
 import org.junit.jupiter.api.BeforeEach;
@@ -80,7 +80,7 @@ public class LocalStoreServiceTest
             throws IOException
     {
         File srcFile = Files.createTempFile("local_storage", "").toFile();
-        String input = new ObjectMapperProvider().get().writeValueAsString(Map.of("k1", "v1"));
+        String input = new JsonMapperProvider().get().writeValueAsString(Map.of("k1", "v1"));
         byte[] bytes = CompressionUtil.compressGzip(input);
         Files.write(srcFile.toPath(), bytes);
 

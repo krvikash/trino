@@ -12,7 +12,7 @@ package com.starburstdata.presto.license;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.Hashing;
 import com.google.common.io.ByteSource;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,7 +23,7 @@ import static java.util.Objects.requireNonNull;
 
 class JSONLicenseVerifier
 {
-    private static final ObjectMapperProvider OBJECT_MAPPER_PROVIDER = new ObjectMapperProvider();
+    private static final JsonMapperProvider JSON_MAPPER_PROVIDER = new JsonMapperProvider();
 
     private final SignatureVerifier verifier;
 
@@ -50,9 +50,9 @@ class JSONLicenseVerifier
             throws IOException, VerificationException
     {
         try (InputStream licenseStream = licenseSource.openBufferedStream()) {
-            License license = OBJECT_MAPPER_PROVIDER.get().readValue(licenseStream, License.class);
+            License license = JSON_MAPPER_PROVIDER.get().readValue(licenseStream, License.class);
             byte[] signatureData = Base64.getDecoder().decode(license.getBase64Signature());
-            String licenseStr = OBJECT_MAPPER_PROVIDER.get().writeValueAsString(license);
+            String licenseStr = JSON_MAPPER_PROVIDER.get().writeValueAsString(license);
             byte[] licenseData = licenseStr.getBytes(StandardCharsets.UTF_8);
             verifier.verify(licenseData, signatureData);
             license.setHash(Hashing.sha256().hashBytes(licenseData).toString());

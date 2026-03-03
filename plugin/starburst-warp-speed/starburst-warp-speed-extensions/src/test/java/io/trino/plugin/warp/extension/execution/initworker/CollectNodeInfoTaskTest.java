@@ -14,8 +14,8 @@
 package io.trino.plugin.warp.extension.execution.initworker;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.airlift.json.ObjectMapperProvider;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import io.airlift.json.JsonMapperProvider;
 import io.trino.plugin.warp.config.NativeConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,10 +46,10 @@ public class CollectNodeInfoTaskTest
     public void testCollectInfoApi()
             throws JsonProcessingException
     {
-        ObjectMapper objectMapper = new ObjectMapperProvider().get();
+        JsonMapper jsonMapper = new JsonMapperProvider().get();
 
         CollectNodeInfoResult collectNodeInfoResult = new CollectNodeInfoResult(0);
-        assertThat(collectNodeInfoResult).isEqualTo(objectMapper.readerFor(CollectNodeInfoResult.class)
-                .readValue(objectMapper.writeValueAsString(collectNodeInfoResult)));
+        assertThat(collectNodeInfoResult).isEqualTo(jsonMapper.readerFor(CollectNodeInfoResult.class)
+                .readValue(jsonMapper.writeValueAsString(collectNodeInfoResult)));
     }
 }

@@ -13,12 +13,12 @@
  */
 package io.trino.plugin.kafka.schema.confluent;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.confluent.kafka.schemaregistry.annotations.Schema;
 import io.confluent.kafka.serializers.json.KafkaJsonSchemaSerializer;
 import io.confluent.kafka.serializers.subject.RecordNameStrategy;
@@ -62,7 +62,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 final class TestKafkaWithConfluentJsonSchemaRegistryMinimalFunctionality
         extends AbstractTestQueryFramework
 {
-    private static final ObjectMapper MAPPER = new ObjectMapperProvider().get();
+    private static final JsonMapper MAPPER = new JsonMapperProvider().get();
     private static final int MESSAGE_COUNT = 100;
     private static final ObjectSchema INITIAL_SCHEMA = ObjectSchema.builder()
             .addPropertySchema("col1", NumberSchema.builder().requiresInteger(true).build())

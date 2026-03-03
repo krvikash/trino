@@ -21,7 +21,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
-import static io.trino.tests.product.warp.utils.DemoterUtils.objectMapper;
+import static io.trino.tests.product.warp.utils.DemoterUtils.jsonMapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestTestFormat
@@ -30,7 +30,7 @@ public class TestTestFormat
     public void testOverridingName()
             throws IOException
     {
-        List<TestFormat> tests = objectMapper.readerFor(new TypeReference<List<TestFormat>>() {})
+        List<TestFormat> tests = jsonMapper.readerFor(new TypeReference<List<TestFormat>>() {})
                 .readValue(new File("src/test/resources/warp-synthetic/simple.json"));
         TestFormat newTestFormat = TestFormat.builder(tests.getFirst()).build("iceberg");
         assertThat(newTestFormat.name()).isEqualTo("overriding-name");
@@ -40,7 +40,7 @@ public class TestTestFormat
     public void testOverridingSkip()
             throws IOException
     {
-        List<TestFormat> tests = objectMapper.readerFor(new TypeReference<List<TestFormat>>() {})
+        List<TestFormat> tests = jsonMapper.readerFor(new TypeReference<List<TestFormat>>() {})
                 .readValue(new File("src/test/resources/warp-synthetic/simple.json"));
         TestFormat newTestFormat = TestFormat.builder(tests.getFirst()).build("iceberg");
         assertThat(tests.getFirst().skip()).isEqualTo(false);
@@ -51,7 +51,7 @@ public class TestTestFormat
     public void testOverridingSessionProperties()
             throws IOException
     {
-        List<TestFormat> tests = objectMapper.readerFor(new TypeReference<List<TestFormat>>() {})
+        List<TestFormat> tests = jsonMapper.readerFor(new TypeReference<List<TestFormat>>() {})
                 .readValue(new File("src/test/resources/warp-synthetic/simple.json"));
         TestFormat newTestFormat = TestFormat.builder(tests.getFirst()).build("iceberg");
         assertThat(tests.getFirst().session_properties().get("enable_import_export")).isEqualTo(false);
@@ -62,7 +62,7 @@ public class TestTestFormat
     public void testOverridingWarmQuery()
             throws IOException
     {
-        List<TestFormat> tests = objectMapper.readerFor(new TypeReference<List<TestFormat>>() {})
+        List<TestFormat> tests = jsonMapper.readerFor(new TypeReference<List<TestFormat>>() {})
                 .readValue(new File("src/test/resources/warp-synthetic/simple.json"));
         TestFormat newTestFormat = TestFormat.builder(tests.getFirst()).build("delta-lake");
         assertThat(tests.getFirst().warm_query()).isNotEqualTo(newTestFormat.warm_query());
@@ -72,7 +72,7 @@ public class TestTestFormat
     public void testOverridingQueries()
             throws IOException
     {
-        List<TestFormat> tests = objectMapper.readerFor(new TypeReference<List<TestFormat>>() {})
+        List<TestFormat> tests = jsonMapper.readerFor(new TypeReference<List<TestFormat>>() {})
                 .readValue(new File("src/test/resources/warp-synthetic/simple.json"));
         TestFormat newTestFormat = TestFormat.builder(tests.getFirst()).build("delta-lake");
         Optional<TestFormat.QueryData> checkLimit1 = newTestFormat.queries_data().stream().filter(queryData -> queryData.query_id().equals("check_limit_1")).findFirst();
@@ -85,7 +85,7 @@ public class TestTestFormat
     public void testNonExistOverriding()
             throws IOException
     {
-        List<TestFormat> tests = objectMapper.readerFor(new TypeReference<List<TestFormat>>() {})
+        List<TestFormat> tests = jsonMapper.readerFor(new TypeReference<List<TestFormat>>() {})
                 .readValue(new File("src/test/resources/warp-synthetic/simple.json"));
         TestFormat newTestFormat = TestFormat.builder(tests.getFirst()).build("not-exist");
         assertThat(tests.getFirst()).isEqualTo(newTestFormat);

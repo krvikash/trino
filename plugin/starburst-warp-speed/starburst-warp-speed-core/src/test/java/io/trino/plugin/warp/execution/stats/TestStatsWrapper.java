@@ -15,8 +15,8 @@ package io.trino.plugin.warp.execution.stats;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.airlift.json.ObjectMapperProvider;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import io.airlift.json.JsonMapperProvider;
 import io.trino.plugin.warp.gen.stats.NativeStats;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -27,12 +27,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestStatsWrapper
 {
-    private static ObjectMapper objectMapper;
+    private static JsonMapper jsonMapper;
 
     @BeforeAll
     public static void init()
     {
-        objectMapper = new ObjectMapperProvider().get();
+        jsonMapper = new JsonMapperProvider().get();
     }
 
     @Test
@@ -42,10 +42,10 @@ public class TestStatsWrapper
         NativeStats dummyNotInNode = new NativeStats();
         dummyNotInNode.addread_time_wait_nanos(9); //not persist
         dummyNotInNode.addread_cache_md_chunk_hits(9); //not persist
-        JsonNode jsonNode = objectMapper.readerFor(List.class).readTree(objectMapper.writeValueAsString(dummyNotInNode));
-        String res = objectMapper.writeValueAsString(dummyNotInNode);
+        JsonNode jsonNode = jsonMapper.readerFor(List.class).readTree(jsonMapper.writeValueAsString(dummyNotInNode));
+        String res = jsonMapper.writeValueAsString(dummyNotInNode);
         assertThat(jsonNode.get("read_time_wait_nanos")).isEqualTo(null);
-        NativeStats deserializeObject = objectMapper.readerFor(NativeStats.class).readValue(res);
+        NativeStats deserializeObject = jsonMapper.readerFor(NativeStats.class).readValue(res);
         assertThat(deserializeObject.getread_time_wait_nanos()).isEqualTo(0);
         assertThat(deserializeObject.getread_cache_md_chunk_hits()).isEqualTo(0);
     }

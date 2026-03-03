@@ -84,7 +84,7 @@ public abstract class DispatcherAbstractTestQueryFramework
     protected void cleanWarmupRules()
     {
         try {
-            List<WarmupColRuleData> result = objectMapper.readerFor(new TypeReference<List<WarmupColRuleData>>() {})
+            List<WarmupColRuleData> result = jsonMapper.readerFor(new TypeReference<List<WarmupColRuleData>>() {})
                     .readValue(executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupRuleService.TASK_NAME_GET, null, HttpMethod.GET, HttpURLConnection.HTTP_OK));
             List<Integer> ruleIds = result.stream().map(WarmupColRuleData::getId).collect(Collectors.toList());
 
@@ -105,13 +105,13 @@ public abstract class DispatcherAbstractTestQueryFramework
             throws IOException
     {
         String s = executeRestCommand(RowGroupTask.ROW_GROUP_PATH, RowGroupTask.ROW_GROUP_COUNT_TASK_NAME, null, HttpMethod.GET, HttpURLConnection.HTTP_OK, target);
-        return objectMapper.readerFor(RowGroupCountResult.class).readValue(s);
+        return jsonMapper.readerFor(RowGroupCountResult.class).readValue(s);
     }
 
     protected List<WarmupColRuleData> getWarmupRules()
     {
         try {
-            return objectMapper.readerFor(new TypeReference<List<WarmupColRuleData>>() {})
+            return jsonMapper.readerFor(new TypeReference<List<WarmupColRuleData>>() {})
                     .readValue(executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupRuleService.TASK_NAME_GET, null, HttpMethod.GET, HttpURLConnection.HTTP_OK));
         }
         catch (Exception e) {
