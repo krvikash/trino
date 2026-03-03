@@ -19,6 +19,7 @@ import io.trino.tests.tpch.TpchQueryRunner;
 import org.junit.jupiter.api.Test;
 
 import java.util.StringJoiner;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class TestBigExpressions
@@ -77,6 +78,35 @@ public class TestBigExpressions
             joiner.add("COALESCE(POWER(nationkey * 2, %d) + POWER(nationkey * 2, 1), POWER(nationkey * 2, 0), POWER(nationkey * 2, 1))".formatted(i));
         };
         assertQuery("SELECT COALESCE(%s, %s) FROM nation".formatted(joiner, joiner));
+    }
+
+    // This test is expected to fail when compiler.columnar-filter-sub-expression-evaluation.enabled=false
+    @Test
+    public void testHighInputCountExpression()
+    {
+        int inputColumnCount = 150;
+        StringJoiner values = new StringJoiner(", ");
+        StringJoiner columnNames = new StringJoiner(", ");
+        for (int i = 0; i < inputColumnCount; i++) {
+            values.add("CAST(rand(1000) AS varchar)");
+            columnNames.add("column_%s".formatted(i));
+        }
+        StringJoiner subExpressions = new StringJoiner(" || ");
+        for (int i = 0; i < inputColumnCount / 2; i++) {
+            subExpressions.add("""
+                    CASE
+                        WHEN NOT m.column_%s IS NULL
+                            THEN '%s:' || m.column_%s || ':' || CAST(m.column_%s AS varchar(50))|| ';'
+                            else ''
+                    END
+                    """.formatted(i, UUID.randomUUID(), i + 1, i));
+        }
+        assertQuery("""
+                    WITH
+                    inputs AS (SELECT * FROM (VALUES (%s, 'natural values hash')) AS t(%s, natural_values_hash))
+                    ,hashes as (SELECT natural_values_hash, (%s) AS hash_string FROM inputs m)
+                    SELECT natural_values_hash FROM hashes WHERE natural_values_hash <> to_base64(md5(CAST(hash_string AS varbinary)))
+                """.formatted(values, columnNames, subExpressions), "VALUES 'natural values hash'");
     }
 
     private static String generateCase(String column, int whenCases, int depth)
