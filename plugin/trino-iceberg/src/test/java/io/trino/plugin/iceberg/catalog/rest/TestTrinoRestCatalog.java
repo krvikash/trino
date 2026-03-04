@@ -15,7 +15,6 @@ package io.trino.plugin.iceberg.catalog.rest;
 
 import com.google.common.collect.ImmutableMap;
 import io.trino.cache.EvictableCacheBuilder;
-import io.trino.filesystem.hdfs.HdfsFileSystemFactory;
 import io.trino.metastore.TableInfo;
 import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.iceberg.CommitTaskData;
@@ -47,9 +46,8 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
 import static io.airlift.json.JsonCodec.jsonCodec;
 import static io.airlift.units.Duration.ZERO;
+import static io.trino.hdfs.HdfsTestUtils.HDFS_FILE_SYSTEM_FACTORY;
 import static io.trino.metastore.TableInfo.ExtendedRelationType.OTHER_VIEW;
-import static io.trino.plugin.hive.HiveTestUtils.HDFS_ENVIRONMENT;
-import static io.trino.plugin.hive.HiveTestUtils.HDFS_FILE_SYSTEM_STATS;
 import static io.trino.plugin.iceberg.IcebergTestUtils.TABLE_STATISTICS_READER;
 import static io.trino.plugin.iceberg.catalog.rest.IcebergRestCatalogConfig.SessionType.NONE;
 import static io.trino.plugin.iceberg.catalog.rest.RestCatalogTestUtils.backendCatalog;
@@ -100,7 +98,7 @@ public class TestTrinoRestCatalog
         restSessionCatalog.initialize(catalogName, properties);
 
         return new TrinoRestCatalog(
-                new DefaultIcebergFileSystemFactory(new HdfsFileSystemFactory(HDFS_ENVIRONMENT, HDFS_FILE_SYSTEM_STATS)),
+                new DefaultIcebergFileSystemFactory(HDFS_FILE_SYSTEM_FACTORY),
                 restSessionCatalog,
                 new CatalogName(catalogName),
                 Security.NONE,
