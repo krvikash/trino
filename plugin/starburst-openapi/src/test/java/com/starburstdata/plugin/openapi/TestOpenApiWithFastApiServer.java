@@ -15,15 +15,8 @@ package com.starburstdata.plugin.openapi;
 
 import com.google.common.collect.ImmutableMap;
 import io.trino.testing.AbstractTestQueryFramework;
-import io.trino.testing.MaterializedRow;
 import io.trino.testing.QueryRunner;
-import io.trino.testing.sql.TestTable;
-import io.trino.testing.sql.TrinoSqlExecutor;
 import org.junit.jupiter.api.Test;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
@@ -45,95 +38,6 @@ final class TestOpenApiWithFastApiServer
     }
 
     @Test
-    void testSelectItems()
-    {
-        List<MaterializedRow> rows = getQueryRunner().execute("SELECT name, description, price, tax, tags, map_entries(properties), created_at, valid_until, revised_at FROM openapi.default.items WHERE item_id = 1").getMaterializedRows();
-        // can't use assertQuery, because array of dates read from H2 as not using LocalDate
-        assertThat(rows).hasSize(1);
-        assertThat(rows.getFirst().getFields()).containsExactly(
-                "Portal Gun",
-                null,
-                BigDecimal.valueOf(4200000000L, 8),
-                null,
-                List.of("sci-fi"),
-                List.of(),
-                null,
-                null,
-                List.of(LocalDate.of(2007, 10, 10), LocalDate.of(2022, 12, 8)));
-    }
-
-    @Test
-    void testSearchItemsWithInPhrase()
-    {
-        List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM openapi.default.search WHERE item_ids IN (ARRAY['2'])").getMaterializedRows();
-        assertThat(rows).hasSize(1);
-        assertThat(rows.getFirst().getFields()).first().isEqualTo("Plumbus");
-
-        rows = getQueryRunner().execute("SELECT name FROM openapi.default.search WHERE item_ids IN (ARRAY['1', '2'])").getMaterializedRows();
-        assertThat(rows).hasSize(2);
-    }
-
-    @Test
-    void testSearchItemsWithSubQuery10k()
-    {
-        try (TestTable table = generateDataset("memory.default.test_items_10k", 10000)) {
-            List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM openapi.default.search WHERE item_ids IN (select array_agg(item_id) from %s)".formatted(table.getName())).getMaterializedRows();
-            assertThat(rows)
-                    .extracting(row -> row.getFields().getFirst())
-                    .containsExactly("Portal Gun", "Plumbus");
-        }
-    }
-
-    @Test
-    void testSearchItemsWithSubQuery100k()
-    {
-        try (TestTable table = generateDataset("memory.default.test_items_100k", 100000)) {
-            List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM openapi.default.search WHERE item_ids IN (select array_agg(item_id) from %s)".formatted(table.getName())).getMaterializedRows();
-            assertThat(rows)
-                    .extracting(row -> row.getFields().getFirst())
-                    .containsExactly("Portal Gun", "Plumbus");
-        }
-    }
-
-    @Test
-    void testItemCategories()
-    {
-        List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM openapi.default.item_categories").getMaterializedRows();
-        assertThat(rows).hasSize(1);
-        assertThat(rows.getFirst().getFields()).first().isEqualTo("main");
-    }
-
-    @Test
-    public void testItems()
-    {
-        List<MaterializedRow> rows = getQueryRunner().execute("SELECT name FROM openapi.default.items").getMaterializedRows();
-        assertThat(rows)
-                .extracting(row -> row.getFields().getFirst())
-                .containsExactly("Portal Gun", "Plumbus");
-    }
-
-    @Test
-    void testErrors()
-    {
-        assertQueryFails("SELECT * FROM openapi.default.error", "Server responded with error 418: \"Oops! Inevitable error happened. There goes a rainbow...\"");
-    }
-
-    @Test
-    void testListFunctions()
-    {
-        assertThat(query("SHOW FUNCTIONS FROM openapi.default"))
-                .result()
-                .skippingTypesCheck()
-                .projected("Function")
-                .onlyColumnAsSet()
-                .containsExactlyInAnyOrder(
-                        "item_categories",
-                        "items_item_id",
-                        "error",
-                        "items");
-    }
-
-    @Test
     void testStubsFunctions()
     {
         assertThat(query("SELECT * FROM TABLE(openapi.default.item_categories())"))
@@ -142,10 +46,5 @@ final class TestOpenApiWithFastApiServer
                 .singleElement()
                 .asInstanceOf(STRING)
                 .contains("Portal Gun");
-    }
-
-    private TestTable generateDataset(String namePrefix, int elements)
-    {
-        return new TestTable(new TrinoSqlExecutor(getQueryRunner()), namePrefix, "AS SELECT CAST(sequential_number AS VARCHAR) AS item_id FROM TABLE(sequence(start=>0, stop=>%d))".formatted(elements - 1));
     }
 }

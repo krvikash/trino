@@ -24,18 +24,15 @@ import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
-import io.trino.spi.connector.RecordPageSource;
 
 import java.net.URI;
 import java.util.List;
 
-import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public class OpenApiPageSourceProvider
         implements ConnectorPageSourceProvider
 {
-    private final OpenApiRecordSetProvider recordSetProvider;
     private final URI baseUri;
     private final OpenApiSpec openApiSpec;
     private final ObjectMapper objectMapper;
@@ -44,12 +41,10 @@ public class OpenApiPageSourceProvider
     @Inject
     public OpenApiPageSourceProvider(
             OpenApiConfig openApiConfig,
-            OpenApiRecordSetProvider recordSetProvider,
             OpenApiSpec openApiSpec,
             ObjectMapper objectMapper,
             @ForOpenApi HttpClient httpClient)
     {
-        this.recordSetProvider = requireNonNull(recordSetProvider, "recordSetProvider is null");
         this.baseUri = openApiConfig.getBaseUri();
         this.openApiSpec = requireNonNull(openApiSpec, "openApiSpec is null");
         this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
@@ -65,24 +60,14 @@ public class OpenApiPageSourceProvider
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter)
     {
-        return switch (table) {
-            case OpenApiTableHandle _ -> new RecordPageSource(recordSetProvider.getRecordSet(
-                    transaction,
-                    session,
-                    split,
-                    table,
-                    columns));
-            case OpenApiRequestTableHandle handle -> new OpenApiPageSource<>(
-                    httpClient,
-                    openApiSpec.getPaginationStrategy(handle.path()),
-                    handle.toInitialRequest(baseUri),
-                    openApiSpec.getDecoder(handle.path()),
-                    columns,
-                    objectMapper,
-                    openApiSpec.getAuthenticator(handle.path()));
-            default -> throw new IllegalArgumentException(format(
-                    "Unknown table class: %s",
-                    table.getClass().getCanonicalName()));
-        };
+        OpenApiRequestTableHandle handle = (OpenApiRequestTableHandle) table;
+        return new OpenApiPageSource<>(
+                httpClient,
+                openApiSpec.getPaginationStrategy(handle.path()),
+                handle.toInitialRequest(baseUri),
+                openApiSpec.getDecoder(handle.path()),
+                columns,
+                objectMapper,
+                openApiSpec.getAuthenticator(handle.path()));
     }
 }
