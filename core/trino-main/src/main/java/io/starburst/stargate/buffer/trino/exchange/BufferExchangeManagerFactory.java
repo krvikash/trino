@@ -241,6 +241,7 @@ public class BufferExchangeManagerFactory
 
         Injector injector = app
                 .doNotInitializeLogging()
+                .disableSystemProperties()
                 .setRequiredConfigurationProperties(extendedConfig.buildKeepingLast())
                 .initialize();
 
