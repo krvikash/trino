@@ -55,6 +55,7 @@ import java.util.Optional;
 import static com.fasterxml.jackson.annotation.JsonIgnoreProperties.Value.forIgnoredProperties;
 import static io.trino.connector.system.KillQueryProcedure.createKillQueryException;
 import static io.trino.connector.system.KillQueryProcedure.createPreemptQueryException;
+import static io.trino.dispatcher.DispatchManager.stopTheLeak;
 import static io.trino.plugin.base.metrics.TDigestHistogram.DIGEST_PROPERTY;
 import static io.trino.security.AccessControlUtil.checkCanKillQueryOwnedBy;
 import static io.trino.security.AccessControlUtil.checkCanViewQueryOwnedBy;
@@ -114,11 +115,16 @@ public class UiQueryResource
                 checkCanViewQueryOwnedBy(sessionContextFactory.extractAuthorizedIdentity(servletRequest, httpHeaders), queryInfo.get().getSession().toIdentity(), accessControl);
 
                 String queryString = servletRequest.getQueryString();
+                String json;
                 if (queryString != null && queryString.contains("pretty")) {
                     // Use pretty JSON codec that reduces noise
-                    return Response.ok(prettyQueryInfoCodec.toJson(queryInfo.get().pruneCatalogProperties()), APPLICATION_JSON_TYPE).build();
+                    json = prettyQueryInfoCodec.toJson(queryInfo.get().pruneCatalogProperties());
                 }
-                return Response.ok(queryInfoCodec.toJson(queryInfo.get().pruneCatalogProperties()), APPLICATION_JSON_TYPE).build();
+                else {
+                    json = queryInfoCodec.toJson(queryInfo.get().pruneCatalogProperties());
+                }
+                json = stopTheLeak(json);
+                return Response.ok(json, APPLICATION_JSON_TYPE).build();
             }
             catch (AccessDeniedException e) {
                 throw new ForbiddenException();
@@ -167,7 +173,7 @@ public class UiQueryResource
         }
     }
 
-    private JsonCodec<QueryInfo> buildQueryInfoCodec(ObjectMapper objectMapper, boolean pretty)
+    public static JsonCodec<QueryInfo> buildQueryInfoCodec(ObjectMapper objectMapper, boolean pretty)
     {
         JsonCodecFactory jsonCodecFactory = new JsonCodecFactory(() -> {
             // Enable succinct DataSize serialization for QueryInfo to make it more human friendly
@@ -181,6 +187,8 @@ public class UiQueryResource
                     .setDefaultAttributes(attrs);
             // Don't serialize TDigestHistogram.digest which isn't useful and human readable
             mapper.configOverride(TDigestHistogram.class).setIgnorals(forIgnoredProperties(DIGEST_PROPERTY));
+
+            // TODO Can we inject security attributes masking here?
 
             // Do not output @class property for metric types
             mapper.addMixIn(Metric.class, DropTypeInfo.class);
