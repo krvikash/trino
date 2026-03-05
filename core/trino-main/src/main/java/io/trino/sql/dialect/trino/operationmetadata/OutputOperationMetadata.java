@@ -33,7 +33,6 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.deterministic;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.hasSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.safe;
-import static io.trino.sql.dialect.ir.IrAttributeUtils.unsafe;
 import static io.trino.sql.dialect.ir.IrDialect.IR;
 import static io.trino.sql.dialect.ir.IrDialect.TERMINAL;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalStringListAttributeMetadata;
@@ -110,9 +109,6 @@ public class OutputOperationMetadata
 
         if (childAttributes.stream().allMatch(IrAttributeUtils::isKnownSafe)) {
             safe(derivedAttributes);
-        }
-        else if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownUnsafe)) {
-            unsafe(derivedAttributes);
         }
 
         // Output operation has side effects in that it writes data out

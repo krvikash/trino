@@ -76,7 +76,7 @@ public class IrDialect
     public String formatAttribute(String name, Object attribute)
     {
         return switch (name) {
-            case TERMINAL -> {
+            case TERMINAL, SAFE -> {
                 if (!TRUE.equals(attribute)) {
                     throw new TrinoException(IR_ERROR, format("the required value for ir.%s attribute is true. Actual: %s", name, attribute));
                 }
@@ -98,7 +98,7 @@ public class IrDialect
                 }
                 yield repeatability.name();
             }
-            case SAFE, HAS_SIDE_EFFECTS -> {
+            case HAS_SIDE_EFFECTS -> {
                 if (!(attribute instanceof Boolean)) {
                     throw new TrinoException(IR_ERROR, format("the value of ir.%s attribute must be of type Boolean. Actual: %s", name, attribute.getClass().getSimpleName()));
                 }
@@ -112,7 +112,7 @@ public class IrDialect
     public Object parseAttribute(String name, String attribute)
     {
         return switch (name) {
-            case TERMINAL -> {
+            case TERMINAL, SAFE -> {
                 if (!"true".equals(attribute)) {
                     throw new TrinoException(IR_ERROR, format("the required value for ir.%s attribute is \"true\". Actual: %s", name, attribute));
                 }
@@ -146,7 +146,7 @@ public class IrDialect
                             attribute));
                 }
             }
-            case SAFE, HAS_SIDE_EFFECTS -> {
+            case HAS_SIDE_EFFECTS -> {
                 if (!"true".equals(attribute) && !"false".equals(attribute)) {
                     throw new TrinoException(IR_ERROR, format("the value of ir.%s attribute must be either \"true\" or \"false\". Actual: %s", name, attribute));
                 }

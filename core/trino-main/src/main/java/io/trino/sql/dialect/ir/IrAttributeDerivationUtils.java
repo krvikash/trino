@@ -29,7 +29,6 @@ import static io.trino.sql.dialect.ir.IrAttributeUtils.hasSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.nonDeterministic;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.nonIdempotent;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.safe;
-import static io.trino.sql.dialect.ir.IrAttributeUtils.unsafe;
 import static io.trino.sql.dialect.ir.IrDialect.HAS_SIDE_EFFECTS;
 import static io.trino.sql.dialect.ir.IrDialect.IR;
 import static io.trino.sql.dialect.ir.IrDialect.REPEATABILITY;
@@ -50,9 +49,6 @@ public class IrAttributeDerivationUtils
 
         if (childAttributes.stream().allMatch(IrAttributeUtils::isKnownSafe)) {
             safe(derivedAttributes);
-        }
-        else if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownUnsafe)) {
-            unsafe(derivedAttributes);
         }
 
         if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownHasSideEffects)) {
@@ -76,10 +72,9 @@ public class IrAttributeDerivationUtils
             deterministic(derivedAttributes);
         }
 
-        if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownUnsafe)) {
-            unsafe(derivedAttributes);
-        }
-        // otherwise safety is unknown because we don't know the safety of the function itself
+        // if any child is unknown safety, the function call is unknown safety
+        // if all children are known safe, the function call safety depends on the function itself
+        // TODO derive safety based on the ResolvedFunction metadata if all children are known safe
 
         if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownHasSideEffects)) {
             hasSideEffects(derivedAttributes);
@@ -114,9 +109,6 @@ public class IrAttributeDerivationUtils
         if (childAttributes.stream().allMatch(IrAttributeUtils::isKnownSafe)) {
             safe(derivedAttributes);
         }
-        else if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownUnsafe)) {
-            unsafe(derivedAttributes);
-        }
 
         if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownHasSideEffects)) {
             hasSideEffects(derivedAttributes);
@@ -147,9 +139,6 @@ public class IrAttributeDerivationUtils
 
         if (childAttributes.stream().allMatch(IrAttributeUtils::isKnownSafe)) {
             safe(derivedAttributes);
-        }
-        else if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownUnsafe)) {
-            unsafe(derivedAttributes);
         }
 
         if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownHasSideEffects)) {

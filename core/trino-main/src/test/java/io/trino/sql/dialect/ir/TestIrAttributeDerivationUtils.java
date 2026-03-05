@@ -48,7 +48,6 @@ class TestIrAttributeDerivationUtils
     private static final Map<AttributeKey, Object> NON_DETERMINISTIC_ATTRIBUTES = ImmutableMap.of(new AttributeKey(IR, REPEATABILITY), NON_DETERMINISTIC);
 
     private static final Map<AttributeKey, Object> SAFE_ATTRIBUTES = ImmutableMap.of(new AttributeKey(IR, SAFE), true);
-    private static final Map<AttributeKey, Object> UNSAFE_ATTRIBUTES = ImmutableMap.of(new AttributeKey(IR, SAFE), false);
 
     private static final Map<AttributeKey, Object> HAS_SIDE_EFFECTS_ATTRIBUTES = ImmutableMap.of(new AttributeKey(IR, HAS_SIDE_EFFECTS), true);
     private static final Map<AttributeKey, Object> HAS_NO_SIDE_EFFECTS_ATTRIBUTES = ImmutableMap.of(new AttributeKey(IR, HAS_SIDE_EFFECTS), false);
@@ -79,9 +78,6 @@ class TestIrAttributeDerivationUtils
 
         assertThat(defaultDeriveIrLevelAttributes(ImmutableList.of(SAFE_ATTRIBUTES, SAFE_ATTRIBUTES)))
                 .isEqualTo(SAFE_ATTRIBUTES);
-
-        assertThat(defaultDeriveIrLevelAttributes(ImmutableList.of(SAFE_ATTRIBUTES, UNSAFE_ATTRIBUTES)))
-                .isEqualTo(UNSAFE_ATTRIBUTES);
 
         assertThat(defaultDeriveIrLevelAttributes(ImmutableList.of(SAFE_ATTRIBUTES, UNKNOWN_ATTRIBUTES)))
                 .isEqualTo(UNKNOWN_ATTRIBUTES);
@@ -117,11 +113,6 @@ class TestIrAttributeDerivationUtils
         assertThat(defaultDeriveFunctionCallIrLevelAttributes(RANDOM, ImmutableList.of(SAFE_ATTRIBUTES)))
                 .isEqualTo(NON_DETERMINISTIC_ATTRIBUTES);
 
-        assertThat(defaultDeriveFunctionCallIrLevelAttributes(RANDOM, ImmutableList.of(UNSAFE_ATTRIBUTES)))
-                .isEqualTo(ImmutableMap.of(
-                        new AttributeKey(IR, REPEATABILITY), NON_DETERMINISTIC,
-                        new AttributeKey(IR, SAFE), false));
-
         assertThat(defaultDeriveFunctionCallIrLevelAttributes(RANDOM, ImmutableList.of(HAS_NO_SIDE_EFFECTS_ATTRIBUTES)))
                 .isEqualTo(ImmutableMap.of(
                         new AttributeKey(IR, REPEATABILITY), NON_DETERMINISTIC,
@@ -146,9 +137,6 @@ class TestIrAttributeDerivationUtils
 
         assertThat(defaultDeriveFunctionCallIrLevelAttributes(LOWER, ImmutableList.of(SAFE_ATTRIBUTES)))
                 .isEqualTo(UNKNOWN_ATTRIBUTES);
-
-        assertThat(defaultDeriveFunctionCallIrLevelAttributes(LOWER, ImmutableList.of(UNSAFE_ATTRIBUTES)))
-                .isEqualTo(UNSAFE_ATTRIBUTES);
 
         assertThat(defaultDeriveFunctionCallIrLevelAttributes(LOWER, ImmutableList.of(HAS_NO_SIDE_EFFECTS_ATTRIBUTES)))
                 .isEqualTo(HAS_NO_SIDE_EFFECTS_ATTRIBUTES);
@@ -193,17 +181,8 @@ class TestIrAttributeDerivationUtils
         assertThat(defaultComposeIrLevelAttributes(ImmutableList.of(SAFE_ATTRIBUTES, SAFE_ATTRIBUTES)))
                 .isEqualTo(SAFE_ATTRIBUTES);
 
-        assertThat(defaultComposeIrLevelAttributes(ImmutableList.of(SAFE_ATTRIBUTES, UNSAFE_ATTRIBUTES)))
-                .isEqualTo(UNSAFE_ATTRIBUTES);
-
         assertThat(defaultComposeIrLevelAttributes(ImmutableList.of(SAFE_ATTRIBUTES, UNKNOWN_ATTRIBUTES)))
                 .isEqualTo(UNKNOWN_ATTRIBUTES);
-
-        assertThat(defaultComposeIrLevelAttributes(ImmutableList.of(UNSAFE_ATTRIBUTES, UNSAFE_ATTRIBUTES)))
-                .isEqualTo(UNSAFE_ATTRIBUTES);
-
-        assertThat(defaultComposeIrLevelAttributes(ImmutableList.of(UNSAFE_ATTRIBUTES, UNKNOWN_ATTRIBUTES)))
-                .isEqualTo(UNSAFE_ATTRIBUTES);
 
         assertThat(defaultComposeIrLevelAttributes(ImmutableList.of(HAS_NO_SIDE_EFFECTS_ATTRIBUTES, HAS_NO_SIDE_EFFECTS_ATTRIBUTES)))
                 .isEqualTo(HAS_NO_SIDE_EFFECTS_ATTRIBUTES);
@@ -241,9 +220,6 @@ class TestIrAttributeDerivationUtils
 
         assertThat(passIrLevelAttributes(SAFE_ATTRIBUTES))
                 .isEqualTo(SAFE_ATTRIBUTES);
-
-        assertThat(passIrLevelAttributes(UNSAFE_ATTRIBUTES))
-                .isEqualTo(UNSAFE_ATTRIBUTES);
 
         assertThat(passIrLevelAttributes(HAS_NO_SIDE_EFFECTS_ATTRIBUTES))
                 .isEqualTo(HAS_NO_SIDE_EFFECTS_ATTRIBUTES);
@@ -313,9 +289,6 @@ class TestIrAttributeDerivationUtils
         // test safe attribute derivation
         assertThat(defaultDeriveIrLevelAttributesWithPassthroughSource(SAFE_ATTRIBUTES, ImmutableList.of(SAFE_ATTRIBUTES, SAFE_ATTRIBUTES)))
                 .isEqualTo(SAFE_ATTRIBUTES);
-
-        assertThat(defaultDeriveIrLevelAttributesWithPassthroughSource(SAFE_ATTRIBUTES, ImmutableList.of(SAFE_ATTRIBUTES, UNSAFE_ATTRIBUTES)))
-                .isEqualTo(UNSAFE_ATTRIBUTES);
 
         assertThat(defaultDeriveIrLevelAttributesWithPassthroughSource(SAFE_ATTRIBUTES, ImmutableList.of(SAFE_ATTRIBUTES, UNKNOWN_ATTRIBUTES)))
                 .isEqualTo(UNKNOWN_ATTRIBUTES);

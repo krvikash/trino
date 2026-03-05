@@ -36,7 +36,6 @@ import static io.trino.sql.dialect.ir.IrAttributeUtils.hasNoSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.hasSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.nonDeterministic;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.nonIdempotent;
-import static io.trino.sql.dialect.ir.IrAttributeUtils.unsafe;
 import static io.trino.sql.dialect.trino.operation.TrinoOperation.emptySourceAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.prefixedName;
 import static java.util.Objects.requireNonNull;
@@ -115,11 +114,8 @@ public class ArrayOperationMetadata
             deterministic(derivedAttributes);
         }
 
-        if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownUnsafe)) {
-            unsafe(derivedAttributes);
-        }
-        // otherwise safety is unknown because we don't know the safety of the array constructor itself
-        // it might fail if too many elements are passed
+        // if any child is unknown safety, the array constructor is unknown safety
+        // if all children are known safe, the array constructor safety depends on the array constructor itself: it might fail if too many elements are passed
 
         if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownHasSideEffects)) {
             hasSideEffects(derivedAttributes);

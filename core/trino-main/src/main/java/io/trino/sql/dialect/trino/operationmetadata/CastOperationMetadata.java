@@ -37,8 +37,6 @@ import static io.trino.sql.dialect.ir.IrAttributeUtils.hasSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.isKnownDeterministic;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.isKnownHasNoSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.isKnownHasSideEffects;
-import static io.trino.sql.dialect.ir.IrAttributeUtils.isKnownUnsafe;
-import static io.trino.sql.dialect.ir.IrAttributeUtils.unsafe;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.prefixedName;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.partitioningBy;
@@ -109,10 +107,7 @@ public class CastOperationMetadata
             deterministic(derivedAttributes);
         }
 
-        if (isKnownUnsafe(inputAttributes)) {
-            unsafe(derivedAttributes);
-        }
-        // otherwise safety is unknown because we don't know the safety of the function itself
+        // if the input is known safe, the cast safety depends on the cast itself
         // TODO determine cast safety
 
         if (isKnownHasSideEffects(inputAttributes)) {

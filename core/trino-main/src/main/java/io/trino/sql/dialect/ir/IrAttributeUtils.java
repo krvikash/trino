@@ -63,12 +63,6 @@ public class IrAttributeUtils
         return safe == TRUE;
     }
 
-    public static boolean isKnownUnsafe(Map<AttributeKey, Object> attributes)
-    {
-        Object safe = attributes.get(new AttributeKey(IR, SAFE));
-        return safe == FALSE;
-    }
-
     public static boolean isKnownHasSideEffects(Map<AttributeKey, Object> attributes)
     {
         Object hasSideEffects = attributes.get(new AttributeKey(IR, HAS_SIDE_EFFECTS));
@@ -109,11 +103,6 @@ public class IrAttributeUtils
     public static void safe(ImmutableMap.Builder<AttributeKey, Object> builder)
     {
         builder.put(new AttributeKey(IR, SAFE), true);
-    }
-
-    public static void unsafe(ImmutableMap.Builder<AttributeKey, Object> builder)
-    {
-        builder.put(new AttributeKey(IR, SAFE), false);
     }
 
     public static void hasSideEffects(ImmutableMap.Builder<AttributeKey, Object> builder)

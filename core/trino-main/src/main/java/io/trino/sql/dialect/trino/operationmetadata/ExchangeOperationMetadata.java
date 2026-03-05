@@ -44,7 +44,6 @@ import static io.trino.sql.dialect.ir.IrAttributeUtils.deterministic;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.hasNoSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.hasSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.safe;
-import static io.trino.sql.dialect.ir.IrAttributeUtils.unsafe;
 import static io.trino.sql.dialect.trino.operation.TrinoOperation.emptySourceAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalBooleanAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalEnumAttributeMetadata;
@@ -192,9 +191,6 @@ public class ExchangeOperationMetadata
 
         if (childAttributes.stream().allMatch(IrAttributeUtils::isKnownSafe)) {
             safe(derivedAttributes);
-        }
-        else if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownUnsafe)) {
-            unsafe(derivedAttributes);
         }
 
         if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownHasSideEffects)) {

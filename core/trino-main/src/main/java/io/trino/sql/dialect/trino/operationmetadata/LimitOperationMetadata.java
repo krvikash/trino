@@ -39,7 +39,6 @@ import static io.trino.sql.dialect.ir.IrAttributeUtils.hasSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.isKnownDeterministic;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.nonIdempotent;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.safe;
-import static io.trino.sql.dialect.ir.IrAttributeUtils.unsafe;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalBooleanAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalIntegerListAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalLongAttributeMetadata;
@@ -133,9 +132,6 @@ public class LimitOperationMetadata
 
         if (childAttributes.stream().allMatch(IrAttributeUtils::isKnownSafe)) {
             safe(derivedAttributes);
-        }
-        else if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownUnsafe)) {
-            unsafe(derivedAttributes);
         }
 
         if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownHasSideEffects)) {
