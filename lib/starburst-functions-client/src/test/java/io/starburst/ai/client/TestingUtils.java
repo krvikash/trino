@@ -93,6 +93,21 @@ public final class TestingUtils
                         }
                     },
                     {
+                        "id": "sonnet45",
+                        "modelName": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                        "kind": "GENERATE",
+                        "temperature": 0.0,
+                        "connectionInfo": {
+                            "provider": "AWS_BEDROCK",
+                            "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
+                            "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
+                            "region": "us-east-2"
+                        },
+                        "traits": {
+                            "PROMPT_CACHING_SUPPORT": "PROMPT_CACHING_SUPPORTED"
+                        }
+                    },
+                    {
                         "id": "mistral_large",
                         "modelName": "mistral.mistral-large-2402-v1:0",
                         "kind": "GENERATE",
@@ -213,24 +228,34 @@ public final class TestingUtils
 
     public static ModelClientProvider staticModelClientProvider(String modelSpecJson, ScheduledExecutorService reloadingExecutor, ExecutorService llmExecutor)
     {
+        return staticModelClientProvider(modelSpecJson, reloadingExecutor, llmExecutor, Tracing.noopTracer());
+    }
+
+    public static ModelClientProvider staticModelClientProvider(String modelSpecJson, ScheduledExecutorService reloadingExecutor, ExecutorService llmExecutor, Tracer tracer)
+    {
         File modelsFile = createModelConnectionSpecsFile(modelSpecJson);
-        return createModelClientProvider(modelsFile, false, reloadingExecutor, llmExecutor);
+        return createModelClientProvider(modelsFile, false, reloadingExecutor, llmExecutor, tracer);
     }
 
     public static ReloadingModelClientProvider reloadingModelClientProvider(File modelsFile, ScheduledExecutorService reloadingExecutor, ExecutorService llmExecutor)
     {
-        ReloadingModelClientProvider reloadingModelClientProvider = createModelClientProvider(modelsFile, true, reloadingExecutor, llmExecutor);
+        ReloadingModelClientProvider reloadingModelClientProvider =
+                createModelClientProvider(modelsFile, true, reloadingExecutor, llmExecutor, Tracing.noopTracer());
         reloadingModelClientProvider.start();
         return reloadingModelClientProvider;
     }
 
-    private static ReloadingModelClientProvider createModelClientProvider(File modelsFile, boolean clientCacheRefreshEnabled, ScheduledExecutorService reloadingExecutor, ExecutorService llmExecutor)
+    private static ReloadingModelClientProvider createModelClientProvider(
+            File modelsFile,
+            boolean clientCacheRefreshEnabled,
+            ScheduledExecutorService reloadingExecutor,
+            ExecutorService llmExecutor,
+            Tracer tracer)
     {
         AiFileStorageConfig config = new AiFileStorageConfig().setModelConnectionSpecsFile(modelsFile.getAbsolutePath());
         FileBackedModelConnectionSpecsLoader modelSpecsLoader = new FileBackedModelConnectionSpecsLoader(config);
 
         PromptDao promptDao = new StaticPromptDao();
-        Tracer tracer = Tracing.noopTracer();
         Map<String, AwsEmbeddingCodec.Factory> awsEmbeddingCodecFactories = ImmutableMap.<String, AwsEmbeddingCodec.Factory>builder()
                 .put(TitanTextV2Codec.MODEL_NAME, new TitanTextV2Codec.Factory())
                 .put(CohereEmbedMultilingualV3Codec.MODEL_NAME, new CohereEmbedMultilingualV3Codec.Factory())

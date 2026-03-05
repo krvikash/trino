@@ -16,6 +16,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.json.ObjectMapperProvider;
+import io.airlift.log.Logger;
+import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
@@ -30,6 +32,8 @@ import software.amazon.awssdk.protocols.json.internal.unmarshall.document.Docume
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeAsyncClient;
 import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 import software.amazon.awssdk.services.bedrockruntime.model.AccessDeniedException;
+import software.amazon.awssdk.services.bedrockruntime.model.CachePointBlock;
+import software.amazon.awssdk.services.bedrockruntime.model.CachePointType;
 import software.amazon.awssdk.services.bedrockruntime.model.ContentBlock;
 import software.amazon.awssdk.services.bedrockruntime.model.ContentBlockDeltaEvent;
 import software.amazon.awssdk.services.bedrockruntime.model.ContentBlockStartEvent;
@@ -73,6 +77,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.opentelemetry.api.common.AttributeKey.longKey;
 import static io.opentelemetry.api.trace.StatusCode.ERROR;
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_OPERATION_NAME;
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_REQUEST_MODEL;
@@ -91,6 +96,8 @@ import static java.util.Objects.requireNonNull;
 public class AwsBedrockLanguageModelClient
         extends AbstractLanguageModelClient
 {
+    static final AttributeKey<Long> GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS = longKey("gen_ai.usage.cache_creation.input_tokens");
+    static final AttributeKey<Long> GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS = longKey("gen_ai.usage.cache_read.input_tokens");
     private static final Set<StopReason> ERROR_STOP_REASONS = ImmutableSet.of(
             StopReason.UNKNOWN_TO_SDK_VERSION,
             StopReason.GUARDRAIL_INTERVENED,
@@ -98,6 +105,10 @@ public class AwsBedrockLanguageModelClient
             StopReason.MAX_TOKENS);
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapperProvider().get();
+    private static final Logger log = Logger.get(AwsBedrockLanguageModelClient.class);
+
+    static final int MIN_CACHE_POINT_CHARS = 5_000;
+    static final int MAX_CACHE_POINT_CHARS = 100_000;
 
     private final Optional<Integer> maxTokens;
     private final Optional<Float> temperature;
@@ -107,6 +118,7 @@ public class AwsBedrockLanguageModelClient
     private final BedrockRuntimeClient client;
     private final BedrockRuntimeAsyncClient asyncClient;
     private final boolean isToolStreamingSupported;
+    private final boolean isPromptCachingSupported;
 
     public AwsBedrockLanguageModelClient(
             String modelName,
@@ -119,7 +131,8 @@ public class AwsBedrockLanguageModelClient
             Tracer tracer,
             BedrockRuntimeClient client,
             BedrockRuntimeAsyncClient asyncClient,
-            boolean isToolStreamingSupported)
+            boolean isToolStreamingSupported,
+            boolean isPromptCachingSupported)
     {
         super(promptDao, executor, batchParallelism);
         this.maxTokens = requireNonNull(maxTokens, "maxTokens is null");
@@ -130,6 +143,7 @@ public class AwsBedrockLanguageModelClient
         this.client = requireNonNull(client, "client is null");
         this.asyncClient = requireNonNull(asyncClient, "asyncClient is null");
         this.isToolStreamingSupported = isToolStreamingSupported;
+        this.isPromptCachingSupported = isPromptCachingSupported;
     }
 
     @Override
@@ -162,6 +176,7 @@ public class AwsBedrockLanguageModelClient
             return "";
         }
 
+        log.debug("Bedrock token usage: %s", response.usage());
         return response.output().message().content().getFirst().text();
     }
 
@@ -191,6 +206,7 @@ public class AwsBedrockLanguageModelClient
             throw new TrinoException(AI_CLIENT_ERROR, "AI model refused to generate response: " + response.stopReasonAsString());
         }
 
+        log.debug("Bedrock token usage: %s", response.usage());
         return parseBedrockToolResponse(response);
     }
 
@@ -226,11 +242,14 @@ public class AwsBedrockLanguageModelClient
                             .subscriber(visitor)
                             .build();
                     try {
-                        asyncClient.converseStream(request -> initializeConverseStreamRequestBuilder(request,
-                                systemContentBlocks,
-                                modelName,
-                                messages,
-                                bedrockTools), responseStreamHandler).get();
+                        asyncClient.converseStream(
+                                request -> initializeConverseStreamRequestBuilder(
+                                        request,
+                                        systemContentBlocks,
+                                        modelName,
+                                        messages,
+                                        bedrockTools),
+                                responseStreamHandler).get();
                     }
                     catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
@@ -251,6 +270,7 @@ public class AwsBedrockLanguageModelClient
             throw new TrinoException(AI_CLIENT_ERROR, "AI model refused to generate response: " + response.stopReasonAsString());
         }
 
+        log.debug("Bedrock token usage: %s", response.usage());
         return parseBedrockToolResponse(response);
     }
 
@@ -271,6 +291,8 @@ public class AwsBedrockLanguageModelClient
             span.setAttribute(GEN_AI_RESPONSE_MODEL, modelName);
             span.setAttribute(GEN_AI_USAGE_INPUT_TOKENS, Optional.ofNullable(response.usage().inputTokens()).orElse(0));
             span.setAttribute(GEN_AI_USAGE_OUTPUT_TOKENS, Optional.ofNullable(response.usage().outputTokens()).orElse(0));
+            span.setAttribute(GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS, Optional.ofNullable(response.usage().cacheWriteInputTokens()).orElse(0));
+            span.setAttribute(GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS, Optional.ofNullable(response.usage().cacheReadInputTokens()).orElse(0));
 
             return response;
         }
@@ -303,6 +325,14 @@ public class AwsBedrockLanguageModelClient
         };
     }
 
+    private record PreparedRequest(List<SystemContentBlock> systemBlocks, List<Message> messages) {}
+
+    private PreparedRequest prepareRequest(List<SystemContentBlock> systemContentBlocks, List<LlmMessage> messages)
+    {
+        List<SystemContentBlock> systemBlocks = addSystemCachePoint(systemContentBlocks, isPromptCachingSupported);
+        return new PreparedRequest(systemBlocks, buildMessagesWithCachePoint(messages, systemBlocks, isPromptCachingSupported));
+    }
+
     private void initializeConverseRequestBuilder(
             ConverseRequest.Builder request,
             List<SystemContentBlock> systemContentBlocks,
@@ -310,17 +340,13 @@ public class AwsBedrockLanguageModelClient
             List<LlmMessage> messages,
             List<Tool> bedrockTools)
     {
-        if (!systemContentBlocks.isEmpty()) {
-            request.system(systemContentBlocks);
+        PreparedRequest prepared = prepareRequest(systemContentBlocks, messages);
+        if (!prepared.systemBlocks().isEmpty()) {
+            request.system(prepared.systemBlocks());
         }
         request
                 .modelId(modelName)
-                .messages(messages.stream()
-                        .map(message -> Message.builder()
-                                .role(toConversationRole(message))
-                                .content(ContentBlock.fromText(message.content()))
-                                .build())
-                        .collect(toImmutableList()))
+                .messages(prepared.messages())
                 .inferenceConfig(config -> config
                         .maxTokens(maxTokens.orElse(null))
                         .temperature(temperature.orElse(null))
@@ -337,17 +363,13 @@ public class AwsBedrockLanguageModelClient
             List<LlmMessage> messages,
             List<Tool> bedrockTools)
     {
-        if (!systemContentBlocks.isEmpty()) {
-            request.system(systemContentBlocks);
+        PreparedRequest prepared = prepareRequest(systemContentBlocks, messages);
+        if (!prepared.systemBlocks().isEmpty()) {
+            request.system(prepared.systemBlocks());
         }
         request
                 .modelId(modelName)
-                .messages(messages.stream()
-                        .map(message -> Message.builder()
-                                .role(toConversationRole(message))
-                                .content(ContentBlock.fromText(message.content()))
-                                .build())
-                        .collect(toImmutableList()))
+                .messages(prepared.messages())
                 .inferenceConfig(config -> config
                         .maxTokens(maxTokens.orElse(null))
                         .temperature(temperature.orElse(null))
@@ -355,6 +377,103 @@ public class AwsBedrockLanguageModelClient
         if (!bedrockTools.isEmpty()) {
             request.toolConfig(config -> config.tools(bedrockTools));
         }
+    }
+
+    static List<SystemContentBlock> addSystemCachePoint(
+            List<SystemContentBlock> systemContentBlocks,
+            boolean isPromptCachingSupported)
+    {
+        if (!isPromptCachingSupported) {
+            return systemContentBlocks;
+        }
+
+        int totalChars = systemContentBlocks.stream()
+                .mapToInt(block -> block.text() != null ? block.text().length() : 0)
+                .sum();
+        if (totalChars < MIN_CACHE_POINT_CHARS) {
+            return systemContentBlocks;
+        }
+        return ImmutableList.<SystemContentBlock>builder()
+                .addAll(systemContentBlocks)
+                .add(SystemContentBlock.fromCachePoint(
+                        CachePointBlock.builder().type(CachePointType.DEFAULT).build()))
+                .build();
+    }
+
+    /**
+     * In order to make use of Bedrock's caching, a cache point in the current prompt must match
+     * the exact token sequence for which a cache point was previously written. We use two sliding
+     * cache points (CP2 and CP3), in addition to the fixed system one (CP1), to ensure that we get
+     * cache hits across turns while still advancing the cache point positions as the conversation grows.
+     * <p>
+     * The idea is to have stable cache point positions across turns: when a new candidate appears,
+     * CP2 takes CP3's former position (cache hit — it was written there last turn) and CP3 moves
+     * to the new message (cache write). Between qualifying turns both positions are unchanged,
+     * so both hit.
+     */
+    static List<Message> buildMessagesWithCachePoint(
+            List<LlmMessage> messages,
+            List<SystemContentBlock> systemBlocks,
+            boolean isPromptCachingSupported)
+    {
+        if (messages.isEmpty()) {
+            return ImmutableList.of();
+        }
+
+        int cp2Index = -1;
+        int cp3Index = -1;
+
+        if (isPromptCachingSupported) {
+            int systemPromptChars = systemBlocks.stream()
+                    .mapToInt(block -> block.text() != null ? block.text().length() : 0)
+                    .sum();
+            int charsAtCachePoint = systemPromptChars >= MIN_CACHE_POINT_CHARS ? systemPromptChars : 0;
+            List<Integer> candidateIndexes = new ArrayList<>();
+            int running = systemPromptChars;
+            for (int i = 0; i < messages.size(); i++) {
+                running += messages.get(i).content().length();
+                if (running > MAX_CACHE_POINT_CHARS) {
+                    break;
+                }
+                if (running - charsAtCachePoint < MIN_CACHE_POINT_CHARS) {
+                    continue;
+                }
+                if (messages.get(i).role() == USER) {
+                    candidateIndexes.add(i);
+                    charsAtCachePoint = running;
+                }
+            }
+            if (candidateIndexes.size() > 1) {
+                cp2Index = candidateIndexes.get(candidateIndexes.size() - 2);
+                cp3Index = candidateIndexes.get(candidateIndexes.size() - 1);
+            }
+            else if (candidateIndexes.size() == 1) {
+                cp2Index = candidateIndexes.getLast();
+            }
+        }
+
+        // Build message list
+        ImmutableList.Builder<Message> result = ImmutableList.builder();
+        for (int i = 0; i < messages.size(); i++) {
+            LlmMessage message = messages.get(i);
+            if (i == cp2Index || i == cp3Index) {
+                result.add(Message.builder()
+                        .role(toConversationRole(message))
+                        .content(
+                                ContentBlock.fromText(message.content()),
+                                ContentBlock.fromCachePoint(
+                                        CachePointBlock.builder()
+                                                .type(CachePointType.DEFAULT).build()))
+                        .build());
+            }
+            else {
+                result.add(Message.builder()
+                        .role(toConversationRole(message))
+                        .content(ContentBlock.fromText(message.content()))
+                        .build());
+            }
+        }
+        return result.build();
     }
 
     private Tool toBedrockTool(ToolDefinition<?> toolDef)
