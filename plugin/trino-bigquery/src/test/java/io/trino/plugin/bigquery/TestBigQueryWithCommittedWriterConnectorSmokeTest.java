@@ -13,9 +13,12 @@
  */
 package io.trino.plugin.bigquery;
 
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import io.trino.testing.BaseConnectorSmokeTest;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
+import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
@@ -45,5 +48,15 @@ public class TestBigQueryWithCommittedWriterConnectorSmokeTest
                  SUPPORTS_UPDATE -> false;
             default -> super.hasBehavior(connectorBehavior);
         };
+    }
+
+    @Test
+    @Override
+    public void testRowLevelDelete()
+    {
+        // https://starburstdata.atlassian.net/browse/ENG-8251
+        // there is a brief delay before newly written data becomes visible in the BigQuery connector
+        Failsafe.with(RetryPolicy.builder().withMaxAttempts(3).build())
+                .run(super::testRowLevelDelete);
     }
 }
