@@ -1,0 +1,39 @@
+{
+    "openapi": "3.0.4",
+    "info": {
+        "title": "Testing response references",
+        "version": 1.0,
+        "description": "Attempt to use different kinds of response references."
+    },
+    "paths": {
+        "/circular": {
+            "$ref": "#/paths/~1circularSTART"
+        },
+        "/circularSTART": {
+            "$ref": "#/paths/~1circularEND"
+        },
+        "/circularEND": {
+            "$ref": "#/paths/~1circularSTART"
+        },
+        "/badref": {
+            "$ref": "#/paths/notreal"
+        },
+        "/normal": {
+            "description": "For the purposes of not being invalidated.",
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

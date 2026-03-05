@@ -14,13 +14,18 @@
 package com.starburstdata.plugin.openapi;
 
 import com.starburstdata.plugin.openapi.OpenApiValidationExceptions.AmbiguousTableFunctionPath;
+import com.starburstdata.plugin.openapi.OpenApiValidationExceptions.BadPathItem;
+import com.starburstdata.plugin.openapi.OpenApiValidationExceptions.BadResponseReference;
+import com.starburstdata.plugin.openapi.OpenApiValidationExceptions.FailedValidation;
 import io.trino.spi.StandardErrorCode;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.function.table.ReturnTypeSpecification.DescribedTable;
 import org.junit.jupiter.api.Test;
 
 import java.net.URL;
+import java.util.Map;
 
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.starburstdata.plugin.openapi.OpenApiSpec.SCHEMA_NAME;
 import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
 import static java.util.Objects.requireNonNull;
@@ -110,7 +115,7 @@ final class TestOpenApiSpec
                 .cause()
                 .asInstanceOf(type(OpenApiValidationExceptions.class))
                 .extracting(OpenApiValidationExceptions::getFailedValidations)
-                .asInstanceOf(list(OpenApiValidationExceptions.FailedValidation.class))
+                .asInstanceOf(list(FailedValidation.class))
                 .hasOnlyElementsOfType(AmbiguousTableFunctionPath.class)
                 .asInstanceOf(list(AmbiguousTableFunctionPath.class))
                 .allSatisfy(ambiguousError -> {
@@ -126,6 +131,54 @@ final class TestOpenApiSpec
                         case String other -> fail("Unexpected ambiguous identifier %s", other);
                     }
                 });
+    }
+
+    @Test
+    public void testResponses()
+    {
+        Map<String, String> badResponseReferences =
+                assertTrinoExceptionThrownBy(() -> loadSpec("responses.json"))
+                .hasErrorCode(StandardErrorCode.CONFIGURATION_INVALID)
+                .cause()
+                .asInstanceOf(type(OpenApiValidationExceptions.class))
+                .extracting(OpenApiValidationExceptions::getFailedValidations)
+                .asInstanceOf(list(FailedValidation.class))
+                .asInstanceOf(list(BadResponseReference.class))
+                .actual()
+                .stream()
+                .collect(toImmutableMap(
+                        BadResponseReference::path,
+                        BadResponseReference::error));
+        assertThat(badResponseReferences).containsOnlyKeys("/circular", "/badref");
+        assertThat(badResponseReferences.get("/circular"))
+                .isEqualTo("Response references form a cycle");
+        assertThat(badResponseReferences.get("/badref"))
+                .isEqualTo("Response references re-usable response that doesn't exist: badref");
+    }
+
+    @Test
+    public void testPaths()
+    {
+        Map<String, String> badPaths =
+                assertTrinoExceptionThrownBy(() -> loadSpec("paths.json"))
+                        .hasErrorCode(StandardErrorCode.CONFIGURATION_INVALID)
+                        .cause()
+                        .asInstanceOf(type(OpenApiValidationExceptions.class))
+                        .extracting(OpenApiValidationExceptions::getFailedValidations)
+                        .asInstanceOf(list(FailedValidation.class))
+                        .asInstanceOf(list(BadPathItem.class))
+                        .actual()
+                        .stream()
+                        .collect(toImmutableMap(
+                                BadPathItem::path,
+                                BadPathItem::error));
+        assertThat(badPaths).containsOnlyKeys("/circular", "/circularSTART", "/circularEND", "/badref");
+        assertThat(badPaths.get("/circular"))
+                .isEqualTo("Path references form a cycle");
+        assertThat(badPaths.get("/circularSTART"))
+                .isEqualTo("Path references form a cycle");
+        assertThat(badPaths.get("/badref"))
+                .isEqualTo("Path references path that doesn't exist: notreal");
     }
 
     private OpenApiSpec loadSpec(String name)

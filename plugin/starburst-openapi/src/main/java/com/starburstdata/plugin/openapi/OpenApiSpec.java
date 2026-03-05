@@ -14,10 +14,13 @@
 package com.starburstdata.plugin.openapi;
 
 import com.google.common.base.CaseFormat;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.starburstdata.plugin.openapi.OpenApiValidationExceptions.AmbiguousTableFunctionPath;
+import com.starburstdata.plugin.openapi.OpenApiValidationExceptions.BadPathItem;
+import com.starburstdata.plugin.openapi.OpenApiValidationExceptions.BadResponseReference;
 import com.starburstdata.plugin.openapi.OpenApiValidationExceptions.FailedValidation;
 import com.starburstdata.plugin.openapi.authentication.OpenApiAuthenticator;
 import com.starburstdata.plugin.openapi.conversions.OpenApiDecoder;
@@ -27,6 +30,7 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.parser.OpenAPIV3Parser;
 import io.swagger.v3.parser.core.models.ParseOptions;
 import io.swagger.v3.parser.core.models.SwaggerParseResult;
@@ -42,6 +46,9 @@ import java.util.Set;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.starburstdata.plugin.openapi.SpecUtil.getGetOperation;
+import static com.starburstdata.plugin.openapi.SpecUtil.getJsonResponseSchema;
+import static com.starburstdata.plugin.openapi.SpecUtil.getSuccessfulResponse;
 import static com.starburstdata.plugin.openapi.conversions.OpenApiDecoder.ONE_COLUMN_DECODER;
 import static com.starburstdata.plugin.openapi.pagination.OpenApiPaginationStrategy.READ_ONCE_STRATEGY;
 import static java.util.Objects.requireNonNull;
@@ -69,6 +76,10 @@ public class OpenApiSpec
     {
         requireNonNull(openApi, "openApi is null");
 
+        Map<String, ApiResponse> referenceableResponses = Optional.ofNullable(openApi.getComponents())
+                .flatMap(components -> Optional.ofNullable(components.getResponses()))
+                .orElse(ImmutableMap.of());
+        ImmutableList.Builder<FailedValidation> failedValidationsBuilder = ImmutableList.builder();
         ImmutableListMultimap.Builder<String, OpenApiRequestTableFunction> identifierToTableFunctionsBuilder =
                 ImmutableListMultimap.builder();
         ImmutableMap.Builder<String, OpenApiDecoder> pathToDecoderBuilder = ImmutableMap.builder();
@@ -80,17 +91,29 @@ public class OpenApiSpec
                 log.warn("openApi specification uses empty path, ignoring");
                 return; // Table functions require non-empty names.
             }
-            Operation getOperation = pathItem.getGet();
-            if (getOperation == null) {
+            final Optional<Operation> getOperation;
+            try {
+                getOperation = getGetOperation(pathItem, openApi.getPaths());
+            }
+            catch (IllegalArgumentException e) {
+                failedValidationsBuilder.add(new BadPathItem(path, e.getMessage()));
+                return;
+            }
+            if (getOperation.isEmpty()) {
                 return; // ENG-7359, we choose to only handle requests we know are read-only for now.
             }
-            Optional<Schema<?>> okJsonResponseSchema = Optional.ofNullable(getOperation.getResponses())
-                    // OK is one of the few success codes that returns content that will drive our output columns.
-                    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status#successful_responses
-                    .flatMap(responses -> Optional.ofNullable(responses.get(HTTP_OK)))
-                    .flatMap(okResponse -> Optional.ofNullable(okResponse.getContent()))
-                    .flatMap(content -> Optional.ofNullable(content.get(MIME_JSON)))
-                    .flatMap(mediaType -> Optional.ofNullable((Schema<?>) mediaType.getSchema()));
+            Optional<ApiResponse> apiResponse = getSuccessfulResponse(getOperation.get());
+            if (apiResponse.isEmpty()) {
+                return;
+            }
+            final Optional<Schema<?>> okJsonResponseSchema;
+            try {
+                okJsonResponseSchema = getJsonResponseSchema(apiResponse.get(), referenceableResponses);
+            }
+            catch (IllegalArgumentException e) {
+                failedValidationsBuilder.add(new BadResponseReference(path, e.getMessage()));
+                return;
+            }
             if (okJsonResponseSchema.isEmpty()) {
                 return;
             }
@@ -102,7 +125,7 @@ public class OpenApiSpec
         });
         Map<String, Collection<OpenApiRequestTableFunction>> identifierToTableFunctions =
                 identifierToTableFunctionsBuilder.build().asMap();
-        List<FailedValidation> failedValidations = identifierToTableFunctions.entrySet()
+        identifierToTableFunctions.entrySet()
                 .stream()
                 .filter(entry -> entry.getValue().size() > 1)
                 .map(entry -> new AmbiguousTableFunctionPath(
@@ -111,7 +134,8 @@ public class OpenApiSpec
                                 .stream()
                                 .map(OpenApiRequestTableFunction::getPath)
                                 .collect(toImmutableList())))
-                .collect(toImmutableList());
+                .forEach(failedValidationsBuilder::add);
+        List<FailedValidation> failedValidations = failedValidationsBuilder.build();
         if (!failedValidations.isEmpty()) {
             throw new TrinoException(
                     StandardErrorCode.CONFIGURATION_INVALID,

@@ -61,4 +61,28 @@ public class OpenApiValidationExceptions
                             " all map to table function %s".formatted(identifier)));
         }
     }
+
+    record BadPathItem(
+            String path,
+            String error)
+            implements FailedValidation
+    {
+        @Override
+        public String getMessage()
+        {
+            return "Following references from path %s led to error: %s".formatted(path, error);
+        }
+    }
+
+    record BadResponseReference(
+            String path,
+            String error)
+            implements FailedValidation
+    {
+        @Override
+        public String getMessage()
+        {
+            return "Following references from responses of %s led to error: %s".formatted(path, error);
+        }
+    }
 }

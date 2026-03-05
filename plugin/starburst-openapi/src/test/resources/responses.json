@@ -1,0 +1,42 @@
+{
+    "openapi": "3.0.4",
+    "info": {
+        "title": "Testing response references",
+        "version": 1.0,
+        "description": "Attempt to use different kinds of response references."
+    },
+    "paths": {
+        "/circular": { "get": { "responses": { "200": { "$ref": "#/components/responses/circularSTART" } } } },
+        "/badref": { "get": { "responses": { "200": { "$ref": "#/components/responses/badref" } } } },
+        "/normal": { "get": { "responses": {
+            "200": { "$ref": "#/components/responses/normal" },
+            "2XX": { "$ref": "#/components/responses/shouldskip" },
+            "default": { "$ref": "#/components/responses/shouldskip" }
+        } } },
+        "/2XX": { "get": { "responses": {
+            "2XX": {
+                "description": "A 2XX response includes 200.",
+                "content": { "application/json": { "schema": {} } }
+            },
+            "default": { "$ref": "#/components/responses/shouldskip" }
+        } } },
+        "/default": { "get": { "responses": {
+            "default": { "$ref": "#/components/responses/normal" }
+        } } },
+        "/neverok": { "get": { "responses": { "500": { "$ref": "#/components/responses/normal" } } } }
+    },
+    "components": {
+        "responses": {
+            "circularSTART": { "$ref": "#/components/responses/circularEND" },
+            "circularEND": { "$ref": "#/components/responses/circularSTART" },
+            "normal": {
+                "description": "A normal 200 response that gives some JSON object.",
+                "content": {
+                    "application/json": {
+                        "schema": {}
+                    }
+                }
+            }
+        }
+    }
+}
