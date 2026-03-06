@@ -1,0 +1,25 @@
+{
+    "openapi": "3.0.4",
+    "info": {
+        "title": "Just Schemas",
+        "description": "An OpenAPI 3.0.4 schema written just to test SchemaUtil.",
+        "version": "0.0.0"
+    },
+    "paths": {},
+    "components": {
+        "schemas": {
+            "numberNoFormat": { "type": "number" },
+            "integerNoFormat": { "type": "integer" },
+            "numberInt32": { "type": "number", "format": "int32" },
+            "numberInt64": { "type": "number", "format": "int64" },
+            "integerInt32": { "type": "integer", "format": "int32" },
+            "integerInt64": { "type": "integer", "format": "int64" },
+            "numberFloat": { "type": "number", "format": "float" },
+            "numberDouble": { "type": "number", "format": "double" },
+            "integerFloat": { "type": "integer", "format": "float" },
+            "integerDouble": { "type": "integer", "format": "double" },
+            "numberUnknownFormat": { "type": "number", "format": "unknown" },
+            "integerUnknownFormat": { "type": "integer", "format": "unknown" }
+        }
+    }
+}

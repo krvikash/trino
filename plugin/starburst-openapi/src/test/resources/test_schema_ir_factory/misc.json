@@ -1,0 +1,72 @@
+{
+    "openapi": "3.0.4",
+    "info": {
+        "title": "Just Schemas",
+        "description": "An OpenAPI 3.0.4 schema written just to test SchemaUtil.",
+        "version": "0.0.0"
+    },
+    "paths": {},
+    "components": {
+        "schemas": {
+            "empty": {
+                "readOnly": true
+            },
+            "emptyWithIgnoredKeywords": {
+                "title": "",
+                "multipleOf": 1,
+                "maximum": 100,
+                "exclusiveMaximum": 100,
+                "minimum": 0,
+                "exclusiveMinimum": 1,
+                "maxLength": 100,
+                "minLength": 0,
+                "pattern": ".*",
+                "maxItems": 100,
+                "minItems": 0,
+                "uniqueItems": false,
+                "maxProperties": 100,
+                "minProperties": 0,
+                "required": [],
+                "description": "An object that should cast the same as empty",
+                "default": 0,
+                "nullable": 0,
+                "xml": {},
+                "externalDocs": {
+                    "url": "https://example.org"
+                },
+                "example": 0,
+                "deprecated": false,
+                "x-some-extension": {}
+            },
+            "illegalExternalRef": {
+                "$ref": "https://example.org#/components/schemas/key"
+            },
+            "illegalFileRef": {
+                "$ref": "schemas.json#/components/schemas/empty"
+            },
+            "illegalRelativeRef": {
+                "$ref": "#/components/schemas/emptyWithIgnoredKeywords/externalDocs"
+            },
+            "recursiveLinkedList": {
+                "type": "object",
+                "properties": {
+                    "value": {
+                        "type": "string"
+                    },
+                    "tail": {
+                        "$ref": "#/components/schemas/recursiveLinkedList"
+                    }
+                }
+            },
+            "booleanSchema": { "type": "boolean" },
+            "booleanEnum": { "type": "boolean", "enum": [ false ] },
+            "booleanKeywords": {
+                "allOf": [ {} ],
+                "oneOf": [ {} ],
+                "anyOf": [ {} ],
+                "not": {}
+            },
+            "loneEnum": { "enum": [ "string", 1 ] }
+        }
+    }
+}

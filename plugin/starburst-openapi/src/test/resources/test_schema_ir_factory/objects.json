@@ -1,0 +1,79 @@
+{
+    "openapi": "3.0.4",
+    "info": {
+        "title": "Just Schemas",
+        "description": "An OpenAPI 3.0.4 schema written just to test SchemaUtil.",
+        "version": "0.0.0"
+    },
+    "paths": {},
+    "components": {
+        "schemas": {
+            "conflictingProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "nonConflicting": { "type": "boolean" },
+                    "conflicting": { "type": "boolean" },
+                    "conflictING": { "type": "boolean" }
+                }
+            },
+            "strictProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "foo": { "type": "boolean" },
+                    "bar": { "type": "boolean" }
+                }
+            },
+            "nonStrictProperties": {
+                "type": "object",
+                "properties": {
+                    "foo": { "type": "boolean" },
+                    "bar": { "type": "boolean" }
+                }
+            },
+            "mixedNamedUntypedProperties": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                    "foo": { "type": "boolean" }
+                }
+            },
+            "mixedNamedUnnamedProperties": {
+                "type": "object",
+                "additionalProperties": {
+                    "type": "boolean"
+                },
+                "properties": {
+                    "foo": { "type": "boolean" }
+                }
+            },
+            "objectOfErroringProperties": {
+                "type": "object",
+                "properties": {
+                    "valid": { "type": "boolean" },
+                    "invalid": { "type": "string", "format": "error" }
+                },
+                "additionalProperties": { "type": "string", "format": "error" }
+            },
+            "justObject": {
+                "type": "object"
+            },
+            "untypedMap": {
+                "type": "object",
+                "additionalProperties": true
+            },
+            "typedMap": {
+                "type": "object",
+                "additionalProperties": { "type": "boolean" }
+            },
+            "mapOfErroringValues": {
+                "type": "object",
+                "additionalProperties": {
+                    "type": "string",
+                    "format": "error"
+                }
+            }
+        }
+    }
+}

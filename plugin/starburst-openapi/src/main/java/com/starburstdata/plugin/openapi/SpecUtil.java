@@ -116,4 +116,10 @@ public final class SpecUtil
         }
         return Optional.of(finalOperation);
     }
+
+    @SuppressWarnings("unchecked")
+    public static Map<String, Schema<?>> castSchemaMap(Map<String, Schema> rawSchemaMap)
+    {
+        return (Map<String, Schema<?>>) (Map<String, ?>) rawSchemaMap;
+    }
 }

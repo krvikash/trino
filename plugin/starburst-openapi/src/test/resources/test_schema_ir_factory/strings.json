@@ -1,0 +1,17 @@
+{
+    "openapi": "3.0.4",
+    "info": {
+        "title": "Just Schemas",
+        "description": "An OpenAPI 3.0.4 schema written just to test SchemaUtil.",
+        "version": "0.0.0"
+    },
+    "paths": {},
+    "components": {
+        "schemas": {
+            "stringNoFormat": { "type": "string", "readOnly": true },
+            "stringByteFormat": { "type": "string", "format": "byte", "readOnly": true },
+            "stringUuidFormat": { "type": "string", "format": "uuid", "readOnly": true },
+            "stringUnknownFormat": { "type": "string", "format": "unknown", "readOnly": true }
+        }
+    }
+}

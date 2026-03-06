@@ -153,6 +153,7 @@ def custom_openapi():
     openapi_schema = get_openapi(
         title="FastAPI",
         version="0.1.0",
+        openapi_version="3.0.4",
         routes=app.routes,
     )
     openapi_schema["paths"]["/error"]["get"]["x-trino"] = {

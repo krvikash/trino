@@ -154,6 +154,12 @@ public class OpenApiSpec
     public static OpenAPI parse(String specLocation)
     {
         SwaggerParseResult result = new OpenAPIV3Parser().readLocation(specLocation, null, getParseOptions());
+        if (result.isOpenapi31()) {
+            // Contains changes to schema object behavior.
+            // https://www.openapis.org/blog/2021/02/16/migrating-from-openapi-3-0-to-3-1-0
+            // So to simplify we initially disable parsing 3.1.X specifications.
+            throw new IllegalArgumentException("Connector supports OpenAPI specifications versions <= 3.0.X");
+        }
         if (result.getMessages() != null && !result.getMessages().isEmpty()) {
             throw new IllegalArgumentException("Failed to parse the OpenAPI spec: " + String.join(", ", result.getMessages()));
         }
@@ -165,6 +171,7 @@ public class OpenApiSpec
         ParseOptions parseOptions = new ParseOptions();
         parseOptions.setResolveFully(false);
         parseOptions.setResolve(false);
+        parseOptions.setInferSchemaType(false);
         return parseOptions;
     }
 

@@ -1,0 +1,22 @@
+{
+    "openapi": "3.0.4",
+    "info": {
+        "title": "Just Schemas",
+        "description": "An OpenAPI 3.0.4 schema written just to test SchemaUtil.",
+        "version": "0.0.0"
+    },
+    "paths": {},
+    "components": {
+        "schemas": {
+            "typedArray": {
+                "type": "array",
+                "readOnly": true,
+                "items": { "type": "boolean", "readOnly": true }
+            },
+            "arrayOfError": {
+                "type": "array",
+                "items": { "type": "string", "format": "error" }
+            }
+        }
+    }
+}
