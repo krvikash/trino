@@ -27,12 +27,14 @@ import io.trino.tpch.TpchTable;
 import org.junit.jupiter.api.Test;
 
 import java.sql.SQLException;
+import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.google.common.base.Throwables.getStackTraceAsString;
 import static com.google.common.base.Verify.verify;
 import static io.trino.plugin.deltalake.DeltaLakeQueryRunner.TPCH_SCHEMA;
 import static io.trino.testing.TestingNames.randomNameSuffix;
@@ -54,12 +56,19 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     private static final String DATABRICKS_COMMUNICATION_FAILURE_MATCH =
             "\\Q[Databricks][\\E(DatabricksJDBCDriver|JDBCDriver)\\Q](500593) Communication link failure. Failed to connect to server. Reason: " +
             "TemporarilyUnavailableRetry timeout of 900 seconds has been hit.*";
-    private static final RetryPolicy DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY = RetryPolicy.builder()
+    private static final String DATABRICKS_PENDING_CLUSTER_MATCH = "The current cluster state is Pending";
+    private static final RetryPolicy<Object> DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY = RetryPolicy.builder()
             .handleIf(throwable -> Throwables.getRootCause(throwable) instanceof SQLException)
             .handleIf(throwable -> Pattern.compile(DATABRICKS_COMMUNICATION_FAILURE_MATCH).matcher(Throwables.getRootCause(throwable).getMessage()).find())
             .withBackoff(1, 10, ChronoUnit.SECONDS)
             .withMaxRetries(30)
-            .onRetry(event -> LOG.warn(event.getLastException(), "Query failed on attempt %d, will retry.", event.getAttemptCount()))
+            .onRetry(event -> LOG.warn(event.getLastException(), "Query failed on attempt %d, will retry (communication failure).", event.getAttemptCount()))
+            .build();
+    private static final RetryPolicy<Object> DATABRICKS_PENDING_CLUSTER_RETRY_POLICY = RetryPolicy.builder()
+            .handleIf(throwable -> getStackTraceAsString(throwable).contains(DATABRICKS_PENDING_CLUSTER_MATCH))
+            .withDelay(Duration.of(30, ChronoUnit.SECONDS))
+            .withMaxRetries(5)
+            .onRetry(event -> LOG.warn(event.getLastException(), "Query failed on attempt %d, will retry (pending cluster).", event.getAttemptCount()))
             .build();
 
     protected abstract Map<String, String> getDeltaLakeProperties();
@@ -83,7 +92,8 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
                 .setCreateTpchSchemas(false)
                 .build();
 
-        Failsafe.with(DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY).run(() -> createTpchTables(queryRunner));
+        Failsafe.with(DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY, DATABRICKS_PENDING_CLUSTER_RETRY_POLICY)
+                .run(() -> createTpchTables(queryRunner));
         return queryRunner;
     }
 
