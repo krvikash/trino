@@ -12,6 +12,7 @@ package io.starburst.server.troubleshooting;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -20,6 +21,7 @@ import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.starburst.server.troubleshooting.providers.QueryJsonProvider;
 import io.trino.client.NodeVersion;
+import io.trino.connector.CatalogHandle;
 import io.trino.cost.StatsAndCosts;
 import io.trino.execution.QueryInfo;
 import io.trino.execution.QueryStats;
@@ -28,6 +30,7 @@ import io.trino.execution.StageInfo;
 import io.trino.execution.StageState;
 import io.trino.execution.StageStats;
 import io.trino.execution.StagesInfo;
+import io.trino.metadata.TableHandle;
 import io.trino.operator.BlockedReason;
 import io.trino.operator.RetryPolicy;
 import io.trino.plugin.base.metrics.LongCount;
@@ -39,14 +42,20 @@ import io.trino.spi.catalog.CatalogProperties;
 import io.trino.spi.connector.CatalogVersion;
 import io.trino.spi.connector.ConnectorName;
 import io.trino.spi.connector.ConnectorPartitioningHandle;
+import io.trino.spi.connector.ConnectorTableHandle;
+import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.eventlistener.StageGcStatistics;
 import io.trino.spi.metrics.Metrics;
 import io.trino.sql.planner.Partitioning;
 import io.trino.sql.planner.PartitioningHandle;
 import io.trino.sql.planner.PartitioningScheme;
 import io.trino.sql.planner.PlanFragment;
+import io.trino.sql.planner.Symbol;
+import io.trino.sql.planner.plan.MergeProcessorNode;
 import io.trino.sql.planner.plan.PlanFragmentId;
 import io.trino.sql.planner.plan.PlanNodeId;
+import io.trino.sql.planner.plan.TableWriterNode;
 import io.trino.sql.planner.plan.ValuesNode;
 import org.junit.jupiter.api.Test;
 
@@ -63,6 +72,7 @@ import java.util.OptionalInt;
 
 import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.execution.QueryState.FINISHED;
+import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -168,9 +178,62 @@ public class TestQueryJsonProvider
                 new CatalogVersion("1"),
                 new ConnectorName("tpch"),
                 ImmutableMap.of("connection-password", "secret"));
+        TableHandle tableHandle = new TableHandle(
+                CatalogHandle.createRootCatalogHandle(new CatalogName("test"), new CatalogVersion("123")),
+                new ConnectorTableHandle()
+                {
+                    private String credential = "should_not_leak1";
+
+                    public String getCredential()
+                    {
+                        return credential;
+                    }
+
+                    @Override
+                    public String toString()
+                    {
+                        final StringBuilder sb = new StringBuilder("anonymous ConnectorTableHandle{");
+                        sb.append(", credential='").append(credential).append('\'');
+                        sb.append('}');
+                        return sb.toString();
+                    }
+                },
+                new ConnectorTransactionHandle()
+                {
+                    private String credential = "should_not_leak1";
+
+                    public String getCredential()
+                    {
+                        return credential;
+                    }
+
+                    @Override
+                    public String toString()
+                    {
+                        final StringBuilder sb = new StringBuilder("anonymous ConnectorTableHandle{");
+                        sb.append(", credential='").append(credential).append('\'');
+                        sb.append('}');
+                        return sb.toString();
+                    }
+                });
+        MergeProcessorNode mergeProcessorNode = new MergeProcessorNode(
+                new PlanNodeId("1"),
+                new ValuesNode(new PlanNodeId("1"), ImmutableList.of(), ImmutableList.of()),
+                new TableWriterNode.MergeTarget(
+                        tableHandle,
+                        Optional.empty(),
+                        new SchemaTableName("test", "table"),
+                        new TableWriterNode.MergeParadigmAndTypes(Optional.empty(), ImmutableList.of(), ImmutableList.of(), EMPTY_ROW),
+                        ImmutableList.of(),
+                        ArrayListMultimap.create()),
+                new Symbol(EMPTY_ROW, "name"),
+                new Symbol(EMPTY_ROW, "name"),
+                ImmutableList.of(),
+                ImmutableList.of(),
+                ImmutableList.of());
         PlanFragment planFragment = new PlanFragment(
                 new PlanFragmentId("1"),
-                new ValuesNode(new PlanNodeId("1"), ImmutableList.of(), ImmutableList.of()),
+                mergeProcessorNode,
                 ImmutableSet.of(),
                 new PartitioningHandle(Optional.empty(), Optional.empty(), connectorPartitioningHandle),
                 OptionalInt.empty(),
@@ -314,6 +377,9 @@ public class TestQueryJsonProvider
                 .doesNotContain("connection-password")
                 .doesNotContain("secret")
                 .contains("pruned_catalog")
+                .doesNotContain("should_not_leak1")
+                .doesNotContain("should_not_leak2")
+                .contains("\"credential\":\"***\"")
                 .contains(queryId);
     }
 }
