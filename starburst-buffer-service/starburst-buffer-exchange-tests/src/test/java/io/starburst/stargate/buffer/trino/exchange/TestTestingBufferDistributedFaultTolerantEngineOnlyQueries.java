@@ -64,8 +64,8 @@ public class TestTestingBufferDistributedFaultTolerantEngineOnlyQueries
                 .put("exchange.buffer-discovery.uri", discoveryServerUri.toString())
                 .put("exchange.sink-target-written-pages-count", "3") // small requests for better test coverage
                 .put("exchange.source-handle-target-chunks-count", "4") // smaller handles make more sense for test env when we do not have too much data
-                .put("exchange.min-buffer-nodes-per-partition", "2")
-                .put("exchange.max-buffer-nodes-per-partition", "2")
+                .put("exchange.min-base-buffer-nodes-per-partition", "2")
+                .put("exchange.max-base-buffer-nodes-per-partition", "2")
                 .buildOrThrow();
 
         Map<String, String> extraProperties = new HashMap<>(FaultTolerantExecutionConnectorTestHelper.getExtraProperties());

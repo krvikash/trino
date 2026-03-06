@@ -128,8 +128,8 @@ public class TestDrain
                 .put("exchange.sink-blocked-memory-low", "32MB")
                 .put("exchange.sink-blocked-memory-high", "64MB")
                 .put("exchange.source-handle-target-chunks-count", "4") // smaller handles make more sense for test env when we do not have too much data
-                .put("exchange.min-buffer-nodes-per-partition", "2")
-                .put("exchange.max-buffer-nodes-per-partition", "2")
+                .put("exchange.min-base-buffer-nodes-per-partition", "2")
+                .put("exchange.max-base-buffer-nodes-per-partition", "2")
                 .put("exchange.buffer-data.spooling-storage-type", "LOCAL")
                 .buildOrThrow();
 
