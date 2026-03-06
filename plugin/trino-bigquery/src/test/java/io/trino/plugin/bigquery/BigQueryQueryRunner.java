@@ -30,6 +30,7 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import io.airlift.log.Level;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
+import io.airlift.units.Duration;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
@@ -210,6 +211,12 @@ public final class BigQueryQueryRunner
                 InputStream jsonKey = new ByteArrayInputStream(Base64.getDecoder().decode(BIGQUERY_CREDENTIALS_KEY));
                 return BigQueryOptions.newBuilder()
                         .setCredentials(ServiceAccountCredentials.fromStream(jsonKey))
+                        .setRetrySettings(new RetryOptionsConfigurer(new BigQueryRpcConfig()
+                                .setRetries(10)
+                                .setRetryDelay(Duration.valueOf("200ms"))
+                                .setRetryMultiplier(1.5)
+                                .setTimeout(Duration.valueOf("30s")))
+                                .retrySettings())
                         .build()
                         .getService();
             }
