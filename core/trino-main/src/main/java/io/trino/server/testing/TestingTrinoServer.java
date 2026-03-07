@@ -41,6 +41,7 @@ import io.airlift.tracing.TracingModule;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.starburst.stargate.buffer.data.server.BufferNodeStateManager;
+import io.starburst.stargate.buffer.data.server.DrainService;
 import io.trino.Session;
 import io.trino.SystemSessionPropertiesProvider;
 import io.trino.cache.CacheManagerModule;
@@ -356,6 +357,7 @@ public class TestingTrinoServer
                     binder.bind(ShutdownAction.class).to(TestShutdownAction.class).in(Scopes.SINGLETON);
                     binder.bind(CurrentNodeState.class).in(Scopes.SINGLETON);
                     binder.bind(NodeStateManager.class).in(Scopes.SINGLETON);
+                    newOptionalBinder(binder, DrainService.class);
                     binder.bind(ProcedureTester.class).in(Scopes.SINGLETON);
                     binder.bind(ExchangeManagerRegistry.class).in(Scopes.SINGLETON);
                     spanProcessor.ifPresent(processor -> newSetBinder(binder, SpanProcessor.class).addBinding().toInstance(processor));

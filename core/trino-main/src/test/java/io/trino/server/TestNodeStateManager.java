@@ -68,6 +68,7 @@ class TestNodeStateManager
     private TestingShutdownAction shutdownAction;
     private AtomicReference<List<TaskInfo>> tasks = new AtomicReference<>(new ArrayList<>());
     private TestTaskObservable sqlTasksObservable;
+    private TestPreShutdownAction preShutdownAction;
 
     @BeforeEach
     public void setUp()
@@ -76,6 +77,7 @@ class TestNodeStateManager
         executor = new FakeScheduledExecutorService(ticker);
         shutdownAction = new TestingShutdownAction();
         sqlTasksObservable = new TestTaskObservable();
+        preShutdownAction = new TestPreShutdownAction();
 
         nodeStateManager = createNodeStateManager(GRACE_PERIOD_MILLIS);
     }
@@ -96,6 +98,7 @@ class TestNodeStateManager
         executor.run();
 
         assertEventually(new Duration(5, SECONDS), () -> assertThat(nodeStateManager.getServerState()).isEqualTo(DRAINED));
+        assertThat(preShutdownAction.wasInvoked()).isFalse();
     }
 
     @Test
@@ -108,6 +111,8 @@ class TestNodeStateManager
 
         // here wait for at least 4 grace periods, and add some slack to reduce test flakiness
         assertEventually(new Duration(4 * GRACE_PERIOD_MILLIS + 1000, MILLISECONDS), () -> assertThat(shutdownAction.isShuttingDown()).isTrue());
+
+        assertThat(preShutdownAction.wasInvoked()).isTrue();
     }
 
     @Test
@@ -226,6 +231,7 @@ class TestNodeStateManager
                 taskInfoSupplier,
                 serverConfig,
                 shutdownAction,
+                Optional.of(preShutdownAction),
                 new LifeCycleManager("node-state-manager", Collections.emptyList(), null),
                 executor);
     }
@@ -396,6 +402,23 @@ class TestNodeStateManager
         @Override
         public void execute(Runnable command)
         {
+        }
+    }
+
+    private static class TestPreShutdownAction
+            implements Runnable
+    {
+        private boolean invoked;
+
+        @Override
+        public void run()
+        {
+            invoked = true;
+        }
+
+        public boolean wasInvoked()
+        {
+            return invoked;
         }
     }
 }

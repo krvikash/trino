@@ -18,6 +18,7 @@ import com.google.inject.Inject;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
+import io.starburst.stargate.buffer.data.server.DrainService;
 import io.trino.execution.SqlTaskManager;
 import io.trino.execution.StateMachine;
 import io.trino.execution.TaskId;
@@ -28,6 +29,7 @@ import io.trino.server.NodeStateManager.CurrentNodeState.VersionedState;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -66,6 +68,7 @@ public class NodeStateManager
     private final boolean isCoordinator;
     private final ShutdownAction shutdownAction;
     private final Duration gracePeriod;
+    private final Optional<Runnable> preShutdownAction;
 
     private final ScheduledExecutorService executor;
     private final CurrentNodeState nodeState;
@@ -81,6 +84,7 @@ public class NodeStateManager
             SqlTaskManager sqlTaskManager,
             ServerConfig serverConfig,
             ShutdownAction shutdownAction,
+            Optional<DrainService> bufferServiceDrainService,
             LifeCycleManager lifeCycleManager)
     {
         this(nodeState,
@@ -88,6 +92,7 @@ public class NodeStateManager
                 requireNonNull(sqlTaskManager, "sqlTaskManager is null")::getAllTaskInfo,
                 serverConfig,
                 shutdownAction,
+                bufferServiceDrainService.map(drainService -> drainService::awaitDrain),
                 lifeCycleManager,
                 newSingleThreadScheduledExecutor(threadsNamed("drain-handler-%s")));
     }
@@ -99,6 +104,7 @@ public class NodeStateManager
             Supplier<List<TaskInfo>> taskInfoSupplier,
             ServerConfig serverConfig,
             ShutdownAction shutdownAction,
+            Optional<Runnable> preShutdownAction,
             LifeCycleManager lifeCycleManager,
             ScheduledExecutorService executor)
     {
@@ -110,6 +116,7 @@ public class NodeStateManager
         this.isCoordinator = serverConfig.isCoordinator();
         this.gracePeriod = serverConfig.getGracePeriod();
         this.executor = requireNonNull(executor, "executor is null");
+        this.preShutdownAction = requireNonNull(preShutdownAction, "preShutdownAction is null");
     }
 
     public NodeState getServerState()
@@ -210,6 +217,8 @@ public class NodeStateManager
     private void shutdown(VersionedState expectedState)
     {
         waitActiveTasksToFinish(expectedState);
+
+        preShutdownAction.ifPresent(Runnable::run);
 
         terminate();
     }

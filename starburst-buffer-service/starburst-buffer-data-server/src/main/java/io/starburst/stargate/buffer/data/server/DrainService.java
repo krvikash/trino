@@ -33,6 +33,7 @@ public class DrainService
 {
     private static final Logger log = Logger.get(DrainService.class);
     private static final Duration MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS = Duration.succinctDuration(2, TimeUnit.MINUTES);
+    private static final Duration DRAIN_ALL_CHUNKS_TIMEOUT = Duration.succinctDuration(30, TimeUnit.SECONDS);
 
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(daemonThreadsNamed("data-server-drain-service"));
     private final BufferNodeStateManager bufferNodeStateManager;
@@ -57,6 +58,26 @@ public class DrainService
     public void stop()
     {
         executor.shutdownNow();
+    }
+
+    public void awaitDrain()
+    {
+        drain();
+        long deadlineMillis = System.currentTimeMillis() + MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS.toMillis() + DRAIN_ALL_CHUNKS_TIMEOUT.toMillis();
+        while (bufferNodeStateManager.getState() != BufferNodeState.DRAINED) {
+            if (System.currentTimeMillis() > deadlineMillis) {
+                log.warn("Timed out waiting for buffer node to reach DRAINED state");
+                return;
+            }
+            try {
+                Thread.sleep(500);
+            }
+            catch (InterruptedException e) {
+                log.warn("Interrupted while waiting for buffer node to reach DRAINED state");
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
     }
 
     public synchronized void drain()
