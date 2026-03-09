@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>359</version>
+        <version>360</version>
     </parent>
 
     <groupId>io.trino</groupId>
@@ -235,7 +235,7 @@
         <dep.starburst-dataframe.version>0.8.0.pr74-fbdfcb6</dep.starburst-dataframe.version>
 
         <!-- keep dependency properties sorted -->
-        <dep.airlift.version>411</dep.airlift.version>
+        <dep.airlift.version>412</dep.airlift.version>
         <dep.alluxio.version>2.9.6</dep.alluxio.version>
         <dep.antlr.version>4.13.2</dep.antlr.version>
         <dep.avro.version>1.12.1</dep.avro.version>
@@ -259,7 +259,6 @@
         <dep.openai.version>2.8.1</dep.openai.version>
         <dep.parquet.version>1.17.0</dep.parquet.version>
         <dep.protobuf.version>4.33.2</dep.protobuf.version>
-        <dep.slice.version>2.6</dep.slice.version>
         <dep.swagger.version>2.2.43</dep.swagger.version>
         <dep.takari.version>2.3.2</dep.takari.version>
         <dep.tcnative.version>2.0.75.Final</dep.tcnative.version>
