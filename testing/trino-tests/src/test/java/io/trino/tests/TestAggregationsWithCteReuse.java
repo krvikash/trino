@@ -28,6 +28,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TestAggregationsWithCteReuse
         extends AbstractTestAggregations
 {
+    private static final Pattern FRAGMENT_PATTERN = Pattern.compile("^Fragment ", MULTILINE);
+
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
@@ -46,15 +48,10 @@ public class TestAggregationsWithCteReuse
                         UNION ALL
                         SELECT count(*), 'second_branch', nationkey FROM nation GROUP BY nationkey
                        """;
-        String explainQuery = "EXPLAIN " + query;
 
-        String planWithoutCteReuse = (String) computeActual(disableCteReuse(), explainQuery).getOnlyValue();
-        String planWithCteReuse = (String) computeActual(explainQuery).getOnlyValue();
+        // no CTE reuse because GROUP BY columns are different
+        assertCteReuseNotApplied(query);
 
-        // plans should be similar (no CTE reuse) because GROUP BY columns are different
-        assertThat(countRegexOccurrences(planWithoutCteReuse, "^Fragment "))
-                .isEqualTo(countRegexOccurrences(planWithCteReuse, "^Fragment "));
-        // results are ok
         assertQueryWithAndWithoutCteReuse(query, """
                 VALUES
                     (5, 'first_branch', 0),
@@ -98,15 +95,10 @@ public class TestAggregationsWithCteReuse
                         UNION ALL
                         SELECT 'second_branch', regionkey FROM nation GROUP BY GROUPING SETS (regionkey, ())
                        """;
-        String explainQuery = "EXPLAIN " + query;
 
-        String planWithoutCteReuse = (String) computeActual(disableCteReuse(), explainQuery).getOnlyValue();
-        String planWithCteReuse = (String) computeActual(explainQuery).getOnlyValue();
+        // no CTE reuse because GROUPING SETS are different
+        assertCteReuseNotApplied(query);
 
-        // plans should be similar (no CTE reuse) because GROUPING SETS are different
-        assertThat(countRegexOccurrences(planWithoutCteReuse, "^Fragment "))
-                .isEqualTo(countRegexOccurrences(planWithCteReuse, "^Fragment "));
-        // results are ok
         assertQueryWithAndWithoutCteReuse(query, """
                 VALUES
                     ('first_branch', 0),
@@ -131,17 +123,9 @@ public class TestAggregationsWithCteReuse
                         UNION ALL
                         SELECT sum(regionkey), 'second_branch' FROM nation
                        """;
-        String explainQuery = "EXPLAIN " + query;
 
-        String planWithoutCteReuse = (String) computeActual(disableCteReuse(), explainQuery).getOnlyValue();
-        String planWithCteReuse = (String) computeActual(explainQuery).getOnlyValue();
+        assertCteReuseApplied(query, 3, 2, 1);
 
-        assertThat(planWithoutCteReuse).isNotEqualTo(planWithCteReuse);
-        assertThat(countRegexOccurrences(planWithoutCteReuse, "^Fragment ")).isEqualTo(3);
-        // plan with CTE reuse has just 2 fragments and leaf fragment is accessed twice
-        assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(2);
-        assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [1]]\\E")).isEqualTo(2);
-        // results are ok
         assertQueryWithAndWithoutCteReuse(query, "VALUES (25, 'first_branch'), (50, 'second_branch')");
     }
 
@@ -153,17 +137,9 @@ public class TestAggregationsWithCteReuse
                         UNION ALL
                         SELECT count(regionkey), 'second_branch', regionkey FROM nation GROUP BY regionkey
                        """;
-        String explainQuery = "EXPLAIN " + query;
 
-        String planWithoutCteReuse = (String) computeActual(disableCteReuse(), explainQuery).getOnlyValue();
-        String planWithCteReuse = (String) computeActual(explainQuery).getOnlyValue();
+        assertCteReuseApplied(query, 5, 4, 2);
 
-        assertThat(planWithoutCteReuse).isNotEqualTo(planWithCteReuse);
-        assertThat(countRegexOccurrences(planWithoutCteReuse, "^Fragment ")).isEqualTo(5);
-        // plan with CTE reuse has just 4 fragments and leaf fragment is accessed twice
-        assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(4);
-        assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [2]]\\E")).isEqualTo(2);
-        // results are ok
         assertQueryWithAndWithoutCteReuse(query, """
                 VALUES
                     (5, 'first_branch', 0),
@@ -187,17 +163,9 @@ public class TestAggregationsWithCteReuse
                         UNION ALL
                         SELECT count(*), 'second_branch', regionkey FROM nation WHERE regionkey = 1 GROUP BY regionkey
                        """;
-        String explainQuery = "EXPLAIN " + query;
 
-        String planWithoutCteReuse = (String) computeActual(disableCteReuse(), explainQuery).getOnlyValue();
-        String planWithCteReuse = (String) computeActual(explainQuery).getOnlyValue();
+        assertCteReuseApplied(query, 5, 4, 2);
 
-        assertThat(planWithoutCteReuse).isNotEqualTo(planWithCteReuse);
-        assertThat(countRegexOccurrences(planWithoutCteReuse, "^Fragment ")).isEqualTo(5);
-        // plan with CTE reuse has just 4 fragments and leaf fragment is accessed twice
-        assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(4);
-        assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [2]]\\E")).isEqualTo(2);
-        // results are ok
         assertQueryWithAndWithoutCteReuse(query, "VALUES (5, 'first_branch', 0), (5, 'second_branch', 1)");
     }
 
@@ -209,17 +177,9 @@ public class TestAggregationsWithCteReuse
                         UNION ALL
                         SELECT count(*), 'second_branch', regionkey FROM nation WHERE nationkey < 3 GROUP BY regionkey
                        """;
-        String explainQuery = "EXPLAIN " + query;
 
-        String planWithoutCteReuse = (String) computeActual(disableCteReuse(), explainQuery).getOnlyValue();
-        String planWithCteReuse = (String) computeActual(explainQuery).getOnlyValue();
+        assertCteReuseApplied(query, 5, 4, 2);
 
-        assertThat(planWithoutCteReuse).isNotEqualTo(planWithCteReuse);
-        assertThat(countRegexOccurrences(planWithoutCteReuse, "^Fragment ")).isEqualTo(5);
-        // plan with CTE reuse has just 4 fragments and leaf fragment is accessed twice
-        assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(4);
-        assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [2]]\\E")).isEqualTo(2);
-        // results are ok
         assertQueryWithAndWithoutCteReuse(query, "VALUES " +
                 "(1, 'first_branch', 0), " +
                 "(1, 'second_branch', 0), " +
@@ -235,17 +195,9 @@ public class TestAggregationsWithCteReuse
                         UNION ALL
                         SELECT 'second_branch', regionkey, count(*) FILTER (WHERE nationkey >= 10) FROM nation GROUP BY regionkey
                        """;
-        String explainQuery = "EXPLAIN " + query;
 
-        String planWithoutCteReuse = (String) computeActual(disableCteReuse(), explainQuery).getOnlyValue();
-        String planWithCteReuse = (String) computeActual(explainQuery).getOnlyValue();
+        assertCteReuseApplied(query, 5, 4, 2);
 
-        assertThat(planWithoutCteReuse).isNotEqualTo(planWithCteReuse);
-        assertThat(countRegexOccurrences(planWithoutCteReuse, "^Fragment ")).isEqualTo(5);
-        // plan with CTE reuse has just 4 fragments and leaf fragment is accessed twice
-        assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(4);
-        assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [2]]\\E")).isEqualTo(2);
-        // results are ok
         assertQueryWithAndWithoutCteReuse(query, """
                 VALUES
                     ('first_branch', 0, 2),
@@ -269,17 +221,9 @@ public class TestAggregationsWithCteReuse
                         UNION ALL
                         SELECT 'second_branch', regionkey, count(*) FILTER (WHERE nationkey >= 5) FROM nation WHERE regionkey < 2 GROUP BY regionkey
                        """;
-        String explainQuery = "EXPLAIN " + query;
 
-        String planWithoutCteReuse = (String) computeActual(disableCteReuse(), explainQuery).getOnlyValue();
-        String planWithCteReuse = (String) computeActual(explainQuery).getOnlyValue();
+        assertCteReuseApplied(query, 5, 4, 2);
 
-        assertThat(planWithoutCteReuse).isNotEqualTo(planWithCteReuse);
-        assertThat(countRegexOccurrences(planWithoutCteReuse, "^Fragment ")).isEqualTo(5);
-        // plan with CTE reuse has just 4 fragments and leaf fragment is accessed twice
-        assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(4);
-        assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [2]]\\E")).isEqualTo(2);
-        // results are ok
         assertQueryWithAndWithoutCteReuse(query, """
                 VALUES
                     ('first_branch', 0, 1),
@@ -288,6 +232,35 @@ public class TestAggregationsWithCteReuse
                     ('second_branch', 0, 4),
                     ('second_branch', 1, 2)
                 """);
+    }
+
+    private void assertCteReuseApplied(String query, int expectedFragmentCountWithoutReuse, int expectedFragmentCountWithReuse, int expectedReusedFragmentId)
+    {
+        String explainQuery = "EXPLAIN " + query;
+
+        String planWithoutCteReuse = (String) computeActual(disableCteReuse(), explainQuery).getOnlyValue();
+        String planWithCteReuse = (String) computeActual(explainQuery).getOnlyValue();
+
+        assertThat(planWithoutCteReuse).isNotEqualTo(planWithCteReuse);
+        assertThat(countRegexOccurrences(planWithoutCteReuse, FRAGMENT_PATTERN)).isEqualTo(expectedFragmentCountWithoutReuse);
+        assertThat(countRegexOccurrences(planWithCteReuse, FRAGMENT_PATTERN)).isEqualTo(expectedFragmentCountWithReuse);
+
+        // the reused fragment is accessed once per branch that was unified
+        int expectedFragmentAccessCount = expectedFragmentCountWithoutReuse - expectedFragmentCountWithReuse + 1;
+        assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [" + expectedReusedFragmentId + "]]\\E"))
+                .isEqualTo(expectedFragmentAccessCount);
+    }
+
+    private void assertCteReuseNotApplied(String query)
+    {
+        String explainQuery = "EXPLAIN " + query;
+
+        String planWithoutCteReuse = (String) computeActual(disableCteReuse(), explainQuery).getOnlyValue();
+        String planWithCteReuse = (String) computeActual(explainQuery).getOnlyValue();
+
+        // plans should be similar (no CTE reuse)
+        assertThat(countRegexOccurrences(planWithoutCteReuse, FRAGMENT_PATTERN))
+                .isEqualTo(countRegexOccurrences(planWithCteReuse, FRAGMENT_PATTERN));
     }
 
     private Session disableCteReuse()
@@ -300,6 +273,11 @@ public class TestAggregationsWithCteReuse
     private int countRegexOccurrences(String value, String regex)
     {
         Pattern pattern = Pattern.compile(regex, MULTILINE);
+        return countRegexOccurrences(value, pattern);
+    }
+
+    private int countRegexOccurrences(String value, Pattern pattern)
+    {
         Matcher matcher = pattern.matcher(value);
         int result = 0;
         while (matcher.find()) {
