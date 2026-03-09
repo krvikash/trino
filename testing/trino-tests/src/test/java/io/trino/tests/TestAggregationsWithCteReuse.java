@@ -42,9 +42,9 @@ public class TestAggregationsWithCteReuse
     public void testAggregationWithDifferentGroupByNotUnified()
     {
         String query = """
-                        SELECT count(*) FROM nation GROUP BY regionkey
+                        SELECT count(*), 'first_branch', regionkey FROM nation GROUP BY regionkey
                         UNION ALL
-                        SELECT count(*) FROM nation GROUP BY nationkey
+                        SELECT count(*), 'second_branch', nationkey FROM nation GROUP BY nationkey
                        """;
         String explainQuery = "EXPLAIN " + query;
 
@@ -55,16 +55,48 @@ public class TestAggregationsWithCteReuse
         assertThat(countRegexOccurrences(planWithoutCteReuse, "^Fragment "))
                 .isEqualTo(countRegexOccurrences(planWithCteReuse, "^Fragment "));
         // results are ok
-        assertQuery(query, "SELECT 5 FROM SYSTEM_RANGE(1, 5) UNION ALL SELECT 1 FROM SYSTEM_RANGE(1, 25)");
+        assertQuery(query, """
+                VALUES
+                    (5, 'first_branch', 0),
+                    (5, 'first_branch', 1),
+                    (5, 'first_branch', 2),
+                    (5, 'first_branch', 3),
+                    (5, 'first_branch', 4),
+                    (1, 'second_branch', 0),
+                    (1, 'second_branch', 1),
+                    (1, 'second_branch', 2),
+                    (1, 'second_branch', 3),
+                    (1, 'second_branch', 4),
+                    (1, 'second_branch', 5),
+                    (1, 'second_branch', 6),
+                    (1, 'second_branch', 7),
+                    (1, 'second_branch', 8),
+                    (1, 'second_branch', 9),
+                    (1, 'second_branch', 10),
+                    (1, 'second_branch', 11),
+                    (1, 'second_branch', 12),
+                    (1, 'second_branch', 13),
+                    (1, 'second_branch', 14),
+                    (1, 'second_branch', 15),
+                    (1, 'second_branch', 16),
+                    (1, 'second_branch', 17),
+                    (1, 'second_branch', 18),
+                    (1, 'second_branch', 19),
+                    (1, 'second_branch', 20),
+                    (1, 'second_branch', 21),
+                    (1, 'second_branch', 22),
+                    (1, 'second_branch', 23),
+                    (1, 'second_branch', 24)
+                """);
     }
 
     @Test
     public void testAggregationWithDifferentGroupingSetsNotUnified()
     {
         String query = """
-                        SELECT regionkey FROM nation GROUP BY GROUPING SETS (regionkey)
+                        SELECT 'first_branch', regionkey FROM nation GROUP BY GROUPING SETS (regionkey)
                         UNION ALL
-                        SELECT regionkey FROM nation GROUP BY GROUPING SETS (regionkey, ())
+                        SELECT 'second_branch', regionkey FROM nation GROUP BY GROUPING SETS (regionkey, ())
                        """;
         String explainQuery = "EXPLAIN " + query;
 
@@ -75,16 +107,29 @@ public class TestAggregationsWithCteReuse
         assertThat(countRegexOccurrences(planWithoutCteReuse, "^Fragment "))
                 .isEqualTo(countRegexOccurrences(planWithCteReuse, "^Fragment "));
         // results are ok
-        assertQuery(query, "VALUES (0), (0), (1), (1), (2), (2), (3), (3), (4), (4), (null)");
+        assertQuery(query, """
+                VALUES
+                    ('first_branch', 0),
+                    ('first_branch', 1),
+                    ('first_branch', 2),
+                    ('first_branch', 3),
+                    ('first_branch', 4),
+                    ('second_branch', 0),
+                    ('second_branch', 1),
+                    ('second_branch', 2),
+                    ('second_branch', 3),
+                    ('second_branch', 4),
+                    ('second_branch', null)
+                """);
     }
 
     @Test
     public void testGlobalAggregationNoFilters()
     {
         String query = """
-                        SELECT count(regionkey) FROM nation
+                        SELECT count(regionkey), 'first_branch' FROM nation
                         UNION ALL
-                        SELECT sum(regionkey) FROM nation
+                        SELECT sum(regionkey), 'second_branch' FROM nation
                        """;
         String explainQuery = "EXPLAIN " + query;
 
@@ -97,16 +142,16 @@ public class TestAggregationsWithCteReuse
         assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(2);
         assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [1]]\\E")).isEqualTo(2);
         // results are ok
-        assertQuery(query, "VALUES (25), (50)");
+        assertQuery(query, "VALUES (25, 'first_branch'), (50, 'second_branch')");
     }
 
     @Test
     public void testGroupByNoFilters()
     {
         String query = """
-                        SELECT count(*) FROM nation GROUP BY regionkey
+                        SELECT count(*), 'first_branch', regionkey FROM nation GROUP BY regionkey
                         UNION ALL
-                        SELECT count(regionkey) FROM nation GROUP BY regionkey
+                        SELECT count(regionkey), 'second_branch', regionkey FROM nation GROUP BY regionkey
                        """;
         String explainQuery = "EXPLAIN " + query;
 
@@ -119,16 +164,28 @@ public class TestAggregationsWithCteReuse
         assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(4);
         assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [2]]\\E")).isEqualTo(2);
         // results are ok
-        assertQuery(query, "SELECT 5 FROM SYSTEM_RANGE(1, 10)");
+        assertQuery(query, """
+                VALUES
+                    (5, 'first_branch', 0),
+                    (5, 'first_branch', 1),
+                    (5, 'first_branch', 2),
+                    (5, 'first_branch', 3),
+                    (5, 'first_branch', 4),
+                    (5, 'second_branch', 0),
+                    (5, 'second_branch', 1),
+                    (5, 'second_branch', 2),
+                    (5, 'second_branch', 3),
+                    (5, 'second_branch', 4)
+                """);
     }
 
     @Test
     public void testFiltersOnGroupingColumns()
     {
         String query = """
-                        SELECT count(*) FROM nation WHERE regionkey = 0 GROUP BY regionkey
+                        SELECT count(*), 'first_branch', regionkey FROM nation WHERE regionkey = 0 GROUP BY regionkey
                         UNION ALL
-                        SELECT count(*) FROM nation WHERE regionkey = 1 GROUP BY regionkey
+                        SELECT count(*), 'second_branch', regionkey FROM nation WHERE regionkey = 1 GROUP BY regionkey
                        """;
         String explainQuery = "EXPLAIN " + query;
 
@@ -141,16 +198,16 @@ public class TestAggregationsWithCteReuse
         assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(4);
         assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [2]]\\E")).isEqualTo(2);
         // results are ok
-        assertQuery(query, "VALUES (5), (5)");
+        assertQuery(query, "VALUES (5, 'first_branch', 0), (5, 'second_branch', 1)");
     }
 
     @Test
     public void testSameFilterOnNonGroupingColumns()
     {
         String query = """
-                        SELECT count(*) AS value FROM nation WHERE nationkey < 3 GROUP BY regionkey
+                        SELECT count(*), 'first_branch', regionkey FROM nation WHERE nationkey < 3 GROUP BY regionkey
                         UNION ALL
-                        SELECT count(*) AS value FROM nation WHERE nationkey < 3 GROUP BY regionkey
+                        SELECT count(*), 'second_branch', regionkey FROM nation WHERE nationkey < 3 GROUP BY regionkey
                        """;
         String explainQuery = "EXPLAIN " + query;
 
@@ -163,16 +220,20 @@ public class TestAggregationsWithCteReuse
         assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(4);
         assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [2]]\\E")).isEqualTo(2);
         // results are ok
-        assertQuery(query, "VALUES (1), (1), (2), (2)");
+        assertQuery(query, "VALUES " +
+                "(1, 'first_branch', 0), " +
+                "(1, 'second_branch', 0), " +
+                "(2, 'first_branch', 1), " +
+                "(2, 'second_branch', 1)");
     }
 
     @Test
     public void testAggregateMasksWithoutWhereClause()
     {
         String query = """
-                        SELECT regionkey, count(*) FILTER (WHERE nationkey < 10) FROM nation GROUP BY regionkey
+                        SELECT 'first_branch', regionkey, count(*) FILTER (WHERE nationkey < 10) FROM nation GROUP BY regionkey
                         UNION ALL
-                        SELECT regionkey, count(*) FILTER (WHERE nationkey >= 10) FROM nation GROUP BY regionkey
+                        SELECT 'second_branch', regionkey, count(*) FILTER (WHERE nationkey >= 10) FROM nation GROUP BY regionkey
                        """;
         String explainQuery = "EXPLAIN " + query;
 
@@ -183,17 +244,30 @@ public class TestAggregationsWithCteReuse
         assertThat(countRegexOccurrences(planWithoutCteReuse, "^Fragment ")).isEqualTo(5);
         // plan with CTE reuse has just 4 fragments and leaf fragment is accessed twice
         assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(4);
+        assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [2]]\\E")).isEqualTo(2);
         // results are ok
-        assertQuery(query, "VALUES (0, 2), (0, 3), (1, 2), (1, 3), (2, 2), (2, 3), (3, 2), (3, 3), (4, 4), (4, 1)");
+        assertQuery(query, """
+                VALUES
+                    ('first_branch', 0, 2),
+                    ('first_branch', 1, 3),
+                    ('first_branch', 2, 2),
+                    ('first_branch', 3, 2),
+                    ('first_branch', 4, 1),
+                    ('second_branch', 0, 3),
+                    ('second_branch', 1, 2),
+                    ('second_branch', 2, 3),
+                    ('second_branch', 3, 3),
+                    ('second_branch', 4, 4)
+                """);
     }
 
     @Test
     public void testAggregateMasksWithWhereClauseOnGroupingColumns()
     {
         String query = """
-                        SELECT regionkey, count(*) FILTER (WHERE nationkey < 5) FROM nation WHERE regionkey < 3 GROUP BY regionkey
+                        SELECT 'first_branch', regionkey, count(*) FILTER (WHERE nationkey < 5) FROM nation WHERE regionkey < 3 GROUP BY regionkey
                         UNION ALL
-                        SELECT regionkey, count(*) FILTER (WHERE nationkey >= 5) FROM nation WHERE regionkey < 2 GROUP BY regionkey
+                        SELECT 'second_branch', regionkey, count(*) FILTER (WHERE nationkey >= 5) FROM nation WHERE regionkey < 2 GROUP BY regionkey
                        """;
         String explainQuery = "EXPLAIN " + query;
 
@@ -204,8 +278,16 @@ public class TestAggregationsWithCteReuse
         assertThat(countRegexOccurrences(planWithoutCteReuse, "^Fragment ")).isEqualTo(5);
         // plan with CTE reuse has just 4 fragments and leaf fragment is accessed twice
         assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(4);
+        assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [2]]\\E")).isEqualTo(2);
         // results are ok
-        assertQuery(query, "VALUES (0, 1), (0, 4), (1, 2), (1, 3), (2, 0)");
+        assertQuery(query, """
+                VALUES
+                    ('first_branch', 0, 1),
+                    ('first_branch', 1, 3),
+                    ('first_branch', 2, 0),
+                    ('second_branch', 0, 4),
+                    ('second_branch', 1, 2)
+                """);
     }
 
     private Session disableCteReuse()
