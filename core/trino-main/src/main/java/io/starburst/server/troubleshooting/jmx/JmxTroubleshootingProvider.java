@@ -88,7 +88,10 @@ public class JmxTroubleshootingProvider
                             .asList()
                             .forEach(att -> mapper.accept(objectName.getCanonicalName(), att.getName(), attributeToType(att.getValue())));
             }
-            catch (InstanceNotFoundException | ReflectionException | IntrospectionException e) {
+            catch (InstanceNotFoundException e) {
+                // Mbean was removed after call to the queryNames, let's ignore it.
+            }
+            catch (ReflectionException | IntrospectionException e) {
                 throw new RuntimeException(e);
             }
         }
