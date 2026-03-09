@@ -865,6 +865,7 @@ public class TestChunkManager
 
     @Test
     public void testWaitForInProgressAddDataPages()
+            throws InterruptedException
     {
         long maxBytes = 16L;
         MemoryAllocator memoryAllocator = new MemoryAllocator(
@@ -888,11 +889,14 @@ public class TestChunkManager
         assertThat(addDataPagesFuture3.isDone()).isFalse();
 
         ListenableFuture<Void> exchangeFinishFuture = chunkManager.finishExchange(EXCHANGE_0);
-        assertThat(exchangeFinishFuture.isDone()).isFalse(); // wait for in-progress addDataPages to complete
+        // for finish and addDataPagesFuture3 we need more memory
+        assertThat(exchangeFinishFuture.isDone()).isFalse();
         assertThat(addDataPagesFuture3.isDone()).isFalse();
 
+        // spool to release memory pressure
         chunkManager.spoolIfNecessary();
         assertEventually(new Duration(1, SECONDS), () -> assertThat(addDataPagesFuture3.isDone()).isTrue());
+        assertEventually(new Duration(1, SECONDS), () -> assertThat(exchangeFinishFuture.isDone()).isTrue());
 
         ChunkHandle chunkHandle0 = new ChunkHandle(BUFFER_NODE_ID, 0, 0L, 1);
         ChunkHandle chunkHandle1 = new ChunkHandle(BUFFER_NODE_ID, 0, 1L, 1);
