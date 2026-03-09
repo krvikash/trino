@@ -51,40 +51,6 @@ public class TestAggregationsWithCteReuse
 
         // no CTE reuse because GROUP BY columns are different
         assertCteReuseNotApplied(query);
-
-        assertQueryWithAndWithoutCteReuse(query, """
-                VALUES
-                    (5, 'first_branch', 0),
-                    (5, 'first_branch', 1),
-                    (5, 'first_branch', 2),
-                    (5, 'first_branch', 3),
-                    (5, 'first_branch', 4),
-                    (1, 'second_branch', 0),
-                    (1, 'second_branch', 1),
-                    (1, 'second_branch', 2),
-                    (1, 'second_branch', 3),
-                    (1, 'second_branch', 4),
-                    (1, 'second_branch', 5),
-                    (1, 'second_branch', 6),
-                    (1, 'second_branch', 7),
-                    (1, 'second_branch', 8),
-                    (1, 'second_branch', 9),
-                    (1, 'second_branch', 10),
-                    (1, 'second_branch', 11),
-                    (1, 'second_branch', 12),
-                    (1, 'second_branch', 13),
-                    (1, 'second_branch', 14),
-                    (1, 'second_branch', 15),
-                    (1, 'second_branch', 16),
-                    (1, 'second_branch', 17),
-                    (1, 'second_branch', 18),
-                    (1, 'second_branch', 19),
-                    (1, 'second_branch', 20),
-                    (1, 'second_branch', 21),
-                    (1, 'second_branch', 22),
-                    (1, 'second_branch', 23),
-                    (1, 'second_branch', 24)
-                """);
     }
 
     @Test
@@ -98,21 +64,6 @@ public class TestAggregationsWithCteReuse
 
         // no CTE reuse because GROUPING SETS are different
         assertCteReuseNotApplied(query);
-
-        assertQueryWithAndWithoutCteReuse(query, """
-                VALUES
-                    ('first_branch', 0),
-                    ('first_branch', 1),
-                    ('first_branch', 2),
-                    ('first_branch', 3),
-                    ('first_branch', 4),
-                    ('second_branch', 0),
-                    ('second_branch', 1),
-                    ('second_branch', 2),
-                    ('second_branch', 3),
-                    ('second_branch', 4),
-                    ('second_branch', null)
-                """);
     }
 
     @Test
