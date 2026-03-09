@@ -26,15 +26,20 @@ import io.trino.spi.expression.Variable;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static io.trino.plugin.base.expression.ConnectorExpressions.and;
+import static io.trino.plugin.base.expression.ConnectorExpressions.extractDisjuncts;
 import static io.trino.plugin.base.expression.ConnectorExpressions.or;
 import static io.trino.plugin.base.util.ConnectorExpressionUtil.extractVariableNames;
+import static io.trino.spi.expression.Constant.FALSE;
+import static io.trino.spi.expression.Constant.TRUE;
 import static io.trino.spi.expression.StandardFunctions.IS_NULL_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME;
+import static io.trino.spi.expression.StandardFunctions.OR_FUNCTION_NAME;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.RowType.field;
 import static io.trino.spi.type.RowType.rowType;
@@ -43,6 +48,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestConnectorExpressionUtil
 {
+    private static final ConnectorExpression A = new Variable("a", BOOLEAN);
+    private static final ConnectorExpression B = new Variable("b", BOOLEAN);
+    private static final ConnectorExpression C = new Variable("c", BOOLEAN);
+
     @Test
     void testExtractVariableNames()
     {
@@ -634,5 +643,92 @@ final class TestConnectorExpressionUtil
                     .add("name", name)
                     .toString();
         }
+    }
+
+    @Test
+    public void testExtractDisjunctsSingleExpression()
+    {
+        assertThat(extractDisjuncts(A)).containsExactly(A);
+    }
+
+    @Test
+    public void testExtractDisjunctsOrExpression()
+    {
+        ConnectorExpression orExpression = new Call(BOOLEAN, OR_FUNCTION_NAME, ImmutableList.of(A, B));
+        assertThat(extractDisjuncts(orExpression)).containsExactly(A, B);
+    }
+
+    @Test
+    public void testExtractDisjunctsNestedOrExpression()
+    {
+        ConnectorExpression innerOr = new Call(BOOLEAN, OR_FUNCTION_NAME, ImmutableList.of(A, B));
+        ConnectorExpression outerOr = new Call(BOOLEAN, OR_FUNCTION_NAME, ImmutableList.of(innerOr, C));
+        assertThat(extractDisjuncts(outerOr)).containsExactly(A, B, C);
+    }
+
+    @Test
+    public void testExtractDisjunctsSkipsFalse()
+    {
+        assertThat(extractDisjuncts(FALSE)).isEmpty();
+    }
+
+    @Test
+    public void testExtractDisjunctsOrWithFalse()
+    {
+        ConnectorExpression orExpression = new Call(BOOLEAN, OR_FUNCTION_NAME, ImmutableList.of(A, FALSE));
+        assertThat(extractDisjuncts(orExpression)).containsExactly(A);
+    }
+
+    @Test
+    public void testOrMultipleExpressions()
+    {
+        ConnectorExpression result = or(A, B);
+        assertThat(result).isInstanceOf(Call.class);
+        Call call = (Call) result;
+        assertThat(call.getFunctionName()).isEqualTo(OR_FUNCTION_NAME);
+        assertThat(call.getArguments()).containsExactly(A, B);
+    }
+
+    @Test
+    public void testOrSingleExpression()
+    {
+        assertThat(or(A)).isEqualTo(A);
+    }
+
+    @Test
+    public void testOrEmptyList()
+    {
+        assertThat(or(List.of())).isEqualTo(FALSE);
+    }
+
+    @Test
+    public void testOrFiltersFalse()
+    {
+        assertThat(or(A, FALSE)).isEqualTo(A);
+    }
+
+    @Test
+    public void testOrAllFalse()
+    {
+        assertThat(or(FALSE, FALSE)).isEqualTo(FALSE);
+    }
+
+    @Test
+    public void testOrPreservesTrueAsRegularDisjunct()
+    {
+        ConnectorExpression result = or(A, TRUE);
+        assertThat(result).isInstanceOf(Call.class);
+        Call call = (Call) result;
+        assertThat(call.getArguments()).containsExactly(A, TRUE);
+    }
+
+    @Test
+    public void testOrVarargsList()
+    {
+        ConnectorExpression result = or(A, B, C);
+        assertThat(result).isInstanceOf(Call.class);
+        Call call = (Call) result;
+        assertThat(call.getFunctionName()).isEqualTo(OR_FUNCTION_NAME);
+        assertThat(call.getArguments()).containsExactly(A, B, C);
     }
 }
