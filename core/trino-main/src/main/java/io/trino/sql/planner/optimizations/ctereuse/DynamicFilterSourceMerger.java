@@ -14,6 +14,7 @@
 package io.trino.sql.planner.optimizations.ctereuse;
 
 import com.google.common.collect.ImmutableList;
+import io.trino.metadata.Metadata;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
 import io.trino.sql.newir.Block;
@@ -67,7 +68,8 @@ public class DynamicFilterSourceMerger
             BranchesToCheckpointsMapping branchToCheckpoint,
             Map<Operation, Operation> operationToDownstream,
             ProgramBuilder.ValueNameAllocator nameAllocator,
-            Map<Value, Operation> newOperations)
+            Map<Value, Operation> newOperations,
+            Metadata metadata)
     {
         // concatenate dynamic filter Ids lists from all branches
         List<String> unifiedDynamicFilterIds = branches.stream()

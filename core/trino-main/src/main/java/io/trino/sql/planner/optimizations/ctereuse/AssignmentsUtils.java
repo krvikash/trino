@@ -450,6 +450,41 @@ public class AssignmentsUtils
     }
 
     /**
+     * Create a field selector block that selects a single field at the given index.
+     *
+     * @param wrapInRow if true, wraps the field reference in a Row before returning
+     */
+    public static Block createSingleFieldSelector(Type inputRowType, int fieldIndex, Optional<String> label, boolean wrapInRow, ProgramBuilder.ValueNameAllocator nameAllocator)
+    {
+        checkArgument(IS_RELATION_ROW.test(inputRowType), "expected relation row type");
+        checkArgument(fieldIndex >= 0 && fieldIndex < inputRowType.getTypeParameters().size(), "field index out of bounds");
+
+        Block.Parameter parameter = new Block.Parameter(nameAllocator.newName(), irType(inputRowType));
+        Block.Builder builder = new Block.Builder(label, ImmutableList.of(parameter));
+
+        FieldReference fieldReference = new FieldReference(
+                nameAllocator.newName(),
+                parameter,
+                fieldIndex,
+                DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        builder.addOperation(fieldReference);
+
+        if (wrapInRow) {
+            Row row = new Row(
+                    nameAllocator.newName(),
+                    ImmutableList.of(fieldReference.result()),
+                    ImmutableList.of(fieldReference.attributes()));
+            builder.addOperation(row);
+            builder.addOperation(new Return(nameAllocator.newName(), row.result(), row.attributes()));
+        }
+        else {
+            builder.addOperation(new Return(nameAllocator.newName(), fieldReference.result(), fieldReference.attributes()));
+        }
+
+        return builder.build();
+    }
+
+    /**
      * Build a field selector block which selects all fields selected by the provided blocks, in the given order.
      * The resulting block has the same name and parameters as the first provided block.
      */

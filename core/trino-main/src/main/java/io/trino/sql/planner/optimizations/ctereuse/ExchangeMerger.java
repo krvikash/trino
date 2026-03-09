@@ -17,6 +17,7 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
+import io.trino.metadata.Metadata;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.newir.Block;
@@ -169,7 +170,8 @@ public class ExchangeMerger
             BranchesToCheckpointsMapping branchToCheckpoint,
             Map<Operation, Operation> operationToDownstream,
             ProgramBuilder.ValueNameAllocator nameAllocator,
-            Map<Value, Operation> newOperations)
+            Map<Value, Operation> newOperations,
+            Metadata metadata)
     {
         checkArgument(branches.size() > 1, "must provide at least two branches for merging");
         // TODO reuse the code or make it stateful so that we can record and use the rebased operation from the identifyExchangesToMerge() method

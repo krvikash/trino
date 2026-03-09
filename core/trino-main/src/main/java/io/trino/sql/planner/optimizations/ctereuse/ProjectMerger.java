@@ -16,6 +16,7 @@ package io.trino.sql.planner.optimizations.ctereuse;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
+import io.trino.metadata.Metadata;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.FieldReference;
@@ -123,7 +124,8 @@ public class ProjectMerger
             BranchesToCheckpointsMapping branchToCheckpoint,
             Map<Operation, Operation> operationToDownstream,
             ProgramBuilder.ValueNameAllocator nameAllocator,
-            Map<Value, Operation> newOperations)
+            Map<Value, Operation> newOperations,
+            Metadata metadata)
     {
         // the unified projection must include all project assignments from the component projections
         List<Block> unifiedAssignments = new ArrayList<>();

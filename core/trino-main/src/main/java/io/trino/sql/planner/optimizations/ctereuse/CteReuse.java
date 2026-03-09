@@ -833,7 +833,7 @@ public class CteReuse
         if (subgroups.singleGroupMerges().size() + subgroups.multiGroupMerges().size() == 1 && subgroups.hangingBranches().isEmpty() && subgroups.remainingSingleGroupBranches().isEmpty()) {
             UnifiedStatesAndCheckpointMapping nextOperationMerged;
             if (subgroups.singleGroupMerges().size() == 1) {
-                nextOperationMerged = SingleGroupMerger.mergeNextSingleGroupOperation(commonPartMerged.unifiedOperation(), commonPartMerged.residualStates(), checkpoints, branchToCheckpoint, operationToDownstream, nameAllocator, newOperations);
+                nextOperationMerged = SingleGroupMerger.mergeNextSingleGroupOperation(commonPartMerged.unifiedOperation(), commonPartMerged.residualStates(), checkpoints, branchToCheckpoint, operationToDownstream, nameAllocator, newOperations, plannerContext.getMetadata());
             }
             else {
                 setCheckpoint |= multiGroupMerger.isCheckpointRequired(getOnlyElement(subgroups.multiGroupMerges()).hangingGroups());
