@@ -133,7 +133,7 @@ TARGET_BRANCH=${TARGET_BRANCH}
 \`\`\`     
    
 EOF
-)&labels=ai,redshift,salesforce,synapse,snowflake"
+)&labels=ai,redshift,salesforce,synapse,snowflake,google-sheets"
 ```
 
 ### Create Slack channel
