@@ -55,7 +55,7 @@ public class TestAggregationsWithCteReuse
         assertThat(countRegexOccurrences(planWithoutCteReuse, "^Fragment "))
                 .isEqualTo(countRegexOccurrences(planWithCteReuse, "^Fragment "));
         // results are ok
-        assertQuery(query, """
+        assertQueryWithAndWithoutCteReuse(query, """
                 VALUES
                     (5, 'first_branch', 0),
                     (5, 'first_branch', 1),
@@ -107,7 +107,7 @@ public class TestAggregationsWithCteReuse
         assertThat(countRegexOccurrences(planWithoutCteReuse, "^Fragment "))
                 .isEqualTo(countRegexOccurrences(planWithCteReuse, "^Fragment "));
         // results are ok
-        assertQuery(query, """
+        assertQueryWithAndWithoutCteReuse(query, """
                 VALUES
                     ('first_branch', 0),
                     ('first_branch', 1),
@@ -142,7 +142,7 @@ public class TestAggregationsWithCteReuse
         assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(2);
         assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [1]]\\E")).isEqualTo(2);
         // results are ok
-        assertQuery(query, "VALUES (25, 'first_branch'), (50, 'second_branch')");
+        assertQueryWithAndWithoutCteReuse(query, "VALUES (25, 'first_branch'), (50, 'second_branch')");
     }
 
     @Test
@@ -164,7 +164,7 @@ public class TestAggregationsWithCteReuse
         assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(4);
         assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [2]]\\E")).isEqualTo(2);
         // results are ok
-        assertQuery(query, """
+        assertQueryWithAndWithoutCteReuse(query, """
                 VALUES
                     (5, 'first_branch', 0),
                     (5, 'first_branch', 1),
@@ -198,7 +198,7 @@ public class TestAggregationsWithCteReuse
         assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(4);
         assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [2]]\\E")).isEqualTo(2);
         // results are ok
-        assertQuery(query, "VALUES (5, 'first_branch', 0), (5, 'second_branch', 1)");
+        assertQueryWithAndWithoutCteReuse(query, "VALUES (5, 'first_branch', 0), (5, 'second_branch', 1)");
     }
 
     @Test
@@ -220,7 +220,7 @@ public class TestAggregationsWithCteReuse
         assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(4);
         assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [2]]\\E")).isEqualTo(2);
         // results are ok
-        assertQuery(query, "VALUES " +
+        assertQueryWithAndWithoutCteReuse(query, "VALUES " +
                 "(1, 'first_branch', 0), " +
                 "(1, 'second_branch', 0), " +
                 "(2, 'first_branch', 1), " +
@@ -246,7 +246,7 @@ public class TestAggregationsWithCteReuse
         assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(4);
         assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [2]]\\E")).isEqualTo(2);
         // results are ok
-        assertQuery(query, """
+        assertQueryWithAndWithoutCteReuse(query, """
                 VALUES
                     ('first_branch', 0, 2),
                     ('first_branch', 1, 3),
@@ -280,7 +280,7 @@ public class TestAggregationsWithCteReuse
         assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(4);
         assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [2]]\\E")).isEqualTo(2);
         // results are ok
-        assertQuery(query, """
+        assertQueryWithAndWithoutCteReuse(query, """
                 VALUES
                     ('first_branch', 0, 1),
                     ('first_branch', 1, 3),
@@ -306,5 +306,11 @@ public class TestAggregationsWithCteReuse
             result++;
         }
         return result;
+    }
+
+    private void assertQueryWithAndWithoutCteReuse(String query, String expectedResults)
+    {
+        assertQuery(disableCteReuse(), query, expectedResults);
+        assertQuery(query, expectedResults);
     }
 }

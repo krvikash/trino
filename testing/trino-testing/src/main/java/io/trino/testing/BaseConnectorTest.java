@@ -7532,7 +7532,7 @@ public abstract class BaseConnectorTest
         assertThat(countRegexOccurrences(planWithCteReuse, "^Fragment ")).isEqualTo(2);
         assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [1]]\\E")).isEqualTo(2);
         // results are ok
-        assertQuery(enableCteReuse(), query, "VALUES 5, 21");
+        assertQueryWithCteReuse(query, "VALUES 5, 21");
     }
 
     private Session enableCteReuse()
@@ -7568,7 +7568,7 @@ public abstract class BaseConnectorTest
         assertThat(countRegexOccurrences(planWithCteReuse, "\\QRemoteSource[sourceFragmentIds = [1]]\\E")).isEqualTo(2);
 
         // results are ok
-        assertQuery(enableCteReuse(), query, "VALUES 25, 24");
+        assertQueryWithCteReuse(query, "VALUES 25, 24");
 
         // dereference pushdown really happens
         // TODO: ideally we should use enableCteReuse() here but then .isFullyPushedDown() does not work as it depends on plan in old IR shape
@@ -7597,6 +7597,12 @@ public abstract class BaseConnectorTest
             result++;
         }
         return result;
+    }
+
+    private void assertQueryWithCteReuse(String query, String expectedResults)
+    {
+        assertQuery(query, expectedResults);
+        assertQuery(enableCteReuse(), query, expectedResults);
     }
 
     @Test
