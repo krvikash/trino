@@ -31,6 +31,7 @@ import io.trino.plugin.deltalake.DeltaLakeMetadata;
 import io.trino.plugin.deltalake.DeltaLakeOutputTableHandle;
 import io.trino.plugin.deltalake.DeltaLakePartitioningHandle;
 import io.trino.plugin.deltalake.DeltaLakeTableHandle;
+import io.trino.plugin.deltalake.functions.tablechanges.TableChangesTableFunctionHandle;
 import io.trino.plugin.deltalake.procedure.DeltaLakeTableExecuteHandle;
 import io.trino.plugin.hive.HiveInsertTableHandle;
 import io.trino.plugin.hive.HiveOutputTableHandle;
@@ -40,6 +41,7 @@ import io.trino.plugin.hive.HiveTableHandle;
 import io.trino.plugin.hive.HiveViewNotSupportedException;
 import io.trino.plugin.hive.TransactionalMetadata;
 import io.trino.plugin.hive.ViewReaderUtil;
+import io.trino.plugin.hive.functions.Unload.UnloadFunctionHandle;
 import io.trino.plugin.hive.procedure.OptimizeTableProcedure;
 import io.trino.plugin.hive.util.HiveUtil;
 import io.trino.plugin.hudi.HudiTableHandle;
@@ -53,6 +55,7 @@ import io.trino.plugin.iceberg.IcebergPartitioningHandle;
 import io.trino.plugin.iceberg.IcebergTableHandle;
 import io.trino.plugin.iceberg.IcebergTableName;
 import io.trino.plugin.iceberg.IcebergWritableTableHandle;
+import io.trino.plugin.iceberg.functions.tablechanges.TableChangesFunctionHandle;
 import io.trino.plugin.iceberg.procedure.IcebergTableExecuteHandle;
 import io.trino.spi.ErrorCode;
 import io.trino.spi.ErrorCodeSupplier;
@@ -110,6 +113,7 @@ import io.trino.spi.function.FunctionDependencyDeclaration;
 import io.trino.spi.function.FunctionId;
 import io.trino.spi.function.FunctionMetadata;
 import io.trino.spi.function.SchemaFunctionName;
+import io.trino.spi.function.table.ConnectorTableFunctionHandle;
 import io.trino.spi.metrics.Metrics;
 import io.trino.spi.procedure.Procedure;
 import io.trino.spi.security.TrinoPrincipal;
@@ -1697,6 +1701,13 @@ public class ObjectStoreMetadata
         return delegate(tableType).getTableCredentials(unwrap(tableType, session), tableHandle);
     }
 
+    @Override
+    public Optional<ConnectorTableCredentials> getTableCredentials(ConnectorSession session, ConnectorTableFunctionHandle tableFunctionHandle)
+    {
+        TableType tableType = tableType(tableFunctionHandle);
+        return delegate(tableType).getTableCredentials(unwrap(tableType, session), tableFunctionHandle);
+    }
+
     private void flushMetadataCache()
     {
         try {
@@ -1781,6 +1792,20 @@ public class ObjectStoreMetadata
             case DeltaLakeInsertTableHandle _, DeltaLakeOutputTableHandle _, DeltaLakeTableExecuteHandle _ -> DELTA;
             default -> throw new IllegalArgumentException("Unsupported writable table handle: " + handle.getClass().getName());
         };
+    }
+
+    private static TableType tableType(ConnectorTableFunctionHandle handle)
+    {
+        if (handle instanceof TableChangesFunctionHandle) {
+            return ICEBERG;
+        }
+        if (handle instanceof TableChangesTableFunctionHandle) {
+            return DELTA;
+        }
+        if (handle instanceof UnloadFunctionHandle) {
+            return HIVE;
+        }
+        throw new IllegalArgumentException("Unsupported table function handle: " + handle.getClass().getName());
     }
 
     private static TableType tableType(ConnectorInsertTableHandle handle)

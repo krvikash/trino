@@ -20,6 +20,7 @@ import io.trino.plugin.iceberg.functions.tablechanges.TableChangesFunctionHandle
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
+import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.function.BoundSignature;
 import io.trino.spi.function.FunctionDependencies;
 import io.trino.spi.function.FunctionId;
@@ -30,6 +31,8 @@ import io.trino.spi.function.table.ConnectorTableFunctionHandle;
 import io.trino.spi.function.table.TableFunctionDataProcessor;
 import io.trino.spi.function.table.TableFunctionProcessorProvider;
 import io.trino.spi.function.table.TableFunctionSplitProcessor;
+
+import java.util.Optional;
 
 import static io.trino.plugin.objectstore.TableType.DELTA;
 import static io.trino.plugin.objectstore.TableType.HIVE;
@@ -134,9 +137,13 @@ public class ObjectStoreFunctionProvider
         }
 
         @Override
-        public TableFunctionSplitProcessor getSplitProcessor(ConnectorSession session, ConnectorTableFunctionHandle handle, ConnectorSplit split)
+        public TableFunctionSplitProcessor getSplitProcessor(
+                ConnectorSession session,
+                ConnectorTableFunctionHandle handle,
+                Optional<ConnectorTableCredentials> tableCredentials,
+                ConnectorSplit split)
         {
-            return tableFunctionProcessorProvider.getSplitProcessor(objectStoreSessionProperties.unwrap(DELTA, session), handle, split);
+            return tableFunctionProcessorProvider.getSplitProcessor(objectStoreSessionProperties.unwrap(DELTA, session), handle, tableCredentials, split);
         }
     }
 
@@ -158,9 +165,13 @@ public class ObjectStoreFunctionProvider
         }
 
         @Override
-        public TableFunctionSplitProcessor getSplitProcessor(ConnectorSession session, ConnectorTableFunctionHandle handle, ConnectorSplit split)
+        public TableFunctionSplitProcessor getSplitProcessor(
+                ConnectorSession session,
+                ConnectorTableFunctionHandle handle,
+                Optional<ConnectorTableCredentials> tableCredentials,
+                ConnectorSplit split)
         {
-            return tableFunctionProcessorProvider.getSplitProcessor(objectStoreSessionProperties.unwrap(ICEBERG, session), handle, split);
+            return tableFunctionProcessorProvider.getSplitProcessor(objectStoreSessionProperties.unwrap(ICEBERG, session), handle, tableCredentials, split);
         }
     }
 }

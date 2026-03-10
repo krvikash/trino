@@ -1422,4 +1422,12 @@ public class ClassLoaderSafeConnectorMetadata
             return delegate.getTableCredentials(session, tableHandle);
         }
     }
+
+    @Override
+    public Optional<ConnectorTableCredentials> getTableCredentials(ConnectorSession session, ConnectorTableFunctionHandle tableFunctionHandle)
+    {
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
+            return delegate.getTableCredentials(session, tableFunctionHandle);
+        }
+    }
 }

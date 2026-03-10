@@ -1610,6 +1610,15 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
         }
     }
 
+    @Override
+    public Optional<ConnectorTableCredentials> getTableCredentials(ConnectorSession session, ConnectorTableFunctionHandle tableFunctionHandle)
+    {
+        Span span = startSpan("getTableCredentials");
+        try (var _ = scopedSpan(span)) {
+            return delegate.getTableCredentials(session, tableFunctionHandle);
+        }
+    }
+
     private Span startSpan(String methodName)
     {
         return tracer.spanBuilder("ObjectStoreConnectorMetadata." + connectorClassName + "." + methodName)

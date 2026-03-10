@@ -1059,6 +1059,12 @@ public class DispatcherMetadata
         return proxiedConnectorMetadata.getTableCredentials(session, tableHandle);
     }
 
+    @Override
+    public Optional<ConnectorTableCredentials> getTableCredentials(ConnectorSession session, ConnectorTableFunctionHandle tableFunctionHandle)
+    {
+        return proxiedConnectorMetadata.getTableCredentials(session, tableFunctionHandle);
+    }
+
     private static List<CustomStat> mergeCustomStats(List<CustomStat> first, List<CustomStat> second)
     {
         Map<String, Long> customStatsMap = second.stream()
