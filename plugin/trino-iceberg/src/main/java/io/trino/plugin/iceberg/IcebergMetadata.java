@@ -1054,8 +1054,6 @@ public class IcebergMetadata
             return Optional.empty();
         }
 
-        tableCredentialsCache.put(tableName, IcebergTableCredentials.forFileIO(table.io()));
-
         TableType tableType = IcebergTableName.tableTypeFrom(tableName.getTableName());
         return switch (tableType) {
             case DATA, MATERIALIZED_VIEW_STORAGE, ERRORS -> throw new VerifyException("Unexpected table type: " + tableType); // Handled above.
