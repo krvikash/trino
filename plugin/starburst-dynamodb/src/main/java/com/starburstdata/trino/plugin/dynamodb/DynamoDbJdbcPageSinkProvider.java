@@ -23,6 +23,9 @@ import io.trino.spi.connector.ConnectorPageSinkId;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableExecuteHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.TableCredentials;
+
+import java.util.Optional;
 
 /*
  * The OEM key requires a com.starburstdata.* class to be on the stack trace when making calls to DynamoDB.
@@ -59,5 +62,29 @@ public class DynamoDbJdbcPageSinkProvider
     public ConnectorMergeSink createMergeSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorMergeTableHandle mergeHandle, ConnectorPageSinkId pageSinkId)
     {
         return super.createMergeSink(transactionHandle, session, mergeHandle, pageSinkId);
+    }
+
+    @Override
+    public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorOutputTableHandle outputTableHandle, Optional<TableCredentials> tableCredentials, ConnectorPageSinkId pageSinkId)
+    {
+        return super.createPageSink(transactionHandle, session, outputTableHandle, tableCredentials, pageSinkId);
+    }
+
+    @Override
+    public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorInsertTableHandle insertTableHandle, Optional<TableCredentials> tableCredentials, ConnectorPageSinkId pageSinkId)
+    {
+        return super.createPageSink(transactionHandle, session, insertTableHandle, tableCredentials, pageSinkId);
+    }
+
+    @Override
+    public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle, Optional<TableCredentials> tableCredentials, ConnectorPageSinkId pageSinkId)
+    {
+        return super.createPageSink(transactionHandle, session, tableExecuteHandle, tableCredentials, pageSinkId);
+    }
+
+    @Override
+    public ConnectorMergeSink createMergeSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorMergeTableHandle mergeHandle, Optional<TableCredentials> tableCredentials, ConnectorPageSinkId pageSinkId)
+    {
+        return super.createMergeSink(transactionHandle, session, mergeHandle, tableCredentials, pageSinkId);
     }
 }

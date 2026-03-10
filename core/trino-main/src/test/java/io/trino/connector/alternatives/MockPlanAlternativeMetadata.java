@@ -50,6 +50,7 @@ import io.trino.spi.connector.ConnectorTableProperties;
 import io.trino.spi.connector.ConnectorTableSchema;
 import io.trino.spi.connector.ConnectorTableVersion;
 import io.trino.spi.connector.ConnectorViewDefinition;
+import io.trino.spi.connector.ConnectorWritableTableHandle;
 import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.ConstraintApplicationResult;
 import io.trino.spi.connector.ConstraintApplicationResult.Alternative;
@@ -1119,6 +1120,12 @@ public class MockPlanAlternativeMetadata
 
     @Override
     public Optional<TableCredentials> getTableCredentials(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        return delegate.getTableCredentials(session, tableHandle);
+    }
+
+    @Override
+    public Optional<TableCredentials> getTableCredentials(ConnectorSession session, ConnectorWritableTableHandle tableHandle)
     {
         return delegate.getTableCredentials(session, tableHandle);
     }
