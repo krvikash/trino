@@ -332,8 +332,8 @@ public class QueryStateMachine
             session = session.beginTransactionId(transactionId, transactionManager, accessControl);
         }
 
-        boolean externaEchangesInUse = getRetryPolicy(session) == TASK || isReuseCommonSubqueriesEnabled(session);
-        if (externaEchangesInUse && faultTolerantExecutionExchangeEncryptionEnabled) {
+        boolean externalExchangesInUse = getRetryPolicy(session) == TASK || isReuseCommonSubqueriesEnabled(session);
+        if (externalExchangesInUse && faultTolerantExecutionExchangeEncryptionEnabled) {
             // encryption is mandatory for fault tolerant execution with CTE-reuse as those rely on an external storage to store intermediate data generated during an exchange
             session = session.withExchangeEncryption(serializeAesEncryptionKey(createRandomAesEncryptionKey()));
         }
