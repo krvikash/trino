@@ -412,12 +412,7 @@ jobs:
   google-sheets-tests:
     name: google-sheets-tests
     runs-on: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
-    strategy:
-      fail-fast: false
-      matrix:
-        modules:
-          - plugin/trino-google-sheets
-    timeout-minutes: 90
+    timeout-minutes: 30
     if: "(github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'google-sheets')) || (github.event_name == 'workflow_dispatch')"
     steps:
       - uses: actions/checkout@v4
@@ -433,19 +428,18 @@ jobs:
       - name: Maven install
         run: |
           export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
-          $MAVEN clean install ${MAVEN_FAST_INSTALL} -am -pl ${{ matrix.modules }}
+          $MAVEN clean install ${MAVEN_FAST_INSTALL} -am -pl plugin/trino-google-sheets
       - name: Run Google Sheets tests
         id: tests
-        if: contains(matrix.modules, 'trino-google-sheets')
         run: |
-          $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }}
+          $MAVEN test ${MAVEN_TEST} -pl plugin/trino-google-sheets
       - name: Sanitize artifact name
         if: always()
         run: |
           # Generate a valid artifact name and make it available to next steps as
           # an environment variable ARTIFACT_NAME
           # ", :, <, >, |, *, ?, \, / are not allowed in artifact names, replace it with an underscore
-          name=$(echo -n "${{ matrix.modules }}" | sed -e 's/[":<>|\*\?\\\/]/_/g')
+          name=$(echo -n "plugin/trino-google-sheets" | sed -e 's/[":<>|\*\?\\\/]/_/g')
           echo "ARTIFACT_NAME=$name" >> $GITHUB_ENV
       - name: Upload test results
         uses: actions/upload-artifact@v4
