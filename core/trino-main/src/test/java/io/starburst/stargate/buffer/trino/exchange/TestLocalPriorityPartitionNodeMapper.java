@@ -15,6 +15,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimaps;
 import io.airlift.units.Duration;
 import io.trino.node.InternalNode;
+import io.trino.spi.exchange.ExchangeId;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -38,8 +39,15 @@ public class TestLocalPriorityPartitionNodeMapper
 {
     private static final Duration NO_WAIT = succinctNanos(0);
     private static final Map<Integer, Integer> SINGLE_NODE_PER_PARTITION = ImmutableMap.of(0, 1, 1, 1, 2, 1, 3, 1);
+    private static final ExchangeId EXCHANGE_ID = new ExchangeId("x");
+    private final BufferExchangeConfig bufferExchangeConfig = new BufferExchangeConfig();
 
     private final ScheduledExecutorService executor = new ScheduledThreadPoolExecutor(4);
+
+    public TestLocalPriorityPartitionNodeMapper()
+    {
+        this.bufferExchangeConfig.setMaxWaitActiveBufferNodes(NO_WAIT);
+    }
 
     @AfterAll
     public void teardown()
@@ -54,8 +62,7 @@ public class TestLocalPriorityPartitionNodeMapper
         TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
         discoveryManager.setBufferNodes(builder -> LongStream.range(0, 10).forEach(nodeId -> builder.putNode(nodeId, ACTIVE)));
 
-        LocalPriorityPartitionNodeMapper mapper = new LocalPriorityPartitionNodeMapper(discoveryManager, executor, 4, 3, NO_WAIT);
-
+        PartitionNodeMapper mapper = getPartitionNodeMapper(discoveryManager, false);
         PartitionNodeMapping mapping = mapper.getMapping(1, Optional.empty()).get();
         assertThat(mapping.getBaseNodesCount()).isEqualTo(SINGLE_NODE_PER_PARTITION);
         assertThat(Multimaps.asMap(mapping.getMapping())).allSatisfy((_, values) -> {
@@ -71,7 +78,7 @@ public class TestLocalPriorityPartitionNodeMapper
         TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
         discoveryManager.setBufferNodes(builder -> LongStream.range(0, 10).forEach(nodeId -> builder.putNode(nodeId, ACTIVE)));
 
-        LocalPriorityPartitionNodeMapper mapper = new LocalPriorityPartitionNodeMapper(discoveryManager, executor, 4, 3, NO_WAIT);
+        PartitionNodeMapper mapper = getPartitionNodeMapper(discoveryManager, false);
 
         InternalNode dummyNode = new InternalNode("dummy", URI.create("http://dummy:80"), UNKNOWN, false);
         PartitionNodeMapping mapping = mapper.getMapping(1, Optional.of(dummyNode)).get();
@@ -89,7 +96,7 @@ public class TestLocalPriorityPartitionNodeMapper
         TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
         discoveryManager.setBufferNodes(builder -> LongStream.range(0, 10).forEach(nodeId -> builder.putNode(nodeId, ACTIVE)));
 
-        LocalPriorityPartitionNodeMapper mapper = new LocalPriorityPartitionNodeMapper(discoveryManager, executor, 4, 3, NO_WAIT);
+        PartitionNodeMapper mapper = getPartitionNodeMapper(discoveryManager, false);
 
         InternalNode node3 = new InternalNode("node3", URI.create("http://node3:80"), UNKNOWN, false);
         PartitionNodeMapping mapping = mapper.getMapping(1, Optional.of(node3)).get();
@@ -109,7 +116,7 @@ public class TestLocalPriorityPartitionNodeMapper
         TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
         discoveryManager.setBufferNodes(builder -> LongStream.range(0, 2).forEach(nodeId -> builder.putNode(nodeId, ACTIVE)));
 
-        LocalPriorityPartitionNodeMapper mapper = new LocalPriorityPartitionNodeMapper(discoveryManager, executor, 4, 3, NO_WAIT);
+        PartitionNodeMapper mapper = getPartitionNodeMapper(discoveryManager, false);
 
         InternalNode node1 = new InternalNode("node1", URI.create("http://node1:80"), UNKNOWN, false);
         PartitionNodeMapping mapping = mapper.getMapping(1, Optional.of(node1)).get();
@@ -129,8 +136,7 @@ public class TestLocalPriorityPartitionNodeMapper
         TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
         discoveryManager.setBufferNodes(builder -> LongStream.range(0, 1).forEach(nodeId -> builder.putNode(nodeId, ACTIVE)));
 
-        LocalPriorityPartitionNodeMapper mapper = new LocalPriorityPartitionNodeMapper(discoveryManager, executor, 4, 3, NO_WAIT);
-
+        PartitionNodeMapper mapper = getPartitionNodeMapper(discoveryManager, false);
         InternalNode node0 = new InternalNode("node0", URI.create("http://node0:80"), UNKNOWN, false);
         PartitionNodeMapping mapping = mapper.getMapping(1, Optional.of(node0)).get();
         assertThat(mapping.getBaseNodesCount()).isEqualTo(SINGLE_NODE_PER_PARTITION);
@@ -140,5 +146,48 @@ public class TestLocalPriorityPartitionNodeMapper
                                 1, ImmutableList.of(0L),
                                 2, ImmutableList.of(0L),
                                 3, ImmutableList.of(0L)));
+    }
+
+    @Test
+    public void testGetMappingWithNodePreservingOrder()
+            throws ExecutionException, InterruptedException
+    {
+        TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
+        discoveryManager.setBufferNodes(builder -> LongStream.range(0, 10).forEach(nodeId -> builder.putNode(nodeId, ACTIVE)));
+
+        PartitionNodeMapper mapper = getPartitionNodeMapper(discoveryManager, true);
+
+        InternalNode node3 = new InternalNode("node3", URI.create("http://node3:80"), UNKNOWN, false);
+        PartitionNodeMapping mapping = mapper.getMapping(1, Optional.of(node3)).get();
+        assertThat(mapping.getBaseNodesCount()).isEqualTo(SINGLE_NODE_PER_PARTITION);
+        assertThat(Multimaps.asMap(mapping.getMapping()))
+                .allSatisfy((_, values) -> {
+                    assertThat(values).hasSize(1);
+                    assertThat(ImmutableSet.copyOf(values)).hasSize(1);
+                    assertThat(values.get(0)).isEqualTo(3);
+                });
+    }
+
+    @Test
+    public void testGetMappingTaskNodeMissingFromClusterPreservingOrder()
+            throws ExecutionException, InterruptedException
+    {
+        TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
+        discoveryManager.setBufferNodes(builder -> LongStream.range(0, 10).forEach(nodeId -> builder.putNode(nodeId, ACTIVE)));
+
+        PartitionNodeMapper mapper = getPartitionNodeMapper(discoveryManager, true);
+
+        InternalNode dummyNode = new InternalNode("dummy", URI.create("http://dummy:80"), UNKNOWN, false);
+        PartitionNodeMapping mapping = mapper.getMapping(1, Optional.of(dummyNode)).get();
+        assertThat(mapping.getBaseNodesCount()).isEqualTo(SINGLE_NODE_PER_PARTITION);
+        assertThat(Multimaps.asMap(mapping.getMapping())).allSatisfy((_, values) -> {
+            assertThat(values).hasSize(1);
+            assertThat(ImmutableSet.copyOf(values)).hasSize(1);
+        });
+    }
+
+    private PartitionNodeMapper getPartitionNodeMapper(TestingBufferNodeDiscoveryManager discoveryManager, boolean preserveOrderWithinPartition)
+    {
+        return new LocalPriorityPartitionNodeMapperFactory(discoveryManager, executor, bufferExchangeConfig).getPartitionNodeMapper(EXCHANGE_ID, 4, preserveOrderWithinPartition);
     }
 }

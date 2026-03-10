@@ -35,6 +35,8 @@ public class LocalPriorityPartitionNodeMapperFactory
     @Override
     public PartitionNodeMapper getPartitionNodeMapper(ExchangeId exchangeId, int outputPartitionCount, boolean preserveOrderWithinPartition)
     {
-        return new LocalPriorityPartitionNodeMapper(discoveryManager, executor, outputPartitionCount, 3, maxWaitActiveBufferNodes);
+        // to preserve order within partition we need to use single node
+        int totalNodesPerPartition = preserveOrderWithinPartition ? 1 : 3;
+        return new LocalPriorityPartitionNodeMapper(discoveryManager, executor, outputPartitionCount, totalNodesPerPartition, maxWaitActiveBufferNodes);
     }
 }
