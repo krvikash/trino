@@ -211,11 +211,6 @@ public class SplitSourceFactory
 
         private SplitSource createSplitSource(TableHandle table, Map<Symbol, ColumnHandle> assignments, Optional<Expression> filterPredicate)
         {
-            return createSplitSource(table, assignments, filterPredicate, false);
-        }
-
-        private SplitSource createSplitSource(TableHandle table, Map<Symbol, ColumnHandle> assignments, Optional<Expression> filterPredicate, boolean preferDeterministicSplits)
-        {
             List<DynamicFilters.Descriptor> dynamicFilters = filterPredicate
                     .map(DynamicFilters::extractDynamicFilters)
                     .map(DynamicFilters.ExtractResult::getDynamicConjuncts)
@@ -245,7 +240,6 @@ public class SplitSourceFactory
                     stageSpan,
                     table,
                     dynamicFilter,
-                    preferDeterministicSplits,
                     constraint);
         }
 
@@ -408,8 +402,7 @@ public class SplitSourceFactory
                 SplitSource splitSource = createSplitSource(
                         originalTableScan,
                         node.getOriginalTableScan().assignments(),
-                        node.getOriginalTableScan().filterPredicate(),
-                        true);
+                        node.getOriginalTableScan().filterPredicate());
                 LoadCachedDataPlanNode loadCachedDataNode = getLoadCachedDataPlanNode(node);
                 PlanSignature signature = loadCachedDataNode.getPlanSignature().signature();
                 return ImmutableMap.of(

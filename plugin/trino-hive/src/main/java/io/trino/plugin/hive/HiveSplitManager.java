@@ -210,18 +210,6 @@ public class HiveSplitManager
             DynamicFilter dynamicFilter,
             Constraint constraint)
     {
-        return getSplits(transaction, session, tableHandle, dynamicFilter, false, constraint);
-    }
-
-    @Override
-    public ConnectorSplitSource getSplits(
-            ConnectorTransactionHandle transaction,
-            ConnectorSession session,
-            ConnectorTableHandle tableHandle,
-            DynamicFilter dynamicFilter,
-            boolean preferDeterministicSplits,
-            Constraint constraint)
-    {
         HiveTableHandle hiveTable = (HiveTableHandle) tableHandle;
         SchemaTableName tableName = hiveTable.getSchemaTableName();
 
@@ -306,11 +294,7 @@ public class HiveSplitManager
                 session,
                 table.getDatabaseName(),
                 table.getTableName(),
-                // Initial splits are smaller and there is a limited
-                // number of them. Therefore, if deterministic splits are
-                // required, then initial splits must be disabled because
-                // split generation doesn't have guaranteed ordering.
-                preferDeterministicSplits ? 0 : maxInitialSplits,
+                maxInitialSplits,
                 maxOutstandingSplits,
                 maxOutstandingSplitsSize,
                 maxSplitsPerSecond,
