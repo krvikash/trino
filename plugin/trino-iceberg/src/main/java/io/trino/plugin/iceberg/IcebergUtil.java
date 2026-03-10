@@ -42,6 +42,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.function.InvocationConvention;
@@ -1381,5 +1382,13 @@ public final class IcebergUtil
         catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static Map<String, String> getFileIoProperties(Optional<ConnectorTableCredentials> tableCredentials)
+    {
+        if (tableCredentials.isPresent() && tableCredentials.get() instanceof IcebergTableCredentials(Map<String, String> properties)) {
+            return properties;
+        }
+        return ImmutableMap.of();
     }
 }

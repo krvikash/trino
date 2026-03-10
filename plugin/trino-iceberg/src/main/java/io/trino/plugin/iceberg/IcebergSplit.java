@@ -18,8 +18,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import io.airlift.slice.SizeOf;
 import io.trino.plugin.iceberg.delete.DeleteFile;
 import io.trino.spi.HostAddress;
 import io.trino.spi.SplitWeight;
@@ -27,7 +25,6 @@ import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.predicate.TupleDomain;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
@@ -52,7 +49,6 @@ public class IcebergSplit
     private final List<DeleteFile> deletes;
     private final SplitWeight splitWeight;
     private final TupleDomain<IcebergColumnHandle> fileStatisticsDomain;
-    private final Map<String, String> fileIoProperties;
     private final Long dataSequenceNumber;
     private final Long firstRowId;
     private final List<HostAddress> addresses;
@@ -70,7 +66,6 @@ public class IcebergSplit
             @JsonProperty("deletes") List<DeleteFile> deletes,
             @JsonProperty("splitWeight") SplitWeight splitWeight,
             @JsonProperty("fileStatisticsDomain") TupleDomain<IcebergColumnHandle> fileStatisticsDomain,
-            @JsonProperty("fileIoProperties") Map<String, String> fileIoProperties,
             @JsonProperty("dataSequenceNumber") Long dataSequenceNumber,
             @JsonProperty("firstRowId") Long firstRowId)
     {
@@ -87,7 +82,6 @@ public class IcebergSplit
                 deletes,
                 splitWeight,
                 fileStatisticsDomain,
-                fileIoProperties,
                 ImmutableList.of(),
                 dataSequenceNumber,
                 firstRowId);
@@ -106,7 +100,6 @@ public class IcebergSplit
             List<DeleteFile> deletes,
             SplitWeight splitWeight,
             TupleDomain<IcebergColumnHandle> fileStatisticsDomain,
-            Map<String, String> fileIoProperties,
             List<HostAddress> addresses,
             long dataSequenceNumber,
             Long firstRowId)
@@ -123,7 +116,6 @@ public class IcebergSplit
         this.deletes = ImmutableList.copyOf(requireNonNull(deletes, "deletes is null"));
         this.splitWeight = requireNonNull(splitWeight, "splitWeight is null");
         this.fileStatisticsDomain = requireNonNull(fileStatisticsDomain, "fileStatisticsDomain is null");
-        this.fileIoProperties = ImmutableMap.copyOf(requireNonNull(fileIoProperties, "fileIoProperties is null"));
         this.addresses = requireNonNull(addresses, "addresses is null");
         this.dataSequenceNumber = dataSequenceNumber;
         this.firstRowId = firstRowId;
@@ -214,12 +206,6 @@ public class IcebergSplit
     }
 
     @JsonProperty
-    public Map<String, String> getFileIoProperties()
-    {
-        return fileIoProperties;
-    }
-
-    @JsonProperty
     public Long getDataSequenceNumber()
     {
         return dataSequenceNumber;
@@ -241,7 +227,6 @@ public class IcebergSplit
                 + estimatedSizeOf(deletes, DeleteFile::retainedSizeInBytes)
                 + splitWeight.getRetainedSizeInBytes()
                 + fileStatisticsDomain.getRetainedSizeInBytes(IcebergColumnHandle::getRetainedSizeInBytes)
-                + estimatedSizeOf(fileIoProperties, SizeOf::estimatedSizeOf, SizeOf::estimatedSizeOf)
                 + estimatedSizeOf(addresses, HostAddress::getRetainedSizeInBytes);
     }
 

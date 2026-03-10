@@ -1483,6 +1483,7 @@ public class EventDrivenFaultTolerantQueryScheduler
 
                 StageId stageId = getStageId(fragment.getId());
                 SqlStage stage = SqlStage.createSqlStage(
+                        metadata,
                         stageId,
                         fragment,
                         TableInfo.extract(session, metadata, fragment),

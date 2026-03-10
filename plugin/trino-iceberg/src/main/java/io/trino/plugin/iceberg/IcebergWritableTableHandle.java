@@ -42,7 +42,6 @@ public record IcebergWritableTableHandle(
         String outputPath,
         IcebergFileFormat fileFormat,
         Map<String, String> storageProperties,
-        Map<String, String> fileIoProperties,
         RowLevelOperationMode operationMode,
         Optional<String> branch)
         implements ConnectorInsertTableHandle, ConnectorOutputTableHandle
@@ -60,7 +59,6 @@ public record IcebergWritableTableHandle(
         requireNonNull(fileFormat, "fileFormat is null");
         storageProperties = ImmutableMap.copyOf(requireNonNull(storageProperties, "storageProperties is null"));
         checkArgument(partitionsSpecsAsJson.containsKey(partitionSpecId), "partitionSpecId missing from partitionSpecs");
-        fileIoProperties = ImmutableMap.copyOf(requireNonNull(fileIoProperties, "fileIoProperties is null"));
         requireNonNull(branch, "branch is null");
     }
 

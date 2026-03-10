@@ -43,6 +43,7 @@ import io.trino.spi.connector.ConnectorOutputTableHandle;
 import io.trino.spi.connector.ConnectorPartitioningHandle;
 import io.trino.spi.connector.ConnectorResolvedIndex;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableExecuteHandle;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTableLayout;
@@ -51,6 +52,7 @@ import io.trino.spi.connector.ConnectorTableProperties;
 import io.trino.spi.connector.ConnectorTableSchema;
 import io.trino.spi.connector.ConnectorTableVersion;
 import io.trino.spi.connector.ConnectorViewDefinition;
+import io.trino.spi.connector.ConnectorWritableTableHandle;
 import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.ConstraintApplicationResult;
 import io.trino.spi.connector.JoinApplicationResult;
@@ -1019,6 +1021,19 @@ public class DispatcherMetadata
                 new ConstraintApplicationResult.Alternative<>(dispatcherTableHandle, newRemainingFilter, newRemainingExpression, false));
 
         return Optional.of(new ConstraintApplicationResult<>(false, alternatives));
+    }
+
+    @Override
+    public Optional<ConnectorTableCredentials> getTableCredentials(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) tableHandle;
+        return proxiedConnectorMetadata.getTableCredentials(session, dispatcherTableHandle.getProxyConnectorTableHandle());
+    }
+
+    @Override
+    public Optional<ConnectorTableCredentials> getTableCredentials(ConnectorSession session, ConnectorWritableTableHandle tableHandle)
+    {
+        return proxiedConnectorMetadata.getTableCredentials(session, tableHandle);
     }
 
     private static List<CustomStat> mergeCustomStats(List<CustomStat> first, List<CustomStat> second)

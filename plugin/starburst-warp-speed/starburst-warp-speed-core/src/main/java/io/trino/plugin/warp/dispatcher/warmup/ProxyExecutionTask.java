@@ -39,6 +39,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.SchemaTableName;
@@ -74,6 +75,7 @@ public class ProxyExecutionTask
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             DispatcherTableHandle dispatcherTableHandle,
+            Optional<ConnectorTableCredentials> tableCredentials,
             RowGroupKey rowGroupKey,
             List<ColumnHandle> columns,
             DispatcherSplit dispatcherSplit,
@@ -100,6 +102,7 @@ public class ProxyExecutionTask
                 transactionHandle,
                 session,
                 dispatcherTableHandle,
+                tableCredentials,
                 rowGroupKey,
                 columns,
                 dispatcherSplit,
@@ -199,6 +202,7 @@ public class ProxyExecutionTask
                     transactionHandle,
                     session,
                     dispatcherTableHandle,
+                    tableCredentials,
                     dispatcherSplit,
                     dataToWarm.columnHandleList(),
                     dataToWarm.requiredWarmUpTypeMap(),

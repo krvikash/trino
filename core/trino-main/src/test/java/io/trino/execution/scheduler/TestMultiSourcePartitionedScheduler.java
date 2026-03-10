@@ -98,6 +98,7 @@ import static io.trino.execution.scheduler.ScheduleResult.BlockedReason.SPLIT_QU
 import static io.trino.execution.scheduler.ScheduleResult.BlockedReason.WAITING_FOR_SOURCE;
 import static io.trino.execution.scheduler.StageExecution.State.PLANNED;
 import static io.trino.execution.scheduler.StageExecution.State.SCHEDULING;
+import static io.trino.metadata.AbstractMockMetadata.dummyMetadata;
 import static io.trino.metadata.FunctionManager.createTestingFunctionManager;
 import static io.trino.metadata.TestingMetadataManager.createTestingMetadataManager;
 import static io.trino.node.TestingInternalNodeManager.CURRENT_NODE;
@@ -611,6 +612,7 @@ public class TestMultiSourcePartitionedScheduler
     {
         StageId stageId = new StageId(QUERY_ID, 0);
         SqlStage stage = SqlStage.createSqlStage(
+                dummyMetadata(),
                 stageId,
                 fragment,
                 ImmutableMap.of(

@@ -13,23 +13,45 @@
  */
 package io.trino.spi.connector;
 
+import io.trino.spi.TrinoException;
 import io.trino.spi.predicate.TupleDomain;
 
 import java.util.List;
+import java.util.Optional;
+
+import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 
 public interface ConnectorPageSourceProvider
 {
+    default ConnectorPageSource createPageSource(
+            ConnectorTransactionHandle transaction,
+            ConnectorSession session,
+            ConnectorSplit split,
+            ConnectorTableHandle table,
+            Optional<ConnectorTableCredentials> tableCredentials,
+            List<ColumnHandle> columns,
+            DynamicFilter dynamicFilter)
+    {
+        if (tableCredentials.isPresent()) {
+            throw new TrinoException(NOT_SUPPORTED, "This connector does not support table credentials");
+        }
+        return createPageSource(transaction, session, split, table, columns, dynamicFilter);
+    }
+
     /**
      * @param columns columns that should show up in the output page, in this order
      * @param dynamicFilter optionally remove rows that don't satisfy this predicate
      */
-    ConnectorPageSource createPageSource(
+    default ConnectorPageSource createPageSource(
             ConnectorTransactionHandle transaction,
             ConnectorSession session,
             ConnectorSplit split,
             ConnectorTableHandle table,
             List<ColumnHandle> columns,
-            DynamicFilter dynamicFilter);
+            DynamicFilter dynamicFilter)
+    {
+        throw new TrinoException(NOT_SUPPORTED, "This connector does not support reading tables");
+    }
 
     /**
      * Returns unenforced (effective) predicate that {@link ConnectorPageSource} would use to filter split data.

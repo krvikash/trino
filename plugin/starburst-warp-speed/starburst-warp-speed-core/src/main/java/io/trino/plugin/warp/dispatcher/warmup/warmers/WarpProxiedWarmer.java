@@ -56,6 +56,7 @@ import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
+import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
@@ -123,6 +124,7 @@ public class WarpProxiedWarmer
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             DispatcherTableHandle dispatcherTableHandle,
+            Optional<ConnectorTableCredentials> tableCredentials,
             RowGroupKey rowGroupKey,
             RowGroupData rowGroupData,
             DispatcherSplit dispatcherSplit,
@@ -173,6 +175,7 @@ public class WarpProxiedWarmer
                                 session,
                                 nonFilterSplit,
                                 nonFilterTableHandle,
+                                tableCredentials,
                                 List.of(pair.getValue()),
                                 DynamicFilter.EMPTY);
                         logger.debug("create connectorPageSource for element %s offset %d connector %s", pair.getValue(), fileOffset, catalogNameProvider.get());

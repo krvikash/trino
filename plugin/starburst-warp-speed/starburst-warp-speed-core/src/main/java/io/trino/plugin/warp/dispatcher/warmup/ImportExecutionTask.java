@@ -27,6 +27,7 @@ import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 
@@ -46,6 +47,7 @@ public class ImportExecutionTask
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             DispatcherTableHandle dispatcherTableHandle,
+            Optional<ConnectorTableCredentials> tableCredentials,
             RowGroupKey rowGroupKey,
             List<ColumnHandle> columns, DispatcherSplit dispatcherSplit,
             DynamicFilter dynamicFilter,
@@ -69,6 +71,7 @@ public class ImportExecutionTask
                 transactionHandle,
                 session,
                 dispatcherTableHandle,
+                tableCredentials,
                 rowGroupKey,
                 columns,
                 dispatcherSplit,

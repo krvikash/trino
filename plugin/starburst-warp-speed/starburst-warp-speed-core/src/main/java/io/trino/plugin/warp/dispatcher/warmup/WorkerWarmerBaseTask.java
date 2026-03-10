@@ -30,6 +30,7 @@ import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 
@@ -50,6 +51,7 @@ public abstract class WorkerWarmerBaseTask
     protected final ConnectorTransactionHandle transactionHandle;
     protected final ConnectorSession session;
     protected final DispatcherTableHandle dispatcherTableHandle;
+    protected final Optional<ConnectorTableCredentials> tableCredentials;
     protected final RowGroupKey rowGroupKey;
     protected final List<ColumnHandle> columns;
     protected final DispatcherSplit dispatcherSplit;
@@ -75,6 +77,7 @@ public abstract class WorkerWarmerBaseTask
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             DispatcherTableHandle dispatcherTableHandle,
+            Optional<ConnectorTableCredentials> tableCredentials,
             RowGroupKey rowGroupKey,
             List<ColumnHandle> columns,
             DispatcherSplit dispatcherSplit,
@@ -91,6 +94,7 @@ public abstract class WorkerWarmerBaseTask
         this.transactionHandle = requireNonNull(transactionHandle);
         this.session = requireNonNull(session);
         this.dispatcherTableHandle = requireNonNull(dispatcherTableHandle);
+        this.tableCredentials = requireNonNull(tableCredentials);
         this.rowGroupKey = requireNonNull(rowGroupKey);
         this.columns = requireNonNull(columns);
         this.dispatcherSplit = requireNonNull(dispatcherSplit);
@@ -185,6 +189,7 @@ public abstract class WorkerWarmerBaseTask
                 session,
                 dispatcherSplit,
                 dispatcherTableHandle,
+                tableCredentials,
                 columns,
                 dynamicFilter,
                 rowGroupKey,

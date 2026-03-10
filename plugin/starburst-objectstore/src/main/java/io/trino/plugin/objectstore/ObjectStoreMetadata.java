@@ -73,6 +73,7 @@ import io.trino.spi.connector.ConnectorOutputMetadata;
 import io.trino.spi.connector.ConnectorOutputTableHandle;
 import io.trino.spi.connector.ConnectorPartitioningHandle;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableExecuteHandle;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTableLayout;
@@ -80,6 +81,7 @@ import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.ConnectorTableProperties;
 import io.trino.spi.connector.ConnectorTableVersion;
 import io.trino.spi.connector.ConnectorViewDefinition;
+import io.trino.spi.connector.ConnectorWritableTableHandle;
 import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.ConstraintApplicationResult;
 import io.trino.spi.connector.LimitApplicationResult;
@@ -1666,6 +1668,20 @@ public class ObjectStoreMetadata
         return delegate(firstTableType).unifyTables(unwrap(firstTableType, session), first, second);
     }
 
+    @Override
+    public Optional<ConnectorTableCredentials> getTableCredentials(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        TableType tableType = tableType(tableHandle);
+        return delegate(tableType).getTableCredentials(unwrap(tableType, session), tableHandle);
+    }
+
+    @Override
+    public Optional<ConnectorTableCredentials> getTableCredentials(ConnectorSession session, ConnectorWritableTableHandle tableHandle)
+    {
+        TableType tableType = tableType(tableHandle);
+        return delegate(tableType).getTableCredentials(unwrap(tableType, session), tableHandle);
+    }
+
     private void flushMetadataCache()
     {
         try {
@@ -1740,6 +1756,16 @@ public class ObjectStoreMetadata
             return hudiTableHandle.getSchemaTableName();
         }
         throw new VerifyException("Unhandled class: " + handle.getClass().getName());
+    }
+
+    private TableType tableType(ConnectorWritableTableHandle handle)
+    {
+        return switch (handle) {
+            case HiveInsertTableHandle _, HiveOutputTableHandle _, HiveTableExecuteHandle _ -> HIVE;
+            case IcebergWritableTableHandle _, IcebergTableExecuteHandle _ -> ICEBERG;
+            case DeltaLakeInsertTableHandle _, DeltaLakeOutputTableHandle _, DeltaLakeTableExecuteHandle _ -> DELTA;
+            default -> throw new IllegalArgumentException("Unsupported writable table handle: " + handle.getClass().getName());
+        };
     }
 
     private static TableType tableType(ConnectorInsertTableHandle handle)

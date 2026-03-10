@@ -78,6 +78,7 @@ import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
+import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
@@ -188,6 +189,7 @@ import static io.trino.plugin.iceberg.IcebergSplitSource.partitionMatchesPredica
 import static io.trino.plugin.iceberg.IcebergTypes.convertIcebergValueToTrino;
 import static io.trino.plugin.iceberg.IcebergUtil.deserializePartitionValue;
 import static io.trino.plugin.iceberg.IcebergUtil.getColumnHandle;
+import static io.trino.plugin.iceberg.IcebergUtil.getFileIoProperties;
 import static io.trino.plugin.iceberg.IcebergUtil.getPartitionKeys;
 import static io.trino.plugin.iceberg.IcebergUtil.getPartitionValues;
 import static io.trino.plugin.iceberg.IcebergUtil.schemaFromHandles;
@@ -263,6 +265,7 @@ public class IcebergPageSourceProvider
             ConnectorSession session,
             ConnectorSplit connectorSplit,
             ConnectorTableHandle connectorTable,
+            Optional<ConnectorTableCredentials> connectorTableCredentials,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter)
     {
@@ -303,7 +306,7 @@ public class IcebergPageSourceProvider
                 split.getFileRecordCount(),
                 split.getPartitionDataJson(),
                 split.getFileFormat(),
-                split.getFileIoProperties(),
+                getFileIoProperties(connectorTableCredentials),
                 split.getDataSequenceNumber(),
                 split.getFirstRowId(),
                 tableHandle.getNameMappingJson().map(NameMappingParser::fromJson),

@@ -42,6 +42,7 @@ import io.trino.spi.connector.ConnectorOutputTableHandle;
 import io.trino.spi.connector.ConnectorPartitioningHandle;
 import io.trino.spi.connector.ConnectorResolvedIndex;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableExecuteHandle;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTableLayout;
@@ -50,6 +51,7 @@ import io.trino.spi.connector.ConnectorTableProperties;
 import io.trino.spi.connector.ConnectorTableSchema;
 import io.trino.spi.connector.ConnectorTableVersion;
 import io.trino.spi.connector.ConnectorViewDefinition;
+import io.trino.spi.connector.ConnectorWritableTableHandle;
 import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.ConstraintApplicationResult;
 import io.trino.spi.connector.ConstraintApplicationResult.Alternative;
@@ -1114,6 +1116,18 @@ public class MockPlanAlternativeMetadata
     public WriterScalingOptions getInsertWriterScalingOptions(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         return delegate.getInsertWriterScalingOptions(session, getDelegate(tableHandle));
+    }
+
+    @Override
+    public Optional<ConnectorTableCredentials> getTableCredentials(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        return delegate.getTableCredentials(session, tableHandle);
+    }
+
+    @Override
+    public Optional<ConnectorTableCredentials> getTableCredentials(ConnectorSession session, ConnectorWritableTableHandle tableHandle)
+    {
+        return delegate.getTableCredentials(session, tableHandle);
     }
 
     private ConnectorTableHandle getDelegate(ConnectorTableHandle tableHandle)

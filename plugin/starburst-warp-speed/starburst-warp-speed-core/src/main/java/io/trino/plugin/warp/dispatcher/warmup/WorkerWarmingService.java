@@ -60,6 +60,7 @@ import io.trino.plugin.warp.warmup.model.WarmupRule;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.SchemaTableName;
@@ -182,6 +183,7 @@ public class WorkerWarmingService
             ConnectorSession session,
             DispatcherSplit dispatcherSplit,
             DispatcherTableHandle dispatcherTableHandle,
+            Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter,
             int iterationCount)
@@ -199,6 +201,7 @@ public class WorkerWarmingService
                     session,
                     dispatcherSplit,
                     dispatcherTableHandle,
+                    tableCredentials,
                     columns,
                     dynamicFilter,
                     rowGroupKey,

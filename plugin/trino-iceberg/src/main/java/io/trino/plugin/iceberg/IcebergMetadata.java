@@ -22,6 +22,7 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Splitter.MapSplitter;
 import com.google.common.base.Suppliers;
 import com.google.common.base.VerifyException;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -29,6 +30,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Streams;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import io.airlift.concurrent.MoreFutures;
 import io.airlift.json.JsonCodec;
 import io.airlift.log.Logger;
@@ -37,6 +39,7 @@ import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.starburst.ai.client.EmbeddingType;
+import io.trino.cache.NonEvictableCache;
 import io.trino.filesystem.FileEntry;
 import io.trino.filesystem.FileIterator;
 import io.trino.filesystem.Location;
@@ -106,6 +109,7 @@ import io.trino.spi.connector.ConnectorOutputMetadata;
 import io.trino.spi.connector.ConnectorOutputTableHandle;
 import io.trino.spi.connector.ConnectorPartitioningHandle;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableExecuteHandle;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTableLayout;
@@ -113,6 +117,7 @@ import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.ConnectorTableProperties;
 import io.trino.spi.connector.ConnectorTableVersion;
 import io.trino.spi.connector.ConnectorViewDefinition;
+import io.trino.spi.connector.ConnectorWritableTableHandle;
 import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.ConstraintApplicationResult;
 import io.trino.spi.connector.DiscretePredicates;
@@ -304,6 +309,7 @@ import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Throwables.throwIfUnchecked;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.base.Verify.verifyNotNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -314,6 +320,8 @@ import static com.google.common.collect.Iterables.size;
 import static com.google.common.collect.Maps.transformValues;
 import static com.google.common.collect.Sets.difference;
 import static io.airlift.units.Duration.ZERO;
+import static io.trino.cache.CacheUtils.uncheckedCacheGet;
+import static io.trino.cache.SafeCaches.buildNonEvictableCache;
 import static io.trino.filesystem.Locations.isS3Tables;
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.extractSupportedProjectedColumns;
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.replaceWithNewVariables;
@@ -602,6 +610,7 @@ public class IcebergMetadata
     private final int materializedViewRefreshMaxSnapshotsToExpire;
     private final Duration materializedViewRefreshSnapshotRetentionPeriod;
     private final Map<IcebergTableHandle, AtomicReference<TableStatistics>> tableStatisticsCache = new ConcurrentHashMap<>();
+    private final NonEvictableCache<SchemaTableName, IcebergTableCredentials> tableCredentialsCache;
     private final Map<String, Metrics> fileMetrics = new HashMap<>();
     private final DeletionVectorWriter deletionVectorWriter;
 
@@ -652,6 +661,53 @@ public class IcebergMetadata
         this.materializedViewRefreshMaxSnapshotsToExpire = materializedViewRefreshMaxSnapshotsToExpire;
         this.materializedViewRefreshSnapshotRetentionPeriod = materializedViewRefreshSnapshotRetentionPeriod;
         this.deletionVectorWriter = requireNonNull(deletionVectorWriter, "deletionVectorWriter is null");
+        this.tableCredentialsCache = buildNonEvictableCache(CacheBuilder.newBuilder());
+    }
+
+    @Override
+    public Optional<ConnectorTableCredentials> getTableCredentials(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        return getOrLoadTableCredentials(session, getSchemaTableName(tableHandle));
+    }
+
+    @Override
+    public Optional<ConnectorTableCredentials> getTableCredentials(ConnectorSession session, ConnectorWritableTableHandle tableHandle)
+    {
+        return getOrLoadTableCredentials(session, getSchemaTableName(tableHandle));
+    }
+
+    private Optional<ConnectorTableCredentials> getOrLoadTableCredentials(ConnectorSession session, SchemaTableName schemaTableName)
+    {
+        try {
+            return Optional.of(uncheckedCacheGet(
+                    tableCredentialsCache,
+                    schemaTableName,
+                    () -> {
+                        BaseTable baseTable = catalog.loadTable(session, schemaTableName);
+                        return new IcebergTableCredentials(baseTable.io().properties());
+                    }));
+        }
+        catch (UncheckedExecutionException e) {
+            throwIfUnchecked(e.getCause());
+            throw e;
+        }
+    }
+
+    private static SchemaTableName getSchemaTableName(ConnectorTableHandle tableHandle)
+    {
+        if (tableHandle instanceof IcebergTableHandle handle) {
+            return handle.getSchemaTableName();
+        }
+        throw new IllegalArgumentException("Unsupported ConnectorTableHandle type: " + tableHandle.getClass().getName());
+    }
+
+    private static SchemaTableName getSchemaTableName(ConnectorWritableTableHandle tableHandle)
+    {
+        return switch (tableHandle) {
+            case IcebergTableExecuteHandle handle -> handle.schemaTableName();
+            case IcebergWritableTableHandle handle -> handle.name();
+            default -> throw new IllegalArgumentException("Unsupported ConnectorWritableTableHandle type: " + tableHandle.getClass().getName());
+        };
     }
 
     @Override
@@ -990,6 +1046,8 @@ public class IcebergMetadata
             // avoid dealing with non Iceberg tables
             return Optional.empty();
         }
+
+        tableCredentialsCache.put(tableName, IcebergTableCredentials.forFileIO(table.io()));
 
         TableType tableType = IcebergTableName.tableTypeFrom(tableName.getTableName());
         return switch (tableType) {
@@ -1705,6 +1763,7 @@ public class IcebergMetadata
     {
         Schema schema = SchemaParser.fromJson(schemaAsJson);
         SortFieldInfo sortInfo = getSupportedSortFields(schema, table.sortOrder());
+        tableCredentialsCache.put(name, IcebergTableCredentials.forFileIO(table.io()));
         return new IcebergWritableTableHandle(
                 name,
                 formatVersion(table),
@@ -1718,7 +1777,6 @@ public class IcebergMetadata
                 table.location(),
                 getFileFormat(table),
                 table.properties(),
-                table.io().properties(),
                 rowLevelOperationMode(table),
                 branch);
     }
@@ -1922,7 +1980,6 @@ public class IcebergMetadata
                         tableHandle.getStorageProperties(),
                         maxScannedFileSize),
                 tableHandle.getTableLocation(),
-                icebergTable.io().properties(),
                 tableHandle.getFormatVersion()));
     }
 
@@ -1935,7 +1992,6 @@ public class IcebergMetadata
                 OPTIMIZE_MANIFESTS,
                 new IcebergOptimizeManifestsHandle(),
                 icebergTable.location(),
-                icebergTable.io().properties(),
                 tableHandle.getFormatVersion()));
     }
 
@@ -1948,7 +2004,6 @@ public class IcebergMetadata
                 OPTIMIZE_POSITION_DELETES,
                 new IcebergOptimizePositionDeletesHandle(),
                 icebergTable.location(),
-                icebergTable.io().properties(),
                 tableHandle.getFormatVersion()));
     }
 
@@ -1961,7 +2016,6 @@ public class IcebergMetadata
                 DROP_EXTENDED_STATS,
                 new IcebergDropExtendedStatsHandle(),
                 icebergTable.location(),
-                icebergTable.io().properties(),
                 tableHandle.getFormatVersion()));
     }
 
@@ -1979,7 +2033,6 @@ public class IcebergMetadata
                 EXPIRE_SNAPSHOTS,
                 new IcebergExpireSnapshotsHandle(retentionThreshold, retainLast, cleanExpiredMetadata),
                 icebergTable.location(),
-                icebergTable.io().properties(),
                 tableHandle.getFormatVersion()));
     }
 
@@ -1993,7 +2046,6 @@ public class IcebergMetadata
                 REMOVE_ORPHAN_FILES,
                 new IcebergRemoveOrphanFilesHandle(retentionThreshold),
                 icebergTable.location(),
-                icebergTable.io().properties(),
                 tableHandle.getFormatVersion()));
     }
 
@@ -2023,7 +2075,6 @@ public class IcebergMetadata
                 ADD_FILES,
                 new IcebergAddFilesHandle(location, format, recursiveDirectory),
                 icebergTable.location(),
-                icebergTable.io().properties(),
                 tableHandle.getFormatVersion()));
     }
 
@@ -2105,7 +2156,6 @@ public class IcebergMetadata
                 ADD_FILES_FROM_TABLE,
                 new IcebergAddFilesFromTableHandle(sourceTable, partitionFilter, recursiveDirectory),
                 icebergTable.location(),
-                icebergTable.io().properties(),
                 tableHandle.getFormatVersion()));
     }
 
@@ -2119,7 +2169,6 @@ public class IcebergMetadata
                 ROLLBACK_TO_SNAPSHOT,
                 new IcebergRollbackToSnapshotHandle(snapshotId),
                 icebergTable.location(),
-                icebergTable.io().properties(),
                 tableHandle.getFormatVersion()));
     }
 
@@ -2183,7 +2232,6 @@ public class IcebergMetadata
                         tableHandle.getStorageProperties(),
                         retryMode != NO_RETRIES),
                 icebergTable.location(),
-                icebergTable.io().properties(),
                 tableHandle.getFormatVersion()));
     }
 
@@ -2697,7 +2745,7 @@ public class IcebergMetadata
 
         beginTransaction(icebergTable);
 
-        LocationProvider locationProvider = getLocationProvider(executeHandle.schemaTableName(), executeHandle.tableLocation(), executeHandle.fileIoProperties());
+        LocationProvider locationProvider = getLocationProvider(executeHandle.schemaTableName(), executeHandle.tableLocation(), icebergTable.io().properties());
 
         RewritePositionDeletesCommitManager commitManager = new RewritePositionDeletesCommitManager(icebergTable);
         BinPackRewritePositionDeletePlanner positionDeletePlanner = new BinPackRewritePositionDeletePlanner(icebergTable);
@@ -2939,7 +2987,7 @@ public class IcebergMetadata
         }
 
         Instant expiration = session.getStart().minusMillis(retention.toMillis());
-        return removeOrphanFiles(table, session, executeHandle.schemaTableName(), expiration, executeHandle.fileIoProperties());
+        return removeOrphanFiles(table, session, executeHandle.schemaTableName(), expiration, table.io().properties());
     }
 
     private Map<String, Long> removeOrphanFiles(Table table, ConnectorSession session, SchemaTableName schemaTableName, Instant expiration, Map<String, String> fileIoProperties)

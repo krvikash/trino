@@ -45,6 +45,7 @@ import io.trino.spi.cache.PlanSignature;
 import io.trino.spi.cache.SignatureKey;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
+import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.FixedPageSource;
 import io.trino.spi.metrics.Metrics;
@@ -380,6 +381,7 @@ public class TestCacheDataOperator
                 Session session,
                 Split split,
                 TableHandle table,
+                Optional<ConnectorTableCredentials> tableCredentials,
                 List<ColumnHandle> columns,
                 DynamicFilter dynamicFilter)
         {

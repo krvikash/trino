@@ -47,6 +47,7 @@ import io.trino.spi.cache.SignatureKey;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSource;
+import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
 import io.trino.spi.connector.FixedPageSource;
@@ -428,7 +429,7 @@ public class TestCacheDriverFactory
         }
 
         @Override
-        public ConnectorPageSource createPageSource(Session session, Split split, TableHandle table, List<ColumnHandle> columns, DynamicFilter dynamicFilter)
+        public ConnectorPageSource createPageSource(Session session, Split split, TableHandle table, Optional<ConnectorTableCredentials> tableCredentials, List<ColumnHandle> columns, DynamicFilter dynamicFilter)
         {
             throw new UnsupportedOperationException();
         }
@@ -491,6 +492,7 @@ public class TestCacheDriverFactory
                 Session session,
                 Split split,
                 TableHandle table,
+                Optional<ConnectorTableCredentials> tableCredentials,
                 List<ColumnHandle> columns,
                 DynamicFilter dynamicFilter)
         {

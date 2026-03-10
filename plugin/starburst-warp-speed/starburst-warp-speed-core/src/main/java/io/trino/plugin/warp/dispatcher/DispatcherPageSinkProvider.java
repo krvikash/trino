@@ -24,8 +24,11 @@ import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSinkId;
 import io.trino.spi.connector.ConnectorPageSinkProvider;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableExecuteHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -46,12 +49,14 @@ public class DispatcherPageSinkProvider
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             ConnectorOutputTableHandle outputTableHandle,
+            Optional<ConnectorTableCredentials> tableCredentials,
             ConnectorPageSinkId pageSinkId)
     {
         return proxyConnectorPageSinkProvider.createPageSink(
                 transactionHandle,
                 session,
                 outputTableHandle,
+                tableCredentials,
                 pageSinkId);
     }
 
@@ -60,12 +65,14 @@ public class DispatcherPageSinkProvider
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             ConnectorInsertTableHandle insertTableHandle,
+            Optional<ConnectorTableCredentials> tableCredentials,
             ConnectorPageSinkId pageSinkId)
     {
         return proxyConnectorPageSinkProvider.createPageSink(
                 transactionHandle,
                 session,
                 insertTableHandle,
+                tableCredentials,
                 pageSinkId);
     }
 
@@ -74,12 +81,14 @@ public class DispatcherPageSinkProvider
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             ConnectorTableExecuteHandle tableExecuteHandle,
+            Optional<ConnectorTableCredentials> tableCredentials,
             ConnectorPageSinkId pageSinkId)
     {
         return proxyConnectorPageSinkProvider.createPageSink(
                 transactionHandle,
                 session,
                 tableExecuteHandle,
+                tableCredentials,
                 pageSinkId);
     }
 
@@ -88,6 +97,7 @@ public class DispatcherPageSinkProvider
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             ConnectorMergeTableHandle mergeHandle,
+            Optional<ConnectorTableCredentials> tableCredentials,
             ConnectorPageSinkId pageSinkId)
     {
         DispatcherMergeTableHandle dispatcherMergeTableHandle = (DispatcherMergeTableHandle) mergeHandle;
@@ -95,6 +105,7 @@ public class DispatcherPageSinkProvider
                 transactionHandle,
                 session,
                 dispatcherMergeTableHandle.getProxyConnectorMergeTableHandle(),
+                tableCredentials,
                 pageSinkId);
     }
 }

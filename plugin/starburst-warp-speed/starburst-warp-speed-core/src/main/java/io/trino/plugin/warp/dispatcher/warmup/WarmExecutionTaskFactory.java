@@ -35,10 +35,12 @@ import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 
 import java.util.List;
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -94,6 +96,7 @@ public class WarmExecutionTaskFactory
             ConnectorSession session,
             DispatcherSplit dispatcherSplit,
             DispatcherTableHandle dispatcherTableHandle,
+            Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter,
             RowGroupKey rowGroupKey,
@@ -109,6 +112,7 @@ public class WarmExecutionTaskFactory
                     transactionHandle,
                     session,
                     dispatcherTableHandle,
+                    tableCredentials,
                     rowGroupKey,
                     columns,
                     dispatcherSplit,
@@ -134,6 +138,7 @@ public class WarmExecutionTaskFactory
                     transactionHandle,
                     session,
                     dispatcherTableHandle,
+                    tableCredentials,
                     rowGroupKey,
                     columns,
                     dispatcherSplit,
@@ -156,6 +161,7 @@ public class WarmExecutionTaskFactory
                     transactionHandle,
                     session,
                     dispatcherTableHandle,
+                    tableCredentials,
                     rowGroupKey,
                     columns,
                     dispatcherSplit,
