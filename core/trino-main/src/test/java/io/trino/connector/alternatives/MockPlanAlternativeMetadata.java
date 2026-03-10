@@ -71,6 +71,7 @@ import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.connector.SortItem;
 import io.trino.spi.connector.SystemTable;
+import io.trino.spi.connector.TableCredentials;
 import io.trino.spi.connector.TableFunctionApplicationResult;
 import io.trino.spi.connector.TableScanRedirectApplicationResult;
 import io.trino.spi.connector.TopNApplicationResult;
@@ -1114,6 +1115,12 @@ public class MockPlanAlternativeMetadata
     public WriterScalingOptions getInsertWriterScalingOptions(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         return delegate.getInsertWriterScalingOptions(session, getDelegate(tableHandle));
+    }
+
+    @Override
+    public Optional<TableCredentials> getTableCredentials(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        return delegate.getTableCredentials(session, tableHandle);
     }
 
     private ConnectorTableHandle getDelegate(ConnectorTableHandle tableHandle)

@@ -48,6 +48,7 @@ import io.trino.node.InternalNode;
 import io.trino.node.TestingInternalNodeManager;
 import io.trino.operator.TaskContext;
 import io.trino.operator.TaskStats;
+import io.trino.spi.connector.TableCredentials;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spiller.SpillSpaceTracker;
 import io.trino.sql.planner.Partitioning;
@@ -146,6 +147,7 @@ public class MockRemoteTaskFactory
                 newNode,
                 false,
                 testFragment,
+                ImmutableMap.of(),
                 initialSplits.build(),
                 PipelinedOutputBuffers.createInitial(BROADCAST),
                 partitionedSplitCountTracker,
@@ -163,6 +165,7 @@ public class MockRemoteTaskFactory
             InternalNode node,
             boolean speculative,
             PlanFragment fragment,
+            Map<PlanNodeId, TableCredentials> tableCredentialsMap,
             Multimap<PlanNodeId, Split> initialSplits,
             OutputBuffers outputBuffers,
             PartitionedSplitCountTracker partitionedSplitCountTracker,
@@ -228,7 +231,7 @@ public class MockRemoteTaskFactory
                     scheduledExecutor,
                     DataSize.of(1, MEGABYTE),
                     spillSpaceTracker);
-            this.taskContext = queryContext.addTaskContext(taskStateMachine, TEST_SESSION, () -> {}, true, true);
+            this.taskContext = queryContext.addTaskContext(taskStateMachine, ImmutableMap.of(), TEST_SESSION, () -> {}, true, true);
 
             this.location = URI.create("fake://task/" + taskId);
 

@@ -22,6 +22,7 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Splitter.MapSplitter;
 import com.google.common.base.Suppliers;
 import com.google.common.base.VerifyException;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -37,6 +38,7 @@ import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.starburst.ai.client.EmbeddingType;
+import io.trino.cache.NonEvictableCache;
 import io.trino.filesystem.FileEntry;
 import io.trino.filesystem.FileIterator;
 import io.trino.filesystem.Location;
@@ -133,6 +135,7 @@ import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.connector.SortingProperty;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableColumnsMetadata;
+import io.trino.spi.connector.TableCredentials;
 import io.trino.spi.connector.TableNotFoundException;
 import io.trino.spi.connector.UnificationResult;
 import io.trino.spi.connector.WriterScalingOptions;
@@ -303,6 +306,8 @@ import static com.google.common.collect.Iterables.size;
 import static com.google.common.collect.Maps.transformValues;
 import static com.google.common.collect.Sets.difference;
 import static io.airlift.units.Duration.ZERO;
+import static io.trino.cache.CacheUtils.uncheckedCacheGet;
+import static io.trino.cache.SafeCaches.buildNonEvictableCache;
 import static io.trino.filesystem.Locations.isS3Tables;
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.extractSupportedProjectedColumns;
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.replaceWithNewVariables;
@@ -593,6 +598,7 @@ public class IcebergMetadata
 
     private Transaction transaction;
     private Optional<Long> fromSnapshotForRefresh = Optional.empty();
+    private final NonEvictableCache<SchemaTableName, IcebergTableCredentials> tableCredentialsCache;
 
     public IcebergMetadata(
             LocationAccessControl locationAccessControl,
@@ -638,6 +644,38 @@ public class IcebergMetadata
         this.materializedViewRefreshMaxSnapshotsToExpire = materializedViewRefreshMaxSnapshotsToExpire;
         this.materializedViewRefreshSnapshotRetentionPeriod = materializedViewRefreshSnapshotRetentionPeriod;
         this.deletionVectorWriter = requireNonNull(deletionVectorWriter, "deletionVectorWriter is null");
+        this.tableCredentialsCache = buildNonEvictableCache(CacheBuilder.newBuilder());
+    }
+
+    @Override
+    public Optional<TableCredentials> getTableCredentials(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        return getOrLoadTableCredentials(session, getSchemaTableName(tableHandle));
+    }
+
+    private static SchemaTableName getSchemaTableName(ConnectorTableHandle tableHandle)
+    {
+        if (tableHandle instanceof IcebergTableHandle handle) {
+            return handle.getSchemaTableName();
+        }
+        throw new IllegalArgumentException("Unsupported ConnectorTableHandle type: " + tableHandle.getClass().getName());
+    }
+
+    private Optional<TableCredentials> getOrLoadTableCredentials(ConnectorSession session, SchemaTableName schemaTableName)
+    {
+        return Optional.ofNullable(uncheckedCacheGet(
+                tableCredentialsCache,
+                schemaTableName,
+                () -> {
+                    try {
+                        BaseTable baseTable = catalog.loadTable(session, schemaTableName);
+                        return new IcebergTableCredentials(baseTable.io().properties());
+                    }
+                    catch (TableNotFoundException _) {
+                        // The table might not exist yet, for example when creating a new table.
+                        return null;
+                    }
+                }));
     }
 
     @Override
@@ -982,6 +1020,7 @@ public class IcebergMetadata
             return Optional.empty();
         }
 
+        tableCredentialsCache.put(tableName, new IcebergTableCredentials(table.io().properties()));
         TableType tableType = IcebergTableName.tableTypeFrom(tableName.getTableName());
         return switch (tableType) {
             case DATA, MATERIALIZED_VIEW_STORAGE, ERRORS -> throw new VerifyException("Unexpected table type: " + tableType); // Handled above.
@@ -1694,6 +1733,7 @@ public class IcebergMetadata
             Optional<String> branch,
             List<PositionDeleteFiles> previousDeleteFiles)
     {
+        tableCredentialsCache.put(name, new IcebergTableCredentials(table.io().properties()));
         Schema schema = SchemaParser.fromJson(schemaAsJson);
         SortFieldInfo sortInfo = getSupportedSortFields(schema, table.sortOrder());
         return new IcebergWritableTableHandle(
@@ -2805,7 +2845,7 @@ public class IcebergMetadata
         }
 
         Instant expiration = session.getStart().minusMillis(retention.toMillis());
-        return removeOrphanFiles(table, session, executeHandle.schemaTableName(), expiration, executeHandle.fileIoProperties());
+        return removeOrphanFiles(table, session, executeHandle.schemaTableName(), expiration, table.io().properties());
     }
 
     private Map<String, Long> removeOrphanFiles(Table table, ConnectorSession session, SchemaTableName schemaTableName, Instant expiration, Map<String, String> fileIoProperties)

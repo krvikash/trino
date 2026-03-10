@@ -35,6 +35,7 @@ import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.EmptyPageSource;
 import io.trino.spi.connector.SourcePage;
+import io.trino.spi.connector.TableCredentials;
 import io.trino.spi.metrics.Metrics;
 import io.trino.spi.type.Type;
 import io.trino.split.EmptySplit;
@@ -361,6 +362,7 @@ public class ScanFilterAndProjectOperator
         private final PlanNodeId sourceId;
         private final PageSourceProvider pageSourceProvider;
         private final TableHandle table;
+        private final Optional<TableCredentials> tableCredentials;
         private final List<ColumnHandle> columns;
         private final InternalDynamicFilter dynamicFilter;
         private final List<Type> types;
@@ -375,6 +377,7 @@ public class ScanFilterAndProjectOperator
                 PageSourceProviderFactory pageSourceProvider,
                 Function<InternalDynamicFilter, PageProcessor> pageProcessor,
                 TableHandle table,
+                Optional<TableCredentials> tableCredentials,
                 Iterable<ColumnHandle> columns,
                 InternalDynamicFilter dynamicFilter,
                 List<Type> types,
@@ -386,6 +389,7 @@ public class ScanFilterAndProjectOperator
             this.pageProcessor = requireNonNull(pageProcessor, "pageProcessor is null");
             this.sourceId = requireNonNull(sourceId, "sourceId is null");
             this.table = requireNonNull(table, "table is null");
+            this.tableCredentials = requireNonNull(tableCredentials, "tableCredentials is null");
             this.columns = ImmutableList.copyOf(requireNonNull(columns, "columns is null"));
             this.dynamicFilter = dynamicFilter;
             this.types = requireNonNull(types, "types is null");
@@ -448,7 +452,7 @@ public class ScanFilterAndProjectOperator
                     memoryTrackingContext,
                     yieldSignal,
                     split,
-                    TableAwarePageSourceProvider.create(operatorContext, table, pageSourceProvider),
+                    TableAwarePageSourceProvider.create(operatorContext, table, tableCredentials, pageSourceProvider),
                     pageProcessor.apply(splitDynamicFilter),
                     columns,
                     splitDynamicFilter,

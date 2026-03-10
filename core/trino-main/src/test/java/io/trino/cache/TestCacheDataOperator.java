@@ -47,6 +47,7 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.FixedPageSource;
+import io.trino.spi.connector.TableCredentials;
 import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.split.PageSourceProvider;
@@ -380,6 +381,7 @@ public class TestCacheDataOperator
                 Session session,
                 Split split,
                 TableHandle table,
+                Optional<TableCredentials> tableCredentials,
                 List<ColumnHandle> columns,
                 DynamicFilter dynamicFilter)
         {

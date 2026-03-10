@@ -184,6 +184,7 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.RecordSet;
 import io.trino.spi.connector.SortOrder;
+import io.trino.spi.connector.TableCredentials;
 import io.trino.spi.connector.WriterScalingOptions;
 import io.trino.spi.function.AggregationImplementation;
 import io.trino.spi.function.BoundSignature;
@@ -2205,11 +2206,12 @@ public class LocalExecutionPlanner
             // otherwise we plan it as a normal operator
             Map<Symbol, Integer> sourceLayout;
             TableHandle table = null;
+            Optional<TableCredentials> tableCredentials = Optional.empty();
             List<ColumnHandle> columns = null;
             PhysicalOperation source = null;
             if (sourceNode instanceof TableScanNode tableScanNode) {
                 table = tableScanNode.getTable();
-
+                tableCredentials = context.getTaskContext().resolveTableCredentials(tableScanNode.getId());
                 // extract the column handles and channel to type mapping
                 sourceLayout = new LinkedHashMap<>();
                 columns = new ArrayList<>();
@@ -2293,6 +2295,7 @@ public class LocalExecutionPlanner
                             pageSourceManager,
                             pageProcessor,
                             table,
+                            tableCredentials,
                             columns,
                             dynamicFilter,
                             getTypes(projections),
@@ -2426,7 +2429,8 @@ public class LocalExecutionPlanner
             }
 
             InternalDynamicFilter dynamicFilter = getDynamicFilter(node, filterExpression, context);
-            OperatorFactory operatorFactory = new TableScanOperatorFactory(context.getNextOperatorId(), planNodeId, node.getId(), pageSourceManager, node.getTable(), columns.build(), columnTypes.build(), dynamicFilter);
+            Optional<TableCredentials> tableCredentials = context.getTaskContext().resolveTableCredentials(node.getId());
+            OperatorFactory operatorFactory = new TableScanOperatorFactory(context.getNextOperatorId(), planNodeId, node.getId(), pageSourceManager, node.getTable(), tableCredentials, columns.build(), columnTypes.build(), dynamicFilter);
             return new PhysicalOperation(operatorFactory, makeLayout(node));
         }
 

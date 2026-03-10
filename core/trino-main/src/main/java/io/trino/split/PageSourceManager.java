@@ -27,9 +27,11 @@ import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
+import io.trino.spi.connector.TableCredentials;
 import io.trino.spi.predicate.TupleDomain;
 
 import java.util.List;
+import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.SystemSessionProperties.isAllowPushdownIntoConnectors;
@@ -67,6 +69,7 @@ public class PageSourceManager
                 Session session,
                 Split split,
                 TableHandle table,
+                Optional<TableCredentials> tableCredentials,
                 List<ColumnHandle> columns,
                 DynamicFilter dynamicFilter)
         {
@@ -85,6 +88,7 @@ public class PageSourceManager
                     session.toConnectorSession(table.catalogHandle()),
                     split.getConnectorSplit(),
                     table.connectorHandle(),
+                    tableCredentials,
                     columns,
                     dynamicFilter);
         }

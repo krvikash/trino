@@ -338,7 +338,6 @@ public class TestIcebergCacheIds
                 deletes,
                 SplitWeight.standard(),
                 TupleDomain.all(),
-                ImmutableMap.of(),
                 0L,
                 null);
     }

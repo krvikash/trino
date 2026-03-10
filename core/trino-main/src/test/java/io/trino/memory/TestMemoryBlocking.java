@@ -44,6 +44,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
@@ -105,7 +106,8 @@ public class TestMemoryBlocking
                 TableAwarePageSourceProvider.create(
                         operatorContext,
                         TEST_TABLE_HANDLE,
-                        (_, _, _, _, _) -> new FixedPageSource(rowPagesBuilder(types)
+                        Optional.empty(),
+                        (_, _, _, _, _, _) -> new FixedPageSource(rowPagesBuilder(types)
                                 .addSequencePage(10, 1)
                                 .addSequencePage(10, 1)
                                 .addSequencePage(10, 1)

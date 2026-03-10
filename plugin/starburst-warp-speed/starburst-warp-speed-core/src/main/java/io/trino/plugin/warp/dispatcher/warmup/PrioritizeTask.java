@@ -31,6 +31,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.connector.TableCredentials;
 
 import java.util.List;
 import java.util.Optional;
@@ -50,6 +51,7 @@ public class PrioritizeTask
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             DispatcherTableHandle dispatcherTableHandle,
+            Optional<TableCredentials> tableCredentials,
             RowGroupKey rowGroupKey,
             List<ColumnHandle> columns,
             DispatcherSplit dispatcherSplit,
@@ -77,6 +79,7 @@ public class PrioritizeTask
                 transactionHandle,
                 session,
                 dispatcherTableHandle,
+                tableCredentials,
                 rowGroupKey,
                 columns,
                 dispatcherSplit,
@@ -127,6 +130,7 @@ public class PrioritizeTask
                 session,
                 dispatcherSplit,
                 dispatcherTableHandle,
+                tableCredentials,
                 columns,
                 dynamicFilter,
                 rowGroupKey,

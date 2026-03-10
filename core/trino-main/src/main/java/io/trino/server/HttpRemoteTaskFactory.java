@@ -40,6 +40,7 @@ import io.trino.node.InternalNode;
 import io.trino.operator.ForScheduler;
 import io.trino.server.remotetask.HttpRemoteTask;
 import io.trino.server.remotetask.RemoteTaskStats;
+import io.trino.spi.connector.TableCredentials;
 import io.trino.sql.planner.PlanFragment;
 import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.PlanNodeId;
@@ -47,6 +48,7 @@ import jakarta.annotation.PreDestroy;
 import org.weakref.jmx.Managed;
 import org.weakref.jmx.Nested;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -142,6 +144,7 @@ public class HttpRemoteTaskFactory
             InternalNode node,
             boolean speculative,
             PlanFragment fragment,
+            Map<PlanNodeId, TableCredentials> tableCredentialsMap,
             Multimap<PlanNodeId, Split> initialSplits,
             OutputBuffers outputBuffers,
             PartitionedSplitCountTracker partitionedSplitCountTracker,
@@ -158,6 +161,7 @@ public class HttpRemoteTaskFactory
                 speculative,
                 locationFactory.createTaskLocation(node, taskId),
                 fragment,
+                tableCredentialsMap,
                 initialSplits,
                 outputBuffers,
                 httpClient,

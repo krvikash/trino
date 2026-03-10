@@ -92,6 +92,7 @@ class StageManager
         for (SubPlan planNode : sortPlanInTopologicalOrder(planGraph).reversed()) {
             PlanFragment fragment = planNode.getFragment();
             SqlStage stage = createSqlStage(
+                    metadata,
                     getStageId(session.getQueryId(), fragment.getId()),
                     fragment,
                     TableInfo.extract(session, metadata, fragment),

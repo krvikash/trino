@@ -245,6 +245,7 @@ public class DispatcherPageSourceFactoryTest
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
+                Optional.empty(),
                 columnHandleList,
                 DynamicFilter.EMPTY,
                 customStatsContext);
@@ -258,6 +259,7 @@ public class DispatcherPageSourceFactoryTest
                         eq(connectorSession),
                         eq(dispatcherSplit.getProxyConnectorSplit()),
                         eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
+                        eq(Optional.empty()),
                         anyList(),
                         any(DynamicFilter.class));
         assertThat(pageSource).isNull(); //not mocked but not DispatcherPageSource
@@ -297,6 +299,7 @@ public class DispatcherPageSourceFactoryTest
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
+                Optional.empty(),
                 columnHandleList,
                 DynamicFilter.EMPTY,
                 customStatsContext);
@@ -312,6 +315,7 @@ public class DispatcherPageSourceFactoryTest
                         eq(connectorSession),
                         eq(dispatcherSplit),
                         eq(dispatcherTableHandle),
+                        eq(Optional.empty()),
                         anyList(),
                         any(DynamicFilter.class));
         assertThat(pageSource).isInstanceOf(EmptyPageSource.class);
@@ -350,6 +354,7 @@ public class DispatcherPageSourceFactoryTest
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
+                Optional.empty(),
                 columnHandleList,
                 dynamicFilter,
                 customStatsContext);
@@ -359,6 +364,7 @@ public class DispatcherPageSourceFactoryTest
                         any(ConnectorSession.class),
                         eq(dispatcherSplit.getProxyConnectorSplit()),
                         eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
+                        eq(Optional.empty()),
                         anyList(),
                         any(DynamicFilter.class));
         verifyWarmCalled(connectorPageSourceProvider,
@@ -372,6 +378,7 @@ public class DispatcherPageSourceFactoryTest
                         eq(connectorSession),
                         eq(dispatcherSplit.getProxyConnectorSplit()),
                         eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
+                        eq(Optional.empty()),
                         anyList(),
                         any(DynamicFilter.class));
     }
@@ -386,6 +393,7 @@ public class DispatcherPageSourceFactoryTest
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
+                Optional.empty(),
                 columnHandleList,
                 dynamicFilter,
                 customStatsContext);
@@ -394,6 +402,7 @@ public class DispatcherPageSourceFactoryTest
                         any(ConnectorSession.class),
                         eq(dispatcherSplit.getProxyConnectorSplit()),
                         eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
+                        eq(Optional.empty()),
                         anyList(),
                         any(DynamicFilter.class));
         verifyWarmCalled(connectorPageSourceProvider,
@@ -407,6 +416,7 @@ public class DispatcherPageSourceFactoryTest
                         eq(connectorSession),
                         eq(dispatcherSplit.getProxyConnectorSplit()),
                         eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
+                        eq(Optional.empty()),
                         anyList(),
                         any(DynamicFilter.class));
         DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
@@ -442,6 +452,7 @@ public class DispatcherPageSourceFactoryTest
                 eq(connectorSession),
                 any(DispatcherSplit.class),
                 isA(ConnectorTableHandle.class),
+                eq(Optional.empty()),
                 anyList(),
                 any(DynamicFilter.class)))
                 .thenReturn(proxiedPageSource);
@@ -451,6 +462,7 @@ public class DispatcherPageSourceFactoryTest
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
+                Optional.empty(),
                 columnHandles,
                 dynamicFilter,
                 customStatsContext);
@@ -462,6 +474,7 @@ public class DispatcherPageSourceFactoryTest
                         any(),
                         any(),
                         any(),
+                        eq(Optional.empty()),
                         any(),
                         any(DynamicFilter.class));
     }
@@ -491,6 +504,7 @@ public class DispatcherPageSourceFactoryTest
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
+                Optional.empty(),
                 columnHandleList,
                 dynamicFilter,
                 customStatsContext);
@@ -527,6 +541,7 @@ public class DispatcherPageSourceFactoryTest
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
+                Optional.empty(),
                 partitionColumnHandleList,
                 dynamicFilter,
                 customStatsContext);
@@ -566,6 +581,7 @@ public class DispatcherPageSourceFactoryTest
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
+                Optional.empty(),
                 partitionColumnHandleList,
                 dynamicFilter,
                 customStatsContext);
@@ -598,12 +614,13 @@ public class DispatcherPageSourceFactoryTest
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
+                Optional.empty(),
                 partitionColumnHandleList,
                 dynamicFilter,
                 customStatsContext);
 
-        verify(connectorPageSourceProvider, times(1)).createPageSource(any(), any(), any(), any(), anyList(), any());
-        verify(workerWarmingService, never()).warm(any(), any(), any(), any(), any(), anyList(), any(), anyInt());
+        verify(connectorPageSourceProvider, times(1)).createPageSource(any(), any(), any(), any(), eq(Optional.empty()), anyList(), any());
+        verify(workerWarmingService, never()).warm(any(), any(), any(), any(), any(), eq(Optional.empty()), anyList(), any(), anyInt());
     }
 
     private void verifyWarmCalled(ConnectorPageSourceProvider connectorPageSourceProvider,
@@ -624,6 +641,7 @@ public class DispatcherPageSourceFactoryTest
                         connectorSessionArgumentCaptor.capture(),
                         dispatcherSplitArgumentCaptor.capture(),
                         dispatcherTableHandleArgumentCaptor.capture(),
+                        eq(Optional.empty()),
                         anyList(),
                         any(),
                         anyInt());

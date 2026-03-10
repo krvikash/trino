@@ -22,6 +22,7 @@ import io.trino.spi.connector.ConnectorAlternativePageSourceProvider;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
+import io.trino.spi.connector.TableCredentials;
 
 import java.io.Closeable;
 import java.util.List;
@@ -34,26 +35,31 @@ public class TableAwarePageSourceProvider
 {
     private final PageSourceProvider pageSourceProvider;
     private final TableHandle tableHandle;
+    private final Optional<TableCredentials> tableCredentials;
     private final Optional<ConnectorAlternativePageSourceProvider> connectorAlternativePageSourceProvider;
 
     public static TableAwarePageSourceProvider create(
             OperatorContext operatorContext,
             TableHandle table,
+            Optional<TableCredentials> tableCredentials,
             PageSourceProvider pageSourceProvider)
     {
         return new TableAwarePageSourceProvider(
                 pageSourceProvider,
                 table,
+                tableCredentials,
                 operatorContext.getDriverContext().getConnectorAlternativePageSourceProvider());
     }
 
     private TableAwarePageSourceProvider(
             PageSourceProvider pageSourceProvider,
             TableHandle tableHandle,
+            Optional<TableCredentials> tableCredentials,
             Optional<ConnectorAlternativePageSourceProvider> connectorAlternativePageSourceProvider)
     {
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
         this.tableHandle = requireNonNull(tableHandle, "tableHandle is null");
+        this.tableCredentials = requireNonNull(tableCredentials, "tableCredentials is null");
         this.connectorAlternativePageSourceProvider = requireNonNull(connectorAlternativePageSourceProvider, "connectorAlternativePageSourceProvider is null");
     }
 
@@ -68,7 +74,7 @@ public class TableAwarePageSourceProvider
                         session.toConnectorSession(tableHandle.catalogHandle()),
                         columns,
                         dynamicFilter))
-                .orElseGet(() -> pageSourceProvider.createPageSource(session, split, tableHandle, columns, dynamicFilter));
+                .orElseGet(() -> pageSourceProvider.createPageSource(session, split, tableHandle, tableCredentials, columns, dynamicFilter));
     }
 
     @Override

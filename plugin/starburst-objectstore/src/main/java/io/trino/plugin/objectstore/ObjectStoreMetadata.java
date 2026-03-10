@@ -95,6 +95,7 @@ import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableColumnsMetadata;
+import io.trino.spi.connector.TableCredentials;
 import io.trino.spi.connector.TableNotFoundException;
 import io.trino.spi.connector.TableScanRedirectApplicationResult;
 import io.trino.spi.connector.UnificationResult;
@@ -1664,6 +1665,13 @@ public class ObjectStoreMetadata
             return Optional.empty();
         }
         return delegate(firstTableType).unifyTables(unwrap(firstTableType, session), first, second);
+    }
+
+    @Override
+    public Optional<TableCredentials> getTableCredentials(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        TableType tableType = tableType(tableHandle);
+        return delegate(tableType).getTableCredentials(unwrap(tableType, session), tableHandle);
     }
 
     private void flushMetadataCache()

@@ -63,6 +63,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.connector.TableCredentials;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.Type;
 
@@ -182,6 +183,7 @@ public class WorkerWarmingService
             ConnectorSession session,
             DispatcherSplit dispatcherSplit,
             DispatcherTableHandle dispatcherTableHandle,
+            Optional<TableCredentials> tableCredentials,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter,
             int iterationCount)
@@ -199,6 +201,7 @@ public class WorkerWarmingService
                     session,
                     dispatcherSplit,
                     dispatcherTableHandle,
+                    tableCredentials,
                     columns,
                     dynamicFilter,
                     rowGroupKey,
