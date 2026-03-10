@@ -424,6 +424,125 @@ jobs:
           github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
 
   # ------------------------------------------------------------------------
+  # Only run BigQuery tests on a schedule, labeled PRs, or workflow_dispatch
+  # ------------------------------------------------------------------------
+  bigquery-tests:
+    name: bigquery-tests
+    runs-on: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
+    strategy:
+      fail-fast: false
+      matrix:
+        profiles:
+          - cloud-tests-1
+          - cloud-tests-2
+    timeout-minutes: 60
+    if: "(github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'bigquery')) || (github.event_name == 'workflow_dispatch')"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # checkout all commits, as the build result depends on `git describe` equivalent
+      - name: Set up AWS code-artifacts login
+        uses: ./.github/actions/starburst-setup
+        with:
+          aws-access-key-id: ${{ vars.ENG_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.ENG_AWS_SECRET_ACCESS_KEY }}
+          secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
+      - name: "Login to ECR pull-through cache"
+        shell: bash
+        run: |
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 843985043183.dkr.ecr.us-east-1.amazonaws.com
+      - uses: ./.github/actions/setup
+      - name: Maven install
+        run: |
+          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+          $MAVEN clean install ${MAVEN_FAST_INSTALL} -am -pl :trino-bigquery
+      - name: Cloud BigQuery Tests
+        id: tests-bq
+        env:
+          BIGQUERY_CREDENTIALS_KEY: ${{ secrets.BIGQUERY_CREDENTIALS_KEY }}
+          GCP_STORAGE_BUCKET: ${{ vars.GCP_STORAGE_BUCKET }}
+          BIGQUERY_TESTING_BIGLAKE_CONNECTION_ID: ${{ vars.BIGQUERY_TESTING_BIGLAKE_CONNECTION_ID }}
+          BIGQUERY_TESTING_PROJECT_ID: ${{ vars.BIGQUERY_TESTING_PROJECT_ID }}
+          BIGQUERY_TESTING_PARENT_PROJECT_ID: ${{ vars.BIGQUERY_TESTING_PARENT_PROJECT_ID }}
+        if: contains(matrix.profiles, 'cloud-tests-1')
+        run: |
+          $MAVEN test ${MAVEN_TEST} -pl :trino-bigquery -Pcloud-tests-1 \
+            -Dtesting.bigquery.credentials-key="${BIGQUERY_CREDENTIALS_KEY}" \
+            -Dtesting.gcp-storage-bucket="${GCP_STORAGE_BUCKET}" \
+            -Dtesting.bigquery-connection-id="${BIGQUERY_TESTING_BIGLAKE_CONNECTION_ID}" \
+            -Dtesting.bigquery-project-id="${BIGQUERY_TESTING_PROJECT_ID}" \
+            -Dtesting.bigquery-parent-project-id="${BIGQUERY_TESTING_PARENT_PROJECT_ID}"
+      - name: Cloud BigQuery Smoke Tests
+        id: tests-bq-smoke
+        env:
+          BIGQUERY_CREDENTIALS_KEY: ${{ secrets.BIGQUERY_CREDENTIALS_KEY }}
+          GCP_STORAGE_BUCKET: ${{ vars.GCP_STORAGE_BUCKET }}
+        if: contains(matrix.profiles, 'cloud-tests-2')
+        run: |
+          $MAVEN test ${MAVEN_TEST} -pl :trino-bigquery -Pcloud-tests-2 \
+            -Dtesting.bigquery.credentials-key="${BIGQUERY_CREDENTIALS_KEY}" \
+            -Dtesting.gcp-storage-bucket="${GCP_STORAGE_BUCKET}" \
+            -Dtesting.alternate-bq-project-id=bigquery-cicd-alternate
+      - name: Cloud BigQuery Case Insensitive Mapping Tests
+        id: tests-bq-ci
+        env:
+          BIGQUERY_CASE_INSENSITIVE_CREDENTIALS_KEY: ${{ secrets.BIGQUERY_CASE_INSENSITIVE_CREDENTIALS_KEY }}
+        if: contains(matrix.profiles, 'cloud-tests-1')
+        run: |
+          $MAVEN test ${MAVEN_TEST} -pl :trino-bigquery -Pcloud-tests-case-insensitive-mapping -Dtesting.bigquery.credentials-key="${BIGQUERY_CASE_INSENSITIVE_CREDENTIALS_KEY}"
+      - name: Sanitize artifact name
+        if: always()
+        run: |
+          # Generate a valid artifact name and make it available to next steps as
+          # an environment variable ARTIFACT_NAME
+          # ", :, <, >, |, *, ?, \, / are not allowed in artifact names, replace it with an underscore
+          name=$(echo -n "plugin/trino-bigquery, ${{ matrix.profiles }}" | sed -e 's/[":<>|\*\?\\\/]/_/g')
+          echo "ARTIFACT_NAME=$name" >> $GITHUB_ENV
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: results ${{ env.ARTIFACT_NAME }}
+          path: |
+            **/target/surefire-reports
+            **/target/checkstyle-*
+            **/*.hprof
+          retention-days: 30
+      - name: Annotate with test report
+        uses: trinodb/github-actions/action-surefire-report@b63800bedfbc7ab1ff2e5fe7eaecf5ab82ce6a70
+        if: failure()
+        with:
+          # this workflow should never fail, as it is not a quality gateway
+          fail_if_no_tests: false
+          skip_publishing: true
+      - name: Should notify on failure
+        id: should_notify
+        if: always() && (steps.tests-bq.outcome == 'failure' || steps.tests-bq-smoke.outcome == 'failure' || steps.tests-bq-ci.outcome == 'failure')
+        run: |
+          # GITHUB_HEAD_REF is only populated for pull requests runs, for scheduled runs extract the name from GITHUB_REF
+          branch_name="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+          echo "branch=$branch_name" >> "${GITHUB_OUTPUT}"
+          if [[ $branch_name == "master" || $branch_name =~ ^release-.*-e$ ]]; then
+            echo "result=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "result=false" >> "${GITHUB_OUTPUT}"
+          fi
+      - name: Slack notify failed tests to Connectors team
+        if: always() && (steps.tests-bq.outcome == 'failure' || steps.tests-bq-smoke.outcome == 'failure' || steps.tests-bq-ci.outcome == 'failure') && steps.should_notify.outputs.result == 'true'
+        uses: archive/github-actions-slack@c643e5093620d65506466f2c9b317d5d29a5e517 # v2.10.1
+        with:
+          slack-bot-user-oauth-access-token: ${{ secrets.SLACK_TOKEN }}
+          slack-channel: C09HT9ETS73 # team-connectors-notify channel ID
+          slack-text: |
+            :boom: BigQuery tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
+      - name: Launch Flake Tracker
+        if: failure() && (steps.tests-bq.outcome == 'failure' || steps.tests-bq-smoke.outcome == 'failure' || steps.tests-bq-ci.outcome == 'failure') && github.ref == 'refs/heads/master'
+        continue-on-error: true
+        uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
+        with:
+          github-access-token: ${{ secrets.GITHUBACCESSTOKEN }}
+
+  # ------------------------------------------------------------------------
   # Only run Google Sheets tests on a schedule, labeled PRs, or workflow_dispatch
   # ------------------------------------------------------------------------
   google-sheets-tests:
@@ -1547,8 +1666,8 @@ jobs:
             - { modules: plugin/starburst-sqlserver }
             - { modules: plugin/starburst-stargate, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
             - { modules: plugin/starburst-stargate-parallel, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
-            - { modules: plugin/trino-bigquery }
-            - { modules: plugin/trino-bigquery, profile: cloud-tests-2 }
+            # - { modules: plugin/trino-bigquery }
+            # - { modules: plugin/trino-bigquery, profile: cloud-tests-2 }
             - { modules: plugin/trino-cassandra }
             - { modules: plugin/trino-clickhouse }
             - { modules: plugin/trino-delta-lake, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
@@ -2440,6 +2559,7 @@ jobs:
     runs-on: [self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest]
     needs:
       - artifact-checks
+      - bigquery-tests
       - build-pt
       - build-test-matrix
       - check-commit
@@ -2466,6 +2586,7 @@ jobs:
         run: |
           # generated by TestCiWorkflow
           echo '${{ needs.artifact-checks.result }}' | grep -xE 'success|skipped' || { echo 'Job "artifact-checks" failed' >&2; exit 1; }
+          echo '${{ needs.bigquery-tests.result }}' | grep -xE 'success|skipped' || { echo 'Job "bigquery-tests" failed' >&2; exit 1; }
           echo '${{ needs.build-pt.result }}' | grep -xE 'success|skipped' || { echo 'Job "build-pt" failed' >&2; exit 1; }
           echo '${{ needs.build-test-matrix.result }}' | grep -xE 'success|skipped' || { echo 'Job "build-test-matrix" failed' >&2; exit 1; }
           echo '${{ needs.check-commit.result }}' | grep -xE 'success|skipped' || { echo 'Job "check-commit" failed' >&2; exit 1; }
