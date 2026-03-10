@@ -14,7 +14,6 @@
 package io.trino.node;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.net.HttpHeaders;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.errorprone.annotations.FormatMethod;
@@ -38,11 +37,12 @@ import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.airlift.concurrent.MoreFutures.addSuccessCallback;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
+import static io.airlift.http.client.HeaderNames.CONTENT_TYPE;
 import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
 import static io.airlift.http.client.Request.Builder.preparePost;
 import static io.airlift.http.client.StaticBodyGenerator.createStaticBodyGenerator;
 import static io.airlift.http.client.StatusResponseHandler.createStatusResponseHandler;
-import static io.trino.server.InternalHeaders.TRINO_ENVIRONMENT;
+import static io.trino.server.InternalHeaders.TRINO_ENVIRONMENT_HEADER;
 import static jakarta.ws.rs.core.MediaType.TEXT_PLAIN;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
@@ -128,8 +128,8 @@ public class AnnounceNodeAnnouncer
         Request request = preparePost()
                 .setUri(announceUri)
                 .setBodyGenerator(currentHostAnnouncement)
-                .setHeader(HttpHeaders.CONTENT_TYPE, TEXT_PLAIN)
-                .setHeader(TRINO_ENVIRONMENT, environment) // used by announce proxy mechanism in starburst-portal
+                .setHeader(CONTENT_TYPE, TEXT_PLAIN)
+                .setHeader(TRINO_ENVIRONMENT_HEADER, environment) // used by announce proxy mechanism in starburst-portal
                 .build();
         ListenableFuture<StatusResponse> responseFuture = httpClient.executeAsync(request, createStatusResponseHandler());
 
