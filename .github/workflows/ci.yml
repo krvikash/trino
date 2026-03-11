@@ -1678,19 +1678,24 @@ jobs:
           contains(matrix.modules, 'trino-filesystem-s3') && contains(matrix.profile, 'cloud-tests') &&
           (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || env.AWS_ACCESS_KEY_ID != '' || env.AWS_SECRET_ACCESS_KEY != '')
         run: |
-          # Create an empty S3 bucket for S3 filesystem cloud tests and add the bucket name to GitHub environment variables
+          # Create an empty S3 bucket and multi-region access point for S3 filesystem cloud tests and add the resource names to GitHub environment variables
           .github/bin/s3/setup-empty-s3-bucket.sh
           EMPTY_S3_BUCKET=$(cat .github/bin/s3/.bucket-identifier)
           export EMPTY_S3_BUCKET
+          .github/bin/s3/setup-empty-s3-mrap.sh
+          AWS_MRAP_ARN=$(cat .github/bin/s3/.mrap-arn)
+          export AWS_MRAP_ARN
           $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ format('-P {0}', matrix.profile) }}
-      - name: Cleanup ephemeral S3 buckets
+      - name: Cleanup ephemeral S3 resources
         env:
           AWS_REGION: ${{ vars.TRINO_AWS_REGION }}
           AWS_ACCESS_KEY_ID: ${{ vars.TRINO_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.TRINO_AWS_SECRET_ACCESS_KEY }}
-        # Cancelled workflows may not have cleaned up the ephemeral bucket
+        # Cancelled workflows may not have cleaned up the ephemeral resources
         if: always()
-        run: .github/bin/s3/delete-s3-bucket.sh || true
+        run: |
+          .github/bin/s3/delete-s3-mrap.sh || true
+          .github/bin/s3/delete-s3-bucket.sh || true
       - name: Cloud Object Store Tests
         id: tests-objectstore
         # Cloud tests are separate because they are time intensive, requiring cross-cloud network communication
