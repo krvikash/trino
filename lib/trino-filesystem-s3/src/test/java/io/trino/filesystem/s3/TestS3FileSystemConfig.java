@@ -14,6 +14,7 @@
 package io.trino.filesystem.s3;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.net.HostAndPort;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
@@ -83,7 +84,8 @@ public class TestS3FileSystemConfig
                 .setCustomCredentialProviderClass(null)
                 .setCustomCredentialProviderArguments("")
                 .setApiCallAttemptTimeout(null)
-                .setApiCallTimeout(null));
+                .setApiCallTimeout(null)
+                .setMultiRegionAccessPointsEnabled(false));
     }
 
     @Test
@@ -172,7 +174,12 @@ public class TestS3FileSystemConfig
                 .setApiCallAttemptTimeout(new Duration(1, MINUTES))
                 .setApiCallTimeout(new Duration(2, MINUTES));
 
-        assertFullMapping(properties, expected);
+        // Skip s3.multi-region-access-points-enabled because it is incompatible with s3.path-style-access.
+        assertFullMapping(properties, expected, ImmutableSet.of("s3.multi-region-access-points-enabled"));
+
+        expected = new S3FileSystemConfig()
+                .setMultiRegionAccessPointsEnabled(true);
+        assertFullMapping(ImmutableMap.of("s3.multi-region-access-points-enabled", "true"), expected, properties.keySet());
     }
 
     @Test
@@ -243,6 +250,23 @@ public class TestS3FileSystemConfig
                         .setApiCallTimeout(Duration.valueOf("1m")),
                 "apiTimeoutsValid",
                 "'s3.api-call-timeout' must to be greater than 's3.api-call-attempt-timeout' if both are configured",
+                AssertTrue.class);
+    }
+
+    @Test
+    public void testMultiRegionAccessPointsValidation()
+    {
+        assertValidates(new S3FileSystemConfig()
+                .setMultiRegionAccessPointsEnabled(true));
+
+        assertValidates(new S3FileSystemConfig()
+                .setPathStyleAccess(true));
+
+        assertFailsValidation(new S3FileSystemConfig()
+                        .setMultiRegionAccessPointsEnabled(true)
+                        .setPathStyleAccess(true),
+                "multiRegionAccessPointsValid",
+                "S3 Multi-Region Access Points cannot be used with path-style access",
                 AssertTrue.class);
     }
 }

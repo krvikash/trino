@@ -143,6 +143,11 @@
 
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
+            <artifactId>aws-crt-client</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
             <artifactId>http-client-spi</artifactId>
         </dependency>
 
@@ -195,6 +200,12 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>utils</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>http-auth-aws-crt</artifactId>
+            <scope>runtime</scope>
         </dependency>
 
         <dependency>

@@ -92,4 +92,32 @@ public class TestLocations
         assertThat(Locations.isS3Tables("s3://test-bucket")).isFalse();
         assertThat(Locations.isS3Tables("s3://test-bucket/default")).isFalse();
     }
+
+    @Test
+    void testGetS3MultiRegionAccessPoint()
+    {
+        assertThat(Locations.getS3MultiRegionAccessPoint("s3://arn:aws:s3::123456789012:accesspoint/mrapAlias.mrap/some/path"))
+                .hasValueSatisfying(mrap -> {
+                    assertThat(mrap.resourceName()).isEqualTo("arn:aws:s3::123456789012:accesspoint/mrapAlias.mrap");
+                    assertThat(mrap.path()).isEqualTo("some/path");
+                });
+        assertThat(Locations.getS3MultiRegionAccessPoint("s3://arn:aws:s3::123456789012:accesspoint/mrapAlias.mrap/"))
+                .hasValueSatisfying(mrap -> {
+                    assertThat(mrap.resourceName()).isEqualTo("arn:aws:s3::123456789012:accesspoint/mrapAlias.mrap");
+                    assertThat(mrap.path()).isEqualTo("");
+                });
+        assertThat(Locations.getS3MultiRegionAccessPoint("s3://arn:aws:s3::123456789012:accesspoint/mrapAlias.mrap/deep/nested/path/file.txt"))
+                .hasValueSatisfying(mrap -> {
+                    assertThat(mrap.resourceName()).isEqualTo("arn:aws:s3::123456789012:accesspoint/mrapAlias.mrap");
+                    assertThat(mrap.path()).isEqualTo("deep/nested/path/file.txt");
+                });
+
+        assertThat(Locations.getS3MultiRegionAccessPoint("s3://test-bucket/some/path")).isEmpty();
+        assertThat(Locations.getS3MultiRegionAccessPoint("s3://test-bucket/")).isEmpty();
+        assertThat(Locations.getS3MultiRegionAccessPoint("s3://arn:aws:s3::123456789012:accesspoint/mrapAlias/some/path")).isEmpty();
+        assertThat(Locations.getS3MultiRegionAccessPoint("s3://arn:aws:s3::123456789012:accesspoint/mrapAlias.mrap")).isEmpty();
+        assertThat(Locations.getS3MultiRegionAccessPoint("hdfs://arn:aws:s3::123456789012:accesspoint/mrapAlias.mrap/path")).isEmpty();
+        assertThat(Locations.getS3MultiRegionAccessPoint("s3://arn:aws:s3::12345678901:accesspoint/mrapAlias.mrap/path")).isEmpty();
+        assertThat(Locations.getS3MultiRegionAccessPoint("s3://arn:aws:s3::1234567890123:accesspoint/mrapAlias.mrap/path")).isEmpty();
+    }
 }

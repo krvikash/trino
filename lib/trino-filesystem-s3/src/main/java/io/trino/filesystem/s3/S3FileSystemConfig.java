@@ -188,6 +188,7 @@ public class S3FileSystemConfig
     private String applicationId = "Trino";
     private Duration apiCallAttemptTimeout;
     private Duration apiCallTimeout;
+    private boolean multiRegionAccessPointsEnabled;
 
     public String getAwsAccessKey()
     {
@@ -702,6 +703,19 @@ public class S3FileSystemConfig
         return this;
     }
 
+    public boolean isMultiRegionAccessPointsEnabled()
+    {
+        return multiRegionAccessPointsEnabled;
+    }
+
+    @Config("s3.multi-region-access-points-enabled")
+    @ConfigDescription("Enable S3 Multi-Region Access Points")
+    public S3FileSystemConfig setMultiRegionAccessPointsEnabled(boolean multiRegionAccessPointsEnabled)
+    {
+        this.multiRegionAccessPointsEnabled = multiRegionAccessPointsEnabled;
+        return this;
+    }
+
     @AssertTrue(message = "'s3.custom-credential-provider-class.arguments' must to be set only if 's3.custom-credential-provider-class' is configured")
     public boolean isCustomCredentialProviderArgumentsValid()
     {
@@ -718,5 +732,14 @@ public class S3FileSystemConfig
             return true;
         }
         return apiCallTimeout.toMillis() > apiCallAttemptTimeout.toMillis();
+    }
+
+    @AssertTrue(message = "S3 Multi-Region Access Points cannot be used with path-style access")
+    public boolean isMultiRegionAccessPointsValid()
+    {
+        if (multiRegionAccessPointsEnabled) {
+            return !pathStyleAccess;
+        }
+        return true;
     }
 }

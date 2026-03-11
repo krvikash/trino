@@ -23,6 +23,7 @@ import java.util.OptionalInt;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Iterables.getLast;
+import static io.trino.filesystem.Locations.getS3MultiRegionAccessPoint;
 import static io.trino.filesystem.Locations.isS3Tables;
 import static java.lang.Integer.parseInt;
 import static java.util.Objects.requireNonNull;
@@ -70,6 +71,18 @@ public final class Location
         List<String> schemeSplit = SCHEME_SPLITTER.splitToList(location);
         checkArgument(schemeSplit.size() == 2, "No scheme for file system location: %s", location);
         String scheme = schemeSplit.get(0);
+
+        Optional<Locations.MultiRegionAccessPoint> multiRegionAccessPoint = getS3MultiRegionAccessPoint(location);
+        if (multiRegionAccessPoint.isPresent()) {
+            String resourceName = multiRegionAccessPoint.get().resourceName();
+            String path = multiRegionAccessPoint.get().path();
+            return new Location("%s://%s/%s".formatted(scheme, resourceName, path),
+                    Optional.of(scheme),
+                    Optional.empty(),
+                    Optional.of(resourceName),
+                    OptionalInt.empty(),
+                    path);
+        }
 
         String afterScheme = schemeSplit.get(1);
         if (afterScheme.startsWith("//")) {

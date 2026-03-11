@@ -36,6 +36,16 @@ public class TestS3Location
     }
 
     @Test
+    public void testMultiRegionAccessPoint()
+    {
+        String mrapArn = "arn:aws:s3::123456789012:accesspoint/mrapAlias.mrap";
+
+        assertS3Uri("s3://" + mrapArn + "/some/key", mrapArn, "some/key");
+        assertS3Uri("s3://" + mrapArn + "/", mrapArn, "");
+        assertS3Uri("s3://" + mrapArn + "/deep/nested/path/file.parquet", mrapArn, "deep/nested/path/file.parquet");
+    }
+
+    @Test
     public void testInvalidUri()
     {
         assertThatThrownBy(() -> new S3Location(Location.of("/abc/xyz")))

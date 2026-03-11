@@ -179,6 +179,12 @@ class TestLocation
         assertThatThrownBy(() -> Location.of("scheme://:"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Invalid port in file system location: scheme://:");
+
+        Location mrapLocation = Location.of("s3://arn:aws:s3::123456789012:accesspoint/mrapAlias.mrap/some/path");
+        assertThat(mrapLocation.scheme()).isEqualTo(Optional.of("s3"));
+        assertThat(mrapLocation.host()).isEqualTo(Optional.of("arn:aws:s3::123456789012:accesspoint/mrapAlias.mrap"));
+        assertThat(mrapLocation.path()).isEqualTo("some/path");
+        assertThat(Location.of(mrapLocation.toString())).isEqualTo(mrapLocation);
     }
 
     private static void assertLocationWithoutUriTesting(String locationString, String scheme, Optional<String> userInfo, String host, String path)

@@ -54,7 +54,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.slice.Slices.wrappedBuffer;
-import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.testing.assertions.Assert.assertEventually;
 import static java.lang.Math.min;
 import static java.lang.Math.toIntExact;
@@ -133,6 +132,11 @@ public abstract class AbstractTestTrinoFileSystem
     protected boolean seekPastEndOfFileFails()
     {
         return true;
+    }
+
+    protected boolean usesAwsCrtHttpClient()
+    {
+        return false;
     }
 
     protected Location createLocation(String path)
@@ -482,8 +486,14 @@ public abstract class AbstractTestTrinoFileSystem
                     assertThat(inputStream.getPosition()).isEqualTo(fileSize + 100);
                 }
 
-                assertThatThrownBy(() -> inputStream.read(new byte[1], -1, 0))
-                        .isInstanceOf(IndexOutOfBoundsException.class);
+                if (usesAwsCrtHttpClient()) {
+                    // AwsCrtHttpClient stream returns 0 for len=0 without validating offset
+                    assertThat(inputStream.read(new byte[1], -1, 0)).isEqualTo(0);
+                }
+                else {
+                    assertThatThrownBy(() -> inputStream.read(new byte[1], -1, 0))
+                            .isInstanceOf(IndexOutOfBoundsException.class);
+                }
                 assertThatThrownBy(() -> inputStream.read(new byte[1], 0, -1))
                         .isInstanceOf(IndexOutOfBoundsException.class);
                 assertThatThrownBy(() -> inputStream.read(new byte[1], 1, 3))

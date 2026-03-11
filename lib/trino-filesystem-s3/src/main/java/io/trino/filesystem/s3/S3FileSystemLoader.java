@@ -30,6 +30,7 @@ import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
+import software.amazon.awssdk.http.crt.AwsCrtHttpClient;
 import software.amazon.awssdk.metrics.MetricPublisher;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.LegacyMd5Plugin;
@@ -175,6 +176,7 @@ public final class S3FileSystemLoader
         Optional<String> staticIamRole = Optional.ofNullable(config.getIamRole());
         String staticRoleSessionName = config.getRoleSessionName();
         String externalId = config.getExternalId();
+        boolean multiRegionAccessPointsEnabled = config.isMultiRegionAccessPointsEnabled();
 
         return mapping -> {
             Optional<AwsCredentialsProvider> credentialsProvider = mapping
@@ -198,6 +200,11 @@ public final class S3FileSystemLoader
             region.map(Region::of).ifPresent(s3::region);
             endpoint.map(URI::create).ifPresent(s3::endpointOverride);
             s3.forcePathStyle(pathStyleAccess);
+
+            s3.useArnRegion(multiRegionAccessPointsEnabled);
+            if (!multiRegionAccessPointsEnabled) {
+                s3.disableMultiRegionAccessPoints(true);
+            }
 
             if (useWebIdentityTokenCredentialsProvider) {
                 s3.credentialsProvider(WebIdentityTokenFileCredentialsProvider.builder()
@@ -232,6 +239,7 @@ public final class S3FileSystemLoader
         Optional<String> staticIamRole = Optional.ofNullable(config.getIamRole());
         String staticRoleSessionName = config.getRoleSessionName();
         String externalId = config.getExternalId();
+        boolean multiRegionAccessPointsEnabled = config.isMultiRegionAccessPointsEnabled();
 
         S3Presigner.Builder s3 = S3Presigner.builder();
         s3.s3Client(s3ClientFactory(httpClient, openTelemetry, config, metricPublisher)
@@ -240,6 +248,8 @@ public final class S3FileSystemLoader
         staticRegion.map(Region::of).ifPresent(s3::region);
         staticEndpoint.map(URI::create).ifPresent(s3::endpointOverride);
         s3.serviceConfiguration(S3Configuration.builder()
+                .multiRegionEnabled(multiRegionAccessPointsEnabled)
+                .useArnRegionEnabled(multiRegionAccessPointsEnabled)
                 .pathStyleAccessEnabled(pathStyleAccess)
                 .build());
 
@@ -309,6 +319,15 @@ public final class S3FileSystemLoader
 
     private static SdkHttpClient createHttpClient(S3FileSystemConfig config)
     {
+        // Using Multi-Region Access Points requires an HTTP client that supports the SigV4a signing protocol, which is not supported by the Apache HTTP Client.
+        // https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv.html#how-sigv4a-works
+        return config.isMultiRegionAccessPointsEnabled()
+                ? createAwsCrtHttpClient(config)
+                : createApacheHttpClient(config);
+    }
+
+    private static SdkHttpClient createApacheHttpClient(S3FileSystemConfig config)
+    {
         ApacheHttpClient.Builder client = ApacheHttpClient.builder()
                 .maxConnections(config.getMaxConnections())
                 .tcpKeepAlive(config.getTcpKeepAlive());
@@ -327,6 +346,28 @@ public final class S3FileSystemLoader
                     .password(config.getHttpProxyPassword())
                     .nonProxyHosts(config.getNonProxyHosts())
                     .preemptiveBasicAuthenticationEnabled(config.getHttpProxyPreemptiveBasicProxyAuth())
+                    .build());
+        }
+
+        return client.build();
+    }
+
+    private static SdkHttpClient createAwsCrtHttpClient(S3FileSystemConfig config)
+    {
+        AwsCrtHttpClient.Builder client = AwsCrtHttpClient.builder()
+                .maxConcurrency(config.getMaxConnections());
+
+        config.getConnectionMaxIdleTime().map(io.airlift.units.Duration::toJavaTime).ifPresent(client::connectionMaxIdleTime);
+        config.getSocketConnectTimeout().map(io.airlift.units.Duration::toJavaTime).ifPresent(client::connectionTimeout);
+
+        if (config.getHttpProxy() != null) {
+            client.proxyConfiguration(software.amazon.awssdk.http.crt.ProxyConfiguration.builder()
+                    .scheme(config.isHttpProxySecure() ? "https" : "http")
+                    .host(config.getHttpProxy().getHost())
+                    .port(config.getHttpProxy().getPort())
+                    .username(config.getHttpProxyUsername())
+                    .password(config.getHttpProxyPassword())
+                    .nonProxyHosts(config.getNonProxyHosts())
                     .build());
         }
 
