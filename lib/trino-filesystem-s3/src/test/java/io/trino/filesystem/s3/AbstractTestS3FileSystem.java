@@ -15,6 +15,8 @@ package io.trino.filesystem.s3;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import io.airlift.log.Logging;
 import io.airlift.units.Duration;
 import io.trino.filesystem.AbstractTestTrinoFileSystem;
@@ -276,18 +278,23 @@ public abstract class AbstractTestS3FileSystem
                     .uri(uri.get().uri())
                     .PUT(HttpRequest.BodyPublishers.ofString(testContent))
                     .build();
-            HttpResponse<Void> response = client.send(request, HttpResponse.BodyHandlers.discarding());
+            HttpResponse<Void> response = sendWithRetries(client, request);
             assertThat(response.statusCode()).isEqualTo(200);
             FileIterator fileIterator = fileSystem.listFiles(abcLocation.parentDirectory());
             assertThat(fileIterator.next().length()).isEqualTo(testContent.length());
             assertThat(fileIterator.hasNext()).isFalse();
             Thread.sleep(Duration.valueOf("6s").toMillis()); // Wait for the URL to expire.
-            response = client.send(request, HttpResponse.BodyHandlers.discarding());
+            response = sendWithRetries(client, request);
             assertThat(response.statusCode()).isEqualTo(403);
         }
         finally {
             getFileSystem().deleteFile(abcLocation);
         }
+    }
+
+    private static HttpResponse<Void> sendWithRetries(HttpClient client, HttpRequest request)
+    {
+        return Failsafe.with(RetryPolicy.builder().withMaxRetries(3).build()).get(() -> client.send(request, HttpResponse.BodyHandlers.discarding()));
     }
 
     private static HttpRequest.Builder addHeaders(HttpRequest.Builder builder, Map<String, List<String>> headers)
@@ -310,7 +317,7 @@ public abstract class AbstractTestS3FileSystem
         UriLocation uriLocation = getFileSystem().preSignedDeleteUri(abcLocation, Duration.valueOf("10m")).orElseThrow();
         try (HttpClient client = HttpClient.newHttpClient()) {
             HttpRequest request = HttpRequest.newBuilder().uri(uriLocation.uri()).DELETE().build();
-            HttpResponse<Void> response = client.send(request, HttpResponse.BodyHandlers.discarding());
+            HttpResponse<Void> response = sendWithRetries(client, request);
             assertThat(response.statusCode()).isIn(200, 204);
         }
         assertThat(fileSystem.listFiles(abcLocation.parentDirectory()).hasNext()).isFalse();
