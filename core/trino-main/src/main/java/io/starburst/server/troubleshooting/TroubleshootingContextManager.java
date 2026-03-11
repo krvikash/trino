@@ -320,7 +320,7 @@ public class TroubleshootingContextManager
     private static Set<String> getNodeIdsProcessingQuery(StagesInfo outputStage)
     {
         List<TaskInfo> tasks = getAllStages(Optional.of(outputStage)).stream()
-                .map(StageInfo::getTasks)
+                .map(StageInfo::tasks)
                 .flatMap(Collection::stream)
                 .collect(toImmutableList());
 

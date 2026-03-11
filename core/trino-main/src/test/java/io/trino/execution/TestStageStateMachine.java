@@ -243,7 +243,7 @@ public class TestStageStateMachine
                         taskStats(ImmutableList.of(pipeline0Context, pipeline1Context))));
         StageInfo stageInfo = stateMachine.getStageInfo(() -> taskInfoList);
 
-        List<OperatorStats> operatorSummaries = stageInfo.getStageStats().getOperatorSummaries();
+        List<OperatorStats> operatorSummaries = stageInfo.stageStats().getOperatorSummaries();
         assertThat(operatorSummaries.size()).isEqualTo(2);
         assertThat(operatorSummaries.get(0).getOperatorId()).isEqualTo(0);
         assertThat(operatorSummaries.get(1).getOperatorId()).isEqualTo(0);
@@ -285,7 +285,7 @@ public class TestStageStateMachine
                         taskStats(ImmutableList.of(pipeline0Context, pipeline1Context))));
         StageInfo stageInfo = stateMachine.getStageInfo(() -> taskInfoList);
 
-        List<OperatorStats> operatorSummaries = stageInfo.getStageStats().getOperatorSummaries();
+        List<OperatorStats> operatorSummaries = stageInfo.stageStats().getOperatorSummaries();
         assertThat(operatorSummaries.size()).isEqualTo(1);
         assertThat(operatorSummaries.get(0).getOperatorId()).isEqualTo(0);
         assertThat(operatorSummaries.get(0).getAlternativeId()).isEqualTo(2);
@@ -434,22 +434,22 @@ public class TestStageStateMachine
         assertThat(stateMachine.getStageId()).isEqualTo(STAGE_ID);
 
         StageInfo stageInfo = stateMachine.getStageInfo(ImmutableList::of);
-        assertThat(stageInfo.getStageId()).isEqualTo(STAGE_ID);
-        assertThat(stageInfo.getSubStages()).isEqualTo(ImmutableList.of());
-        assertThat(stageInfo.getTasks()).isEqualTo(ImmutableList.of());
-        assertThat(stageInfo.getTypes()).isEqualTo(ImmutableList.of(VARCHAR));
-        assertThat(stageInfo.getPlan()).isSameAs(PLAN_FRAGMENT);
+        assertThat(stageInfo.stageId()).isEqualTo(STAGE_ID);
+        assertThat(stageInfo.subStages()).isEqualTo(ImmutableList.of());
+        assertThat(stageInfo.tasks()).isEqualTo(ImmutableList.of());
+        assertThat(stageInfo.types()).isEqualTo(ImmutableList.of(VARCHAR));
+        assertThat(stageInfo.plan()).isSameAs(PLAN_FRAGMENT);
 
         assertThat(stateMachine.getState()).isEqualTo(expectedState);
-        assertThat(stageInfo.getState()).isEqualTo(expectedState);
+        assertThat(stageInfo.state()).isEqualTo(expectedState);
 
         if (expectedState == StageState.FAILED) {
-            ExecutionFailureInfo failure = stageInfo.getFailureCause();
+            ExecutionFailureInfo failure = stageInfo.failureCause();
             assertThat(failure.message()).isEqualTo(FAILED_CAUSE.getMessage());
             assertThat(failure.type()).isEqualTo(FAILED_CAUSE.getClass().getName());
         }
         else {
-            assertThat(stageInfo.getFailureCause()).isNull();
+            assertThat(stageInfo.failureCause()).isNull();
         }
     }
 

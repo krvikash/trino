@@ -425,7 +425,7 @@ public class TestSystemMetadataConnector
         QueryRunner.MaterializedResultWithPlan resultWithQueryId = getDistributedQueryRunner().executeWithPlan(session, "SELECT TABLE_CAT FROM system.jdbc.catalogs order by TABLE_CAT");
 
         // Stage 1 corresponds to Sort operator
-        assertThat(getDistributedQueryRunner().getCoordinator().getQueryManager().getFullQueryInfo(resultWithQueryId.queryId()).getStages().get().getStages().get(1).getStageStats().getTotalTasks())
+        assertThat(getDistributedQueryRunner().getCoordinator().getQueryManager().getFullQueryInfo(resultWithQueryId.queryId()).getStages().get().getStages().get(1).stageStats().getTotalTasks())
                 .isEqualTo(1);
 
         session = Session.builder(getSession())
@@ -435,7 +435,7 @@ public class TestSystemMetadataConnector
 
         resultWithQueryId = getDistributedQueryRunner().executeWithPlan(session, "SELECT TABLE_CAT FROM system.jdbc.catalogs order by TABLE_CAT");
 
-        assertThat(getDistributedQueryRunner().getCoordinator().getQueryManager().getFullQueryInfo(resultWithQueryId.queryId()).getStages().get().getStages().get(1).getStageStats().getTotalTasks())
+        assertThat(getDistributedQueryRunner().getCoordinator().getQueryManager().getFullQueryInfo(resultWithQueryId.queryId()).getStages().get().getStages().get(1).stageStats().getTotalTasks())
                 .isEqualTo(4); // 1 coordinator + 3 worker
     }
 

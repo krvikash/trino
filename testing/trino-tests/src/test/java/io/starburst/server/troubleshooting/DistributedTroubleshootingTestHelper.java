@@ -77,7 +77,7 @@ public class DistributedTroubleshootingTestHelper
     private static Set<String> getNodeIdsProcessingQuery(DistributedQueryRunner queryRunner, StagesInfo stages)
     {
         return stages.getStages().stream()
-                .map(StageInfo::getTasks)
+                .map(StageInfo::tasks)
                 .flatMap(Collection::stream)
                 .map(TaskInfo::taskStatus)
                 .map(TaskStatus::nodeId)
