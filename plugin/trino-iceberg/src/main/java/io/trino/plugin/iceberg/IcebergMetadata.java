@@ -4273,6 +4273,7 @@ public class IcebergMetadata
                     .withMetrics(task.metrics().metrics())
                     .withSortOrder(sortOrders.get(task.sortOrderId()));
             partitionData.ifPresent(builder::withPartition);
+            task.fileSplitOffsets().ifPresent(builder::withSplitOffsets);
 
             if (!icebergTable.spec().fields().isEmpty()) {
                 String partitionDataJson = task.partitionDataJson()
