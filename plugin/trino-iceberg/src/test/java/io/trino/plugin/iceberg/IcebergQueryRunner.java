@@ -65,6 +65,7 @@ import static io.trino.testing.containers.Minio.MINIO_SECRET_KEY;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.createTempDirectory;
 import static java.util.Objects.requireNonNull;
+import static software.amazon.awssdk.regions.Region.AWS_GLOBAL;
 
 public final class IcebergQueryRunner
 {
@@ -769,6 +770,42 @@ public final class IcebergQueryRunner
                     .addIcebergProperty("s3.path-style-access", "true")
                     .setInitialTables(TpchTable.getTables())
                     .build();
+            log.info("======== SERVER STARTED ========");
+            log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
+        }
+    }
+
+    public static final class IcebergMultiRegionAccessPointQueryRunner
+    {
+        private IcebergMultiRegionAccessPointQueryRunner() {}
+
+        static void main()
+                throws Exception
+        {
+            String awsAccessKey = requiredNonEmptySystemProperty("testing.aws.access-key");
+            String awsSecretKey = requiredNonEmptySystemProperty("testing.aws.secret-key");
+            String mrapArn = requiredNonEmptySystemProperty("testing.aws.mrap-arn");
+
+            @SuppressWarnings("resource")
+            QueryRunner queryRunner = icebergQueryRunnerMainBuilder()
+                    .setIcebergProperties(ImmutableMap.<String, String>builder()
+                            .put("iceberg.catalog.type", "TESTING_FILE_METASTORE")
+                            .put("hive.metastore.catalog.dir", "s3://%s/iceberg-test/".formatted(mrapArn))
+                            .put("fs.native-s3.enabled", "true")
+                            .put("s3.aws-access-key", awsAccessKey)
+                            .put("s3.aws-secret-key", awsSecretKey)
+                            .put("s3.region", AWS_GLOBAL.toString())
+                            .put("s3.streaming.part-size", "5.5MB")
+                            .put("s3.multi-region-access-points-enabled", "true")
+                            .buildOrThrow())
+                    .setSchemaInitializer(
+                            SchemaInitializer.builder()
+                                    .withSchemaName("tpch")
+                                    .withClonedTpchTables(TpchTable.getTables())
+                                    .build())
+                    .build();
+
+            Logger log = Logger.get(IcebergMultiRegionAccessPointQueryRunner.class);
             log.info("======== SERVER STARTED ========");
             log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
         }
