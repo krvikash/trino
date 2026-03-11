@@ -20,6 +20,9 @@ import static java.util.Objects.requireNonNull;
 public class LocalPriorityPartitionNodeMapperFactory
         implements PartitionNodeMapperFactory
 {
+    private static final int SINGLE_NODE_PER_PARTITION = 1;
+    private static final int DEFAULT_NODES_PER_PARTITION = 3;
+
     private final BufferNodeDiscoveryManager discoveryManager;
     private final ScheduledExecutorService executor;
     private final Duration maxWaitActiveBufferNodes;
@@ -36,7 +39,7 @@ public class LocalPriorityPartitionNodeMapperFactory
     public PartitionNodeMapper getPartitionNodeMapper(ExchangeId exchangeId, int outputPartitionCount, boolean preserveOrderWithinPartition)
     {
         // to preserve order within partition we need to use single node
-        int totalNodesPerPartition = preserveOrderWithinPartition ? 1 : 3;
+        int totalNodesPerPartition = preserveOrderWithinPartition ? SINGLE_NODE_PER_PARTITION : DEFAULT_NODES_PER_PARTITION;
         return new LocalPriorityPartitionNodeMapper(discoveryManager, executor, outputPartitionCount, totalNodesPerPartition, maxWaitActiveBufferNodes);
     }
 }
