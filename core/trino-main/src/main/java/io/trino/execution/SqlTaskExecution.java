@@ -286,7 +286,7 @@ public class SqlTaskExecution
                 long maxAcknowledgedSplit = currentMaxAcknowledgedSplit;
                 ImmutableSet.Builder<ScheduledSplit> builder = ImmutableSet.builderWithExpectedSize(splitAssignment.getSplits().size());
                 for (ScheduledSplit split : splitAssignment.getSplits()) {
-                    long sequenceId = split.getSequenceId();
+                    long sequenceId = split.sequenceId();
                     // previously acknowledged splits can be included in source
                     if (sequenceId > currentMaxAcknowledgedSplit) {
                         builder.add(split);
@@ -332,7 +332,7 @@ public class SqlTaskExecution
         DriverSplitRunnerFactory partitionedDriverFactory = driverRunnerFactoriesWithSplitLifeCycle.get(planNodeId);
         PendingSplitsForPlanNode pendingSplitsForPlanNode = pendingSplitsByPlanNode.get(planNodeId);
 
-        partitionedDriverFactory.splitsAdded(scheduledSplits.size(), SplitWeight.rawValueSum(scheduledSplits, scheduledSplit -> scheduledSplit.getSplit().getSplitWeight()));
+        partitionedDriverFactory.splitsAdded(scheduledSplits.size(), SplitWeight.rawValueSum(scheduledSplits, scheduledSplit -> scheduledSplit.split().getSplitWeight()));
         for (ScheduledSplit scheduledSplit : scheduledSplits) {
             pendingSplitsForPlanNode.addSplit(scheduledSplit);
         }
@@ -606,7 +606,7 @@ public class SqlTaskExecution
 
         public DriverSplitRunner createPartitionedDriverRunner(ScheduledSplit partitionedSplit)
         {
-            return createDriverRunner(partitionedSplit, partitionedSplit.getSplit().getSplitWeight().getRawValue());
+            return createDriverRunner(partitionedSplit, partitionedSplit.split().getSplitWeight().getRawValue());
         }
 
         public DriverSplitRunner createUnpartitionedDriverRunner()
@@ -659,7 +659,7 @@ public class SqlTaskExecution
             try {
                 if (partitionedSplit != null) {
                     // TableScanOperator requires partitioned split to be added before the first call to process
-                    driver.updateSplitAssignment(new SplitAssignment(partitionedSplit.getPlanNodeId(), ImmutableSet.of(partitionedSplit), true));
+                    driver.updateSplitAssignment(new SplitAssignment(partitionedSplit.planNodeId(), ImmutableSet.of(partitionedSplit), true));
                 }
 
                 if (pendingCreations.decrementAndGet() == 0) {
@@ -856,14 +856,14 @@ public class SqlTaskExecution
         @Override
         public String getInfo()
         {
-            return (partitionedSplit == null) ? "" : partitionedSplit.getSplit().toString();
+            return (partitionedSplit == null) ? "" : partitionedSplit.split().toString();
         }
 
         @Override
         public Optional<CacheSplitId> getCacheSplitId()
         {
             return Optional.ofNullable(partitionedSplit)
-                    .map(ScheduledSplit::getSplit)
+                    .map(ScheduledSplit::split)
                     .flatMap(Split::getCacheSplitId);
         }
 

@@ -100,12 +100,12 @@ public class AlternativesAwareDriverFactory
         checkArgument(optionalSplit.isPresent());
         ScheduledSplit split = optionalSplit.get();
 
-        Optional<CacheSplitId> cacheSplitId = split.getSplit().getCacheSplitId();
+        Optional<CacheSplitId> cacheSplitId = split.split().getCacheSplitId();
         if (cacheDriverFactory.isPresent()) {
             return cacheDriverFactory.get().createDriver(driverContext, split, cacheSplitId);
         }
 
-        Choice chosen = alternativeChooser.chooseAlternative(session, split.getSplit(), alternatives.keySet());
+        Choice chosen = alternativeChooser.chooseAlternative(session, split.split(), alternatives.keySet());
 
         AlternativeDriverFactory alternative = alternatives.get(chosen.tableHandle());
         return alternative.driverFactory().createDriver(driverContext.setAlternativePlanContext(chosen.pageSourceProvider(), alternative.id()));

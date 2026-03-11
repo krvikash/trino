@@ -388,7 +388,7 @@ public class TestCacheDriverFactory
                         TupleDomain.withColumnDomains(ImmutableMap.of(
                                 COLUMN2, multipleValues(BIGINT, ImmutableList.of(20L, 21L))))),
                 TEST_SESSION,
-                SPLIT.getSplit(),
+                SPLIT.split(),
                 TEST_TABLE_HANDLE,
                 TupleDomain.withColumnDomains(ImmutableMap.of(
                         COLUMN2, multipleValues(BIGINT, ImmutableList.of(20L, 21L, 23L)),
@@ -401,7 +401,7 @@ public class TestCacheDriverFactory
         assertThat(getDynamicRowFilteringUnenforcedPredicate(
                 new TestingConnectorPageSourceProvider(TupleDomain.none(), TupleDomain.none()),
                 TEST_SESSION,
-                SPLIT.getSplit(),
+                SPLIT.split(),
                 TEST_TABLE_HANDLE,
                 TupleDomain.withColumnDomains(ImmutableMap.of(COLUMN3, singleValue(BIGINT, 1L)))))
                 .isEqualTo(TupleDomain.none());
@@ -410,7 +410,7 @@ public class TestCacheDriverFactory
         assertThat(getDynamicRowFilteringUnenforcedPredicate(
                 new TestingConnectorPageSourceProvider(TupleDomain.all(), TupleDomain.all()),
                 TEST_SESSION,
-                SPLIT.getSplit(),
+                SPLIT.split(),
                 TEST_TABLE_HANDLE,
                 TupleDomain.withColumnDomains(ImmutableMap.of(COLUMN3, singleValue(BIGINT, 1L)))))
                 .isEqualTo(TupleDomain.all());

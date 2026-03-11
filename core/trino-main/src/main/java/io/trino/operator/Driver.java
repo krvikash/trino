@@ -243,7 +243,7 @@ public class Driver
             // add new splits
             SourceOperator sourceOperator = this.sourceOperator.orElseThrow(VerifyException::new);
             for (ScheduledSplit newSplit : newSplits) {
-                Split split = newSplit.getSplit();
+                Split split = newSplit.split();
 
                 sourceOperator.addSplit(split);
             }

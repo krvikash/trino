@@ -154,7 +154,7 @@ public class CacheDriverFactory
             cacheStats.recordMissingSplitId();
             return new DriverFactoryWithCacheContext(alternatives.get(ORIGINAL_PLAN_ALTERNATIVE), Optional.empty());
         }
-        if (!split.getSplit().isSplitAddressEnforced()) {
+        if (!split.split().isSplitAddressEnforced()) {
             // failed to schedule split on the preferred node, fallback to original plan
             cacheStats.recordSplitFailoverHappened();
             return new DriverFactoryWithCacheContext(alternatives.get(ORIGINAL_PLAN_ALTERNATIVE), Optional.empty());
@@ -175,7 +175,7 @@ public class CacheDriverFactory
         TupleDomain<CacheColumnId> unenforcedPredicate = getDynamicRowFilteringUnenforcedPredicate(
                 pageSourceProvider,
                 session,
-                split.getSplit(),
+                split.split(),
                 originalTableHandle,
                 dynamicFilter.getCurrentPredicate())
                 .transformKeys(handle -> requireNonNull(commonColumnHandles.get(handle)));
@@ -247,7 +247,7 @@ public class CacheDriverFactory
                 // prune scan domains of enforced predicate
                 pageSourceProvider.prunePredicate(
                                 session,
-                                split.getSplit(),
+                                split.split(),
                                 originalTableHandle,
                                 enforcedPredicate
                                         .filter((columnId, domain) -> commonColumnHandles.containsValue(columnId))
