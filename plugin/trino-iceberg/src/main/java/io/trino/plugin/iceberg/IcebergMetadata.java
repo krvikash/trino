@@ -293,7 +293,6 @@ import java.util.function.UnaryOperator;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Throwables.throwIfUnchecked;
@@ -488,6 +487,7 @@ import static java.lang.String.format;
 import static java.util.Collections.emptyMap;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElse;
 import static java.util.UUID.randomUUID;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
@@ -2008,7 +2008,7 @@ public class IcebergMetadata
     {
         Duration retentionThreshold = (Duration) executeProperties.get(RETENTION_THRESHOLD);
         Table icebergTable = catalog.loadTable(session, tableHandle.getSchemaTableName());
-        int retainLast = firstNonNull(
+        int retainLast = requireNonNullElse(
                 (Integer) executeProperties.get("retain_last"),
                 propertyAsInt(icebergTable.properties(), MIN_SNAPSHOTS_TO_KEEP, MIN_SNAPSHOTS_TO_KEEP_DEFAULT));
         boolean cleanExpiredMetadata = (boolean) executeProperties.get("clean_expired_metadata");
@@ -2512,7 +2512,7 @@ public class IcebergMetadata
             commit(update, session);
         }
         catch (UncheckedIOException | ValidationException | CommitFailedException | CommitStateUnknownException | RESTException e) {
-            throw new TrinoException(ICEBERG_COMMIT_ERROR, format("Failed to commit during %s: %s", operation, firstNonNull(e.getMessage(), e)), e);
+            throw new TrinoException(ICEBERG_COMMIT_ERROR, format("Failed to commit during %s: %s", operation, requireNonNullElse(e.getMessage(), e)), e);
         }
     }
 
@@ -2522,7 +2522,7 @@ public class IcebergMetadata
             transaction.commitTransaction();
         }
         catch (UncheckedIOException | ValidationException | CommitFailedException | CommitStateUnknownException | RESTException e) {
-            throw new TrinoException(ICEBERG_COMMIT_ERROR, format("Failed to commit the transaction during %s: %s", operation, firstNonNull(e.getMessage(), e)), e);
+            throw new TrinoException(ICEBERG_COMMIT_ERROR, format("Failed to commit the transaction during %s: %s", operation, requireNonNullElse(e.getMessage(), e)), e);
         }
     }
 
@@ -3427,7 +3427,7 @@ public class IcebergMetadata
             updateSchema.commit();
         }
         catch (RuntimeException e) {
-            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to add column: " + firstNonNull(e.getMessage(), e), e);
+            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to add column: " + requireNonNullElse(e.getMessage(), e), e);
         }
     }
 
@@ -3450,7 +3450,7 @@ public class IcebergMetadata
                     .commit();
         }
         catch (RuntimeException e) {
-            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to set default value: " + firstNonNull(e.getMessage(), e), e);
+            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to set default value: " + requireNonNullElse(e.getMessage(), e), e);
         }
     }
 
@@ -3470,7 +3470,7 @@ public class IcebergMetadata
                     .commit();
         }
         catch (RuntimeException e) {
-            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to drop default value: " + firstNonNull(e.getMessage(), e), e);
+            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to drop default value: " + requireNonNullElse(e.getMessage(), e), e);
         }
     }
 
@@ -3509,7 +3509,7 @@ public class IcebergMetadata
                     .commit();
         }
         catch (RuntimeException e) {
-            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to add field: " + firstNonNull(e.getMessage(), e), e);
+            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to add field: " + requireNonNullElse(e.getMessage(), e), e);
         }
     }
 
@@ -3559,7 +3559,7 @@ public class IcebergMetadata
                     .commit();
         }
         catch (RuntimeException e) {
-            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to drop column: " + firstNonNull(e.getMessage(), e), e);
+            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to drop column: " + requireNonNullElse(e.getMessage(), e), e);
         }
     }
 
@@ -3574,7 +3574,7 @@ public class IcebergMetadata
                     .commit();
         }
         catch (RuntimeException e) {
-            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to rename column: " + firstNonNull(e.getMessage(), e), e);
+            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to rename column: " + requireNonNullElse(e.getMessage(), e), e);
         }
     }
 
@@ -3595,7 +3595,7 @@ public class IcebergMetadata
                     .commit();
         }
         catch (RuntimeException e) {
-            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to rename field: " + firstNonNull(e.getMessage(), e), e);
+            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to rename field: " + requireNonNullElse(e.getMessage(), e), e);
         }
     }
 
@@ -3616,7 +3616,7 @@ public class IcebergMetadata
             schemaUpdate.commit();
         }
         catch (RuntimeException e) {
-            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to set column type: " + firstNonNull(e.getMessage(), e), e);
+            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to set column type: " + requireNonNullElse(e.getMessage(), e), e);
         }
     }
 
@@ -3712,7 +3712,7 @@ public class IcebergMetadata
                     .commit();
         }
         catch (RuntimeException e) {
-            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to set field type: " + firstNonNull(e.getMessage(), e), e);
+            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to set field type: " + requireNonNullElse(e.getMessage(), e), e);
         }
     }
 
@@ -3731,7 +3731,7 @@ public class IcebergMetadata
                     .commit();
         }
         catch (RuntimeException e) {
-            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to drop a not null constraint: " + firstNonNull(e.getMessage(), e), e);
+            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to drop a not null constraint: " + requireNonNullElse(e.getMessage(), e), e);
         }
     }
 

@@ -168,7 +168,6 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Stream;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -360,6 +359,7 @@ import static java.lang.String.format;
 import static java.util.Collections.emptyMap;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElse;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
@@ -3746,7 +3746,7 @@ public class HiveMetadata
             // TODO(https://github.com/trinodb/trino/issues/1956) updating table statistics for transactional not supported right now.
             return TableStatisticsMetadata.empty();
         }
-        List<String> partitionedBy = firstNonNull(getPartitionedBy(tableMetadata.getProperties()), ImmutableList.of());
+        List<String> partitionedBy = requireNonNullElse(getPartitionedBy(tableMetadata.getProperties()), ImmutableList.of());
         return getStatisticsCollectionMetadata(tableMetadata.getColumns(), partitionedBy, Optional.empty(), false);
     }
 

@@ -27,10 +27,10 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Verify.verifyNotNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
@@ -80,10 +80,10 @@ public class TestWorkflows
                     }
                 }
 
-                List<?> steps = (List<?>) firstNonNull(job.get("steps"), List.of());
+                List<?> steps = (List<?>) requireNonNullElse(job.get("steps"), List.of());
                 for (int stepPosition = 0; stepPosition < steps.size(); stepPosition++) {
                     Map<?, ?> step = (Map<?, ?>) steps.get(stepPosition);
-                    String stepName = firstNonNull((String) step.get("name"), "Step #" + stepPosition);
+                    String stepName = requireNonNullElse((String) step.get("name"), "Step #" + stepPosition);
                     if (step.containsKey("uses")) {
                         String uses = getString(step, "uses");
                         if (!isSafeActionReference(uses)) {
@@ -136,7 +136,7 @@ public class TestWorkflows
             List<?> steps = getList(runs, "steps");
             for (int stepPosition = 0; stepPosition < steps.size(); stepPosition++) {
                 Map<?, ?> step = (Map<?, ?>) steps.get(stepPosition);
-                String stepName = firstNonNull((String) step.get("name"), "Step #" + stepPosition);
+                String stepName = requireNonNullElse((String) step.get("name"), "Step #" + stepPosition);
                 if (step.containsKey("uses")) {
                     String uses = getString(step, "uses");
                     if (!isSafeActionReference(uses)) {

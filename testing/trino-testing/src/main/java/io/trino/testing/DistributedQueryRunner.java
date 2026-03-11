@@ -90,7 +90,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Throwables.throwIfInstanceOf;
@@ -109,6 +108,7 @@ import static java.lang.Boolean.parseBoolean;
 import static java.lang.System.getenv;
 import static java.util.Arrays.asList;
 import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElse;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public final class DistributedQueryRunner
@@ -813,7 +813,7 @@ public final class DistributedQueryRunner
         protected Builder(Session defaultSession)
         {
             this.defaultSession = requireNonNull(defaultSession, "defaultSession is null");
-            String tracingEnabled = firstNonNull(getenv("TESTS_TRACING_ENABLED"), "false");
+            String tracingEnabled = requireNonNullElse(getenv("TESTS_TRACING_ENABLED"), "false");
             this.withTracing = parseBoolean(tracingEnabled) || tracingEnabled.equals("1");
         }
 
