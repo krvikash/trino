@@ -250,7 +250,7 @@ public final class SqlStage
     public Duration getTotalCpuTime()
     {
         long millis = tasks.values().stream()
-                .mapToLong(task -> task.getTaskInfo().stats().getTotalCpuTime().toMillis())
+                .mapToLong(task -> task.getTaskInfo().stats().totalCpuTime().toMillis())
                 .sum();
         return new Duration(millis, TimeUnit.MILLISECONDS);
     }
