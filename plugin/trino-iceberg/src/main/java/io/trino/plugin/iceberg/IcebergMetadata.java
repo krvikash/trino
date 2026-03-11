@@ -55,7 +55,6 @@ import io.trino.plugin.base.projection.ApplyProjectionUtil.ProjectedColumnRepres
 import io.trino.plugin.base.util.MaybeLazy;
 import io.trino.plugin.hive.HiveCompressionCodec;
 import io.trino.plugin.hive.HiveStorageFormat;
-import io.trino.plugin.hive.HiveWrittenPartitions;
 import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.iceberg.aggregation.DataSketchStateSerializer;
 import io.trino.plugin.iceberg.aggregation.IcebergThetaSketchForStats;
@@ -1905,9 +1904,11 @@ public class IcebergMetadata
         commitTransaction(transaction, "insert");
         transaction = null;
 
-        return Optional.of(new HiveWrittenPartitions(commitTasks.stream()
-                .map(CommitTaskData::path)
-                .collect(toImmutableList())));
+        Map<String, String> summary = icebergTable.currentSnapshot().summary();
+        if (summary == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new IcebergCommitMetadata(summary));
     }
 
     @Override
@@ -5075,12 +5076,11 @@ public class IcebergMetadata
 
         transaction = null;
         fromSnapshotForRefresh = Optional.empty();
-        Optional<ConnectorOutputMetadata> hiveWrittenPartitions = Optional.of(new HiveWrittenPartitions(commitTasks.stream()
-                .map(CommitTaskData::path)
-                .collect(toImmutableList())));
+        Map<String, String> summary = icebergTable.currentSnapshot().summary();
+        Optional<ConnectorOutputMetadata> icebergCommitMetadata = summary == null ? Optional.empty() : Optional.of(new IcebergCommitMetadata(summary));
 
         if (materializedViewRefreshMaxSnapshotsToExpire == 0) {
-            return hiveWrittenPartitions;
+            return icebergCommitMetadata;
         }
 
         int snapshots = size(icebergTable.snapshots());
@@ -5098,7 +5098,7 @@ public class IcebergMetadata
             log.error(e, "Failed to delete old snapshot files during materialized view refresh");
         }
 
-        return hiveWrittenPartitions;
+        return icebergCommitMetadata;
     }
 
     @Override
