@@ -97,7 +97,9 @@ class TestNodeStateManager
         ticker.increment(1, SECONDS);
         executor.run();
 
-        assertEventually(new Duration(5, SECONDS), () -> assertThat(nodeStateManager.getServerState()).isEqualTo(DRAINED));
+        assertEventually(
+                new Duration(5, SECONDS),
+                () -> assertThat(nodeStateManager.getServerState()).isEqualTo(DRAINED));
         assertThat(preShutdownAction.wasInvoked()).isFalse();
     }
 
@@ -110,7 +112,9 @@ class TestNodeStateManager
         assertThat(nodeStateManager.getServerState()).isEqualTo(NodeState.SHUTTING_DOWN);
 
         // here wait for at least 4 grace periods, and add some slack to reduce test flakiness
-        assertEventually(new Duration(4 * GRACE_PERIOD_MILLIS + 1000, MILLISECONDS), () -> assertThat(shutdownAction.isShuttingDown()).isTrue());
+        assertEventually(
+                new Duration(4 * GRACE_PERIOD_MILLIS + 1000, MILLISECONDS),
+                () -> assertThat(shutdownAction.isShuttingDown()).isTrue());
 
         assertThat(preShutdownAction.wasInvoked()).isTrue();
     }
@@ -124,7 +128,9 @@ class TestNodeStateManager
         assertThat(nodeStateManager.getServerState()).isEqualTo(NodeState.SHUTTING_DOWN);
 
         // here wait for at least 4 grace periods, and add some slack to reduce test flakiness
-        assertEventually(new Duration(4 * GRACE_PERIOD_MILLIS + 1000, MILLISECONDS), () -> assertThat(shutdownAction.isShuttingDown()).isTrue());
+        assertEventually(
+                new Duration(4 * GRACE_PERIOD_MILLIS, MILLISECONDS),
+                () -> assertThat(shutdownAction.isShuttingDown()).isTrue());
 
         assertThatThrownBy(() -> nodeStateManager.transitionState(ACTIVE))
                 .isInstanceOf(IllegalStateException.class)
@@ -143,13 +149,17 @@ class TestNodeStateManager
         ticker.increment(1, SECONDS);
         executor.run();
         // 2 gracePeriods or more
-        assertEventually(new Duration(2 * GRACE_PERIOD_MILLIS + 100, MILLISECONDS), () -> assertThat(nodeStateManager.getServerState()).isEqualTo(DRAINED));
+        assertEventually(
+                new Duration(2 * GRACE_PERIOD_MILLIS + 100, MILLISECONDS),
+                () -> assertThat(nodeStateManager.getServerState()).isEqualTo(DRAINED));
 
         // now test the shutdown from the DRAINED state
         nodeStateManager.transitionState(NodeState.SHUTTING_DOWN);
         assertThat(nodeStateManager.getServerState()).isEqualTo(NodeState.SHUTTING_DOWN);
 
-        assertEventually(new Duration(1, SECONDS), () -> assertThat(shutdownAction.isShuttingDown()).isTrue());
+        assertEventually(
+                new Duration(1, SECONDS),
+                () -> assertThat(shutdownAction.isShuttingDown()).isTrue());
     }
 
     @Test
@@ -174,7 +184,9 @@ class TestNodeStateManager
         // make sure that nodeStateManager registered a listener for tasks to finish
         ticker.increment(1, SECONDS);
         executor.run();
-        assertEventually(new Duration(5, SECONDS), () -> assertThat(sqlTasksObservable.getTasks().size()).isEqualTo(1));
+        assertEventually(
+                new Duration(5, SECONDS),
+                () -> assertThat(sqlTasksObservable.getTasks()).hasSize(1));
 
         // simulate task completion after some time
         tasks.set(Collections.emptyList());
@@ -182,7 +194,9 @@ class TestNodeStateManager
                 .stateChanged(TaskState.FINISHED);
 
         // when NodeStateManager sees task finished - it will drain after another drain period
-        assertEventually(new Duration(1, SECONDS), () -> assertThat(nodeStateManager.getServerState()).isEqualTo(SHUTTING_DOWN));
+        assertEventually(
+                new Duration(1, SECONDS),
+                () -> assertThat(nodeStateManager.getServerState()).isEqualTo(SHUTTING_DOWN));
     }
 
     @Test
@@ -207,7 +221,9 @@ class TestNodeStateManager
         // when that nodeStateManager registered a listener for tasks to finish
         ticker.increment(1, SECONDS);
         executor.run();
-        assertEventually(new Duration(1, SECONDS), () -> assertThat(sqlTasksObservable.getTasks().size()).isEqualTo(1));
+        assertEventually(
+                new Duration(1, SECONDS),
+                () -> assertThat(sqlTasksObservable.getTasks()).hasSize(1));
 
         // simulate task completion after some time
         tasks.set(Collections.emptyList());
@@ -215,7 +231,9 @@ class TestNodeStateManager
                 .stateChanged(TaskState.FINISHED);
 
         // when NodeStateManager sees task finished - it will drain after another drain period
-        assertEventually(new Duration(5, SECONDS), () -> assertThat(nodeStateManager.getServerState()).isEqualTo(DRAINED));
+        assertEventually(
+                new Duration(5, SECONDS),
+                () -> assertThat(nodeStateManager.getServerState()).isEqualTo(DRAINED));
     }
 
     private NodeStateManager createNodeStateManager(int gracePeriodMillis)
