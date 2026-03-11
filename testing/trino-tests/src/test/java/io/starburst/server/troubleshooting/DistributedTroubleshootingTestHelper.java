@@ -80,7 +80,7 @@ public class DistributedTroubleshootingTestHelper
                 .map(StageInfo::getTasks)
                 .flatMap(Collection::stream)
                 .map(TaskInfo::taskStatus)
-                .map(TaskStatus::getNodeId)
+                .map(TaskStatus::nodeId)
                 .filter(nodeId -> isNotCoordinator(queryRunner, nodeId))
                 .collect(toImmutableSet());
     }

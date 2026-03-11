@@ -383,7 +383,7 @@ public final class HttpRemoteTask
                     retryPolicy);
 
             taskStatusFetcher.addStateChangeListener(newStatus -> {
-                TaskState state = newStatus.getState();
+                TaskState state = newStatus.state();
                 // cleanup when done or partially cleanup when terminating begins
                 if (state.isTerminatingOrDone()) {
                     cleanUpTask(state);
@@ -454,7 +454,7 @@ public final class HttpRemoteTask
         requireNonNull(splitsBySource, "splitsBySource is null");
 
         // only add pending split if not done
-        if (getTaskStatus().getState().isTerminatingOrDone() || terminating.get()) {
+        if (getTaskStatus().state().isTerminatingOrDone() || terminating.get()) {
             return;
         }
 
@@ -507,7 +507,7 @@ public final class HttpRemoteTask
     @Override
     public void setOutputBuffers(OutputBuffers newOutputBuffers)
     {
-        if (getTaskStatus().getState().isTerminatingOrDone() || terminating.get()) {
+        if (getTaskStatus().state().isTerminatingOrDone() || terminating.get()) {
             return;
         }
 
@@ -538,16 +538,16 @@ public final class HttpRemoteTask
     public PartitionedSplitsInfo getPartitionedSplitsInfo()
     {
         TaskStatus taskStatus = getTaskStatus();
-        if (taskStatus.getState().isDone()) {
+        if (taskStatus.state().isDone()) {
             return PartitionedSplitsInfo.forZeroSplits();
         }
         // Do not consider queued or unacknowledged splits if the task is in the process of terminating
-        if (taskStatus.getState().isTerminating()) {
-            return PartitionedSplitsInfo.forSplitCountAndWeightSum(taskStatus.getRunningPartitionedDrivers(), taskStatus.getRunningPartitionedSplitsWeight());
+        if (taskStatus.state().isTerminating()) {
+            return PartitionedSplitsInfo.forSplitCountAndWeightSum(taskStatus.runningPartitionedDrivers(), taskStatus.runningPartitionedSplitsWeight());
         }
         PartitionedSplitsInfo unacknowledgedSplitsInfo = getUnacknowledgedPartitionedSplitsInfo();
-        int count = unacknowledgedSplitsInfo.getCount() + taskStatus.getQueuedPartitionedDrivers() + taskStatus.getRunningPartitionedDrivers();
-        long weight = unacknowledgedSplitsInfo.getWeightSum() + taskStatus.getQueuedPartitionedSplitsWeight() + taskStatus.getRunningPartitionedSplitsWeight();
+        int count = unacknowledgedSplitsInfo.getCount() + taskStatus.queuedPartitionedDrivers() + taskStatus.runningPartitionedDrivers();
+        long weight = unacknowledgedSplitsInfo.getWeightSum() + taskStatus.queuedPartitionedSplitsWeight() + taskStatus.runningPartitionedSplitsWeight();
         return PartitionedSplitsInfo.forSplitCountAndWeightSum(count, weight);
     }
 
@@ -563,12 +563,12 @@ public final class HttpRemoteTask
     public PartitionedSplitsInfo getQueuedPartitionedSplitsInfo()
     {
         TaskStatus taskStatus = getTaskStatus();
-        if (taskStatus.getState().isTerminatingOrDone()) {
+        if (taskStatus.state().isTerminatingOrDone()) {
             return PartitionedSplitsInfo.forZeroSplits();
         }
         PartitionedSplitsInfo unacknowledgedSplitsInfo = getUnacknowledgedPartitionedSplitsInfo();
-        int count = unacknowledgedSplitsInfo.getCount() + taskStatus.getQueuedPartitionedDrivers();
-        long weight = unacknowledgedSplitsInfo.getWeightSum() + taskStatus.getQueuedPartitionedSplitsWeight();
+        int count = unacknowledgedSplitsInfo.getCount() + taskStatus.queuedPartitionedDrivers();
+        long weight = unacknowledgedSplitsInfo.getWeightSum() + taskStatus.queuedPartitionedSplitsWeight();
         return PartitionedSplitsInfo.forSplitCountAndWeightSum(count, weight);
     }
 
@@ -593,10 +593,10 @@ public final class HttpRemoteTask
     private long getQueuedPartitionedSplitsWeight()
     {
         TaskStatus taskStatus = getTaskStatus();
-        if (taskStatus.getState().isTerminatingOrDone()) {
+        if (taskStatus.state().isTerminatingOrDone()) {
             return 0;
         }
-        return getPendingSourceSplitsWeight() + taskStatus.getQueuedPartitionedSplitsWeight();
+        return getPendingSourceSplitsWeight() + taskStatus.queuedPartitionedSplitsWeight();
     }
 
     @SuppressWarnings("FieldAccessNotGuarded")
@@ -761,7 +761,7 @@ public final class HttpRemoteTask
     {
         TaskStatus taskStatus = getTaskStatus();
         // don't update if the task is already finishing or finished, or if we have sent a termination command
-        if (taskStatus.getState().isTerminatingOrDone() || terminating.get()) {
+        if (taskStatus.state().isTerminatingOrDone() || terminating.get()) {
             return;
         }
         checkState(started.get());
@@ -871,7 +871,7 @@ public final class HttpRemoteTask
 
         synchronized (this) {
             try (SetThreadName _ = new SetThreadName("HttpRemoteTask-" + taskId)) {
-                if (!getTaskStatus().getState().isTerminatingOrDone()) {
+                if (!getTaskStatus().state().isTerminatingOrDone()) {
                     scheduleAsyncCleanupRequest("abort", true);
                 }
             }
@@ -889,7 +889,7 @@ public final class HttpRemoteTask
         synchronized (this) {
             try (SetThreadName _ = new SetThreadName("HttpRemoteTask-" + taskId)) {
                 TaskStatus taskStatus = getTaskStatus();
-                if (!taskStatus.getState().isTerminatingOrDone()) {
+                if (!taskStatus.state().isTerminatingOrDone()) {
                     scheduleAsyncCleanupRequest("cancel", false);
                 }
             }
@@ -961,7 +961,7 @@ public final class HttpRemoteTask
     private void scheduleAsyncCleanupRequest(String action, Supplier<Request> remoteRequestSupplier)
     {
         // Only allow a single final cleanup request once the task status sees a final state
-        TaskState taskStatusState = getTaskStatus().getState();
+        TaskState taskStatusState = getTaskStatus().state();
         if (taskStatusState.isDone() && !cleanedUp.compareAndSet(false, true)) {
             return;
         }
@@ -1013,7 +1013,7 @@ public final class HttpRemoteTask
                 }
                 finally {
                     // if cleanup operation has not at least started task termination, mark the task failed
-                    TaskState taskState = getTaskInfo().taskStatus().getState();
+                    TaskState taskState = getTaskInfo().taskStatus().state();
                     if (!taskState.isTerminatingOrDone()) {
                         fatalAsyncCleanupFailure(new TrinoTransportException(REMOTE_TASK_ERROR, fromUri(request.getUri()), format("Unable to %s task at %s, last known state was: %s", action, request.getUri(), taskState)));
                     }
@@ -1034,7 +1034,7 @@ public final class HttpRemoteTask
             {
                 try {
                     // final task info has been received, no need to resend the request
-                    if (getTaskInfo().taskStatus().getState().isDone()) {
+                    if (getTaskInfo().taskStatus().state().isDone()) {
                         return;
                     }
 
@@ -1073,16 +1073,16 @@ public final class HttpRemoteTask
                 synchronized (HttpRemoteTask.this) {
                     try (SetThreadName _ = new SetThreadName("HttpRemoteTask-" + taskId)) {
                         TaskStatus taskStatus = getTaskStatus();
-                        if (taskStatus.getState().isDone()) {
+                        if (taskStatus.state().isDone()) {
                             log.warn("Task %s already in terminal state %s; cannot overwrite with FAILED due to %s",
-                                    taskStatus.getTaskId(),
-                                    taskStatus.getState(),
+                                    taskStatus.taskId(),
+                                    taskStatus.state(),
                                     cause);
                         }
                         else {
-                            List<ExecutionFailureInfo> failures = ImmutableList.<ExecutionFailureInfo>builderWithExpectedSize(taskStatus.getFailures().size() + 1)
+                            List<ExecutionFailureInfo> failures = ImmutableList.<ExecutionFailureInfo>builderWithExpectedSize(taskStatus.failures().size() + 1)
                                     .add(toFailure(cause))
-                                    .addAll(taskStatus.getFailures())
+                                    .addAll(taskStatus.failures())
                                     .build();
                             taskStatus = failWith(taskStatus, FAILED, failures);
                         }
@@ -1104,7 +1104,7 @@ public final class HttpRemoteTask
     {
         try (SetThreadName _ = new SetThreadName("HttpRemoteTask-" + taskId)) {
             TaskStatus taskStatus = getTaskStatus();
-            if (!taskStatus.getState().isDone()) {
+            if (!taskStatus.state().isDone()) {
                 // Update the taskInfo with the new taskStatus.
 
                 // Generally, we send a cleanup request to the worker, and update the TaskInfo on
@@ -1114,9 +1114,9 @@ public final class HttpRemoteTask
                 // we have to set the local query info directly so that we stop trying to fetch
                 // updated TaskInfo from the worker. This way, the task on the worker eventually
                 // expires due to lack of activity.
-                List<ExecutionFailureInfo> failures = ImmutableList.<ExecutionFailureInfo>builderWithExpectedSize(taskStatus.getFailures().size() + 1)
+                List<ExecutionFailureInfo> failures = ImmutableList.<ExecutionFailureInfo>builderWithExpectedSize(taskStatus.failures().size() + 1)
                         .add(toFailure(cause))
-                        .addAll(taskStatus.getFailures())
+                        .addAll(taskStatus.failures())
                         .build();
                 taskStatus = failWith(taskStatus, FAILED, failures);
                 if (cause instanceof TrinoTransportException) {
@@ -1154,8 +1154,8 @@ public final class HttpRemoteTask
         synchronized (this) {
             try (SetThreadName _ = new SetThreadName("HttpRemoteTask-" + taskId)) {
                 TaskStatus taskStatus = getTaskStatus();
-                if (!taskStatus.getState().isTerminatingOrDone()) {
-                    log.debug(cause, "Remote task %s failed with %s", taskStatus.getSelf(), cause);
+                if (!taskStatus.state().isTerminatingOrDone()) {
+                    log.debug(cause, "Remote task %s failed with %s", taskStatus.self(), cause);
                     scheduleAsyncCleanupRequest("fail", new FailTaskRequest(toFailure(cause)));
                 }
             }
@@ -1171,12 +1171,12 @@ public final class HttpRemoteTask
         synchronized (this) {
             try (SetThreadName _ = new SetThreadName("HttpRemoteTask-" + taskId)) {
                 TaskStatus taskStatus = getTaskStatus();
-                if (!taskStatus.getState().isDone()) {
+                if (!taskStatus.state().isDone()) {
                     // Record and force the task into a failed state immediately without waiting for the task to respond. A final cleanup
                     // command will be sent to the task, but will not await the response
-                    List<ExecutionFailureInfo> failures = ImmutableList.<ExecutionFailureInfo>builderWithExpectedSize(taskStatus.getFailures().size() + 1)
+                    List<ExecutionFailureInfo> failures = ImmutableList.<ExecutionFailureInfo>builderWithExpectedSize(taskStatus.failures().size() + 1)
                             .add(toFailure(cause))
-                            .addAll(taskStatus.getFailures())
+                            .addAll(taskStatus.failures())
                             .build();
                     taskStatusFetcher.updateTaskStatus(failWith(taskStatus, FAILED, failures));
                 }
@@ -1186,7 +1186,7 @@ public final class HttpRemoteTask
 
     private HttpUriBuilder getHttpUriBuilder(TaskStatus taskStatus)
     {
-        HttpUriBuilder uriBuilder = uriBuilderFrom(taskStatus.getSelf());
+        HttpUriBuilder uriBuilder = uriBuilderFrom(taskStatus.self());
         if (summarizeTaskInfo) {
             uriBuilder.addParameter("summarize");
         }
@@ -1255,7 +1255,7 @@ public final class HttpRemoteTask
 
                     // if task not already done, record error
                     TaskStatus taskStatus = getTaskStatus();
-                    if (!taskStatus.getState().isDone()) {
+                    if (!taskStatus.state().isDone()) {
                         updateErrorTracker.requestFailed(cause);
                     }
 
