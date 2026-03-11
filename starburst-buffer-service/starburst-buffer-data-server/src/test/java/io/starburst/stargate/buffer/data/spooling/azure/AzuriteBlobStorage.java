@@ -24,7 +24,8 @@ public class AzuriteBlobStorage
                 .withCreateContainerCmdModifier(cmd -> cmd.withEntrypoint(
                         "azurite-blob",
                         "--blobHost",
-                        "0.0.0.0"));
+                        "0.0.0.0",
+                        "--skipApiVersionCheck")); // TODO Remove this option once "The API version 2026-02-06 is not supported by Azurite. Please upgrade Azurite to latest version and retry" error is fixed
     }
 
     @Override
