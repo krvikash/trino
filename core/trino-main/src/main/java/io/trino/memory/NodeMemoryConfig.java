@@ -19,7 +19,7 @@ import io.airlift.configuration.DefunctConfig;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.airlift.units.MinDuration;
-import io.trino.execution.HeapSizeParser;
+import io.trino.plugin.base.configuration.HeapSizeParser;
 import jakarta.validation.constraints.NotNull;
 
 import java.util.Optional;
