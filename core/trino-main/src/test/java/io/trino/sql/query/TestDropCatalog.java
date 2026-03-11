@@ -15,13 +15,13 @@ package io.trino.sql.query;
 
 import com.google.common.collect.ImmutableList;
 import io.airlift.units.Duration;
-import io.trino.client.NodeVersion;
 import io.trino.connector.MockConnectorFactory;
 import io.trino.connector.MockConnectorPlugin;
 import io.trino.connector.MockConnectorTableHandle;
 import io.trino.exchange.ExchangeMetricsCollector;
 import io.trino.execution.QueryStateMachine;
 import io.trino.execution.warnings.WarningCollector;
+import io.trino.spi.NodeVersion;
 import io.trino.spi.TrinoException;
 import io.trino.spi.resourcegroups.ResourceGroupId;
 import io.trino.testing.QueryRunner;
@@ -158,6 +158,6 @@ public class TestDropCatalog
                 Optional.empty(),
                 true,
                 Optional.empty(),
-                new NodeVersion("test"));
+                NodeVersion.UNKNOWN);
     }
 }

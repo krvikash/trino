@@ -15,10 +15,10 @@ package io.trino.cache;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
-import io.trino.client.NodeVersion;
 import io.trino.node.InternalNode;
 import io.trino.spi.HostAddress;
 import io.trino.spi.Node;
+import io.trino.spi.NodeVersion;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.cache.CacheSplitId;
 import io.trino.spi.cache.PlanSignature;

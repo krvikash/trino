@@ -12,7 +12,7 @@ package io.starburst.server.troubleshooting.providers;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.starburst.server.troubleshooting.TroubleshootingContext;
-import io.trino.client.NodeVersion;
+import io.trino.spi.NodeVersion;
 
 import java.io.InputStream;
 import java.util.Map;
@@ -34,6 +34,6 @@ public class SoftwareVersionProvider
     @Override
     public Map<String, InputStream> getInputStreams(TroubleshootingContext context)
     {
-        return ImmutableMap.of("version.txt", toInputStream(nodeVersion.getVersion()));
+        return ImmutableMap.of("version.txt", toInputStream(nodeVersion.version()));
     }
 }

@@ -30,7 +30,7 @@ import java.util.stream.LongStream;
 
 import static io.airlift.units.Duration.succinctNanos;
 import static io.starburst.stargate.buffer.BufferNodeState.ACTIVE;
-import static io.trino.client.NodeVersion.UNKNOWN;
+import static io.trino.spi.NodeVersion.UNKNOWN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
