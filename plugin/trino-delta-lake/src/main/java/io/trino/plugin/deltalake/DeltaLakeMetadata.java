@@ -166,7 +166,6 @@ import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.VarcharType;
-import jakarta.annotation.Nullable;
 import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
@@ -1080,7 +1079,7 @@ public class DeltaLakeMetadata
     private static ColumnMetadata getColumnMetadata(DeltaLakeTable deltaTable, DeltaLakeColumnHandle column)
     {
         if (column.projectionInfo().isPresent() || column.columnType() == SYNTHESIZED) {
-            return getColumnMetadata(column, null, true, Optional.empty());
+            return getColumnMetadata(column, Optional.empty(), true, Optional.empty());
         }
         DeltaLakeColumn deltaColumn = deltaTable.findColumn(column.baseColumnName());
         return getColumnMetadata(
@@ -1602,7 +1601,7 @@ public class DeltaLakeMetadata
         ImmutableList.Builder<Column> dataColumns = ImmutableList.builder();
         ImmutableList.Builder<Column> partitionedColumns = ImmutableList.builder();
         for (ColumnMetadata column : tableMetadata.getColumns()) {
-            Column metastoreColumn = new Column(column.getName(), toHiveType(column.getType()), Optional.ofNullable(column.getComment()), ImmutableMap.of());
+            Column metastoreColumn = new Column(column.getName(), toHiveType(column.getType()), column.getComment(), ImmutableMap.of());
             if (!column.isNullable()) {
                 // TODO https://starburstdata.atlassian.net/browse/CONNECT-612
                 throw new TrinoException(NOT_SUPPORTED, "Creating table with non-nullable columns is not supported for Unity metastore");
@@ -5175,7 +5174,7 @@ public class DeltaLakeMetadata
         return metastore;
     }
 
-    private static ColumnMetadata getColumnMetadata(DeltaLakeColumnHandle column, @Nullable String comment, boolean nullability, Optional<String> generationExpression)
+    private static ColumnMetadata getColumnMetadata(DeltaLakeColumnHandle column, Optional<String> comment, boolean nullability, Optional<String> generationExpression)
     {
         String columnName;
         Type columnType;
@@ -5192,7 +5191,7 @@ public class DeltaLakeMetadata
                 .setName(columnName)
                 .setType(columnType)
                 .setHidden(column.columnType() == SYNTHESIZED)
-                .setComment(Optional.ofNullable(comment))
+                .setComment(comment)
                 .setNullable(nullability)
                 .setExtraInfo(generationExpression.map(expression -> "generated: " + expression))
                 .build();

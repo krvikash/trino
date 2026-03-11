@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -101,7 +102,7 @@ public class DynamoDbTestTable
                 columns.get(0).getDeclaredType().get().contains("varchar") ? "string" : columns.get(0).getDeclaredType().get(),
                 true,
                 getColumnSize(columns.get(0).getDeclaredType().get()),
-                null,
+                Optional.empty(),
                 "HASH",
                 getDynamoDbTypeFromSql(columns.get(0).getDeclaredType().get()),
                 false));
@@ -113,7 +114,7 @@ public class DynamoDbTestTable
                     metadata.getDeclaredType().get().contains("varchar") ? "string" : metadata.getDeclaredType().get(),
                     false,
                     getColumnSize(metadata.getDeclaredType().get()),
-                    null,
+                    Optional.empty(),
                     null,
                     getDynamoDbTypeFromSql(metadata.getDeclaredType().get()),
                     true));

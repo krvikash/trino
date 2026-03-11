@@ -334,7 +334,7 @@ public class ColumnJdbcTable
                     // nullable
                     column.isNullable() ? DatabaseMetaData.columnNullable : DatabaseMetaData.columnNoNulls,
                     // remarks
-                    column.getComment(),
+                    column.getComment().orElse(null),
                     // column_def
                     null,
                     // sql_data_type

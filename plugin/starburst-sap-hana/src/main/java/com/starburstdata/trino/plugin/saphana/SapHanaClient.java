@@ -285,7 +285,7 @@ public class SapHanaClient
 
     private void addColumn(ConnectorSession session, JdbcTableHandle handle, ColumnMetadata column)
     {
-        if (column.getComment() != null) {
+        if (column.getComment().isPresent()) {
             throw new TrinoException(NOT_SUPPORTED, "This connector does not support adding columns with comments");
         }
 

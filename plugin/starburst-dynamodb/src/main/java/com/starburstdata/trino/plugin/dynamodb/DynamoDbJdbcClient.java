@@ -711,14 +711,14 @@ public class DynamoDbJdbcClient
         boolean isKey;
         String columnSize;
         boolean readOnly;
-        String description;
+        Optional<String> description;
         String keyType;
         String path;
         String internalType;
         boolean isNullable;
         String supportedOperators;
 
-        public RsdColumnDefinition(String name, String type, boolean isKey, String columnSize, String description, String keyType, String internalType, boolean isNullable)
+        public RsdColumnDefinition(String name, String type, boolean isKey, String columnSize, Optional<String> description, String keyType, String internalType, boolean isNullable)
         {
             this.name = requireNonNull(name, "name is null");
             this.type = requireNonNull(type, "type is null");
@@ -741,7 +741,7 @@ public class DynamoDbJdbcClient
             values.put("isKey", isKey);
             values.put("columnSize", columnSize);
             values.put("readOnly", readOnly);
-            values.put("description", description);
+            values.put("description", description.orElse(null));
             values.put("keyType", keyType);
             values.put("path", path);
             values.put("internalType", internalType);

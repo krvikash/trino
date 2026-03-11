@@ -933,7 +933,7 @@ public class SnowflakeClient
     {
         checkColumnsForInvalidCharacters(ImmutableList.of(column));
         verify(handle.getAuthorization().isEmpty(), "Unexpected authorization is required for table: %s".formatted(handle));
-        if (column.getComment() != null) {
+        if (column.getComment().isPresent()) {
             throw new TrinoException(NOT_SUPPORTED, "This connector does not support adding columns with comments");
         }
 
