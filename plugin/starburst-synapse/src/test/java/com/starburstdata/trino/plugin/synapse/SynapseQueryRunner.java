@@ -45,16 +45,10 @@ public final class SynapseQueryRunner
 
     private static final Logger log = Logger.get(SynapseQueryRunner.class);
 
-    private static final int ERROR_USER_EXISTS = 15023;
     private static final int ERROR_OBJECT_EXISTS = 2714;
 
     public static final String DEFAULT_CATALOG_NAME = "synapse";
     public static final String TEST_SCHEMA = "dbo";
-
-    public static final String ALICE_USER = "alice";
-    public static final String BOB_USER = "bob";
-    public static final String CHARLIE_USER = "charlie";
-    public static final String UNKNOWN_USER = "non_existing_user";
 
     public static DistributedQueryRunner createSynapseQueryRunner(
             SynapseServer synapseServer,
@@ -112,10 +106,6 @@ public final class SynapseQueryRunner
             connectorProperties.putIfAbsent("connection-password", PASSWORD);
             connectorProperties.putIfAbsent("connection-pool.max-size", String.valueOf(maxPoolSize()));
 
-            createUser(synapseServer, ALICE_USER, TEST_SCHEMA);
-            createUser(synapseServer, BOB_USER, TEST_SCHEMA);
-            createUser(synapseServer, CHARLIE_USER, TEST_SCHEMA);
-
             try {
                 synapseServer.execute(format(
                         "CREATE VIEW %s.user_context AS SELECT " +
@@ -128,9 +118,6 @@ public final class SynapseQueryRunner
                     throw e;
                 }
             }
-
-            synapseServer.execute(format("GRANT SELECT ON %s.user_context to %s", TEST_SCHEMA, ALICE_USER));
-            synapseServer.execute(format("GRANT SELECT ON %s.user_context to %s", TEST_SCHEMA, BOB_USER));
 
             queryRunner.installPlugin(new TestingSynapsePlugin());
 
@@ -155,23 +142,6 @@ public final class SynapseQueryRunner
         // allowing more connections than tests running makes deadlocks across tests less likely.
         // Then clamp the max pool size to at least 10 since that's the default max pool size.
         return Integer.max(estimatedConcurrentTests * 2, 10);
-    }
-
-    private static void createUser(SynapseServer synapseServer, String user, String schema)
-    {
-        try {
-            synapseServer.execute(format("CREATE USER %s WITHOUT LOGIN WITH DEFAULT_SCHEMA = %s", user, schema));
-        }
-        catch (RuntimeException e) {
-            if (e.getCause() instanceof SQLServerException && ((SQLServerException) e.getCause()).getErrorCode() != ERROR_USER_EXISTS) {
-                throw e;
-            }
-        }
-    }
-
-    public static Session createSession(String user)
-    {
-        return createSession(user, DEFAULT_CATALOG_NAME);
     }
 
     public static Session createSession(String user, String catalog)
