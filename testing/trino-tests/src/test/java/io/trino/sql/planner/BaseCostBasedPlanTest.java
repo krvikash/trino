@@ -46,7 +46,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -179,7 +178,7 @@ public abstract class BaseCostBasedPlanTest
 
     protected String getQueryPlanResourcePath(String queryResourcePath)
     {
-        Path queryPath = Paths.get(queryResourcePath);
+        Path queryPath = Path.of(queryResourcePath);
         String connectorName = getPlanTester().getCatalogManager().getCatalog(new CatalogName(CATALOG_NAME)).orElseThrow().getConnectorName().toString();
         Path directory = queryPath.getParent();
         directory = directory.resolve(connectorName);
@@ -197,7 +196,7 @@ public abstract class BaseCostBasedPlanTest
                     .parallel()
                     .forEach(queryResourcePath -> {
                         try {
-                            Path queryPlanWritePath = Paths.get(
+                            Path queryPlanWritePath = Path.of(
                                     getSourcePath().toString(),
                                     "src/test/resources",
                                     getQueryPlanResourcePath(queryResourcePath));
@@ -254,7 +253,7 @@ public abstract class BaseCostBasedPlanTest
 
     private Path getSourcePath()
     {
-        Path workingDir = Paths.get(System.getProperty("user.dir"));
+        Path workingDir = Path.of(System.getProperty("user.dir"));
         verify(isDirectory(workingDir), "Working directory is not a directory");
         if (isDirectory(workingDir.resolve(".git"))) {
             // Top-level of the repo
