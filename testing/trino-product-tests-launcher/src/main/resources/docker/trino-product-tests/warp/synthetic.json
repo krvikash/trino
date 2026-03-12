@@ -237,9 +237,6 @@
       "model": 11,
       "screensize": 4
     },
-    "session_properties": {
-      "enable_import_export": true
-    },
     "warm_query": "select * from mac_paramsj",
     "queries_data": [
       {
@@ -4665,9 +4662,6 @@
       "warp_delta_lake": {
         "skip": true
       }
-    },
-    "session_properties": {
-      "enable_import_export": true
     },
     "structure": [
       {
@@ -9445,9 +9439,6 @@
         "type": "double"
       }
     ],
-    "session_properties": {
-      "enable_import_export": true
-    },
     "warm_query": "select COUNT(*) from mac_paramsj where model > '0'",
     "queries_data": [
       {
