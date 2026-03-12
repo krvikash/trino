@@ -11205,7 +11205,7 @@
       }
     ],
     "session_properties": {
-      "enable_import_export": true,
+      "enable_import_export": true
     },
     "warm_query": "select COUNT(*) from mac_paramsj where lower(hdd) = '512gb ssd' and upper(model) = 'MACBOOK PRO'",
     "queries_data": [
@@ -11261,7 +11261,7 @@
       }
     ],
     "session_properties": {
-      "enable_import_export": true,
+      "enable_import_export": true
     },
     "warm_query": "select count(col_varchar) from str_date where day_of_month(date(col_varchar)) = 4",
     "queries_data": [
@@ -11589,7 +11589,7 @@
       {"name": "arr_today", "type": "double"}
     ],
     "session_properties": {
-      "enable_dictionary": false,
+      "enable_dictionary": false
     },
     "warm_query": "select churn_competitor_chosen, count(*) from enable_dict_false where churn_competitor_chosen is null and month = cast('2023-01-01' as date) and acc_region<>'EMEA' group by 1 order by 1",
     "queries_data": [
