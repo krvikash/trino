@@ -43,9 +43,6 @@
       }
     ],
     "overriding": {
-      "warp_iceberg": {
-        "skip": true
-      },
       "warp_delta_lake": {
         "skip": true
       }
@@ -888,11 +885,6 @@
       }
     ],
     "pt_enable": true,
-    "overriding": {
-      "warp_iceberg": {
-        "skip": true
-      }
-    },
     "warmup_rules": [
       {
         "colNameId": "int_1",
@@ -9377,9 +9369,6 @@
     "lines": 4,
     "pt_enable": true,
     "overriding": {
-      "warp_iceberg": {
-        "skip": true
-      },
       "warp_delta_lake": {
         "skip": true
       }
@@ -10179,9 +10168,6 @@
   {
     "name": "arr_collect_more_null_pure",
     "overriding": {
-      "warp_iceberg": {
-        "skip": true
-      },
       "warp_delta_lake": {
         "skip": true
       }
@@ -10244,9 +10230,6 @@
   {
     "name": "arr_collect_more_varchar",
     "overriding": {
-      "warp_iceberg": {
-        "skip": true
-      },
       "warp_delta_lake": {
         "skip": true
       }
