@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.it.proxiedconnector.iceberg;
 
-//import com.google.common.collect.ImmutableList;
 import io.trino.Session;
 import io.trino.metadata.InternalFunctionBundle;
 import io.trino.plugin.iceberg.IcebergPlugin;
