@@ -14,7 +14,7 @@ jobs:
     runs-on: [self-hosted, gha-fleet-ec2-2cpu-1gb-amd64, latest]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Configure Git
         run: |
