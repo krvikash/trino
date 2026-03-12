@@ -91,6 +91,20 @@
             <groupId>io.trino</groupId>
             <artifactId>trino-spi</artifactId>
         </dependency>
+
+        <dependency>
+            <!-- Allow running when locally `aws sso login` is required to access AWS services -->
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sso</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <!-- Allow running when locally `aws sso login` is required to access AWS services -->
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>ssooidc</artifactId>
+            <scope>runtime</scope>
+        </dependency>
     </dependencies>
 
     <build>
