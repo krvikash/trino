@@ -39,6 +39,13 @@ final class RecursiveDirectoriesFileTracker
     }
 
     @Override
+    public boolean hasEnoughSamplesForTable(Location tablePath)
+    {
+        Location recursiveTablePath = getPathClosestToRoot(tablePath);
+        return hasEnoughSamples(recursiveTableFileCount.computeIfAbsent(recursiveTablePath, _ -> new AtomicInteger()));
+    }
+
+    @Override
     public boolean hasEnoughSampledTables(Location directoryPath)
     {
         if (LakehouseUtil.deltaLakeParent(root, directoryPath).isPresent()) {

@@ -41,6 +41,12 @@ final class PartitionedDiscoveryFileTracker
     }
 
     @Override
+    public boolean hasEnoughSamplesForTable(Location tablePath)
+    {
+        return hasEnoughSamples(potentialTableFileCount.computeIfAbsent(tablePath, _ -> new AtomicInteger()));
+    }
+
+    @Override
     public SampleFileResult getNextSampleFileForTable(Location directoryPath, Location filePath, Optional<LakehouseFormat> lakehouseFormat)
     {
         AtomicInteger fileIndex = potentialTableFileCount.computeIfAbsent(directoryPath, __ -> new AtomicInteger());

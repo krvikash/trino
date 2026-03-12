@@ -23,6 +23,8 @@ public interface FileTracker
 
     boolean hasEnoughSampledTables(Location directoryPath);
 
+    boolean hasEnoughSamplesForTable(Location tablePath);
+
     SampleFileResult getNextSampleFileForTable(Location directoryPath, Location filePath, Optional<LakehouseFormat> lakehouseFormat);
 
     record SampleFileResult(boolean hasEnoughSamples, Optional<ProcessorPath> filePath)

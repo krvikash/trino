@@ -104,8 +104,8 @@ public class SampleFilesCrawler
         createFileEntryStream(directory)
                 .takeWhile(ignore -> !fileTracker.hasEnoughSampledTables(directory))
                 .filter(file -> file.length() > 0 && filter.test(file.location()))
+                .filter(file -> !fileTracker.hasEnoughSamplesForTable(file.location().parentDirectory()))
                 .map(file -> getNextValidSampleFile(file.location()))
-                .takeWhile(sampleFileResult -> !sampleFileResult.hasEnoughSamples())
                 .flatMap(sampleFileResult -> sampleFileResult.filePath().stream())
                 .forEach(sampleFiles::add);
 
@@ -149,8 +149,8 @@ public class SampleFilesCrawler
         if (childrenDirectories.isEmpty()) {
             createFileEntryStream(parent)
                     .filter(file -> file.length() > 0 && filter.test(file.location()))
+                    .filter(file -> !fileTracker.hasEnoughSamplesForTable(file.location().parentDirectory()))
                     .map(file -> getNextValidSampleFile(file.location()))
-                    .takeWhile(sampleFileResult -> !sampleFileResult.hasEnoughSamples())
                     .flatMap(sampleFileResult -> sampleFileResult.filePath().stream())
                     .forEach(sampleFiles::add);
         }

@@ -36,6 +36,13 @@ abstract sealed class FileTrackerBase
         this.generalOptions = requireNonNull(generalOptions, "generalOptions is null");
     }
 
+    protected boolean hasEnoughSamples(AtomicInteger fileIndex)
+    {
+        int currentIndex = fileIndex.get();
+        int includedFilesCount = currentIndex / generalOptions.sampleFilesPerTableModulo();
+        return includedFilesCount >= generalOptions.maxSampleFilesPerTable();
+    }
+
     protected SampleFileResult getNextSampleFile(Location path, Optional<LakehouseFormat> lakehouseFormat, AtomicInteger fileIndex)
     {
         if (LakehouseUtil.deltaLakeParent(root, path).isPresent()) {

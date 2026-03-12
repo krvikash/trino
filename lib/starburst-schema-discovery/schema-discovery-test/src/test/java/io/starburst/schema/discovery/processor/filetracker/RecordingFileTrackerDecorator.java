@@ -43,6 +43,12 @@ public class RecordingFileTrackerDecorator
     }
 
     @Override
+    public boolean hasEnoughSamplesForTable(Location tablePath)
+    {
+        return delegate.hasEnoughSamplesForTable(tablePath);
+    }
+
+    @Override
     public SampleFileResult getNextSampleFileForTable(Location directoryPath, Location filePath, Optional<LakehouseFormat> lakehouseFormat)
     {
         recordedPaths.add(filePath);
