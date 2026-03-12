@@ -941,7 +941,7 @@
     "session_properties": {
       "enable_import_export": true
     },
-    "warm_query": "select * from onem_lines",
+    "warm_query": "select * from onem_lines where int_1 > 0",
     "queries_data": [
       {
         "query": "select count(*) from onem_lines",
@@ -4691,6 +4691,8 @@
         ]
       }
     ],
+    "expected_warm_failures": 2,
+    "warm_query": "select * from varchar_rectlength where varchar_col > '0'",
     "queries_data": [
       {
         "query_id": "varchar_rectlength_1",
@@ -6233,7 +6235,6 @@
     "skip_caching": true,
     "data": "resources/synthetic/wide_varchar_chunks.jsonl",
     "warm_type_for_strings": "no_lucene",
-    "expected_warm_failures": 3,
     "comment_skip_type": "counters issue : incorrect collect in case Iceberg and DL",
     "overriding": {
       "warp_iceberg": {
@@ -6389,6 +6390,8 @@
         ]
       }
     ],
+    "expected_warm_failures": 18,
+    "warm_query": "select * from wide_varchar_chunks where col_1 > '0'",
     "queries_data": [
       {
         "query": "select count(*) from wide_varchar_chunks",
@@ -6637,7 +6640,7 @@
         ]
       }
     ],
-    "expected_warm_failures": 1,
+    "warm_query": "select * from varchar_offset where col_2 > '0'",
     "queries_data": [
       {
         "query": "select col_1 from varchar_offset where col_2 = '00065539'",
@@ -6940,6 +6943,7 @@
         ]
       }
     ],
+    "warm_query": "select * from storesales_with_null_dates where ss_store_sk > 0",
     "queries_data": [
       {
         "query": "select count(d_date), count(c_description60)  from storesales_with_null_dates where day(d_date) = 9",
@@ -7492,7 +7496,7 @@
         "type": "timestamp"
       }
     ],
-    "warm_query": "select * from bucketed_by",
+    "warm_query": "select * from bucketed_by where col_id > 0",
     "queries_data": [
       {
         "query": "select count(*) from bucketed_by",
@@ -9444,7 +9448,7 @@
     "session_properties": {
       "enable_import_export": true
     },
-    "warm_query": "select COUNT(*) from mac_paramsj where lower(hdd) = '512gb ssd' and upper(model) = 'MACBOOK PRO'",
+    "warm_query": "select COUNT(*) from mac_paramsj where model > '0'",
     "queries_data": [
       {
         "query": "select COUNT(*) from mac_paramsj where lower(hdd) = '1tb ssd'",
