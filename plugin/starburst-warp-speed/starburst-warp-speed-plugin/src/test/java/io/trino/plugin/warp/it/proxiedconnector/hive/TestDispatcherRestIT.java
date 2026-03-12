@@ -17,6 +17,8 @@ package io.trino.plugin.warp.it.proxiedconnector.hive;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import io.trino.metadata.InternalFunctionBundle;
+import io.trino.plugin.iceberg.IcebergPlugin;
 import io.trino.plugin.warp.WarpPlugin;
 import io.trino.plugin.warp.api.health.HealthResult;
 import io.trino.plugin.warp.api.warmup.DateRangeSlidingWindowWarmupPredicateRule;
@@ -69,7 +71,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import static io.trino.plugin.warp.config.ProxiedConnectorConfig.HIVE_CONNECTOR_NAME;
+import static io.trino.plugin.warp.config.ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
 import static io.trino.plugin.warp.extension.execution.health.HealthTask.HEALTH_PATH;
@@ -107,19 +109,24 @@ public class TestDispatcherRestIT
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        return DispatcherQueryRunner.createQueryRunner(new WarpStubsStorageEngineModule(),
+        QueryRunner queryRunner = DispatcherQueryRunner.createQueryRunner(new WarpStubsStorageEngineModule(),
                 Optional.empty(),
                 2,
                 Map.of(),
                 Map.of("http-server.log.enabled", "false",
                         USE_HTTP_SERVER_PORT, "false",
                         "node.environment", "warp",
-                        PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME),
+                        "iceberg.catalog.type", "TESTING_FILE_METASTORE",
+                        PROXIED_CONNECTOR, ICEBERG_CONNECTOR_NAME),
                 hiveDir,
                 DispatcherConnectorFactory.DISPATCHER_CONNECTOR_NAME,
                 CATALOG_NAME,
                 new WarpPlugin(),
                 Collections.emptyMap());
+        InternalFunctionBundle.InternalFunctionBundleBuilder functions = InternalFunctionBundle.builder();
+        new IcebergPlugin().getFunctions().forEach(functions::functions);
+        queryRunner.addFunctions(functions.build());
+        return queryRunner;
     }
 
     @Test

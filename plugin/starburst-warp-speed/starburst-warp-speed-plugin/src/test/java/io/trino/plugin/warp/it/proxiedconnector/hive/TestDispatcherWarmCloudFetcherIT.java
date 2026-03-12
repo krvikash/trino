@@ -16,6 +16,8 @@ package io.trino.plugin.warp.it.proxiedconnector.hive;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableSet;
+import io.trino.metadata.InternalFunctionBundle;
+import io.trino.plugin.iceberg.IcebergPlugin;
 import io.trino.plugin.warp.WarpPlugin;
 import io.trino.plugin.warp.api.warmup.DateSlidingWindowWarmupPredicateRule;
 import io.trino.plugin.warp.api.warmup.PartitionValueWarmupPredicateRule;
@@ -50,7 +52,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import static io.trino.plugin.warp.config.ProxiedConnectorConfig.HIVE_CONNECTOR_NAME;
+import static io.trino.plugin.warp.config.ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
 import static java.lang.String.format;
@@ -89,14 +91,15 @@ public class TestDispatcherWarmCloudFetcherIT
     {
         warmRulesStorePath = Files.createTempDirectory("store_path");
 
-        return DispatcherQueryRunner.createQueryRunner(new WarpStubsStorageEngineModule(),
+        QueryRunner queryRunner = DispatcherQueryRunner.createQueryRunner(new WarpStubsStorageEngineModule(),
                 Optional.empty(),
                 2,
                 Map.of(),
                 Map.of("http-server.log.enabled", "false",
                         USE_HTTP_SERVER_PORT, "false",
                         "node.environment", "warp",
-                        PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME,
+                        "iceberg.catalog.type", "TESTING_FILE_METASTORE",
+                        PROXIED_CONNECTOR, ICEBERG_CONNECTOR_NAME,
                         WarmupRuleCloudFetcherConfig.STORE_PATH, warmRulesStorePath.toFile().getAbsolutePath(),
                         WarmupRuleCloudFetcherConfig.STORE_TYPE, StoreType.LOCAL.name()),
                 hiveDir,
@@ -104,6 +107,10 @@ public class TestDispatcherWarmCloudFetcherIT
                 CATALOG_NAME,
                 new WarpPlugin(),
                 Collections.emptyMap());
+        InternalFunctionBundle.InternalFunctionBundleBuilder functions = InternalFunctionBundle.builder();
+        new IcebergPlugin().getFunctions().forEach(functions::functions);
+        queryRunner.addFunctions(functions.build());
+        return queryRunner;
     }
 
     @Test
