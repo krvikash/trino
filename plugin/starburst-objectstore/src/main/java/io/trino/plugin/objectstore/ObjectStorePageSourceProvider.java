@@ -15,6 +15,7 @@ package io.trino.plugin.objectstore;
 
 import com.google.common.base.VerifyException;
 import com.google.inject.Inject;
+import io.trino.connector.system.SystemTableHandle;
 import io.trino.plugin.deltalake.DeltaLakeTableHandle;
 import io.trino.plugin.hive.HiveTableHandle;
 import io.trino.plugin.hudi.HudiTableHandle;
@@ -67,19 +68,19 @@ public class ObjectStorePageSourceProvider
     public ConnectorPageSource createPageSource(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorSplit split, ConnectorTableHandle table, List<ColumnHandle> columns, DynamicFilter dynamicFilter)
     {
         ObjectStoreTransactionHandle transaction = (ObjectStoreTransactionHandle) transactionHandle;
-        if (table instanceof HiveTableHandle) {
-            return hivePageSourceProviderFactory.createPageSourceProvider().createPageSource(transaction.getHiveHandle(), unwrap(HIVE, session), split, table, columns, dynamicFilter);
-        }
-        if (table instanceof IcebergTableHandle || split instanceof FilesTableSplit) {
-            return icebergPageSourceProviderFactory.createPageSourceProvider().createPageSource(transaction.getIcebergHandle(), unwrap(ICEBERG, session), split, table, columns, dynamicFilter);
-        }
-        if (table instanceof DeltaLakeTableHandle) {
-            return deltaPageSourceProviderFactory.createPageSourceProvider().createPageSource(transaction.getDeltaHandle(), unwrap(DELTA, session), split, table, columns, dynamicFilter);
-        }
-        if (table instanceof HudiTableHandle) {
-            return hudiPageSourceProviderFactory.createPageSourceProvider().createPageSource(transaction.getHudiHandle(), unwrap(HUDI, session), split, table, columns, dynamicFilter);
-        }
-        throw new VerifyException("Unhandled class: " + table.getClass().getName());
+        return switch (table) {
+            case HiveTableHandle _ -> hivePageSourceProviderFactory.createPageSourceProvider().createPageSource(transaction.getHiveHandle(), unwrap(HIVE, session), split, table, columns, dynamicFilter);
+            case IcebergTableHandle _ -> icebergPageSourceProviderFactory.createPageSourceProvider().createPageSource(transaction.getIcebergHandle(), unwrap(ICEBERG, session), split, table, columns, dynamicFilter);
+            case DeltaLakeTableHandle _ -> deltaPageSourceProviderFactory.createPageSourceProvider().createPageSource(transaction.getDeltaHandle(), unwrap(DELTA, session), split, table, columns, dynamicFilter);
+            case HudiTableHandle _ -> hudiPageSourceProviderFactory.createPageSourceProvider().createPageSource(transaction.getHudiHandle(), unwrap(HUDI, session), split, table, columns, dynamicFilter);
+            case SystemTableHandle _ -> {
+                if (split instanceof FilesTableSplit) {
+                    yield icebergPageSourceProviderFactory.createPageSourceProvider().createPageSource(transaction.getIcebergHandle(), unwrap(ICEBERG, session), split, table, columns, dynamicFilter);
+                }
+                throw new VerifyException("Unhandled split class: " + split.getClass().getName());
+            }
+            default -> throw new VerifyException("Unhandled class: " + table.getClass().getName());
+        };
     }
 
     @Override
@@ -89,19 +90,13 @@ public class ObjectStorePageSourceProvider
             ConnectorTableHandle table,
             TupleDomain<ColumnHandle> dynamicFilter)
     {
-        if (table instanceof HiveTableHandle) {
-            return hivePageSourceProviderFactory.createPageSourceProvider().getUnenforcedPredicate(unwrap(HIVE, session), split, table, dynamicFilter);
-        }
-        if (table instanceof IcebergTableHandle) {
-            return icebergPageSourceProviderFactory.createPageSourceProvider().getUnenforcedPredicate(unwrap(ICEBERG, session), split, table, dynamicFilter);
-        }
-        if (table instanceof DeltaLakeTableHandle) {
-            return deltaPageSourceProviderFactory.createPageSourceProvider().getUnenforcedPredicate(unwrap(DELTA, session), split, table, dynamicFilter);
-        }
-        if (table instanceof HudiTableHandle) {
-            return hudiPageSourceProviderFactory.createPageSourceProvider().getUnenforcedPredicate(unwrap(HUDI, session), split, table, dynamicFilter);
-        }
-        throw new VerifyException("Unhandled class: " + table.getClass().getName());
+        return switch (table) {
+            case HiveTableHandle _ -> hivePageSourceProviderFactory.createPageSourceProvider().getUnenforcedPredicate(unwrap(HIVE, session), split, table, dynamicFilter);
+            case IcebergTableHandle _ -> icebergPageSourceProviderFactory.createPageSourceProvider().getUnenforcedPredicate(unwrap(ICEBERG, session), split, table, dynamicFilter);
+            case DeltaLakeTableHandle _ -> deltaPageSourceProviderFactory.createPageSourceProvider().getUnenforcedPredicate(unwrap(DELTA, session), split, table, dynamicFilter);
+            case HudiTableHandle _ -> hudiPageSourceProviderFactory.createPageSourceProvider().getUnenforcedPredicate(unwrap(HUDI, session), split, table, dynamicFilter);
+            default -> throw new VerifyException("Unhandled class: " + table.getClass().getName());
+        };
     }
 
     @Override
@@ -111,19 +106,13 @@ public class ObjectStorePageSourceProvider
             ConnectorTableHandle table,
             TupleDomain<ColumnHandle> predicate)
     {
-        if (table instanceof HiveTableHandle) {
-            return hivePageSourceProviderFactory.createPageSourceProvider().prunePredicate(unwrap(HIVE, session), split, table, predicate);
-        }
-        if (table instanceof IcebergTableHandle) {
-            return icebergPageSourceProviderFactory.createPageSourceProvider().prunePredicate(unwrap(ICEBERG, session), split, table, predicate);
-        }
-        if (table instanceof DeltaLakeTableHandle) {
-            return deltaPageSourceProviderFactory.createPageSourceProvider().prunePredicate(unwrap(DELTA, session), split, table, predicate);
-        }
-        if (table instanceof HudiTableHandle) {
-            return hudiPageSourceProviderFactory.createPageSourceProvider().prunePredicate(unwrap(HUDI, session), split, table, predicate);
-        }
-        throw new VerifyException("Unhandled class: " + table.getClass().getName());
+        return switch (table) {
+            case HiveTableHandle _ -> hivePageSourceProviderFactory.createPageSourceProvider().prunePredicate(unwrap(HIVE, session), split, table, predicate);
+            case IcebergTableHandle _ -> icebergPageSourceProviderFactory.createPageSourceProvider().prunePredicate(unwrap(ICEBERG, session), split, table, predicate);
+            case DeltaLakeTableHandle _ -> deltaPageSourceProviderFactory.createPageSourceProvider().prunePredicate(unwrap(DELTA, session), split, table, predicate);
+            case HudiTableHandle _ -> hudiPageSourceProviderFactory.createPageSourceProvider().prunePredicate(unwrap(HUDI, session), split, table, predicate);
+            default -> throw new VerifyException("Unhandled class: " + table.getClass().getName());
+        };
     }
 
     private ConnectorSession unwrap(TableType tableType, ConnectorSession session)

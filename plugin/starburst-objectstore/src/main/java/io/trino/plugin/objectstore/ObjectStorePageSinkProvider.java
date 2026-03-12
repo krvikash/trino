@@ -66,61 +66,47 @@ public class ObjectStorePageSinkProvider
     public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorOutputTableHandle table, ConnectorPageSinkId pageSinkId)
     {
         ObjectStoreTransactionHandle transaction = (ObjectStoreTransactionHandle) transactionHandle;
-        if (table instanceof HiveOutputTableHandle) {
-            return hivePageSinkProvider.createPageSink(transaction.getHiveHandle(), unwrap(HIVE, session), table, pageSinkId);
-        }
-        if (table instanceof IcebergWritableTableHandle) {
-            return icebergPageSinkProvider.createPageSink(transaction.getIcebergHandle(), unwrap(ICEBERG, session), table, pageSinkId);
-        }
-        if (table instanceof DeltaLakeOutputTableHandle) {
-            return deltaPageSinkProvider.createPageSink(transaction.getDeltaHandle(), unwrap(DELTA, session), table, pageSinkId);
-        }
-        throw new VerifyException("Unhandled class: " + table.getClass().getName());
+        return switch (table) {
+            case HiveOutputTableHandle _ -> hivePageSinkProvider.createPageSink(transaction.getHiveHandle(), unwrap(HIVE, session), table, pageSinkId);
+            case IcebergWritableTableHandle _ -> icebergPageSinkProvider.createPageSink(transaction.getIcebergHandle(), unwrap(ICEBERG, session), table, pageSinkId);
+            case DeltaLakeOutputTableHandle _ -> deltaPageSinkProvider.createPageSink(transaction.getDeltaHandle(), unwrap(DELTA, session), table, pageSinkId);
+            default -> throw new VerifyException("Unhandled class: " + table.getClass().getName());
+        };
     }
 
     @Override
     public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorInsertTableHandle table, ConnectorPageSinkId pageSinkId)
     {
         ObjectStoreTransactionHandle transaction = (ObjectStoreTransactionHandle) transactionHandle;
-        if (table instanceof HiveInsertTableHandle) {
-            return hivePageSinkProvider.createPageSink(transaction.getHiveHandle(), unwrap(HIVE, session), table, pageSinkId);
-        }
-        if (table instanceof IcebergWritableTableHandle) {
-            return icebergPageSinkProvider.createPageSink(transaction.getIcebergHandle(), unwrap(ICEBERG, session), table, pageSinkId);
-        }
-        if (table instanceof DeltaLakeInsertTableHandle) {
-            return deltaPageSinkProvider.createPageSink(transaction.getDeltaHandle(), unwrap(DELTA, session), table, pageSinkId);
-        }
-        throw new VerifyException("Unhandled class: " + table.getClass().getName());
+        return switch (table) {
+            case HiveInsertTableHandle _ -> hivePageSinkProvider.createPageSink(transaction.getHiveHandle(), unwrap(HIVE, session), table, pageSinkId);
+            case IcebergWritableTableHandle _ -> icebergPageSinkProvider.createPageSink(transaction.getIcebergHandle(), unwrap(ICEBERG, session), table, pageSinkId);
+            case DeltaLakeInsertTableHandle _ -> deltaPageSinkProvider.createPageSink(transaction.getDeltaHandle(), unwrap(DELTA, session), table, pageSinkId);
+            default -> throw new VerifyException("Unhandled class: " + table.getClass().getName());
+        };
     }
 
     @Override
     public ConnectorPageSink createPageSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorTableExecuteHandle table, ConnectorPageSinkId pageSinkId)
     {
         ObjectStoreTransactionHandle transaction = (ObjectStoreTransactionHandle) transactionHandle;
-        if (table instanceof HiveTableExecuteHandle) {
-            return hivePageSinkProvider.createPageSink(transaction.getHiveHandle(), unwrap(HIVE, session), table, pageSinkId);
-        }
-        if (table instanceof IcebergTableExecuteHandle) {
-            return icebergPageSinkProvider.createPageSink(transaction.getIcebergHandle(), unwrap(ICEBERG, session), table, pageSinkId);
-        }
-        if (table instanceof DeltaLakeTableExecuteHandle) {
-            return deltaPageSinkProvider.createPageSink(transaction.getDeltaHandle(), unwrap(DELTA, session), table, pageSinkId);
-        }
-        throw new VerifyException("Unhandled class: " + table.getClass().getName());
+        return switch (table) {
+            case HiveTableExecuteHandle _ -> hivePageSinkProvider.createPageSink(transaction.getHiveHandle(), unwrap(HIVE, session), table, pageSinkId);
+            case IcebergTableExecuteHandle _ -> icebergPageSinkProvider.createPageSink(transaction.getIcebergHandle(), unwrap(ICEBERG, session), table, pageSinkId);
+            case DeltaLakeTableExecuteHandle _ -> deltaPageSinkProvider.createPageSink(transaction.getDeltaHandle(), unwrap(DELTA, session), table, pageSinkId);
+            default -> throw new VerifyException("Unhandled class: " + table.getClass().getName());
+        };
     }
 
     @Override
     public ConnectorMergeSink createMergeSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorMergeTableHandle table, ConnectorPageSinkId pageSinkId)
     {
         ObjectStoreTransactionHandle transaction = (ObjectStoreTransactionHandle) transactionHandle;
-        if (table instanceof IcebergMergeTableHandle) {
-            return icebergPageSinkProvider.createMergeSink(transaction.getIcebergHandle(), unwrap(ICEBERG, session), table, pageSinkId);
-        }
-        if (table instanceof DeltaLakeMergeTableHandle) {
-            return deltaPageSinkProvider.createMergeSink(transaction.getDeltaHandle(), unwrap(DELTA, session), table, pageSinkId);
-        }
-        throw new VerifyException("Unhandled class: " + table.getClass().getName());
+        return switch (table) {
+            case IcebergMergeTableHandle _ -> icebergPageSinkProvider.createMergeSink(transaction.getIcebergHandle(), unwrap(ICEBERG, session), table, pageSinkId);
+            case DeltaLakeMergeTableHandle _ -> deltaPageSinkProvider.createMergeSink(transaction.getDeltaHandle(), unwrap(DELTA, session), table, pageSinkId);
+            default -> throw new VerifyException("Unhandled class: " + table.getClass().getName());
+        };
     }
 
     private ConnectorSession unwrap(TableType tableType, ConnectorSession session)
