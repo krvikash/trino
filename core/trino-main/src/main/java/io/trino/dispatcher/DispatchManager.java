@@ -381,7 +381,7 @@ public class DispatchManager
         return queryTracker.tryGetQuery(queryId).map(DispatchQuery::getFullQueryInfo);
     }
 
-    private static final Pattern STOP_LEAK_RE = Pattern.compile("(\"(credential|s3.access-key-id|s3.secret-access-key|s3.session-token|rest.secret-access-key|rest.access-key-id|adls.auth.shared-key.account.key|gcs.oauth2.token|internal\\$[^\"]*)\"\\s*:\\s*)\"(\\\\\\\\|\\\\\"|[^\"])*+\"");
+    private static final Pattern STOP_LEAK_RE = Pattern.compile("(\"(credential|rest.secret-access-key|rest.access-key-id|adls.auth.shared-key.account.key|gcs.oauth2.token|internal\\$[^\"]*)\"\\s*:\\s*)\"(\\\\\\\\|\\\\\"|[^\"])*+\"");
 
     public static String stopTheLeak(String json)
     {
