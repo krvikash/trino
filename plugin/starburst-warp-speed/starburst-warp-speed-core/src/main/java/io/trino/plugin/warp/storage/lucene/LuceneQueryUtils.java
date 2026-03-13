@@ -37,7 +37,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public class LuceneQueryUtils
 {
     // See https://www.elastic.co/guide/en/elasticsearch/reference/current/regexp-syntax.html
-    private static final char[] REGEXP_RESERVED_CHARACTERS = new char[] {'.', '?', '+', '*', '|', '{', '}', '[', ']', '(', ')', '"', '#', '@', '&', '<', '>', '~'};
+    private static final char[] REGEXP_RESERVED_CHARACTERS = {'.', '?', '+', '*', '|', '{', '}', '[', ']', '(', ')', '"', '#', '@', '&', '<', '>', '~'};
 
     private LuceneQueryUtils()
     {

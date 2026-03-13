@@ -169,7 +169,7 @@ public class StorageWriterServiceTest
     {
         when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", IntegerType.INTEGER), WarmUpType.WARM_UP_TYPE_DATA);
-        int[] values = new int[] {1, 2, 3};
+        int[] values = {1, 2, 3};
         Page page = buildIntPage(values);
         WriteOpenResult writeOpenResult = runTest(page, warmupElementWriteMetadata);
         WriteJuffersWarmUpElement dataRecordJuffer = writeOpenResult.storageWriterContext().getWriteJuffersWarmUpElement();
@@ -189,7 +189,7 @@ public class StorageWriterServiceTest
     {
         when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", RealType.REAL), WarmUpType.WARM_UP_TYPE_DATA);
-        int[] values = new int[] {1, 2, 3};
+        int[] values = {1, 2, 3};
         Page page = buildIntPage(values);
         WriteOpenResult writeOpenResult = runTest(page, warmupElementWriteMetadata);
         WriteJuffersWarmUpElement dataRecordJuffer = writeOpenResult.storageWriterContext().getWriteJuffersWarmUpElement();
@@ -210,7 +210,7 @@ public class StorageWriterServiceTest
         when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", BIGINT), WarmUpType.WARM_UP_TYPE_DATA);
 
-        long[] values = new long[] {1, 2, 3};
+        long[] values = {1, 2, 3};
         Page page = buildLongPage(values);
         WriteOpenResult writeOpenResult = runTest(page, warmupElementWriteMetadata);
         WriteJuffersWarmUpElement dataRecordJuffer = writeOpenResult.storageWriterContext().getWriteJuffersWarmUpElement();
@@ -231,7 +231,7 @@ public class StorageWriterServiceTest
         when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
         ArrayType arrayIntType = new ArrayType(IntegerType.INTEGER);
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", arrayIntType), WarmUpType.WARM_UP_TYPE_DATA);
-        int[] values = new int[] {1, 2, 3};
+        int[] values = {1, 2, 3};
         Page page = buildArrayType_IntPage(values);
         WriteOpenResult writeOpenResult = runTest(page, warmupElementWriteMetadata);
         WriteJuffersWarmUpElement dataRecordJuffer = writeOpenResult.storageWriterContext().getWriteJuffersWarmUpElement();
@@ -343,7 +343,7 @@ public class StorageWriterServiceTest
                         VarcharType.createVarcharType(typeLength)),
                 WarmUpType.WARM_UP_TYPE_DATA);
 
-        String[] values = new String[] {"a", "A"};
+        String[] values = {"a", "A"};
         Page page = buildVarcharPage(values);
         WriteOpenResult writeOpenResult = runTest(page, warmupElementWriteMetadata);
         WriteJuffersWarmUpElement dataRecordJuffer = writeOpenResult.storageWriterContext().getWriteJuffersWarmUpElement();
@@ -361,7 +361,7 @@ public class StorageWriterServiceTest
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1",
                         VarcharType.createVarcharType(9)),
                 WarmUpType.WARM_UP_TYPE_DATA);
-        String[] values = new String[] {"a", "A"};
+        String[] values = {"a", "A"};
         Page page = buildVarcharPage(values);
         WriteOpenResult writeOpenResult = runTest(page, warmupElementWriteMetadata);
         WriteJuffersWarmUpElement dataRecordJuffer = writeOpenResult.storageWriterContext().getWriteJuffersWarmUpElement();
@@ -379,7 +379,7 @@ public class StorageWriterServiceTest
         WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1",
                         VarcharType.createVarcharType(9)),
                 WarmUpType.WARM_UP_TYPE_BASIC);
-        String[] values = new String[] {"a", "A"};
+        String[] values = {"a", "A"};
         Page page = buildVarcharPage(values);
         WriteOpenResult writeOpenResult = runTest(page, warmupElementWriteMetadata);
         WriteJuffersWarmUpElement dataRecordJuffer = writeOpenResult.storageWriterContext().getWriteJuffersWarmUpElement();
@@ -401,7 +401,7 @@ public class StorageWriterServiceTest
                         VarcharType.createVarcharType(9)),
                 WarmUpType.WARM_UP_TYPE_LUCENE);
 
-        String[] values = new String[] {"a", "b"};
+        String[] values = {"a", "b"};
         Page page = buildVarcharPage(values);
         StorageWriterSplitConfig storageWriterSplitConfig = startWarming("writeVarcharWithLucene");
         WriteOpenResult writeOpenResult = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata);
@@ -424,7 +424,7 @@ public class StorageWriterServiceTest
                         VarcharType.createVarcharType(9)),
                 WarmUpType.WARM_UP_TYPE_LUCENE);
 
-        String[] values = new String[] {"a"};
+        String[] values = {"a"};
         Page page = buildVarcharPage(values);
         StorageWriterSplitConfig storageWriterSplitConfig = startWarming("abortVarcharWithLucene");
         WriteOpenResult writeOpenResult = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata);

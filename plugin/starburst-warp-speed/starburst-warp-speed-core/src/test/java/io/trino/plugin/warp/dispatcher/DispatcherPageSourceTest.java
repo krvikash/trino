@@ -128,7 +128,7 @@ public class DispatcherPageSourceTest
     @Test
     public void testNullValueOnProxied()
     {
-        long[] warpMatches = new long[] {4, 5};
+        long[] warpMatches = {4, 5};
         LongArrayBlockBuilder proxiedBlock = new LongArrayBlockBuilder(null, warpMatches.length);
         proxiedBlock.appendNull();
         proxiedBlock.writeLong(99);
@@ -156,8 +156,8 @@ public class DispatcherPageSourceTest
     {
         RowRanges warpMatchRanges = createRowRanges(0, 1);
 
-        long[] warpMatches = new long[] {4};
-        long[] proxiedMatches = new long[] {99};
+        long[] warpMatches = {4};
+        long[] proxiedMatches = {99};
 
         Page firstProxiedPage = buildLongPage(proxiedMatches[0], -1);
 
@@ -185,8 +185,8 @@ public class DispatcherPageSourceTest
     {
         RowRanges warpMatchRanges = createRowRanges(0, 65536);
 
-        long[] warpMatches = new long[] {4};
-        long[] proxiedMatches = new long[] {99};
+        long[] warpMatches = {4};
+        long[] proxiedMatches = {99};
 
         Page firstProxiedPage = buildLongPage(proxiedMatches[0], -1);
         LongArrayBlockBuilder block = new LongArrayBlockBuilder(null, 0);
@@ -212,8 +212,8 @@ public class DispatcherPageSourceTest
     {
         RowRanges warpMatchRanges = createRowRanges(1, 2);
 
-        long[] warpMatches = new long[] {4};
-        long[] proxiedMatches = new long[] {99};
+        long[] warpMatches = {4};
+        long[] proxiedMatches = {99};
 
         Page firstProxiedPage = buildLongPage(-1);
         Page secondProxiedPage = buildLongPage(proxiedMatches[0], -1);
@@ -236,8 +236,8 @@ public class DispatcherPageSourceTest
     @Test
     public void test_skipAtEndOfWarpPage()
     {
-        long[] warpMatches = new long[] {2, 5, 89};
-        long[] proxiedMatches = new long[] {17, 99, 101};
+        long[] warpMatches = {2, 5, 89};
+        long[] proxiedMatches = {17, 99, 101};
         RowRanges warpMatchRanges1 = createRowRanges(0, 1);
 
         Page firstProxiedPage = buildLongPage(proxiedMatches[0], -1, proxiedMatches[1], -1, proxiedMatches[2], -1);
@@ -261,8 +261,8 @@ public class DispatcherPageSourceTest
     @Test
     public void mixedQuery_2ProxiedPages_singleRange_lastRowMatch()
     {
-        long[] warpMatches = new long[] {4};
-        long[] proxiedMatches = new long[] {99};
+        long[] warpMatches = {4};
+        long[] proxiedMatches = {99};
 
         RowRanges warpMatchRanges = createRowRanges(2, 3);
         Page firstProxiedPage = buildLongPage(-1);
@@ -287,8 +287,8 @@ public class DispatcherPageSourceTest
     @Test
     public void mixedQuery_2ProxiedPages_overlappingRange()
     {
-        long[] warpMatches = new long[] {2, 5, 89};
-        long[] proxiedMatches = new long[] {17, 99, 101};
+        long[] warpMatches = {2, 5, 89};
+        long[] proxiedMatches = {17, 99, 101};
         RowRanges warpMatchRanges = createRowRanges(0, 2, 3, 4);
 
         Page firstProxiedPage = buildLongPage(proxiedMatches[0]);
@@ -312,8 +312,8 @@ public class DispatcherPageSourceTest
     @Test
     public void test_2WarpPages_1ProxiedPage_MatchAtStartOfSecondWarpPage()
     {
-        long[] warpMatches = new long[] {2, 9};
-        long[] proxiedMatches = new long[] {88, 66};
+        long[] warpMatches = {2, 9};
+        long[] proxiedMatches = {88, 66};
         RowRanges warpMatchRanges1 = createRowRanges(0, 1);
 
         long[] pageValues = Arrays.copyOfRange(warpMatches, 0, 1);
@@ -340,8 +340,8 @@ public class DispatcherPageSourceTest
     @Test
     public void test_singleProxiedPage_2WarpPages()
     {
-        long[] warpMatches = new long[] {2, 9, 56, 77, 3};
-        long[] proxiedMatches = new long[] {88, 66, 34, 54, 23};
+        long[] warpMatches = {2, 9, 56, 77, 3};
+        long[] proxiedMatches = {88, 66, 34, 54, 23};
 
         RowRanges warpMatchRanges1 = createRowRanges(1, 3);
         long[] pageValues = Arrays.copyOfRange(warpMatches, 0, 2);
@@ -370,8 +370,8 @@ public class DispatcherPageSourceTest
     public void test_skipEntireProxiedPages()
     {
         int firstSkippedRows = 10000;
-        long[] warpMatches = new long[] {2, 9, 56, 77, 3};
-        long[] proxiedMatches = new long[] {88, 66, 34, 54, 23};
+        long[] warpMatches = {2, 9, 56, 77, 3};
+        long[] proxiedMatches = {88, 66, 34, 54, 23};
 
         RowRanges warpMatchRanges1 = createRowRanges(firstSkippedRows + 1, firstSkippedRows + 3);
 
@@ -403,8 +403,8 @@ public class DispatcherPageSourceTest
     @Test
     public void test_2WarpPages_1ProxiedPage_MatchAtMiddleOfSecondWarpPage()
     {
-        long[] warpMatches = new long[] {2, 9};
-        long[] proxiedMatches = new long[] {88, 66};
+        long[] warpMatches = {2, 9};
+        long[] proxiedMatches = {88, 66};
         RowRanges warpMatchRanges1 = createRowRanges(0, 1);
 
         long[] pageValues = Arrays.copyOfRange(warpMatches, 0, 1);
@@ -431,8 +431,8 @@ public class DispatcherPageSourceTest
     @Test
     public void test_2WarpPages_1ProxiedPage_MatchAtMiddleOfSecondWarpPage2()
     {
-        long[] warpMatches = new long[] {2, 9, 7};
-        long[] proxiedMatches = new long[] {88, 66, 6};
+        long[] warpMatches = {2, 9, 7};
+        long[] proxiedMatches = {88, 66, 6};
         RowRanges warpMatchRanges1 = createRowRanges(0, 1);
 
         long[] pageValues = Arrays.copyOfRange(warpMatches, 0, 1);
@@ -466,8 +466,8 @@ public class DispatcherPageSourceTest
     @Test
     public void testMultipleRanges()
     {
-        long[] warpMatches = new long[] {1, 2, 3, 4, 5, 6, 7, 8};
-        long[] proxiedMatches = new long[] {11, 22, 33, 44, 55, 66, 77, 88};
+        long[] warpMatches = {1, 2, 3, 4, 5, 6, 7, 8};
+        long[] proxiedMatches = {11, 22, 33, 44, 55, 66, 77, 88};
 
         Page firstProxiedPage = buildLongPage(-1, proxiedMatches[0], -1, -1, proxiedMatches[1], proxiedMatches[2], proxiedMatches[3], proxiedMatches[4], -1, -1, proxiedMatches[5], -1, proxiedMatches[6], -1, proxiedMatches[7]);
         RowRanges warpMatchRanges = createRowRanges(1, 2, 4, 8, 10, 11, 12, 13, 14, 15);
@@ -488,8 +488,8 @@ public class DispatcherPageSourceTest
     @Test
     public void test_2WarpPages_1ProxiedPage_MatchAtEndOfSecondWarpPage()
     {
-        long[] warpMatches = new long[] {2, 9};
-        long[] proxiedMatches = new long[] {88, 66};
+        long[] warpMatches = {2, 9};
+        long[] proxiedMatches = {88, 66};
         long[] pageValues = Arrays.copyOfRange(warpMatches, 0, 1);
         Page warpPage1 = buildPageLong(pageValues);
         TestPage testPage1 = new TestPage(warpPage1, createRowRanges(0, 1));
@@ -554,8 +554,8 @@ public class DispatcherPageSourceTest
     @Test
     public void test_2WarpPages_2ProxiedPage_NoSkip()
     {
-        long[] warpMatches = new long[] {2, 9};
-        long[] proxiedMatches = new long[] {88, 66};
+        long[] warpMatches = {2, 9};
+        long[] proxiedMatches = {88, 66};
         long[] pageValues = Arrays.copyOfRange(warpMatches, 0, 1);
         Page warpPage1 = buildPageLong(pageValues);
         TestPage testPage1 = new TestPage(warpPage1, createRowRanges(1, 2));
@@ -580,7 +580,7 @@ public class DispatcherPageSourceTest
     @Test
     public void test_1WarpPage_1prefilled()
     {
-        long[] warpMatches = new long[] {2, 9};
+        long[] warpMatches = {2, 9};
         Page warpPage = buildPageLong(warpMatches);
         TestPage testPage = new TestPage(warpPage, createRowRanges(1, 2));
         List<TestPage> warpPages = Lists.newArrayList(testPage);
@@ -597,8 +597,8 @@ public class DispatcherPageSourceTest
     @Test
     public void test_2WarpPages_2ProxiedPage_1prefilled_NoSkip()
     {
-        long[] warpMatches = new long[] {2, 5, 89};
-        long[] proxiedMatches = new long[] {17, 99, 101};
+        long[] warpMatches = {2, 5, 89};
+        long[] proxiedMatches = {17, 99, 101};
         RowRanges warpMatchRanges1 = createRowRanges(0, 1);
 
         Page firstProxiedPage = buildLongPage(proxiedMatches[0], -1, proxiedMatches[1], -1, proxiedMatches[2], -1);
@@ -624,8 +624,8 @@ public class DispatcherPageSourceTest
     @Test
     public void mixedQuery_2ProxiedPages_overlappingRange_with_prefilled()
     {
-        long[] warpMatches = new long[] {2, 5, 89};
-        long[] proxiedMatches = new long[] {17, 99, 101};
+        long[] warpMatches = {2, 5, 89};
+        long[] proxiedMatches = {17, 99, 101};
         RowRanges warpMatchRanges = createRowRanges(0, 2, 3, 4);
 
         Page firstProxiedPage = buildLongPage(proxiedMatches[0]);
@@ -654,8 +654,8 @@ public class DispatcherPageSourceTest
     {
         RowRanges warpMatchRanges = createRowRanges(0, 3);
 
-        long[] warpMatches = new long[] {4, 5};
-        long[] proxiedMatches = new long[] {99, 34, 99};
+        long[] warpMatches = {4, 5};
+        long[] proxiedMatches = {99, 34, 99};
 
         Page firstProxiedPage = buildLongPage(proxiedMatches[0]);
         Page secondProxiedPage = buildLongPage(proxiedMatches[1], proxiedMatches[2]);
@@ -676,7 +676,7 @@ public class DispatcherPageSourceTest
     @Test
     public void mixedQueryEmptyWarpPageSource()
     {
-        long[] proxiedMatches = new long[] {99, 34, 99};
+        long[] proxiedMatches = {99, 34, 99};
         Page firstProxiedPage = buildLongPage(proxiedMatches[0]);
         Page secondProxiedPage = buildLongPage(proxiedMatches[1], proxiedMatches[2]);
 

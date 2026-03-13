@@ -138,7 +138,7 @@ public class SliceUtilsTest
                 6,
                 true,
                 true);
-        byte[] origValue = new byte[] {'a', 'b', 'c', 'd', 'e'};
+        byte[] origValue = {'a', 'b', 'c', 'd', 'e'};
         Slice origBuffer = Slices.wrappedBuffer(origValue);
         Slice convertedResult = sliceConverter.apply(origBuffer);
         assertThat(convertedResult).isNotSameAs(origBuffer);
@@ -152,7 +152,7 @@ public class SliceUtilsTest
                 5,
                 true,
                 true);
-        byte[] origValue = new byte[] {'a', 'b', 'c', 'd', 'e'};
+        byte[] origValue = {'a', 'b', 'c', 'd', 'e'};
         Slice origBuffer = Slices.wrappedBuffer(origValue);
         Slice convertedResult = sliceConverter.apply(origBuffer);
         assertThat(convertedResult).isSameAs(origBuffer);
@@ -165,10 +165,10 @@ public class SliceUtilsTest
                 5,
                 true,
                 true);
-        byte[] origValue = new byte[] {'a', 'b', 'c', 'd', ' '};
+        byte[] origValue = {'a', 'b', 'c', 'd', ' '};
         Slice origBuffer = Slices.wrappedBuffer(origValue);
         Slice convertedResult = sliceConverter.apply(origBuffer);
-        byte[] expected = new byte[] {'a', 'b', 'c', 'd', 0};
+        byte[] expected = {'a', 'b', 'c', 'd', 0};
         assertThat(convertedResult.getBytes()).containsExactly(expected);
     }
 
@@ -180,7 +180,7 @@ public class SliceUtilsTest
                 3,
                 true,
                 true);
-        byte[] origValue = new byte[] {'a', 'b', 'c', 'd'};
+        byte[] origValue = {'a', 'b', 'c', 'd'};
         Slice origBuffer = Slices.wrappedBuffer(origValue);
         assertThatThrownBy(() -> sliceConverter.apply(origBuffer))
                 .isInstanceOf(TrinoException.class)
@@ -196,7 +196,7 @@ public class SliceUtilsTest
                 3,
                 false,
                 true);
-        byte[] origValue = new byte[] {'a', 'b', 'c', 'd'};
+        byte[] origValue = {'a', 'b', 'c', 'd'};
         Slice origBuffer = Slices.wrappedBuffer(origValue);
         assertThatThrownBy(() -> sliceConverter.apply(origBuffer))
                 .isInstanceOf(TrinoException.class)

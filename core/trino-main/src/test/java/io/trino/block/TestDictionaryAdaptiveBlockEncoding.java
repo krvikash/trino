@@ -74,7 +74,7 @@ public class TestDictionaryAdaptiveBlockEncoding
     @Test
     public void testNonSequentialDictionaryUnnest()
     {
-        int[] ids = new int[] {3, 2, 1, 0};
+        int[] ids = {3, 2, 1, 0};
         DictionaryBlock dictionaryBlock = (DictionaryBlock) DictionaryBlock.create(ids.length, dictionary, ids);
 
         Block actualBlock = roundTripBlock(dictionaryBlock);
@@ -84,7 +84,7 @@ public class TestDictionaryAdaptiveBlockEncoding
     @Test
     public void testNonSequentialDictionaryUnnestWithGaps()
     {
-        int[] ids = new int[] {3, 2, 0};
+        int[] ids = {3, 2, 0};
         DictionaryBlock dictionaryBlock = (DictionaryBlock) DictionaryBlock.create(ids.length, dictionary, ids);
 
         Block actualBlock = roundTripBlock(dictionaryBlock);
@@ -95,7 +95,7 @@ public class TestDictionaryAdaptiveBlockEncoding
     @Test
     public void testSequentialDictionaryUnnest()
     {
-        int[] ids = new int[] {0, 1, 2, 3};
+        int[] ids = {0, 1, 2, 3};
         DictionaryBlock dictionaryBlock = (DictionaryBlock) DictionaryBlock.create(ids.length, dictionary, ids);
 
         Block actualBlock = roundTripBlock(dictionaryBlock);

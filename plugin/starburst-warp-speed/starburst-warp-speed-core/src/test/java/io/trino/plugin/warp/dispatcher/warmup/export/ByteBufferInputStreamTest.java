@@ -61,7 +61,7 @@ public class ByteBufferInputStreamTest
     public void testSkip()
             throws IOException
     {
-        byte[] data = new byte[] {1, 2, 3, 4, 5};
+        byte[] data = {1, 2, 3, 4, 5};
         nativeJuffer.put(data);
         try (ByteBufferInputStream byteBufferInputStream = new ByteBufferInputStream(nativeJuffer, data.length)) {
             // Skip a negative amount of bytes and read the 1st byte
@@ -89,7 +89,7 @@ public class ByteBufferInputStreamTest
     public void testMarkAndReset()
             throws IOException
     {
-        byte[] data = new byte[] {1, 2, 3};
+        byte[] data = {1, 2, 3};
         nativeJuffer.put(data);
         try (ByteBufferInputStream byteBufferInputStream = new ByteBufferInputStream(nativeJuffer, data.length)) {
             assertThat(byteBufferInputStream.markSupported()).isTrue();

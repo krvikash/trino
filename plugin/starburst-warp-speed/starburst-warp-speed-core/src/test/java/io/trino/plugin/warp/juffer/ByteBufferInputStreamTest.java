@@ -65,7 +65,7 @@ public class ByteBufferInputStreamTest
     public void testSkip()
             throws IOException
     {
-        byte[] data = new byte[] {1, 2, 3, 4, 5};
+        byte[] data = {1, 2, 3, 4, 5};
         byteBuffer.position(0);
         byteBuffer.put(data);
         try (ByteBufferInputStream byteBufferInputStream = new ByteBufferInputStream(byteBuffer)) {
