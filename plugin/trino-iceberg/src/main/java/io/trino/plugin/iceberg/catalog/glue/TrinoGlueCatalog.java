@@ -172,7 +172,7 @@ public class TrinoGlueCatalog
     private final String trinoVersion;
     private final boolean cacheTableMetadata;
     private final Optional<String> defaultSchemaLocation;
-    private final StatsRecordingGlueClient glueClient;
+    private final TrinoGlueClient glueClient;
     private final boolean hideMaterializedViewStorageTable;
     private final boolean scheduledMaterializedViewRefreshEnabled;
     private final boolean isUsingSystemSecurity;
@@ -202,7 +202,7 @@ public class TrinoGlueCatalog
             boolean cacheTableMetadata,
             IcebergTableOperationsProvider tableOperationsProvider,
             String trinoVersion,
-            StatsRecordingGlueClient glueClient,
+            TrinoGlueClient glueClient,
             boolean isUsingSystemSecurity,
             Optional<String> defaultSchemaLocation,
             boolean useUniqueTableLocation,

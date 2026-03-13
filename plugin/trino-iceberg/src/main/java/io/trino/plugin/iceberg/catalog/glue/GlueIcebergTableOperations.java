@@ -62,7 +62,7 @@ public class GlueIcebergTableOperations
 {
     private final TypeManager typeManager;
     private final boolean cacheTableMetadata;
-    private final StatsRecordingGlueClient glueClient;
+    private final TrinoGlueClient glueClient;
     private final GetGlueTable getGlueTable;
 
     @Nullable
@@ -71,7 +71,7 @@ public class GlueIcebergTableOperations
     protected GlueIcebergTableOperations(
             TypeManager typeManager,
             boolean cacheTableMetadata,
-            StatsRecordingGlueClient glueClient,
+            TrinoGlueClient glueClient,
             GetGlueTable getGlueTable,
             FileIO fileIo,
             ConnectorSession session,

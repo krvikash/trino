@@ -21,7 +21,7 @@ import software.amazon.awssdk.services.glue.GlueClient;
 public class DefaultGlueClientProvider
         implements GlueClientProvider
 {
-    private final StatsRecordingGlueClient glueClient;
+    private final TrinoGlueClient glueClient;
 
     @Inject
     public DefaultGlueClientProvider(GlueClient glueClient, GlueMetastoreStats stats)
@@ -30,7 +30,7 @@ public class DefaultGlueClientProvider
     }
 
     @Override
-    public StatsRecordingGlueClient get(ConnectorIdentity connectorIdentity)
+    public TrinoGlueClient get(ConnectorIdentity connectorIdentity)
     {
         return glueClient;
     }

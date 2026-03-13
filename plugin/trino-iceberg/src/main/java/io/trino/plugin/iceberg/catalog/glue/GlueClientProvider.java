@@ -17,5 +17,5 @@ import io.trino.spi.security.ConnectorIdentity;
 
 public interface GlueClientProvider
 {
-    StatsRecordingGlueClient get(ConnectorIdentity connectorIdentity);
+    TrinoGlueClient get(ConnectorIdentity connectorIdentity);
 }

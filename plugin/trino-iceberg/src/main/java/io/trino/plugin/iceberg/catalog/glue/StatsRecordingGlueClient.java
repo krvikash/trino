@@ -31,6 +31,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
 
 public class StatsRecordingGlueClient
+        implements TrinoGlueClient
 {
     private final GlueClient glueClient;
     private final GlueMetastoreStats stats;
@@ -41,12 +42,14 @@ public class StatsRecordingGlueClient
         this.stats = requireNonNull(stats, "stats is null");
     }
 
+    @Override
     public Database getDatabase(String databaseName)
     {
         return stats.getGetDatabase().call(() ->
                 glueClient.getDatabase(request -> request.name(databaseName)).database());
     }
 
+    @Override
     public List<String> listDatabases()
     {
         return stats.getGetDatabases().call(() ->
@@ -57,18 +60,21 @@ public class StatsRecordingGlueClient
                         .collect(toImmutableList()));
     }
 
+    @Override
     public void dropDatabase(String databaseName)
     {
         stats.getDeleteDatabase().call(() ->
                 glueClient.deleteDatabase(request -> request.name(databaseName)));
     }
 
+    @Override
     public void createDatabase(DatabaseInput database)
     {
         stats.getCreateDatabase().call(() ->
                 glueClient.createDatabase(request -> request.databaseInput(database)));
     }
 
+    @Override
     public Table getTable(SchemaTableName tableName)
     {
         return stats.getGetTable().call(() ->
@@ -78,6 +84,7 @@ public class StatsRecordingGlueClient
                         .table());
     }
 
+    @Override
     public void deleteTable(String databaseName, String tableName)
     {
         stats.getDeleteTable().call(() ->
@@ -86,6 +93,7 @@ public class StatsRecordingGlueClient
                         .name(tableName)));
     }
 
+    @Override
     public void updateTable(String databaseName, TableInput table, Optional<String> versionId)
     {
         stats.getUpdateTable().call(() ->
@@ -96,6 +104,7 @@ public class StatsRecordingGlueClient
                 }));
     }
 
+    @Override
     public void createTable(String databaseName, TableInput table)
     {
         stats.getCreateTable().call(() ->
@@ -104,6 +113,7 @@ public class StatsRecordingGlueClient
                         .tableInput(table)));
     }
 
+    @Override
     public Stream<Table> streamTables(String databaseName)
     {
         return stats.getGetTables().call(() ->
