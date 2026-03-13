@@ -578,6 +578,13 @@ public class DispatcherMetadata
         return proxiedConnectorMetadata.finishInsert(session, insertHandle, sourceTableHandles, fragments, computedStatistics);
     }
 
+    @SuppressWarnings("removal")
+    @Override
+    public boolean delegateMaterializedViewRefreshToConnector(ConnectorSession session, SchemaTableName viewName)
+    {
+        return proxiedConnectorMetadata.delegateMaterializedViewRefreshToConnector(session, viewName);
+    }
+
     @Override
     public ConnectorInsertTableHandle beginRefreshMaterializedView(
             ConnectorSession session,
