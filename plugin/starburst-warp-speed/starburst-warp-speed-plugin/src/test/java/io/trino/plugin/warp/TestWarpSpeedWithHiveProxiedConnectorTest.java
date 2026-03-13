@@ -77,8 +77,8 @@ public class TestWarpSpeedWithHiveProxiedConnectorTest
         queryRunner.createCatalog("tpch", "tpch");
 
         // Create schema and copy TPCH tables using the queryRunner's default session
-        // The default session uses "schema" as the schema name
-        queryRunner.execute("CREATE SCHEMA IF NOT EXISTS schema");
+        String schemaName = queryRunner.getDefaultSession().getSchema().orElseThrow();
+        queryRunner.execute("CREATE SCHEMA IF NOT EXISTS " + schemaName);
         copyTpchTables(queryRunner, "tpch", "tiny", queryRunner.getDefaultSession(), REQUIRED_TPCH_TABLES);
 
         return queryRunner;
