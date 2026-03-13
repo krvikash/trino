@@ -30,6 +30,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Streams;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import io.airlift.concurrent.MoreFutures;
 import io.airlift.json.JsonCodec;
 import io.airlift.log.Logger;
@@ -296,6 +297,7 @@ import java.util.stream.Stream;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Throwables.throwIfUnchecked;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.base.Verify.verifyNotNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -680,19 +682,19 @@ public class IcebergMetadata
 
     private Optional<TableCredentials> getOrLoadTableCredentials(ConnectorSession session, SchemaTableName schemaTableName)
     {
-        return Optional.ofNullable(uncheckedCacheGet(
-                tableCredentialsCache,
-                schemaTableName,
-                () -> {
-                    try {
+        try {
+            return Optional.ofNullable(uncheckedCacheGet(
+                    tableCredentialsCache,
+                    schemaTableName,
+                    () -> {
                         BaseTable baseTable = catalog.loadTable(session, schemaTableName);
                         return new IcebergTableCredentials(baseTable.io().properties());
-                    }
-                    catch (TableNotFoundException _) {
-                        // The table might not exist yet, for example when creating a new table.
-                        return null;
-                    }
-                }));
+                    }));
+        }
+        catch (UncheckedExecutionException e) {
+            throwIfUnchecked(e.getCause());
+            throw e;
+        }
     }
 
     @Override
