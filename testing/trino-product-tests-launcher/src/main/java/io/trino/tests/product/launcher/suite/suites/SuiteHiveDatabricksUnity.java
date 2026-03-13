@@ -23,6 +23,7 @@ import java.util.List;
 
 import static io.trino.tests.product.TestGroups.CONFIGURED_FEATURES;
 import static io.trino.tests.product.TestGroups.HIVE_DATABRICKS_UNITY;
+import static io.trino.tests.product.TestGroups.HIVE_DATABRICKS_UNITY_PROXY;
 import static io.trino.tests.product.launcher.suite.SuiteTestRun.testOnEnvironment;
 
 public class SuiteHiveDatabricksUnity
@@ -34,6 +35,9 @@ public class SuiteHiveDatabricksUnity
         return ImmutableList.of(
                 testOnEnvironment(EnvMultinodeDatabricksUnity.class)
                         .withGroups(CONFIGURED_FEATURES, HIVE_DATABRICKS_UNITY)
+                        .build(),
+                testOnEnvironment(EnvMultinodeDatabricksUnity.class)
+                        .withGroups(CONFIGURED_FEATURES, HIVE_DATABRICKS_UNITY_PROXY)
                         .build());
     }
 }

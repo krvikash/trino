@@ -23,6 +23,7 @@ import java.util.List;
 
 import static io.trino.tests.product.TestGroups.CONFIGURED_FEATURES;
 import static io.trino.tests.product.TestGroups.DELTA_LAKE_DATABRICKS_UNITY;
+import static io.trino.tests.product.TestGroups.DELTA_LAKE_DATABRICKS_UNITY_PROXY;
 import static io.trino.tests.product.launcher.suite.SuiteTestRun.testOnEnvironment;
 
 public class SuiteDeltaLakeDatabricksUnity
@@ -34,6 +35,9 @@ public class SuiteDeltaLakeDatabricksUnity
         return ImmutableList.of(
                 testOnEnvironment(EnvMultinodeDatabricksUnity.class)
                         .withGroups(CONFIGURED_FEATURES, DELTA_LAKE_DATABRICKS_UNITY)
+                        .build(),
+                testOnEnvironment(EnvMultinodeDatabricksUnity.class)
+                        .withGroups(CONFIGURED_FEATURES, DELTA_LAKE_DATABRICKS_UNITY_PROXY)
                         .build());
     }
 }

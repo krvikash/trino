@@ -28,11 +28,15 @@ public class UnityHiveMetastoreFactory
 
     // Unity metastore does not support impersonation, so just use single shared instance
     @Inject
-    public UnityHiveMetastoreFactory(UnityMetastoreConfig config, Tracer tracer, SupportedUnityTableFormatsProvider supportedUnityTableFormatsProvider)
+    public UnityHiveMetastoreFactory(
+            UnityMetastoreConfig config,
+            Optional<UnityMetastoreProxyConfig> proxyConfig,
+            Tracer tracer,
+            SupportedUnityTableFormatsProvider supportedUnityTableFormatsProvider)
     {
         this.metastore = new TracingUnityHiveMetastore(
                 tracer,
-                new UnityHiveMetastore(config.getHost(), config.getCatalogName(), config.getToken(), config.isVendedCredentialsEnabled(), supportedUnityTableFormatsProvider.supportedUnityTableFormats()));
+                new UnityHiveMetastore(config, proxyConfig, supportedUnityTableFormatsProvider.supportedUnityTableFormats()));
     }
 
     @Override

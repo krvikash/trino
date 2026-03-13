@@ -53,6 +53,10 @@ public class UnityMetastoreModule
         log.debug("Configuring through Hive connector: %s", isConfiguredWithHive); // Do not throw as Objectstore connector requires to initialize Hudi connector with Unity metastore
         checkArgument(!buildConfigObject(UnityMetastoreConfig.class).isVendedCredentialsEnabled(), "Setting hive.metastore.unity.vended-credentials-enabled to true is supported only with Delta Lake");
         configBinder(binder).bindConfig(UnityMetastoreConfig.class);
+        newOptionalBinder(binder, UnityMetastoreProxyConfig.class);
+        if (buildConfigObject(UnityMetastoreConfig.class).isProxyEnabled()) {
+            configBinder(binder).bindConfig(UnityMetastoreProxyConfig.class);
+        }
 
         binder.bind(UnityHiveMetastoreFactory.class).in(Scopes.SINGLETON);
 

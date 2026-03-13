@@ -28,6 +28,7 @@ import static io.trino.tempto.assertions.QueryAssert.assertQueryFailure;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.tests.product.TestGroups.HIVE_DATABRICKS_UNITY;
+import static io.trino.tests.product.TestGroups.HIVE_DATABRICKS_UNITY_PROXY;
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.deltalake.util.DeltaLakeTestUtils.DATABRICKS_COMMUNICATION_FAILURE_ISSUE;
 import static io.trino.tests.product.deltalake.util.DeltaLakeTestUtils.DATABRICKS_COMMUNICATION_FAILURE_MATCH;
@@ -225,5 +226,13 @@ public class TestHiveDatabricksUnityCompatibility
 
         assertThat(onTrino().executeQuery("SHOW TABLES IN hive." + schemaName).column(1))
                 .contains(avroTableName, orcTableName, jsonTableName, csvTableName, textTableName);
+    }
+
+    @Test(groups = {HIVE_DATABRICKS_UNITY_PROXY, PROFILE_SPECIFIC_TESTS})
+    @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
+    public void testShowSchemas()
+    {
+        assertThat(onTrino().executeQuery(format("SHOW SCHEMAS FROM hive LIKE '%s'", schemaName)))
+                .contains(row(schemaName));
     }
 }

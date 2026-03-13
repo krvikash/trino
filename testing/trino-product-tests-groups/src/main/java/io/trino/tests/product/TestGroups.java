@@ -106,10 +106,12 @@ public final class TestGroups
     public static final String DELTA_LAKE_DATABRICKS_154 = "delta-lake-databricks-154";
     public static final String DELTA_LAKE_DATABRICKS_164 = "delta-lake-databricks-164";
     public static final String DELTA_LAKE_DATABRICKS_UNITY = "delta-lake-databricks-unity";
+    public static final String DELTA_LAKE_DATABRICKS_UNITY_PROXY = "delta-lake-databricks-unity-proxy";
     public static final String DELTA_LAKE_DATABRICKS_UNITY_CREDENTIALS_VENDING = "delta-lake-databricks-unity-credentials-vending";
     // TODO: Remove it once we support generatedColumns, particularly for writes in Delta Lake
     public static final String DELTA_LAKE_EXCLUDE_173 = "delta-lake-exclude-173";
     public static final String HIVE_DATABRICKS_UNITY = "hive-databricks-unity";
+    public static final String HIVE_DATABRICKS_UNITY_PROXY = "hive-databricks-unity-proxy";
     public static final String DELTA_LAKE_ALLUXIO_CACHING = "delta-lake-alluxio-caching";
     public static final String HUDI = "hudi";
     public static final String PARQUET = "parquet";

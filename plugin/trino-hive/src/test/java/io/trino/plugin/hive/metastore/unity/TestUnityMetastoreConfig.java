@@ -32,7 +32,8 @@ final class TestUnityMetastoreConfig
                 .setToken(null)
                 .setHost(null)
                 .setCatalogManagedTableEnabled(false)
-                .setVendedCredentialsEnabled(false));
+                .setVendedCredentialsEnabled(false)
+                .setProxyEnabled(false));
     }
 
     @Test
@@ -44,6 +45,7 @@ final class TestUnityMetastoreConfig
                 .put("hive.metastore.unity.host", "host")
                 .put("hive.metastore.unity.catalog-managed-table-enabled", "true")
                 .put("hive.metastore.unity.vended-credentials-enabled", "true")
+                .put("hive.metastore.unity.proxy.enabled", "true")
                 .buildOrThrow();
 
         UnityMetastoreConfig expected = new UnityMetastoreConfig()
@@ -51,7 +53,8 @@ final class TestUnityMetastoreConfig
                 .setToken("token")
                 .setHost("host")
                 .setCatalogManagedTableEnabled(true)
-                .setVendedCredentialsEnabled(true);
+                .setVendedCredentialsEnabled(true)
+                .setProxyEnabled(true);
 
         assertFullMapping(properties, expected);
     }

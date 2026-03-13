@@ -33,6 +33,7 @@ import io.trino.plugin.hive.AllowHiveTableRename;
 import io.trino.plugin.hive.metastore.unity.SupportedUnityTableFormatsProvider;
 import io.trino.plugin.hive.metastore.unity.UnityHiveMetastoreFactory;
 import io.trino.plugin.hive.metastore.unity.UnityMetastoreConfig;
+import io.trino.plugin.hive.metastore.unity.UnityMetastoreProxyConfig;
 import io.trino.spi.TrinoException;
 
 import static com.databricks.sdk.service.catalog.DataSourceFormat.AVRO;
@@ -53,6 +54,10 @@ public class DeltaLakeUnityMetastoreModule
     protected void setup(Binder binder)
     {
         configBinder(binder).bindConfig(UnityMetastoreConfig.class);
+        newOptionalBinder(binder, UnityMetastoreProxyConfig.class);
+        if (buildConfigObject(UnityMetastoreConfig.class).isProxyEnabled()) {
+            configBinder(binder).bindConfig(UnityMetastoreProxyConfig.class);
+        }
 
         // TODO https://starburstdata.atlassian.net/browse/CONNECT-602
         if (buildConfigObject(DeltaLakeConfig.class).isRegisterTableProcedureEnabled()) {

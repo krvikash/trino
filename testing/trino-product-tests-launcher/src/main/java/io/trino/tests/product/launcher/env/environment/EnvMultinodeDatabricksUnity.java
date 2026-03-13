@@ -86,19 +86,16 @@ public class EnvMultinodeDatabricksUnity
 
     private static DockerContainer exportAwsCredentials(DockerContainer container)
     {
-        container = exportAwsCredential(container, "TRINO_AWS_ACCESS_KEY_ID", "AWS_ACCESS_KEY_ID", true);
-        container = exportAwsCredential(container, "TRINO_AWS_SECRET_ACCESS_KEY", "AWS_SECRET_ACCESS_KEY", true);
+        container = exportAwsCredential(container, "TRINO_AWS_ACCESS_KEY_ID", "AWS_ACCESS_KEY_ID");
+        container = exportAwsCredential(container, "TRINO_AWS_SECRET_ACCESS_KEY", "AWS_SECRET_ACCESS_KEY");
         return container;
     }
 
-    private static DockerContainer exportAwsCredential(DockerContainer container, String credentialEnvVariable, String containerEnvVariable, boolean required)
+    private static DockerContainer exportAwsCredential(DockerContainer container, String credentialEnvVariable, String containerEnvVariable)
     {
         String credentialValue = System.getenv(credentialEnvVariable);
         if (credentialValue == null) {
-            if (required) {
-                throw new IllegalStateException(format("Environment variable %s not set", credentialEnvVariable));
-            }
-            return container;
+            throw new IllegalStateException(format("Environment variable %s not set", credentialEnvVariable));
         }
         return container.withEnv(containerEnvVariable, credentialValue);
     }

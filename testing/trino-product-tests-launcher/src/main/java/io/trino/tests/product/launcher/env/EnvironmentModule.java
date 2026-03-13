@@ -31,6 +31,7 @@ import io.trino.tests.product.launcher.env.common.KafkaSaslPlaintext;
 import io.trino.tests.product.launcher.env.common.KafkaSsl;
 import io.trino.tests.product.launcher.env.common.Kerberos;
 import io.trino.tests.product.launcher.env.common.Minio;
+import io.trino.tests.product.launcher.env.common.MitmProxy;
 import io.trino.tests.product.launcher.env.common.OpenLdap;
 import io.trino.tests.product.launcher.env.common.OpenLdapReferral;
 import io.trino.tests.product.launcher.env.common.Standard;
@@ -101,6 +102,7 @@ public final class EnvironmentModule
         binder.bind(HttpProxy.class).in(SINGLETON);
         binder.bind(HttpsProxy.class).in(SINGLETON);
         binder.bind(Hive4WithMinio.class).in(SINGLETON);
+        binder.bind(MitmProxy.class).in(SINGLETON);
 
         MapBinder<String, EnvironmentProvider> environments = newMapBinder(binder, String.class, EnvironmentProvider.class);
         findEnvironmentsByBasePackage(ENVIRONMENT_PACKAGE).forEach(clazz -> environments.addBinding(nameForEnvironmentClass(clazz)).to(clazz).in(SINGLETON));

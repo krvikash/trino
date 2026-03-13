@@ -152,9 +152,47 @@ public class TestDeltaLakePlugin
         assertThatThrownBy(() -> factory.create("test",
                 ImmutableMap.of(
                         "hive.metastore", "unity",
+                        "hive.metastore.unity.catalog-name", "catalog",
+                        "hive.metastore.unity.token", "token",
+                        "hive.metastore.unity.host", "host",
                         "delta.register-table-procedure.enabled", "true"),
                 new TestingConnectorContext()))
                 .hasMessageContaining("Register procedure is not supported for Unity");
+    }
+
+    @Test
+    public void testUnityMetastore()
+    {
+        ConnectorFactory factory = getConnectorFactory();
+        factory.create("test",
+                        ImmutableMap.of(
+                                "hive.metastore", "unity",
+                                "hive.metastore.unity.catalog-name", "catalog",
+                                "hive.metastore.unity.token", "token",
+                                "hive.metastore.unity.host", "host",
+                                "bootstrap.quiet", "true"),
+                        new TestingConnectorContext())
+                .shutdown();
+    }
+
+    @Test
+    public void testUnityProxyMetastore()
+    {
+        ConnectorFactory factory = getConnectorFactory();
+        factory.create("test",
+                        ImmutableMap.of(
+                                "hive.metastore", "unity",
+                                "hive.metastore.unity.catalog-name", "catalog",
+                                "hive.metastore.unity.token", "token",
+                                "hive.metastore.unity.host", "host",
+                                "hive.metastore.unity.proxy.enabled", "true",
+                                "hive.metastore.unity.proxy.host", "proxyhost",
+                                "hive.metastore.unity.proxy.port", "8888",
+                                "hive.metastore.unity.proxy.username", "proxy_username",
+                                "hive.metastore.unity.proxy.password", "proxy_password",
+                                "bootstrap.quiet", "true"),
+                        new TestingConnectorContext())
+                .shutdown();
     }
 
     @Test

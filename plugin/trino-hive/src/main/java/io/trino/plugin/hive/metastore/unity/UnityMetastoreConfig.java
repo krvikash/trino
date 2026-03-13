@@ -28,6 +28,7 @@ public class UnityMetastoreConfig
     private String token;
     private boolean catalogManagedTableEnabled;
     private boolean vendedCredentialsEnabled;
+    private boolean proxyEnabled;
 
     @NotNull
     public String getCatalogName()
@@ -94,6 +95,19 @@ public class UnityMetastoreConfig
     public UnityMetastoreConfig setVendedCredentialsEnabled(boolean vendedCredentialsEnabled)
     {
         this.vendedCredentialsEnabled = vendedCredentialsEnabled;
+        return this;
+    }
+
+    public boolean isProxyEnabled()
+    {
+        return proxyEnabled;
+    }
+
+    @ConfigDescription("Enable proxying of requests to Unity")
+    @Config("hive.metastore.unity.proxy.enabled")
+    public UnityMetastoreConfig setProxyEnabled(boolean proxyEnabled)
+    {
+        this.proxyEnabled = proxyEnabled;
         return this;
     }
 }
