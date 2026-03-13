@@ -21,7 +21,6 @@ import java.io.UncheckedIOException;
 import java.util.Map;
 
 import static io.starburst.server.troubleshooting.providers.TroubleshootingProvider.toInputStream;
-import static io.trino.dispatcher.DispatchManager.stopTheLeak;
 import static java.util.Objects.requireNonNull;
 
 public class QueryJsonProvider
@@ -40,8 +39,7 @@ public class QueryJsonProvider
     {
         return context.get(QueryInfo.class).map(queryInfo -> {
             try {
-                String queryJson = objectMapper.writeValueAsString(queryInfo.pruneCatalogProperties());
-                return ImmutableMap.of("query.json", toInputStream(stopTheLeak(queryJson)));
+                return ImmutableMap.of("query.json", toInputStream(objectMapper.writeValueAsString(queryInfo.pruneCatalogProperties())));
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
