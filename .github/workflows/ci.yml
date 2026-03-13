@@ -193,7 +193,7 @@ jobs:
   check-commit:
     needs: check-commits-dispatcher
     runs-on: [self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest]
-    timeout-minutes: 90
+    timeout-minutes: 30
     if: github.event_name == 'pull_request' && needs.check-commits-dispatcher.outputs.matrix != ''
     strategy:
       fail-fast: false
