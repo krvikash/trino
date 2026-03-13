@@ -13,10 +13,7 @@
  */
 package io.trino.server;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import io.airlift.json.JsonCodec;
-import io.airlift.json.JsonCodecFactory;
 import io.trino.dispatcher.DispatchManager;
 import io.trino.execution.QueryInfo;
 import io.trino.execution.QueryState;
@@ -49,13 +46,11 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.connector.system.KillQueryProcedure.createKillQueryException;
 import static io.trino.connector.system.KillQueryProcedure.createPreemptQueryException;
-import static io.trino.dispatcher.DispatchManager.stopTheLeak;
 import static io.trino.execution.QueryStateMachine.pruneQueryInfo;
 import static io.trino.security.AccessControlUtil.checkCanKillQueryOwnedBy;
 import static io.trino.security.AccessControlUtil.checkCanViewQueryOwnedBy;
 import static io.trino.security.AccessControlUtil.filterQueries;
 import static io.trino.server.security.ResourceSecurity.AccessType.AUTHENTICATED_USER;
-import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON_TYPE;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -68,14 +63,10 @@ public class QueryResource
     private final DispatchManager dispatchManager;
     private final AccessControl accessControl;
     private final HttpRequestSessionContextFactory sessionContextFactory;
-    private final JsonCodec<QueryInfo> queryInfoCodec;
 
     @Inject
-    public QueryResource(ObjectMapper objectMapper, DispatchManager dispatchManager, AccessControl accessControl, HttpRequestSessionContextFactory sessionContextFactory)
+    public QueryResource(DispatchManager dispatchManager, AccessControl accessControl, HttpRequestSessionContextFactory sessionContextFactory)
     {
-//        this.queryInfoCodec = buildQueryInfoCodec(objectMapper, false);
-        ObjectMapper objectMapperCopy = objectMapper.copy();
-        this.queryInfoCodec = new JsonCodecFactory(objectMapperCopy::copy).jsonCodec(QueryInfo.class);
         this.dispatchManager = requireNonNull(dispatchManager, "dispatchManager is null");
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
         this.sessionContextFactory = requireNonNull(sessionContextFactory, "sessionContextFactory is null");
@@ -114,9 +105,7 @@ public class QueryResource
         }
         try {
             checkCanViewQueryOwnedBy(sessionContextFactory.extractAuthorizedIdentity(servletRequest, httpHeaders), queryInfo.get().getSession().toIdentity(), accessControl);
-            String json = queryInfoCodec.toJson(queryInfo.get().pruneCatalogProperties());
-            json = stopTheLeak(json);
-            return Response.ok(json, APPLICATION_JSON_TYPE).build();
+            return Response.ok(queryInfo.get()).build();
         }
         catch (AccessDeniedException e) {
             throw new ForbiddenException();

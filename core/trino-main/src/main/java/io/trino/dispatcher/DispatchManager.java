@@ -55,8 +55,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -379,14 +377,6 @@ public class DispatchManager
     public Optional<QueryInfo> getFullQueryInfo(QueryId queryId)
     {
         return queryTracker.tryGetQuery(queryId).map(DispatchQuery::getFullQueryInfo);
-    }
-
-    private static final Pattern STOP_LEAK_RE = Pattern.compile("(\"(credential|rest.secret-access-key|rest.access-key-id|adls.auth.shared-key.account.key|gcs.oauth2.token|internal\\$[^\"]*)\"\\s*:\\s*)\"[^\"]*\"");
-
-    public static String stopTheLeak(String json)
-    {
-        Matcher matcher = STOP_LEAK_RE.matcher(requireNonNull(json, "json is null"));
-        return matcher.replaceAll(match -> match.group(1) + "\"***\"");
     }
 
     public Optional<DispatchInfo> getDispatchInfo(QueryId queryId)
