@@ -1606,6 +1606,8 @@ public class IcebergMetadata
                 }
                 validateNotModifyingOldSnapshot(table, icebergTable);
                 tableLocation = icebergTable.location();
+                List<PartitionField> existingPartitionFields = getAllPartitionFields(icebergTable);
+                transaction = newCreateTableTransaction(catalog, tableMetadata, session, replace, tableLocation, allowedExtraProperties, existingPartitionFields);
             }
         }
 
@@ -1617,7 +1619,10 @@ public class IcebergMetadata
                     })
                     .orElseGet(() -> catalog.defaultTableLocation(session, tableMetadata.getTable()));
         }
-        transaction = newCreateTableTransaction(catalog, tableMetadata, session, replace, tableLocation, allowedExtraProperties);
+
+        if (transaction == null) {
+            transaction = newCreateTableTransaction(catalog, tableMetadata, session, replace, tableLocation, allowedExtraProperties, ImmutableList.of());
+        }
         Location location = Location.of(transaction.table().location());
         try {
             // S3 Tables internally assigns a unique location for each table
