@@ -1,0 +1,460 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.plugin.warp;
+
+import io.trino.Session;
+import io.trino.metadata.InternalFunctionBundle;
+import io.trino.plugin.iceberg.IcebergFileFormat;
+import io.trino.plugin.iceberg.IcebergPlugin;
+import io.trino.plugin.warp.di.WarpStubsStorageEngineModule;
+import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
+import io.trino.plugin.warp.it.DispatcherQueryRunner;
+import io.trino.testing.BaseConnectorTest;
+import io.trino.testing.MaterializedResult;
+import io.trino.testing.QueryRunner;
+import io.trino.testing.TestingConnectorBehavior;
+import io.trino.testing.sql.TestTable;
+import org.junit.jupiter.api.Test;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalInt;
+
+import static io.trino.plugin.iceberg.IcebergFileFormat.PARQUET;
+import static io.trino.plugin.warp.config.ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME;
+import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PASS_THROUGH_DISPATCHER;
+import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
+import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
+import static io.trino.spi.type.VarcharType.VARCHAR;
+import static io.trino.testing.MaterializedResult.resultBuilder;
+import static io.trino.testing.QueryAssertions.copyTpchTables;
+import static io.trino.testing.TestingNames.randomNameSuffix;
+import static java.lang.String.format;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.abort;
+
+public class TestWarpSpeedWithIcebergProxiedConnectorTest
+        extends BaseConnectorTest
+{
+    private static final String CATALOG_NAME = "warp_speed";
+    private static final IcebergFileFormat format = PARQUET;
+    private static final int formatVersion = 2;
+
+    @Override
+    protected QueryRunner createQueryRunner()
+            throws Exception
+    {
+        Path icebergDir = Files.createTempDirectory("iceberg_catalog_");
+
+        QueryRunner queryRunner = DispatcherQueryRunner.createQueryRunner(
+                new WarpStubsStorageEngineModule(),
+                Optional.empty(),
+                3,
+                Map.of(),
+                Map.ofEntries(
+                        Map.entry("http-server.log.enabled", "false"),
+                        Map.entry(USE_HTTP_SERVER_PORT, "false"),
+                        Map.entry("node.environment", "warp"),
+                        Map.entry("iceberg.catalog.type", "TESTING_FILE_METASTORE"),
+                        Map.entry("iceberg.file-format", format.name()),
+                        Map.entry("iceberg.format-version", Integer.toString(formatVersion)),
+                        // Only allow some extra properties. Add "sorted_by" so that we can test that the property is disallowed by the connector explicitly.
+                        Map.entry("iceberg.allowed-extra-properties", "extra.property.one,extra.property.two,extra.property.three,sorted_by"),
+                        // Allows testing the sorting writer flushing to the file system with smaller tables
+                        Map.entry("iceberg.writer-sort-buffer-size", "1MB"),
+                        // Disable partition statistics to make diff from Trino smaller
+                        Map.entry("iceberg.partition-statistics.enabled", "false"),
+                        Map.entry(PROXIED_CONNECTOR, ICEBERG_CONNECTOR_NAME),
+                        Map.entry(PASS_THROUGH_DISPATCHER, ICEBERG_CONNECTOR_NAME)),  // so the results would be correct
+                icebergDir,
+                DispatcherConnectorFactory.DISPATCHER_CONNECTOR_NAME,
+                CATALOG_NAME,
+                new WarpPlugin(),
+                Map.of(
+                        // SQL functions
+                        "sql.path", CATALOG_NAME + ".functions",
+                        "sql.default-function-catalog", CATALOG_NAME,
+                        "sql.default-function-schema", "functions"));
+
+        // Register Iceberg internal functions
+        InternalFunctionBundle.InternalFunctionBundleBuilder functions = InternalFunctionBundle.builder();
+        new IcebergPlugin().getFunctions().forEach(functions::functions);
+        queryRunner.addFunctions(functions.build());
+
+        // Install TPCH plugin for source data
+        queryRunner.installPlugin(new io.trino.plugin.tpch.TpchPlugin());
+        queryRunner.createCatalog("tpch", "tpch");
+
+        // Create schema and copy TPCH tables using the queryRunner's default session
+        String schemaName = queryRunner.getDefaultSession().getSchema().orElseThrow();
+        queryRunner.execute("CREATE SCHEMA IF NOT EXISTS " + schemaName);
+        copyTpchTables(queryRunner, "tpch", "tiny", queryRunner.getDefaultSession(), REQUIRED_TPCH_TABLES);
+
+        return queryRunner;
+    }
+
+    @Override
+    protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
+    {
+        return switch (connectorBehavior) {
+            case SUPPORTS_CREATE_OR_REPLACE_TABLE,
+                 SUPPORTS_CTE_REUSE,
+                 SUPPORTS_DEFAULT_COLUMN_VALUE,
+                 SUPPORTS_REPORTING_WRITTEN_BYTES -> true;
+            case SUPPORTS_ADD_COLUMN_NOT_NULL_CONSTRAINT,
+                 SUPPORTS_LIMIT_PUSHDOWN,
+                 SUPPORTS_REFRESH_VIEW,
+                 SUPPORTS_RENAME_MATERIALIZED_VIEW_ACROSS_SCHEMAS,
+                 SUPPORTS_TOPN_PUSHDOWN -> false;
+            default -> super.hasBehavior(connectorBehavior);
+        };
+    }
+
+    @Test
+    @Override
+    public void testShowCreateSchema()
+    {
+        String schemaName = getSession().getSchema().orElseThrow();
+        assertThat((String) computeScalar("SHOW CREATE SCHEMA " + schemaName))
+                .matches(format("CREATE SCHEMA %s.%s\\s+", CATALOG_NAME, schemaName) +
+                        "AUTHORIZATION USER user\\s+" +
+                        "WITH \\(\n" +
+                        "\\s+location = '.*'\n" +
+                        "\\)");
+    }
+
+    @Test
+    @Override
+    public void testCharVarcharComparison()
+    {
+        // with char->varchar coercion on table creation, this is essentially varchar/varchar comparison
+        try (TestTable table = newTrinoTable(
+                "test_char_varchar",
+                "(k, v) AS VALUES" +
+                        "   (-1, CAST(NULL AS CHAR(3))), " +
+                        "   (3, CAST('   ' AS CHAR(3)))," +
+                        "   (6, CAST('x  ' AS CHAR(3)))")) {
+            // varchar of length shorter than column's length
+            assertThat(query("SELECT k, v FROM " + table.getName() + " WHERE v = CAST('  ' AS varchar(2))")).returnsEmptyResult();
+            // varchar of length longer than column's length
+            assertThat(query("SELECT k, v FROM " + table.getName() + " WHERE v = CAST('    ' AS varchar(4))")).returnsEmptyResult();
+            // value that's not all-spaces
+            assertThat(query("SELECT k, v FROM " + table.getName() + " WHERE v = CAST('x ' AS varchar(2))")).returnsEmptyResult();
+            // exact match
+            assertQuery("SELECT k, v FROM " + table.getName() + " WHERE v = CAST('   ' AS varchar(3))", "VALUES (3, '   ')");
+        }
+    }
+
+    @Override
+    protected void verifyVersionedQueryFailurePermissible(Exception e)
+    {
+        String schemaName = getSession().getSchema().orElseThrow();
+        assertThat(e)
+                .hasMessageMatching("Version pointer type is not supported: .*|" +
+                        "Unsupported type for temporal table version: .*|" +
+                        "Unsupported type for table version: .*|" +
+                        "No version history table " + schemaName + ".nation at or before .*|" +
+                        "Iceberg snapshot ID does not exists: .*|" +
+                        "Cannot find snapshot with reference name: .*");
+    }
+
+    @Override
+    protected MaterializedResult getDescribeOrdersResult()
+    {
+        return resultBuilder(getSession(), VARCHAR, VARCHAR, VARCHAR, VARCHAR)
+                .row("orderkey", "bigint", "", "")
+                .row("custkey", "bigint", "", "")
+                .row("orderstatus", "varchar", "", "")
+                .row("totalprice", "double", "", "")
+                .row("orderdate", "date", "", "")
+                .row("orderpriority", "varchar", "", "")
+                .row("clerk", "varchar", "", "")
+                .row("shippriority", "integer", "", "")
+                .row("comment", "varchar", "", "")
+                .build();
+    }
+
+    @Test
+    @Override
+    public void testShowCreateTable()
+    {
+        String schemaName = getSession().getSchema().orElseThrow();
+        assertThat((String) computeActual("SHOW CREATE TABLE orders").getOnlyValue())
+                .matches(format("\\QCREATE TABLE %s.%s.orders (\n", CATALOG_NAME, schemaName) +
+                        "   orderkey bigint,\n" +
+                        "   custkey bigint,\n" +
+                        "   orderstatus varchar,\n" +
+                        "   totalprice double,\n" +
+                        "   orderdate date,\n" +
+                        "   orderpriority varchar,\n" +
+                        "   clerk varchar,\n" +
+                        "   shippriority integer,\n" +
+                        "   comment varchar\n" +
+                        ")\n" +
+                        "WITH (\n" +
+                        "   format = '" + format.name() + "',\n" +
+                        "   format_version = " + formatVersion + ",\n" +
+                        "   location = '\\E.*orders-.*\\Q'\n" +
+                        ")\\E");
+    }
+
+    @Test
+    @Override
+    public void testAddDefaultColumn()
+    {
+        assertThatThrownBy(super::testAddDefaultColumn)
+                .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
+    }
+
+    @Test
+    @Override
+    public void testDropRowFieldWhenDuplicates()
+    {
+        // Iceberg doesn't allow duplicated field names in a row type
+        assertThatThrownBy(super::testDropRowFieldWhenDuplicates)
+                .hasMessage("Field name 'a' specified more than once");
+    }
+
+    @Test
+    @Override
+    public void testDropAmbiguousRowFieldCaseSensitivity()
+    {
+        // Iceberg doesn't allow ambiguous field names in row types
+        assertThatThrownBy(super::testDropAmbiguousRowFieldCaseSensitivity)
+                .hasMessage("Field name 'some_field' specified more than once");
+    }
+
+    @Test
+    @Override
+    public void testSetDefaultColumn()
+    {
+        assertThatThrownBy(super::testSetDefaultColumn)
+                .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
+    }
+
+    @Test
+    @Override
+    public void testDropDefaultColumn()
+    {
+        assertThatThrownBy(super::testDropDefaultColumn)
+                .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
+    }
+
+    @Override
+    protected Optional<SetColumnTypeSetup> filterSetColumnTypesDataProvider(SetColumnTypeSetup setup)
+    {
+        if (setup.sourceColumnType().equals("timestamp(3) with time zone")) {
+            // The connector returns UTC instead of the given time zone
+            return Optional.of(setup.withNewValueLiteral("TIMESTAMP '2020-02-12 14:03:00.123000 +00:00'"));
+        }
+        return switch ("%s -> %s".formatted(setup.sourceColumnType(), setup.newColumnType())) {
+            case "row(x integer) -> row(y integer)" ->
+                // TODO https://github.com/trinodb/trino/issues/15822 The connector returns incorrect NULL when a field in row type doesn't exist in Parquet files
+                Optional.of(setup.withNewValueLiteral("NULL"));
+            case "tinyint -> smallint",
+                 "bigint -> integer",
+                 "decimal(5,3) -> decimal(5,2)",
+                 "varchar -> char(20)",
+                 "time(6) -> time(3)",
+                 "timestamp(6) -> timestamp(3)",
+                 "array(integer) -> array(bigint)" ->
+                // Iceberg allows updating column types if the update is safe. Safe updates are:
+                // - int to bigint
+                // - float to double
+                // - decimal(P,S) to decimal(P2,S) when P2 > P (scale cannot change)
+                // https://iceberg.apache.org/docs/latest/spark-ddl/#alter-table--alter-column
+                Optional.of(setup.asUnsupported());
+            case "varchar(100) -> varchar(50)" ->
+                // Iceberg connector ignores the varchar length
+                Optional.empty();
+            default -> Optional.of(setup);
+        };
+    }
+
+    @Override
+    protected void verifySetColumnTypeFailurePermissible(Throwable e)
+    {
+        assertThat(e).hasMessageMatching(".*(Failed to set column type: Cannot change (column type:|type from .* to )" +
+                "|Time(stamp)? precision \\(3\\) not supported for Iceberg. Use \"time(stamp)?\\(6\\)\" instead" +
+                "|Type not supported for Iceberg: smallint|char\\(20\\)).*");
+    }
+
+    @Override
+    protected Optional<SetColumnTypeSetup> filterSetFieldTypesDataProvider(SetColumnTypeSetup setup)
+    {
+        return switch ("%s -> %s".formatted(setup.sourceColumnType(), setup.newColumnType())) {
+            case "tinyint -> smallint",
+                 "bigint -> integer",
+                 "decimal(5,3) -> decimal(5,2)",
+                 "varchar -> char(20)",
+                 "time(6) -> time(3)",
+                 "timestamp(6) -> timestamp(3)",
+                 "array(integer) -> array(bigint)",
+                 "row(x integer) -> row(x bigint)",
+                 "row(x integer) -> row(y integer)",
+                 "row(x integer, y integer) -> row(x integer, z integer)",
+                 "row(x integer) -> row(x integer, y integer)",
+                 "row(x integer, y integer) -> row(x integer)",
+                 "row(x integer, y integer) -> row(y integer, x integer)",
+                 "row(x integer, y integer) -> row(z integer, y integer, x integer)",
+                 "row(x row(nested integer)) -> row(x row(nested bigint))",
+                 "row(x row(a integer, b integer)) -> row(x row(b integer, a integer))" ->
+                // Iceberg allows updating column types if the update is safe. Safe updates are:
+                // - int to bigint
+                // - float to double
+                // - decimal(P,S) to decimal(P2,S) when P2 > P (scale cannot change)
+                // https://iceberg.apache.org/docs/latest/spark-ddl/#alter-table--alter-column
+                Optional.of(setup.asUnsupported());
+            case "varchar(100) -> varchar(50)" ->
+                // Iceberg connector ignores the varchar length
+                Optional.empty();
+            default -> Optional.of(setup);
+        };
+    }
+
+    @Test
+    @Override
+    public void testSetFieldMapKeyType()
+    {
+        // Iceberg doesn't support change a map 'key' column. Only map values can be changed.
+        assertThatThrownBy(super::testSetFieldMapKeyType)
+                .hasMessageContaining("Failed to set field type: Cannot alter map keys");
+    }
+
+    @Test
+    @Override
+    public void testSetNestedFieldMapKeyType()
+    {
+        // Iceberg doesn't support change a map 'key' column. Only map values can be changed.
+        assertThatThrownBy(super::testSetNestedFieldMapKeyType)
+                .hasMessageContaining("Failed to set field type: Cannot alter map keys");
+    }
+
+    @Override
+    protected void verifySetFieldTypeFailurePermissible(Throwable e)
+    {
+        assertThat(e).hasMessageMatching(".*(Failed to set field type: Cannot change (column type:|type from .* to )" +
+                "|Time(stamp)? precision \\(3\\) not supported for Iceberg. Use \"time(stamp)?\\(6\\)\" instead" +
+                "|Type not supported for Iceberg: smallint|char\\(20\\)" +
+                "|Iceberg doesn't support changing field type (from|to) non-primitive types).*");
+    }
+
+    @Override
+    protected OptionalInt maxSchemaNameLength()
+    {
+        return OptionalInt.of(128);
+    }
+
+    @Override
+    protected void verifySchemaNameLengthFailurePermissible(Throwable e)
+    {
+        assertThat(e).hasMessageMatching("Schema name must be shorter than or equal to '128' characters but got '129'");
+    }
+
+    @Override
+    protected OptionalInt maxTableNameLength()
+    {
+        return OptionalInt.of(128);
+    }
+
+    @Override
+    protected void verifyTableNameLengthFailurePermissible(Throwable e)
+    {
+        assertThat(e).hasMessageMatching(".*Table name must be shorter than or equal to '128' characters but got .*");
+    }
+
+    @Test
+    @Override
+    public void testCreateTableWithDefaultColumn()
+    {
+        String tableName = "test_default_value_" + randomNameSuffix();
+        assertThatThrownBy(() -> assertUpdate("CREATE TABLE " + tableName + " (x int DEFAULT 1)"))
+                .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
+    }
+
+    @Test
+    @Override
+    public void testInsertDefaultNullIntoNotNullColumn()
+    {
+        assertThatThrownBy(super::testInsertDefaultNullIntoNotNullColumn)
+                .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
+    }
+
+    @Override
+    protected TestTable createTableWithDefaultColumns()
+    {
+        return abort("WarpSpeed with Iceberg proxied connector does not support column default values");
+    }
+
+    @Override
+    protected String errorMessageForInsertIntoNotNullColumn(String columnName)
+    {
+        return "NULL value not allowed for NOT NULL column: " + columnName;
+    }
+
+    @Override
+    protected void verifyConcurrentUpdateFailurePermissible(Exception e)
+    {
+        assertThat(e).hasMessageMatching("Failed to commit the transaction during write.*|" +
+                "Failed to commit during write.*");
+    }
+
+    @Override
+    protected void verifyConcurrentAddColumnFailurePermissible(Exception e)
+    {
+        assertThat(e)
+                .hasMessageStartingWith("Failed to add column: Failed to replace table due to concurrent updates")
+                .rootCause()
+                .hasMessageContaining("Cannot update Iceberg table: supplied previous location does not match current location");
+    }
+
+    @Override
+    protected Optional<DataMappingTestSetup> filterDataMappingSmokeTestData(DataMappingTestSetup dataMappingTestSetup)
+    {
+        String typeName = dataMappingTestSetup.getTrinoTypeName();
+        if (typeName.equals("char(3)")) {
+            // Use explicitly padded literal in char mapping test due to whitespace padding on coercion to varchar
+            return Optional.of(new DataMappingTestSetup(typeName, "'ab '", dataMappingTestSetup.getHighValueLiteral()));
+        }
+        return Optional.of(dataMappingTestSetup);
+    }
+
+    @Test
+    @Override
+    public void testMergeWithDefaultColumnValue()
+    {
+        assertThatThrownBy(super::testMergeWithDefaultColumnValue)
+                .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
+    }
+
+    @Test
+    @Override
+    public void testMergeDefaultNullIntoNotNullColumn()
+    {
+        assertThatThrownBy(super::testMergeDefaultNullIntoNotNullColumn)
+                .hasMessageContaining("Default column values are not supported for Iceberg table format version < 3");
+    }
+
+    @Override
+    protected Session withoutSmallFileThreshold(Session session)
+    {
+        return Session.builder(session)
+                .setCatalogSessionProperty(getSession().getCatalog().orElseThrow(), "parquet_small_file_threshold", "0B")
+                .setCatalogSessionProperty(getSession().getCatalog().orElseThrow(), "orc_tiny_stripe_threshold", "0B")
+                .build();
+    }
+}
