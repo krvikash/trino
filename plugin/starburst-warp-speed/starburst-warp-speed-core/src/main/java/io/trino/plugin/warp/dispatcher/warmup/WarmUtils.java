@@ -51,7 +51,11 @@ public class WarmUtils
         Boolean sessionEnabled = WarpSessionProperties.getEnableImportExport(session);
         return sessionEnabled != null ? sessionEnabled :
                 globalConfig.getEnableImportExport() &&
-                        cloudVendorConfig.getStoreType() != StoreType.LOCAL;
+                        cloudVendorConfig.getStoreType() != StoreType.LOCAL &&
+                        // there are currently no known customers using WarpSpeed on GCS,
+                        // the feature lacks sufficient test coverage on that platform,
+                        // and due to limited resources it was decided to leave it disabled until there is actual demand.
+                        cloudVendorConfig.getStoreType() != StoreType.GS;
     }
 
     public static String getRowGroupStorageObjectName(RowGroupKey rowGroupKey, String path)
