@@ -17,8 +17,17 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.http.server.HttpServer;
+import io.airlift.http.server.HttpServerInfo;
+import io.airlift.log.Logger;
 import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
+import io.trino.plugin.warp.util.UriUtils;
 import io.trino.plugin.warp.util.WarpInitializedServiceMarker;
+import io.trino.spi.NodeManager;
+
+import java.net.URI;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static java.util.Objects.requireNonNull;
 
@@ -26,23 +35,47 @@ import static java.util.Objects.requireNonNull;
 public class HttpServerLifeCycleHandler
         implements WarpInitializedServiceMarker
 {
+    private static final Logger logger = Logger.get(HttpServerLifeCycleHandler.class);
+
+    private static final Map<Integer, Integer> trinoToWarpPort = new ConcurrentHashMap<>();
+
     private final HttpServer httpServer;
     private final LifeCycleManager lifeCycleManager;
 
     @Inject
     public HttpServerLifeCycleHandler(
             HttpServer httpServer,
+            HttpServerInfo httpServerInfo,
             LifeCycleManager lifeCycleManager,
+            NodeManager nodeManager,
             WarpInitializedServiceRegistry warpInitializedServiceRegistry)
     {
         this.httpServer = requireNonNull(httpServer);
         this.lifeCycleManager = requireNonNull(lifeCycleManager);
         warpInitializedServiceRegistry.addService(this);
+
+        URI httpUri = httpServerInfo.getHttpUri();
+        if (httpUri != null) {
+            int warpPort = httpUri.getPort();
+            int trinoPort = UriUtils.getHttpUri(nodeManager.getCurrentNode()).getPort();
+            registerWarpRestPort(trinoPort, warpPort);
+            logger.info("Warp extension HTTP server bound to port %d (Trino port %d)", warpPort, trinoPort);
+        }
     }
 
     @Override
     public void init()
     {
         lifeCycleManager.addInstance(httpServer);
+    }
+
+    public static void registerWarpRestPort(int trinoPort, int warpPort)
+    {
+        trinoToWarpPort.put(trinoPort, warpPort);
+    }
+
+    public static Optional<Integer> getWarpRestPort(int trinoPort)
+    {
+        return Optional.ofNullable(trinoToWarpPort.get(trinoPort));
     }
 }

@@ -24,7 +24,6 @@ import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
 import io.trino.plugin.warp.proxiedconnector.deltalake.DeltaLakeProxiedConnectorInitializer;
 import io.trino.plugin.warp.proxiedconnector.hive.HiveProxiedConnectorInitializer;
 import io.trino.plugin.warp.proxiedconnector.iceberg.IcebergProxiedConnectorInitializer;
-import io.trino.plugin.warp.util.UriUtils;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
@@ -68,9 +67,7 @@ public class WarpConnectorFactory
         WarpExtensionConfig warpExtensionConfig = configFactory.build(WarpExtensionConfig.class);
 
         if (!warpExtensionConfig.isUseHttpServerPort()) {
-            String httpRestPortStr = WarpClient.getRestHttpPortStr(
-                    warpExtensionConfig,
-                    UriUtils.getHttpUri(context.getNodeManager().getCurrentNode()).getPort());
+            String httpRestPortStr = WarpClient.getRestHttpPortStr(warpExtensionConfig);
 
             configMap.put("http-server.http.port", httpRestPortStr);
             if (!configMap.containsKey(WarpExtensionConfig.HTTP_REST_PORT)) {

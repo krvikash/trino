@@ -33,6 +33,7 @@ import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.impl.DefaultJwtBuilder;
 import io.jsonwebtoken.jackson.io.JacksonSerializer;
 import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
+import io.trino.plugin.warp.extension.di.HttpServerLifeCycleHandler;
 import io.trino.spi.catalog.CatalogName;
 
 import java.io.IOException;
@@ -174,7 +175,11 @@ public class WarpClient
             throw new RuntimeException(e);
         }
         if (!warpExtensionConfig.isUseHttpServerPort()) {
-            restPort = getRestHttpPort(warpExtensionConfig, nodeUri.getPort());
+            restPort = HttpServerLifeCycleHandler.getWarpRestPort(restPort)
+                    .orElse(getRestHttpPort(warpExtensionConfig));
+            if (restPort == 0) {
+                throw new IllegalStateException("Warp REST port is not configured");
+            }
         }
         HttpUriBuilder uriBuilder = HttpUriBuilder.uriBuilderFrom(nodeUri)
                 .port(restPort);
@@ -193,20 +198,16 @@ public class WarpClient
         jwtBuilder.ifPresent(jwtBuilderSupplier -> builder.addHeader("X-Trino-Internal-Bearer", jwtBuilderSupplier.get().compact()));
     }
 
-    public static int getRestHttpPort(WarpExtensionConfig warpExtensionConfig, int nodePort)
+    public static int getRestHttpPort(WarpExtensionConfig warpExtensionConfig)
     {
-        return Integer.parseInt(getRestHttpPortStr(warpExtensionConfig, nodePort));
+        return Integer.parseInt(getRestHttpPortStr(warpExtensionConfig));
     }
 
-    public static String getRestHttpPortStr(WarpExtensionConfig warpExtensionConfig, int nodePort)
+    public static String getRestHttpPortStr(WarpExtensionConfig warpExtensionConfig)
     {
-        String restPort = String.valueOf(warpExtensionConfig.getRestHttpPort());
-
-        if (!warpExtensionConfig.isUseHttpServerPort()) {
-            if (!warpExtensionConfig.isRestHttpDefaultPortEnabled()) {
-                restPort = String.valueOf(nodePort + 1);
-            }
+        if (!warpExtensionConfig.isUseHttpServerPort() && !warpExtensionConfig.isRestHttpDefaultPortEnabled()) {
+            return "0";
         }
-        return restPort;
+        return String.valueOf(warpExtensionConfig.getRestHttpPort());
     }
 }

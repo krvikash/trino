@@ -22,6 +22,7 @@ import io.airlift.http.client.jetty.JettyHttpClient;
 import io.airlift.json.ObjectMapperProvider;
 import io.airlift.log.Logger;
 import io.trino.Session;
+import io.trino.plugin.warp.extension.di.HttpServerLifeCycleHandler;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.MaterializedResult;
@@ -194,7 +195,9 @@ public abstract class WarpAbstractTestQueryFramework
             case WORKER -> baseUrl = ((DistributedQueryRunner) getQueryRunner()).getServers().getFirst().getBaseUrl();
             default -> throw new RuntimeException("unknown option " + target);
         }
-        int port = baseUrl.getPort() + target.shiftPort;
+        int trinoPort = baseUrl.getPort();
+        int port = HttpServerLifeCycleHandler.getWarpRestPort(trinoPort)
+                .orElseThrow(() -> new IllegalStateException("No warp REST port registered for Trino port " + trinoPort));
 
         prefix = prefix.endsWith("/") ? prefix : prefix + "/";
         prefix = prefix.startsWith("/") ? prefix : "/" + prefix;
@@ -232,15 +235,8 @@ public abstract class WarpAbstractTestQueryFramework
 
     public enum Target
     {
-        COORDINATOR(1),
-        WORKER(1),
-        CACHE_MGR(3);
-
-        private final int shiftPort;
-
-        Target(int shiftPort)
-        {
-            this.shiftPort = shiftPort;
-        }
+        COORDINATOR,
+        WORKER,
+        CACHE_MGR;
     }
 }

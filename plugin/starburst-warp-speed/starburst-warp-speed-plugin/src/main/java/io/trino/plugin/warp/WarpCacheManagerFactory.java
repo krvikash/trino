@@ -58,7 +58,7 @@ public class WarpCacheManagerFactory
         WarpExtensionConfig warpExtensionConfig = configFactory.build(WarpExtensionConfig.class);
 
         if (!warpExtensionConfig.isUseHttpServerPort()) {
-            String httpRestPortStr = WarpClient.getRestHttpPortStr(warpExtensionConfig, -1);
+            String httpRestPortStr = WarpClient.getRestHttpPortStr(warpExtensionConfig);
 
             configMap.put("http-server.http.port", httpRestPortStr);
             if (!configMap.containsKey(WarpExtensionConfig.HTTP_REST_PORT)) {

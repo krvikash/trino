@@ -99,16 +99,7 @@ public class DispatcherQueryRunner
                 .put("warp-speed.objectstore.warmup.fetch.delay.duration", "1s")
                 .put("warp-speed.config.pre-alloc-memory-size-mb", "0")
                 .buildOrThrow();
-        QueryRunner queryRunner;
-        try {
-            queryRunner = createQueryRunner(storageEngineModule, optionalProxyModule, additionalCatalogConfig, connectorName, catalogName, numOfNodes, coordinatorProperties, proxiedPlugin, extraConfigProperties);
-        }
-        catch (Exception io) {
-            logger.error(io, "probably port already in use");
-            queryRunner = createQueryRunner(storageEngineModule, optionalProxyModule, additionalCatalogConfig, connectorName, catalogName, numOfNodes, coordinatorProperties, proxiedPlugin, extraConfigProperties);
-            logger.info("GOOD FOR US - MANAGED TO RETRY AFTER 'Failed to bind' exception");
-        }
-        return queryRunner;
+        return createQueryRunner(storageEngineModule, optionalProxyModule, additionalCatalogConfig, connectorName, catalogName, numOfNodes, coordinatorProperties, proxiedPlugin, extraConfigProperties);
     }
 
     private static QueryRunner createQueryRunner(Module storageEngineModule,
