@@ -144,6 +144,7 @@
         <module>service/trino-proxy</module>
         <module>service/trino-verifier</module>
         <module>starburst-buffer-service</module>
+        <module>testing/starburst-spi-tests</module>
         <module>testing/starburst-tests-odbc</module>
         <module>testing/starburst-trino-testing</module>
         <module>testing/trino-benchmark-queries</module>
