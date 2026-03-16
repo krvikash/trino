@@ -11,6 +11,7 @@ package io.starburst.schema.discovery.processor.filetracker;
 
 import io.starburst.schema.discovery.formats.lakehouse.LakehouseFormat;
 import io.starburst.schema.discovery.options.GeneralOptions;
+import io.starburst.schema.discovery.processor.Processor.ProcessorPath;
 import io.trino.filesystem.Location;
 
 import java.util.Map;
@@ -47,7 +48,7 @@ final class PartitionedDiscoveryFileTracker
     }
 
     @Override
-    public SampleFileResult getNextSampleFileForTable(Location directoryPath, Location filePath, Optional<LakehouseFormat> lakehouseFormat)
+    public Optional<ProcessorPath> getNextSampleFileForTable(Location directoryPath, Location filePath, Optional<LakehouseFormat> lakehouseFormat)
     {
         AtomicInteger fileIndex = potentialTableFileCount.computeIfAbsent(directoryPath, __ -> new AtomicInteger());
         return getNextSampleFile(filePath, lakehouseFormat, fileIndex);

@@ -22,7 +22,6 @@ import io.starburst.schema.discovery.options.GeneralOptions;
 import io.starburst.schema.discovery.options.OptionsMap;
 import io.starburst.schema.discovery.processor.Processor.ProcessorPath;
 import io.starburst.schema.discovery.processor.filetracker.FileTracker;
-import io.starburst.schema.discovery.processor.filetracker.FileTracker.SampleFileResult;
 import io.trino.filesystem.FileEntry;
 import io.trino.filesystem.FileIterator;
 import io.trino.filesystem.Location;
@@ -105,8 +104,7 @@ public class SampleFilesCrawler
                 .takeWhile(ignore -> !fileTracker.hasEnoughSampledTables(directory))
                 .filter(file -> file.length() > 0 && filter.test(file.location()))
                 .filter(file -> !fileTracker.hasEnoughSamplesForTable(file.location().parentDirectory()))
-                .map(file -> getNextValidSampleFile(file.location()))
-                .flatMap(sampleFileResult -> sampleFileResult.filePath().stream())
+                .flatMap(file -> getNextValidSampleFile(file.location()).stream())
                 .forEach(sampleFiles::add);
 
         return LakehouseUtil.applyDeltaLakeFormatMatch(root, sampleFiles.build());
@@ -150,8 +148,7 @@ public class SampleFilesCrawler
             createFileEntryStream(parent)
                     .filter(file -> file.length() > 0 && filter.test(file.location()))
                     .filter(file -> !fileTracker.hasEnoughSamplesForTable(file.location().parentDirectory()))
-                    .map(file -> getNextValidSampleFile(file.location()))
-                    .flatMap(sampleFileResult -> sampleFileResult.filePath().stream())
+                    .flatMap(file -> getNextValidSampleFile(file.location()).stream())
                     .forEach(sampleFiles::add);
         }
 
@@ -188,12 +185,12 @@ public class SampleFilesCrawler
         });
     }
 
-    private SampleFileResult getNextValidSampleFile(Location path)
+    private Optional<ProcessorPath> getNextValidSampleFile(Location path)
     {
         Optional<LakehouseFormat> lakehouseFormat = LakehouseUtil.checkIcebergFormatMatch(path);
         Location potentialTablePath = lakehouseFormat.map(LakehouseFormat::path).orElseGet(path::parentDirectory);
         if (fileTracker.shouldStopAddingTables(potentialTablePath)) {
-            return SampleFileResult.enoughSamples();
+            return Optional.empty();
         }
         return fileTracker.getNextSampleFileForTable(potentialTablePath, path, lakehouseFormat);
     }

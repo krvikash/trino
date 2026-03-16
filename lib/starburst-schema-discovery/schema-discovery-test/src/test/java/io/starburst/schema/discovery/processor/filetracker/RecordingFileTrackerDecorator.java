@@ -11,6 +11,7 @@ package io.starburst.schema.discovery.processor.filetracker;
 
 import com.google.common.collect.ImmutableSet;
 import io.starburst.schema.discovery.formats.lakehouse.LakehouseFormat;
+import io.starburst.schema.discovery.processor.Processor.ProcessorPath;
 import io.trino.filesystem.Location;
 
 import java.util.Optional;
@@ -49,7 +50,7 @@ public class RecordingFileTrackerDecorator
     }
 
     @Override
-    public SampleFileResult getNextSampleFileForTable(Location directoryPath, Location filePath, Optional<LakehouseFormat> lakehouseFormat)
+    public Optional<ProcessorPath> getNextSampleFileForTable(Location directoryPath, Location filePath, Optional<LakehouseFormat> lakehouseFormat)
     {
         recordedPaths.add(filePath);
         return delegate.getNextSampleFileForTable(directoryPath, filePath, lakehouseFormat);

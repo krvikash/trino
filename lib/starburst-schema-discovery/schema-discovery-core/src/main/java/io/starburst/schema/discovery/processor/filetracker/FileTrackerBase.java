@@ -18,9 +18,6 @@ import io.trino.filesystem.Location;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.starburst.schema.discovery.processor.filetracker.FileTracker.SampleFileResult.enoughSamples;
-import static io.starburst.schema.discovery.processor.filetracker.FileTracker.SampleFileResult.notEnoughSamples;
-import static io.starburst.schema.discovery.processor.filetracker.FileTracker.SampleFileResult.sampleFile;
 import static java.util.Objects.requireNonNull;
 
 abstract sealed class FileTrackerBase
@@ -43,21 +40,21 @@ abstract sealed class FileTrackerBase
         return includedFilesCount >= generalOptions.maxSampleFilesPerTable();
     }
 
-    protected SampleFileResult getNextSampleFile(Location path, Optional<LakehouseFormat> lakehouseFormat, AtomicInteger fileIndex)
+    protected Optional<ProcessorPath> getNextSampleFile(Location path, Optional<LakehouseFormat> lakehouseFormat, AtomicInteger fileIndex)
     {
         if (LakehouseUtil.deltaLakeParent(root, path).isPresent()) {
-            return sampleFile(new ProcessorPath(path, Optional.empty()));
+            return Optional.of(new ProcessorPath(path, Optional.empty()));
         }
         int fIndex = fileIndex.getAndIncrement();
         if ((fIndex == 0) || ((fIndex % generalOptions.sampleFilesPerTableModulo()) == 0)) {    // always sample the first file in case there aren't enough
             int includedFilesCount = fIndex / generalOptions.sampleFilesPerTableModulo();
             if (includedFilesCount < generalOptions.maxSampleFilesPerTable()) {
-                return sampleFile(new ProcessorPath(lakehouseFormat.map(LakehouseFormat::path).orElse(path), lakehouseFormat));
+                return Optional.of(new ProcessorPath(lakehouseFormat.map(LakehouseFormat::path).orElse(path), lakehouseFormat));
             }
             else {
-                return enoughSamples();
+                return Optional.empty();
             }
         }
-        return notEnoughSamples();
+        return Optional.empty();
     }
 }

@@ -12,6 +12,7 @@ package io.starburst.schema.discovery.processor.filetracker;
 import io.starburst.schema.discovery.formats.lakehouse.LakehouseFormat;
 import io.starburst.schema.discovery.formats.lakehouse.LakehouseUtil;
 import io.starburst.schema.discovery.options.GeneralOptions;
+import io.starburst.schema.discovery.processor.Processor.ProcessorPath;
 import io.trino.filesystem.Location;
 
 import java.util.Map;
@@ -57,7 +58,7 @@ final class RecursiveDirectoriesFileTracker
     }
 
     @Override
-    public SampleFileResult getNextSampleFileForTable(Location directoryPath, Location filePath, Optional<LakehouseFormat> lakehouseFormat)
+    public Optional<ProcessorPath> getNextSampleFileForTable(Location directoryPath, Location filePath, Optional<LakehouseFormat> lakehouseFormat)
     {
         Location recursiveTablePath = getPathClosestToRoot(directoryPath);
         AtomicInteger fileIndex = recursiveTableFileCount.computeIfAbsent(recursiveTablePath, __ -> new AtomicInteger());
