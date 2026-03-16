@@ -50,6 +50,7 @@ import io.trino.sql.planner.plan.Assignments;
 import io.trino.sql.planner.plan.DataOrganizationSpecification;
 import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.DynamicFilterSourceNode;
+import io.trino.sql.planner.plan.EnforceSingleRowNode;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.ExplainAnalyzeNode;
 import io.trino.sql.planner.plan.FilterNode;
@@ -262,6 +263,13 @@ class TestToOldIrRelationalRewriter
     {
         FilterNode filterNode = new FilterNode(new PlanNodeId("0"), VALUES_NODE, new Reference(BOOLEAN, "b"));
         assertRoundtrip(filterNode);
+    }
+
+    @Test
+    public void testEnforceSingleRow()
+    {
+        EnforceSingleRowNode enforceSingleRowNode = new EnforceSingleRowNode(new PlanNodeId("0"), VALUES_NODE);
+        assertRoundtrip(enforceSingleRowNode);
     }
 
     @Test

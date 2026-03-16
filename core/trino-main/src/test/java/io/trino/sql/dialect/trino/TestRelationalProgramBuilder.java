@@ -37,6 +37,7 @@ import io.trino.sql.dialect.trino.operation.Comparison;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.CorrelatedJoin;
 import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
+import io.trino.sql.dialect.trino.operation.EnforceSingleRow;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.ExplainAnalyze;
 import io.trino.sql.dialect.trino.operation.FieldReference;
@@ -79,6 +80,7 @@ import io.trino.sql.planner.plan.CorrelatedJoinNode;
 import io.trino.sql.planner.plan.DataOrganizationSpecification;
 import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.DynamicFilterSourceNode;
+import io.trino.sql.planner.plan.EnforceSingleRowNode;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.ExplainAnalyzeNode;
 import io.trino.sql.planner.plan.FilterNode;
@@ -829,6 +831,27 @@ final class TestRelationalProgramBuilder
         assertProgram(
                 filterNode,
                 ImmutableList.of(VALUES_OPERATION, filterOperation),
+                new MultisetType(anonymousRow(BIGINT, BOOLEAN)),
+                ImmutableMap.of(
+                        new Symbol(BIGINT, "a"), 0,
+                        new Symbol(BOOLEAN, "b"), 1));
+    }
+
+    @Test
+    public void testEnforceSingleRow()
+    {
+        EnforceSingleRowNode enforceSingleRowNode = new EnforceSingleRowNode(
+                new PlanNodeId("enforce_single_row"),
+                VALUES_NODE);
+
+        EnforceSingleRow enforceSingleRowOperation = new EnforceSingleRow(
+                "%9",
+                VALUES_OPERATION.result(),
+                VALUES_OPERATION.attributes());
+
+        assertProgram(
+                enforceSingleRowNode,
+                ImmutableList.of(VALUES_OPERATION, enforceSingleRowOperation),
                 new MultisetType(anonymousRow(BIGINT, BOOLEAN)),
                 ImmutableMap.of(
                         new Symbol(BIGINT, "a"), 0,

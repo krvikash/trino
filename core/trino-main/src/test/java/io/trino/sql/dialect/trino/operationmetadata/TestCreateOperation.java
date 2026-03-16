@@ -43,6 +43,7 @@ import io.trino.sql.dialect.trino.operation.Comparison;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.CorrelatedJoin;
 import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
+import io.trino.sql.dialect.trino.operation.EnforceSingleRow;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.ExplainAnalyze;
 import io.trino.sql.dialect.trino.operation.FieldReference;
@@ -1394,6 +1395,47 @@ class TestCreateOperation
                         new AttributeKey(IR, "safe"), true,
                         new AttributeKey(IR, "has_side_effects"), false)))
                 .hasMessage("type is null");
+    }
+
+    @Test
+    public void testEnforceSingleRow()
+    {
+        EnforceSingleRow enforceSingleRowOperation = new EnforceSingleRow(
+                "%9",
+                VALUES_OPERATION.result(),
+                VALUES_OPERATION.attributes());
+
+        Operation actualEnforceSingleRowOperation = TESTING_TRINO_DIALECT.createOperation(
+                EnforceSingleRowOperationMetadata.NAME,
+                "%9",
+                ImmutableList.of(VALUES_OPERATION.result()),
+                ImmutableList.of(),
+                ImmutableMap.of(
+                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
+                        // note: EnforceSingleRow can fail with SUBQUERY_MULTIPLE_ROWS, so it is not safe.
+                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
+                        new AttributeKey(IR, "has_side_effects"), false));
+
+        assertThat(actualEnforceSingleRowOperation).isEqualTo(enforceSingleRowOperation);
+        assertThat(actualEnforceSingleRowOperation.result().type()).isEqualTo(VALUES_OPERATION.result().type());
+
+        // wrong argument count
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                EnforceSingleRowOperationMetadata.NAME,
+                "%9",
+                ImmutableList.of(),
+                ImmutableList.of(),
+                ImmutableMap.of()))
+                .hasMessage("EnforceSingleRow operation must have exactly one argument: the input relation");
+
+        // wrong region count
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                EnforceSingleRowOperationMetadata.NAME,
+                "%9",
+                ImmutableList.of(VALUES_OPERATION.result()),
+                ImmutableList.of(SOME_REGION),
+                ImmutableMap.of()))
+                .hasMessage("EnforceSingleRow operation must have no regions");
     }
 
     @Test

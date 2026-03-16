@@ -27,6 +27,7 @@ import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operation.AggregateCall;
 import io.trino.sql.dialect.trino.operation.Aggregation;
 import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
+import io.trino.sql.dialect.trino.operation.EnforceSingleRow;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.ExplainAnalyze;
 import io.trino.sql.dialect.trino.operation.Filter;
@@ -76,6 +77,7 @@ import io.trino.sql.planner.plan.Assignments;
 import io.trino.sql.planner.plan.DataOrganizationSpecification;
 import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.DynamicFilterSourceNode;
+import io.trino.sql.planner.plan.EnforceSingleRowNode;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.ExplainAnalyzeNode;
 import io.trino.sql.planner.plan.FilterNode;
@@ -288,6 +290,16 @@ public class ToOldIrRelationalRewriter
                 planNodeIdAllocator.getNextId(),
                 source,
                 dynamicFilters.buildOrThrow());
+    }
+
+    @Override
+    public PlanNode visitEnforceSingleRow(EnforceSingleRow enforceSingleRow, List<PlanNode> sources)
+    {
+        PlanNode source = getOnlyElement(sources);
+
+        return new EnforceSingleRowNode(
+                planNodeIdAllocator.getNextId(),
+                source);
     }
 
     @Override

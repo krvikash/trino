@@ -38,6 +38,7 @@ import io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.CorrelatedJoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.DynamicFilterSourceOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.EnforceSingleRowOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ExplainAnalyzeOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.FieldReferenceOperationMetadata;
@@ -288,6 +289,7 @@ public final class TrinoDialect
                 new ComparisonOperationMetadata(),
                 new CorrelatedJoinOperationMetadata(),
                 new DynamicFilterSourceOperationMetadata(),
+                new EnforceSingleRowOperationMetadata(),
                 new ExplainAnalyzeOperationMetadata(),
                 new FieldReferenceOperationMetadata(),
                 new FilterOperationMetadata(),

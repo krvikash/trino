@@ -26,6 +26,7 @@ import io.trino.sql.dialect.trino.operation.Aggregation;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.CorrelatedJoin;
 import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
+import io.trino.sql.dialect.trino.operation.EnforceSingleRow;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.ExplainAnalyze;
 import io.trino.sql.dialect.trino.operation.FieldReference;
@@ -65,6 +66,7 @@ import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.CorrelatedJoinNode;
 import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.DynamicFilterSourceNode;
+import io.trino.sql.planner.plan.EnforceSingleRowNode;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.ExplainAnalyzeNode;
 import io.trino.sql.planner.plan.FilterNode;
@@ -330,6 +332,18 @@ public class RelationalProgramBuilder
         Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(dynamicFilterSource.result().type())), node.getOutputSymbols());
         context.block().addOperation(dynamicFilterSource);
         return new OperationAndMapping(dynamicFilterSource, outputMapping);
+    }
+
+    @Override
+    public OperationAndMapping visitEnforceSingleRow(EnforceSingleRowNode node, Context context)
+    {
+        OperationAndMapping input = node.getSource().accept(this, context);
+        String resultName = nameAllocator.newName();
+
+        EnforceSingleRow enforceSingleRow = new EnforceSingleRow(resultName, input.operation().result(), input.operation().attributes());
+        Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(enforceSingleRow.result().type())), node.getOutputSymbols());
+        context.block().addOperation(enforceSingleRow);
+        return new OperationAndMapping(enforceSingleRow, outputMapping);
     }
 
     @Override
