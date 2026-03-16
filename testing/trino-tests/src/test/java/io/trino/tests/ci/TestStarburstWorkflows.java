@@ -30,6 +30,7 @@ import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import static com.google.common.base.Verify.verify;
 import static com.google.common.base.Verify.verifyNotNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
@@ -67,11 +68,15 @@ public class TestStarburstWorkflows
                 }
 
                 Object runsOn = job.get("runs-on");
-                verifyNotNull(runsOn, "No runs-on for job %s".formatted(jobName));
-                assertThat(runsOn.toString()).as("runs-on for job %s", jobName)
-                        .contains("self-hosted")
-                        .contains("latest") // optionally could be something like "v3"
-                        .contains("gha-fleet-ec2-");
+                if (runsOn == null) {
+                    verify(job.containsKey("uses"), "No runs-on for job %s", jobName);
+                }
+                else {
+                    assertThat(runsOn.toString()).as("runs-on for job %s", jobName)
+                            .contains("self-hosted")
+                            .contains("latest")
+                            .contains("gha-fleet-ec2-");
+                }
             });
         }
         catch (AssertionError | Exception e) {

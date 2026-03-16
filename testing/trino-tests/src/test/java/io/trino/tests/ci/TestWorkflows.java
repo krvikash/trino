@@ -72,7 +72,15 @@ public class TestWorkflows
             jobs.forEach((jobName, jobDefinition) -> {
                 Map<?, ?> job = (Map<?, ?>) jobDefinition;
 
-                List<?> steps = getList(job, "steps");
+                if (job.containsKey("uses")) {
+                    // Reusable workflow call — validate the workflow reference is safe
+                    String uses = getString(job, "uses");
+                    if (!isSafeActionReference(uses)) {
+                        errors.add("Unsafe reusable workflow reference in %s » %s: %s".formatted(path, jobName, uses));
+                    }
+                }
+
+                List<?> steps = (List<?>) firstNonNull(job.get("steps"), List.of());
                 for (int stepPosition = 0; stepPosition < steps.size(); stepPosition++) {
                     Map<?, ?> step = (Map<?, ?>) steps.get(stepPosition);
                     String stepName = firstNonNull((String) step.get("name"), "Step #" + stepPosition);
