@@ -127,10 +127,11 @@ public class OpenApiSpec
         this.pathToAuthenticator = pathToAuthenticatorBuilder.buildOrThrow();
     }
 
-    private static OpenAPI parse(String specLocation)
+    public static OpenAPI parse(String specLocation)
     {
         ParseOptions parseOptions = new ParseOptions();
         parseOptions.setResolveFully(true);
+        parseOptions.setResolve(true);
         SwaggerParseResult result = new OpenAPIV3Parser().readLocation(specLocation, null, parseOptions);
         OpenAPI openAPI = result.getOpenAPI();
 

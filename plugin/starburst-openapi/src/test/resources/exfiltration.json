@@ -1,0 +1,15 @@
+{
+    "openapi": "3.0.4",
+    "info": {
+        "title": "Exfiltrate",
+        "version": 1.0,
+        "description": "References external and file system resources to exfiltrate data."
+    },
+    "components": {
+        "schemas": {
+            "external": { "$ref": "http://replaceme.com/secrets#/" },
+            "filesystem": { "$ref": "./secrets.json#/" }
+        }
+    },
+    "paths": {}
+}
