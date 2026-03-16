@@ -31,10 +31,12 @@ import io.trino.sql.dialect.trino.operation.Aggregation;
 import io.trino.sql.dialect.trino.operation.CorrelatedJoin;
 import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
 import io.trino.sql.dialect.trino.operation.EnforceSingleRow;
+import io.trino.sql.dialect.trino.operation.Except;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.ExplainAnalyze;
 import io.trino.sql.dialect.trino.operation.Filter;
 import io.trino.sql.dialect.trino.operation.GroupId;
+import io.trino.sql.dialect.trino.operation.Intersect;
 import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Limit;
 import io.trino.sql.dialect.trino.operation.Output;
@@ -45,6 +47,7 @@ import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TopN;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
 import io.trino.sql.dialect.trino.operation.TrinoOperationVisitor;
+import io.trino.sql.dialect.trino.operation.Union;
 import io.trino.sql.dialect.trino.operation.Values;
 import io.trino.sql.dialect.trino.operation.Window;
 import io.trino.sql.newir.Block;
@@ -259,6 +262,15 @@ public class NewIrFragmenter
         }
 
         @Override
+        public PlanNode visitExcept(Except operation, FragmentProperties context)
+        {
+            List<PlanNode> rewrittenSources = getSources(operation).stream()
+                    .map(source -> source.accept(this, context))
+                    .collect(toImmutableList());
+            return operation.accept(relationalRewriter, rewrittenSources);
+        }
+
+        @Override
         public PlanNode visitExchange(Exchange operation, FragmentProperties context)
         {
             if (EXCHANGE_SCOPE.getAttribute(operation.attributes()) != REMOTE) {
@@ -403,6 +415,15 @@ public class NewIrFragmenter
         }
 
         @Override
+        public PlanNode visitIntersect(Intersect operation, FragmentProperties context)
+        {
+            List<PlanNode> rewrittenSources = getSources(operation).stream()
+                    .map(source -> source.accept(this, context))
+                    .collect(toImmutableList());
+            return operation.accept(relationalRewriter, rewrittenSources);
+        }
+
+        @Override
         public PlanNode visitJoin(Join operation, FragmentProperties context)
         {
             List<TrinoOperation> sources = getSources(operation);
@@ -468,6 +489,15 @@ public class NewIrFragmenter
             TrinoOperation source = getSource(operation);
             PlanNode rewrittenSource = source.accept(this, context);
             return operation.accept(relationalRewriter, ImmutableList.of(rewrittenSource));
+        }
+
+        @Override
+        public PlanNode visitUnion(Union operation, FragmentProperties context)
+        {
+            List<PlanNode> rewrittenSources = getSources(operation).stream()
+                    .map(source -> source.accept(this, context))
+                    .collect(toImmutableList());
+            return operation.accept(relationalRewriter, rewrittenSources);
         }
 
         @Override

@@ -14,6 +14,7 @@
 package io.trino.sql.planner.newirtoold;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.connector.CatalogHandle;
@@ -51,10 +52,12 @@ import io.trino.sql.planner.plan.DataOrganizationSpecification;
 import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.DynamicFilterSourceNode;
 import io.trino.sql.planner.plan.EnforceSingleRowNode;
+import io.trino.sql.planner.plan.ExceptNode;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.ExplainAnalyzeNode;
 import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.GroupIdNode;
+import io.trino.sql.planner.plan.IntersectNode;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.LimitNode;
 import io.trino.sql.planner.plan.OutputNode;
@@ -63,6 +66,7 @@ import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.planner.plan.SortNode;
 import io.trino.sql.planner.plan.TopNNode;
+import io.trino.sql.planner.plan.UnionNode;
 import io.trino.sql.planner.plan.ValuesNode;
 import io.trino.sql.planner.plan.WindowNode;
 import org.junit.jupiter.api.Test;
@@ -160,6 +164,41 @@ class TestToOldIrRelationalRewriter
                         new DynamicFilterId("second_dynamic_filter"), B,
                         new DynamicFilterId("third_dynamic_filter"), A));
         assertRoundtrip(dynamicFilterSourceNode);
+    }
+
+    @Test
+    public void testExcept()
+    {
+        ExceptNode exceptNode = new ExceptNode(
+                new PlanNodeId("0"),
+                ImmutableList.of(VALUES_NODE, ANOTHER_VALUES_NODE),
+                ImmutableListMultimap.<Symbol, Symbol>builder()
+                        .put(A, A)
+                        .put(A, D)
+                        .put(B, B)
+                        .put(B, C)
+                        .build(),
+                ImmutableList.of(A, B),
+                true);
+        assertRoundtrip(exceptNode);
+
+        // except of two sources with duplicate input symbols
+        Symbol a0 = new Symbol(BIGINT, "a_0");
+        ExceptNode exceptNodeWithDuplicate = new ExceptNode(
+                new PlanNodeId("0"),
+                ImmutableList.of(VALUES_NODE, ANOTHER_VALUES_NODE),
+                ImmutableListMultimap.<Symbol, Symbol>builder()
+                        // the duplicate input symbols "a" from the first source and "d" from the second source are mapped to two distinct output symbols: "a" and "a_0"
+                        .put(A, A)
+                        .put(A, D)
+                        .put(B, B)
+                        .put(B, C)
+                        .put(a0, A)
+                        .put(a0, D)
+                        .build(),
+                ImmutableList.of(A, B, a0),
+                true);
+        assertRoundtrip(exceptNodeWithDuplicate);
     }
 
     @Test
@@ -299,6 +338,41 @@ class TestToOldIrRelationalRewriter
     }
 
     @Test
+    public void testIntersect()
+    {
+        IntersectNode intersectNode = new IntersectNode(
+                new PlanNodeId("0"),
+                ImmutableList.of(VALUES_NODE, ANOTHER_VALUES_NODE),
+                ImmutableListMultimap.<Symbol, Symbol>builder()
+                        .put(A, A)
+                        .put(A, D)
+                        .put(B, B)
+                        .put(B, C)
+                        .build(),
+                ImmutableList.of(A, B),
+                false);
+        assertRoundtrip(intersectNode);
+
+        // intersect of two sources with duplicate input symbols
+        Symbol a0 = new Symbol(BIGINT, "a_0");
+        IntersectNode intersectNodeWithDuplicate = new IntersectNode(
+                new PlanNodeId("0"),
+                ImmutableList.of(VALUES_NODE, ANOTHER_VALUES_NODE),
+                ImmutableListMultimap.<Symbol, Symbol>builder()
+                        // the duplicate input symbols "a" from the first source and "d" from the second source are mapped to two distinct output symbols: "a" and "a_0"
+                        .put(A, A)
+                        .put(A, D)
+                        .put(B, B)
+                        .put(B, C)
+                        .put(a0, A)
+                        .put(a0, D)
+                        .build(),
+                ImmutableList.of(A, B, a0),
+                false);
+        assertRoundtrip(intersectNodeWithDuplicate);
+    }
+
+    @Test
     public void testJoin()
     {
         JoinNode joinNode = new JoinNode(
@@ -435,6 +509,39 @@ class TestToOldIrRelationalRewriter
                 new OrderingScheme(ImmutableList.of(B), ImmutableMap.of(B, DESC_NULLS_FIRST)),
                 TopNNode.Step.SINGLE);
         assertRoundtrip(topNNode);
+    }
+
+    @Test
+    public void testUnion()
+    {
+        UnionNode unionNode = new UnionNode(
+                new PlanNodeId("0"),
+                ImmutableList.of(VALUES_NODE, ANOTHER_VALUES_NODE),
+                ImmutableListMultimap.<Symbol, Symbol>builder()
+                        .put(A, A)
+                        .put(A, D)
+                        .put(B, B)
+                        .put(B, C)
+                        .build(),
+                ImmutableList.of(A, B));
+        assertRoundtrip(unionNode);
+
+        // union of two sources with duplicate input symbols
+        Symbol a0 = new Symbol(BIGINT, "a_0");
+        UnionNode unionNodeWithDuplicate = new UnionNode(
+                new PlanNodeId("0"),
+                ImmutableList.of(VALUES_NODE, ANOTHER_VALUES_NODE),
+                ImmutableListMultimap.<Symbol, Symbol>builder()
+                        // the duplicate input symbols "a" from the first source and "d" from the second source are mapped to two distinct output symbols: "a" and "a_0"
+                        .put(A, A)
+                        .put(A, D)
+                        .put(B, B)
+                        .put(B, C)
+                        .put(a0, A)
+                        .put(a0, D)
+                        .build(),
+                ImmutableList.of(A, B, a0));
+        assertRoundtrip(unionNodeWithDuplicate);
     }
 
     @Test

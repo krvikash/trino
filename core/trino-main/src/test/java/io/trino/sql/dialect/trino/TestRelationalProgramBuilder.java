@@ -14,6 +14,7 @@
 package io.trino.sql.dialect.trino;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.connector.CatalogHandle;
@@ -38,11 +39,13 @@ import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.CorrelatedJoin;
 import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
 import io.trino.sql.dialect.trino.operation.EnforceSingleRow;
+import io.trino.sql.dialect.trino.operation.Except;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.ExplainAnalyze;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.Filter;
 import io.trino.sql.dialect.trino.operation.GroupId;
+import io.trino.sql.dialect.trino.operation.Intersect;
 import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Limit;
 import io.trino.sql.dialect.trino.operation.Output;
@@ -52,6 +55,7 @@ import io.trino.sql.dialect.trino.operation.Row;
 import io.trino.sql.dialect.trino.operation.Sort;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TopN;
+import io.trino.sql.dialect.trino.operation.Union;
 import io.trino.sql.dialect.trino.operation.Values;
 import io.trino.sql.dialect.trino.operation.Window;
 import io.trino.sql.dialect.trino.operation.WindowFunctionCall;
@@ -81,11 +85,13 @@ import io.trino.sql.planner.plan.DataOrganizationSpecification;
 import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.DynamicFilterSourceNode;
 import io.trino.sql.planner.plan.EnforceSingleRowNode;
+import io.trino.sql.planner.plan.ExceptNode;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.ExplainAnalyzeNode;
 import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.FrameBoundType;
 import io.trino.sql.planner.plan.GroupIdNode;
+import io.trino.sql.planner.plan.IntersectNode;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.LimitNode;
 import io.trino.sql.planner.plan.OutputNode;
@@ -95,6 +101,7 @@ import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.planner.plan.SortNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TopNNode;
+import io.trino.sql.planner.plan.UnionNode;
 import io.trino.sql.planner.plan.ValuesNode;
 import io.trino.sql.planner.plan.WindowFrameType;
 import io.trino.sql.planner.plan.WindowNode;
@@ -148,6 +155,9 @@ final class TestRelationalProgramBuilder
     private static final ValuesNode VALUES_NODE = valuesNode();
     private static final Values VALUES_OPERATION = valuesOperation();
     private static final Type VALUES_OPERATION_ROW_TYPE = irType(relationRowType(trinoType(VALUES_OPERATION.result().type())));
+    private static final ValuesNode SECOND_VALUES_NODE = secondValuesNode();
+    private static final Values SECOND_VALUES_OPERATION = secondValuesOperation();
+    private static final Type SECOND_VALUES_OPERATION_ROW_TYPE = irType(relationRowType(trinoType(SECOND_VALUES_OPERATION.result().type())));
     private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
 
     @Test
@@ -467,6 +477,72 @@ final class TestRelationalProgramBuilder
                 ImmutableMap.of(
                         new Symbol(BIGINT, "a"), 0,
                         new Symbol(BOOLEAN, "b"), 1));
+    }
+
+    @Test
+    public void testExcept()
+    {
+        ExceptNode exceptNode = new ExceptNode(
+                new PlanNodeId("except"),
+                ImmutableList.of(VALUES_NODE, SECOND_VALUES_NODE),
+                ImmutableListMultimap.of(
+                        new Symbol(BIGINT, "x"), new Symbol(BIGINT, "a"),
+                        new Symbol(BIGINT, "x"), new Symbol(BIGINT, "d"),
+                        new Symbol(BOOLEAN, "y"), new Symbol(BOOLEAN, "b"),
+                        new Symbol(BOOLEAN, "y"), new Symbol(BOOLEAN, "c")),
+                ImmutableList.of(new Symbol(BIGINT, "x"), new Symbol(BOOLEAN, "y")),
+                true);
+
+        // except input selector for the first source
+        Block.Parameter firstSelectorParameter = new Block.Parameter("%15", VALUES_OPERATION_ROW_TYPE);
+        FieldReference firstSelectorFieldReferenceA = new FieldReference("%16", firstSelectorParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference firstSelectorFieldReferenceB = new FieldReference("%17", firstSelectorParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row firstSelectorRow = new Row(
+                "%18",
+                ImmutableList.of(firstSelectorFieldReferenceA.result(), firstSelectorFieldReferenceB.result()),
+                ImmutableList.of(firstSelectorFieldReferenceA.attributes(), firstSelectorFieldReferenceB.attributes()));
+        Return firstSelectorReturn = new Return("%19", firstSelectorRow.result(), firstSelectorRow.attributes());
+
+        // except input selector for the second source
+        Block.Parameter secondSelectorParameter = new Block.Parameter("%20", SECOND_VALUES_OPERATION_ROW_TYPE);
+        FieldReference secondSelectorFieldReferenceD = new FieldReference("%21", secondSelectorParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondSelectorFieldReferenceC = new FieldReference("%22", secondSelectorParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row secondSelectorRow = new Row(
+                "%23",
+                ImmutableList.of(secondSelectorFieldReferenceD.result(), secondSelectorFieldReferenceC.result()),
+                ImmutableList.of(secondSelectorFieldReferenceD.attributes(), secondSelectorFieldReferenceC.attributes()));
+        Return secondSelectorReturn = new Return("%24", secondSelectorRow.result(), secondSelectorRow.attributes());
+
+        Except exceptOperation = new Except(
+                "%14",
+                ImmutableList.of(VALUES_OPERATION.result(), SECOND_VALUES_OPERATION.result()),
+                ImmutableList.of(
+                        new Block(
+                                Optional.of("^inputSelector"),
+                                ImmutableList.of(firstSelectorParameter),
+                                ImmutableList.of(
+                                        firstSelectorFieldReferenceA,
+                                        firstSelectorFieldReferenceB,
+                                        firstSelectorRow,
+                                        firstSelectorReturn)),
+                        new Block(
+                                Optional.of("^inputSelector"),
+                                ImmutableList.of(secondSelectorParameter),
+                                ImmutableList.of(
+                                        secondSelectorFieldReferenceD,
+                                        secondSelectorFieldReferenceC,
+                                        secondSelectorRow,
+                                        secondSelectorReturn))),
+                true,
+                ImmutableList.of(VALUES_OPERATION.attributes(), SECOND_VALUES_OPERATION.attributes()));
+
+        assertProgram(
+                exceptNode,
+                ImmutableList.of(VALUES_OPERATION, SECOND_VALUES_OPERATION, exceptOperation),
+                new MultisetType(anonymousRow(BIGINT, BOOLEAN)),
+                ImmutableMap.of(
+                        new Symbol(BIGINT, "x"), 0,
+                        new Symbol(BOOLEAN, "y"), 1));
     }
 
     @Test
@@ -929,6 +1005,72 @@ final class TestRelationalProgramBuilder
                         new Symbol(BOOLEAN, "b_gid"), 2,
                         new Symbol(BIGINT, "a"), 3,
                         new Symbol(BIGINT, "groupId"), 4));
+    }
+
+    @Test
+    public void testIntersect()
+    {
+        IntersectNode intersectNode = new IntersectNode(
+                new PlanNodeId("intersect"),
+                ImmutableList.of(VALUES_NODE, SECOND_VALUES_NODE),
+                ImmutableListMultimap.of(
+                        new Symbol(BIGINT, "x"), new Symbol(BIGINT, "a"),
+                        new Symbol(BIGINT, "x"), new Symbol(BIGINT, "d"),
+                        new Symbol(BOOLEAN, "y"), new Symbol(BOOLEAN, "b"),
+                        new Symbol(BOOLEAN, "y"), new Symbol(BOOLEAN, "c")),
+                ImmutableList.of(new Symbol(BIGINT, "x"), new Symbol(BOOLEAN, "y")),
+                false);
+
+        // intersect input selector for the first source
+        Block.Parameter firstSelectorParameter = new Block.Parameter("%15", VALUES_OPERATION_ROW_TYPE);
+        FieldReference firstSelectorFieldReferenceA = new FieldReference("%16", firstSelectorParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference firstSelectorFieldReferenceB = new FieldReference("%17", firstSelectorParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row firstSelectorRow = new Row(
+                "%18",
+                ImmutableList.of(firstSelectorFieldReferenceA.result(), firstSelectorFieldReferenceB.result()),
+                ImmutableList.of(firstSelectorFieldReferenceA.attributes(), firstSelectorFieldReferenceB.attributes()));
+        Return firstSelectorReturn = new Return("%19", firstSelectorRow.result(), firstSelectorRow.attributes());
+
+        // intersect input selector for the second source
+        Block.Parameter secondSelectorParameter = new Block.Parameter("%20", SECOND_VALUES_OPERATION_ROW_TYPE);
+        FieldReference secondSelectorFieldReferenceD = new FieldReference("%21", secondSelectorParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondSelectorFieldReferenceC = new FieldReference("%22", secondSelectorParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row secondSelectorRow = new Row(
+                "%23",
+                ImmutableList.of(secondSelectorFieldReferenceD.result(), secondSelectorFieldReferenceC.result()),
+                ImmutableList.of(secondSelectorFieldReferenceD.attributes(), secondSelectorFieldReferenceC.attributes()));
+        Return secondSelectorReturn = new Return("%24", secondSelectorRow.result(), secondSelectorRow.attributes());
+
+        Intersect intersectOperation = new Intersect(
+                "%14",
+                ImmutableList.of(VALUES_OPERATION.result(), SECOND_VALUES_OPERATION.result()),
+                ImmutableList.of(
+                        new Block(
+                                Optional.of("^inputSelector"),
+                                ImmutableList.of(firstSelectorParameter),
+                                ImmutableList.of(
+                                        firstSelectorFieldReferenceA,
+                                        firstSelectorFieldReferenceB,
+                                        firstSelectorRow,
+                                        firstSelectorReturn)),
+                        new Block(
+                                Optional.of("^inputSelector"),
+                                ImmutableList.of(secondSelectorParameter),
+                                ImmutableList.of(
+                                        secondSelectorFieldReferenceD,
+                                        secondSelectorFieldReferenceC,
+                                        secondSelectorRow,
+                                        secondSelectorReturn))),
+                false,
+                ImmutableList.of(VALUES_OPERATION.attributes(), SECOND_VALUES_OPERATION.attributes()));
+
+        assertProgram(
+                intersectNode,
+                ImmutableList.of(VALUES_OPERATION, SECOND_VALUES_OPERATION, intersectOperation),
+                new MultisetType(anonymousRow(BIGINT, BOOLEAN)),
+                ImmutableMap.of(
+                        new Symbol(BIGINT, "x"), 0,
+                        new Symbol(BOOLEAN, "y"), 1));
     }
 
     @Test
@@ -1507,6 +1649,70 @@ final class TestRelationalProgramBuilder
     }
 
     @Test
+    public void testUnion()
+    {
+        UnionNode unionNode = new UnionNode(
+                new PlanNodeId("union"),
+                ImmutableList.of(VALUES_NODE, SECOND_VALUES_NODE),
+                ImmutableListMultimap.of(
+                        new Symbol(BIGINT, "x"), new Symbol(BIGINT, "a"),
+                        new Symbol(BIGINT, "x"), new Symbol(BIGINT, "d"),
+                        new Symbol(BOOLEAN, "y"), new Symbol(BOOLEAN, "b"),
+                        new Symbol(BOOLEAN, "y"), new Symbol(BOOLEAN, "c")),
+                ImmutableList.of(new Symbol(BIGINT, "x"), new Symbol(BOOLEAN, "y")));
+
+        // union input selector for the first source
+        Block.Parameter firstSelectorParameter = new Block.Parameter("%15", VALUES_OPERATION_ROW_TYPE);
+        FieldReference firstSelectorFieldReferenceA = new FieldReference("%16", firstSelectorParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference firstSelectorFieldReferenceB = new FieldReference("%17", firstSelectorParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row firstSelectorRow = new Row(
+                "%18",
+                ImmutableList.of(firstSelectorFieldReferenceA.result(), firstSelectorFieldReferenceB.result()),
+                ImmutableList.of(firstSelectorFieldReferenceA.attributes(), firstSelectorFieldReferenceB.attributes()));
+        Return firstSelectorReturn = new Return("%19", firstSelectorRow.result(), firstSelectorRow.attributes());
+
+        // union input selector for the second source
+        Block.Parameter secondSelectorParameter = new Block.Parameter("%20", SECOND_VALUES_OPERATION_ROW_TYPE);
+        FieldReference secondSelectorFieldReferenceD = new FieldReference("%21", secondSelectorParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        FieldReference secondSelectorFieldReferenceC = new FieldReference("%22", secondSelectorParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row secondSelectorRow = new Row(
+                "%23",
+                ImmutableList.of(secondSelectorFieldReferenceD.result(), secondSelectorFieldReferenceC.result()),
+                ImmutableList.of(secondSelectorFieldReferenceD.attributes(), secondSelectorFieldReferenceC.attributes()));
+        Return secondSelectorReturn = new Return("%24", secondSelectorRow.result(), secondSelectorRow.attributes());
+
+        Union unionOperation = new Union(
+                "%14",
+                ImmutableList.of(VALUES_OPERATION.result(), SECOND_VALUES_OPERATION.result()),
+                ImmutableList.of(
+                        new Block(
+                                Optional.of("^inputSelector"),
+                                ImmutableList.of(firstSelectorParameter),
+                                ImmutableList.of(
+                                        firstSelectorFieldReferenceA,
+                                        firstSelectorFieldReferenceB,
+                                        firstSelectorRow,
+                                        firstSelectorReturn)),
+                        new Block(
+                                Optional.of("^inputSelector"),
+                                ImmutableList.of(secondSelectorParameter),
+                                ImmutableList.of(
+                                        secondSelectorFieldReferenceD,
+                                        secondSelectorFieldReferenceC,
+                                        secondSelectorRow,
+                                        secondSelectorReturn))),
+                ImmutableList.of(VALUES_OPERATION.attributes(), SECOND_VALUES_OPERATION.attributes()));
+
+        assertProgram(
+                unionNode,
+                ImmutableList.of(VALUES_OPERATION, SECOND_VALUES_OPERATION, unionOperation),
+                new MultisetType(anonymousRow(BIGINT, BOOLEAN)),
+                ImmutableMap.of(
+                        new Symbol(BIGINT, "x"), 0,
+                        new Symbol(BOOLEAN, "y"), 1));
+    }
+
+    @Test
     public void testValues()
     {
         assertProgram(
@@ -2000,6 +2206,38 @@ final class TestRelationalProgramBuilder
                                         constantOperation2Row2,
                                         rowOperation2,
                                         returnOperation2))));
+    }
+
+    private static ValuesNode secondValuesNode()
+    {
+        return new ValuesNode(
+                new PlanNodeId("secondValues"),
+                ImmutableList.of(new Symbol(BOOLEAN, "c"), new Symbol(BIGINT, "d")),
+                ImmutableList.of(new io.trino.sql.ir.Row(ImmutableList.of(new io.trino.sql.ir.Constant(BOOLEAN, false), new io.trino.sql.ir.Constant(BIGINT, 2L)))));
+    }
+
+    private static Values secondValuesOperation()
+    {
+        Constant secondConstantOperationC = new Constant("%10", BOOLEAN, false);
+        Constant secondConstantOperationD = new Constant("%11", BIGINT, 2L);
+        Row secondRowOperation = new Row(
+                "%12",
+                ImmutableList.of(secondConstantOperationC.result(), secondConstantOperationD.result()),
+                ImmutableList.of(secondConstantOperationC.attributes(), secondConstantOperationD.attributes()));
+        Return secondReturnOperation = new Return("%13", secondRowOperation.result(), secondRowOperation.attributes());
+
+        return new Values(
+                "%9",
+                RowType.anonymous(ImmutableList.of(BOOLEAN, BIGINT)),
+                ImmutableList.of(
+                        new Block(
+                                Optional.of("^row"),
+                                ImmutableList.of(),
+                                ImmutableList.of(
+                                        secondConstantOperationC,
+                                        secondConstantOperationD,
+                                        secondRowOperation,
+                                        secondReturnOperation))));
     }
 
     private void assertProgram(PlanNode plan, List<Operation> expected, io.trino.spi.type.Type expectedType, Map<Symbol, Integer> expectedMapping)

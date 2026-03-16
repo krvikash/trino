@@ -44,12 +44,14 @@ import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.CorrelatedJoin;
 import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
 import io.trino.sql.dialect.trino.operation.EnforceSingleRow;
+import io.trino.sql.dialect.trino.operation.Except;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.ExplainAnalyze;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.Filter;
 import io.trino.sql.dialect.trino.operation.GroupId;
 import io.trino.sql.dialect.trino.operation.In;
+import io.trino.sql.dialect.trino.operation.Intersect;
 import io.trino.sql.dialect.trino.operation.IsNull;
 import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Lambda;
@@ -65,6 +67,7 @@ import io.trino.sql.dialect.trino.operation.Sort;
 import io.trino.sql.dialect.trino.operation.Switch;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TopN;
+import io.trino.sql.dialect.trino.operation.Union;
 import io.trino.sql.dialect.trino.operation.Values;
 import io.trino.sql.dialect.trino.operation.Window;
 import io.trino.sql.dialect.trino.operation.WindowFunctionCall;
@@ -1217,6 +1220,74 @@ class TestCreateOperation
     }
 
     @Test
+    public void testExcept()
+    {
+        // input field selector
+        FieldReference selectorField = new FieldReference("%10", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row selectorRow = new Row("%11", ImmutableList.of(selectorField.result()), ImmutableList.of(selectorField.attributes()));
+        Return selectorReturn = new Return("%12", selectorRow.result(), selectorRow.attributes());
+        Block selector = new Block(
+                Optional.of("^inputSelector"),
+                ImmutableList.of(INPUT_ROW_PARAMETER),
+                ImmutableList.of(
+                        selectorField,
+                        selectorRow,
+                        selectorReturn));
+
+        Except exceptOperation = new Except(
+                "%except",
+                ImmutableList.of(VALUES_OPERATION.result(), VALUES_OPERATION.result()),
+                ImmutableList.of(selector, selector),
+                true,
+                ImmutableList.of(VALUES_OPERATION.attributes(), VALUES_OPERATION.attributes()));
+
+        Operation actualExceptOperation = TESTING_TRINO_DIALECT.createOperation(
+                ExceptOperationMetadata.NAME,
+                "%except",
+                ImmutableList.of(VALUES_OPERATION.result(), VALUES_OPERATION.result()),
+                ImmutableList.of(singleBlockRegion(selector), singleBlockRegion(selector)),
+                ImmutableMap.of(
+                        new AttributeKey(TRINO, "except:distinct"), true,
+                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
+                        new AttributeKey(IR, "safe"), true,
+                        new AttributeKey(IR, "has_side_effects"), false));
+
+        assertThat(actualExceptOperation).isEqualTo(exceptOperation);
+        assertThat(actualExceptOperation.result().type()).isEqualTo(irType(new MultisetType(anonymousRow(BIGINT))));
+
+        // wrong argument count
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                ExceptOperationMetadata.NAME,
+                "%except",
+                ImmutableList.of(),
+                ImmutableList.of(),
+                ImmutableMap.of()))
+                .hasMessage("Except operation must have at least one argument: an input relation");
+
+        // wrong region count
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                ExceptOperationMetadata.NAME,
+                "%except",
+                ImmutableList.of(VALUES_OPERATION.result()),
+                ImmutableList.of(),
+                ImmutableMap.of()))
+                .hasMessage("Except operation must have one region per input relation");
+
+        // missing required attribute
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                ExceptOperationMetadata.NAME,
+                "%except",
+                ImmutableList.of(VALUES_OPERATION.result(), VALUES_OPERATION.result()),
+                ImmutableList.of(singleBlockRegion(selector), singleBlockRegion(selector)),
+                ImmutableMap.of(
+                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
+                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
+                        new AttributeKey(IR, "safe"), true,
+                        new AttributeKey(IR, "has_side_effects"), false)))
+                .hasMessageMatching(".*the return value of .* is null");
+    }
+
+    @Test
     public void testExchange()
     {
         ConnectorPartitioningHandle testingPartitioningHandle = new ConnectorPartitioningHandle() {};
@@ -1826,6 +1897,74 @@ class TestCreateOperation
                         new AttributeKey(IR, "safe"), true,
                         new AttributeKey(IR, "has_side_effects"), false)))
                 .hasMessage("In operation does not have regions");
+    }
+
+    @Test
+    public void testIntersect()
+    {
+        // input field selector
+        FieldReference selectorField = new FieldReference("%10", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row selectorRow = new Row("%11", ImmutableList.of(selectorField.result()), ImmutableList.of(selectorField.attributes()));
+        Return selectorReturn = new Return("%12", selectorRow.result(), selectorRow.attributes());
+        Block selector = new Block(
+                Optional.of("^inputSelector"),
+                ImmutableList.of(INPUT_ROW_PARAMETER),
+                ImmutableList.of(
+                        selectorField,
+                        selectorRow,
+                        selectorReturn));
+
+        Intersect intersectOperation = new Intersect(
+                "%intersect",
+                ImmutableList.of(VALUES_OPERATION.result(), VALUES_OPERATION.result()),
+                ImmutableList.of(selector, selector),
+                false,
+                ImmutableList.of(VALUES_OPERATION.attributes(), VALUES_OPERATION.attributes()));
+
+        Operation actualIntersectOperation = TESTING_TRINO_DIALECT.createOperation(
+                IntersectOperationMetadata.NAME,
+                "%intersect",
+                ImmutableList.of(VALUES_OPERATION.result(), VALUES_OPERATION.result()),
+                ImmutableList.of(singleBlockRegion(selector), singleBlockRegion(selector)),
+                ImmutableMap.of(
+                        new AttributeKey(TRINO, "intersect:distinct"), false,
+                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
+                        new AttributeKey(IR, "safe"), true,
+                        new AttributeKey(IR, "has_side_effects"), false));
+
+        assertThat(actualIntersectOperation).isEqualTo(intersectOperation);
+        assertThat(actualIntersectOperation.result().type()).isEqualTo(irType(new MultisetType(anonymousRow(BIGINT))));
+
+        // wrong argument count
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                IntersectOperationMetadata.NAME,
+                "%intersect",
+                ImmutableList.of(),
+                ImmutableList.of(),
+                ImmutableMap.of()))
+                .hasMessage("Intersect operation must have at least one argument: an input relation");
+
+        // wrong region count
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                IntersectOperationMetadata.NAME,
+                "%intersect",
+                ImmutableList.of(VALUES_OPERATION.result()),
+                ImmutableList.of(),
+                ImmutableMap.of()))
+                .hasMessage("Intersect operation must have one region per input relation");
+
+        // missing required attribute
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                IntersectOperationMetadata.NAME,
+                "%intersect",
+                ImmutableList.of(VALUES_OPERATION.result(), VALUES_OPERATION.result()),
+                ImmutableList.of(singleBlockRegion(selector), singleBlockRegion(selector)),
+                ImmutableMap.of(
+                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
+                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
+                        new AttributeKey(IR, "safe"), true,
+                        new AttributeKey(IR, "has_side_effects"), false)))
+                .hasMessageMatching(".*the return value of .* is null");
     }
 
     @Test
@@ -3639,6 +3778,60 @@ class TestCreateOperation
                         new AttributeKey(IR, "repeatability"), DETERMINISTIC,
                         new AttributeKey(IR, "has_side_effects"), false)))
                 .hasMessageMatching(".*the return value of .* is null");
+    }
+
+    @Test
+    public void testUnion()
+    {
+        // input field selector
+        FieldReference selectorField = new FieldReference("%10", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row selectorRow = new Row("%11", ImmutableList.of(selectorField.result()), ImmutableList.of(selectorField.attributes()));
+        Return selectorReturn = new Return("%12", selectorRow.result(), selectorRow.attributes());
+        Block selector = new Block(
+                Optional.of("^inputSelector"),
+                ImmutableList.of(INPUT_ROW_PARAMETER),
+                ImmutableList.of(
+                        selectorField,
+                        selectorRow,
+                        selectorReturn));
+
+        Union unionOperation = new Union(
+                "%union",
+                ImmutableList.of(VALUES_OPERATION.result(), VALUES_OPERATION.result()),
+                ImmutableList.of(selector, selector),
+                ImmutableList.of(VALUES_OPERATION.attributes(), VALUES_OPERATION.attributes()));
+
+        Operation actualUnionOperation = TESTING_TRINO_DIALECT.createOperation(
+                UnionOperationMetadata.NAME,
+                "%union",
+                ImmutableList.of(VALUES_OPERATION.result(), VALUES_OPERATION.result()),
+                ImmutableList.of(singleBlockRegion(selector), singleBlockRegion(selector)),
+                ImmutableMap.of(
+                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
+                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
+                        new AttributeKey(IR, "safe"), true,
+                        new AttributeKey(IR, "has_side_effects"), false));
+
+        assertThat(actualUnionOperation).isEqualTo(unionOperation);
+        assertThat(actualUnionOperation.result().type()).isEqualTo(irType(new MultisetType(anonymousRow(BIGINT))));
+
+        // wrong argument count
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                UnionOperationMetadata.NAME,
+                "%union",
+                ImmutableList.of(),
+                ImmutableList.of(),
+                ImmutableMap.of()))
+                .hasMessage("Union operation must have at least one argument: an input relation");
+
+        // wrong region count
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                UnionOperationMetadata.NAME,
+                "%union",
+                ImmutableList.of(VALUES_OPERATION.result()),
+                ImmutableList.of(),
+                ImmutableMap.of()))
+                .hasMessage("Union operation must have one region per input relation");
     }
 
     private static Values valuesOperation()

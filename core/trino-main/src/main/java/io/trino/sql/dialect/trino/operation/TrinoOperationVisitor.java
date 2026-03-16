@@ -82,6 +82,11 @@ public abstract class TrinoOperationVisitor<R, C>
         return visitOperation(operation, context);
     }
 
+    public R visitExcept(Except operation, C context)
+    {
+        return visitOperation(operation, context);
+    }
+
     public R visitExchange(Exchange operation, C context)
     {
         return visitOperation(operation, context);
@@ -108,6 +113,11 @@ public abstract class TrinoOperationVisitor<R, C>
     }
 
     public R visitIn(In operation, C context)
+    {
+        return visitOperation(operation, context);
+    }
+
+    public R visitIntersect(Intersect operation, C context)
     {
         return visitOperation(operation, context);
     }
@@ -178,6 +188,11 @@ public abstract class TrinoOperationVisitor<R, C>
     }
 
     public R visitTopN(TopN operation, C context)
+    {
+        return visitOperation(operation, context);
+    }
+
+    public R visitUnion(Union operation, C context)
     {
         return visitOperation(operation, context);
     }

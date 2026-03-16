@@ -27,11 +27,13 @@ import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.CorrelatedJoin;
 import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
 import io.trino.sql.dialect.trino.operation.EnforceSingleRow;
+import io.trino.sql.dialect.trino.operation.Except;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.ExplainAnalyze;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.Filter;
 import io.trino.sql.dialect.trino.operation.GroupId;
+import io.trino.sql.dialect.trino.operation.Intersect;
 import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Limit;
 import io.trino.sql.dialect.trino.operation.Output;
@@ -41,6 +43,7 @@ import io.trino.sql.dialect.trino.operation.Row;
 import io.trino.sql.dialect.trino.operation.Sort;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TopN;
+import io.trino.sql.dialect.trino.operation.Union;
 import io.trino.sql.dialect.trino.operation.Values;
 import io.trino.sql.dialect.trino.operation.Window;
 import io.trino.sql.dialect.trino.operation.WindowFunctionCall;
@@ -67,10 +70,12 @@ import io.trino.sql.planner.plan.CorrelatedJoinNode;
 import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.DynamicFilterSourceNode;
 import io.trino.sql.planner.plan.EnforceSingleRowNode;
+import io.trino.sql.planner.plan.ExceptNode;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.ExplainAnalyzeNode;
 import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.GroupIdNode;
+import io.trino.sql.planner.plan.IntersectNode;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.LimitNode;
 import io.trino.sql.planner.plan.OutputNode;
@@ -80,6 +85,7 @@ import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.planner.plan.SortNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TopNNode;
+import io.trino.sql.planner.plan.UnionNode;
 import io.trino.sql.planner.plan.ValuesNode;
 import io.trino.sql.planner.plan.WindowNode;
 import org.assertj.core.util.VisibleForTesting;
@@ -347,6 +353,39 @@ public class RelationalProgramBuilder
     }
 
     @Override
+    public OperationAndMapping visitExcept(ExceptNode node, Context context)
+    {
+        List<OperationAndMapping> inputs = node.getSources().stream()
+                .map(source -> source.accept(this, context))
+                .collect(toImmutableList());
+        String resultName = nameAllocator.newName();
+
+        // input field selectors
+        ImmutableList.Builder<Block> inputSelectorsBuilder = ImmutableList.builder();
+        for (int i = 0; i < node.getSources().size(); i++) {
+            Block inputSelector = fieldSelectorBlock("^inputSelector", relationRowType(trinoType(inputs.get(i).operation().result().type())), inputs.get(i).mapping(), node.sourceOutputLayout(i));
+            inputSelectorsBuilder.add(inputSelector);
+        }
+        List<Block> inputSelectors = inputSelectorsBuilder.build();
+
+        Except except = new Except(
+                resultName,
+                inputs.stream()
+                        .map(OperationAndMapping::operation)
+                        .map(Operation::result)
+                        .collect(toImmutableList()),
+                inputSelectors,
+                node.isDistinct(),
+                inputs.stream()
+                        .map(OperationAndMapping::operation)
+                        .map(Operation::attributes)
+                        .collect(toImmutableList()));
+        Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(except.result().type())), node.getOutputSymbols());
+        context.block().addOperation(except);
+        return new OperationAndMapping(except, outputMapping);
+    }
+
+    @Override
     public OperationAndMapping visitExchange(ExchangeNode node, Context context)
     {
         List<OperationAndMapping> inputs = node.getSources().stream()
@@ -511,6 +550,39 @@ public class RelationalProgramBuilder
         Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(groupId.result().type())), node.getOutputSymbols());
         context.block().addOperation(groupId);
         return new OperationAndMapping(groupId, outputMapping);
+    }
+
+    @Override
+    public OperationAndMapping visitIntersect(IntersectNode node, Context context)
+    {
+        List<OperationAndMapping> inputs = node.getSources().stream()
+                .map(source -> source.accept(this, context))
+                .collect(toImmutableList());
+        String resultName = nameAllocator.newName();
+
+        // input field selectors
+        ImmutableList.Builder<Block> inputSelectorsBuilder = ImmutableList.builder();
+        for (int i = 0; i < node.getSources().size(); i++) {
+            Block inputSelector = fieldSelectorBlock("^inputSelector", relationRowType(trinoType(inputs.get(i).operation().result().type())), inputs.get(i).mapping(), node.sourceOutputLayout(i));
+            inputSelectorsBuilder.add(inputSelector);
+        }
+        List<Block> inputSelectors = inputSelectorsBuilder.build();
+
+        Intersect intersect = new Intersect(
+                resultName,
+                inputs.stream()
+                        .map(OperationAndMapping::operation)
+                        .map(Operation::result)
+                        .collect(toImmutableList()),
+                inputSelectors,
+                node.isDistinct(),
+                inputs.stream()
+                        .map(OperationAndMapping::operation)
+                        .map(Operation::attributes)
+                        .collect(toImmutableList()));
+        Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(intersect.result().type())), node.getOutputSymbols());
+        context.block().addOperation(intersect);
+        return new OperationAndMapping(intersect, outputMapping);
     }
 
     @Override
@@ -751,6 +823,38 @@ public class RelationalProgramBuilder
         Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(topN.result().type())), node.getOutputSymbols());
         context.block().addOperation(topN);
         return new OperationAndMapping(topN, outputMapping);
+    }
+
+    @Override
+    public OperationAndMapping visitUnion(UnionNode node, Context context)
+    {
+        List<OperationAndMapping> inputs = node.getSources().stream()
+                .map(source -> source.accept(this, context))
+                .collect(toImmutableList());
+        String resultName = nameAllocator.newName();
+
+        // input field selectors
+        ImmutableList.Builder<Block> inputSelectorsBuilder = ImmutableList.builder();
+        for (int i = 0; i < node.getSources().size(); i++) {
+            Block inputSelector = fieldSelectorBlock("^inputSelector", relationRowType(trinoType(inputs.get(i).operation().result().type())), inputs.get(i).mapping(), node.sourceOutputLayout(i));
+            inputSelectorsBuilder.add(inputSelector);
+        }
+        List<Block> inputSelectors = inputSelectorsBuilder.build();
+
+        Union union = new Union(
+                resultName,
+                inputs.stream()
+                        .map(OperationAndMapping::operation)
+                        .map(Operation::result)
+                        .collect(toImmutableList()),
+                inputSelectors,
+                inputs.stream()
+                        .map(OperationAndMapping::operation)
+                        .map(Operation::attributes)
+                        .collect(toImmutableList()));
+        Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(union.result().type())), node.getOutputSymbols());
+        context.block().addOperation(union);
+        return new OperationAndMapping(union, outputMapping);
     }
 
     @Override

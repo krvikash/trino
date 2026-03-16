@@ -39,12 +39,14 @@ import io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.CorrelatedJoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.DynamicFilterSourceOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.EnforceSingleRowOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ExceptOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ExplainAnalyzeOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.FieldReferenceOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.FilterOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.GroupIdOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.InOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.IntersectOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.IsNullOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.LambdaOperationMetadata;
@@ -63,6 +65,7 @@ import io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.UnionOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ValuesOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.WindowOperationMetadata;
@@ -290,11 +293,13 @@ public final class TrinoDialect
                 new CorrelatedJoinOperationMetadata(),
                 new DynamicFilterSourceOperationMetadata(),
                 new EnforceSingleRowOperationMetadata(),
+                new ExceptOperationMetadata(),
                 new ExplainAnalyzeOperationMetadata(),
                 new FieldReferenceOperationMetadata(),
                 new FilterOperationMetadata(),
                 new GroupIdOperationMetadata(),
                 new InOperationMetadata(),
+                new IntersectOperationMetadata(),
                 new IsNullOperationMetadata(),
                 new JoinOperationMetadata(),
                 new LambdaOperationMetadata(),
@@ -309,6 +314,7 @@ public final class TrinoDialect
                 new SortOperationMetadata(),
                 new SwitchOperationMetadata(),
                 new TopNOperationMetadata(),
+                new UnionOperationMetadata(),
                 new WindowFunctionCallOperationMetadata(),
                 new WindowOperationMetadata());
     }

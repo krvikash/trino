@@ -14,6 +14,7 @@
 package io.trino.sql.planner.newirtoold;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.Session;
@@ -28,10 +29,12 @@ import io.trino.sql.dialect.trino.operation.AggregateCall;
 import io.trino.sql.dialect.trino.operation.Aggregation;
 import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
 import io.trino.sql.dialect.trino.operation.EnforceSingleRow;
+import io.trino.sql.dialect.trino.operation.Except;
 import io.trino.sql.dialect.trino.operation.Exchange;
 import io.trino.sql.dialect.trino.operation.ExplainAnalyze;
 import io.trino.sql.dialect.trino.operation.Filter;
 import io.trino.sql.dialect.trino.operation.GroupId;
+import io.trino.sql.dialect.trino.operation.Intersect;
 import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Limit;
 import io.trino.sql.dialect.trino.operation.Output;
@@ -41,15 +44,18 @@ import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TopN;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
 import io.trino.sql.dialect.trino.operation.TrinoOperationVisitor;
+import io.trino.sql.dialect.trino.operation.Union;
 import io.trino.sql.dialect.trino.operation.Values;
 import io.trino.sql.dialect.trino.operation.Window;
 import io.trino.sql.dialect.trino.operation.WindowFunctionCall;
 import io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.DynamicFilterSourceOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.ExceptOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeScope;
 import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType;
+import io.trino.sql.dialect.trino.operationmetadata.IntersectOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.SortOperationMetadata;
@@ -78,11 +84,13 @@ import io.trino.sql.planner.plan.DataOrganizationSpecification;
 import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.DynamicFilterSourceNode;
 import io.trino.sql.planner.plan.EnforceSingleRowNode;
+import io.trino.sql.planner.plan.ExceptNode;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.ExplainAnalyzeNode;
 import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.FrameBoundType;
 import io.trino.sql.planner.plan.GroupIdNode;
+import io.trino.sql.planner.plan.IntersectNode;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.JoinNode.EquiJoinClause;
 import io.trino.sql.planner.plan.JoinType;
@@ -93,6 +101,7 @@ import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.planner.plan.SortNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TopNNode;
+import io.trino.sql.planner.plan.UnionNode;
 import io.trino.sql.planner.plan.ValuesNode;
 import io.trino.sql.planner.plan.WindowFrameType;
 import io.trino.sql.planner.plan.WindowNode;
@@ -303,6 +312,39 @@ public class ToOldIrRelationalRewriter
     }
 
     @Override
+    public PlanNode visitExcept(Except except, List<PlanNode> sources)
+    {
+        checkArgument(!sources.isEmpty(), "Expected at least one source for Except operation");
+
+        ImmutableList.Builder<List<Symbol>> inputSymbolsBuilder = ImmutableList.builder();
+        for (int i = 0; i < sources.size(); i++) {
+            inputSymbolsBuilder.add(scalarRewriter.getSelectedSymbols(except.inputFieldSelectors().get(i), sources.get(i).getOutputSymbols()));
+        }
+        List<List<Symbol>> inputSymbols = inputSymbolsBuilder.build();
+
+        // create the except's output symbols based on the first source's symbols.
+        // assign new symbols in case there are repetitions in the input symbols list.
+        List<Symbol> outputSymbols = inputSymbols.getFirst().stream()
+                .map(symbolAllocator::newSymbol)
+                .collect(toImmutableList());
+
+        ImmutableListMultimap.Builder<Symbol, Symbol> symbolMapping = ImmutableListMultimap.builder();
+        for (int outputIndex = 0; outputIndex < outputSymbols.size(); outputIndex++) {
+            Symbol outputSymbol = outputSymbols.get(outputIndex);
+            for (List<Symbol> sourceSymbols : inputSymbols) {
+                symbolMapping.put(outputSymbol, sourceSymbols.get(outputIndex));
+            }
+        }
+
+        return new ExceptNode(
+                planNodeIdAllocator.getNextId(),
+                sources,
+                symbolMapping.build(),
+                outputSymbols,
+                ExceptOperationMetadata.DISTINCT.getAttribute(except.attributes()));
+    }
+
+    @Override
     public PlanNode visitExchange(Exchange exchange, List<PlanNode> sources)
     {
         // build input symbols lists
@@ -471,6 +513,39 @@ public class ToOldIrRelationalRewriter
                 Optional.ofNullable(STATISTICS_AND_COST_SUMMARY.getAttribute(join.attributes())));
     }
 
+    @Override
+    public PlanNode visitIntersect(Intersect intersect, List<PlanNode> sources)
+    {
+        checkArgument(!sources.isEmpty(), "Expected at least one source for Intersect operation");
+
+        ImmutableList.Builder<List<Symbol>> inputSymbolsBuilder = ImmutableList.builder();
+        for (int i = 0; i < sources.size(); i++) {
+            inputSymbolsBuilder.add(scalarRewriter.getSelectedSymbols(intersect.inputFieldSelectors().get(i), sources.get(i).getOutputSymbols()));
+        }
+        List<List<Symbol>> inputSymbols = inputSymbolsBuilder.build();
+
+        // create the intersect's output symbols based on the first source's symbols.
+        // assign new symbols in case there are repetitions in the input symbols list.
+        List<Symbol> outputSymbols = inputSymbols.getFirst().stream()
+                .map(symbolAllocator::newSymbol)
+                .collect(toImmutableList());
+
+        ImmutableListMultimap.Builder<Symbol, Symbol> symbolMapping = ImmutableListMultimap.builder();
+        for (int outputIndex = 0; outputIndex < outputSymbols.size(); outputIndex++) {
+            Symbol outputSymbol = outputSymbols.get(outputIndex);
+            for (List<Symbol> sourceSymbols : inputSymbols) {
+                symbolMapping.put(outputSymbol, sourceSymbols.get(outputIndex));
+            }
+        }
+
+        return new IntersectNode(
+                planNodeIdAllocator.getNextId(),
+                sources,
+                symbolMapping.build(),
+                outputSymbols,
+                IntersectOperationMetadata.DISTINCT.getAttribute(intersect.attributes()));
+    }
+
     private static JoinType rewriteJoinType(JoinOperationMetadata.JoinType type)
     {
         return switch (type) {
@@ -614,6 +689,39 @@ public class ToOldIrRelationalRewriter
             case PARTIAL -> TopNNode.Step.PARTIAL;
             case FINAL -> TopNNode.Step.FINAL;
         };
+    }
+
+    @Override
+    public PlanNode visitUnion(Union union, List<PlanNode> sources)
+    {
+        checkArgument(!sources.isEmpty(), "Expected at least one source for Union operation");
+
+        // build input symbols lists
+        ImmutableList.Builder<List<Symbol>> inputSymbolsBuilder = ImmutableList.builder();
+        for (int i = 0; i < sources.size(); i++) {
+            inputSymbolsBuilder.add(scalarRewriter.getSelectedSymbols(union.inputFieldSelectors().get(i), sources.get(i).getOutputSymbols()));
+        }
+        List<List<Symbol>> inputSymbols = inputSymbolsBuilder.build();
+
+        // create the union's output symbols based on the first source's symbols.
+        // assign new symbols in case there are repetitions in the input symbols list.
+        List<Symbol> outputSymbols = inputSymbols.getFirst().stream()
+                .map(symbolAllocator::newSymbol)
+                .collect(toImmutableList());
+
+        ImmutableListMultimap.Builder<Symbol, Symbol> symbolMapping = ImmutableListMultimap.builder();
+        for (int outputIndex = 0; outputIndex < outputSymbols.size(); outputIndex++) {
+            Symbol outputSymbol = outputSymbols.get(outputIndex);
+            for (List<Symbol> sourceSymbols : inputSymbols) {
+                symbolMapping.put(outputSymbol, sourceSymbols.get(outputIndex));
+            }
+        }
+
+        return new UnionNode(
+                planNodeIdAllocator.getNextId(),
+                sources,
+                symbolMapping.build(),
+                outputSymbols);
     }
 
     @Override
