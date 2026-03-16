@@ -26,7 +26,7 @@ import io.trino.spi.QueryId;
 import io.trino.spi.StandardErrorCode;
 import io.trino.spi.TrinoException;
 
-import java.io.IOException;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +44,7 @@ import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
 import static io.airlift.http.client.Request.Builder.prepareDelete;
 import static io.airlift.http.client.Request.Builder.prepareGet;
 import static io.airlift.http.client.Request.Builder.preparePost;
+import static io.airlift.http.client.ResponseHandlerUtils.getResponseBytes;
 import static io.airlift.http.client.ResponseHandlerUtils.propagate;
 import static io.starburst.server.troubleshooting.tracing.RemoteTroubleshootingTraceClient.StatusCodeCheckResponseHandler.checkResponseStatusCode;
 import static java.util.Objects.requireNonNull;
@@ -172,17 +173,12 @@ public class RemoteTroubleshootingTraceClient
         @Override
         public InputStream handle(Request request, Response response)
         {
-            try {
-                if (!(response.getStatusCode() == HttpStatus.OK.code())) {
-                    throw new TrinoException(
-                            StandardErrorCode.GENERIC_INTERNAL_ERROR,
-                            "request failed with http status code: %s, request %s, response: %s".formatted(response.getStatusCode(), request, response));
-                }
-                return response.getInputStream();
+            if (!(response.getStatusCode() == HttpStatus.OK.code())) {
+                throw new TrinoException(
+                        StandardErrorCode.GENERIC_INTERNAL_ERROR,
+                        "request failed with http status code: %s, request %s, response: %s".formatted(response.getStatusCode(), request, response));
             }
-            catch (IOException e) {
-                throw new RuntimeException("Unable to read response from worker", e);
-            }
+            return new ByteArrayInputStream(getResponseBytes(request, response));
         }
     }
 

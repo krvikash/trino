@@ -21,15 +21,15 @@ import io.trino.node.InternalNode;
 import io.trino.spi.StandardErrorCode;
 import io.trino.spi.TrinoException;
 
-import java.io.IOException;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.util.concurrent.Future;
 
 import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
 import static com.google.common.net.MediaType.JSON_UTF_8;
 import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
 import static io.airlift.http.client.Request.Builder.prepareGet;
+import static io.airlift.http.client.ResponseHandlerUtils.getResponseBytes;
 import static io.airlift.http.client.ResponseHandlerUtils.propagate;
 import static java.util.Objects.requireNonNull;
 
@@ -72,17 +72,12 @@ public class RemoteConfigDumpClient
         @Override
         public InputStream handle(Request request, Response response)
         {
-            try {
-                if (!(response.getStatusCode() == HttpStatus.OK.code())) {
-                    throw new TrinoException(
-                            StandardErrorCode.GENERIC_INTERNAL_ERROR,
-                            "request failed with http status code: %s, request %s, response: %s".formatted(response.getStatusCode(), request, response));
-                }
-                return response.getInputStream();
+            if (!(response.getStatusCode() == HttpStatus.OK.code())) {
+                throw new TrinoException(
+                        StandardErrorCode.GENERIC_INTERNAL_ERROR,
+                        "request failed with http status code: %s, request %s, response: %s".formatted(response.getStatusCode(), request, response));
             }
-            catch (IOException e) {
-                throw new UncheckedIOException("Unable to read response from worker", e);
-            }
+            return new ByteArrayInputStream(getResponseBytes(request, response));
         }
     }
 }
