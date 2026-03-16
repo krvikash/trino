@@ -51,8 +51,10 @@ public class TestCiWorkflow
             throws Exception
     {
         String uploadTestResultsStepName = "Upload test results";
+        String uploadTestResultsToDatadogStepName = "Upload test results to Datadog";
         Set<String> nonTestSteps = ImmutableSet.of(
                 uploadTestResultsStepName,
+                uploadTestResultsToDatadogStepName,
                 "Maven Install");
 
         Yaml yaml = new Yaml();

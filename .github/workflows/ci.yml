@@ -262,6 +262,9 @@ jobs:
     if: github.event_name != 'pull_request' || needs.path-filters.outputs.non_docs == 'true'
     runs-on: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest]
     timeout-minutes: 30
+    env:
+      REPORT_TEST_SESSION_NAME: modules
+      REPORT_SERVICE_NAME: jdbc-compatibility
     steps:
       - uses: actions/checkout@v6
         with:
@@ -308,6 +311,11 @@ jobs:
         with:
           has-failed-tests: ${{ steps.tests-old.outcome == 'failure' || steps.tests-current.outcome == 'failure' }}
           upload-heap-dump: ${{ env.SECRETS_PRESENT == '' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+      - name: Upload test results to Datadog
+        uses: ./.github/actions/upload-test-results-datadog
+        if: always()
+        with:
+          datadog-api-key: ${{ secrets.DATADOG_API_KEY }}
       - name: Launch Flake Tracker
         if: failure() && github.ref == 'refs/heads/master' && (steps.tests-old.outcome == 'failure' || steps.tests-current.outcome == 'failure')
         continue-on-error: true
@@ -326,6 +334,9 @@ jobs:
           - config-hdp3
           # TODO: config-apache-hive3
     timeout-minutes: 60
+    env:
+      REPORT_TEST_SESSION_NAME: modules
+      REPORT_SERVICE_NAME: hive-${{ matrix.config }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -387,6 +398,11 @@ jobs:
         with:
           has-failed-tests: ${{ steps.tests.outcome == 'failure' }}
           upload-heap-dump: ${{ env.SECRETS_PRESENT == '' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+      - name: Upload test results to Datadog
+        uses: ./.github/actions/upload-test-results-datadog
+        if: always()
+        with:
+          datadog-api-key: ${{ secrets.DATADOG_API_KEY }}
       - name: Update PR check
         uses: ./.github/actions/update-check
         if: >-
@@ -1238,6 +1254,9 @@ jobs:
     if: github.event_name != 'pull_request' || needs.path-filters.outputs.non_docs == 'true'
     runs-on: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest]
     timeout-minutes: 60
+    env:
+      REPORT_TEST_SESSION_NAME: modules
+      REPORT_SERVICE_NAME: other-modules
     steps:
       - uses: actions/checkout@v6
         with:
@@ -1350,6 +1369,11 @@ jobs:
         with:
           has-failed-tests: ${{ steps.tests.outcome == 'failure' }}
           upload-heap-dump: ${{ env.SECRETS_PRESENT == '' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+      - name: Upload test results to Datadog
+        uses: ./.github/actions/upload-test-results-datadog
+        if: always()
+        with:
+          datadog-api-key: ${{ secrets.DATADOG_API_KEY }}
       - name: Launch Flake Tracker
         if: failure() && steps.tests.outcome == 'failure' && github.ref == 'refs/heads/master'
         continue-on-error: true
@@ -1361,6 +1385,8 @@ jobs:
     runs-on: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest]
     timeout-minutes: 60
     env:
+      REPORT_TEST_SESSION_NAME: modules
+      REPORT_SERVICE_NAME: starburst-functions-ai
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       AZURE_OPEN_AI_LANGUAGE_ENDPOINT: ${{ vars.AZURE_OPEN_AI_LANGUAGE_ENDPOINT }}
       AZURE_OPEN_AI_EMBED_ENDPOINT: ${{ vars.AZURE_OPEN_AI_EMBED_ENDPOINT }}
@@ -1418,6 +1444,11 @@ jobs:
         with:
           has-failed-tests: ${{ steps.tests.outcome == 'failure' }}
           upload-heap-dump: ${{ env.SECRETS_PRESENT == '' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+      - name: Upload test results to Datadog
+        uses: ./.github/actions/upload-test-results-datadog
+        if: always()
+        with:
+          datadog-api-key: ${{ secrets.DATADOG_API_KEY }}
       - name: Launch Flake Tracker
         if: failure() && steps.tests.outcome == 'failure' && github.ref == 'refs/heads/master'
         continue-on-error: true
@@ -1578,6 +1609,9 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.build-test-matrix.outputs.matrix) }}
     timeout-minutes: 90
+    env:
+      REPORT_TEST_SESSION_NAME: test-matrix
+      REPORT_SERVICE_NAME: ${{ matrix.modules }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -1980,6 +2014,12 @@ jobs:
               || steps.tests-snowflake.outcome == 'failure'
             }}
           upload-heap-dump: ${{ env.SECRETS_PRESENT == '' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+      - id: upload-test-results-datadog
+        name: Upload test results to Datadog
+        uses: ./.github/actions/upload-test-results-datadog
+        if: always()
+        with:
+          datadog-api-key: ${{ secrets.DATADOG_API_KEY }}
       - name: Launch Flake Tracker
         if: failure() && github.ref == 'refs/heads/master'
         continue-on-error: true
@@ -2280,6 +2320,9 @@ jobs:
     # PT Launcher's timeout defaults to 2h, add some margin
     timeout-minutes: 130
     needs: build-pt
+    env:
+      REPORT_TEST_SESSION_NAME: pt
+      REPORT_SERVICE_NAME: ${{ matrix.suite }}-${{ matrix.config }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -2374,6 +2417,11 @@ jobs:
           artifact-name: pt (${{ matrix.config }}, ${{ matrix.suite }}, ${{ matrix.jdk }})
           has-failed-tests: ${{ steps.tests.outcome == 'failure' }}
           upload-heap-dump: ${{ env.SECRETS_PRESENT == '' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+      - name: Upload test results to Datadog
+        uses: ./.github/actions/upload-test-results-datadog
+        if: always()
+        with:
+          datadog-api-key: ${{ secrets.DATADOG_API_KEY }}
       - name: Update PR check
         uses: ./.github/actions/update-check
         if: >-

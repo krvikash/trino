@@ -1,0 +1,58 @@
+name: "upload-test-results-datadog"
+description: |
+  Upload JUnit test results to Datadog for tracking and visibility.
+  Requires environment variables:
+  - REPORT_SERVICE_NAME: Specific test identifier
+  - REPORT_TEST_SESSION_NAME: Test category/session name
+inputs:
+  datadog-api-key:
+    description: 'Datadog API key for uploading test results'
+    required: true
+
+runs:
+  using: composite
+  steps:
+  - name: Upload test results to Datadog
+    shell: bash --noprofile --norc -euo pipefail {0}
+    env:
+      DATADOG_API_KEY: ${{ inputs.datadog-api-key }}
+      DATADOG_SITE: datadoghq.com
+      REPORT_SERVICE_NAME: ${{ env.REPORT_SERVICE_NAME }}
+      REPORT_TEST_SESSION_NAME: ${{ env.REPORT_TEST_SESSION_NAME }}
+      DD_SERVICE: cork
+      DD_ENV: ci
+    run: |
+      # Check if API key is available
+      if [ -z "${DATADOG_API_KEY:-}" ]; then
+        echo "::warning title=Datadog upload skipped::DATADOG_API_KEY is not set; skipping Datadog test results upload."
+        exit 0
+      fi
+
+      # Ensure required reporting identifiers are set
+      if [ -z "${REPORT_SERVICE_NAME:-}" ] || [ -z "${REPORT_TEST_SESSION_NAME:-}" ]; then
+        echo "::warning title=Datadog upload skipped::REPORT_SERVICE_NAME and/or REPORT_TEST_SESSION_NAME is not set; skipping Datadog test results upload."
+        exit 0
+      fi
+
+      echo "Prepare REPORT_SERVICE_NAME variable"
+      report_service_name="${REPORT_SERVICE_NAME}"
+      report_test_session_name="${REPORT_TEST_SESSION_NAME}"
+      report_service_name="${report_service_name//\//-}"
+      report_test_session_name="${report_test_session_name//\//-}"
+      export REPORT_SERVICE_NAME="${report_test_session_name}-${report_service_name}"
+      export DD_TAGS="job_name_identifier:${REPORT_SERVICE_NAME}"
+      echo "Upload test results for plain JUnit and TestNG default JUnit XML reports for ${REPORT_SERVICE_NAME} job_name_identifier"
+
+      readarray -d '' FILES < <(find . \( -path '*/target/surefire-reports/TEST-*.xml' -o -path '*/target/*/junitreports/TEST-*.xml' -o -path '*/target/test-reports/*/TEST-*.xml' \) -print0)
+      if [ "${#FILES[@]}" -eq 0 ]; then
+        echo "::warning title=Datadog upload skipped::No JUnit test result files found for ${REPORT_SERVICE_NAME} job_name_identifier."
+      else
+        for file in "${FILES[@]}"; do
+          # Remove properties section which can leak secret values (credentials, API keys, passwords)
+          # This matches Cork's S3 upload behavior in .github/workflows/upload-test-results.yml
+          SANITIZED_FILE=$(mktemp)
+          sed '/<properties/,/<\/properties>/d' "$file" > "$SANITIZED_FILE"
+          datadog-ci junit upload --service "$DD_SERVICE" --tags "$DD_TAGS" "$SANITIZED_FILE"
+          rm -f "$SANITIZED_FILE"
+        done
+      fi
