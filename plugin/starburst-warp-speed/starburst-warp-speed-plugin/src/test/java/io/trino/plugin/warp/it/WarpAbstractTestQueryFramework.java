@@ -46,6 +46,7 @@ import java.util.Set;
 
 import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
+import static io.airlift.http.client.HeaderNames.CONTENT_TYPE;
 import static io.airlift.http.client.Request.Builder.prepareDelete;
 import static io.airlift.http.client.Request.Builder.prepareGet;
 import static io.airlift.http.client.Request.Builder.preparePost;
@@ -215,7 +216,7 @@ public abstract class WarpAbstractTestQueryFramework
             request = preparePost();
         }
         try {
-            request.setHeader("Content-Type", "application/json");
+            request.setHeader(CONTENT_TYPE, "application/json");
             request.setUri(url.toURI());
         }
         catch (URISyntaxException e) {

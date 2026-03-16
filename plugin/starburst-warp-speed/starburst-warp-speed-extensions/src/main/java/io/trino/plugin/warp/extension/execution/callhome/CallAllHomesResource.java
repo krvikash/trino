@@ -42,6 +42,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static io.airlift.http.client.HeaderNames.CONTENT_TYPE;
 import static io.trino.plugin.warp.extension.execution.callhome.CallAllHomesResource.CALL_ALL_HOMES_PATH;
 import static io.trino.plugin.warp.extension.execution.callhome.CallHomeResource.CALL_HOME_PATH;
 import static java.util.Objects.requireNonNull;
@@ -87,7 +88,7 @@ public class CallAllHomesResource
 
             Request request = Request.Builder.preparePost()
                     .setUri(uriBuilder.build())
-                    .setHeader("Content-Type", "application/json")
+                    .setHeader(CONTENT_TYPE, "application/json")
                     .setBodyGenerator(JsonBodyGenerator.jsonBodyGenerator(callHomeDataJsonCodec, callHomeData))
                     .build();
             allFutures.put(node.getNodeIdentifier(), warpClient.executeAsync(request, FullJsonResponseHandler.createFullJsonResponseHandler(WarpClient.VOID_RESULTS_CODEC)));
@@ -99,7 +100,7 @@ public class CallAllHomesResource
 
             Request request = Request.Builder.preparePost()
                     .setUri(uriBuilder.build())
-                    .setHeader("Content-Type", "application/json")
+                    .setHeader(CONTENT_TYPE, "application/json")
                     .setBodyGenerator(JsonBodyGenerator.jsonBodyGenerator(callHomeDataJsonCodec, callHomeData))
                     .build();
             allFutures.put(coordinatorNodeManager.getCoordinatorNode().getNodeIdentifier(), warpClient.executeAsync(request, FullJsonResponseHandler.createFullJsonResponseHandler(WarpClient.VOID_RESULTS_CODEC)));

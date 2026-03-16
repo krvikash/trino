@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.extension.execution.callhome;
 
+import io.airlift.http.client.HeaderName;
 import io.airlift.http.client.HttpUriBuilder;
 import io.airlift.http.client.Request;
 import io.airlift.log.Logger;
@@ -34,6 +35,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static io.airlift.http.client.HeaderNames.CONTENT_TYPE;
 import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
 import static io.airlift.http.client.Request.Builder.prepareGet;
 import static java.util.Objects.requireNonNull;
@@ -96,8 +98,8 @@ public class CallHomeJob
 
             Request request = prepareGet()
                     .setUri(threadDumpUriBuilder.build())
-                    .setHeader("Content-Type", "application/json")
-                    .setHeader("X-Trino-User", "trino")
+                    .setHeader(CONTENT_TYPE, "application/json")
+                    .setHeader(HeaderName.of("X-Trino-User"), "trino")
                     .build();
         }
         catch (Exception e) {

@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static io.airlift.http.client.FullJsonResponseHandler.createFullJsonResponseHandler;
+import static io.airlift.http.client.HeaderNames.CONTENT_TYPE;
 import static io.airlift.http.client.JsonBodyGenerator.jsonBodyGenerator;
 import static io.airlift.http.client.Request.Builder.prepareGet;
 import static io.airlift.http.client.Request.Builder.preparePost;
@@ -201,7 +202,7 @@ public class DictionaryTask
 
             Request request = prepareGet()
                     .setUri(uriBuilder.build())
-                    .setHeader("Content-Type", "application/json")
+                    .setHeader(CONTENT_TYPE, "application/json")
                     .build();
             int workerUsedPages = warpClient.sendWithRetry(request, createFullJsonResponseHandler(JsonCodec.jsonCodec(Integer.class)));
             totalUsage.addAndGet(workerUsedPages);
@@ -217,7 +218,7 @@ public class DictionaryTask
 
         Request.Builder builder = preparePost()
                 .setUri(uriBuilder.build())
-                .setHeader("Content-Type", "application/json");
+                .setHeader(CONTENT_TYPE, "application/json");
         if (input != null && jsonCodecRequest != null) {
             builder.setBodyGenerator(jsonBodyGenerator(jsonCodecRequest, input));
         }
@@ -232,7 +233,7 @@ public class DictionaryTask
 
         Request.Builder builder = prepareGet()
                 .setUri(uriBuilder.build())
-                .setHeader("Content-Type", "application/json");
+                .setHeader(CONTENT_TYPE, "application/json");
         return warpClient.sendWithRetry(builder.build(), createFullJsonResponseHandler(jsonCodecResponse));
     }
 }

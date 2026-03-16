@@ -44,6 +44,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static io.airlift.http.client.FullJsonResponseHandler.createFullJsonResponseHandler;
+import static io.airlift.http.client.HeaderNames.CONTENT_TYPE;
 import static io.airlift.http.client.JsonBodyGenerator.jsonBodyGenerator;
 import static io.airlift.http.client.Request.Builder.prepareGet;
 import static io.airlift.http.client.Request.Builder.preparePost;
@@ -96,7 +97,7 @@ public class WarmupDemoterTask
                     Request request = preparePost()
                             .setUri(uriBuilder.build())
                             .setBodyGenerator(jsonBodyGenerator(startWarmupDemoterJsonCodec, warmupDemoterData))
-                            .setHeader("Content-Type", "application/json")
+                            .setHeader(CONTENT_TYPE, "application/json")
                             .build();
 
                     logger.debug("call demote on worker - %s", node.getNodeIdentifier());
@@ -138,7 +139,7 @@ public class WarmupDemoterTask
 
                     Request request = prepareGet()
                             .setUri(uriBuilder.build())
-                            .setHeader("Content-Type", "application/json")
+                            .setHeader(CONTENT_TYPE, "application/json")
                             .build();
                     allFutures.put(node.getNodeIdentifier(), warpClient.executeAsync(request, createFullJsonResponseHandler(workerWarmupDemoterStatusResult)));
                 });
@@ -170,7 +171,7 @@ public class WarmupDemoterTask
 
                     Request request = prepareGet()
                             .setUri(uriBuilder.build())
-                            .setHeader("Content-Type", "application/json")
+                            .setHeader(CONTENT_TYPE, "application/json")
                             .build();
                     allFutures.put(node.getNodeIdentifier(), warpClient.executeAsync(request, createFullJsonResponseHandler(workerDemoterTupleRanksResult)));
                 });

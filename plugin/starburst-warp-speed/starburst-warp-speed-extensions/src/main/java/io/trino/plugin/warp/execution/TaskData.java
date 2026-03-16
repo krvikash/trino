@@ -16,9 +16,10 @@ package io.trino.plugin.warp.execution;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableMultimap;
+import io.airlift.http.client.HeaderName;
 import io.airlift.json.JsonCodec;
 
-import static jakarta.ws.rs.core.HttpHeaders.CONTENT_TYPE;
+import static io.airlift.http.client.HeaderNames.CONTENT_TYPE;
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
@@ -35,7 +36,7 @@ public abstract class TaskData
         return codec;
     }
 
-    public ImmutableMultimap<String, String> getTaskHeaders()
+    public ImmutableMultimap<HeaderName, String> getTaskHeaders()
     {
         return ImmutableMultimap.of(CONTENT_TYPE, APPLICATION_JSON);
     }

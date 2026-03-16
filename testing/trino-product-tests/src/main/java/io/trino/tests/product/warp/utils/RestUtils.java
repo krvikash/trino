@@ -14,6 +14,7 @@
 package io.trino.tests.product.warp.utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.airlift.http.client.HeaderName;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.StringResponseHandler;
@@ -29,6 +30,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.Charset;
 
+import static io.airlift.http.client.HeaderNames.CONTENT_TYPE;
 import static io.airlift.http.client.Request.Builder.prepareDelete;
 import static io.airlift.http.client.Request.Builder.prepareGet;
 import static io.airlift.http.client.Request.Builder.preparePost;
@@ -96,8 +98,8 @@ public class RestUtils
         else {
             request = preparePost();
         }
-        request.setHeader("Content-Type", "application/json");
-        request.setHeader("X-Trino-User", "warpSpeed-automation");
+        request.setHeader(CONTENT_TYPE, "application/json");
+        request.setHeader(HeaderName.of("X-Trino-User"), "warpSpeed-automation");
 
         try {
             prefix = prefix.endsWith("/") ? prefix : prefix + "/";

@@ -20,6 +20,7 @@ import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
 import io.airlift.http.client.FullJsonResponseHandler;
 import io.airlift.http.client.FullJsonResponseHandler.JsonResponse;
+import io.airlift.http.client.HeaderName;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpClient.HttpResponseFuture;
 import io.airlift.http.client.HttpStatus;
@@ -100,7 +101,7 @@ public class WarpClient
                 .setUri(fullUri)
                 .addHeaders(taskData.getTaskHeaders())
                 .setBodyGenerator(JsonBodyGenerator.jsonBodyGenerator(taskData.getCodec(), taskData))
-                .addHeader("X-Trino-User", "internal");
+                .addHeader(HeaderName.of("X-Trino-User"), "internal");
         handleBearer(builder);
 
         sendWithRetry(builder.build(), FullJsonResponseHandler.createFullJsonResponseHandler(VOID_RESULTS_CODEC), callerName);
@@ -114,7 +115,7 @@ public class WarpClient
     public <T> T sendWithRetry(Request request, FullJsonResponseHandler<T> responseHandler, String callerName)
     {
         Request.Builder builder = Request.Builder.fromRequest(request)
-                .addHeader("X-Trino-User", "internal");
+                .addHeader(HeaderName.of("X-Trino-User"), "internal");
         handleBearer(builder);
         Request requestWithUser = builder.build();
         return invokeWithRetry(() -> {
@@ -144,7 +145,7 @@ public class WarpClient
     public <T, E extends Exception> HttpResponseFuture<T> executeAsync(Request request, ResponseHandler<T, E> responseHandler)
     {
         Request.Builder builder = Request.Builder.fromRequest(request)
-                .addHeader("X-Trino-User", "internal");
+                .addHeader(HeaderName.of("X-Trino-User"), "internal");
         handleBearer(builder);
         return httpClient.executeAsync(builder.build(), responseHandler);
     }
@@ -195,7 +196,7 @@ public class WarpClient
 
     private void handleBearer(Request.Builder builder)
     {
-        jwtBuilder.ifPresent(jwtBuilderSupplier -> builder.addHeader("X-Trino-Internal-Bearer", jwtBuilderSupplier.get().compact()));
+        jwtBuilder.ifPresent(jwtBuilderSupplier -> builder.addHeader(HeaderName.of("X-Trino-Internal-Bearer"), jwtBuilderSupplier.get().compact()));
     }
 
     public static int getRestHttpPort(WarpExtensionConfig warpExtensionConfig)

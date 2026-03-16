@@ -50,7 +50,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.configuration.ConfigBinder.configBinder;
-import static io.trino.server.InternalHeaders.TRINO_ENVIRONMENT;
+import static io.trino.server.InternalHeaders.TRINO_ENVIRONMENT_HEADER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
@@ -239,7 +239,7 @@ class TestAnnounceNodeInventory
             for (HttpRequestInfo request : requests) {
                 assertThat(request.getMethod()).isEqualTo("POST");
                 assertThat(request.getUri()).isEqualTo("/v1/announce");
-                assertThat(request.getHeaders().get(TRINO_ENVIRONMENT)).isEqualTo("some_env");
+                assertThat(request.getHeaders().get(TRINO_ENVIRONMENT_HEADER.toString())).isEqualTo("some_env");
             }
         }
     }

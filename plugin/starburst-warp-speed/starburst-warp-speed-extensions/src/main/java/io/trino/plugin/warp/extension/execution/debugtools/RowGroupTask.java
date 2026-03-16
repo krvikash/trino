@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static io.airlift.http.client.FullJsonResponseHandler.createFullJsonResponseHandler;
+import static io.airlift.http.client.HeaderNames.CONTENT_TYPE;
 import static io.airlift.http.client.Request.Builder.prepareGet;
 import static io.airlift.http.client.Request.Builder.preparePost;
 import static io.trino.plugin.warp.execution.WarpClient.VOID_RESULTS_CODEC;
@@ -106,7 +107,7 @@ public class RowGroupTask
 
             Request request = prepareGet()
                     .setUri(uriBuilder.build())
-                    .setHeader("Content-Type", "application/json")
+                    .setHeader(CONTENT_TYPE, "application/json")
                     .build();
             WorkerRowGroupCountResult nodeResult = warpClient.sendWithRetry(request, createFullJsonResponseHandler(workerRowGroupCountResultJsonCoded));
             long nodeCount = nodeResult.count();
@@ -143,7 +144,7 @@ public class RowGroupTask
 
             Request request = preparePost()
                     .setUri(uriBuilder.build())
-                    .setHeader("Content-Type", "application/json")
+                    .setHeader(CONTENT_TYPE, "application/json")
                     .build();
             warpClient.sendWithRetry(request, createFullJsonResponseHandler(VOID_RESULTS_CODEC));
         });

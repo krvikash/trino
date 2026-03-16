@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 
 import static io.airlift.http.client.FullJsonResponseHandler.createFullJsonResponseHandler;
+import static io.airlift.http.client.HeaderNames.CONTENT_TYPE;
 import static io.airlift.http.client.Request.Builder.prepareGet;
 import static java.util.Objects.requireNonNull;
 
@@ -79,7 +80,7 @@ public class WarmingResource
 
                     Request request = prepareGet()
                             .setUri(uriBuilder.build())
-                            .setHeader("Content-Type", "application/json")
+                            .setHeader(CONTENT_TYPE, "application/json")
                             .build();
                     allFutures.put(node.getHost(), warpClient.executeAsync(request, createFullJsonResponseHandler(WARMING_STATUS_DATA_JSON_CODEC)));
                 });

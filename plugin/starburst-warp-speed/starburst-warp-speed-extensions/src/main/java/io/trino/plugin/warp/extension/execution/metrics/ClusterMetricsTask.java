@@ -40,6 +40,7 @@ import java.util.stream.Collectors;
 
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.http.client.FullJsonResponseHandler.createFullJsonResponseHandler;
+import static io.airlift.http.client.HeaderNames.CONTENT_TYPE;
 import static io.airlift.http.client.Request.Builder.prepareGet;
 import static io.trino.plugin.warp.extension.execution.metrics.ClusterMetricsTask.TASK_NAME;
 import static io.trino.plugin.warp.extension.execution.metrics.WorkerMetricsTask.WORKER_METRICS_TASK;
@@ -90,7 +91,7 @@ public class ClusterMetricsTask
                                 .appendPath(WORKER_METRICS_TASK);
                         Request request = prepareGet()
                                 .setUri(uriBuilder.build())
-                                .setHeader("Content-Type", "application/json")
+                                .setHeader(CONTENT_TYPE, "application/json")
                                 .build();
                         return Futures.submit(() -> warpClient.sendWithRetry(request, createFullJsonResponseHandler(workerMetricsCollect)), executorService);
                     })

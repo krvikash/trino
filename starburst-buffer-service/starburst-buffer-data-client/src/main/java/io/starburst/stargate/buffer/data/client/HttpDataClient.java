@@ -49,7 +49,6 @@ import static com.google.common.base.MoreObjects.ToStringHelper;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
-import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
 import static com.google.common.util.concurrent.Futures.catchingAsync;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
@@ -58,6 +57,7 @@ import static com.google.common.util.concurrent.Futures.transform;
 import static com.google.common.util.concurrent.Futures.transformAsync;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.http.client.FullJsonResponseHandler.createFullJsonResponseHandler;
+import static io.airlift.http.client.HeaderNames.CONTENT_LENGTH;
 import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
 import static io.airlift.http.client.Request.Builder.prepareDelete;
 import static io.airlift.http.client.Request.Builder.prepareGet;
@@ -66,7 +66,7 @@ import static io.airlift.http.client.ResponseHandlerUtils.propagate;
 import static io.airlift.http.client.StringResponseHandler.createStringResponseHandler;
 import static io.airlift.json.JsonCodec.jsonCodec;
 import static io.airlift.slice.SizeOf.SIZE_OF_INT;
-import static io.starburst.stargate.buffer.data.client.DataClientHeaders.MAX_WAIT;
+import static io.starburst.stargate.buffer.data.client.DataClientHeaders.MAX_WAIT_HEADER;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA_TYPE;
@@ -147,7 +147,7 @@ public class HttpDataClient
         uri.addParameter("targetBufferNodeId", String.valueOf(targetBufferNodeId));
         Request request = prepareGet()
                 .setUri(uri.build())
-                .setHeader(MAX_WAIT, httpIdleTimeout.toString())
+                .setHeader(MAX_WAIT_HEADER, httpIdleTimeout.toString())
                 .build();
 
         ListenableFuture<JsonResponse<ChunkList>> responseFuture = catchAndDecorateExceptions(request, httpClient.executeAsync(request, createFullJsonResponseHandler(CHUNK_LIST_JSON_CODEC)));
@@ -315,7 +315,7 @@ public class HttpDataClient
                         .build())
                 .setBodyGenerator(new ByteBufferBodyGenerator(byteBuffers))
                 .setHeader(CONTENT_LENGTH, String.valueOf(contentLength))
-                .setHeader(MAX_WAIT, httpIdleTimeout.toString());
+                .setHeader(MAX_WAIT_HEADER, httpIdleTimeout.toString());
         clientId.ifPresent(clientId -> requestBuilder.setHeader(CLIENT_ID_HEADER, clientId));
         Request request = requestBuilder.build();
 
@@ -353,7 +353,7 @@ public class HttpDataClient
                         .appendPath("%s/finish".formatted(exchangeId))
                         .addParameter("targetBufferNodeId", String.valueOf(targetBufferNodeId))
                         .build())
-                .setHeader(MAX_WAIT, httpIdleTimeout.toString())
+                .setHeader(MAX_WAIT_HEADER, httpIdleTimeout.toString())
                 .build();
 
         HttpResponseFuture<StringResponse> responseFuture = httpClient.executeAsync(request, createStringResponseHandler());
@@ -370,7 +370,7 @@ public class HttpDataClient
                         .appendPath("%d/%s/pages/%d/%d".formatted(bufferNodeId, exchangeId, partitionId, chunkId))
                         .addParameter("targetBufferNodeId", String.valueOf(targetBufferNodeId))
                         .build())
-                .setHeader(MAX_WAIT, httpIdleTimeout.toString())
+                .setHeader(MAX_WAIT_HEADER, httpIdleTimeout.toString())
                 .build();
 
         ListenableFuture<ChunkDataResponse> responseFuture = catchAndDecorateExceptions(request, httpClient.executeAsync(request, new ChunkDataResponseHandler(dataIntegrityVerificationEnabled, bufferNodeId, exchangeId, partitionId, chunkId)));

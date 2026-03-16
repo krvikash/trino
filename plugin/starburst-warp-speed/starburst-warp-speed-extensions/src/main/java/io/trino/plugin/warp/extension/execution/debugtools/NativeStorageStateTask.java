@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static io.airlift.http.client.FullJsonResponseHandler.createFullJsonResponseHandler;
+import static io.airlift.http.client.HeaderNames.CONTENT_TYPE;
 import static io.airlift.http.client.Request.Builder.prepareGet;
 import static java.util.Objects.requireNonNull;
 
@@ -73,7 +74,7 @@ public class NativeStorageStateTask
                 uriBuilder.appendPath(NativeStorageStateResource.PATH);
                 Request request = prepareGet()
                         .setUri(uriBuilder.build())
-                        .setHeader("Content-Type", "application/json")
+                        .setHeader(CONTENT_TYPE, "application/json")
                         .build();
                 NativeStorageState nativeStorageState = warpClient.sendWithRetry(request, createFullJsonResponseHandler(nativeStorageStateCodec));
                 result.add(nativeStorageState);
