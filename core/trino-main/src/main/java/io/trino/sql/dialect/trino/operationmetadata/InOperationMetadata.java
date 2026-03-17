@@ -74,6 +74,8 @@ public class InOperationMetadata
 
     public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
     {
+        checkArgument(!childAttributes.isEmpty(), "In operation must have at least one child attributes map");
+
         return defaultDeriveIrLevelAttributes(childAttributes);
     }
 }

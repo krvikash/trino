@@ -77,6 +77,9 @@ public class SwitchOperationMetadata
 
     public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
     {
+        checkArgument(childAttributes.size() >= 4, "Switch operation must have at least four child attributes maps");
+        checkArgument(childAttributes.size() % 2 == 0, "Switch operation must have even number of child attributes maps");
+
         return defaultDeriveIrLevelAttributes(childAttributes);
     }
 }

@@ -98,6 +98,8 @@ public class CastOperationMetadata
 
     public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
     {
+        checkArgument(childAttributes.size() == 1, "Cast operation must have exactly one child attributes map");
+
         Map<AttributeKey, Object> inputAttributes = getOnlyElement(childAttributes);
 
         ImmutableMap.Builder<AttributeKey, Object> derivedAttributes = ImmutableMap.builder();

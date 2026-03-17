@@ -74,6 +74,8 @@ public class BindOperationMetadata
 
     public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
     {
+        checkArgument(!childAttributes.isEmpty(), "Bind operation must have at least one child attributes map");
+
         return defaultDeriveIrLevelAttributes(childAttributes);
     }
 }

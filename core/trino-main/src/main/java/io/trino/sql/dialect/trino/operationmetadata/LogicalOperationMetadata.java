@@ -83,6 +83,8 @@ public class LogicalOperationMetadata
 
     public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
     {
+        checkArgument(childAttributes.size() >= 2, "Logical operation must have at least two child attributes maps");
+
         return defaultDeriveIrLevelAttributes(childAttributes);
     }
 

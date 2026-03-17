@@ -76,6 +76,9 @@ public class CaseOperationMetadata
 
     public static Map<AttributeKey, Object> deriveAttributes(Map<AttributeKey, Object> currentAttributes, List<Map<AttributeKey, Object>> childAttributes)
     {
+        checkArgument(childAttributes.size() >= 3, "Case operation must have at least three child attributes maps");
+        checkArgument(childAttributes.size() % 2 == 1, "Case operation must have odd number of child attributes maps");
+
         return defaultDeriveIrLevelAttributes(childAttributes);
     }
 }
