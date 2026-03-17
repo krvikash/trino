@@ -782,7 +782,8 @@ public class TracingMetadata
             Collection<Slice> fragments,
             Collection<ComputedStatistics> computedStatistics,
             List<TableHandle> sourceTableHandles,
-            List<String> sourceTableFunctions)
+            List<String> sourceTableFunctions,
+            boolean hasNonDeterministicFunctions)
     {
         Span span = startSpan("finishRefreshMaterializedView", tableHandle);
         try (var _ = scopedSpan(span)) {
@@ -793,7 +794,8 @@ public class TracingMetadata
                     fragments,
                     computedStatistics,
                     sourceTableHandles,
-                    sourceTableFunctions);
+                    sourceTableFunctions,
+                    hasNonDeterministicFunctions);
         }
     }
 

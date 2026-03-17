@@ -431,7 +431,8 @@ public class ObjectStoreMetadata
             Collection<ComputedStatistics> computedStatistics,
             List<ConnectorTableHandle> sourceTableHandles,
             boolean hasForeignSourceTables,
-            boolean hasSourceTableFunctions)
+            boolean hasSourceTableFunctions,
+            boolean hasNonDeterministicFunctions)
     {
         return icebergMetadata.finishRefreshMaterializedView(
                 unwrap(ICEBERG, session),
@@ -441,7 +442,8 @@ public class ObjectStoreMetadata
                 computedStatistics,
                 sourceTableHandles,
                 hasForeignSourceTables,
-                hasSourceTableFunctions);
+                hasSourceTableFunctions,
+                hasNonDeterministicFunctions);
     }
 
     @Override
