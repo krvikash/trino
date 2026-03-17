@@ -37,7 +37,6 @@ import java.util.Map;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.InstanceOfAssertFactories.map;
 
 public class TestOpenApiParseOptions
 {
@@ -93,15 +92,11 @@ public class TestOpenApiParseOptions
         assertThat(schemas.get("external"))
                 .isNotNull()
                 .extracting(Schema::getJsonSchema)
-                .asInstanceOf(map(String.class, Object.class))
-                .extractingByKey("my_super_secret")
-                .isEqualTo("access_key");
+                .isNull();
         assertThat(schemas.get("filesystem"))
                 .isNotNull()
                 .extracting(Schema::getJsonSchema)
-                .asInstanceOf(map(String.class, Object.class))
-                .extractingByKey("my_super_secret")
-                .isEqualTo("access_key");
+                .isNull();
     }
 
     @AfterAll

@@ -129,17 +129,19 @@ public class OpenApiSpec
 
     public static OpenAPI parse(String specLocation)
     {
-        ParseOptions parseOptions = new ParseOptions();
-        parseOptions.setResolveFully(true);
-        parseOptions.setResolve(true);
-        SwaggerParseResult result = new OpenAPIV3Parser().readLocation(specLocation, null, parseOptions);
-        OpenAPI openAPI = result.getOpenAPI();
-
+        SwaggerParseResult result = new OpenAPIV3Parser().readLocation(specLocation, null, getParseOptions());
         if (result.getMessages() != null && !result.getMessages().isEmpty()) {
             throw new IllegalArgumentException("Failed to parse the OpenAPI spec: " + String.join(", ", result.getMessages()));
         }
+        return result.getOpenAPI();
+    }
 
-        return openAPI;
+    private static ParseOptions getParseOptions()
+    {
+        ParseOptions parseOptions = new ParseOptions();
+        parseOptions.setResolveFully(false);
+        parseOptions.setResolve(false);
+        return parseOptions;
     }
 
     public static String getIdentifier(String string)
