@@ -34,7 +34,7 @@ public class TestStargateParallelWithMemoryWritesEnabledConnectorTest
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        LocalStackContainer localstack = closeAfterClass(new LocalStackContainer(DockerImageName.parse("localstack/localstack:s3-latest")));
+        LocalStackContainer localstack = closeAfterClass(new LocalStackContainer(DockerImageName.parse("localstack/localstack:4.14.0")));
         localstack.start();
         remoteStarburst = closeAfterClass(createRemoteStarburstQueryRunnerWithMemory(REQUIRED_TPCH_TABLES, localstack, Optional.empty()));
         return StargateParallelQueryRunner.builder(remoteStarburst, "memory")

@@ -270,7 +270,7 @@ public final class StargateParallelQueryRunner
 
         String bucketName = "test-stargate" + UUID.randomUUID();
 
-        LocalStackContainer localstack = new LocalStackContainer(DockerImageName.parse("localstack/localstack:s3-latest"));
+        LocalStackContainer localstack = new LocalStackContainer(DockerImageName.parse("localstack/localstack:4.14.0"));
         localstack.start();
 
         try (S3Client client = createS3Client(localstack)) {
