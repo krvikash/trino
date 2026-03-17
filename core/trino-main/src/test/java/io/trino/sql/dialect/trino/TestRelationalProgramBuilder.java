@@ -53,6 +53,7 @@ import io.trino.sql.dialect.trino.operation.Output;
 import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
+import io.trino.sql.dialect.trino.operation.SemiJoin;
 import io.trino.sql.dialect.trino.operation.Sort;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TopN;
@@ -100,6 +101,7 @@ import io.trino.sql.planner.plan.OutputNode;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.planner.plan.ProjectNode;
+import io.trino.sql.planner.plan.SemiJoinNode;
 import io.trino.sql.planner.plan.SortNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TopNNode;
@@ -142,6 +144,7 @@ import static io.trino.sql.dialect.trino.operationmetadata.ComparisonOperationMe
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeScope.REMOTE;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType.GATHER;
 import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DistributionType.REPLICATED;
+import static io.trino.sql.dialect.trino.operationmetadata.SemiJoinOperationMetadata.DistributionType.PARTITIONED;
 import static io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata.TopNStep.FINAL;
 import static io.trino.sql.dialect.trino.operationmetadata.TopNRankingOperationMetadata.RankingType.RANK;
 import static io.trino.sql.dialect.trino.operationmetadata.TopNRankingOperationMetadata.RankingType.ROW_NUMBER;
@@ -1533,6 +1536,91 @@ final class TestRelationalProgramBuilder
                 ImmutableList.of(valuesOperation, projectOperation),
                 new MultisetType(EMPTY_ROW),
                 ImmutableMap.of());
+    }
+
+    @Test
+    public void testSemiJoin()
+    {
+        ValuesNode filteringSource = new ValuesNode(
+                new PlanNodeId("values_filtering_source"),
+                ImmutableList.of(new Symbol(BIGINT, "c")),
+                ImmutableList.of(new io.trino.sql.ir.Row(ImmutableList.of(new io.trino.sql.ir.Constant(BIGINT, 5L)))));
+
+        SemiJoinNode semiJoinNode = new SemiJoinNode(
+                new PlanNodeId("semi_join"),
+                VALUES_NODE,
+                filteringSource,
+                new Symbol(BIGINT, "a"),
+                new Symbol(BIGINT, "c"),
+                new Symbol(BOOLEAN, "match"),
+                Optional.of(SemiJoinNode.DistributionType.PARTITIONED),
+                Optional.of(new DynamicFilterId("semi_join_dynamic_filter")));
+
+        // filtering source
+        Constant constantOperation = new Constant("%10", BIGINT, 5L);
+        Row rowOperation = new Row("%11", ImmutableList.of(constantOperation.result()), ImmutableList.of(constantOperation.attributes()));
+        Return returnOperation = new Return("%12", rowOperation.result(), rowOperation.attributes());
+        Values filteringSourceOperation = new Values(
+                "%9",
+                RowType.anonymous(ImmutableList.of(BIGINT)),
+                ImmutableList.of(
+                        new Block(
+                                Optional.of("^row"),
+                                ImmutableList.of(),
+                                ImmutableList.of(
+                                        constantOperation,
+                                        rowOperation,
+                                        returnOperation))));
+        Type filteringSourceRowType = irType(relationRowType(trinoType(filteringSourceOperation.result().type())));
+
+        // source field selector
+        Block.Parameter sourceJoinParameter = new Block.Parameter("%14", VALUES_OPERATION_ROW_TYPE);
+        FieldReference fieldReferenceOperationSourceJoin = new FieldReference("%15", sourceJoinParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row rowOperationSourceJoin = new Row("%16", ImmutableList.of(fieldReferenceOperationSourceJoin.result()), ImmutableList.of(fieldReferenceOperationSourceJoin.attributes()));
+        Return returnOperationSourceJoin = new Return("%17", rowOperationSourceJoin.result(), rowOperationSourceJoin.attributes());
+
+        // filtering source field selector
+        Block.Parameter filteringSourceJoinParameter = new Block.Parameter("%18", filteringSourceRowType);
+        FieldReference fieldReferenceOperationFilteringSourceJoin = new FieldReference("%19", filteringSourceJoinParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row rowOperationFilteringSourceJoin = new Row("%20", ImmutableList.of(fieldReferenceOperationFilteringSourceJoin.result()), ImmutableList.of(fieldReferenceOperationFilteringSourceJoin.attributes()));
+        Return returnOperationFilteringSourceJoin = new Return("%21", rowOperationFilteringSourceJoin.result(), rowOperationFilteringSourceJoin.attributes());
+
+        SemiJoin semiJoinOperation = new SemiJoin(
+                "%13",
+                VALUES_OPERATION.result(),
+                filteringSourceOperation.result(),
+                new Block(
+                        Optional.of("^sourceFieldSelector"),
+                        ImmutableList.of(sourceJoinParameter),
+                        ImmutableList.of(
+                                fieldReferenceOperationSourceJoin,
+                                rowOperationSourceJoin,
+                                returnOperationSourceJoin)),
+                new Block(
+                        Optional.of("^filteringSourceFieldSelector"),
+                        ImmutableList.of(filteringSourceJoinParameter),
+                        ImmutableList.of(
+                                fieldReferenceOperationFilteringSourceJoin,
+                                rowOperationFilteringSourceJoin,
+                                returnOperationFilteringSourceJoin)),
+                Optional.of(PARTITIONED),
+                Optional.of("semi_join_dynamic_filter"),
+                VALUES_OPERATION.attributes(),
+                filteringSourceOperation.attributes());
+
+        assertProgram(
+                semiJoinNode,
+                ImmutableList.of(VALUES_OPERATION, filteringSourceOperation, semiJoinOperation),
+                new MultisetType(anonymousRow(BIGINT, BOOLEAN, BOOLEAN)),
+                ImmutableMap.of(
+                        new Symbol(BIGINT, "a"), 0,
+                        new Symbol(BOOLEAN, "b"), 1,
+                        new Symbol(BOOLEAN, "match"), 2));
+
+        assertThat(semiJoinOperation.operationAttributes())
+                .isEqualTo(ImmutableMap.of(
+                        new AttributeKey(TRINO, "semi_join:distribution_type"), PARTITIONED,
+                        new AttributeKey(TRINO, "semi_join:dynamic_filter_id"), "semi_join_dynamic_filter"));
     }
 
     @Test

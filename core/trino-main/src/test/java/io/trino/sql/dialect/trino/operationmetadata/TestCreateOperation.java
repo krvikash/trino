@@ -64,6 +64,7 @@ import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Query;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
+import io.trino.sql.dialect.trino.operation.SemiJoin;
 import io.trino.sql.dialect.trino.operation.Sort;
 import io.trino.sql.dialect.trino.operation.Switch;
 import io.trino.sql.dialect.trino.operation.TableScan;
@@ -122,6 +123,7 @@ import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMeta
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType.GATHER;
 import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DistributionType.REPLICATED;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator.AND;
+import static io.trino.sql.dialect.trino.operationmetadata.SemiJoinOperationMetadata.DistributionType.PARTITIONED;
 import static io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata.TopNStep.FINAL;
 import static io.trino.sql.dialect.trino.operationmetadata.TopNRankingOperationMetadata.RankingType.RANK;
 import static io.trino.sql.dialect.trino.operationmetadata.TopNRankingOperationMetadata.RankingType.ROW_NUMBER;
@@ -2996,6 +2998,124 @@ class TestCreateOperation
                         new AttributeKey(IR, "safe"), true,
                         new AttributeKey(IR, "has_side_effects"), false)))
                 .hasMessage("Row operation does not have regions");
+    }
+
+    @Test
+    public void testSemiJoin()
+    {
+        // source field selector
+        FieldReference sourceFieldSelectorField = new FieldReference("%10", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row sourceFieldSelectorRow = new Row("%11", ImmutableList.of(sourceFieldSelectorField.result()), ImmutableList.of(sourceFieldSelectorField.attributes()));
+        Return sourceFieldSelectorReturn = new Return("%12", sourceFieldSelectorRow.result(), sourceFieldSelectorRow.attributes());
+        Block sourceFieldSelector = new Block(
+                Optional.of("^sourceFieldSelector"),
+                ImmutableList.of(INPUT_ROW_PARAMETER),
+                ImmutableList.of(
+                        sourceFieldSelectorField,
+                        sourceFieldSelectorRow,
+                        sourceFieldSelectorReturn));
+
+        // filtering source field selector
+        Parameter filteringSourceRowParameter = new Parameter(
+                "%13",
+                irType(anonymousRow(BIGINT)));
+        FieldReference filteringSourceFieldSelectorField = new FieldReference("%14", filteringSourceRowParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row filteringSourceFieldSelectorRow = new Row("%15", ImmutableList.of(filteringSourceFieldSelectorField.result()), ImmutableList.of(filteringSourceFieldSelectorField.attributes()));
+        Return filteringSourceFieldSelectorReturn = new Return("%16", filteringSourceFieldSelectorRow.result(), filteringSourceFieldSelectorRow.attributes());
+        Block filteringSourceFieldSelector = new Block(
+                Optional.of("^filteringSourceFieldSelector"),
+                ImmutableList.of(filteringSourceRowParameter),
+                ImmutableList.of(
+                        filteringSourceFieldSelectorField,
+                        filteringSourceFieldSelectorRow,
+                        filteringSourceFieldSelectorReturn));
+
+        // filtering source
+        Constant constantOperation = new Constant("%18", BIGINT, 5L);
+        Row rowOperation = new Row("%19", ImmutableList.of(constantOperation.result()), ImmutableList.of(constantOperation.attributes()));
+        Return returnOperation = new Return("%20", rowOperation.result(), rowOperation.attributes());
+        Values filteringSourceOperation = new Values(
+                "%17",
+                RowType.anonymous(ImmutableList.of(BIGINT)),
+                ImmutableList.of(
+                        new Block(
+                                Optional.of("^row"),
+                                ImmutableList.of(),
+                                ImmutableList.of(
+                                        constantOperation,
+                                        rowOperation,
+                                        returnOperation))));
+
+        SemiJoin semiJoinOperation = new SemiJoin(
+                "%semi_join",
+                VALUES_OPERATION.result(),
+                filteringSourceOperation.result(),
+                sourceFieldSelector,
+                filteringSourceFieldSelector,
+                Optional.of(PARTITIONED),
+                Optional.of("semi_join_dynamic_filter"),
+                VALUES_OPERATION.attributes(),
+                filteringSourceOperation.attributes());
+
+        Operation actualSemiJoinOperation = TESTING_TRINO_DIALECT.createOperation(
+                SemiJoinOperationMetadata.NAME,
+                "%semi_join",
+                ImmutableList.of(VALUES_OPERATION.result(), filteringSourceOperation.result()),
+                ImmutableList.of(
+                        singleBlockRegion(sourceFieldSelector),
+                        singleBlockRegion(filteringSourceFieldSelector)),
+                ImmutableMap.of(
+                        new AttributeKey(TRINO, "semi_join:distribution_type"), PARTITIONED,
+                        new AttributeKey(TRINO, "semi_join:dynamic_filter_id"), "semi_join_dynamic_filter",
+                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
+                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
+                        new AttributeKey(IR, "safe"), true,
+                        new AttributeKey(IR, "has_side_effects"), false));
+
+        assertThat(actualSemiJoinOperation).isEqualTo(semiJoinOperation);
+        assertThat(actualSemiJoinOperation.result().type()).isEqualTo(irType(new MultisetType(anonymousRow(BIGINT, BOOLEAN, BOOLEAN))));
+
+        // mismatching types returned by field selectors - source field selector returns BIGINT, while filtering source field selector returns BOOLEAN
+        FieldReference mismatchingSourceFieldSelectorField = new FieldReference("%10", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        sourceFieldSelectorRow = new Row("%11", ImmutableList.of(mismatchingSourceFieldSelectorField.result()), ImmutableList.of(mismatchingSourceFieldSelectorField.attributes()));
+        sourceFieldSelectorReturn = new Return("%12", sourceFieldSelectorRow.result(), sourceFieldSelectorRow.attributes());
+        Block mismatchingSourceFieldSelector = new Block(
+                Optional.of("^sourceFieldSelector"),
+                ImmutableList.of(INPUT_ROW_PARAMETER),
+                ImmutableList.of(
+                        mismatchingSourceFieldSelectorField,
+                        sourceFieldSelectorRow,
+                        sourceFieldSelectorReturn));
+
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                SemiJoinOperationMetadata.NAME,
+                "%semi_join",
+                ImmutableList.of(VALUES_OPERATION.result(), filteringSourceOperation.result()),
+                ImmutableList.of(
+                        singleBlockRegion(mismatchingSourceFieldSelector),
+                        singleBlockRegion(filteringSourceFieldSelector)),
+                ImmutableMap.of()))
+                .hasMessage("source and filtering source field selectors for SemiJoin operation must return the same type");
+
+        // wrong argument count
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                SemiJoinOperationMetadata.NAME,
+                "%semi_join",
+                ImmutableList.of(),
+                ImmutableList.of(
+                        singleBlockRegion(sourceFieldSelector),
+                        singleBlockRegion(filteringSourceFieldSelector)),
+                ImmutableMap.of()))
+                .hasMessage("SemiJoin operation must have exactly two arguments");
+
+        // wrong region count
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                SemiJoinOperationMetadata.NAME,
+                "%semi_join",
+                ImmutableList.of(VALUES_OPERATION.result(), filteringSourceOperation.result()),
+                ImmutableList.of(singleBlockRegion(sourceFieldSelector)),
+                ImmutableMap.of()))
+                .hasMessage("SemiJoin operation must have exactly two regions");
     }
 
     @Test

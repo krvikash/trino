@@ -64,6 +64,7 @@ import io.trino.sql.planner.plan.OutputNode;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.planner.plan.ProjectNode;
+import io.trino.sql.planner.plan.SemiJoinNode;
 import io.trino.sql.planner.plan.SortNode;
 import io.trino.sql.planner.plan.TopNNode;
 import io.trino.sql.planner.plan.TopNRankingNode;
@@ -418,6 +419,24 @@ class TestToOldIrRelationalRewriter
                 ImmutableMap.of(),
                 Optional.of(new PlanNodeStatsAndCostSummary(1, 2, 3, 4, 5)));
         assertRoundtrip(noFilterJoinNode);
+    }
+
+    @Test
+    public void testSemiJoin()
+    {
+        // note: the ToOldIrRelationalRewriter creates the semi-join output symbol passing the name "semiJoinResult",
+        // which gets transformed to "semijoinresult" by the SymbolAllocator.
+        // this test uses the same symbol name to enable roundtrip.
+        SemiJoinNode semiJoinNode = new SemiJoinNode(
+                new PlanNodeId("0"),
+                VALUES_NODE,
+                ANOTHER_VALUES_NODE,
+                A,
+                D,
+                new Symbol(BOOLEAN, "semijoinresult"),
+                Optional.of(SemiJoinNode.DistributionType.PARTITIONED),
+                Optional.of(new DynamicFilterId("semi_join_dynamic_filter")));
+        assertRoundtrip(semiJoinNode);
     }
 
     @Test

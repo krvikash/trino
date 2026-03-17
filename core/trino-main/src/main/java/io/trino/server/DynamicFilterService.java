@@ -49,8 +49,10 @@ import io.trino.sql.dialect.trino.operation.Filter;
 import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Query;
+import io.trino.sql.dialect.trino.operation.SemiJoin;
 import io.trino.sql.dialect.trino.operationmetadata.DynamicFilterSourceOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.SemiJoinOperationMetadata;
 import io.trino.sql.newir.Block;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Program;
@@ -595,23 +597,26 @@ public class DynamicFilterService
         Map<Value, Operation> operations = mainBlock.operations().stream()
                 .collect(toImmutableMap(Operation::result, identity()));
         return mainBlock.operations().stream()
-                // TODO handle SemiJoin when we support it in new IR
-                .filter(Join.class::isInstance)
-                .map(Join.class::cast)
-                .filter(join -> isBuildSideReplicated(join, operations))
-                .map(join -> JoinOperationMetadata.DYNAMIC_FILTER_IDS.getAttribute(join.attributes()))
-                .flatMap(List::stream)
+                .flatMap(operation -> {
+                    if (operation instanceof Join join && isJoinBuildSideReplicated(join, operations)) {
+                        return JoinOperationMetadata.DYNAMIC_FILTER_IDS.getAttribute(join.attributes()).stream();
+                    }
+                    if (operation instanceof SemiJoin semiJoin && isSemiJoinBuildSideReplicated(semiJoin, operations)) {
+                        return Optional.ofNullable(SemiJoinOperationMetadata.DYNAMIC_FILTER_ID.getAttribute(semiJoin.attributes())).stream();
+                    }
+                    return java.util.stream.Stream.of();
+                })
                 .map(DynamicFilterId::new)
                 .collect(toImmutableSet());
     }
 
-    private static boolean isBuildSideReplicated(Join join, Map<Value, Operation> operations)
+    private static boolean isJoinBuildSideReplicated(Join join, Map<Value, Operation> operations)
     {
         Operation rightSource = operations.get(join.right());
-        return hasReplicatedSource(rightSource, operations);
+        return hasReplicatedJoinSource(rightSource, operations);
     }
 
-    private static boolean hasReplicatedSource(Operation operation, Map<Value, Operation> operations)
+    private static boolean hasReplicatedJoinSource(Operation operation, Map<Value, Operation> operations)
     {
         if (operation instanceof Project ||
                 operation instanceof Filter ||
@@ -619,7 +624,29 @@ public class DynamicFilterService
                         EXCHANGE_SCOPE.getAttribute(exchange.attributes()) == LOCAL &&
                         ImmutableSet.of(REPARTITION, GATHER).contains(EXCHANGE_TYPE.getAttribute(exchange.attributes())))) {
             return operation.arguments().stream()
-                    .anyMatch(argument -> hasReplicatedSource(operations.get(argument), operations));
+                    .anyMatch(argument -> hasReplicatedJoinSource(operations.get(argument), operations));
+        }
+
+        // TODO also return true when operation is RemoteSource of type REPLICATE when we support RemoteSource in new IR
+        return operation instanceof Exchange exchange &&
+                EXCHANGE_SCOPE.getAttribute(exchange.attributes()) == REMOTE &&
+                EXCHANGE_TYPE.getAttribute(exchange.attributes()) == REPLICATE;
+    }
+
+    private static boolean isSemiJoinBuildSideReplicated(SemiJoin semiJoin, Map<Value, Operation> operations)
+    {
+        Operation filteringSource = operations.get(semiJoin.filteringSource());
+        return hasReplicatedSemiJoinSource(filteringSource, operations);
+    }
+
+    private static boolean hasReplicatedSemiJoinSource(Operation operation, Map<Value, Operation> operations)
+    {
+        if (operation instanceof Project ||
+                (operation instanceof Exchange exchange &&
+                        EXCHANGE_SCOPE.getAttribute(exchange.attributes()) == LOCAL &&
+                        EXCHANGE_TYPE.getAttribute(exchange.attributes()) == GATHER)) {
+            return operation.arguments().stream()
+                    .anyMatch(argument -> hasReplicatedSemiJoinSource(operations.get(argument), operations));
         }
 
         // TODO also return true when operation is RemoteSource of type REPLICATE when we support RemoteSource in new IR
@@ -632,11 +659,15 @@ public class DynamicFilterService
     {
         Block mainBlock = ((Query) program.root()).query();
         return mainBlock.operations().stream()
-                // TODO handle SemiJoin when we support it in new IR
-                .filter(operation -> operation instanceof Join || operation instanceof DynamicFilterSource)
+                .filter(operation -> operation instanceof Join || operation instanceof SemiJoin || operation instanceof DynamicFilterSource)
                 .map(operation -> {
                     if (operation instanceof Join) {
                         return JoinOperationMetadata.DYNAMIC_FILTER_IDS.getAttribute(operation.attributes());
+                    }
+                    if (operation instanceof SemiJoin) {
+                        return Optional.ofNullable(SemiJoinOperationMetadata.DYNAMIC_FILTER_ID.getAttribute(operation.attributes()))
+                                .stream()
+                                .toList();
                     }
                     return DynamicFilterSourceOperationMetadata.DYNAMIC_FILTER_IDS.getAttribute(operation.attributes());
                 })

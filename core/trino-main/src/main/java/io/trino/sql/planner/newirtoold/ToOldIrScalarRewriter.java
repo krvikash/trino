@@ -139,6 +139,13 @@ public class ToOldIrScalarRewriter
         return selectedSymbols.isEmpty() ? Optional.empty() : Optional.of(getOnlyElement(selectedSymbols));
     }
 
+    public Symbol getSelectedSymbol(Block block, List<Symbol> inputSymbols)
+    {
+        List<Symbol> selectedSymbols = getSelectedSymbols(block, inputSymbols);
+
+        return getOnlyElement(selectedSymbols);
+    }
+
     public List<Expression> getExpressions(Block block, List<Symbol> inputSymbols)
     {
         validateInputSymbols(block, ImmutableList.of(inputSymbols));

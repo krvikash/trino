@@ -40,6 +40,7 @@ import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Limit;
 import io.trino.sql.dialect.trino.operation.Output;
 import io.trino.sql.dialect.trino.operation.Project;
+import io.trino.sql.dialect.trino.operation.SemiJoin;
 import io.trino.sql.dialect.trino.operation.Sort;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TopN;
@@ -60,6 +61,7 @@ import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.Ex
 import io.trino.sql.dialect.trino.operationmetadata.IntersectOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.SemiJoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.SortOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.Statistics;
 import io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata;
@@ -102,6 +104,7 @@ import io.trino.sql.planner.plan.LimitNode;
 import io.trino.sql.planner.plan.OutputNode;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.ProjectNode;
+import io.trino.sql.planner.plan.SemiJoinNode;
 import io.trino.sql.planner.plan.SortNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TopNNode;
@@ -125,6 +128,7 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Streams.forEachPair;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.dialect.trino.RelationalProgramBuilder.relationRowType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
@@ -629,6 +633,36 @@ public class ToOldIrRelationalRewriter
                 planNodeIdAllocator.getNextId(),
                 source,
                 assignmentsBuilder.build());
+    }
+
+    @Override
+    public PlanNode visitSemiJoin(SemiJoin semiJoin, List<PlanNode> sources)
+    {
+        checkArgument(sources.size() == 2, "Expected two sources for SemiJoin operation");
+        PlanNode source = sources.get(0);
+        PlanNode filteringSource = sources.get(1);
+
+        Symbol sourceJoinSymbol = scalarRewriter.getSelectedSymbol(semiJoin.sourceFieldSelector(), source.getOutputSymbols());
+        Symbol filteringSourceJoinSymbol = scalarRewriter.getSelectedSymbol(semiJoin.filteringSourceFieldSelector(), filteringSource.getOutputSymbols());
+        Symbol semiJoinOutput = symbolAllocator.newSymbol("semiJoinResult", BOOLEAN);
+
+        return new SemiJoinNode(
+                planNodeIdAllocator.getNextId(),
+                source,
+                filteringSource,
+                sourceJoinSymbol,
+                filteringSourceJoinSymbol,
+                semiJoinOutput,
+                Optional.ofNullable(SemiJoinOperationMetadata.DISTRIBUTION_TYPE.getAttribute(semiJoin.attributes())).map(ToOldIrRelationalRewriter::rewriteSemiJoinDistributionType),
+                Optional.ofNullable(SemiJoinOperationMetadata.DYNAMIC_FILTER_ID.getAttribute(semiJoin.attributes())).map(DynamicFilterId::new));
+    }
+
+    private static SemiJoinNode.DistributionType rewriteSemiJoinDistributionType(SemiJoinOperationMetadata.DistributionType type)
+    {
+        return switch (type) {
+            case PARTITIONED -> SemiJoinNode.DistributionType.PARTITIONED;
+            case REPLICATED -> SemiJoinNode.DistributionType.REPLICATED;
+        };
     }
 
     @Override

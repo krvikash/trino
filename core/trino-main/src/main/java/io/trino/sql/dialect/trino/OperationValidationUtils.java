@@ -46,6 +46,14 @@ public class OperationValidationUtils
         }
     }
 
+    public static void validateRowSelectorReturningExactlyOneField(Block block, Type inputType, String errorMessage)
+    {
+        validateRowSelector(block, inputType, errorMessage);
+        if (trinoType(block.getReturnedType()).getTypeParameters().size() != 1) {
+            throw new TrinoException(IR_ERROR, errorMessage);
+        }
+    }
+
     public static void validateNonEmptyRowSelector(Block block, Type inputType, String errorMessage)
     {
         validateRowSelector(block, inputType, errorMessage);

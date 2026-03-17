@@ -51,10 +51,12 @@ import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Query;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
+import io.trino.sql.dialect.trino.operation.SemiJoin;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
 import io.trino.sql.dialect.trino.operationmetadata.DynamicFilterSourceOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.SemiJoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.IrUtils;
@@ -1337,7 +1339,8 @@ public class CteReuse
      * such dynamic filters can be considered equivalent.
      * <p>
      * Transformation steps
-     * 1. Identify equivalent dynamic filter ids. See {@link #getEquivalentDynamicFilters(Join)}, {@link #getEquivalentDynamicFilters(DynamicFilterSource)}.
+     * 1. Identify equivalent dynamic filter ids. See {@link #getEquivalentDynamicFilters(Join)}, {@link #getEquivalentDynamicFilters(DynamicFilterSource)},
+     * {@link #getEquivalentDynamicFilters(SemiJoin)}.
      * For example, let's assume that {df1, df3} are identified as equivalent, because they are assigned in the same Join,
      * and refer to the same build side field.
      * 2. Rewrite dynamic filter references so that all equivalent ids are replaced with the same representative.
@@ -1372,6 +1375,9 @@ public class CteReuse
                     }
                     if (operation instanceof DynamicFilterSource dynamicFilterSource) {
                         return getEquivalentDynamicFilters(dynamicFilterSource);
+                    }
+                    if (operation instanceof SemiJoin semiJoin) {
+                        return getEquivalentDynamicFilters(semiJoin);
                     }
                     return ImmutableList.<EquivalentDynamicFilters>of();
                 })
@@ -1494,6 +1500,20 @@ public class CteReuse
                         ImmutableSet.copyOf(ids),
                         ids.stream().findFirst().orElseThrow()))
                 .collect(toImmutableList());
+    }
+
+    /**
+     * Group dynamic filters assigned in given SemiJoin by equivalence.
+     * Currently, we don't merge SemiJoin operations, so effectively each dynamic filter assigned in a SemiJoin forms its own equivalence group.
+     * // TODO: if we decide to merge SemiJoin operations in the future, we should implement this method to support equivalence of dynamic filters assigned in SemiJoins.
+     */
+    private static List<EquivalentDynamicFilters> getEquivalentDynamicFilters(SemiJoin semiJoin)
+    {
+        String dynamicFilterId = SemiJoinOperationMetadata.DYNAMIC_FILTER_ID.getAttribute(semiJoin.attributes());
+        if (dynamicFilterId != null) {
+            return ImmutableList.of(new EquivalentDynamicFilters(ImmutableSet.of(dynamicFilterId), dynamicFilterId));
+        }
+        return ImmutableList.of();
     }
 
     /**

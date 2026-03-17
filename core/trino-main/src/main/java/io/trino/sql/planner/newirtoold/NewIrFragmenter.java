@@ -43,6 +43,7 @@ import io.trino.sql.dialect.trino.operation.Limit;
 import io.trino.sql.dialect.trino.operation.Output;
 import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Query;
+import io.trino.sql.dialect.trino.operation.SemiJoin;
 import io.trino.sql.dialect.trino.operation.Sort;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TopN;
@@ -469,6 +470,17 @@ public class NewIrFragmenter
             TrinoOperation source = getSource(operation);
             PlanNode rewrittenSource = source.accept(this, context);
             return operation.accept(relationalRewriter, ImmutableList.of(rewrittenSource));
+        }
+
+        @Override
+        public PlanNode visitSemiJoin(SemiJoin operation, FragmentProperties context)
+        {
+            List<TrinoOperation> sources = getSources(operation);
+            checkState(sources.size() == 2, "Expected two sources for %s", operation.name());
+            List<PlanNode> rewrittenSources = sources.stream()
+                    .map(source -> source.accept(this, context))
+                    .collect(toImmutableList());
+            return operation.accept(relationalRewriter, rewrittenSources);
         }
 
         @Override

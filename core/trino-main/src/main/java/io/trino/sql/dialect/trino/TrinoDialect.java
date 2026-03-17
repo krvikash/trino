@@ -59,6 +59,7 @@ import io.trino.sql.dialect.trino.operationmetadata.ProjectOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.QueryOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ReturnOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.RowOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.SemiJoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.SortOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.SwitchOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata;
@@ -314,6 +315,7 @@ public final class TrinoDialect
                 new QueryOperationMetadata(),
                 new ReturnOperationMetadata(),
                 new RowOperationMetadata(),
+                new SemiJoinOperationMetadata(),
                 new SortOperationMetadata(),
                 new SwitchOperationMetadata(),
                 new TopNOperationMetadata(),

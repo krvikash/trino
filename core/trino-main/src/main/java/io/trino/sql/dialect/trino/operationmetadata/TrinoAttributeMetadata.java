@@ -185,6 +185,16 @@ public record TrinoAttributeMetadata<T>(TrinoAttributeSignature<T> trinoAttribut
         return new TrinoAttributeMetadata<>(new TrinoAttributeSignature<>(name, external), SortOrderList::parse, SortOrderList::print);
     }
 
+    public static TrinoAttributeMetadata<String> internalStringAttributeMetadata(String prefix, String name)
+    {
+        return stringAttributeMetadata(prefixedName(prefix, name), false);
+    }
+
+    public static TrinoAttributeMetadata<String> stringAttributeMetadata(String name, boolean external)
+    {
+        return new TrinoAttributeMetadata<>(new TrinoAttributeSignature<>(name, external), value -> value, value -> value);
+    }
+
     public static TrinoAttributeMetadata<List<String>> internalStringListAttributeMetadata(String prefix, String name)
     {
         return stringListAttributeMetadata(prefixedName(prefix, name), false);

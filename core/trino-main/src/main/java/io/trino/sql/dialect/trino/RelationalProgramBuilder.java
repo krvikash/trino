@@ -41,6 +41,7 @@ import io.trino.sql.dialect.trino.operation.Output;
 import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
+import io.trino.sql.dialect.trino.operation.SemiJoin;
 import io.trino.sql.dialect.trino.operation.Sort;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TopN;
@@ -57,6 +58,7 @@ import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.Ex
 import io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DistributionType;
+import io.trino.sql.dialect.trino.operationmetadata.SemiJoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.Statistics;
 import io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata.TopNStep;
 import io.trino.sql.dialect.trino.operationmetadata.TopNRankingOperationMetadata.RankingType;
@@ -85,6 +87,7 @@ import io.trino.sql.planner.plan.OutputNode;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanVisitor;
 import io.trino.sql.planner.plan.ProjectNode;
+import io.trino.sql.planner.plan.SemiJoinNode;
 import io.trino.sql.planner.plan.SortNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TopNNode;
@@ -755,6 +758,34 @@ public class RelationalProgramBuilder
         Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(project.result().type())), node.getOutputSymbols());
         context.block().addOperation(project);
         return new OperationAndMapping(project, outputMapping);
+    }
+
+    @Override
+    public OperationAndMapping visitSemiJoin(SemiJoinNode node, Context context)
+    {
+        OperationAndMapping source = node.getSource().accept(this, context);
+        OperationAndMapping filteringSource = node.getFilteringSource().accept(this, context);
+        String resultName = nameAllocator.newName();
+
+        Type sourceRowType = relationRowType(trinoType(source.operation().result().type()));
+        Block sourceFieldSelector = fieldSelectorBlock("^sourceFieldSelector", sourceRowType, source.mapping(), ImmutableList.of(node.getSourceJoinSymbol()));
+
+        Type filteringSourceRowType = relationRowType(trinoType(filteringSource.operation().result().type()));
+        Block filteringSourceFieldSelector = fieldSelectorBlock("^filteringSourceFieldSelector", filteringSourceRowType, filteringSource.mapping(), ImmutableList.of(node.getFilteringSourceJoinSymbol()));
+
+        SemiJoin semiJoin = new SemiJoin(
+                resultName,
+                source.operation().result(),
+                filteringSource.operation().result(),
+                sourceFieldSelector,
+                filteringSourceFieldSelector,
+                node.getDistributionType().map(SemiJoinOperationMetadata.DistributionType::of),
+                node.getDynamicFilterId().map(DynamicFilterId::toString),
+                source.operation().attributes(),
+                filteringSource.operation().attributes());
+        Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(semiJoin.result().type())), node.getOutputSymbols());
+        context.block().addOperation(semiJoin);
+        return new OperationAndMapping(semiJoin, outputMapping);
     }
 
     @Override
