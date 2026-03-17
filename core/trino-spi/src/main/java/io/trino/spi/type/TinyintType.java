@@ -287,4 +287,10 @@ public final class TinyintType
     {
         return ((byte) left) <= ((byte) right);
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

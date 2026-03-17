@@ -91,4 +91,10 @@ public class QuantileDigestType
     {
         return singletonList(valueType);
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

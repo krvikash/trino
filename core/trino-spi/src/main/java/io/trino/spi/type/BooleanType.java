@@ -234,4 +234,10 @@ public final class BooleanType
     {
         return !left || right;
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

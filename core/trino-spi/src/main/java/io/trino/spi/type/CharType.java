@@ -232,6 +232,12 @@ public final class CharType
         return (length * 31) + getClass().hashCode();
     }
 
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
+
     @ScalarOperator(COMPARISON_UNORDERED_LAST)
     private static long comparisonOperator(Slice left, Slice right)
     {

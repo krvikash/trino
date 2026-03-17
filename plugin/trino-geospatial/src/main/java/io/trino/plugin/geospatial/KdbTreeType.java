@@ -123,6 +123,12 @@ public final class KdbTreeType
         return (int) INT_HANDLE.get(fixedSizeSlice, fixedSizeOffset);
     }
 
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
+
     @ScalarOperator(READ_VALUE)
     private static Object readFlat(
             @FlatFixed byte[] fixedSizeSlice,

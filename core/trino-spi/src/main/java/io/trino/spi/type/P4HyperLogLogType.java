@@ -68,4 +68,10 @@ public class P4HyperLogLogType
     {
         return HYPER_LOG_LOG.getObjectValue(block, position);
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

@@ -157,6 +157,12 @@ public final class UnknownType
         return 0;
     }
 
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
+
     @ScalarOperator(READ_VALUE)
     private static boolean readFlat(
             @FlatFixed byte[] unusedFixedSizeSlice,

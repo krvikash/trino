@@ -92,4 +92,10 @@ public final class IntegerType
     {
         return getClass().hashCode();
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

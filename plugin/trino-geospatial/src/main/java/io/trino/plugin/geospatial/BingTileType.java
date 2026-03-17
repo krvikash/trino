@@ -49,4 +49,10 @@ public class BingTileType
 
         return BingTile.decode(getLong(block, position));
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

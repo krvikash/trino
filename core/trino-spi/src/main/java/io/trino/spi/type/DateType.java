@@ -93,4 +93,10 @@ public final class DateType
     {
         return getClass().hashCode();
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

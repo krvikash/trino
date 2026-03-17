@@ -279,6 +279,8 @@ public abstract class AbstractTestType
         }
 
         if (hasCreatePreSizedBlockBuilder) {
+            assertThat(type.supportsPreSizedBlockBuilder()).isTrue();
+
             // Now verify that at least one write* method with FixedSizeBlockBuilder is implemented
             boolean hasWriteMethod = false;
 
@@ -315,6 +317,9 @@ public abstract class AbstractTestType
                         "%s implements createPreSizedBlockBuilder but does not implement any write* method with FixedSizeBlockBuilder parameter",
                         typeClass.getName()));
             }
+        }
+        else {
+            assertThat(type.supportsPreSizedBlockBuilder()).isFalse();
         }
     }
 

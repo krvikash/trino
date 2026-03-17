@@ -285,4 +285,10 @@ public final class DoubleType
 
         return Double.compare(left, right);
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

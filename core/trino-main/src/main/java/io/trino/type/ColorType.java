@@ -75,4 +75,10 @@ public class ColorType
     {
         return getClass().hashCode();
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

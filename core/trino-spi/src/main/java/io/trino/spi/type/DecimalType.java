@@ -115,4 +115,10 @@ public abstract sealed class DecimalType
             throw new IllegalArgumentException(format(format, args));
         }
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

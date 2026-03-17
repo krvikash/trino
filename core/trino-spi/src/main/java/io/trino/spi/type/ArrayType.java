@@ -669,4 +669,10 @@ public class ArrayType
 
         return Integer.compare(leftArray.getPositionCount(), rightArray.getPositionCount());
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

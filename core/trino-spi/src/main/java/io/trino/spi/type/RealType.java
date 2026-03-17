@@ -139,6 +139,12 @@ public final class RealType
         return Optional.empty();
     }
 
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
+
     @ScalarOperator(READ_VALUE)
     private static long readFlat(
             @FlatFixed byte[] fixedSizeSlice,

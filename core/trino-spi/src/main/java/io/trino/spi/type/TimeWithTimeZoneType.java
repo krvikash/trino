@@ -87,4 +87,10 @@ public abstract sealed class TimeWithTimeZoneType
     {
         return true;
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

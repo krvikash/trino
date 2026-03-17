@@ -27,6 +27,8 @@ import io.airlift.bytecode.instruction.LabelNode;
 import io.airlift.slice.Slice;
 import io.trino.metadata.FunctionManager;
 import io.trino.metadata.ResolvedFunction;
+import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.DefaultPreSizedBlockBuilder;
 import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.function.BoundSignature;
@@ -481,6 +483,33 @@ public final class BytecodeUtils
         // TODO: clean up once try_cast is fixed
         Variable tempValue = scope.getOrCreateTempVariable(valueJavaType);
         Variable tempOutput = scope.getOrCreateTempVariable(PreSizedBlockBuilder.class);
+
+        BytecodeBlock writeBlock;
+        if (type.supportsPreSizedBlockBuilder()) {
+            writeBlock = new BytecodeBlock()
+                    .comment("%s.%s(output, %s)", type.getTypeSignature(), methodName, valueJavaType.getSimpleName())
+                    .putVariable(tempValue)
+                    .putVariable(tempOutput)
+                    .append(loadConstant(callSiteBinder.bind(type, Type.class)))
+                    .getVariable(tempOutput)
+                    .getVariable(tempValue)
+                    .invokeInterface(Type.class, methodName, void.class, PreSizedBlockBuilder.class, valueJavaType);
+        }
+        else {
+            // Type does not override writeXxx(PreSizedBlockBuilder, ...), fall back to
+            // writeXxx(BlockBuilder, ...) by unwrapping the DefaultPreSizedBlockBuilder
+            writeBlock = new BytecodeBlock()
+                    .comment("%s.%s(output.getBlockBuilder(), %s) [compat]", type.getTypeSignature(), methodName, valueJavaType.getSimpleName())
+                    .putVariable(tempValue)
+                    .putVariable(tempOutput)
+                    .append(loadConstant(callSiteBinder.bind(type, Type.class)))
+                    .getVariable(tempOutput)
+                    .checkCast(DefaultPreSizedBlockBuilder.class)
+                    .invokeVirtual(DefaultPreSizedBlockBuilder.class, "getBlockBuilder", BlockBuilder.class)
+                    .getVariable(tempValue)
+                    .invokeInterface(Type.class, methodName, void.class, BlockBuilder.class, valueJavaType);
+        }
+
         BytecodeBlock block = new BytecodeBlock()
                 .comment("if (wasNull)")
                 .append(new IfStatement()
@@ -489,14 +518,7 @@ public final class BytecodeUtils
                                 .comment("output.appendNull();")
                                 .pop(valueJavaType)
                                 .invokeInterface(PreSizedBlockBuilder.class, "appendNull", void.class))
-                        .ifFalse(new BytecodeBlock()
-                                .comment("%s.%s(output, %s)", type.getTypeSignature(), methodName, valueJavaType.getSimpleName())
-                                .putVariable(tempValue)
-                                .putVariable(tempOutput)
-                                .append(loadConstant(callSiteBinder.bind(type, Type.class)))
-                                .getVariable(tempOutput)
-                                .getVariable(tempValue)
-                                .invokeInterface(Type.class, methodName, void.class, PreSizedBlockBuilder.class, valueJavaType)));
+                        .ifFalse(writeBlock));
         scope.releaseTempVariableForReuse(tempOutput);
         scope.releaseTempVariableForReuse(tempValue);
         return block;

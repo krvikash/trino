@@ -103,4 +103,10 @@ public class JsonType
     {
         ((VariableWidthPreSizedBlockBuilder) blockBuilder).writeEntry(value);
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

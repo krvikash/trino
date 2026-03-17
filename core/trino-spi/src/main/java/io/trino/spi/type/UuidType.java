@@ -334,4 +334,10 @@ public class UuidType
         }
         return Long.compareUnsigned(reverseBytes(leftHigh64le), reverseBytes(rightHigh64le));
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

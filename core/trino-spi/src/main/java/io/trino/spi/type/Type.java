@@ -113,6 +113,16 @@ public interface Type
     PreSizedBlockBuilder createPreSizedBlockBuilder(int positionCount);
 
     /**
+     * Returns true if this type supports the writeXxx(PreSizedBlockBuilder, ...) methods.
+     * Types compiled against Trino SPI will not support these methods and should
+     * return false (the default).
+     */
+    default boolean supportsPreSizedBlockBuilder()
+    {
+        return false;
+    }
+
+    /**
      * Creates a block containing as single  null values.
      */
     default ValueBlock createNullBlock()

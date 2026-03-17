@@ -292,4 +292,10 @@ public final class SmallintType
     {
         return ((short) left) <= ((short) right);
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

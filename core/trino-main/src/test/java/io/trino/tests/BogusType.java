@@ -58,4 +58,10 @@ public final class BogusType
     {
         return false;
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

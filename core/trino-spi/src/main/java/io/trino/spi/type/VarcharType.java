@@ -240,4 +240,10 @@ public final class VarcharType
     {
         return (length * 31) + getClass().hashCode();
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

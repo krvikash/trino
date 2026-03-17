@@ -138,6 +138,12 @@ public final class TimeType
         return Optional.of(value + rescale(PICOSECONDS_PER_SECOND, getPrecision(), 0));
     }
 
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
+
     @ScalarOperator(READ_VALUE)
     private static long readFlat(
             @FlatFixed byte[] fixedSizeSlice,

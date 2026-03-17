@@ -14,9 +14,11 @@
 package io.trino.operator.project;
 
 import io.trino.spi.block.Block;
+import io.trino.spi.block.DefaultPreSizedBlockBuilder;
 import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SourcePage;
+import io.trino.spi.type.Type;
 import io.trino.sql.gen.PageProjectionWork;
 import io.trino.sql.relational.RowExpression;
 
@@ -42,7 +44,7 @@ public class GeneratedPageProjection
         this.isDeterministic = isDeterministic;
         this.inputChannels = requireNonNull(inputChannels, "inputChannels is null");
         this.pageProjectionWorkFactory = requireNonNull(pageProjectionWorkFactory, "pageProjectionWorkFactory is null");
-        this.blockBuilder = projection.type().createPreSizedBlockBuilder(1);
+        this.blockBuilder = createBlockBuilder(projection.type(), 1);
     }
 
     @Override
@@ -67,6 +69,14 @@ public class GeneratedPageProjection
         catch (Throwable throwable) {
             throw propagate(throwable);
         }
+    }
+
+    private PreSizedBlockBuilder createBlockBuilder(Type type, int positionCount)
+    {
+        if (type.supportsPreSizedBlockBuilder()) {
+            return type.createPreSizedBlockBuilder(positionCount);
+        }
+        return new DefaultPreSizedBlockBuilder(type.createBlockBuilder(null, positionCount));
     }
 
     @Override

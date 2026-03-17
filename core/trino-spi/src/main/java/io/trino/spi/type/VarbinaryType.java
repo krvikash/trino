@@ -110,4 +110,10 @@ public final class VarbinaryType
     {
         return getClass().hashCode();
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

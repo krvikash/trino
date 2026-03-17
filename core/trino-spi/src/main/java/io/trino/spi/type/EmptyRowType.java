@@ -236,4 +236,10 @@ public class EmptyRowType
     {
         return getDisplayName();
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

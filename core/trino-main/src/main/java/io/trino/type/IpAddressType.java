@@ -185,6 +185,12 @@ public class IpAddressType
         return INT128_BYTES;
     }
 
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
+
     @ScalarOperator(READ_VALUE)
     private static Slice readFlat(
             @FlatFixed byte[] fixedSizeSlice,

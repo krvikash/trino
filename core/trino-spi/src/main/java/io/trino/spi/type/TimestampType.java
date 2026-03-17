@@ -93,4 +93,10 @@ public abstract sealed class TimestampType
     {
         return true;
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

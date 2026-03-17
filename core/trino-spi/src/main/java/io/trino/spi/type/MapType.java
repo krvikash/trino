@@ -812,4 +812,10 @@ public class MapType
         }
         return false;
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

@@ -78,4 +78,10 @@ public class HyperLogLogType
 
         return new SqlVarbinary(getSlice(block, position).getBytes());
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

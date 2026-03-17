@@ -96,4 +96,10 @@ public abstract sealed class TimestampWithTimeZoneType
     {
         return true;
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }

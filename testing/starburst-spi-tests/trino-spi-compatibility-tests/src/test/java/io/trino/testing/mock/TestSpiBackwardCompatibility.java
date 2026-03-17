@@ -23,7 +23,6 @@ import java.util.Map;
 
 import static io.trino.testing.TestingSession.testSession;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 final class TestSpiBackwardCompatibility
         extends AbstractTestQueryFramework
@@ -84,8 +83,8 @@ final class TestSpiBackwardCompatibility
     @Test
     void testCustomTypeProjection()
     {
-        assertThatThrownBy(() -> computeActual("SELECT COUNT(custom_from_varchar(col1)) FROM mock.\"default\".test_table"))
-                .hasStackTraceContaining("UnsupportedOperationException");
+        assertThat(computeActual("SELECT COUNT(custom_from_varchar(col1)) FROM mock.\"default\".test_table").getOnlyValue())
+                .isEqualTo(2L);
     }
 
     @Test

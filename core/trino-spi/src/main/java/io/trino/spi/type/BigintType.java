@@ -90,4 +90,10 @@ public final class BigintType
     {
         return Optional.of(LongStream.rangeClosed((long) range.getMin(), (long) range.getMax()).boxed());
     }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
 }
