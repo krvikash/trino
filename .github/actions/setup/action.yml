@@ -87,6 +87,26 @@ runs:
           region: us-east-2
           user-variable: mavenUserUsEast2
           password-variable: mavenCredentialsUsEast2
+      - name: Cache and Restore npm packages
+        id: cache-npm
+        if: ${{ format('{0}', inputs.cache) == 'true' && env.NODE_VERSION != '' }}
+        uses: actions/cache@v5
+        with:
+          # Note: must be same set of paths as for cache:restore mode
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ env.NODE_VERSION }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ env.NODE_VERSION }}-npm-
+      - name: Restore npm packages
+        id: cache-restore-npm
+        if: ${{ format('{0}', inputs.cache) == 'restore' && env.NODE_VERSION != '' }}
+        uses: actions/cache/restore@v5
+        with:
+          # Note: must be same set of paths as for cache:true mode
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ env.NODE_VERSION }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ env.NODE_VERSION }}-npm-
       - name: Cache and Restore local Maven repo
         id: cache
         if: ${{ format('{0}', inputs.cache) == 'true' }}
