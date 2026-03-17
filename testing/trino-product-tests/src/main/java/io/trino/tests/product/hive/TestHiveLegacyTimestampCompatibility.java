@@ -199,6 +199,27 @@ public class TestHiveLegacyTimestampCompatibility
         }
     }
 
+    @Test(groups = {HIVE4, PROFILE_SPECIFIC_TESTS})
+    public void testHiveParquetLegacy64BTimestampCompatibility()
+    {
+        String hiveTableName = "test_hive_parquet_legacy_tmst%s".formatted(randomNameSuffix());
+        String trinoTableName = format("%s.default.%s", TRINO_CATALOG, hiveTableName);
+
+        try {
+            onTrino().executeQuery("SET SESSION hive.timestamp_precision = '%s'".formatted(MILLISECONDS));
+            onHive().executeQuery("SET hive.parquet.write.int64.timestamp = true");
+
+            onHive().executeQuery("CREATE TABLE %s.%s (tmst timestamp) STORED AS PARQUET ".formatted(SCHEMA, hiveTableName));
+            onHive().executeQuery("INSERT INTO %s VALUES (TIMESTAMP '0001-01-01 15:30:12.123')".formatted(hiveTableName));
+
+            assertThat(onHive().executeQuery("SELECT tmst FROM " + hiveTableName)).containsOnly(row(Timestamp.valueOf("0001-01-01 15:30:12.123")));
+            assertThat(onTrino().executeQuery("SELECT tmst FROM " + trinoTableName)).containsOnly(row(Timestamp.valueOf("0001-01-01 15:30:12.123")));
+        }
+        finally {
+            onHive().executeQuery("DROP TABLE IF EXISTS " + hiveTableName);
+        }
+    }
+
     private void testHiveParquetLegacyTimestampCompatibility(
             HiveTimestampPrecision trinoTimestampPrecision,
             List<String> timestamps)
