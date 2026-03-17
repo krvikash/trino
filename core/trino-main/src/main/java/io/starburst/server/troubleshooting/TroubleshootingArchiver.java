@@ -116,7 +116,7 @@ public class TroubleshootingArchiver
         List<Exception> topLevelErrors = context.getTopLevelErrors();
         if (!topLevelErrors.isEmpty()) {
             try {
-                archive.putNextEntry(new ZipEntry(format("%s/%s", context.getQueryId().getId(), TOP_LEVEL_ERRORS_FILENAME)));
+                archive.putNextEntry(new ZipEntry(format("%s/%s", context.getQueryId().id(), TOP_LEVEL_ERRORS_FILENAME)));
                 for (Exception e : topLevelErrors) {
                     archive.write(ExceptionUtils.getStackTrace(e).getBytes(UTF_8));
                 }
@@ -129,11 +129,11 @@ public class TroubleshootingArchiver
         Map<String, Exception> errors = context.getErrors();
         for (String key : errors.keySet()) {
             try {
-                archive.putNextEntry(new ZipEntry(format("%s/%s.errors", context.getQueryId().getId(), key)));
+                archive.putNextEntry(new ZipEntry(format("%s/%s.errors", context.getQueryId().id(), key)));
                 archive.write(ExceptionUtils.getStackTrace(errors.get(key)).getBytes(UTF_8));
             }
             catch (IOException e) {
-                log.error(e, "Error while writing %s/%s.errors", context.getQueryId().getId(), key);
+                log.error(e, "Error while writing %s/%s.errors", context.getQueryId().id(), key);
             }
         }
     }
@@ -147,7 +147,7 @@ public class TroubleshootingArchiver
         }
         catch (Exception e) {
             context.addGeneralError(e);
-            log.warn(e, "%s.getInputStreams() failed for query with id: %s", dataProviderName, context.getQueryId().getId());
+            log.warn(e, "%s.getInputStreams() failed for query with id: %s", dataProviderName, context.getQueryId().id());
             return;
         }
         try (Closer closer = Closer.create()) {
@@ -163,7 +163,7 @@ public class TroubleshootingArchiver
     {
         for (Map.Entry<String, InputStream> entry : filenameInputStreamMap.entrySet()) {
             try {
-                archive.putNextEntry(new ZipEntry(format("%s/%s", context.getQueryId().getId(), entry.getKey())));
+                archive.putNextEntry(new ZipEntry(format("%s/%s", context.getQueryId().id(), entry.getKey())));
             }
             catch (IOException e) {
                 log.warn(e, "Failed while writing a new entry to zip file from provider: %s", dataProviderName);

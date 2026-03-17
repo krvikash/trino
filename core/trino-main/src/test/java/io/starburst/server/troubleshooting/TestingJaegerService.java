@@ -168,7 +168,7 @@ public class TestingJaegerService
 
                     if (tagNode.get("key").asText().equals("trino.query_id")) {
                         String tagNodeValue = tagNode.get("value").asText();
-                        if (tagNodeValue.equals(queryId.getId())) {
+                        if (tagNodeValue.equals(queryId.id())) {
                             return traceId;
                         }
                     }

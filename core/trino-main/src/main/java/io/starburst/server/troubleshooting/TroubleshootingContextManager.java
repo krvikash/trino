@@ -100,10 +100,10 @@ public class TroubleshootingContextManager
         TroubleshootingContext context;
         try {
             context = contexts.get(queryId, () -> new TroubleshootingContext(queryId,
-                    new StateMachine<>("troubleshooting-" + queryId.getId(), executorService, INITIALIZED, Set.of(REMOVED))));
+                    new StateMachine<>("troubleshooting-" + queryId.id(), executorService, INITIALIZED, Set.of(REMOVED))));
         }
         catch (ExecutionException e) {
-            throw new RuntimeException("Could not create new troubleshooting context for queryid: " + queryId.getId(), e);
+            throw new RuntimeException("Could not create new troubleshooting context for queryid: " + queryId.id(), e);
         }
 
         try {
@@ -113,7 +113,7 @@ public class TroubleshootingContextManager
         catch (Exception e) {
             context.addGeneralError(e);
             context.getState().set(INVALID);
-            log.error(e, "Could not start new troubleshooting context for queryId: %s", queryId.getId());
+            log.error(e, "Could not start new troubleshooting context for queryId: %s", queryId.id());
         }
     }
 
@@ -148,7 +148,7 @@ public class TroubleshootingContextManager
         catch (Exception e) {
             context.addGeneralError(e);
             context.getState().set(INVALID);
-            log.error(e, "Could not finish troubleshooting context for queryId: %s", queryId.getId());
+            log.error(e, "Could not finish troubleshooting context for queryId: %s", queryId.id());
         }
     }
 
@@ -248,7 +248,7 @@ public class TroubleshootingContextManager
                 provider.onContextStarted(context);
             }
             catch (Throwable t) {
-                log.warn(t, "%s.onContextStarted() failed for query with id: %s", provider.getClass().getName(), context.getQueryId().getId());
+                log.warn(t, "%s.onContextStarted() failed for query with id: %s", provider.getClass().getName(), context.getQueryId().id());
             }
         });
         return context.getState().compareAndSet(INITIALIZED, STARTED);
@@ -264,7 +264,7 @@ public class TroubleshootingContextManager
                 provider.onContextFinished(context);
             }
             catch (Throwable t) {
-                log.warn(t, "%s.onContextFinished() failed for query with id: %s", provider.getClass().getName(), context.getQueryId().getId());
+                log.warn(t, "%s.onContextFinished() failed for query with id: %s", provider.getClass().getName(), context.getQueryId().id());
             }
         });
         return context.getState().compareAndSet(STARTED, FINISHED);

@@ -164,7 +164,7 @@ class FlightRecorderHttpClient
 
     private URI baseUri(URI nodeUri)
     {
-        return nodeUri.resolve(BASE_PATH_API_V1.replace("{queryId}", queryId.getId()));
+        return nodeUri.resolve(BASE_PATH_API_V1.replace("{queryId}", queryId.id()));
     }
 
     private static boolean requestCanBeRetried(Throwable throwable)

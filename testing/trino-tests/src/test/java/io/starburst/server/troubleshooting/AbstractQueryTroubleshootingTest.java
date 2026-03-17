@@ -458,7 +458,7 @@ public abstract class AbstractQueryTroubleshootingTest
 
     private static String getPath(QueryId queryId, String suffix)
     {
-        return String.format("%s/%s", queryId.getId(), suffix);
+        return String.format("%s/%s", queryId.id(), suffix);
     }
 
     private static String byteToString(byte[] input)

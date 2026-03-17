@@ -95,7 +95,7 @@ public final class LocalRecordingFactory
 
     private Path getRecordingPath(QueryId queryId)
     {
-        return getDestinationPath().resolve(queryId.getId()).resolve(nodeId + ".jfr");
+        return getDestinationPath().resolve(queryId.id()).resolve(nodeId + ".jfr");
     }
 
     private Optional<FlightRecording> getExistingRecording(QueryId queryId)
@@ -113,7 +113,7 @@ public final class LocalRecordingFactory
 
     private Optional<FlightRecording> findReadOnlyRecording(QueryId queryId, String nodeId)
     {
-        Path recordingFile = getDestinationPath().resolve(queryId.getId()).resolve(nodeId + ".jfr");
+        Path recordingFile = getDestinationPath().resolve(queryId.id()).resolve(nodeId + ".jfr");
         if (exists(recordingFile)) {
             return Optional.of(new ReadOnlyLocalRecording(recordingFile));
         }
@@ -127,7 +127,7 @@ public final class LocalRecordingFactory
 
     private static String getRecordingName(QueryId queryId, String nodeId)
     {
-        return "JavaFlightRecording{queryId=%s;nodeId=%s}".formatted(queryId.getId(), nodeId);
+        return "JavaFlightRecording{queryId=%s;nodeId=%s}".formatted(queryId.id(), nodeId);
     }
 
     private FlightRecording createNewRecording(QueryId queryId)
@@ -267,7 +267,7 @@ public final class LocalRecordingFactory
             if (exists(recording.getDestination())) {
                 try {
                     delete(recording.getDestination());
-                    verify(recording.getDestination().getParent().endsWith(queryId.getId()), "Parent path does not contain query id");
+                    verify(recording.getDestination().getParent().endsWith(queryId.id()), "Parent path does not contain query id");
                     ensurePathDeleted(recording.getDestination().getParent());
                     log.info("Removed %s", this);
                 }
