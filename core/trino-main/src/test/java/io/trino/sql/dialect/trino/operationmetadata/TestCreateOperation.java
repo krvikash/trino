@@ -33,6 +33,7 @@ import io.trino.spi.type.RowType;
 import io.trino.sql.dialect.trino.operation.AggregateCall;
 import io.trino.sql.dialect.trino.operation.Aggregation;
 import io.trino.sql.dialect.trino.operation.Array;
+import io.trino.sql.dialect.trino.operation.AssignUniqueId;
 import io.trino.sql.dialect.trino.operation.Between;
 import io.trino.sql.dialect.trino.operation.Bind;
 import io.trino.sql.dialect.trino.operation.Call;
@@ -462,6 +463,47 @@ class TestCreateOperation
                         new AttributeKey(IR, "repeatability"), DETERMINISTIC,
                         new AttributeKey(IR, "has_side_effects"), false)))
                 .hasMessage("elementType is null");
+    }
+
+    @Test
+    public void testAssignUniqueId()
+    {
+        AssignUniqueId assignUniqueIdOperation = new AssignUniqueId(
+                "%assign_unique_id",
+                VALUES_OPERATION.result(),
+                VALUES_OPERATION.attributes());
+
+        Operation actualAssignUniqueIdOperation = TESTING_TRINO_DIALECT.createOperation(
+                AssignUniqueIdOperationMetadata.NAME,
+                "%assign_unique_id",
+                ImmutableList.of(VALUES_OPERATION.result()),
+                ImmutableList.of(),
+                ImmutableMap.of(
+                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
+                        new AttributeKey(IR, "repeatability"), NON_DETERMINISTIC,
+                        new AttributeKey(IR, "safe"), true,
+                        new AttributeKey(IR, "has_side_effects"), false));
+
+        assertThat(actualAssignUniqueIdOperation).isEqualTo(assignUniqueIdOperation);
+        assertThat(actualAssignUniqueIdOperation.result().type()).isEqualTo(irType(new MultisetType(anonymousRow(BIGINT, BOOLEAN, BIGINT))));
+
+        // wrong argument count
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                AssignUniqueIdOperationMetadata.NAME,
+                "%assign_unique_id",
+                ImmutableList.of(),
+                ImmutableList.of(),
+                ImmutableMap.of()))
+                .hasMessage("AssignUniqueId operation must have exactly one argument: the input relation");
+
+        // wrong region count
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                AssignUniqueIdOperationMetadata.NAME,
+                "%assign_unique_id",
+                ImmutableList.of(VALUES_OPERATION.result()),
+                ImmutableList.of(SOME_REGION),
+                ImmutableMap.of()))
+                .hasMessage("AssignUniqueId operation does not have regions");
     }
 
     @Test

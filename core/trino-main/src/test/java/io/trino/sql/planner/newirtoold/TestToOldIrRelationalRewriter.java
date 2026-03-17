@@ -154,6 +154,16 @@ class TestToOldIrRelationalRewriter
     }
 
     @Test
+    public void testAssignUniqueId()
+    {
+        io.trino.sql.planner.plan.AssignUniqueId assignUniqueIdNode = new io.trino.sql.planner.plan.AssignUniqueId(
+                new PlanNodeId("0"),
+                VALUES_NODE,
+                new Symbol(BIGINT, "unique"));
+        assertRoundtrip(assignUniqueIdNode);
+    }
+
+    @Test
     public void testDynamicFilterSource()
     {
         DynamicFilterSourceNode dynamicFilterSourceNode = new DynamicFilterSourceNode(

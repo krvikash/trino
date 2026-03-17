@@ -28,6 +28,7 @@ import io.trino.spi.type.TypeManager;
 import io.trino.sql.dialect.trino.operationmetadata.AggregateCallOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.AggregationOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ArrayOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.AssignUniqueIdOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.BetweenOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.BindOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.CallOperationMetadata;
@@ -284,6 +285,7 @@ public final class TrinoDialect
     {
         return ImmutableSet.of(
                 new AggregationOperationMetadata(),
+                new AssignUniqueIdOperationMetadata(),
                 new BetweenOperationMetadata(),
                 new BindOperationMetadata(),
                 new CallOperationMetadata(),

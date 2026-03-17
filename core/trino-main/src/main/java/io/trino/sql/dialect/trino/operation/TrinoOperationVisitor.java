@@ -27,6 +27,11 @@ public abstract class TrinoOperationVisitor<R, C>
         return visitOperation(operation, context);
     }
 
+    public R visitAssignUniqueId(AssignUniqueId operation, C context)
+    {
+        return visitOperation(operation, context);
+    }
+
     public R visitBetween(Between operation, C context)
     {
         return visitOperation(operation, context);

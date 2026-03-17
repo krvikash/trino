@@ -27,6 +27,7 @@ import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operation.AggregateCall;
 import io.trino.sql.dialect.trino.operation.Aggregation;
+import io.trino.sql.dialect.trino.operation.AssignUniqueId;
 import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
 import io.trino.sql.dialect.trino.operation.EnforceSingleRow;
 import io.trino.sql.dialect.trino.operation.Except;
@@ -280,6 +281,17 @@ public class ToOldIrRelationalRewriter
             case INTERMEDIATE -> AggregationNode.Step.INTERMEDIATE;
             case SINGLE -> AggregationNode.Step.SINGLE;
         };
+    }
+
+    @Override
+    public PlanNode visitAssignUniqueId(AssignUniqueId assignUniqueId, List<PlanNode> sources)
+    {
+        PlanNode source = getOnlyElement(sources);
+
+        return new io.trino.sql.planner.plan.AssignUniqueId(
+                planNodeIdAllocator.getNextId(),
+                source,
+                symbolAllocator.newSymbol("unique", BIGINT));
     }
 
     @Override

@@ -34,6 +34,7 @@ import io.trino.sql.dialect.trino.ProgramBuilder.ValueNameAllocator;
 import io.trino.sql.dialect.trino.RelationalProgramBuilder.OperationAndMapping;
 import io.trino.sql.dialect.trino.operation.AggregateCall;
 import io.trino.sql.dialect.trino.operation.Aggregation;
+import io.trino.sql.dialect.trino.operation.AssignUniqueId;
 import io.trino.sql.dialect.trino.operation.Comparison;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.CorrelatedJoin;
@@ -342,6 +343,29 @@ final class TestRelationalProgramBuilder
                                 new AttributeKey(TRINO, "aggregation:input_reducing"),
                                 true)
                         .buildOrThrow());
+    }
+
+    @Test
+    public void testAssignUniqueId()
+    {
+        io.trino.sql.planner.plan.AssignUniqueId assignUniqueIdNode = new io.trino.sql.planner.plan.AssignUniqueId(
+                new PlanNodeId("assign_unique_id"),
+                VALUES_NODE,
+                new Symbol(BIGINT, "unique"));
+
+        AssignUniqueId assignUniqueIdOperation = new AssignUniqueId(
+                "%9",
+                VALUES_OPERATION.result(),
+                VALUES_OPERATION.attributes());
+
+        assertProgram(
+                assignUniqueIdNode,
+                ImmutableList.of(VALUES_OPERATION, assignUniqueIdOperation),
+                new MultisetType(anonymousRow(BIGINT, BOOLEAN, BIGINT)),
+                ImmutableMap.of(
+                        new Symbol(BIGINT, "a"), 0,
+                        new Symbol(BOOLEAN, "b"), 1,
+                        new Symbol(BIGINT, "unique"), 2));
     }
 
     @Test

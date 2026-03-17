@@ -23,6 +23,7 @@ import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operation.AggregateCall;
 import io.trino.sql.dialect.trino.operation.Aggregation;
+import io.trino.sql.dialect.trino.operation.AssignUniqueId;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.CorrelatedJoin;
 import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
@@ -265,6 +266,21 @@ public class RelationalProgramBuilder
                 aggregation.isDistinct(),
                 step);
         return aggregateCall;
+    }
+
+    @Override
+    public OperationAndMapping visitAssignUniqueId(io.trino.sql.planner.plan.AssignUniqueId node, Context context)
+    {
+        OperationAndMapping source = node.getSource().accept(this, context);
+        String resultName = nameAllocator.newName();
+
+        AssignUniqueId assignUniqueId = new AssignUniqueId(
+                resultName,
+                source.operation().result(),
+                source.operation().attributes());
+        Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(assignUniqueId.result().type())), node.getOutputSymbols());
+        context.block().addOperation(assignUniqueId);
+        return new OperationAndMapping(assignUniqueId, outputMapping);
     }
 
     @Override

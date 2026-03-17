@@ -28,6 +28,7 @@ import io.trino.spi.catalog.CatalogProperties;
 import io.trino.spi.function.FunctionId;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.operation.Aggregation;
+import io.trino.sql.dialect.trino.operation.AssignUniqueId;
 import io.trino.sql.dialect.trino.operation.CorrelatedJoin;
 import io.trino.sql.dialect.trino.operation.DynamicFilterSource;
 import io.trino.sql.dialect.trino.operation.EnforceSingleRow;
@@ -233,6 +234,14 @@ public class NewIrFragmenter
 
         @Override
         public PlanNode visitAggregation(Aggregation operation, FragmentProperties context)
+        {
+            TrinoOperation source = getSource(operation);
+            PlanNode rewrittenSource = source.accept(this, context);
+            return operation.accept(relationalRewriter, ImmutableList.of(rewrittenSource));
+        }
+
+        @Override
+        public PlanNode visitAssignUniqueId(AssignUniqueId operation, FragmentProperties context)
         {
             TrinoOperation source = getSource(operation);
             PlanNode rewrittenSource = source.accept(this, context);
