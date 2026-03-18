@@ -313,7 +313,7 @@ public class ToOldIrRelationalRewriter
         List<List<Symbol>> inputSymbols = inputSymbolsBuilder.build();
 
         // create the exchange's output symbols based on the first source's symbols.
-        // assign new symbols in case there are repetitions in th input symbols list.
+        // assign new symbols in case there are repetitions in the input symbols list.
         List<Symbol> outputSymbols = inputSymbols.getFirst().stream()
                 .map(symbolAllocator::newSymbol)
                 .collect(toImmutableList());
