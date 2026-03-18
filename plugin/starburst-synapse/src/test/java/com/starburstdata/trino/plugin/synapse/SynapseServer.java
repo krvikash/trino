@@ -120,7 +120,6 @@ public class SynapseServer
 
     @Override
     public void close()
-            throws Exception
     {
         dataSource.close();
     }

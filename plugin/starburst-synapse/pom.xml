@@ -259,6 +259,12 @@
             <artifactId>junit-jupiter-engine</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -294,7 +300,6 @@
                             <excludes>
                                 <exclude>**/TestSynapseQueryFailureRecoveryTest.java</exclude>
                                 <exclude>**/TestSynapseTaskFailureRecoveryTest.java</exclude>
-                                <exclude>**/TestSynapseInstanceCleaner.java</exclude>
                                 <exclude>**/TestSynapseConnectorTest.java</exclude>
                                 <exclude>**/TestSynapseTypeMapping.java</exclude>
                             </excludes>
@@ -313,7 +318,6 @@
                         <configuration>
                             <threadCount>6</threadCount>
                             <includes>
-                                <include>**/TestSynapseInstanceCleaner.java</include>
                                 <include>**/TestSynapseConnectorTest.java</include>
                             </includes>
                         </configuration>

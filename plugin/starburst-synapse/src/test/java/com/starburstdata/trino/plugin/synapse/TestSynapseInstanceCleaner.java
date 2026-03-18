@@ -9,110 +9,75 @@
  */
 package com.starburstdata.trino.plugin.synapse;
 
-import com.microsoft.sqlserver.jdbc.SQLServerException;
+import com.google.common.collect.ImmutableSetMultimap;
 import io.airlift.log.Logger;
 import io.trino.tpch.TpchTable;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.platform.launcher.TestExecutionListener;
+import org.junit.platform.launcher.TestPlan;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Locale;
+import java.util.Map;
 
 import static com.starburstdata.trino.plugin.synapse.SynapseQueryRunner.TEST_SCHEMA;
 import static java.lang.String.format;
-import static java.lang.String.join;
-import static java.util.function.Predicate.not;
-import static java.util.stream.Collectors.toUnmodifiableSet;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
-@TestInstance(PER_CLASS)
 public class TestSynapseInstanceCleaner
+        implements TestExecutionListener
 {
-    private SynapseServer synapseServer;
+    private final SynapseServer synapseServer = new SynapseServer();
 
     private static final int ERROR_OBJECT_NOT_FOUND = 3701;
 
     private static final Logger LOG = Logger.get(TestSynapseInstanceCleaner.class);
-    private static final String TABLE_OF_OBJECTS = "sys.objects";
-    private static final String TABLE_OF_TABLES = "sys.tables";
-    private static final String TABLE_OF_VIEWS = "sys.views";
 
-    private static final Collection<String> TABLES_TO_KEEP =
-            TpchTable.getTables().stream()
-                    .map(TpchTable::getTableName)
-                    .map(s -> s.toLowerCase(Locale.ENGLISH))
-                    .collect(toUnmodifiableSet());
+    private static final ImmutableSetMultimap<String, String> OBJECTS_TO_KEEP;
 
-    @BeforeAll
-    public void setUp()
-    {
-        synapseServer = new SynapseServer();
+    static {
+        ImmutableSetMultimap.Builder<String, String> builder = ImmutableSetMultimap.<String, String>builder()
+                .put("view", "user_context");
+        for (TpchTable<?> table : TpchTable.getTables()) {
+            builder.put("table", table.getTableName().toLowerCase(Locale.ENGLISH));
+        }
+        OBJECTS_TO_KEEP = builder.build();
     }
 
-    @Test
-    public void synapseInstanceCleaner()
+    @Override
+    public void testPlanExecutionFinished(TestPlan testPlan)
     {
         logObjectsCount();
         LOG.info("Identifying objects to drop...");
-        if (!TABLES_TO_KEEP.isEmpty()) {
-            LOG.info("Never drop these tables: %s", join(", ", TABLES_TO_KEEP));
-        }
-
-        // Drop all tables and views created before yesterday (in UTC)
-        // Note: because of how DATEDIFF counts, it really is "before yesterday," and not "over 1 day ago."
-        Collection<String> tablesToDrop = getStringColumn(
-                "Name",
-                TABLE_OF_TABLES,
-                "DATEDIFF(day, create_date, GETUTCDATE()) > 1").stream()
-                .map(tableName -> tableName.toLowerCase(Locale.ENGLISH))
-                .filter(not(TABLES_TO_KEEP::contains))
-                .collect(toUnmodifiableSet());
-
-        Collection<String> viewsToDrop = getStringColumn(
-                "Name",
-                TABLE_OF_VIEWS,
-                "DATEDIFF(day, create_date, GETUTCDATE()) > 1 AND Name != 'user_context'");
-
-        if (tablesToDrop.isEmpty()) {
-            LOG.info("Not dropping any tables.");
-        }
-        if (viewsToDrop.isEmpty()) {
-            LOG.info("Not dropping any views.");
-        }
-        LOG.info("Identified %d tables to drop.", tablesToDrop.size());
-        LOG.info("Tables to drop: %s", tablesToDrop);
-        LOG.info("Identified %d views to drop.", viewsToDrop.size());
-        LOG.info("Views to drop: %s", viewsToDrop);
-        // Azure Synapse does not support "DROP TABLE IF EXISTS"
-        for (String tableName : tablesToDrop) {
-            try {
-                synapseServer.execute(format("DROP TABLE %s.[%s]", TEST_SCHEMA, tableName));
+        for (Map.Entry<String, Collection<String>> entry : OBJECTS_TO_KEEP.asMap().entrySet()) {
+            String objectType = entry.getKey();
+            Collection<String> objectsToKeep = entry.getValue();
+            if (!objectsToKeep.isEmpty()) {
+                LOG.info("Never drop these %ss: %s", objectType, objectsToKeep);
             }
-            catch (RuntimeException e) {
-                if (e.getCause() instanceof SQLServerException && ((SQLServerException) e.getCause()).getErrorCode() != ERROR_OBJECT_NOT_FOUND) {
-                    throw e;
-                }
+            Collection<String> objectsToDrop = getObjectsToDrop(format("sys.%ss", objectType), objectsToKeep);
+            if (objectsToDrop.isEmpty()) {
+                LOG.info("Not dropping any %ss", objectType);
+                continue;
             }
-        }
-        for (String viewName : viewsToDrop) {
-            try {
-                synapseServer.execute(format("DROP VIEW %s.[%s]", TEST_SCHEMA, viewName));
-            }
-            catch (RuntimeException e) {
-                if (e.getCause() instanceof SQLServerException && ((SQLServerException) e.getCause()).getErrorCode() != ERROR_OBJECT_NOT_FOUND) {
-                    throw e;
-                }
-            }
+            LOG.info("Identified %d %ss to drop: %s", objectsToDrop.size(), objectType, objectsToDrop);
+            dropObjectsFrom(objectType, objectsToDrop);
         }
         logObjectsCount();
+        synapseServer.close();
     }
 
-    private int getRowCount(String tableName)
+    private void dropObjectsFrom(String objectType, Collection<String> objectsToDrop)
     {
-        return synapseServer.executeQuery("SELECT count(*) FROM " + tableName, resultSet -> {
+        // Azure Synapse does not support "DROP obj IF EXISTS"
+        for (String objectName : objectsToDrop) {
+            synapseServer.executeIgnoringErrors(format("DROP %s %s.[%s]", objectType, TEST_SCHEMA, objectName), ERROR_OBJECT_NOT_FOUND);
+        }
+    }
+
+    private int getObjectCount()
+    {
+        return synapseServer.executeQuery("SELECT count(*) FROM sys.objects", resultSet -> {
             try {
                 resultSet.next();
                 return resultSet.getInt(1);
@@ -123,20 +88,26 @@ public class TestSynapseInstanceCleaner
         });
     }
 
-    private Collection<String> getStringColumn(String column, String table, String where)
+    private Collection<String> getObjectsToDrop(String objectType, Collection<String> objectsToKeep)
     {
         Collection<String> results = new ArrayList<>();
-        return synapseServer.executeQuery(format("SELECT %s FROM %s WHERE %s", column, table, where), resultSet -> {
-            try {
-                while (resultSet.next()) {
-                    results.add(resultSet.getString(column));
+
+        return synapseServer.executeQuery(
+                format("SELECT name FROM sys.%ss WHERE DATEDIFF(day, create_date, GETUTCDATE()) > 1", objectType),
+                resultSet -> {
+                try {
+                    while (resultSet.next()) {
+                        String name = resultSet.getString("name");
+                        if (!objectsToKeep.contains(name)) {
+                            results.add(name);
+                        }
+                    }
+                    return results;
                 }
-                return results;
-            }
-            catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        });
+                catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+            });
     }
 
     /**
@@ -144,7 +115,7 @@ public class TestSynapseInstanceCleaner
      */
     private void logObjectsCount()
     {
-        int tableCount = getRowCount(TABLE_OF_OBJECTS);
+        int tableCount = getObjectCount();
         LOG.info("Schema '%s' contains %d objects.", TEST_SCHEMA, tableCount);
     }
 }
