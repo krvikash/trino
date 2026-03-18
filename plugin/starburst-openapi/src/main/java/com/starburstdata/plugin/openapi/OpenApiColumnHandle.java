@@ -13,7 +13,6 @@
  */
 package com.starburstdata.plugin.openapi;
 
-import io.airlift.slice.SizeOf;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.type.Type;
 
@@ -22,8 +21,6 @@ import static java.util.Objects.requireNonNull;
 public record OpenApiColumnHandle(String name, Type type)
         implements ColumnHandle
 {
-    private static final int INSTANCE_SIZE = SizeOf.instanceSize(OpenApiColumnHandle.class);
-
     public OpenApiColumnHandle
     {
         requireNonNull(name, "name is null");
@@ -34,11 +31,5 @@ public record OpenApiColumnHandle(String name, Type type)
     public String toString()
     {
         return "%s:%s".formatted(name, type);
-    }
-
-    public long getRetainedSizeInBytes()
-    {
-        return (long) INSTANCE_SIZE
-                + SizeOf.estimatedSizeOf(this.name);
     }
 }
