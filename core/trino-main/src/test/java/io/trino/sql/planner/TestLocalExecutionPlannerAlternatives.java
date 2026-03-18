@@ -281,5 +281,11 @@ public class TestLocalExecutionPlannerAlternatives
         {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public boolean usesExternalStorage()
+        {
+            throw new UnsupportedOperationException();
+        }
     }
 }
