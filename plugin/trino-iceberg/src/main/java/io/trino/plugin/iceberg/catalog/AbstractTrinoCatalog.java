@@ -97,6 +97,7 @@ import static io.trino.plugin.iceberg.TypeConverter.toTrinoType;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.StandardErrorCode.TABLE_NOT_FOUND;
 import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.spi.type.NumberType.NUMBER;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TimeType.TIME_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
@@ -450,6 +451,9 @@ public abstract class AbstractTrinoCatalog
     {
         if (type == TINYINT || type == SMALLINT) {
             return INTEGER;
+        }
+        if (type == NUMBER) {
+            return VARCHAR;
         }
         if (type instanceof CharType) {
             return VARCHAR;
