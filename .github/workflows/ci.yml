@@ -460,6 +460,7 @@ jobs:
         id: tests-bq
         env:
           BIGQUERY_CREDENTIALS_KEY: ${{ secrets.BIGQUERY_CREDENTIALS_KEY }}
+          BIGQUERY_CASE_INSENSITIVE_CREDENTIALS_KEY: ${{ secrets.BIGQUERY_CASE_INSENSITIVE_CREDENTIALS_KEY }}
           GCP_STORAGE_BUCKET: ${{ vars.GCP_STORAGE_BUCKET }}
           BIGQUERY_TESTING_BIGLAKE_CONNECTION_ID: ${{ vars.BIGQUERY_TESTING_BIGLAKE_CONNECTION_ID }}
           BIGQUERY_TESTING_PROJECT_ID: ${{ vars.BIGQUERY_TESTING_PROJECT_ID }}
@@ -468,6 +469,7 @@ jobs:
         run: |
           $MAVEN test ${MAVEN_TEST} -pl :trino-bigquery -Pcloud-tests-1 \
             -Dtesting.bigquery.credentials-key="${BIGQUERY_CREDENTIALS_KEY}" \
+            -Dtesting.bigquery-case-insensitive.credentials-key="${BIGQUERY_CASE_INSENSITIVE_CREDENTIALS_KEY}" \
             -Dtesting.gcp-storage-bucket="${GCP_STORAGE_BUCKET}" \
             -Dtesting.bigquery-connection-id="${BIGQUERY_TESTING_BIGLAKE_CONNECTION_ID}" \
             -Dtesting.bigquery-project-id="${BIGQUERY_TESTING_PROJECT_ID}" \
@@ -483,13 +485,6 @@ jobs:
             -Dtesting.bigquery.credentials-key="${BIGQUERY_CREDENTIALS_KEY}" \
             -Dtesting.gcp-storage-bucket="${GCP_STORAGE_BUCKET}" \
             -Dtesting.alternate-bq-project-id=bigquery-cicd-alternate
-      - name: Cloud BigQuery Case Insensitive Mapping Tests
-        id: tests-bq-ci
-        env:
-          BIGQUERY_CASE_INSENSITIVE_CREDENTIALS_KEY: ${{ secrets.BIGQUERY_CASE_INSENSITIVE_CREDENTIALS_KEY }}
-        if: contains(matrix.profiles, 'cloud-tests-1')
-        run: |
-          $MAVEN test ${MAVEN_TEST} -pl :trino-bigquery -Pcloud-tests-case-insensitive-mapping -Dtesting.bigquery.credentials-key="${BIGQUERY_CASE_INSENSITIVE_CREDENTIALS_KEY}"
       - name: Sanitize artifact name
         if: always()
         run: |
@@ -517,7 +512,7 @@ jobs:
           skip_publishing: true
       - name: Should notify on failure
         id: should_notify
-        if: always() && (steps.tests-bq.outcome == 'failure' || steps.tests-bq-smoke.outcome == 'failure' || steps.tests-bq-ci.outcome == 'failure')
+        if: always() && (steps.tests-bq.outcome == 'failure' || steps.tests-bq-smoke.outcome == 'failure')
         run: |
           # GITHUB_HEAD_REF is only populated for pull requests runs, for scheduled runs extract the name from GITHUB_REF
           branch_name="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
@@ -528,7 +523,7 @@ jobs:
             echo "result=false" >> "${GITHUB_OUTPUT}"
           fi
       - name: Slack notify failed tests to Connectors team
-        if: always() && (steps.tests-bq.outcome == 'failure' || steps.tests-bq-smoke.outcome == 'failure' || steps.tests-bq-ci.outcome == 'failure') && steps.should_notify.outputs.result == 'true'
+        if: always() && (steps.tests-bq.outcome == 'failure' || steps.tests-bq-smoke.outcome == 'failure') && steps.should_notify.outputs.result == 'true'
         uses: archive/github-actions-slack@c643e5093620d65506466f2c9b317d5d29a5e517 # v2.10.1
         with:
           slack-bot-user-oauth-access-token: ${{ secrets.SLACK_TOKEN }}
@@ -536,7 +531,7 @@ jobs:
           slack-text: |
             :boom: BigQuery tests failed on branch: ${{ steps.should_notify.outputs.branch }} (<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|see CI job for details>) (:thumbsup: this message if you take care of this)
       - name: Launch Flake Tracker
-        if: failure() && (steps.tests-bq.outcome == 'failure' || steps.tests-bq-smoke.outcome == 'failure' || steps.tests-bq-ci.outcome == 'failure') && github.ref == 'refs/heads/master'
+        if: failure() && (steps.tests-bq.outcome == 'failure' || steps.tests-bq-smoke.outcome == 'failure') && github.ref == 'refs/heads/master'
         continue-on-error: true
         uses: starburstdata/ai-flake-fixer/.github/actions/launch-ai-flake@main
         with:
@@ -1953,6 +1948,7 @@ jobs:
         id: tests-bq
         env:
           BIGQUERY_CREDENTIALS_KEY: ${{ secrets.BIGQUERY_CREDENTIALS_KEY }}
+          BIGQUERY_CASE_INSENSITIVE_CREDENTIALS_KEY: ${{ secrets.BIGQUERY_CASE_INSENSITIVE_CREDENTIALS_KEY }}
           GCP_STORAGE_BUCKET: ${{ vars.GCP_STORAGE_BUCKET }}
           BIGQUERY_TESTING_BIGLAKE_CONNECTION_ID: ${{ vars.BIGQUERY_TESTING_BIGLAKE_CONNECTION_ID }}
           BIGQUERY_TESTING_PROJECT_ID: ${{ vars.BIGQUERY_TESTING_PROJECT_ID }}
@@ -1961,6 +1957,7 @@ jobs:
         run: |
           $MAVEN test ${MAVEN_TEST} -pl :trino-bigquery -Pcloud-tests-1 \
             -Dtesting.bigquery.credentials-key="${BIGQUERY_CREDENTIALS_KEY}" \
+            -Dtesting.bigquery-case-insensitive.credentials-key="${BIGQUERY_CASE_INSENSITIVE_CREDENTIALS_KEY}" \
             -Dtesting.gcp-storage-bucket="${GCP_STORAGE_BUCKET}" \
             -Dtesting.bigquery-connection-id="${BIGQUERY_TESTING_BIGLAKE_CONNECTION_ID}" \
             -Dtesting.bigquery-project-id="${BIGQUERY_TESTING_PROJECT_ID}" \
@@ -1976,13 +1973,6 @@ jobs:
             -Dtesting.bigquery.credentials-key="${BIGQUERY_CREDENTIALS_KEY}" \
             -Dtesting.gcp-storage-bucket="${GCP_STORAGE_BUCKET}" \
             -Dtesting.alternate-bq-project-id=bigquery-cicd-alternate
-      - name: Cloud BigQuery Case Insensitive Mapping Tests
-        id: tests-bq-ci
-        env:
-          BIGQUERY_CASE_INSENSITIVE_CREDENTIALS_KEY: ${{ secrets.BIGQUERY_CASE_INSENSITIVE_CREDENTIALS_KEY }}
-        if: matrix.modules == 'plugin/trino-bigquery' && !contains(matrix.profile, 'cloud-tests-2') && (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || env.BIGQUERY_CASE_INSENSITIVE_CREDENTIALS_KEY != '')
-        run: |
-          $MAVEN test ${MAVEN_TEST} -pl :trino-bigquery -Pcloud-tests-case-insensitive-mapping -Dtesting.bigquery.credentials-key="${BIGQUERY_CASE_INSENSITIVE_CREDENTIALS_KEY}"
       - name: Cloud Snowflake Tests
         id: tests-snowflake
         env:
@@ -2127,7 +2117,6 @@ jobs:
               || steps.tests-mongodb.outcome == 'failure'
               || steps.tests-bq.outcome == 'failure'
               || steps.tests-bq-smoke.outcome == 'failure'
-              || steps.tests-bq-ci.outcome == 'failure'
               || steps.tests-iceberg.outcome == 'failure'
               || steps.tests-redshift.outcome == 'failure'
               || steps.tests-snowflake.outcome == 'failure'
