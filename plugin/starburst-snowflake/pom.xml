@@ -415,11 +415,6 @@
                         <licenseSets>
                             <licenseSet>
                                 <header>${starburst-license.header-file}</header>
-                                <!-- exclude as files are coming from hadoop library and do not contain Starburst license headers -->
-                                <excludes combine.children="append">
-                                    <exclude>src/main/java/org/apache/hadoop/fs/azure/SymmetricKey.java</exclude>
-                                    <exclude>src/main/java/org/apache/hadoop/fs/azure/DecryptingAzureNativeFileSystemStore.java</exclude>
-                                </excludes>
                             </licenseSet>
                         </licenseSets>
                     </configuration>
@@ -452,23 +447,6 @@
                         </exceptions>
                     </configuration>
                 </plugin>
-
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-enforcer-plugin</artifactId>
-                    <configuration>
-                        <!-- we need to skip RestrictImports because we use io.trino.hadoop.$internal.* imports in SymmetricKey.java and DecryptingAzureNativeFileSystemStore.java -->
-                        <rulesToSkip>RestrictImports</rulesToSkip>
-                    </configuration>
-                    <dependencies>
-                        <dependency>
-                            <groupId>com.github.ferstl</groupId>
-                            <artifactId>pedantic-pom-enforcers</artifactId>
-                            <version>2.3.1</version>
-                        </dependency>
-                    </dependencies>
-                </plugin>
-
             </plugins>
         </pluginManagement>
     </build>
