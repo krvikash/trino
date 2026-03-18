@@ -243,13 +243,9 @@ public class SchemaIrFactory
             }
             catch (SchemaException e) {
                 switch (castPolicy) {
-                    case DROP:
-                        continue;
-                    case ERROR:
-                        throw e.fromMember("\"%s\"".formatted(key)).fromMember("properties");
-                    case JSON:
-                        keyToIrBuilder.put(key, new JsonIr());
-                        break;
+                    case DROP -> {}
+                    case ERROR -> throw e.fromMember("\"%s\"".formatted(key)).fromMember("properties");
+                    case JSON -> keyToIrBuilder.put(key, new JsonIr());
                 }
             }
         }
