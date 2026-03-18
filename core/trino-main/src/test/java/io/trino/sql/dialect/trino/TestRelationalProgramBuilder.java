@@ -480,6 +480,27 @@ final class TestRelationalProgramBuilder
     }
 
     @Test
+    public void testEnforceSingleRow()
+    {
+        EnforceSingleRowNode enforceSingleRowNode = new EnforceSingleRowNode(
+                new PlanNodeId("enforce_single_row"),
+                VALUES_NODE);
+
+        EnforceSingleRow enforceSingleRowOperation = new EnforceSingleRow(
+                "%9",
+                VALUES_OPERATION.result(),
+                VALUES_OPERATION.attributes());
+
+        assertProgram(
+                enforceSingleRowNode,
+                ImmutableList.of(VALUES_OPERATION, enforceSingleRowOperation),
+                new MultisetType(anonymousRow(BIGINT, BOOLEAN)),
+                ImmutableMap.of(
+                        new Symbol(BIGINT, "a"), 0,
+                        new Symbol(BOOLEAN, "b"), 1));
+    }
+
+    @Test
     public void testExcept()
     {
         ExceptNode exceptNode = new ExceptNode(
@@ -907,27 +928,6 @@ final class TestRelationalProgramBuilder
         assertProgram(
                 filterNode,
                 ImmutableList.of(VALUES_OPERATION, filterOperation),
-                new MultisetType(anonymousRow(BIGINT, BOOLEAN)),
-                ImmutableMap.of(
-                        new Symbol(BIGINT, "a"), 0,
-                        new Symbol(BOOLEAN, "b"), 1));
-    }
-
-    @Test
-    public void testEnforceSingleRow()
-    {
-        EnforceSingleRowNode enforceSingleRowNode = new EnforceSingleRowNode(
-                new PlanNodeId("enforce_single_row"),
-                VALUES_NODE);
-
-        EnforceSingleRow enforceSingleRowOperation = new EnforceSingleRow(
-                "%9",
-                VALUES_OPERATION.result(),
-                VALUES_OPERATION.attributes());
-
-        assertProgram(
-                enforceSingleRowNode,
-                ImmutableList.of(VALUES_OPERATION, enforceSingleRowOperation),
                 new MultisetType(anonymousRow(BIGINT, BOOLEAN)),
                 ImmutableMap.of(
                         new Symbol(BIGINT, "a"), 0,

@@ -167,6 +167,13 @@ class TestToOldIrRelationalRewriter
     }
 
     @Test
+    public void testEnforceSingleRow()
+    {
+        EnforceSingleRowNode enforceSingleRowNode = new EnforceSingleRowNode(new PlanNodeId("0"), VALUES_NODE);
+        assertRoundtrip(enforceSingleRowNode);
+    }
+
+    @Test
     public void testExcept()
     {
         ExceptNode exceptNode = new ExceptNode(
@@ -302,13 +309,6 @@ class TestToOldIrRelationalRewriter
     {
         FilterNode filterNode = new FilterNode(new PlanNodeId("0"), VALUES_NODE, new Reference(BOOLEAN, "b"));
         assertRoundtrip(filterNode);
-    }
-
-    @Test
-    public void testEnforceSingleRow()
-    {
-        EnforceSingleRowNode enforceSingleRowNode = new EnforceSingleRowNode(new PlanNodeId("0"), VALUES_NODE);
-        assertRoundtrip(enforceSingleRowNode);
     }
 
     @Test
