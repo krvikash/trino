@@ -234,6 +234,12 @@
         </dependency>
 
         <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
             <scope>test</scope>
@@ -268,8 +274,8 @@
                                     <include>src/test/java/com/starburstdata/plugin/openapi/PetStoreServer.java</include>
                                     <include>src/test/java/com/starburstdata/plugin/openapi/TestOpenApiConfig.java</include>
                                     <include>src/test/java/com/starburstdata/plugin/openapi/TestOpenApiPlugin.java</include>
-                                    <include>src/test/java/com/starburstdata/plugin/openapi/TestOpenApiSpec.java</include>
                                     <include>src/test/java/com/starburstdata/plugin/openapi/TestOpenApiWithFastApiServer.java</include>
+                                    <include>src/test/java/com/starburstdata/plugin/openapi/TestOpenApiConnectorFactory.java</include>
                                 </includes>
                                 <header>${apache-license.header-file}</header>
                             </licenseSet>
@@ -293,8 +299,8 @@
                                     <exclude>src/test/java/com/starburstdata/plugin/openapi/PetStoreServer.java</exclude>
                                     <exclude>src/test/java/com/starburstdata/plugin/openapi/TestOpenApiConfig.java</exclude>
                                     <exclude>src/test/java/com/starburstdata/plugin/openapi/TestOpenApiPlugin.java</exclude>
-                                    <exclude>src/test/java/com/starburstdata/plugin/openapi/TestOpenApiSpec.java</exclude>
                                     <exclude>src/test/java/com/starburstdata/plugin/openapi/TestOpenApiWithFastApiServer.java</exclude>
+                                    <exclude>src/test/java/com/starburstdata/plugin/openapi/TestOpenApiConnectorFactory.java</exclude>
                                 </excludes>
                                 <includes>
                                     <include>src/**/*.java</include>
