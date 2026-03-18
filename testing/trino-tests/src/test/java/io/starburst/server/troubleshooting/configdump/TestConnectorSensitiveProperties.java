@@ -131,22 +131,32 @@ public class TestConnectorSensitiveProperties
 
     private static Set<String> findSensitiveProperties(Set<Path> classpath)
     {
-        try (ScanResult scanResult = new ClassGraph()
-                .overrideClasspath(classpath)
-                .enableAllInfo()
-                .scan()) {
-            return scanResult.getClassesWithMethodAnnotation(ConfigSecuritySensitive.class).stream()
-                    .flatMap(classInfo -> classInfo.getMethodInfo().stream())
-                    .filter(methodInfo -> methodInfo.hasAnnotation(ConfigSecuritySensitive.class))
-                    .map(methodInfo -> {
-                        AnnotationInfo annotationInfo = methodInfo.getAnnotationInfo(Config.class);
-                        checkState(annotationInfo != null, "Missing @Config annotation for %s", methodInfo);
-                        AnnotationParameterValueList parameterValues = annotationInfo.getParameterValues();
-                        checkState(parameterValues.size() == 1, "Expected exactly one parameter for %s", annotationInfo);
-                        return (String) parameterValues.getFirst().getValue();
-                    })
-                    .collect(toImmutableSet());
+        ImmutableSet.Builder<String> result = ImmutableSet.builder();
+        List<Path> annotations = classpath.stream()
+                .filter(path -> path.getFileName().toString().startsWith("config-"))
+                .toList();
+        for (Path path : classpath) {
+            try (ScanResult scanResult = new ClassGraph()
+                    .overrideClasspath(ImmutableList.builder()
+                            .addAll(annotations)
+                            .add(path)
+                            .build())
+                    .enableAllInfo()
+                    .scan()) {
+                result.addAll(scanResult.getClassesWithMethodAnnotation(ConfigSecuritySensitive.class).stream()
+                        .flatMap(classInfo -> classInfo.getMethodInfo().stream())
+                        .filter(methodInfo -> methodInfo.hasAnnotation(ConfigSecuritySensitive.class))
+                        .map(methodInfo -> {
+                            AnnotationInfo annotationInfo = methodInfo.getAnnotationInfo(Config.class);
+                            checkState(annotationInfo != null, "Missing @Config annotation for %s", methodInfo);
+                            AnnotationParameterValueList parameterValues = annotationInfo.getParameterValues();
+                            checkState(parameterValues.size() == 1, "Expected exactly one parameter for %s", annotationInfo);
+                            return (String) parameterValues.getFirst().getValue();
+                        })
+                        .collect(toImmutableSet()));
+            }
         }
+        return result.build();
     }
 
     private static Path prepareInstalledPluginsDir()
