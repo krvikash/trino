@@ -73,7 +73,7 @@ runs:
         password-variable: mavenCredentialsUsEast2
     - name: "Login to ECR docker registry"
       if: inputs.login-docker != 'false'
-      uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3
+      uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
       env:
         DOCKER_REGISTRY: "843985043183.dkr.ecr.us-east-2.amazonaws.com"
       with:
