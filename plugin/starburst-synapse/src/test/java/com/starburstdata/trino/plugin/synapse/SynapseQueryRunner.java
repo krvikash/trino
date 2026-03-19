@@ -29,6 +29,7 @@ import java.util.function.Consumer;
 
 import static com.starburstdata.trino.plugin.synapse.SynapseServer.JDBC_URL;
 import static com.starburstdata.trino.plugin.synapse.SynapseServer.PASSWORD;
+import static com.starburstdata.trino.plugin.synapse.SynapseServer.TEST_SCHEMA;
 import static com.starburstdata.trino.plugin.synapse.SynapseServer.USERNAME;
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.airlift.units.Duration.nanosSince;
@@ -47,7 +48,6 @@ public final class SynapseQueryRunner
     private static final int ERROR_OBJECT_EXISTS = 2714;
 
     public static final String DEFAULT_CATALOG_NAME = "synapse";
-    public static final String TEST_SCHEMA = "dbo";
 
     public static DistributedQueryRunner createSynapseQueryRunner(
             SynapseServer synapseServer,

@@ -9,19 +9,16 @@
  */
 package com.starburstdata.trino.plugin.synapse;
 
-import com.google.common.collect.ImmutableSetMultimap;
+import com.google.common.collect.ImmutableSet;
 import io.airlift.log.Logger;
-import io.trino.tpch.TpchTable;
 import org.junit.platform.launcher.TestExecutionListener;
 import org.junit.platform.launcher.TestPlan;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Locale;
-import java.util.Map;
 
-import static com.starburstdata.trino.plugin.synapse.SynapseQueryRunner.TEST_SCHEMA;
+import static com.starburstdata.trino.plugin.synapse.SynapseServer.TEST_SCHEMA;
 import static java.lang.String.format;
 
 public class TestSynapseInstanceCleaner
@@ -33,29 +30,15 @@ public class TestSynapseInstanceCleaner
 
     private static final Logger LOG = Logger.get(TestSynapseInstanceCleaner.class);
 
-    private static final ImmutableSetMultimap<String, String> OBJECTS_TO_KEEP;
-
-    static {
-        ImmutableSetMultimap.Builder<String, String> builder = ImmutableSetMultimap.<String, String>builder()
-                .put("view", "user_context");
-        for (TpchTable<?> table : TpchTable.getTables()) {
-            builder.put("table", table.getTableName().toLowerCase(Locale.ENGLISH));
-        }
-        OBJECTS_TO_KEEP = builder.build();
-    }
+    private static final ImmutableSet<String> OBJECT_TYPES = ImmutableSet.of("table", "view");
 
     @Override
     public void testPlanExecutionFinished(TestPlan testPlan)
     {
-        logObjectsCount();
+        getAndLogObjectsCount();
         LOG.info("Identifying objects to drop...");
-        for (Map.Entry<String, Collection<String>> entry : OBJECTS_TO_KEEP.asMap().entrySet()) {
-            String objectType = entry.getKey();
-            Collection<String> objectsToKeep = entry.getValue();
-            if (!objectsToKeep.isEmpty()) {
-                LOG.info("Never drop these %ss: %s", objectType, objectsToKeep);
-            }
-            Collection<String> objectsToDrop = getObjectsToDrop(format("sys.%ss", objectType), objectsToKeep);
+        for (String objectType : OBJECT_TYPES) {
+            Collection<String> objectsToDrop = getObjectsToDrop(objectType);
             if (objectsToDrop.isEmpty()) {
                 LOG.info("Not dropping any %ss", objectType);
                 continue;
@@ -63,7 +46,10 @@ public class TestSynapseInstanceCleaner
             LOG.info("Identified %d %ss to drop: %s", objectsToDrop.size(), objectType, objectsToDrop);
             dropObjectsFrom(objectType, objectsToDrop);
         }
-        logObjectsCount();
+        if (getAndLogObjectsCount() == 0) {
+            LOG.info("Dropping empty schema " + TEST_SCHEMA);
+            synapseServer.execute("DROP SCHEMA " + TEST_SCHEMA);
+        }
         synapseServer.close();
     }
 
@@ -75,9 +61,16 @@ public class TestSynapseInstanceCleaner
         }
     }
 
+    private String selectFromTestSchema(String query, String table)
+    {
+        return format(
+                "SELECT %s FROM %s AS obj INNER JOIN sys.schemas AS s ON obj.schema_id = s.schema_id WHERE s.name = '%s'",
+                query, table, TEST_SCHEMA);
+    }
+
     private int getObjectCount()
     {
-        return synapseServer.executeQuery("SELECT count(*) FROM sys.objects", resultSet -> {
+        return synapseServer.executeQuery(selectFromTestSchema("count(*)", "sys.objects"), resultSet -> {
             try {
                 resultSet.next();
                 return resultSet.getInt(1);
@@ -88,19 +81,16 @@ public class TestSynapseInstanceCleaner
         });
     }
 
-    private Collection<String> getObjectsToDrop(String objectType, Collection<String> objectsToKeep)
+    private Collection<String> getObjectsToDrop(String objectType)
     {
         Collection<String> results = new ArrayList<>();
 
-        return synapseServer.executeQuery(
-                format("SELECT name FROM sys.%ss WHERE DATEDIFF(day, create_date, GETUTCDATE()) > 1", objectType),
+        return synapseServer.executeQuery(selectFromTestSchema("obj.name AS name", format("sys.%ss", objectType)),
                 resultSet -> {
                 try {
                     while (resultSet.next()) {
                         String name = resultSet.getString("name");
-                        if (!objectsToKeep.contains(name)) {
-                            results.add(name);
-                        }
+                        results.add(name);
                     }
                     return results;
                 }
@@ -113,9 +103,10 @@ public class TestSynapseInstanceCleaner
     /**
      * Log total number of objects in the test schema.
      */
-    private void logObjectsCount()
+    private int getAndLogObjectsCount()
     {
-        int tableCount = getObjectCount();
-        LOG.info("Schema '%s' contains %d objects.", TEST_SCHEMA, tableCount);
+        int objectCount = getObjectCount();
+        LOG.info("Schema '%s' contains %d objects.", TEST_SCHEMA, objectCount);
+        return objectCount;
     }
 }

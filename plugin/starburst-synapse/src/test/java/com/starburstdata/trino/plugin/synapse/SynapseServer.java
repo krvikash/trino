@@ -25,6 +25,8 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.function.Function;
 
+import static io.trino.testing.TestingNames.randomNameSuffix;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
@@ -38,9 +40,16 @@ public class SynapseServer
     static final String PASSWORD = requireNonNull(System.getProperty("test.synapse.jdbc.password"), "test.synapse.jdbc.password is not set");
     private static final String DATABASE = System.getProperty("test.synapse.jdbc.sqlpool", "SQLPOOL2");
 
+    private static final String TEST_SUFFIX = System.getProperty("test.synapse.suffix", randomNameSuffix());
+    static final String TEST_SCHEMA = "s_" + TEST_SUFFIX;
+    private static final String TEST_USER = "u_" + TEST_SUFFIX;
+
     private static final String PORT = "1433";
 
     static final String JDBC_URL = "jdbc:sqlserver://" + ENDPOINT + ":" + PORT + ";database=" + DATABASE;
+
+    private static final int ERROR_USER_EXISTS = 15023;
+    private static final int ERROR_SCHEMA_EXISTS = 2714;
 
     private static final RetryPolicy<Object> INIT_CONNECTION_RETRY_POLICY = RetryPolicy.builder()
             .handleIf(e ->
@@ -66,6 +75,11 @@ public class SynapseServer
         hikariConfig.setMaxLifetime(MINUTES.toMillis(1));
 
         this.dataSource = Failsafe.with(INIT_CONNECTION_RETRY_POLICY).get(() -> new HikariDataSource(hikariConfig));
+
+        executeAsOwner("CREATE SCHEMA " + TEST_SCHEMA, ERROR_SCHEMA_EXISTS);
+        executeAsOwner(format("CREATE USER %s WITHOUT LOGIN WITH DEFAULT_SCHEMA = %s", TEST_USER, TEST_SCHEMA), ERROR_USER_EXISTS);
+        executeAsOwner("GRANT ALTER TO " + TEST_USER, null);
+        executeAsOwner(format("GRANT CONTROL ON SCHEMA :: %s TO %s", TEST_SCHEMA, TEST_USER), null);
     }
 
     public SqlExecutor getSqlExecutor()
@@ -91,10 +105,23 @@ public class SynapseServer
         executeIgnoringErrors(query, /* ignoredErrorCode= */ null);
     }
 
+    private void executeAsOwner(String query, Integer ignoredErrorCode)
+    {
+        executeIgnoringErrors(query, ignoredErrorCode, /* asUser= */ false);
+    }
+
     public void executeIgnoringErrors(String query, Integer ignoredErrorCode)
+    {
+        executeIgnoringErrors(query, ignoredErrorCode, /* asUser= */ true);
+    }
+
+    private void executeIgnoringErrors(String query, Integer ignoredErrorCode, boolean asUser)
     {
         try (Connection conn = dataSource.getConnection();
                 Statement statement = conn.createStatement()) {
+            if (asUser) {
+                executeAsUser(statement);
+            }
             statement.execute(query);
         }
         catch (SQLException e) {
@@ -109,13 +136,22 @@ public class SynapseServer
     {
         LOG.debug("Executing query %s", query);
         try (Connection conn = dataSource.getConnection();
-                Statement statement = conn.createStatement();
-                ResultSet resultSet = statement.executeQuery(query)) {
-            return resultConsumer.apply(resultSet);
+                Statement statement = conn.createStatement()) {
+            executeAsUser(statement);
+            try (ResultSet resultSet = statement.executeQuery(query)) {
+                return resultConsumer.apply(resultSet);
+            }
         }
         catch (SQLException e) {
             throw new RuntimeException("Failed to execute statement: " + query, e);
         }
+    }
+
+    private void executeAsUser(Statement statement)
+            throws SQLException
+    {
+        statement.execute("REVERT");
+        statement.execute(format("EXECUTE AS USER = '%s'", TEST_USER));
     }
 
     @Override

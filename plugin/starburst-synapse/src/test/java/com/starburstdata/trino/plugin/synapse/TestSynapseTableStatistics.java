@@ -21,6 +21,7 @@ import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.SoftAssertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -34,6 +35,7 @@ import static com.starburstdata.trino.plugin.synapse.SynapseQueryRunner.createSy
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.sql.TestTable.fromColumns;
 import static io.trino.tpch.TpchTable.NATION;
+import static io.trino.tpch.TpchTable.REGION;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.from;
@@ -43,14 +45,25 @@ import static org.junit.jupiter.api.Assumptions.abort;
 public class TestSynapseTableStatistics
         extends BaseJdbcTableStatisticsTest
 {
+    private static final int ERROR_STATISTICS_EXIST = 1927;
     private SynapseServer synapseServer;
+
+    @BeforeAll
+    @Override
+    public void setUpTables()
+    {
+        // Prevent the base class from also trying to create tpch tables, since it's not synchronized with SynapseQueryRunner.
+        // However, we still need to try gathering stats since some tests assume it's done on these tables.
+        gatherStats(NATION.getTableName());
+        gatherStats(REGION.getTableName());
+    }
 
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
         synapseServer = new SynapseServer();
-        return createSynapseQueryRunner(synapseServer, Map.of(), List.of(NATION));
+        return createSynapseQueryRunner(synapseServer, Map.of(), List.of(NATION, REGION));
     }
 
     @Override
@@ -377,7 +390,7 @@ public class TestSynapseTableStatistics
                 .map(row -> (String) row.getField(0))
                 .collect(toImmutableList());
         for (Object columnName : columnNames) {
-            synapseServer.execute(format("CREATE STATISTICS %1$s ON %2$s (%1$s)", columnName, tableName));
+            synapseServer.executeIgnoringErrors(format("CREATE STATISTICS %1$s ON %2$s (%1$s)", columnName, tableName), ERROR_STATISTICS_EXIST);
         }
         synapseServer.execute("UPDATE STATISTICS " + tableName);
     }
