@@ -20,6 +20,7 @@ import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.spi.security.ConnectorIdentity;
 
 import java.util.Optional;
+import java.util.OptionalInt;
 
 public class UnityHiveMetastoreFactory
         implements HiveMetastoreFactory
@@ -36,7 +37,18 @@ public class UnityHiveMetastoreFactory
     {
         this.metastore = new TracingUnityHiveMetastore(
                 tracer,
-                new UnityHiveMetastore(config, proxyConfig, supportedUnityTableFormatsProvider.supportedUnityTableFormats()));
+                new UnityHiveMetastore(
+                        config.getHost(),
+                        config.getCatalogName(),
+                        config.getToken(),
+                        config.isVendedCredentialsEnabled(),
+                        config.isProxyEnabled(),
+                        proxyConfig.map(UnityMetastoreProxyConfig::getProxyHost),
+                        proxyConfig.map(UnityMetastoreProxyConfig::getProxyPort).map(OptionalInt::of).orElseGet(OptionalInt::empty),
+                        proxyConfig.flatMap(UnityMetastoreProxyConfig::getUsername),
+                        proxyConfig.flatMap(UnityMetastoreProxyConfig::getPassword),
+                        proxyConfig.map(UnityMetastoreProxyConfig::getNonProxyHosts),
+                        supportedUnityTableFormatsProvider.supportedUnityTableFormats()));
     }
 
     @Override

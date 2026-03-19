@@ -92,6 +92,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.StringJoiner;
@@ -154,31 +155,46 @@ public class UnityHiveMetastore
     private final String catalogName;
     private final TemporaryCredentialsApi temporaryCredentialsApi;
 
-    public UnityHiveMetastore(UnityMetastoreConfig config, Optional<UnityMetastoreProxyConfig> proxyConfig, Set<DataSourceFormat> supportedUnityTableFormats)
+    public UnityHiveMetastore(
+            String host,
+            String catalogName,
+            Optional<String> token,
+            boolean vendedCredentialsEnabled,
+            boolean proxyEnabled,
+            Optional<String> proxyHost,
+            OptionalInt proxyPort,
+            Optional<String> proxyUsername,
+            Optional<String> proxyPassword,
+            Optional<List<String>> nonProxyHosts,
+            Set<DataSourceFormat> supportedUnityTableFormats)
     {
-        String host = config.getHost();
         DatabricksConfig databricksConfig = new DatabricksConfig()
                 .setHost(host)
                 .setAuthType(PAT);
-        config.getToken().ifPresent(databricksConfig::setToken);
+        token.ifPresent(databricksConfig::setToken);
 
-        proxyConfig.ifPresent(unityMetastoreProxyConfig ->
-                setupProxy(
-                        unityMetastoreProxyConfig.getProxyHost(),
-                        unityMetastoreProxyConfig.getProxyPort(),
-                        unityMetastoreProxyConfig.getUsername(),
-                        unityMetastoreProxyConfig.getPassword(),
-                        unityMetastoreProxyConfig.getNonProxyHosts(),
-                        databricksConfig));
+        if (proxyEnabled) {
+            checkArgument(proxyHost.isPresent(), "Proxy host must be specified when proxy is enabled");
+            checkArgument(proxyPort.isPresent(), "Proxy port must be specified when proxy is enabled");
+            checkArgument(nonProxyHosts.isPresent(), "Non-proxy hosts must be specified when proxy is enabled");
+
+            setupProxy(
+                    proxyHost.get(),
+                    proxyPort.getAsInt(),
+                    proxyUsername,
+                    proxyPassword,
+                    nonProxyHosts.get(),
+                    databricksConfig);
+        }
         apiClient = new ApiClient(databricksConfig);
         schemasApi = new SchemasAPI(apiClient);
         tablesApi = new TablesAPI(apiClient);
-        this.catalogName = config.getCatalogName();
+        this.catalogName = catalogName;
 
-        if (config.isVendedCredentialsEnabled()) {
+        if (vendedCredentialsEnabled) {
             io.unitycatalog.client.ApiClient unityApiClient = new io.unitycatalog.client.ApiClient();
             unityApiClient.updateBaseUri("https://" + host + "/api/2.1/unity-catalog");
-            config.getToken().ifPresent(authToken -> unityApiClient.setRequestInterceptor(request -> request.header("Authorization", "Bearer " + authToken)));
+            token.ifPresent(authToken -> unityApiClient.setRequestInterceptor(request -> request.header("Authorization", "Bearer " + authToken)));
             this.temporaryCredentialsApi = new TemporaryCredentialsApi(unityApiClient);
         }
         else {
