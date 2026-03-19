@@ -134,7 +134,7 @@ public class FeaturesConfig
 
     private boolean columnarFilterEvaluationEnabled = true;
 
-    private boolean faultTolerantExecutionExchangeEncryptionEnabled = true;
+    private boolean externalExchangeEncryptionEnabled = true;
 
     private boolean superSetPredicatePushdownEnabled = true;
 
@@ -557,16 +557,16 @@ public class FeaturesConfig
         return this;
     }
 
-    public boolean isFaultTolerantExecutionExchangeEncryptionEnabled()
+    public boolean isExternalExchangeEncryptionEnabled()
     {
-        return faultTolerantExecutionExchangeEncryptionEnabled;
+        return externalExchangeEncryptionEnabled;
     }
 
-    @Config("fault-tolerant-execution-exchange-encryption-enabled")
-    @LegacyConfig("fault-tolerant-execution.exchange-encryption-enabled")
-    public FeaturesConfig setFaultTolerantExecutionExchangeEncryptionEnabled(boolean faultTolerantExecutionExchangeEncryptionEnabled)
+    @Config("external-exchange-encryption-enabled")
+    @LegacyConfig({"fault-tolerant-execution-exchange-encryption-enabled", "fault-tolerant-execution.exchange-encryption-enabled"})
+    public FeaturesConfig setExternalExchangeEncryptionEnabled(boolean externalExchangeEncryptionEnabled)
     {
-        this.faultTolerantExecutionExchangeEncryptionEnabled = faultTolerantExecutionExchangeEncryptionEnabled;
+        this.externalExchangeEncryptionEnabled = externalExchangeEncryptionEnabled;
         return this;
     }
 

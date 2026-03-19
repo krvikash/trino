@@ -71,7 +71,7 @@ public class TestFeaturesConfig
                 .setColumnarFilterEvaluationEnabled(true)
                 .setSuperSetPredicatePushdownEnabled(true)
                 .setLegacyArithmeticDecimalOperators(false)
-                .setFaultTolerantExecutionExchangeEncryptionEnabled(true)
+                .setExternalExchangeEncryptionEnabled(true)
                 .setParallelizeLookupOuterOperator(true));
     }
 
@@ -110,7 +110,7 @@ public class TestFeaturesConfig
                 .put("force-spilling-join-operator", "true")
                 .put("experimental.columnar-filter-evaluation.enabled", "false")
                 .put("deprecated.legacy-arithmetic-decimal-operators", "true")
-                .put("fault-tolerant-execution-exchange-encryption-enabled", "false")
+                .put("external-exchange-encryption-enabled", "false")
                 .put("optimizer.super-set-predicate.pushdown.enabled", "false")
                 .put("parallelize-lookup-outer-operator", "false")
                 .buildOrThrow();
@@ -148,7 +148,7 @@ public class TestFeaturesConfig
                 .setColumnarFilterEvaluationEnabled(false)
                 .setSuperSetPredicatePushdownEnabled(false)
                 .setLegacyArithmeticDecimalOperators(true)
-                .setFaultTolerantExecutionExchangeEncryptionEnabled(false)
+                .setExternalExchangeEncryptionEnabled(false)
                 .setParallelizeLookupOuterOperator(false);
         assertFullMapping(properties, expected);
     }
