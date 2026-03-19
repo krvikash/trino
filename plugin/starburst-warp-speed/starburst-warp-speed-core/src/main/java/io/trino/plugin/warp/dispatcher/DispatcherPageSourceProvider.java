@@ -31,7 +31,6 @@ import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
-import io.trino.spi.connector.TableCredentials;
 import io.trino.spi.predicate.TupleDomain;
 
 import java.util.List;
@@ -72,7 +71,6 @@ public class DispatcherPageSourceProvider
             ConnectorSession session,
             ConnectorSplit split,
             ConnectorTableHandle table,
-            Optional<TableCredentials> tableCredentials,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter)
     {
@@ -88,7 +86,6 @@ public class DispatcherPageSourceProvider
                         session,
                         split,
                         table,
-                        tableCredentials,
                         columns,
                         dynamicFilter);
             }
@@ -107,7 +104,6 @@ public class DispatcherPageSourceProvider
                     session,
                     (DispatcherSplit) split,
                     dispatcherTableHandle,
-                    tableCredentials,
                     columns,
                     dynamicFilter,
                     catalogName);

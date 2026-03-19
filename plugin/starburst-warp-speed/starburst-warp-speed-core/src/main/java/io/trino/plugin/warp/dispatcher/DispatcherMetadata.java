@@ -71,7 +71,6 @@ import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.connector.SortItem;
 import io.trino.spi.connector.SystemTable;
-import io.trino.spi.connector.TableCredentials;
 import io.trino.spi.connector.TableFunctionApplicationResult;
 import io.trino.spi.connector.TableScanRedirectApplicationResult;
 import io.trino.spi.connector.TopNApplicationResult;
@@ -1020,13 +1019,6 @@ public class DispatcherMetadata
                 new ConstraintApplicationResult.Alternative<>(dispatcherTableHandle, newRemainingFilter, newRemainingExpression, false));
 
         return Optional.of(new ConstraintApplicationResult<>(false, alternatives));
-    }
-
-    @Override
-    public Optional<TableCredentials> getTableCredentials(ConnectorSession session, ConnectorTableHandle tableHandle)
-    {
-        DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) tableHandle;
-        return proxiedConnectorMetadata.getTableCredentials(session, dispatcherTableHandle.getProxyConnectorTableHandle());
     }
 
     private static List<CustomStat> mergeCustomStats(List<CustomStat> first, List<CustomStat> second)

@@ -37,7 +37,6 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTransactionHandle;
-import io.trino.spi.connector.TableCredentials;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -105,7 +104,6 @@ public class WarmingManager
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             DispatcherTableHandle dispatcherTableHandle,
-            Optional<TableCredentials> tableCredentials,
             DispatcherSplit dispatcherSplit,
             List<ColumnHandle> columnsToWarm,
             SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap,
@@ -134,7 +132,6 @@ public class WarmingManager
                             transactionHandle,
                             session,
                             dispatcherTableHandle,
-                            tableCredentials,
                             rowGroupKey,
                             rowGroupData,
                             dispatcherSplit,

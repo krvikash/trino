@@ -16,7 +16,6 @@ package io.trino.server.remotetask;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.SetMultimap;
@@ -70,7 +69,6 @@ import io.trino.spi.HostAddress;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.TrinoException;
 import io.trino.spi.TrinoTransportException;
-import io.trino.spi.connector.TableCredentials;
 import io.trino.sql.planner.PlanFragment;
 import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.PlanNode;
@@ -149,7 +147,6 @@ public final class HttpRemoteTask
     private final HostAddress nodeAddress;
     private final AtomicBoolean speculative;
     private final PlanFragment planFragment;
-    private final Map<PlanNodeId, TableCredentials> tableCredentialsMap;
 
     private final AtomicLong nextSplitId = new AtomicLong();
 
@@ -225,7 +222,6 @@ public final class HttpRemoteTask
             boolean speculative,
             URI location,
             PlanFragment planFragment,
-            Map<PlanNodeId, TableCredentials> tableCredentialsMap,
             Multimap<PlanNodeId, Split> initialSplits,
             OutputBuffers outputBuffers,
             HttpClient httpClient,
@@ -256,7 +252,6 @@ public final class HttpRemoteTask
         requireNonNull(node, "node is null");
         requireNonNull(location, "location is null");
         requireNonNull(planFragment, "planFragment is null");
-        requireNonNull(tableCredentialsMap, "tableCredentials is null");
         requireNonNull(outputBuffers, "outputBuffers is null");
         requireNonNull(httpClient, "httpClient is null");
         requireNonNull(executor, "executor is null");
@@ -276,7 +271,6 @@ public final class HttpRemoteTask
             this.nodeAddress = node.getHostAndPort();
             this.speculative = new AtomicBoolean(speculative);
             this.planFragment = planFragment;
-            this.tableCredentialsMap = ImmutableMap.copyOf(tableCredentialsMap);
             this.outputBuffers.set(outputBuffers);
             this.httpClient = httpClient;
             this.executor = executor;
@@ -787,7 +781,6 @@ public final class HttpRemoteTask
                 session.getIdentity().getExtraCredentials(),
                 stageSpan,
                 fragment,
-                tableCredentialsMap,
                 splitAssignments,
                 outputBuffers.get(),
                 dynamicFilterDomains.getDynamicFilterDomains(),

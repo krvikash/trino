@@ -61,7 +61,6 @@ import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SourcePage;
-import io.trino.spi.connector.TableCredentials;
 import io.trino.spi.type.Type;
 
 import java.io.FileNotFoundException;
@@ -124,7 +123,6 @@ public class WarpProxiedWarmer
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             DispatcherTableHandle dispatcherTableHandle,
-            Optional<TableCredentials> tableCredentials,
             RowGroupKey rowGroupKey,
             RowGroupData rowGroupData,
             DispatcherSplit dispatcherSplit,
@@ -175,7 +173,6 @@ public class WarpProxiedWarmer
                                 session,
                                 nonFilterSplit,
                                 nonFilterTableHandle,
-                                tableCredentials,
                                 List.of(pair.getValue()),
                                 DynamicFilter.EMPTY);
                         logger.debug("create connectorPageSource for element %s offset %d connector %s", pair.getValue(), fileOffset, catalogNameProvider.get());

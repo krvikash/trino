@@ -69,7 +69,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.createRegularWarmupElements;
@@ -141,7 +140,6 @@ public class WarpProxiedWarmerTest
                 any(),
                 any(),
                 any(),
-                any(),
                 isA(DynamicFilter.class))).thenReturn(connectorPageSource);
     }
 
@@ -203,7 +201,6 @@ public class WarpProxiedWarmerTest
         return columns.stream().map(columnHandles -> {
             ConnectorPageSource connectorPageSource = mock(ConnectorPageSource.class);
             when(connectorPageSourceProvider.createPageSource(any(),
-                    any(),
                     any(),
                     any(),
                     any(),
@@ -382,7 +379,6 @@ public class WarpProxiedWarmerTest
                 connectorTransactionHandle,
                 connectorSession,
                 dispatcherTableHandle,
-                Optional.empty(),
                 dispatcherSplitRowGroupKeyPair.getRight(),
                 rowGroupData,
                 dispatcherSplitRowGroupKeyPair.getLeft(),

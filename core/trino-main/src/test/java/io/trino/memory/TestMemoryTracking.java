@@ -13,7 +13,6 @@
  */
 package io.trino.memory;
 
-import com.google.common.collect.ImmutableMap;
 import io.airlift.stats.TestingGcMonitor;
 import io.airlift.units.DataSize;
 import io.trino.ExceededMemoryLimitException;
@@ -103,7 +102,6 @@ public class TestMemoryTracking
                 spillSpaceTracker);
         taskContext = queryContext.addTaskContext(
                 new TaskStateMachine(new TaskId(new StageId("test_query", 0), 0, 0), notificationExecutor),
-                ImmutableMap.of(),
                 testSessionBuilder().build(),
                 () -> {},
                 true,

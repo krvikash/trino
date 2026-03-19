@@ -181,7 +181,6 @@ public class DispatcherPageSourceProviderTest
                 eq(connectorSession),
                 any(ConnectorSplit.class),
                 eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
-                eq(Optional.empty()),
                 anyList(),
                 any(DynamicFilter.class))).thenReturn(mock(TestingConnectorPageSource.class));
 
@@ -192,7 +191,6 @@ public class DispatcherPageSourceProviderTest
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
-                Optional.empty(),
                 columnHandles,
                 dynamicFilter)) {
             assertThat(((DispatcherWrapperPageSource) wrapperPageSource).getConnectorPageSource())
@@ -211,7 +209,6 @@ public class DispatcherPageSourceProviderTest
                 eq(connectorSession),
                 any(ConnectorSplit.class),
                 eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
-                eq(Optional.empty()),
                 anyList(),
                 any(DynamicFilter.class))).thenReturn(mock(TestingConnectorPageSource.class));
 
@@ -223,7 +220,6 @@ public class DispatcherPageSourceProviderTest
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
-                Optional.empty(),
                 columnHandles,
                 dynamicFilter);
         pageSource = ((DispatcherWrapperPageSource) pageSource).getConnectorPageSource();
@@ -245,7 +241,6 @@ public class DispatcherPageSourceProviderTest
                 eq(connectorSession),
                 any(ConnectorSplit.class),
                 eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
-                eq(Optional.empty()),
                 anyList(),
                 any(DynamicFilter.class))).thenReturn(mock(TestingConnectorPageSource.class));
 
@@ -257,13 +252,12 @@ public class DispatcherPageSourceProviderTest
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
-                Optional.empty(),
                 columnHandles,
                 dynamicFilter)) {
             assertThat(((DispatcherWrapperPageSource) pageSource).getConnectorPageSource())
                     .isInstanceOf(TestingConnectorPageSource.class);
             verify(workerWarmingService, times(1))
-                    .warm(any(), any(), any(), any(), any(), eq(Optional.empty()), anyList(), any(), anyInt());
+                    .warm(any(), any(), any(), any(), any(), anyList(), any(), anyInt());
         }
     }
 
@@ -286,14 +280,13 @@ public class DispatcherPageSourceProviderTest
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
-                Optional.empty(),
                 allColumns,
                 dynamicFilter)) {
             assertThat(((DispatcherWrapperPageSource) pageSource).getConnectorPageSource())
                     .isInstanceOf(DispatcherPageSource.class);
 
             verify(workerWarmingService, times(1))
-                    .warm(any(), any(), any(), any(), any(), eq(Optional.empty()), anyList(), any(), anyInt());
+                    .warm(any(), any(), any(), any(), any(), anyList(), any(), anyInt());
         }
     }
 
@@ -311,7 +304,6 @@ public class DispatcherPageSourceProviderTest
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
-                Optional.empty(),
                 Collections.emptyList(),
                 DynamicFilter.EMPTY);
 
@@ -345,7 +337,6 @@ public class DispatcherPageSourceProviderTest
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
-                Optional.empty(),
                 columns,
                 new CompletedDynamicFilter(predicate));
         pageSource = ((DispatcherWrapperPageSource) pageSource).getConnectorPageSource();
@@ -383,7 +374,6 @@ public class DispatcherPageSourceProviderTest
                 eq(connectorSession),
                 any(DispatcherSplit.class),
                 isA(TestingMetadata.TestingTableHandle.class),
-                eq(Optional.empty()),
                 anyList(),
                 any(DynamicFilter.class)))
                 .thenReturn(mock(TestingConnectorPageSource.class));
@@ -392,7 +382,6 @@ public class DispatcherPageSourceProviderTest
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
-                Optional.empty(),
                 columns,
                 new CompletedDynamicFilter(predicate));
         pageSource = ((DispatcherWrapperPageSource) pageSource).getConnectorPageSource();
@@ -418,7 +407,6 @@ public class DispatcherPageSourceProviderTest
                 eq(connectorSession),
                 eq(dispatcherSplit.getProxyConnectorSplit()),
                 eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
-                eq(Optional.empty()),
                 anyList(),
                 any(DynamicFilter.class)))
                 .thenReturn(mock(TestingConnectorPageSource.class));
@@ -427,7 +415,6 @@ public class DispatcherPageSourceProviderTest
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
-                Optional.empty(),
                 columns,
                 dynamicFilter);
 
@@ -458,7 +445,6 @@ public class DispatcherPageSourceProviderTest
                 eq(connectorSession),
                 eq(dispatcherSplit.getProxyConnectorSplit()),
                 eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
-                eq(Optional.empty()),
                 anyList(),
                 any(DynamicFilter.class)))
                 .thenReturn(mock(TestingConnectorPageSource.class));
@@ -467,7 +453,6 @@ public class DispatcherPageSourceProviderTest
                 connectorSession,
                 dispatcherSplit,
                 dispatcherTableHandle,
-                Optional.empty(),
                 columns,
                 new CompletedDynamicFilter(predicate));
 

@@ -327,7 +327,6 @@ public class ProxyExecutionTaskTest
                 connectorTransactionHandle,
                 connectorSession,
                 dispatcherTableHandle,
-                Optional.empty(),
                 rowGroupKey,
                 columnHandleList,
                 dispatcherSplit,

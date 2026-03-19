@@ -37,7 +37,6 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.SourcePage;
-import io.trino.spi.connector.TableCredentials;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeSignature;
 import io.trino.split.PageSourceManager;
@@ -448,7 +447,6 @@ public class ExtractSpatialJoins
         QualifiedObjectName name = toQualifiedObjectName(tableName, session.getCatalog().get(), session.getSchema().get());
         TableHandle tableHandle = metadata.getTableHandle(session, name)
                 .orElseThrow(() -> new TrinoException(INVALID_SPATIAL_PARTITIONING, format("Table not found: %s", name)));
-        Optional<TableCredentials> tableCredentials = metadata.getTableCredentials(session, tableHandle.catalogHandle(), tableHandle.connectorHandle());
         Map<String, ColumnHandle> columnHandles = metadata.getColumnHandles(session, tableHandle);
         List<ColumnHandle> visibleColumnHandles = columnHandles.values().stream()
                 .filter(handle -> !metadata.getColumnMetadata(session, tableHandle, handle).isHidden())
@@ -465,7 +463,7 @@ public class ExtractSpatialJoins
                 List<Split> splits = splitBatch.getSplits();
 
                 for (Split split : splits) {
-                    try (ConnectorPageSource pageSource = statefulPageSourceProvider.createPageSource(session, split, tableHandle, tableCredentials, ImmutableList.of(kdbTreeColumn), DynamicFilter.EMPTY)) {
+                    try (ConnectorPageSource pageSource = statefulPageSourceProvider.createPageSource(session, split, tableHandle, ImmutableList.of(kdbTreeColumn), DynamicFilter.EMPTY)) {
                         do {
                             getFutureValue(pageSource.isBlocked());
                             SourcePage page = pageSource.getNextSourcePage();

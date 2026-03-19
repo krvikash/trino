@@ -30,11 +30,9 @@ import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
-import io.trino.spi.connector.TableCredentials;
 import io.trino.spi.predicate.TupleDomain;
 
 import java.util.List;
-import java.util.Optional;
 
 import static io.trino.plugin.objectstore.TableType.DELTA;
 import static io.trino.plugin.objectstore.TableType.HIVE;
@@ -67,23 +65,17 @@ public class ObjectStorePageSourceProvider
     }
 
     @Override
-    public ConnectorPageSource createPageSource(
-            ConnectorTransactionHandle transactionHandle,
-            ConnectorSession session,
-            ConnectorSplit split,
-            ConnectorTableHandle table,
-            Optional<TableCredentials> tableCredentials,
-            List<ColumnHandle> columns, DynamicFilter dynamicFilter)
+    public ConnectorPageSource createPageSource(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorSplit split, ConnectorTableHandle table, List<ColumnHandle> columns, DynamicFilter dynamicFilter)
     {
         ObjectStoreTransactionHandle transaction = (ObjectStoreTransactionHandle) transactionHandle;
         return switch (table) {
-            case HiveTableHandle _ -> hivePageSourceProviderFactory.createPageSourceProvider().createPageSource(transaction.getHiveHandle(), unwrap(HIVE, session), split, table, tableCredentials, columns, dynamicFilter);
-            case IcebergTableHandle _ -> icebergPageSourceProviderFactory.createPageSourceProvider().createPageSource(transaction.getIcebergHandle(), unwrap(ICEBERG, session), split, table, tableCredentials, columns, dynamicFilter);
-            case DeltaLakeTableHandle _ -> deltaPageSourceProviderFactory.createPageSourceProvider().createPageSource(transaction.getDeltaHandle(), unwrap(DELTA, session), split, table, tableCredentials, columns, dynamicFilter);
-            case HudiTableHandle _ -> hudiPageSourceProviderFactory.createPageSourceProvider().createPageSource(transaction.getHudiHandle(), unwrap(HUDI, session), split, table, tableCredentials, columns, dynamicFilter);
+            case HiveTableHandle _ -> hivePageSourceProviderFactory.createPageSourceProvider().createPageSource(transaction.getHiveHandle(), unwrap(HIVE, session), split, table, columns, dynamicFilter);
+            case IcebergTableHandle _ -> icebergPageSourceProviderFactory.createPageSourceProvider().createPageSource(transaction.getIcebergHandle(), unwrap(ICEBERG, session), split, table, columns, dynamicFilter);
+            case DeltaLakeTableHandle _ -> deltaPageSourceProviderFactory.createPageSourceProvider().createPageSource(transaction.getDeltaHandle(), unwrap(DELTA, session), split, table, columns, dynamicFilter);
+            case HudiTableHandle _ -> hudiPageSourceProviderFactory.createPageSourceProvider().createPageSource(transaction.getHudiHandle(), unwrap(HUDI, session), split, table, columns, dynamicFilter);
             case SystemTableHandle _ -> {
                 if (split instanceof FilesTableSplit) {
-                    yield icebergPageSourceProviderFactory.createPageSourceProvider().createPageSource(transaction.getIcebergHandle(), unwrap(ICEBERG, session), split, table, tableCredentials, columns, dynamicFilter);
+                    yield icebergPageSourceProviderFactory.createPageSourceProvider().createPageSource(transaction.getIcebergHandle(), unwrap(ICEBERG, session), split, table, columns, dynamicFilter);
                 }
                 throw new VerifyException("Unhandled split class: " + split.getClass().getName());
             }

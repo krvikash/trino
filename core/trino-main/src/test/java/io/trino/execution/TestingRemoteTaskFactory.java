@@ -38,7 +38,6 @@ import io.trino.metadata.Split;
 import io.trino.node.InternalNode;
 import io.trino.operator.TaskStats;
 import io.trino.plugin.base.metrics.TDigestHistogram;
-import io.trino.spi.connector.TableCredentials;
 import io.trino.sql.planner.PlanFragment;
 import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.PlanNodeId;
@@ -79,7 +78,6 @@ public class TestingRemoteTaskFactory
             InternalNode node,
             boolean speculative,
             PlanFragment fragment,
-            Map<PlanNodeId, TableCredentials> tableCredentialsMap,
             Multimap<PlanNodeId, Split> initialSplits,
             OutputBuffers outputBuffers,
             PartitionedSplitCountTracker partitionedSplitCountTracker,

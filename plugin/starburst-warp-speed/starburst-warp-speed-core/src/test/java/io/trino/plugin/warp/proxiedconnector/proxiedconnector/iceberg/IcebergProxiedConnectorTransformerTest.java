@@ -258,6 +258,7 @@ public class IcebergProxiedConnectorTransformerTest
                 ImmutableList.of(),
                 SplitWeight.standard(),
                 TupleDomain.all(),
+                ImmutableMap.of(),
                 1L,
                 null);
         DispatcherTableHandle dispatcherTableHandle = new DispatcherTableHandle(

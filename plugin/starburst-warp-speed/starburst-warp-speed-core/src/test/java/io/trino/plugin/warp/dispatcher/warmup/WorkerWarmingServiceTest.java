@@ -120,7 +120,7 @@ public class WorkerWarmingServiceTest
         workerTaskExecutorService = mock(WorkerTaskExecutorService.class);
         warmExecutionTaskFactory = mock(WarmExecutionTaskFactory.class);
         ProxyExecutionTask proxyExecutionTask = mock(ProxyExecutionTask.class);
-        when(warmExecutionTaskFactory.createExecutionTask(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt(), eq(WorkerTaskExecutorService.TaskExecutionType.PROXY))).thenReturn(proxyExecutionTask);
+        when(warmExecutionTaskFactory.createExecutionTask(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), anyInt(), eq(WorkerTaskExecutorService.TaskExecutionType.PROXY))).thenReturn(proxyExecutionTask);
         warmupDemoterConfig = new WarmupDemoterConfig();
         globalConfig = new GlobalConfig();
         dispatcherProxiedConnectorTransformer = mock(DispatcherProxiedConnectorTransformer.class);

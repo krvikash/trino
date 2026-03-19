@@ -26,9 +26,7 @@ import io.trino.memory.context.MemoryReservationHandler;
 import io.trino.memory.context.MemoryTrackingContext;
 import io.trino.operator.TaskContext;
 import io.trino.spi.QueryId;
-import io.trino.spi.connector.TableCredentials;
 import io.trino.spiller.SpillSpaceTracker;
-import io.trino.sql.planner.plan.PlanNodeId;
 
 import java.util.Comparator;
 import java.util.List;
@@ -239,7 +237,6 @@ public class QueryContext
 
     public TaskContext addTaskContext(
             TaskStateMachine taskStateMachine,
-            Map<PlanNodeId, TableCredentials> tableCredentialsMap,
             Session session,
             Runnable notifyStatusChanged,
             boolean perOperatorCpuTimerEnabled,
@@ -262,7 +259,6 @@ public class QueryContext
         TaskContext taskContext = createTaskContext(
                 this,
                 taskStateMachine,
-                tableCredentialsMap,
                 gcMonitor,
                 notificationExecutor,
                 yieldExecutor,

@@ -29,7 +29,6 @@ import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
-import io.trino.spi.connector.TableCredentials;
 
 import java.util.List;
 import java.util.Optional;
@@ -47,7 +46,6 @@ public class ImportExecutionTask
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             DispatcherTableHandle dispatcherTableHandle,
-            Optional<TableCredentials> tableCredentials,
             RowGroupKey rowGroupKey,
             List<ColumnHandle> columns, DispatcherSplit dispatcherSplit,
             DynamicFilter dynamicFilter,
@@ -71,7 +69,6 @@ public class ImportExecutionTask
                 transactionHandle,
                 session,
                 dispatcherTableHandle,
-                tableCredentials,
                 rowGroupKey,
                 columns,
                 dispatcherSplit,

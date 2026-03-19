@@ -53,7 +53,6 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
-import io.trino.spi.connector.TableCredentials;
 import io.trino.spi.type.Type;
 
 import java.util.List;
@@ -119,7 +118,6 @@ public class WarpDispatcherPageSourceFactory
             ConnectorSession session,
             DispatcherSplit dispatcherSplit,
             DispatcherTableHandle dispatcherTableHandle,
-            Optional<TableCredentials> tableCredentials,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter,
             CustomStatsContext customStatsContext)
@@ -149,7 +147,6 @@ public class WarpDispatcherPageSourceFactory
                     session,
                     dispatcherSplit.getProxyConnectorSplit(),
                     dispatcherTableHandle.getProxyConnectorTableHandle(),
-                    tableCredentials,
                     columns,
                     dynamicFilter);
         }
@@ -160,7 +157,6 @@ public class WarpDispatcherPageSourceFactory
                 session,
                 dispatcherSplit,
                 dispatcherTableHandle,
-                tableCredentials,
                 columns,
                 dynamicFilter,
                 customStatsContext);
@@ -171,7 +167,6 @@ public class WarpDispatcherPageSourceFactory
                 session,
                 dispatcherSplit,
                 dispatcherTableHandle,
-                tableCredentials,
                 columns,
                 dynamicFilter,
                 1);
@@ -184,7 +179,6 @@ public class WarpDispatcherPageSourceFactory
             ConnectorSession session,
             DispatcherSplit dispatcherSplit,
             DispatcherTableHandle dispatcherTableHandle,
-            Optional<TableCredentials> tableCredentials,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter,
             CustomStatsContext customStatsContext)
@@ -245,7 +239,6 @@ public class WarpDispatcherPageSourceFactory
                         session,
                         dispatcherSplit,
                         dispatcherTableHandle,
-                        tableCredentials,
                         columns,
                         dynamicFilter,
                         Optional.empty(),
@@ -291,7 +284,6 @@ public class WarpDispatcherPageSourceFactory
                         session,
                         dispatcherSplit,
                         dispatcherTableHandle,
-                        tableCredentials,
                         columns,
                         dynamicFilter,
                         Optional.of(queryContext),
@@ -322,7 +314,6 @@ public class WarpDispatcherPageSourceFactory
                             queryContext,
                             transactionHandle,
                             dispatcherTableHandle,
-                            tableCredentials,
                             filteringStats,
                             session,
                             dispatcherSplit,
@@ -353,7 +344,6 @@ public class WarpDispatcherPageSourceFactory
                     session,
                     dispatcherSplit,
                     dispatcherTableHandle,
-                    tableCredentials,
                     columns,
                     dynamicFilter,
                     Optional.of(queryContext),
@@ -376,7 +366,6 @@ public class WarpDispatcherPageSourceFactory
             ConnectorSession session,
             DispatcherSplit dispatcherSplit,
             DispatcherTableHandle dispatcherTableHandle,
-            Optional<TableCredentials> tableCredentials,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter,
             Optional<QueryContext> queryContext,
@@ -400,7 +389,6 @@ public class WarpDispatcherPageSourceFactory
                 session,
                 proxiedSplit,
                 connectorTableHandle,
-                tableCredentials,
                 columns,
                 dynamicFilter);
     }
@@ -411,7 +399,6 @@ public class WarpDispatcherPageSourceFactory
             QueryContext queryContext,
             ConnectorTransactionHandle transactionHandle,
             DispatcherTableHandle dispatcherTableHandle,
-            Optional<TableCredentials> tableCredentials,
             Optional<FilteringStats> filteringStats,
             ConnectorSession session,
             DispatcherSplit dispatcherSplit,
@@ -433,7 +420,6 @@ public class WarpDispatcherPageSourceFactory
                     session,
                     dispatcherSplit,
                     dispatcherTableHandle,
-                    tableCredentials,
                     ImmutableList.copyOf(queryContext.getRemainingCollectColumns()),
                     DynamicFilter.EMPTY,
                     Optional.empty(),

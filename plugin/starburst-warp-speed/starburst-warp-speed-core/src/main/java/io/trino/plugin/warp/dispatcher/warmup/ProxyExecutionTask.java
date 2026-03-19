@@ -42,7 +42,6 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.SchemaTableName;
-import io.trino.spi.connector.TableCredentials;
 
 import java.util.List;
 import java.util.Locale;
@@ -75,7 +74,6 @@ public class ProxyExecutionTask
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             DispatcherTableHandle dispatcherTableHandle,
-            Optional<TableCredentials> tableCredentials,
             RowGroupKey rowGroupKey,
             List<ColumnHandle> columns,
             DispatcherSplit dispatcherSplit,
@@ -102,7 +100,6 @@ public class ProxyExecutionTask
                 transactionHandle,
                 session,
                 dispatcherTableHandle,
-                tableCredentials,
                 rowGroupKey,
                 columns,
                 dispatcherSplit,
@@ -202,7 +199,6 @@ public class ProxyExecutionTask
                     transactionHandle,
                     session,
                     dispatcherTableHandle,
-                    tableCredentials,
                     dispatcherSplit,
                     dataToWarm.columnHandleList(),
                     dataToWarm.requiredWarmUpTypeMap(),

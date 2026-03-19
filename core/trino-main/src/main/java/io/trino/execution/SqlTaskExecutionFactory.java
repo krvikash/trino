@@ -21,13 +21,10 @@ import io.trino.execution.buffer.OutputBuffer;
 import io.trino.execution.executor.TaskExecutor;
 import io.trino.memory.QueryContext;
 import io.trino.operator.TaskContext;
-import io.trino.spi.connector.TableCredentials;
 import io.trino.sql.planner.LocalExecutionPlanner;
 import io.trino.sql.planner.LocalExecutionPlanner.LocalExecutionPlan;
 import io.trino.sql.planner.PlanFragment;
-import io.trino.sql.planner.plan.PlanNodeId;
 
-import java.util.Map;
 import java.util.concurrent.Executor;
 
 import static com.google.common.base.Throwables.throwIfUnchecked;
@@ -67,12 +64,10 @@ public class SqlTaskExecutionFactory
             TaskStateMachine taskStateMachine,
             OutputBuffer outputBuffer,
             PlanFragment fragment,
-            Map<PlanNodeId, TableCredentials> tableCredentialsMap,
             Runnable notifyStatusChanged)
     {
         TaskContext taskContext = queryContext.addTaskContext(
                 taskStateMachine,
-                tableCredentialsMap,
                 session,
                 notifyStatusChanged,
                 perOperatorCpuTimerEnabled,

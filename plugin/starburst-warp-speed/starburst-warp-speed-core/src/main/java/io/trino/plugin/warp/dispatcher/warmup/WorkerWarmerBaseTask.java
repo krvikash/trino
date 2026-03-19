@@ -32,7 +32,6 @@ import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
-import io.trino.spi.connector.TableCredentials;
 
 import java.util.List;
 import java.util.Optional;
@@ -51,7 +50,6 @@ public abstract class WorkerWarmerBaseTask
     protected final ConnectorTransactionHandle transactionHandle;
     protected final ConnectorSession session;
     protected final DispatcherTableHandle dispatcherTableHandle;
-    protected final Optional<TableCredentials> tableCredentials;
     protected final RowGroupKey rowGroupKey;
     protected final List<ColumnHandle> columns;
     protected final DispatcherSplit dispatcherSplit;
@@ -77,7 +75,6 @@ public abstract class WorkerWarmerBaseTask
             ConnectorTransactionHandle transactionHandle,
             ConnectorSession session,
             DispatcherTableHandle dispatcherTableHandle,
-            Optional<TableCredentials> tableCredentials,
             RowGroupKey rowGroupKey,
             List<ColumnHandle> columns,
             DispatcherSplit dispatcherSplit,
@@ -94,7 +91,6 @@ public abstract class WorkerWarmerBaseTask
         this.transactionHandle = requireNonNull(transactionHandle);
         this.session = requireNonNull(session);
         this.dispatcherTableHandle = requireNonNull(dispatcherTableHandle);
-        this.tableCredentials = requireNonNull(tableCredentials);
         this.rowGroupKey = requireNonNull(rowGroupKey);
         this.columns = requireNonNull(columns);
         this.dispatcherSplit = requireNonNull(dispatcherSplit);
@@ -189,7 +185,6 @@ public abstract class WorkerWarmerBaseTask
                 session,
                 dispatcherSplit,
                 dispatcherTableHandle,
-                tableCredentials,
                 columns,
                 dynamicFilter,
                 rowGroupKey,

@@ -20,11 +20,9 @@ import io.opentelemetry.api.trace.Span;
 import io.trino.SessionRepresentation;
 import io.trino.execution.SplitAssignment;
 import io.trino.execution.buffer.OutputBuffers;
-import io.trino.spi.connector.TableCredentials;
 import io.trino.sql.planner.DynamicFilterDomain;
 import io.trino.sql.planner.PlanFragment;
 import io.trino.sql.planner.plan.DynamicFilterId;
-import io.trino.sql.planner.plan.PlanNodeId;
 
 import java.util.List;
 import java.util.Map;
@@ -41,7 +39,6 @@ public record TaskUpdateRequest(
         Map<String, String> extraCredentials,
         Span stageSpan,
         Optional<PlanFragment> fragment,
-        Map<PlanNodeId, TableCredentials> tableCredentialsMap,
         List<SplitAssignment> splitAssignments,
         OutputBuffers outputIds,
         Map<DynamicFilterId, DynamicFilterDomain> dynamicFilterDomains,
@@ -54,7 +51,6 @@ public record TaskUpdateRequest(
         requireNonNull(extraCredentials, "extraCredentials is null");
         requireNonNull(stageSpan, "stageSpan is null");
         requireNonNull(fragment, "fragment is null");
-        tableCredentialsMap = ImmutableMap.copyOf(tableCredentialsMap);
         splitAssignments = ImmutableList.copyOf(splitAssignments);
         requireNonNull(outputIds, "outputIds is null");
         dynamicFilterDomains = ImmutableMap.copyOf(dynamicFilterDomains);

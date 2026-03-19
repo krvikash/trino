@@ -52,14 +52,12 @@ import io.trino.operator.scalar.JoniRegexpReplaceLambdaFunction;
 import io.trino.spi.QueryId;
 import io.trino.spi.TrinoException;
 import io.trino.spi.VersionEmbedder;
-import io.trino.spi.connector.TableCredentials;
 import io.trino.spiller.LocalSpillManager;
 import io.trino.spiller.NodeSpillConfig;
 import io.trino.sql.planner.DynamicFilterDomain;
 import io.trino.sql.planner.LocalExecutionPlanner;
 import io.trino.sql.planner.PlanFragment;
 import io.trino.sql.planner.plan.DynamicFilterId;
-import io.trino.sql.planner.plan.PlanNodeId;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.weakref.jmx.Flatten;
@@ -487,14 +485,13 @@ public class SqlTaskManager
             TaskId taskId,
             Span stageSpan,
             Optional<PlanFragment> fragment,
-            Map<PlanNodeId, TableCredentials> tableCredentialsMap,
             List<SplitAssignment> splitAssignments,
             OutputBuffers outputBuffers,
             Map<DynamicFilterId, DynamicFilterDomain> dynamicFilterDomains,
             boolean speculative)
     {
         try {
-            return versionEmbedder.embedVersion(() -> doUpdateTask(session, taskId, stageSpan, fragment, tableCredentialsMap, splitAssignments, outputBuffers, dynamicFilterDomains, speculative)).call();
+            return versionEmbedder.embedVersion(() -> doUpdateTask(session, taskId, stageSpan, fragment, splitAssignments, outputBuffers, dynamicFilterDomains, speculative)).call();
         }
         catch (Exception e) {
             throwIfUnchecked(e);
@@ -508,7 +505,6 @@ public class SqlTaskManager
             TaskId taskId,
             Span stageSpan,
             Optional<PlanFragment> fragment,
-            Map<PlanNodeId, TableCredentials> tableCredentialsMap,
             List<SplitAssignment> splitAssignments,
             OutputBuffers outputBuffers,
             Map<DynamicFilterId, DynamicFilterDomain> dynamicFilterDomains,
@@ -556,7 +552,7 @@ public class SqlTaskManager
                 .ifPresent(languageFunctions -> languageFunctionProvider.registerTask(taskId, languageFunctions));
 
         sqlTask.recordHeartbeat();
-        return sqlTask.updateTask(session, stageSpan, fragment, tableCredentialsMap, splitAssignments, outputBuffers, dynamicFilterDomains, speculative);
+        return sqlTask.updateTask(session, stageSpan, fragment, splitAssignments, outputBuffers, dynamicFilterDomains, speculative);
     }
 
     /**

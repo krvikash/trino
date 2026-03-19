@@ -13,7 +13,6 @@
  */
 package io.trino.testing;
 
-import com.google.common.collect.ImmutableMap;
 import io.airlift.stats.GcMonitor;
 import io.airlift.stats.TestingGcMonitor;
 import io.airlift.units.DataSize;
@@ -68,7 +67,6 @@ public final class TestingTaskContext
     {
         return queryContext.addTaskContext(
                 taskStateMachine,
-                ImmutableMap.of(),
                 session,
                 () -> {},
                 true,

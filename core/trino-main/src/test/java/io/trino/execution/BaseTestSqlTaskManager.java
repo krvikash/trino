@@ -292,7 +292,6 @@ public abstract class BaseTestSqlTaskManager
                     reduceLimitsId,
                     Span.getInvalid(),
                     Optional.of(PLAN_FRAGMENT),
-                    ImmutableMap.of(),
                     ImmutableList.of(new SplitAssignment(TABLE_SCAN_NODE_ID, ImmutableSet.of(SPLIT), true)),
                     PipelinedOutputBuffers.createInitial(PARTITIONED).withBuffer(OUT, 0).withNoMoreBufferIds(),
                     ImmutableMap.of(),
@@ -308,7 +307,6 @@ public abstract class BaseTestSqlTaskManager
                     increaseLimitsId,
                     Span.getInvalid(),
                     Optional.of(PLAN_FRAGMENT),
-                    ImmutableMap.of(),
                     ImmutableList.of(new SplitAssignment(TABLE_SCAN_NODE_ID, ImmutableSet.of(SPLIT), true)),
                     PipelinedOutputBuffers.createInitial(PARTITIONED).withBuffer(OUT, 0).withNoMoreBufferIds(),
                     ImmutableMap.of(),
@@ -350,7 +348,6 @@ public abstract class BaseTestSqlTaskManager
                 taskId,
                 Span.getInvalid(),
                 Optional.of(PLAN_FRAGMENT),
-                ImmutableMap.of(),
                 ImmutableList.of(new SplitAssignment(TABLE_SCAN_NODE_ID, splits, true)),
                 outputBuffers,
                 ImmutableMap.of(),
@@ -360,12 +357,11 @@ public abstract class BaseTestSqlTaskManager
     private TaskInfo createTask(SqlTaskManager sqlTaskManager, TaskId taskId, OutputBuffers outputBuffers)
     {
         sqlTaskManager.getQueryContext(taskId.queryId())
-                .addTaskContext(new TaskStateMachine(taskId, directExecutor()), ImmutableMap.of(), testSessionBuilder().build(), () -> {}, false, false);
+                .addTaskContext(new TaskStateMachine(taskId, directExecutor()), testSessionBuilder().build(), () -> {}, false, false);
         return sqlTaskManager.updateTask(TEST_SESSION,
                 taskId,
                 Span.getInvalid(),
                 Optional.of(PLAN_FRAGMENT),
-                ImmutableMap.of(),
                 ImmutableList.of(),
                 outputBuffers,
                 ImmutableMap.of(),

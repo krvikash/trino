@@ -23,19 +23,10 @@ import io.trino.plugin.hudi.HudiTableHandle;
 import io.trino.plugin.iceberg.IcebergPageSourceProviderFactory;
 import io.trino.plugin.iceberg.IcebergTableHandle;
 import io.trino.plugin.iceberg.system.files.FilesTableSplit;
-import io.trino.spi.connector.ColumnHandle;
-import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
-import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
-import io.trino.spi.connector.ConnectorTransactionHandle;
-import io.trino.spi.connector.DynamicFilter;
-import io.trino.spi.connector.TableCredentials;
-
-import java.util.List;
-import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -63,20 +54,8 @@ public class LakehousePageSourceProviderFactory
     @Override
     public ConnectorPageSourceProvider createPageSourceProvider()
     {
-        return new ConnectorPageSourceProvider() {
-            @Override
-            public ConnectorPageSource createPageSource(
-                    ConnectorTransactionHandle transaction,
-                    ConnectorSession session,
-                    ConnectorSplit split,
-                    ConnectorTableHandle table,
-                    Optional<TableCredentials> tableCredentials,
-                    List<ColumnHandle> columns,
-                    DynamicFilter dynamicFilter)
-            {
-                return forHandle(split, table).createPageSource(transaction, session, split, table, tableCredentials, columns, dynamicFilter);
-            }
-        };
+        return (transaction, session, split, table, columns, dynamicFilter) ->
+                forHandle(split, table).createPageSource(transaction, session, split, table, columns, dynamicFilter);
     }
 
     private ConnectorPageSourceProvider forHandle(ConnectorSplit split, ConnectorTableHandle handle)

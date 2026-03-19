@@ -64,7 +64,6 @@ import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.connector.SortItem;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableColumnsMetadata;
-import io.trino.spi.connector.TableCredentials;
 import io.trino.spi.connector.TableFunctionApplicationResult;
 import io.trino.spi.connector.TableScanRedirectApplicationResult;
 import io.trino.spi.connector.TopNApplicationResult;
@@ -1538,15 +1537,6 @@ public class TracingConnectorMetadata
         Span span = startSpan("applyPartialLimit", tableHandle);
         try (var _ = scopedSpan(span)) {
             return delegate.applyPartialLimit(session, tableHandle, limitHint);
-        }
-    }
-
-    @Override
-    public Optional<TableCredentials> getTableCredentials(ConnectorSession session, ConnectorTableHandle tableHandle)
-    {
-        Span span = startSpan("getTableCredentials", tableHandle);
-        try (var _ = scopedSpan(span)) {
-            return delegate.getTableCredentials(session, tableHandle);
         }
     }
 
