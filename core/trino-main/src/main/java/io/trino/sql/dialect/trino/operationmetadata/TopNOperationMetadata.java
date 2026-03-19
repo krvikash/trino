@@ -15,6 +15,7 @@ package io.trino.sql.dialect.trino.operationmetadata;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.trino.sql.dialect.ir.IrAttributeUtils;
 import io.trino.sql.dialect.trino.operation.TopN;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
@@ -31,7 +32,10 @@ import java.util.function.BiFunction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static io.trino.sql.dialect.ir.IrAttributeDerivationUtils.defaultDeriveIrLevelAttributes;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.hasNoSideEffects;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.hasSideEffects;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.nonIdempotent;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.safe;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalEnumAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalLongAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalSortOrderListAttributeMetadata;
@@ -99,7 +103,25 @@ public class TopNOperationMetadata
     {
         checkArgument(childAttributes.size() == 2, "TopN operation must have exactly two child attributes maps: one for the input, and one for the ordering selector");
 
-        return defaultDeriveIrLevelAttributes(childAttributes);
+        ImmutableMap.Builder<AttributeKey, Object> derivedAttributes = ImmutableMap.builder();
+
+        // TopN operation is non-idempotent in case there are ties
+        if (childAttributes.stream().allMatch(IrAttributeUtils::isKnownDeterministic)) {
+            nonIdempotent(derivedAttributes);
+        }
+
+        if (childAttributes.stream().allMatch(IrAttributeUtils::isKnownSafe)) {
+            safe(derivedAttributes);
+        }
+
+        if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownHasSideEffects)) {
+            hasSideEffects(derivedAttributes);
+        }
+        else if (childAttributes.stream().allMatch(IrAttributeUtils::isKnownHasNoSideEffects)) {
+            hasNoSideEffects(derivedAttributes);
+        }
+
+        return derivedAttributes.buildOrThrow();
     }
 
     public enum TopNStep

@@ -3305,7 +3305,7 @@ class TestCreateOperation
                         new AttributeKey(TRINO, "top_n:limit"), 10L,
                         new AttributeKey(TRINO, "top_n:step"), FINAL,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
+                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
                         new AttributeKey(IR, "safe"), true,
                         new AttributeKey(IR, "has_side_effects"), false));
 
@@ -3323,7 +3323,7 @@ class TestCreateOperation
                         new AttributeKey(TRINO, "top_n:limit"), 10L,
                         new AttributeKey(TRINO, "top_n:step"), FINAL,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
+                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
                         new AttributeKey(IR, "safe"), true,
                         new AttributeKey(IR, "has_side_effects"), false)))
                 .hasMessage("TopN operation must have exactly one argument: the input relation");
@@ -3339,7 +3339,7 @@ class TestCreateOperation
                         new AttributeKey(TRINO, "top_n:limit"), 10L,
                         new AttributeKey(TRINO, "top_n:step"), FINAL,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
+                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
                         new AttributeKey(IR, "safe"), true,
                         new AttributeKey(IR, "has_side_effects"), false)))
                 .hasMessage("TopN operation must have exactly one region: the ordering selector");
@@ -3354,7 +3354,7 @@ class TestCreateOperation
                         new AttributeKey(TRINO, "top_n:limit"), 10L,
                         new AttributeKey(TRINO, "top_n:step"), FINAL,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
-                        new AttributeKey(IR, "repeatability"), DETERMINISTIC,
+                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
                         new AttributeKey(IR, "safe"), true,
                         new AttributeKey(IR, "has_side_effects"), false)))
                 .hasMessage("sortOrders is null");
