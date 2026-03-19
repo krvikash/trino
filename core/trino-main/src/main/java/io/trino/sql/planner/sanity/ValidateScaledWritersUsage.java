@@ -20,6 +20,7 @@ import io.trino.spi.connector.WriterScalingOptions;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.planner.PartitioningHandle;
 import io.trino.sql.planner.plan.ExchangeNode;
+import io.trino.sql.planner.plan.MergeWriterNode;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanVisitor;
 import io.trino.sql.planner.plan.TableWriterNode;
@@ -72,10 +73,20 @@ public class ValidateScaledWritersUsage
         @Override
         public List<ExchangeNode> visitTableWriter(TableWriterNode node, Void context)
         {
-            List<ExchangeNode> scaleWriterExchanges = collectExchanges(node.getSources()).stream()
+            return collectAndValidateScaledWriterExchanges(node.getSources(), node.getTarget());
+        }
+
+        @Override
+        public List<ExchangeNode> visitMergeWriter(MergeWriterNode node, Void context)
+        {
+            return collectAndValidateScaledWriterExchanges(node.getSources(), node.getTarget());
+        }
+
+        private List<ExchangeNode> collectAndValidateScaledWriterExchanges(List<PlanNode> sources, TableWriterNode.WriterTarget target)
+        {
+            List<ExchangeNode> scaleWriterExchanges = collectExchanges(sources).stream()
                     .filter(exchangeNode -> exchangeNode.getPartitioningScheme().getPartitioning().getHandle().isScaleWriters())
                     .collect(toImmutableList());
-            TableWriterNode.WriterTarget target = node.getTarget();
 
             scaleWriterExchanges.forEach(exchangeNode -> {
                 PartitioningHandle handle = exchangeNode.getPartitioningScheme().getPartitioning().getHandle();

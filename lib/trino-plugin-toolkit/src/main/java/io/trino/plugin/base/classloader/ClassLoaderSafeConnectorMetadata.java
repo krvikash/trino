@@ -1388,6 +1388,14 @@ public class ClassLoaderSafeConnectorMetadata
     }
 
     @Override
+    public WriterScalingOptions getMergeWriterScalingOptions(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
+            return delegate.getMergeWriterScalingOptions(session, tableHandle);
+        }
+    }
+
+    @Override
     public Optional<ApplyPartialTopNResult<ConnectorTableHandle>> applyPartialTopN(
             ConnectorSession session,
             ConnectorTableHandle handle,

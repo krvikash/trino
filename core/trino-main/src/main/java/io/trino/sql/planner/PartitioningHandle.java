@@ -35,8 +35,12 @@ public class PartitioningHandle
 
     public static boolean isScaledWriterHashDistribution(PartitioningHandle partitioning)
     {
+        // MergePartitioningHandle is created without a catalogHandle, so it needs
+        // an explicit check in addition to the catalogHandle.isPresent() condition
         return partitioning.isScaleWriters()
-                && (partitioning.equals(SCALED_WRITER_HASH_DISTRIBUTION) || partitioning.getCatalogHandle().isPresent());
+                && (partitioning.equals(SCALED_WRITER_HASH_DISTRIBUTION)
+                        || partitioning.getCatalogHandle().isPresent()
+                        || partitioning.getConnectorHandle() instanceof MergePartitioningHandle);
     }
 
     public PartitioningHandle(

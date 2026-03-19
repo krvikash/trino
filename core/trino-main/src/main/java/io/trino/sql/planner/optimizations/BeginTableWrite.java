@@ -212,6 +212,9 @@ public class BeginTableWrite
                         mergeTarget.getMergeHandle(),
                         mergeTarget.getSchemaTableName(),
                         mergeTarget.getMergeParadigmAndTypes(),
+                        mergeTarget.isMultipleWritersPerPartitionSupported(),
+                        mergeTarget.getMaxWriterTasks(metadata, session),
+                        mergeTarget.getWriterScalingOptions(metadata, session),
                         findSourceTableHandles(node),
                         mergeTarget.getUpdateCaseColumnHandles());
             }
@@ -254,6 +257,9 @@ public class BeginTableWrite
                         Optional.of(mergeHandle),
                         merge.getSchemaTableName(),
                         merge.getMergeParadigmAndTypes(),
+                        merge.isMultipleWritersPerPartitionSupported(),
+                        merge.getMaxWriterTasks(metadata, session),
+                        merge.getWriterScalingOptions(metadata, session),
                         findSourceTableHandles(planNode),
                         merge.getUpdateCaseColumnHandles());
             }

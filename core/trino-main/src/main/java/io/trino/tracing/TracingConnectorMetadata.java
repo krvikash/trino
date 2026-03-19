@@ -1536,6 +1536,15 @@ public class TracingConnectorMetadata
     }
 
     @Override
+    public WriterScalingOptions getMergeWriterScalingOptions(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        Span span = startSpan("getMergeWriterScalingOptions", tableHandle);
+        try (var _ = scopedSpan(span)) {
+            return delegate.getMergeWriterScalingOptions(session, tableHandle);
+        }
+    }
+
+    @Override
     public Optional<ApplyPartialTopNResult<ConnectorTableHandle>> applyPartialTopN(
             ConnectorSession session,
             ConnectorTableHandle handle,

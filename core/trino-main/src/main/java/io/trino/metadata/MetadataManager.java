@@ -3091,6 +3091,13 @@ public final class MetadataManager
     }
 
     @Override
+    public WriterScalingOptions getMergeWriterScalingOptions(Session session, TableHandle tableHandle)
+    {
+        ConnectorMetadata metadata = getMetadataForWrite(session, tableHandle.catalogHandle());
+        return metadata.getMergeWriterScalingOptions(session.toConnectorSession(tableHandle.catalogHandle()), tableHandle.connectorHandle());
+    }
+
+    @Override
     public Optional<ApplyPartialTopNResult<TableHandle>> applyPartialTopN(
             Session session,
             TableHandle tableHandle,

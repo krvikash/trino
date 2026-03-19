@@ -1702,6 +1702,15 @@ public class TracingMetadata
     }
 
     @Override
+    public WriterScalingOptions getMergeWriterScalingOptions(Session session, TableHandle tableHandle)
+    {
+        Span span = startSpan("getMergeWriterScalingOptions", tableHandle);
+        try (var _ = scopedSpan(span)) {
+            return delegate.getMergeWriterScalingOptions(session, tableHandle);
+        }
+    }
+
+    @Override
     public Optional<ApplyPartialTopNResult<TableHandle>> applyPartialTopN(
             Session session,
             TableHandle tableHandle,

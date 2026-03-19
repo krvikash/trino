@@ -33,7 +33,11 @@ import io.trino.spi.session.PropertyMetadata;
 import io.trino.spi.statistics.ColumnStatistics;
 import io.trino.spi.statistics.Estimate;
 import io.trino.spi.statistics.TableStatistics;
+import io.trino.sql.planner.MergePartitioningHandle;
+import io.trino.sql.planner.Partitioning;
 import io.trino.sql.planner.PartitioningHandle;
+import io.trino.sql.planner.PartitioningScheme;
+import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.assertions.BasePlanTest;
 import io.trino.sql.planner.plan.TableExecuteNode;
 import io.trino.sql.planner.plan.TableScanNode;
@@ -57,6 +61,7 @@ import static io.trino.sql.planner.SystemPartitioningHandle.SCALED_WRITER_ROUND_
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.anyTree;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.exchange;
+import static io.trino.sql.planner.assertions.PlanMatchPattern.mergeWriter;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.node;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.tableScan;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.tableWriter;
@@ -70,6 +75,25 @@ public class TestAddLocalExchangesForTaskScaleWriters
         extends BasePlanTest
 {
     private static final ConnectorPartitioningHandle CONNECTOR_PARTITIONING_HANDLE = new ConnectorPartitioningHandle() {};
+    private static final PartitioningScheme INSERT_PARTITIONING_SCHEME = new PartitioningScheme(
+            Partitioning.create(
+                    FIXED_HASH_DISTRIBUTION,
+                    ImmutableList.of(new Symbol(INTEGER, "year"))),
+            ImmutableList.of(new Symbol(INTEGER, "customer"), new Symbol(INTEGER, "year")));
+    private static final PartitioningHandle MERGE_PARTITIONING_HANDLE = new PartitioningHandle(
+            Optional.empty(),
+            Optional.empty(),
+            new MergePartitioningHandle(
+                    Optional.of(INSERT_PARTITIONING_SCHEME),
+                    Optional.empty()),
+            false);
+    private static final PartitioningHandle SCALED_MERGE_PARTITIONING_HANDLE = new PartitioningHandle(
+            Optional.empty(),
+            Optional.empty(),
+            new MergePartitioningHandle(
+                    Optional.of(INSERT_PARTITIONING_SCHEME),
+                    Optional.empty()),
+            true);
 
     @Override
     protected PlanTester createPlanTester()
@@ -100,7 +124,8 @@ public class TestAddLocalExchangesForTaskScaleWriters
                     if (tableName.getTableName().equals("source_table")
                             || tableName.getTableName().equals("system_partitioned_table")
                             || tableName.getTableName().equals("connector_partitioned_table")
-                            || tableName.getTableName().equals("unpartitioned_table")) {
+                            || tableName.getTableName().equals("unpartitioned_table")
+                            || tableName.getTableName().equals("target_table")) {
                         return new MockConnectorTableHandle(tableName);
                     }
                     return null;
@@ -131,7 +156,8 @@ public class TestAddLocalExchangesForTaskScaleWriters
                         new ColumnMetadata("customer", INTEGER),
                         new ColumnMetadata("year", INTEGER)))
                 .withGetInsertLayout((session, tableName) -> {
-                    if (tableName.getTableName().equals("system_partitioned_table")) {
+                    if (tableName.getTableName().equals("system_partitioned_table")
+                            || tableName.getTableName().equals("target_table")) {
                         return Optional.of(new ConnectorTableLayout(ImmutableList.of("year")));
                     }
                     if (tableName.getTableName().equals("connector_partitioned_table")) {
@@ -437,6 +463,74 @@ public class TestAddLocalExchangesForTaskScaleWriters
                                 exchange(LOCAL, GATHER, SINGLE_DISTRIBUTION,
                                         exchange(REMOTE, REPARTITION, SCALED_WRITER_ROUND_ROBIN_DISTRIBUTION,
                                                 node(TableScanNode.class))))));
+    }
+
+    @Test
+    public void testMergeLocalScaledPartitionedWriterWithTaskScaleWritersEnabled()
+    {
+        @Language("SQL") String query =
+                """
+                MERGE INTO target_table t USING source_table s
+                    ON t.customer = s.customer
+                    WHEN MATCHED
+                        THEN DELETE
+                """;
+
+        assertDistributedPlan(
+                query,
+                testingSessionBuilder()
+                        .setCatalog("mock_with_scaled_writers")
+                        .setSchema("mock")
+                        .setSystemProperty(TASK_SCALE_WRITERS_ENABLED, "true")
+                        .setSystemProperty(SCALE_WRITERS, "false")
+                        .build(),
+                anyTree(
+                        mergeWriter(
+                                exchange(LOCAL, REPARTITION, SCALED_MERGE_PARTITIONING_HANDLE,
+                                        anyTree(
+                                                node(TableScanNode.class))))));
+
+        assertDistributedPlan(
+                query,
+                testingSessionBuilder()
+                        .setCatalog("mock_with_scaled_writers")
+                        .setSchema("mock")
+                        .setSystemProperty(TASK_SCALE_WRITERS_ENABLED, "false")
+                        .setSystemProperty(SCALE_WRITERS, "false")
+                        .build(),
+                anyTree(
+                        mergeWriter(
+                                exchange(LOCAL, REPARTITION, MERGE_PARTITIONING_HANDLE,
+                                        anyTree(
+                                                node(TableScanNode.class))))));
+    }
+
+    @Test
+    public void testMergeLocalScaledWriterWithPerTaskScalingDisabled()
+    {
+        @Language("SQL") String query =
+                """
+                MERGE INTO target_table t USING source_table s
+                    ON t.customer = s.customer
+                    WHEN MATCHED
+                        THEN DELETE
+                """;
+
+        for (boolean taskScaleWritersEnabled : Arrays.asList(true, false)) {
+            assertDistributedPlan(
+                    query,
+                    testingSessionBuilder()
+                            .setCatalog("mock_without_scaled_writers")
+                            .setSchema("mock")
+                            .setSystemProperty(TASK_SCALE_WRITERS_ENABLED, String.valueOf(taskScaleWritersEnabled))
+                            .setSystemProperty(SCALE_WRITERS, "false")
+                            .build(),
+                    anyTree(
+                            mergeWriter(
+                                    exchange(LOCAL, REPARTITION, MERGE_PARTITIONING_HANDLE,
+                                            anyTree(
+                                                    node(TableScanNode.class))))));
+        }
     }
 
     private SessionBuilder testingSessionBuilder()

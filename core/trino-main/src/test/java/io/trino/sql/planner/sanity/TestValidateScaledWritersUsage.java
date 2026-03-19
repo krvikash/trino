@@ -282,6 +282,102 @@ public class TestValidateScaledWritersUsage
         }
     }
 
+    @Test
+    public void testMergeWriterScaledWritersUsedAndTargetSupportsIt()
+    {
+        testMergeWriterScaledWritersUsedAndTargetSupportsIt(SCALED_WRITER_ROUND_ROBIN_DISTRIBUTION);
+        testMergeWriterScaledWritersUsedAndTargetSupportsIt(SCALED_WRITER_HASH_DISTRIBUTION);
+        testMergeWriterScaledWritersUsedAndTargetSupportsIt(CUSTOM_HANDLE);
+    }
+
+    private void testMergeWriterScaledWritersUsedAndTargetSupportsIt(PartitioningHandle scaledWriterPartitionHandle)
+    {
+        PlanNode mergeWriterSource = planBuilder.exchange(ex ->
+                ex
+                        .partitioningScheme(new PartitioningScheme(Partitioning.create(scaledWriterPartitionHandle, ImmutableList.of()), ImmutableList.of(symbol)))
+                        .addInputsSet(symbol)
+                        .addSource(planBuilder.exchange(innerExchange ->
+                                innerExchange
+                                        .partitioningScheme(new PartitioningScheme(Partitioning.create(scaledWriterPartitionHandle, ImmutableList.of()), ImmutableList.of(symbol)))
+                                        .addInputsSet(symbol)
+                                        .addSource(tableScanNode))));
+        PlanNode root = planBuilder.output(
+                outputBuilder -> outputBuilder
+                        .source(planBuilder.tableWithExchangeCreate(
+                                planBuilder.mergeTarget(schemaTableName, true, WriterScalingOptions.ENABLED),
+                                mergeWriterSource,
+                                symbol)));
+        validatePlan(root);
+    }
+
+    @Test
+    public void testMergeWriterScaledWritersUsedAndTargetDoesNotSupportScalingPerTask()
+    {
+        testMergeWriterScaledWritersUsedAndTargetDoesNotSupportScalingPerTask(SCALED_WRITER_ROUND_ROBIN_DISTRIBUTION);
+        testMergeWriterScaledWritersUsedAndTargetDoesNotSupportScalingPerTask(SCALED_WRITER_HASH_DISTRIBUTION);
+        testMergeWriterScaledWritersUsedAndTargetDoesNotSupportScalingPerTask(CUSTOM_HANDLE);
+    }
+
+    private void testMergeWriterScaledWritersUsedAndTargetDoesNotSupportScalingPerTask(PartitioningHandle scaledWriterPartitionHandle)
+    {
+        PlanNode mergeWriterSource = planBuilder.exchange(ex ->
+                ex
+                        .partitioningScheme(new PartitioningScheme(Partitioning.create(scaledWriterPartitionHandle, ImmutableList.of()), ImmutableList.of(symbol)))
+                        .addInputsSet(symbol)
+                        .addSource(planBuilder.exchange(innerExchange ->
+                                innerExchange
+                                        .scope(ExchangeNode.Scope.LOCAL)
+                                        .partitioningScheme(new PartitioningScheme(Partitioning.create(scaledWriterPartitionHandle, ImmutableList.of()), ImmutableList.of(symbol)))
+                                        .addInputsSet(symbol)
+                                        .addSource(tableScanNode))));
+        PlanNode root = planBuilder.output(
+                outputBuilder -> outputBuilder
+                        .source(planBuilder.tableWithExchangeCreate(
+                                planBuilder.mergeTarget(schemaTableName, true, new WriterScalingOptions(true, false)),
+                                mergeWriterSource,
+                                symbol)));
+        assertThatThrownBy(() -> validatePlan(root))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageStartingWith("The scaled writer per task partitioning scheme is set but writer target")
+                .hasMessageEndingWith("doesn't support it");
+    }
+
+    @Test
+    public void testMergeWriterScaledWriterUsedAndTargetDoesNotSupportMultipleWritersPerPartition()
+    {
+        testMergeWriterScaledWriterUsedAndTargetDoesNotSupportMultipleWritersPerPartition(SCALED_WRITER_ROUND_ROBIN_DISTRIBUTION);
+        testMergeWriterScaledWriterUsedAndTargetDoesNotSupportMultipleWritersPerPartition(SCALED_WRITER_HASH_DISTRIBUTION);
+        testMergeWriterScaledWriterUsedAndTargetDoesNotSupportMultipleWritersPerPartition(CUSTOM_HANDLE);
+    }
+
+    private void testMergeWriterScaledWriterUsedAndTargetDoesNotSupportMultipleWritersPerPartition(PartitioningHandle scaledWriterPartitionHandle)
+    {
+        PlanNode mergeWriterSource = planBuilder.exchange(ex ->
+                ex
+                        .partitioningScheme(new PartitioningScheme(Partitioning.create(SINGLE_DISTRIBUTION, ImmutableList.of()), ImmutableList.of(symbol)))
+                        .addInputsSet(symbol)
+                        .addSource(planBuilder.exchange(innerExchange ->
+                                innerExchange
+                                        .partitioningScheme(new PartitioningScheme(Partitioning.create(scaledWriterPartitionHandle, ImmutableList.of()), ImmutableList.of(symbol)))
+                                        .addInputsSet(symbol)
+                                        .addSource(tableScanNode))));
+        PlanNode root = planBuilder.output(
+                outputBuilder -> outputBuilder
+                        .source(planBuilder.tableWithExchangeCreate(
+                                planBuilder.mergeTarget(schemaTableName, false, WriterScalingOptions.ENABLED),
+                                mergeWriterSource,
+                                symbol)));
+
+        if (scaledWriterPartitionHandle == SCALED_WRITER_ROUND_ROBIN_DISTRIBUTION) {
+            validatePlan(root);
+        }
+        else {
+            assertThatThrownBy(() -> validatePlan(root))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("doesn't support multiple writers per partition");
+        }
+    }
+
     private void validatePlan(PlanNode root)
     {
         planTester.inTransaction(session -> {

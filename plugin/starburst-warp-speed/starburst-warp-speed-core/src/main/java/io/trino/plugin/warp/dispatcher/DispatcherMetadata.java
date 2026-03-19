@@ -424,6 +424,13 @@ public class DispatcherMetadata
     }
 
     @Override
+    public WriterScalingOptions getMergeWriterScalingOptions(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) tableHandle;
+        return proxiedConnectorMetadata.getMergeWriterScalingOptions(session, dispatcherTableHandle.getProxyConnectorTableHandle());
+    }
+
+    @Override
     public Optional<ApplyPartialTopNResult<ConnectorTableHandle>> applyPartialTopN(
             ConnectorSession session,
             ConnectorTableHandle tableHandle,

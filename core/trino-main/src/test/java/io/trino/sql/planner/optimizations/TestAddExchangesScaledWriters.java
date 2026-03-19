@@ -78,8 +78,14 @@ public class TestAddExchangesScaledWriters
             new MergePartitioningHandle(
                     Optional.of(INSERT_PARTITIONING_SCHEME),
                     Optional.empty()),
-            // Scaled writers is disabled for merge
             false);
+    private static final PartitioningHandle SCALED_MERGE_PARTITIONING_HANDLE = new PartitioningHandle(
+            Optional.empty(),
+            Optional.empty(),
+            new MergePartitioningHandle(
+                    Optional.of(INSERT_PARTITIONING_SCHEME),
+                    Optional.empty()),
+            true);
 
     @Override
     protected PlanTester createPlanTester()
@@ -181,7 +187,7 @@ public class TestAddExchangesScaledWriters
     }
 
     @Test
-    public void testScaleWritersDisabledForMerge()
+    public void testScaleWritersEnabledForMerge()
     {
         @Language("SQL") String query =
                 """
@@ -202,7 +208,7 @@ public class TestAddExchangesScaledWriters
                 anyTree(
                         mergeWriter(
                                 exchange(LOCAL, GATHER, SINGLE_DISTRIBUTION,
-                                        exchange(REMOTE, REPARTITION, MERGE_PARTITIONING_HANDLE,
+                                        exchange(REMOTE, REPARTITION, SCALED_MERGE_PARTITIONING_HANDLE,
                                                 anyTree(
                                                         node(TableScanNode.class)))))));
 

@@ -1152,6 +1152,12 @@ public abstract class AbstractMockMetadata
     }
 
     @Override
+    public WriterScalingOptions getMergeWriterScalingOptions(Session session, TableHandle tableHandle)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public Optional<ApplyPartialTopNResult<TableHandle>> applyPartialTopN(
             Session session,
             TableHandle tableHandle,

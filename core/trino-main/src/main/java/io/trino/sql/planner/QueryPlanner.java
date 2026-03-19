@@ -571,6 +571,9 @@ class QueryPlanner
                 projectedRowIdSymbol,
                 operationSymbol);
 
+        boolean multipleWritersPerPartitionSupported = mergeAnalysis.getInsertLayout()
+                .map(layout -> layout.getLayout().supportsMultipleWritersPerPartition())
+                .orElse(true);
         return new MergeWriterNode(
                 idAllocator.getNextId(),
                 projectNode,
@@ -579,6 +582,9 @@ class QueryPlanner
                         Optional.empty(),
                         tableMetadata.table(),
                         paradigmAndTypes,
+                        multipleWritersPerPartitionSupported,
+                        plannerContext.getMetadata().getMaxWriterTasks(session, handle.catalogHandle().getCatalogName().toString()),
+                        plannerContext.getMetadata().getMergeWriterScalingOptions(session, handle),
                         findSourceTableHandles(projectNode),
                         ImmutableListMultimap.of()),
                 projectNode.getOutputSymbols(),
@@ -967,11 +973,17 @@ class QueryPlanner
                     columnNamesBuilder.add(columnSchema.getName());
                 });
         MergeParadigmAndTypes mergeParadigmAndTypes = new MergeParadigmAndTypes(Optional.of(paradigm), typesBuilder.build(), columnNamesBuilder.build(), rowIdType);
+        boolean multipleWritersPerPartitionSupported = mergeAnalysis.getInsertLayout()
+                .map(layout -> layout.getLayout().supportsMultipleWritersPerPartition())
+                .orElse(true);
         MergeTarget mergeTarget = new MergeTarget(
                 handle,
                 Optional.empty(),
                 metadata.getTableName(session, handle).getSchemaTableName(),
                 mergeParadigmAndTypes,
+                multipleWritersPerPartitionSupported,
+                metadata.getMaxWriterTasks(session, handle.catalogHandle().getCatalogName().toString()),
+                metadata.getMergeWriterScalingOptions(session, handle),
                 findSourceTableHandles(planNode),
                 mergeAnalysis.getUpdateCaseColumnHandles());
 

@@ -748,6 +748,9 @@ public class TableWriterNode
         private final Optional<MergeHandle> mergeHandle;
         private final SchemaTableName schemaTableName;
         private final MergeParadigmAndTypes mergeParadigmAndTypes;
+        private final boolean multipleWritersPerPartitionSupported;
+        private final OptionalInt maxWriterTasks;
+        private final WriterScalingOptions writerScalingOptions;
         private final List<TableHandle> sourceTableHandles;
         private final Multimap<Integer, ColumnHandle> updateCaseColumnHandles;
 
@@ -757,6 +760,9 @@ public class TableWriterNode
                 @JsonProperty("mergeHandle") Optional<MergeHandle> mergeHandle,
                 @JsonProperty("schemaTableName") SchemaTableName schemaTableName,
                 @JsonProperty("mergeParadigmAndTypes") MergeParadigmAndTypes mergeParadigmAndTypes,
+                @JsonProperty("multipleWritersPerPartitionSupported") boolean multipleWritersPerPartitionSupported,
+                @JsonProperty("maxWriterTasks") OptionalInt maxWriterTasks,
+                @JsonProperty("writerScalingOptions") WriterScalingOptions writerScalingOptions,
                 @JsonProperty("sourceTableHandles") List<TableHandle> sourceTableHandles,
                 @JsonProperty("updateCaseColumnHandles") Multimap<Integer, ColumnHandle> updateCaseColumnHandles)
         {
@@ -764,6 +770,9 @@ public class TableWriterNode
             this.mergeHandle = requireNonNull(mergeHandle, "mergeHandle is null");
             this.schemaTableName = requireNonNull(schemaTableName, "schemaTableName is null");
             this.mergeParadigmAndTypes = requireNonNull(mergeParadigmAndTypes, "mergeElements is null");
+            this.multipleWritersPerPartitionSupported = multipleWritersPerPartitionSupported;
+            this.maxWriterTasks = requireNonNull(maxWriterTasks, "maxWriterTasks is null");
+            this.writerScalingOptions = requireNonNull(writerScalingOptions, "writerScalingOptions is null");
             this.sourceTableHandles = ImmutableList.copyOf(requireNonNull(sourceTableHandles, "sourceTableHandles is null"));
             this.updateCaseColumnHandles = requireNonNull(updateCaseColumnHandles, "updateCaseColumnHandles is null");
         }
@@ -792,6 +801,24 @@ public class TableWriterNode
             return mergeParadigmAndTypes;
         }
 
+        @JsonProperty
+        public boolean isMultipleWritersPerPartitionSupported()
+        {
+            return multipleWritersPerPartitionSupported;
+        }
+
+        @JsonProperty
+        public OptionalInt getMaxWriterTasks()
+        {
+            return maxWriterTasks;
+        }
+
+        @JsonProperty
+        public WriterScalingOptions getWriterScalingOptions()
+        {
+            return writerScalingOptions;
+        }
+
         @Override
         public String toString()
         {
@@ -801,19 +828,19 @@ public class TableWriterNode
         @Override
         public boolean supportsMultipleWritersPerPartition(Metadata metadata, Session session)
         {
-            return false;
+            return multipleWritersPerPartitionSupported;
         }
 
         @Override
         public OptionalInt getMaxWriterTasks(Metadata metadata, Session session)
         {
-            return OptionalInt.empty();
+            return maxWriterTasks;
         }
 
         @Override
         public WriterScalingOptions getWriterScalingOptions(Metadata metadata, Session session)
         {
-            return WriterScalingOptions.DISABLED;
+            return writerScalingOptions;
         }
 
         @JsonProperty

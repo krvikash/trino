@@ -1876,6 +1876,20 @@ public interface ConnectorMetadata
     }
 
     /**
+     * Returns the writer scaling options for MERGE operations on the given table.
+     * <p>
+     * The default is {@link WriterScalingOptions#DISABLED}. Connectors should only
+     * return {@code ENABLED} after verifying that parallel writes are safe for
+     * their merge implementation. In particular, copy-on-write (CoW) merge modes
+     * must NOT enable scaling, as parallel copying of unmodified rows will produce
+     * duplicates.
+     */
+    default WriterScalingOptions getMergeWriterScalingOptions(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        return WriterScalingOptions.DISABLED;
+    }
+
+    /**
      * This method is called by the engine when there is a partial TopN above a table scan.
      * The engine provides the desired sort properties and a row count hint so that the connector can produce an alternative
      * table handle that delivers rows pre-sorted according to the requested sort properties. The row count is a hint

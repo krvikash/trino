@@ -5638,6 +5638,17 @@ public class IcebergMetadata
     }
 
     @Override
+    public WriterScalingOptions getMergeWriterScalingOptions(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        IcebergTableHandle table = (IcebergTableHandle) tableHandle;
+        if (rowLevelOperationMode(catalog.loadTable(session, table.getSchemaTableName())) == COPY_ON_WRITE) {
+            // disabled on CoW mode, as parallel copying of unmodified rows will produce duplicates
+            return WriterScalingOptions.DISABLED;
+        }
+        return WriterScalingOptions.ENABLED;
+    }
+
+    @Override
     public Optional<ApplyPartialTopNResult<ConnectorTableHandle>> applyPartialTopN(
             ConnectorSession session,
             ConnectorTableHandle handle,

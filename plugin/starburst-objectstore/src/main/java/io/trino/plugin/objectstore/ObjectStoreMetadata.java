@@ -1655,6 +1655,13 @@ public class ObjectStoreMetadata
     }
 
     @Override
+    public WriterScalingOptions getMergeWriterScalingOptions(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        TableType tableType = tableType(tableHandle);
+        return delegate(tableType).getMergeWriterScalingOptions(unwrap(tableType, session), tableHandle);
+    }
+
+    @Override
     public Optional<ApplyPartialTopNResult<ConnectorTableHandle>> applyPartialTopN(
             ConnectorSession session,
             ConnectorTableHandle tableHandle,

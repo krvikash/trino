@@ -3806,11 +3806,14 @@ public class LocalExecutionPlanner
         @Override
         public PhysicalOperation visitMergeWriter(MergeWriterNode node, LocalExecutionPlanContext context)
         {
-            // Todo: Implement writer scaling for merge. https://github.com/trinodb/trino/issues/14622
-            int writerCount = node.getPartitioningScheme()
-                    .map(scheme -> getTaskMaxWriterCount(session))
-                    .orElseGet(() -> getTaskMinWriterCount(session));
-            context.setDriverInstanceCount(writerCount);
+            // Set table writer count
+            int maxWriterCount = getWriterCount(
+                    session,
+                    node.getTarget().getWriterScalingOptions(metadata, session),
+                    node.getPartitioningScheme(),
+                    node.getSource());
+            context.setDriverInstanceCount(maxWriterCount);
+            context.taskContext.setMaxWriterCount(maxWriterCount);
 
             PhysicalOperation source = node.getSource().accept(this, context);
 

@@ -809,7 +809,9 @@ public class AddLocalExchanges
         @Override
         public PlanWithProperties visitMergeWriter(MergeWriterNode node, StreamPreferredProperties parentPreferences)
         {
-            return visitTableWriter(node, node.getPartitioningScheme(), node.getSource(), parentPreferences, node.getTarget(), false);
+            WriterScalingOptions scalingOptions = node.getTarget().getWriterScalingOptions(plannerContext.getMetadata(), session);
+            return visitTableWriter(node, node.getPartitioningScheme(), node.getSource(), parentPreferences, node.getTarget(),
+                    isTaskScaleWritersEnabled(session) && scalingOptions.isPerTaskWriterScalingEnabled());
         }
 
         //

@@ -155,6 +155,9 @@ import static java.util.function.Function.identity;
 
 public class PlanBuilder
 {
+    private static final MergeParadigmAndTypes DEFAULT_MERGE_PARADIGM_AND_TYPES =
+            new MergeParadigmAndTypes(Optional.of(DELETE_ROW_AND_INSERT_ROW), ImmutableList.of(), ImmutableList.of(), INTEGER);
+
     private final PlanNodeIdAllocator idAllocator;
     private final Session session;
     private final Map<String, Symbol> symbolsByName = new HashMap<>();
@@ -767,10 +770,20 @@ public class PlanBuilder
 
     public MergeTarget mergeTarget(SchemaTableName schemaTableName)
     {
-        return mergeTarget(schemaTableName, new MergeParadigmAndTypes(Optional.of(DELETE_ROW_AND_INSERT_ROW), ImmutableList.of(), ImmutableList.of(), INTEGER));
+        return mergeTarget(schemaTableName, DEFAULT_MERGE_PARADIGM_AND_TYPES, false, WriterScalingOptions.DISABLED);
     }
 
     public MergeTarget mergeTarget(SchemaTableName schemaTableName, MergeParadigmAndTypes mergeParadigmAndTypes)
+    {
+        return mergeTarget(schemaTableName, mergeParadigmAndTypes, false, WriterScalingOptions.DISABLED);
+    }
+
+    public MergeTarget mergeTarget(SchemaTableName schemaTableName, boolean multipleWritersPerPartitionSupported, WriterScalingOptions writerScalingOptions)
+    {
+        return mergeTarget(schemaTableName, DEFAULT_MERGE_PARADIGM_AND_TYPES, multipleWritersPerPartitionSupported, writerScalingOptions);
+    }
+
+    public MergeTarget mergeTarget(SchemaTableName schemaTableName, MergeParadigmAndTypes mergeParadigmAndTypes, boolean multipleWritersPerPartitionSupported, WriterScalingOptions writerScalingOptions)
     {
         return new MergeTarget(
                 new TableHandle(
@@ -780,6 +793,9 @@ public class PlanBuilder
                 Optional.empty(),
                 schemaTableName,
                 mergeParadigmAndTypes,
+                multipleWritersPerPartitionSupported,
+                OptionalInt.empty(),
+                writerScalingOptions,
                 List.of(),
                 ImmutableListMultimap.of());
     }

@@ -1463,6 +1463,15 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     }
 
     @Override
+    public WriterScalingOptions getMergeWriterScalingOptions(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        Span span = startSpan("getMergeWriterScalingOptions", tableHandle);
+        try (var _ = scopedSpan(span)) {
+            return delegate.getMergeWriterScalingOptions(session, tableHandle);
+        }
+    }
+
+    @Override
     public void refreshView(ConnectorSession session, SchemaTableName viewName, ConnectorViewDefinition viewDefinition)
     {
         Span span = startSpan("refreshView", viewName);
