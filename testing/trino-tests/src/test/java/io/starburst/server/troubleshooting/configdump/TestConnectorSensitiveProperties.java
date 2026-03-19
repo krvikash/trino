@@ -14,10 +14,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigSecuritySensitive;
-import io.github.classgraph.AnnotationInfo;
-import io.github.classgraph.AnnotationParameterValueList;
-import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ScanResult;
 import io.trino.server.PluginClassLoader;
 import io.trino.server.PluginLoader;
 import io.trino.spi.Plugin;
@@ -26,6 +22,12 @@ import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.objectweb.asm.AnnotationVisitor;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,15 +36,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.jar.JarEntry;
+import java.util.jar.JarInputStream;
 import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.starburst.server.troubleshooting.configdump.ConnectorSensitiveProperties.SENSITIVE_PROPERTIES_PER_CONNECTOR;
 import static java.util.stream.Collectors.joining;
 
@@ -130,33 +134,131 @@ public class TestConnectorSensitiveProperties
     }
 
     private static Set<String> findSensitiveProperties(Set<Path> classpath)
+            throws IOException
     {
-        ImmutableSet.Builder<String> result = ImmutableSet.builder();
-        List<Path> annotations = classpath.stream()
-                .filter(path -> path.getFileName().toString().startsWith("config-"))
-                .toList();
+        Set<String> sensitiveProperties = new HashSet<>();
         for (Path path : classpath) {
-            try (ScanResult scanResult = new ClassGraph()
-                    .overrideClasspath(ImmutableList.builder()
-                            .addAll(annotations)
-                            .add(path)
-                            .build())
-                    .enableAllInfo()
-                    .scan()) {
-                result.addAll(scanResult.getClassesWithMethodAnnotation(ConfigSecuritySensitive.class).stream()
-                        .flatMap(classInfo -> classInfo.getMethodInfo().stream())
-                        .filter(methodInfo -> methodInfo.hasAnnotation(ConfigSecuritySensitive.class))
-                        .map(methodInfo -> {
-                            AnnotationInfo annotationInfo = methodInfo.getAnnotationInfo(Config.class);
-                            checkState(annotationInfo != null, "Missing @Config annotation for %s", methodInfo);
-                            AnnotationParameterValueList parameterValues = annotationInfo.getParameterValues();
-                            checkState(parameterValues.size() == 1, "Expected exactly one parameter for %s", annotationInfo);
-                            return (String) parameterValues.getFirst().getValue();
-                        })
-                        .collect(toImmutableSet()));
+            if (Files.isDirectory(path)) {
+                scanDirectory(path, sensitiveProperties);
+            }
+            else if (path.toString().endsWith(".jar")) {
+                scanJarFile(path, sensitiveProperties);
             }
         }
-        return result.build();
+        return ImmutableSet.copyOf(sensitiveProperties);
+    }
+
+    private static void scanDirectory(Path directory, Set<String> sensitiveProperties)
+            throws IOException
+    {
+        try (Stream<Path> paths = Files.walk(directory)) {
+            paths.filter(path -> path.toString().endsWith(".class"))
+                    .forEach(classFile -> {
+                        try {
+                            scanClassFile(classFile, sensitiveProperties);
+                        }
+                        catch (IOException e) {
+                            throw new RuntimeException("Failed to scan class file: " + classFile, e);
+                        }
+                    });
+        }
+    }
+
+    private static void scanJarFile(Path jarPath, Set<String> sensitiveProperties)
+            throws IOException
+    {
+        try (InputStream fileInputStream = Files.newInputStream(jarPath);
+                JarInputStream jarInputStream = new JarInputStream(fileInputStream)) {
+            JarEntry jarEntry;
+            while ((jarEntry = jarInputStream.getNextJarEntry()) != null) {
+                if (jarEntry.getName().endsWith(".class")) {
+                    scanClassStream(jarInputStream, sensitiveProperties);
+                }
+            }
+        }
+    }
+
+    private static void scanClassFile(Path classFile, Set<String> sensitiveProperties)
+            throws IOException
+    {
+        try (InputStream inputStream = Files.newInputStream(classFile)) {
+            scanClassStream(inputStream, sensitiveProperties);
+        }
+    }
+
+    private static void scanClassStream(InputStream inputStream, Set<String> sensitiveProperties)
+            throws IOException
+    {
+        ClassReader classReader = new ClassReader(inputStream);
+        classReader.accept(new SensitivePropertyScanner(sensitiveProperties), 0);
+    }
+
+    private static class SensitivePropertyScanner
+            extends ClassVisitor
+    {
+        private final Set<String> sensitiveProperties;
+
+        public SensitivePropertyScanner(Set<String> sensitiveProperties)
+        {
+            super(Opcodes.ASM9);
+            this.sensitiveProperties = sensitiveProperties;
+        }
+
+        @Override
+        public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions)
+        {
+            return new SensitiveMethodScanner(sensitiveProperties);
+        }
+    }
+
+    private static class SensitiveMethodScanner
+            extends MethodVisitor
+    {
+        private static final String CONFIG_SECURITY_SENSITIVE_DESC = Type.getDescriptor(ConfigSecuritySensitive.class);
+        private static final String CONFIG_DESC = Type.getDescriptor(Config.class);
+
+        private final Set<String> sensitiveProperties;
+        private boolean hasConfigSecuritySensitive;
+        private String configValue;
+
+        public SensitiveMethodScanner(Set<String> sensitiveProperties)
+        {
+            super(Opcodes.ASM9);
+            this.sensitiveProperties = sensitiveProperties;
+        }
+
+        @Override
+        public AnnotationVisitor visitAnnotation(String descriptor, boolean visible)
+        {
+            if (descriptor.equals(CONFIG_SECURITY_SENSITIVE_DESC)) {
+                hasConfigSecuritySensitive = true;
+                return super.visitAnnotation(descriptor, visible);
+            }
+            if (descriptor.equals(CONFIG_DESC)) {
+                return new AnnotationVisitor(Opcodes.ASM9)
+                {
+                    @Override
+                    public void visit(String name, Object value)
+                    {
+                        if ("value".equals(name) && value instanceof String string) {
+                            configValue = string;
+                        }
+                        super.visit(name, value);
+                    }
+                };
+            }
+            return super.visitAnnotation(descriptor, visible);
+        }
+
+        @Override
+        public void visitEnd()
+        {
+            if (hasConfigSecuritySensitive) {
+                checkState(configValue != null, "Missing @Config annotation on a method annotated with @ConfigSecuritySensitive");
+                sensitiveProperties.add(configValue);
+            }
+            super.visitEnd();
+        }
     }
 
     private static Path prepareInstalledPluginsDir()
@@ -186,10 +288,10 @@ public class TestConnectorSensitiveProperties
                             .map("                            \"%s\""::formatted)
                             .collect(joining(",\n"));
                     return """
-                                        .put("%s",
-                                                ImmutableSet.of(
-                                                        %s))
-                            """.formatted(connectorName, propertiesDefinition.trim());
+                                       .put("%s",
+                                               ImmutableSet.of(
+                                                       %s))
+                           """.formatted(connectorName, propertiesDefinition.trim());
                 })
                 .collect(joining());
     }
