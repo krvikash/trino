@@ -68,6 +68,7 @@ import io.trino.sql.dialect.trino.operation.Sort;
 import io.trino.sql.dialect.trino.operation.Switch;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TopN;
+import io.trino.sql.dialect.trino.operation.TopNRanking;
 import io.trino.sql.dialect.trino.operation.Union;
 import io.trino.sql.dialect.trino.operation.Values;
 import io.trino.sql.dialect.trino.operation.Window;
@@ -122,6 +123,8 @@ import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMeta
 import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DistributionType.REPLICATED;
 import static io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator.AND;
 import static io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata.TopNStep.FINAL;
+import static io.trino.sql.dialect.trino.operationmetadata.TopNRankingOperationMetadata.RankingType.RANK;
+import static io.trino.sql.dialect.trino.operationmetadata.TopNRankingOperationMetadata.RankingType.ROW_NUMBER;
 import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameBoundType.FOLLOWING;
 import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameBoundType.PRECEDING;
 import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameType.RANGE;
@@ -3358,6 +3361,151 @@ class TestCreateOperation
                         new AttributeKey(IR, "safe"), true,
                         new AttributeKey(IR, "has_side_effects"), false)))
                 .hasMessage("sortOrders is null");
+    }
+
+    @Test
+    public void testTopNRanking()
+    {
+        Parameter partitioningParameter = new Parameter(
+                "%10",
+                VALUES_OPERATION_ROW_TYPE);
+        FieldReference partitioningFieldReference = new FieldReference("%11", partitioningParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row partitioningRow = new Row("%12", ImmutableList.of(partitioningFieldReference.result()), ImmutableList.of(partitioningFieldReference.attributes()));
+        Return partitioningReturn = new Return("%13", partitioningRow.result(), partitioningRow.attributes());
+        Block partitioningSelectorBlock = new Block(
+                Optional.of("^partitioningSelector"),
+                ImmutableList.of(partitioningParameter),
+                ImmutableList.of(
+                        partitioningFieldReference,
+                        partitioningRow,
+                        partitioningReturn));
+
+        Parameter orderingParameter = new Parameter(
+                "%14",
+                VALUES_OPERATION_ROW_TYPE);
+        FieldReference orderingFieldReference = new FieldReference("%15", orderingParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row orderingRow = new Row("%16", ImmutableList.of(orderingFieldReference.result()), ImmutableList.of(orderingFieldReference.attributes()));
+        Return orderingReturn = new Return("%17", orderingRow.result(), orderingRow.attributes());
+        Block orderingSelectorBlock = new Block(
+                Optional.of("^orderingSelector"),
+                ImmutableList.of(orderingParameter),
+                ImmutableList.of(
+                        orderingFieldReference,
+                        orderingRow,
+                        orderingReturn));
+
+        TopNRanking topNRankingOperation = new TopNRanking(
+                "%9",
+                VALUES_OPERATION.result(),
+                partitioningSelectorBlock,
+                orderingSelectorBlock,
+                ROW_NUMBER,
+                10,
+                false,
+                new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)),
+                VALUES_OPERATION.attributes());
+
+        Operation actualTopNRankingOperation = TESTING_TRINO_DIALECT.createOperation(
+                TopNRankingOperationMetadata.NAME,
+                "%9",
+                ImmutableList.of(VALUES_OPERATION.result()),
+                ImmutableList.of(
+                        singleBlockRegion(partitioningSelectorBlock),
+                        singleBlockRegion(orderingSelectorBlock)),
+                ImmutableMap.of(
+                        new AttributeKey(TRINO, "top_n_ranking:ranking_type"), ROW_NUMBER,
+                        new AttributeKey(TRINO, "top_n_ranking:max_ranking_per_partition"), 10,
+                        new AttributeKey(TRINO, "top_n_ranking:partial"), false,
+                        new AttributeKey(TRINO, "top_n_ranking:sort_orders"), new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)),
+                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
+                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
+                        new AttributeKey(IR, "safe"), true,
+                        new AttributeKey(IR, "has_side_effects"), false));
+
+        assertThat(actualTopNRankingOperation).isEqualTo(topNRankingOperation);
+        assertThat(actualTopNRankingOperation.result().type()).isEqualTo(irType(new MultisetType(anonymousRow(BIGINT, BOOLEAN, BIGINT))));
+
+        TopNRanking partialTopNRankingOperation = new TopNRanking(
+                "%9",
+                VALUES_OPERATION.result(),
+                partitioningSelectorBlock,
+                orderingSelectorBlock,
+                RANK,
+                5,
+                true,
+                new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)),
+                VALUES_OPERATION.attributes());
+
+        Operation actualPartialTopNRankingOperation = TESTING_TRINO_DIALECT.createOperation(
+                TopNRankingOperationMetadata.NAME,
+                "%9",
+                ImmutableList.of(VALUES_OPERATION.result()),
+                ImmutableList.of(
+                        singleBlockRegion(partitioningSelectorBlock),
+                        singleBlockRegion(orderingSelectorBlock)),
+                ImmutableMap.of(
+                        new AttributeKey(TRINO, "top_n_ranking:ranking_type"), RANK,
+                        new AttributeKey(TRINO, "top_n_ranking:max_ranking_per_partition"), 5,
+                        new AttributeKey(TRINO, "top_n_ranking:partial"), true,
+                        new AttributeKey(TRINO, "top_n_ranking:sort_orders"), new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)),
+                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
+                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
+                        new AttributeKey(IR, "safe"), true,
+                        new AttributeKey(IR, "has_side_effects"), false));
+
+        assertThat(actualPartialTopNRankingOperation).isEqualTo(partialTopNRankingOperation);
+        assertThat(actualPartialTopNRankingOperation.result().type()).isEqualTo(VALUES_OPERATION.result().type());
+
+        // wrong argument count
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                TopNRankingOperationMetadata.NAME,
+                "%9",
+                ImmutableList.of(),
+                ImmutableList.of(
+                        singleBlockRegion(partitioningSelectorBlock),
+                        singleBlockRegion(orderingSelectorBlock)),
+                ImmutableMap.of(
+                        new AttributeKey(TRINO, "top_n_ranking:ranking_type"), ROW_NUMBER,
+                        new AttributeKey(TRINO, "top_n_ranking:max_ranking_per_partition"), 10,
+                        new AttributeKey(TRINO, "top_n_ranking:partial"), false,
+                        new AttributeKey(TRINO, "top_n_ranking:sort_orders"), new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)),
+                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
+                        new AttributeKey(IR, "safe"), true,
+                        new AttributeKey(IR, "has_side_effects"), false)))
+                .hasMessage("TopNRanking operation must have exactly one argument: the input relation");
+
+        // wrong region count
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                TopNRankingOperationMetadata.NAME,
+                "%9",
+                ImmutableList.of(VALUES_OPERATION.result()),
+                ImmutableList.of(singleBlockRegion(partitioningSelectorBlock)),
+                ImmutableMap.of(
+                        new AttributeKey(TRINO, "top_n_ranking:ranking_type"), ROW_NUMBER,
+                        new AttributeKey(TRINO, "top_n_ranking:max_ranking_per_partition"), 10,
+                        new AttributeKey(TRINO, "top_n_ranking:partial"), false,
+                        new AttributeKey(TRINO, "top_n_ranking:sort_orders"), new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)),
+                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
+                        new AttributeKey(IR, "safe"), true,
+                        new AttributeKey(IR, "has_side_effects"), false)))
+                .hasMessage("TopNRanking operation must have exactly two regions");
+
+        // missing required attribute
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                TopNRankingOperationMetadata.NAME,
+                "%9",
+                ImmutableList.of(VALUES_OPERATION.result()),
+                ImmutableList.of(
+                        singleBlockRegion(partitioningSelectorBlock),
+                        singleBlockRegion(orderingSelectorBlock)),
+                ImmutableMap.of(
+                        new AttributeKey(TRINO, "top_n_ranking:max_ranking_per_partition"), 10,
+                        new AttributeKey(TRINO, "top_n_ranking:partial"), false,
+                        new AttributeKey(TRINO, "top_n_ranking:sort_orders"), new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)),
+                        new AttributeKey(IR, "repeatability"), NON_IDEMPOTENT,
+                        new AttributeKey(IR, "safe"), true,
+                        new AttributeKey(IR, "has_side_effects"), false)))
+                .hasMessage("rankingType is null");
     }
 
     @Test

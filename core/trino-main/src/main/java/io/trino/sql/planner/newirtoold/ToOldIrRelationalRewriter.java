@@ -43,6 +43,7 @@ import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Sort;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TopN;
+import io.trino.sql.dialect.trino.operation.TopNRanking;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
 import io.trino.sql.dialect.trino.operation.TrinoOperationVisitor;
 import io.trino.sql.dialect.trino.operation.Union;
@@ -63,6 +64,8 @@ import io.trino.sql.dialect.trino.operationmetadata.SortOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.Statistics;
 import io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata.TopNStep;
+import io.trino.sql.dialect.trino.operationmetadata.TopNRankingOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.TopNRankingOperationMetadata.RankingType;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameBoundType;
@@ -102,6 +105,7 @@ import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.planner.plan.SortNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TopNNode;
+import io.trino.sql.planner.plan.TopNRankingNode;
 import io.trino.sql.planner.plan.UnionNode;
 import io.trino.sql.planner.plan.ValuesNode;
 import io.trino.sql.planner.plan.WindowFrameType;
@@ -700,6 +704,44 @@ public class ToOldIrRelationalRewriter
             case SINGLE -> TopNNode.Step.SINGLE;
             case PARTIAL -> TopNNode.Step.PARTIAL;
             case FINAL -> TopNNode.Step.FINAL;
+        };
+    }
+
+    @Override
+    public PlanNode visitTopNRanking(TopNRanking topNRanking, List<PlanNode> sources)
+    {
+        PlanNode source = getOnlyElement(sources);
+
+        return new TopNRankingNode(
+                planNodeIdAllocator.getNextId(),
+                source,
+                new DataOrganizationSpecification(
+                        scalarRewriter.getSelectedSymbols(topNRanking.partitioningSelector(), source.getOutputSymbols()),
+                        Optional.of(getOptionalOrderingScheme(
+                                TopNRankingOperationMetadata.SORT_ORDERS.getAttribute(topNRanking.attributes()),
+                                topNRanking.orderingSelector(),
+                                source.getOutputSymbols()).orElseThrow())),
+                rewriteRankingType(TopNRankingOperationMetadata.RANKING_TYPE.getAttribute(topNRanking.attributes())),
+                symbolAllocator.newSymbol(rankingSymbolName(TopNRankingOperationMetadata.RANKING_TYPE.getAttribute(topNRanking.attributes())), BIGINT),
+                TopNRankingOperationMetadata.MAX_RANKING_PER_PARTITION.getAttribute(topNRanking.attributes()),
+                TopNRankingOperationMetadata.PARTIAL.getAttribute(topNRanking.attributes()));
+    }
+
+    private static TopNRankingNode.RankingType rewriteRankingType(RankingType rankingType)
+    {
+        return switch (rankingType) {
+            case ROW_NUMBER -> TopNRankingNode.RankingType.ROW_NUMBER;
+            case RANK -> TopNRankingNode.RankingType.RANK;
+            case DENSE_RANK -> TopNRankingNode.RankingType.DENSE_RANK;
+        };
+    }
+
+    private static String rankingSymbolName(RankingType rankingType)
+    {
+        return switch (rankingType) {
+            case ROW_NUMBER -> "row_number";
+            case RANK -> "rank";
+            case DENSE_RANK -> "dense_rank";
         };
     }
 

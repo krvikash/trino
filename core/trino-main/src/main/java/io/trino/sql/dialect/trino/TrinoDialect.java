@@ -63,6 +63,7 @@ import io.trino.sql.dialect.trino.operationmetadata.SortOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.SwitchOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.TopNRankingOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoOperationMetadata;
@@ -316,6 +317,7 @@ public final class TrinoDialect
                 new SortOperationMetadata(),
                 new SwitchOperationMetadata(),
                 new TopNOperationMetadata(),
+                new TopNRankingOperationMetadata(),
                 new UnionOperationMetadata(),
                 new WindowFunctionCallOperationMetadata(),
                 new WindowOperationMetadata());

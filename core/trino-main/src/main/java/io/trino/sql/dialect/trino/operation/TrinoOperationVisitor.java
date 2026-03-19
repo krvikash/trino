@@ -197,6 +197,11 @@ public abstract class TrinoOperationVisitor<R, C>
         return visitOperation(operation, context);
     }
 
+    public R visitTopNRanking(TopNRanking operation, C context)
+    {
+        return visitOperation(operation, context);
+    }
+
     public R visitUnion(Union operation, C context)
     {
         return visitOperation(operation, context);

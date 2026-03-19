@@ -46,6 +46,7 @@ import io.trino.sql.dialect.trino.operation.Query;
 import io.trino.sql.dialect.trino.operation.Sort;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TopN;
+import io.trino.sql.dialect.trino.operation.TopNRanking;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
 import io.trino.sql.dialect.trino.operation.TrinoOperationVisitor;
 import io.trino.sql.dialect.trino.operation.Union;
@@ -494,6 +495,14 @@ public class NewIrFragmenter
 
         @Override
         public PlanNode visitTopN(TopN operation, FragmentProperties context)
+        {
+            TrinoOperation source = getSource(operation);
+            PlanNode rewrittenSource = source.accept(this, context);
+            return operation.accept(relationalRewriter, ImmutableList.of(rewrittenSource));
+        }
+
+        @Override
+        public PlanNode visitTopNRanking(TopNRanking operation, FragmentProperties context)
         {
             TrinoOperation source = getSource(operation);
             PlanNode rewrittenSource = source.accept(this, context);

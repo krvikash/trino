@@ -56,6 +56,7 @@ import io.trino.sql.dialect.trino.operation.Row;
 import io.trino.sql.dialect.trino.operation.Sort;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TopN;
+import io.trino.sql.dialect.trino.operation.TopNRanking;
 import io.trino.sql.dialect.trino.operation.Union;
 import io.trino.sql.dialect.trino.operation.Values;
 import io.trino.sql.dialect.trino.operation.Window;
@@ -102,6 +103,7 @@ import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.planner.plan.SortNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TopNNode;
+import io.trino.sql.planner.plan.TopNRankingNode;
 import io.trino.sql.planner.plan.UnionNode;
 import io.trino.sql.planner.plan.ValuesNode;
 import io.trino.sql.planner.plan.WindowFrameType;
@@ -141,6 +143,8 @@ import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMeta
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType.GATHER;
 import static io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DistributionType.REPLICATED;
 import static io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata.TopNStep.FINAL;
+import static io.trino.sql.dialect.trino.operationmetadata.TopNRankingOperationMetadata.RankingType.RANK;
+import static io.trino.sql.dialect.trino.operationmetadata.TopNRankingOperationMetadata.RankingType.ROW_NUMBER;
 import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameBoundType.FOLLOWING;
 import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameBoundType.PRECEDING;
 import static io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameType.RANGE;
@@ -1666,6 +1670,99 @@ final class TestRelationalProgramBuilder
         assertProgram(
                 topNNode,
                 ImmutableList.of(VALUES_OPERATION, topNOperation),
+                new MultisetType(anonymousRow(BIGINT, BOOLEAN)),
+                ImmutableMap.of(
+                        new Symbol(BIGINT, "a"), 0,
+                        new Symbol(BOOLEAN, "b"), 1));
+    }
+
+    @Test
+    public void testTopNRanking()
+    {
+        DataOrganizationSpecification specification = new DataOrganizationSpecification(
+                ImmutableList.of(new Symbol(BOOLEAN, "b")),
+                Optional.of(new OrderingScheme(ImmutableList.of(new Symbol(BIGINT, "a")), ImmutableMap.of(new Symbol(BIGINT, "a"), DESC_NULLS_FIRST))));
+
+        TopNRankingNode topNRankingNode = new TopNRankingNode(
+                new PlanNodeId("topNRanking"),
+                VALUES_NODE,
+                specification,
+                TopNRankingNode.RankingType.ROW_NUMBER,
+                new Symbol(BIGINT, "row_number"),
+                10,
+                false);
+
+        Block.Parameter partitioningParameter = new Block.Parameter(
+                "%10",
+                VALUES_OPERATION_ROW_TYPE);
+        FieldReference partitioningFieldReference = new FieldReference("%11", partitioningParameter, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row partitioningRow = new Row("%12", ImmutableList.of(partitioningFieldReference.result()), ImmutableList.of(partitioningFieldReference.attributes()));
+        Return partitioningReturn = new Return("%13", partitioningRow.result(), partitioningRow.attributes());
+        Block partitioningSelector = new Block(
+                Optional.of("^partitioningSelector"),
+                ImmutableList.of(partitioningParameter),
+                ImmutableList.of(
+                        partitioningFieldReference,
+                        partitioningRow,
+                        partitioningReturn));
+
+        Block.Parameter orderingParameter = new Block.Parameter(
+                "%14",
+                VALUES_OPERATION_ROW_TYPE);
+        FieldReference orderingFieldReference = new FieldReference("%15", orderingParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row orderingRow = new Row("%16", ImmutableList.of(orderingFieldReference.result()), ImmutableList.of(orderingFieldReference.attributes()));
+        Return orderingReturn = new Return("%17", orderingRow.result(), orderingRow.attributes());
+        Block orderingSelector = new Block(
+                Optional.of("^orderingSelector"),
+                ImmutableList.of(orderingParameter),
+                ImmutableList.of(
+                        orderingFieldReference,
+                        orderingRow,
+                        orderingReturn));
+
+        TopNRanking topNRankingOperation = new TopNRanking(
+                "%9",
+                VALUES_OPERATION.result(),
+                partitioningSelector,
+                orderingSelector,
+                ROW_NUMBER,
+                10,
+                false,
+                new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)),
+                VALUES_OPERATION.attributes());
+
+        assertProgram(
+                topNRankingNode,
+                ImmutableList.of(VALUES_OPERATION, topNRankingOperation),
+                new MultisetType(anonymousRow(BIGINT, BOOLEAN, BIGINT)),
+                ImmutableMap.of(
+                        new Symbol(BIGINT, "a"), 0,
+                        new Symbol(BOOLEAN, "b"), 1,
+                        new Symbol(BIGINT, "row_number"), 2));
+
+        TopNRankingNode partialTopNRankingNode = new TopNRankingNode(
+                new PlanNodeId("partialTopNRanking"),
+                VALUES_NODE,
+                specification,
+                TopNRankingNode.RankingType.RANK,
+                new Symbol(BIGINT, "rank"),
+                5,
+                true);
+
+        TopNRanking partialTopNRankingOperation = new TopNRanking(
+                "%9",
+                VALUES_OPERATION.result(),
+                partitioningSelector,
+                orderingSelector,
+                RANK,
+                5,
+                true,
+                new SortOrderList(ImmutableList.of(DESC_NULLS_FIRST)),
+                VALUES_OPERATION.attributes());
+
+        assertProgram(
+                partialTopNRankingNode,
+                ImmutableList.of(VALUES_OPERATION, partialTopNRankingOperation),
                 new MultisetType(anonymousRow(BIGINT, BOOLEAN)),
                 ImmutableMap.of(
                         new Symbol(BIGINT, "a"), 0,

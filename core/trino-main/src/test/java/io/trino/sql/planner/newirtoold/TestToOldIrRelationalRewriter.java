@@ -66,6 +66,7 @@ import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.planner.plan.SortNode;
 import io.trino.sql.planner.plan.TopNNode;
+import io.trino.sql.planner.plan.TopNRankingNode;
 import io.trino.sql.planner.plan.UnionNode;
 import io.trino.sql.planner.plan.ValuesNode;
 import io.trino.sql.planner.plan.WindowNode;
@@ -519,6 +520,22 @@ class TestToOldIrRelationalRewriter
                 new OrderingScheme(ImmutableList.of(B), ImmutableMap.of(B, DESC_NULLS_FIRST)),
                 TopNNode.Step.SINGLE);
         assertRoundtrip(topNNode);
+    }
+
+    @Test
+    public void testTopNRanking()
+    {
+        TopNRankingNode topNRankingNode = new TopNRankingNode(
+                new PlanNodeId("0"),
+                VALUES_NODE,
+                new DataOrganizationSpecification(
+                        ImmutableList.of(B),
+                        Optional.of(new OrderingScheme(ImmutableList.of(A), ImmutableMap.of(A, DESC_NULLS_FIRST)))),
+                TopNRankingNode.RankingType.ROW_NUMBER,
+                new Symbol(BIGINT, "row_number"),
+                10,
+                false);
+        assertRoundtrip(topNRankingNode);
     }
 
     @Test

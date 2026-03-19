@@ -44,6 +44,7 @@ import io.trino.sql.dialect.trino.operation.Row;
 import io.trino.sql.dialect.trino.operation.Sort;
 import io.trino.sql.dialect.trino.operation.TableScan;
 import io.trino.sql.dialect.trino.operation.TopN;
+import io.trino.sql.dialect.trino.operation.TopNRanking;
 import io.trino.sql.dialect.trino.operation.Union;
 import io.trino.sql.dialect.trino.operation.Values;
 import io.trino.sql.dialect.trino.operation.Window;
@@ -58,6 +59,7 @@ import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.JoinOperationMetadata.DistributionType;
 import io.trino.sql.dialect.trino.operationmetadata.TableScanOperationMetadata.Statistics;
 import io.trino.sql.dialect.trino.operationmetadata.TopNOperationMetadata.TopNStep;
+import io.trino.sql.dialect.trino.operationmetadata.TopNRankingOperationMetadata.RankingType;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.dialect.trino.operationmetadata.WindowFunctionCallOperationMetadata.WindowFrameBoundType;
@@ -86,6 +88,7 @@ import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.planner.plan.SortNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TopNNode;
+import io.trino.sql.planner.plan.TopNRankingNode;
 import io.trino.sql.planner.plan.UnionNode;
 import io.trino.sql.planner.plan.ValuesNode;
 import io.trino.sql.planner.plan.WindowNode;
@@ -839,6 +842,30 @@ public class RelationalProgramBuilder
         Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(topN.result().type())), node.getOutputSymbols());
         context.block().addOperation(topN);
         return new OperationAndMapping(topN, outputMapping);
+    }
+
+    @Override
+    public OperationAndMapping visitTopNRanking(TopNRankingNode node, Context context)
+    {
+        OperationAndMapping input = node.getSource().accept(this, context);
+        String resultName = nameAllocator.newName();
+
+        Block partitioningSelector = fieldSelectorBlock("^partitioningSelector", relationRowType(trinoType(input.operation().result().type())), input.mapping(), node.getPartitionBy());
+        Block orderingSelector = fieldSelectorBlock("^orderingSelector", relationRowType(trinoType(input.operation().result().type())), input.mapping(), node.getOrderingScheme().orderBy());
+
+        TopNRanking topNRanking = new TopNRanking(
+                resultName,
+                input.operation().result(),
+                partitioningSelector,
+                orderingSelector,
+                RankingType.of(node.getRankingType()),
+                node.getMaxRankingPerPartition(),
+                node.isPartial(),
+                new SortOrderList(node.getOrderingScheme().orderingList()),
+                input.operation().attributes());
+        Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(topNRanking.result().type())), node.getOutputSymbols());
+        context.block().addOperation(topNRanking);
+        return new OperationAndMapping(topNRanking, outputMapping);
     }
 
     @Override
