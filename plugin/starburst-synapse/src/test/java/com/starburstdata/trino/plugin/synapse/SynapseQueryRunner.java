@@ -11,7 +11,6 @@ package com.starburstdata.trino.plugin.synapse;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Module;
-import com.microsoft.sqlserver.jdbc.SQLServerException;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
 import io.trino.Session;
@@ -106,18 +105,11 @@ public final class SynapseQueryRunner
             connectorProperties.putIfAbsent("connection-password", PASSWORD);
             connectorProperties.putIfAbsent("connection-pool.max-size", String.valueOf(maxPoolSize()));
 
-            try {
-                synapseServer.execute(format(
-                        "CREATE VIEW %s.user_context AS SELECT " +
-                                "SESSION_USER AS session_user_column," +
-                                "CURRENT_USER AS current_user_column",
-                        TEST_SCHEMA));
-            }
-            catch (RuntimeException e) {
-                if (!(e.getCause() instanceof SQLServerException) || ((SQLServerException) e.getCause()).getErrorCode() != ERROR_OBJECT_EXISTS) {
-                    throw e;
-                }
-            }
+            synapseServer.executeIgnoringErrors(format(
+                    "CREATE VIEW %s.user_context AS SELECT " +
+                            "SESSION_USER AS session_user_column," +
+                            "CURRENT_USER AS current_user_column",
+                    TEST_SCHEMA), ERROR_OBJECT_EXISTS);
 
             queryRunner.installPlugin(new TestingSynapsePlugin());
 

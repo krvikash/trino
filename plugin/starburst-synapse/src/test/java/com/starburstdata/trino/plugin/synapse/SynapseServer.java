@@ -9,6 +9,7 @@
  */
 package com.starburstdata.trino.plugin.synapse;
 
+import com.microsoft.sqlserver.jdbc.SQLServerException;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import dev.failsafe.Failsafe;
@@ -21,7 +22,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
-import java.util.Arrays;
+import java.util.Objects;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
@@ -85,16 +86,22 @@ public class SynapseServer
         };
     }
 
-    public void execute(String... query)
+    public void execute(String query)
+    {
+        executeIgnoringErrors(query, /* ignoredErrorCode= */ null);
+    }
+
+    public void executeIgnoringErrors(String query, Integer ignoredErrorCode)
     {
         try (Connection conn = dataSource.getConnection();
                 Statement statement = conn.createStatement()) {
-            for (String sql : query) {
-                statement.execute(sql);
-            }
+            statement.execute(query);
         }
         catch (SQLException e) {
-            throw new RuntimeException("Failed to execute statement: " + Arrays.toString(query), e);
+            if (!(e instanceof SQLServerException sqlServerExn && Objects.equals(sqlServerExn.getErrorCode(), ignoredErrorCode))) {
+                throw new RuntimeException("Failed to execute statement: " + query, e);
+            }
+            LOG.info("Ignoring expected error: %s", e);
         }
     }
 
