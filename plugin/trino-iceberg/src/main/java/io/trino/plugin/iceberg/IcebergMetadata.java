@@ -116,7 +116,6 @@ import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.ConnectorTableProperties;
 import io.trino.spi.connector.ConnectorTableVersion;
 import io.trino.spi.connector.ConnectorViewDefinition;
-import io.trino.spi.connector.ConnectorWritableTableHandle;
 import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.ConstraintApplicationResult;
 import io.trino.spi.connector.DiscretePredicates;
@@ -676,22 +675,6 @@ public class IcebergMetadata
             return handle.getSchemaTableName();
         }
         throw new IllegalArgumentException("Unsupported ConnectorTableHandle type: " + tableHandle.getClass().getName());
-    }
-
-    @Override
-    public Optional<TableCredentials> getTableCredentials(ConnectorSession session, ConnectorWritableTableHandle tableHandle)
-    {
-        SchemaTableName schemaTableName = getSchemaTableName(tableHandle);
-        return getOrLoadTableCredentials(session, schemaTableName);
-    }
-
-    private static SchemaTableName getSchemaTableName(ConnectorWritableTableHandle tableHandle)
-    {
-        return switch (tableHandle) {
-            case IcebergTableExecuteHandle handle -> handle.schemaTableName();
-            case IcebergWritableTableHandle handle -> handle.name();
-            default -> throw new IllegalArgumentException("Unsupported ConnectorWritableTableHandle type: " + tableHandle.getClass().getName());
-        };
     }
 
     private Optional<TableCredentials> getOrLoadTableCredentials(ConnectorSession session, SchemaTableName schemaTableName)
@@ -1777,6 +1760,7 @@ public class IcebergMetadata
                 table.location(),
                 getFileFormat(table),
                 table.properties(),
+                table.io().properties(),
                 rowLevelOperationMode(table),
                 branch);
     }
@@ -1980,6 +1964,7 @@ public class IcebergMetadata
                         tableHandle.getStorageProperties(),
                         maxScannedFileSize),
                 tableHandle.getTableLocation(),
+                icebergTable.io().properties(),
                 tableHandle.getFormatVersion()));
     }
 
@@ -1992,6 +1977,7 @@ public class IcebergMetadata
                 OPTIMIZE_MANIFESTS,
                 new IcebergOptimizeManifestsHandle(),
                 icebergTable.location(),
+                icebergTable.io().properties(),
                 tableHandle.getFormatVersion()));
     }
 
@@ -2004,6 +1990,7 @@ public class IcebergMetadata
                 OPTIMIZE_POSITION_DELETES,
                 new IcebergOptimizePositionDeletesHandle(),
                 icebergTable.location(),
+                icebergTable.io().properties(),
                 tableHandle.getFormatVersion()));
     }
 
@@ -2016,6 +2003,7 @@ public class IcebergMetadata
                 DROP_EXTENDED_STATS,
                 new IcebergDropExtendedStatsHandle(),
                 icebergTable.location(),
+                icebergTable.io().properties(),
                 tableHandle.getFormatVersion()));
     }
 
@@ -2033,6 +2021,7 @@ public class IcebergMetadata
                 EXPIRE_SNAPSHOTS,
                 new IcebergExpireSnapshotsHandle(retentionThreshold, retainLast, cleanExpiredMetadata),
                 icebergTable.location(),
+                icebergTable.io().properties(),
                 tableHandle.getFormatVersion()));
     }
 
@@ -2046,6 +2035,7 @@ public class IcebergMetadata
                 REMOVE_ORPHAN_FILES,
                 new IcebergRemoveOrphanFilesHandle(retentionThreshold),
                 icebergTable.location(),
+                icebergTable.io().properties(),
                 tableHandle.getFormatVersion()));
     }
 
@@ -2075,6 +2065,7 @@ public class IcebergMetadata
                 ADD_FILES,
                 new IcebergAddFilesHandle(location, format, recursiveDirectory),
                 icebergTable.location(),
+                icebergTable.io().properties(),
                 tableHandle.getFormatVersion()));
     }
 
@@ -2156,6 +2147,7 @@ public class IcebergMetadata
                 ADD_FILES_FROM_TABLE,
                 new IcebergAddFilesFromTableHandle(sourceTable, partitionFilter, recursiveDirectory),
                 icebergTable.location(),
+                icebergTable.io().properties(),
                 tableHandle.getFormatVersion()));
     }
 
@@ -2169,6 +2161,7 @@ public class IcebergMetadata
                 ROLLBACK_TO_SNAPSHOT,
                 new IcebergRollbackToSnapshotHandle(snapshotId),
                 icebergTable.location(),
+                icebergTable.io().properties(),
                 tableHandle.getFormatVersion()));
     }
 
@@ -2232,6 +2225,7 @@ public class IcebergMetadata
                         tableHandle.getStorageProperties(),
                         retryMode != NO_RETRIES),
                 icebergTable.location(),
+                icebergTable.io().properties(),
                 tableHandle.getFormatVersion()));
     }
 
@@ -2745,7 +2739,7 @@ public class IcebergMetadata
 
         beginTransaction(icebergTable);
 
-        LocationProvider locationProvider = getLocationProvider(executeHandle.schemaTableName(), executeHandle.tableLocation(), icebergTable.io().properties());
+        LocationProvider locationProvider = getLocationProvider(executeHandle.schemaTableName(), executeHandle.tableLocation(), executeHandle.fileIoProperties());
 
         RewritePositionDeletesCommitManager commitManager = new RewritePositionDeletesCommitManager(icebergTable);
         BinPackRewritePositionDeletePlanner positionDeletePlanner = new BinPackRewritePositionDeletePlanner(icebergTable);

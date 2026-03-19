@@ -64,7 +64,6 @@ import io.trino.spi.connector.ConnectorTableProperties;
 import io.trino.spi.connector.ConnectorTableSchema;
 import io.trino.spi.connector.ConnectorTableVersion;
 import io.trino.spi.connector.ConnectorViewDefinition;
-import io.trino.spi.connector.ConnectorWritableTableHandle;
 import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.ConstraintApplicationResult;
 import io.trino.spi.connector.LimitApplicationResult;
@@ -971,12 +970,6 @@ public class LakehouseMetadata
     }
 
     @Override
-    public Optional<TableCredentials> getTableCredentials(ConnectorSession session, ConnectorWritableTableHandle tableHandle)
-    {
-        return forHandle(tableHandle).getTableCredentials(session, tableHandle);
-    }
-
-    @Override
     public boolean allowSplittingReadIntoMultipleSubQueries(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         return forHandle(tableHandle).allowSplittingReadIntoMultipleSubQueries(session, tableHandle);
@@ -1008,16 +1001,6 @@ public class LakehouseMetadata
             case DeltaLakeTableHandle _ -> deltaMetadata;
             case HudiTableHandle _ -> hudiMetadata;
             default -> throw new IllegalArgumentException("Unsupported table handle: " + handle.getClass().getName());
-        };
-    }
-
-    private ConnectorMetadata forHandle(ConnectorWritableTableHandle handle)
-    {
-        return switch (handle) {
-            case HiveInsertTableHandle _, HiveOutputTableHandle _, HiveTableExecuteHandle _ -> hiveMetadata;
-            case IcebergWritableTableHandle _, IcebergTableExecuteHandle _ -> icebergMetadata;
-            case DeltaLakeInsertTableHandle _, DeltaLakeOutputTableHandle _, DeltaLakeTableExecuteHandle _ -> deltaMetadata;
-            default -> throw new IllegalArgumentException("Unsupported writable table handle: " + handle.getClass().getName());
         };
     }
 

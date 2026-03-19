@@ -46,7 +46,6 @@ import io.trino.spi.connector.ConnectorTableProperties;
 import io.trino.spi.connector.ConnectorTableSchema;
 import io.trino.spi.connector.ConnectorTableVersion;
 import io.trino.spi.connector.ConnectorViewDefinition;
-import io.trino.spi.connector.ConnectorWritableTableHandle;
 import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.ConstraintApplicationResult;
 import io.trino.spi.connector.JoinApplicationResult;
@@ -94,7 +93,6 @@ import io.trino.spi.statistics.ComputedStatistics;
 import io.trino.spi.statistics.TableStatistics;
 import io.trino.spi.statistics.TableStatisticsMetadata;
 import io.trino.spi.type.Type;
-import io.trino.tracing.TrinoAttributes;
 
 import java.util.Collection;
 import java.util.Iterator;
@@ -1587,15 +1585,6 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
         }
     }
 
-    @Override
-    public Optional<TableCredentials> getTableCredentials(ConnectorSession session, ConnectorWritableTableHandle tableHandle)
-    {
-        Span span = startSpan("getTableCredentials", tableHandle);
-        try (var _ = scopedSpan(span)) {
-            return delegate.getTableCredentials(session, tableHandle);
-        }
-    }
-
     private Span startSpan(String methodName)
     {
         return tracer.spanBuilder("ObjectStoreConnectorMetadata." + connectorClassName + "." + methodName)
@@ -1634,15 +1623,6 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
         Span span = startSpan(methodName);
         if (span.isRecording()) {
             span.setAttribute(stringKey("trino.handle"), handle.toString());
-        }
-        return span;
-    }
-
-    private Span startSpan(String methodName, ConnectorWritableTableHandle handle)
-    {
-        Span span = startSpan(methodName);
-        if (span.isRecording()) {
-            span.setAttribute(TrinoAttributes.HANDLE, handle.toString());
         }
         return span;
     }

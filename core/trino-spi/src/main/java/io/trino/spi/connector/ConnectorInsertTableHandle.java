@@ -15,4 +15,5 @@ package io.trino.spi.connector;
 
 @SuppressWarnings("MarkerInterface")
 public interface ConnectorInsertTableHandle
-        extends ConnectorWritableTableHandle {}
+{
+}

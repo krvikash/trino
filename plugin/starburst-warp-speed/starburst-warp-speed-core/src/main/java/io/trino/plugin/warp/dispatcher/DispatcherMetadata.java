@@ -51,7 +51,6 @@ import io.trino.spi.connector.ConnectorTableProperties;
 import io.trino.spi.connector.ConnectorTableSchema;
 import io.trino.spi.connector.ConnectorTableVersion;
 import io.trino.spi.connector.ConnectorViewDefinition;
-import io.trino.spi.connector.ConnectorWritableTableHandle;
 import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.ConstraintApplicationResult;
 import io.trino.spi.connector.JoinApplicationResult;
@@ -1028,12 +1027,6 @@ public class DispatcherMetadata
     {
         DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) tableHandle;
         return proxiedConnectorMetadata.getTableCredentials(session, dispatcherTableHandle.getProxyConnectorTableHandle());
-    }
-
-    @Override
-    public Optional<TableCredentials> getTableCredentials(ConnectorSession session, ConnectorWritableTableHandle tableHandle)
-    {
-        return proxiedConnectorMetadata.getTableCredentials(session, tableHandle);
     }
 
     private static List<CustomStat> mergeCustomStats(List<CustomStat> first, List<CustomStat> second)
