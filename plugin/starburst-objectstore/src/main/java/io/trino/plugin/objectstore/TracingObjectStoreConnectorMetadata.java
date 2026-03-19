@@ -94,6 +94,7 @@ import io.trino.spi.statistics.ComputedStatistics;
 import io.trino.spi.statistics.TableStatistics;
 import io.trino.spi.statistics.TableStatisticsMetadata;
 import io.trino.spi.type.Type;
+import io.trino.tracing.TrinoAttributes;
 
 import java.util.Collection;
 import java.util.Iterator;
@@ -106,7 +107,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.UnaryOperator;
 
-import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import static io.trino.plugin.objectstore.TracingObjectStoreConnectorMetadata.ScopedSpan.scopedSpan;
 import static java.util.Objects.requireNonNull;
 
@@ -372,7 +372,7 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     public void dropSchema(ConnectorSession session, String schemaName, boolean cascade)
     {
         Span span = startSpan("dropSchema", schemaName)
-                .setAttribute(stringKey("trino.cascade"), Boolean.toString(cascade));
+                .setAttribute(TrinoAttributes.CASCADE, cascade);
         try (var _ = scopedSpan(span)) {
             delegate.dropSchema(session, schemaName, cascade);
         }
@@ -671,7 +671,7 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     {
         Span span = startSpan("finishCreateTable");
         if (span.isRecording()) {
-            span.setAttribute(stringKey("trino.handle"), tableHandle.toString());
+            span.setAttribute(TrinoAttributes.HANDLE, tableHandle.toString());
         }
         try (var _ = scopedSpan(span)) {
             return delegate.finishCreateTable(session, tableHandle, fragments, computedStatistics);
@@ -719,7 +719,7 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     {
         Span span = startSpan("finishInsert");
         if (span.isRecording()) {
-            span.setAttribute(stringKey("trino.handle"), insertHandle.toString());
+            span.setAttribute(TrinoAttributes.HANDLE, insertHandle.toString());
         }
         try (var _ = scopedSpan(span)) {
             return delegate.finishInsert(session, insertHandle, sourceTableHandles, fragments, computedStatistics);
@@ -984,7 +984,7 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     public Collection<FunctionMetadata> getFunctions(ConnectorSession session, SchemaFunctionName name)
     {
         Span span = startSpan("getFunctions", name.getSchemaName())
-                .setAttribute(stringKey("trino.function"), name.getFunctionName());
+                .setAttribute(TrinoAttributes.FUNCTION, name.getFunctionName());
         try (var _ = scopedSpan(span)) {
             return delegate.getFunctions(session, name);
         }
@@ -1030,7 +1030,7 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     public Collection<LanguageFunction> getLanguageFunctions(ConnectorSession session, SchemaFunctionName name)
     {
         Span span = startSpan("getLanguageFunctions", name.getSchemaName())
-                .setAttribute(stringKey("trino.function"), name.getFunctionName());
+                .setAttribute(TrinoAttributes.FUNCTION, name.getFunctionName());
         try (var _ = scopedSpan(span)) {
             return delegate.getLanguageFunctions(session, name);
         }
@@ -1040,7 +1040,7 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     public boolean languageFunctionExists(ConnectorSession session, SchemaFunctionName name, String signatureToken)
     {
         Span span = startSpan("languageFunctionExists", name.getSchemaName())
-                .setAttribute(stringKey("trino.function"), name.getFunctionName());
+                .setAttribute(TrinoAttributes.FUNCTION, name.getFunctionName());
         try (var _ = scopedSpan(span)) {
             return delegate.languageFunctionExists(session, name, signatureToken);
         }
@@ -1050,7 +1050,7 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     public void createLanguageFunction(ConnectorSession session, SchemaFunctionName name, LanguageFunction function, boolean replace)
     {
         Span span = startSpan("createLanguageFunction", name.getSchemaName())
-                .setAttribute(stringKey("trino.function"), name.getFunctionName());
+                .setAttribute(TrinoAttributes.FUNCTION, name.getFunctionName());
         try (var _ = scopedSpan(span)) {
             delegate.createLanguageFunction(session, name, function, replace);
         }
@@ -1060,7 +1060,7 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     public void dropLanguageFunction(ConnectorSession session, SchemaFunctionName name, String signatureToken)
     {
         Span span = startSpan("dropLanguageFunction", name.getSchemaName())
-                .setAttribute(stringKey("trino.function"), name.getFunctionName());
+                .setAttribute(TrinoAttributes.FUNCTION, name.getFunctionName());
         try (var _ = scopedSpan(span)) {
             delegate.dropLanguageFunction(session, name, signatureToken);
         }
@@ -1598,41 +1598,41 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     private Span startSpan(String methodName)
     {
         return tracer.spanBuilder("ObjectStoreConnectorMetadata." + connectorClassName + "." + methodName)
-                .setAttribute(stringKey("trino.catalog"), catalogName.toString())
+                .setAttribute(TrinoAttributes.CATALOG, catalogName.toString())
                 .startSpan();
     }
 
     private Span startSpan(String methodName, String schemaName)
     {
         return startSpan(methodName)
-                .setAttribute(stringKey("trino.schema"), schemaName);
+                .setAttribute(TrinoAttributes.SCHEMA, schemaName);
     }
 
     private Span startSpan(String methodName, Optional<String> schemaName)
     {
         return startSpan(methodName)
-                .setAttribute(stringKey("trino.schema"), schemaName.orElse(null));
+                .setAttribute(TrinoAttributes.SCHEMA, schemaName.orElse(null));
     }
 
     private Span startSpan(String methodName, SchemaTableName table)
     {
         return startSpan(methodName)
-                .setAttribute(stringKey("trino.schema"), table.getSchemaName())
-                .setAttribute(stringKey("trino.table"), table.getTableName());
+                .setAttribute(TrinoAttributes.SCHEMA, table.getSchemaName())
+                .setAttribute(TrinoAttributes.TABLE, table.getTableName());
     }
 
     private Span startSpan(String methodName, SchemaTablePrefix prefix)
     {
         return startSpan(methodName)
-                .setAttribute(stringKey("trino.schema"), prefix.getSchema().orElse(null))
-                .setAttribute(stringKey("trino.table"), prefix.getTable().orElse(null));
+                .setAttribute(TrinoAttributes.SCHEMA, prefix.getSchema().orElse(null))
+                .setAttribute(TrinoAttributes.TABLE, prefix.getTable().orElse(null));
     }
 
     private Span startSpan(String methodName, ConnectorTableHandle handle)
     {
         Span span = startSpan(methodName);
         if (span.isRecording()) {
-            span.setAttribute(stringKey("trino.handle"), handle.toString());
+            span.setAttribute(TrinoAttributes.HANDLE, handle.toString());
         }
         return span;
     }
@@ -1641,7 +1641,7 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     {
         Span span = startSpan(methodName);
         if (span.isRecording()) {
-            span.setAttribute(stringKey("trino.handle"), handle.toString());
+            span.setAttribute(TrinoAttributes.HANDLE, handle.toString());
         }
         return span;
     }
@@ -1650,7 +1650,7 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     {
         Span span = startSpan(methodName);
         if (span.isRecording()) {
-            span.setAttribute(stringKey("trino.handle"), handle.toString());
+            span.setAttribute(TrinoAttributes.HANDLE, handle.toString());
         }
         return span;
     }
@@ -1659,7 +1659,7 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     {
         Span span = startSpan(methodName);
         if (span.isRecording()) {
-            span.setAttribute(stringKey("trino.function"), functionId.toString());
+            span.setAttribute(TrinoAttributes.FUNCTION, functionId.toString());
         }
         return span;
     }
