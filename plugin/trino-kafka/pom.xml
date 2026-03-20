@@ -445,9 +445,11 @@
                 <extensions>true</extensions>
                 <configuration>
                     <allowedProvidedDependencies>
+                        <id>com.kjetland:mbknor-jackson-jsonschema_2.13</id>
                         <id>io.confluent:kafka-json-schema-provider</id>
                         <id>io.confluent:kafka-protobuf-provider</id>
                         <id>io.confluent:kafka-protobuf-types</id>
+                        <id>io.yokota:mbknor-jackson-jsonschema-java8</id>
                     </allowedProvidedDependencies>
                 </configuration>
             </plugin>
