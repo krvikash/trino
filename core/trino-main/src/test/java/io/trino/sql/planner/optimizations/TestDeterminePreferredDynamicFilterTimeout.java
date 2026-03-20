@@ -31,7 +31,6 @@ import io.trino.sql.ir.Comparison;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.assertions.BasePlanTest;
-import io.trino.sql.planner.assertions.PlanMatchPattern.DynamicFilterPattern;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.FilterNode;
 import io.trino.testing.PlanTester;
@@ -181,11 +180,11 @@ public class TestDeterminePreferredDynamicFilterTimeout
                 anyTree(
                         join(INNER, builder -> builder
                                 .equiCriteria("A_1", "B_1")
-                                .dynamicFilter(
-                                        ImmutableList.of(
-                                                new DynamicFilterPattern(new Reference(INTEGER, "A_1"), EQUAL, "B_1", false, OptionalLong.empty())))
+                                .addDynamicFilter("DF", "B_1")
                                 .left(
-                                        node(FilterNode.class,
+                                        filter(
+                                                TRUE,
+                                                dynamicFilters -> dynamicFilters.addConsumer(consumer -> consumer.alias("DF").expression(INTEGER, "A_1")),
                                                 tableScan("table_undefined_a", ImmutableMap.of("A_1", "a_1"))))
                                 .right(
                                         exchange(
@@ -200,11 +199,15 @@ public class TestDeterminePreferredDynamicFilterTimeout
                 anyTree(
                         join(INNER, builder -> builder
                                 .equiCriteria("A_1", "B_1")
-                                .dynamicFilter(
-                                        ImmutableList.of(
-                                                new DynamicFilterPattern(new Reference(INTEGER, "A_1"), EQUAL, "B_1", false, OptionalLong.of(waitForCascadingDynamicFiltersTimeout))))
+                                .addDynamicFilter("DF", "B_1")
                                 .left(
-                                        node(FilterNode.class,
+                                        filter(
+                                                TRUE,
+                                                dynamicFilters -> dynamicFilters
+                                                        .addConsumer(consumer -> consumer
+                                                                .alias("DF")
+                                                                .expression(INTEGER, "A_1")
+                                                                .preferredTimeout(waitForCascadingDynamicFiltersTimeout)),
                                                 tableScan("table_small_a", ImmutableMap.of("A_1", "a_1"))))
                                 .right(
                                         exchange(
@@ -222,11 +225,15 @@ public class TestDeterminePreferredDynamicFilterTimeout
                 anyTree(
                         join(INNER, builder -> builder
                                 .equiCriteria("A_1", "B_1")
-                                .dynamicFilter(
-                                        ImmutableList.of(
-                                                new DynamicFilterPattern(new Reference(INTEGER, "A_1"), EQUAL, "B_1", false, OptionalLong.of(0L))))
+                                .addDynamicFilter("DF", "B_1")
                                 .left(
-                                        node(FilterNode.class,
+                                        filter(
+                                                TRUE,
+                                                dynamicFilters -> dynamicFilters
+                                                        .addConsumer(consumer -> consumer
+                                                                .alias("DF")
+                                                                .expression(INTEGER, "A_1")
+                                                                .preferredTimeout(0L)),
                                                 tableScan("table_small_a", ImmutableMap.of("A_1", "a_1"))))
                                 .right(
                                         exchange(
@@ -244,11 +251,15 @@ public class TestDeterminePreferredDynamicFilterTimeout
                 anyTree(
                         join(INNER, builder -> builder
                                 .equiCriteria("A_1", "B_2")
-                                .dynamicFilter(
-                                        ImmutableList.of(
-                                                new DynamicFilterPattern(new Reference(INTEGER, "A_1"), EQUAL, "B_2", false, OptionalLong.of(waitForCascadingDynamicFiltersTimeout))))
+                                .addDynamicFilter("DF", "B_2")
                                 .left(
-                                        node(FilterNode.class,
+                                        filter(
+                                                TRUE,
+                                                dynamicFilters -> dynamicFilters
+                                                        .addConsumer(consumer -> consumer
+                                                                .alias("DF")
+                                                                .expression(INTEGER, "A_1")
+                                                                .preferredTimeout(waitForCascadingDynamicFiltersTimeout)),
                                                 tableScan("table_small_a", ImmutableMap.of("A_1", "a_1"))))
                                 .right(
                                         exchange(
@@ -267,11 +278,15 @@ public class TestDeterminePreferredDynamicFilterTimeout
                 anyTree(
                         join(INNER, builder -> builder
                                 .equiCriteria("A_1", "B_2")
-                                .dynamicFilter(
-                                        ImmutableList.of(
-                                                new DynamicFilterPattern(new Reference(INTEGER, "A_1"), EQUAL, "B_2", false, OptionalLong.of(0L))))
+                                .addDynamicFilter("DF", "B_2")
                                 .left(
-                                        node(FilterNode.class,
+                                        filter(
+                                                TRUE,
+                                                dynamicFilters -> dynamicFilters
+                                                        .addConsumer(consumer -> consumer
+                                                                .alias("DF")
+                                                                .expression(INTEGER, "A_1")
+                                                                .preferredTimeout(0L)),
                                                 tableScan("table_small_a", ImmutableMap.of("A_1", "a_1"))))
                                 .right(
                                         exchange(
@@ -284,11 +299,15 @@ public class TestDeterminePreferredDynamicFilterTimeout
                 anyTree(
                         join(INNER, builder -> builder
                                 .equiCriteria("A_2", "B_2")
-                                .dynamicFilter(
-                                        ImmutableList.of(
-                                                new DynamicFilterPattern(new Reference(INTEGER, "A_2"), EQUAL, "B_2", false, OptionalLong.of(waitForCascadingDynamicFiltersTimeout))))
+                                .addDynamicFilter("DF", "B_2")
                                 .left(
-                                        node(FilterNode.class,
+                                        filter(
+                                                TRUE,
+                                                dynamicFilters -> dynamicFilters
+                                                        .addConsumer(consumer -> consumer
+                                                                .alias("DF")
+                                                                .expression(INTEGER, "A_2")
+                                                                .preferredTimeout(waitForCascadingDynamicFiltersTimeout)),
                                                 tableScan("table_small_a", ImmutableMap.of("A_2", "a_2"))))
                                 .right(
                                         exchange(
@@ -306,11 +325,11 @@ public class TestDeterminePreferredDynamicFilterTimeout
                 anyTree(
                         join(INNER, builder -> builder
                                 .equiCriteria("A_1", "B_1")
-                                .dynamicFilter(
-                                        ImmutableList.of(
-                                                new DynamicFilterPattern(new Reference(INTEGER, "A_1"), EQUAL, "B_1", false, OptionalLong.empty())))
+                                .addDynamicFilter("DF", "B_1")
                                 .left(
-                                        node(FilterNode.class,
+                                        filter(
+                                                TRUE,
+                                                dynamicFilters -> dynamicFilters.addConsumer(consumer -> consumer.alias("DF").expression(INTEGER, "A_1")),
                                                 tableScan("table_small_a", ImmutableMap.of("A_1", "a_1"))))
                                 .right(
                                         exchange(
@@ -328,19 +347,32 @@ public class TestDeterminePreferredDynamicFilterTimeout
                 anyTree(
                         join(INNER, builder -> builder
                                 .equiCriteria("A_2", "C_1")
-                                .dynamicFilter(
-                                        ImmutableList.of(
-                                                new DynamicFilterPattern(new Reference(INTEGER, "A_2"), EQUAL, "C_1", false, OptionalLong.of(waitForCascadingDynamicFiltersTimeout)),
-                                                new DynamicFilterPattern(new Reference(INTEGER, "B_2"), EQUAL, "C_1", false, OptionalLong.of(waitForCascadingDynamicFiltersTimeout))))
+                                .addDynamicFilter("DF_C_1", "C_1")
                                 .left(
                                         join(INNER, leftJoinBuilder -> leftJoinBuilder
                                                 .equiCriteria("A_2", "B_2")
-                                                .dynamicFilter(new Reference(INTEGER, "A_2"), "B_2", waitForCascadingDynamicFiltersTimeout)
+                                                .addDynamicFilter("DF_B_2", "B_2")
                                                 .left(
-                                                        node(FilterNode.class,
+                                                        filter(
+                                                                TRUE,
+                                                                dynamicFilters -> dynamicFilters
+                                                                        .addConsumer(consumer -> consumer
+                                                                                .alias("DF_C_1")
+                                                                                .expression(INTEGER, "A_2")
+                                                                                .preferredTimeout(waitForCascadingDynamicFiltersTimeout))
+                                                                        .addConsumer(consumer -> consumer
+                                                                                .alias("DF_B_2")
+                                                                                .expression(INTEGER, "A_2")
+                                                                                .preferredTimeout(waitForCascadingDynamicFiltersTimeout)),
                                                                 tableScan("table_small_a", ImmutableMap.of("A_2", "a_2"))))
                                                 .right(
-                                                        anyTree(node(FilterNode.class,
+                                                        anyTree(filter(
+                                                                TRUE,
+                                                                dynamicFilters -> dynamicFilters
+                                                                        .addConsumer(consumer -> consumer
+                                                                                .alias("DF_C_1")
+                                                                                .expression(INTEGER, "B_2")
+                                                                                .preferredTimeout(waitForCascadingDynamicFiltersTimeout)),
                                                                 tableScan("table_small_b", ImmutableMap.of("B_2", "b_2")))))))
                                 .right(
                                         exchange(
@@ -355,9 +387,15 @@ public class TestDeterminePreferredDynamicFilterTimeout
                 anyTree(
                         join(INNER, builder -> builder
                                 .equiCriteria("A_1", "B_1")
-                                .dynamicFilter(new Reference(BIGINT, "A_1"), "B_1", waitForCascadingDynamicFiltersTimeout)
+                                .addDynamicFilter("DF", "B_1")
                                 .left(
-                                        anyTree(
+                                        filter(
+                                                TRUE,
+                                                dynamicFilters -> dynamicFilters
+                                                        .addConsumer(consumer -> consumer
+                                                                .alias("DF")
+                                                                .expression(BIGINT, "A_1")
+                                                                .preferredTimeout(waitForCascadingDynamicFiltersTimeout)),
                                                 tableScan("table_small_a", ImmutableMap.of("A_1", "a_1"))))
                                 .right(
                                         exchange(
@@ -384,13 +422,22 @@ public class TestDeterminePreferredDynamicFilterTimeout
                 anyTree(filter(
                         new Between(new Reference(INTEGER, "A_1"), new Reference(INTEGER, "B_1"), new Reference(INTEGER, "B_2")),
                         join(INNER, builder -> builder
-                                .dynamicFilter(
-                                        ImmutableList.of(
-                                                new DynamicFilterPattern(new Reference(INTEGER, "A_1"), GREATER_THAN_OR_EQUAL, "B_1", false, OptionalLong.of(0L)),
-                                                new DynamicFilterPattern(new Reference(INTEGER, "A_1"), LESS_THAN_OR_EQUAL, "B_2", false, OptionalLong.of(0L))))
+                                .addDynamicFilter("DF_GTE", "B_1")
+                                .addDynamicFilter("DF_LTE", "B_2")
                                 .left(
                                         filter(
                                                 TRUE,
+                                                dynamicFilters -> dynamicFilters
+                                                        .addConsumer(consumer -> consumer
+                                                                .alias("DF_GTE")
+                                                                .expression(INTEGER, "A_1")
+                                                                .operator(GREATER_THAN_OR_EQUAL)
+                                                                .preferredTimeout(0L))
+                                                        .addConsumer(consumer -> consumer
+                                                                .alias("DF_LTE")
+                                                                .expression(INTEGER, "A_1")
+                                                                .operator(LESS_THAN_OR_EQUAL)
+                                                                .preferredTimeout(0L)),
                                                 tableScan("table_small_a", ImmutableMap.of("A_1", "a_1", "A_2", "a_2"))))
                                 .right(
                                         exchange(
@@ -399,12 +446,20 @@ public class TestDeterminePreferredDynamicFilterTimeout
                                                         .equiCriteria(ImmutableList.of(
                                                                 equiJoinClause("B_2", "C_1"),
                                                                 equiJoinClause("B_3", "C_2")))
-                                                        .dynamicFilter(
-                                                                ImmutableList.of(
-                                                                        new DynamicFilterPattern(new Reference(INTEGER, "B_2"), EQUAL, "C_1", false, OptionalLong.of(waitForCascadingDynamicFiltersTimeout)),
-                                                                        new DynamicFilterPattern(new Reference(INTEGER, "B_3"), EQUAL, "C_2", false, OptionalLong.of(waitForCascadingDynamicFiltersTimeout))))
+                                                        .addDynamicFilter("DF_B2", "C_1")
+                                                        .addDynamicFilter("DF_B3", "C_2")
                                                         .left(
-                                                                anyTree(
+                                                                filter(
+                                                                        TRUE,
+                                                                        dynamicFilters -> dynamicFilters
+                                                                                .addConsumer(consumer -> consumer
+                                                                                        .alias("DF_B2")
+                                                                                        .expression(INTEGER, "B_2")
+                                                                                        .preferredTimeout(waitForCascadingDynamicFiltersTimeout))
+                                                                                .addConsumer(consumer -> consumer
+                                                                                        .alias("DF_B3")
+                                                                                        .expression(INTEGER, "B_3")
+                                                                                        .preferredTimeout(waitForCascadingDynamicFiltersTimeout)),
                                                                         tableScan("table_small_b", ImmutableMap.of("B_1", "b_1", "B_2", "b_2", "B_3", "b_3"))))
                                                         .right(
                                                                 exchange(
@@ -447,15 +502,17 @@ public class TestDeterminePreferredDynamicFilterTimeout
                                 filter(
                                         new Comparison(GREATER_THAN, new Reference(BIGINT, "A_1"), new Reference(BIGINT, "MAX_1")),
                                         join(INNER, builder -> builder
-                                                .dynamicFilter(
-                                                        ImmutableList.of(
-                                                                new DynamicFilterPattern(new Reference(BIGINT, "A_1"), GREATER_THAN, "MAX_1", false, OptionalLong.of(waitForCascadingDynamicFiltersTimeout))))
+                                                .addDynamicFilter("DF", "MAX_1")
                                                 .left(
-                                                        filter(TRUE,
-                                                                tableScan("table_undefined_a", ImmutableMap.of("A_1", "a_1")))
-                                                                .with(FilterNode.class, filterNode -> extractDynamicFilters(filterNode.getPredicate())
-                                                                        .getDynamicConjuncts().get(0).getPreferredTimeout()
-                                                                        .equals(OptionalLong.of(waitForCascadingDynamicFiltersTimeout))))
+                                                        filter(
+                                                                TRUE,
+                                                                dynamicFilters -> dynamicFilters
+                                                                        .addConsumer(consumer -> consumer
+                                                                                .alias("DF")
+                                                                                .expression(BIGINT, "A_1")
+                                                                                .operator(GREATER_THAN)
+                                                                                .preferredTimeout(waitForCascadingDynamicFiltersTimeout)),
+                                                                tableScan("table_undefined_a", ImmutableMap.of("A_1", "a_1"))))
                                                 .right(
                                                         aggregation(ImmutableMap.of("MAX_1", aggregationFunction("max", ImmutableList.of("MAX_2"))), FINAL,
                                                                 anyTree(

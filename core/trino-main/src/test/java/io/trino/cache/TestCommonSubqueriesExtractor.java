@@ -1773,11 +1773,9 @@ public class TestCommonSubqueriesExtractor
         assertPlan(subqueryA.getCommonSubplan(), commonTableScan);
 
         // There is a FilterNode because of dynamic filters
-        PlanMatchPattern commonSubplanB = filter(TRUE, createDynamicFilterExpression(
-                        getPlanTester().getPlannerContext().getMetadata(),
-                        new DynamicFilterId("subquery_b_dynamic_id"),
-                        BIGINT,
-                        new Reference(BIGINT, "column2")),
+        PlanMatchPattern commonSubplanB = filter(
+                TRUE,
+                dynamicFilterBuilder -> dynamicFilterBuilder.addConsumer(consumer -> consumer.alias("DF").expression(BIGINT, "column2")),
                 commonTableScan);
         assertPlan(subqueryB.getCommonSubplan(), commonSubplanB);
     }
