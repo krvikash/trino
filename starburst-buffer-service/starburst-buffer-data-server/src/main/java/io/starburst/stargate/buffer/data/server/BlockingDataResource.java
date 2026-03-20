@@ -66,6 +66,7 @@ import java.util.function.Supplier;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
+import static com.google.common.util.concurrent.Uninterruptibles.getUninterruptibly;
 import static io.starburst.stargate.buffer.BufferServiceLimits.validateAttemptId;
 import static io.starburst.stargate.buffer.BufferServiceLimits.validateTaskId;
 import static io.starburst.stargate.buffer.data.client.DataClientHeaders.MAX_WAIT;
@@ -249,7 +250,6 @@ public class BlockingDataResource
                             inProgressLatch,
                             processingStart,
                             clientId,
-                            asyncTimeout,
                             errorPrefix.get(),
                             new TimeoutException("Exceeded deadline while reading data"));
                 }
@@ -288,7 +288,6 @@ public class BlockingDataResource
                                 inProgressLatch,
                                 processingStart,
                                 clientId,
-                                asyncTimeout,
                                 errorPrefix.get(),
                                 USER_ERROR,
                                 format("Data page too large (%d > %d)", pageLength, chunkManager.getMaxPageLength()));
@@ -310,7 +309,6 @@ public class BlockingDataResource
                             inProgressLatch,
                             processingStart,
                             clientId,
-                            asyncTimeout,
                             errorPrefix.get(),
                             USER_ERROR,
                             format("Data corruption, no more data in input stream but remaining bytes counter > 0 (%d)", bytes));
@@ -334,7 +332,6 @@ public class BlockingDataResource
                             inProgressLatch,
                             processingStart,
                             clientId,
-                            asyncTimeout,
                             errorPrefix.get(),
                             USER_ERROR,
                             format("Data corruption, read checksum: 0x%08x, calculated checksum: 0x%08x", readChecksum, calculatedChecksum));
@@ -347,7 +344,6 @@ public class BlockingDataResource
                         inProgressLatch,
                         processingStart,
                         clientId,
-                        asyncTimeout,
                         errorPrefix.get(),
                         USER_ERROR,
                         format("Expected checksum to be NO_CHECKSUM (0x%08x) but is 0x%08x", NO_CHECKSUM, readChecksum));
@@ -375,7 +371,6 @@ public class BlockingDataResource
                         inProgressLatch,
                         processingStart,
                         clientId,
-                        asyncTimeout,
                         errorPrefix.get(),
                         e);
             }
@@ -386,7 +381,7 @@ public class BlockingDataResource
             // The async version separates resource cleanup (finalizeAddDataPagesRequest) from response
             // determination (addCallback on allAsList(futures)) — both always wait for ALL futures.
             Optional<Throwable> futureFailure = finalizeAddDataPagesRequest(
-                    addDataPagesFutures, sliceLease, inProgressLatch, processingStart, clientId, asyncTimeout);
+                    addDataPagesFutures, sliceLease, inProgressLatch, processingStart, clientId);
 
             if (futureFailure.isPresent()) {
                 reportException(logger, futureFailure.get(), "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
@@ -398,7 +393,7 @@ public class BlockingDataResource
             // Clean up resources and return error response.
             // In the DataResource ReadListener.onError() serves as this safety net
             // and routes through finalizeAddDataPagesRequest which awaits futures and records metrics.
-            awaitFuturesQuietlyOnError(addDataPagesFutures, asyncTimeout, e);
+            awaitFuturesQuietlyOnError(addDataPagesFutures, e);
             releaseResources(sliceLease, inProgressLatch, processingStart, clientId);
             reportException(logger, e, "error on POST /%s/addDataPages/%s/%s/%s", exchangeId, taskId, attemptId, dataPagesId);
             return errorWithRateLimit(e, clientId);
@@ -529,10 +524,9 @@ public class BlockingDataResource
             SliceLease sliceLease,
             AddDataPagesInProgressTracker.InProgressLatch inProgressLatch,
             long processingStart,
-            String clientId,
-            Duration asyncTimeout)
+            String clientId)
     {
-        Optional<Throwable> futureFailure = awaitFutures(addDataPagesFutures, asyncTimeout);
+        Optional<Throwable> futureFailure = awaitFutures(addDataPagesFutures);
         releaseResources(sliceLease, inProgressLatch, processingStart, clientId);
         return futureFailure;
     }
@@ -558,13 +552,12 @@ public class BlockingDataResource
             AddDataPagesInProgressTracker.InProgressLatch inProgressLatch,
             long processingStart,
             String clientId,
-            Duration asyncTimeout,
             String errorPrefix,
             ErrorCode errorCode,
             String message)
     {
         logger.warn("%s; %s; %s", errorPrefix, errorCode, message);
-        finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease, inProgressLatch, processingStart, clientId, asyncTimeout);
+        finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease, inProgressLatch, processingStart, clientId);
         return errorResponse(errorCode, message, getRateLimitHeaders(clientId));
     }
 
@@ -574,12 +567,11 @@ public class BlockingDataResource
             AddDataPagesInProgressTracker.InProgressLatch inProgressLatch,
             long processingStart,
             String clientId,
-            Duration asyncTimeout,
             String errorPrefix,
             Throwable throwable)
     {
         reportException(logger, throwable, "%s", errorPrefix);
-        finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease, inProgressLatch, processingStart, clientId, asyncTimeout);
+        finalizeAddDataPagesRequest(addDataPagesFutures, sliceLease, inProgressLatch, processingStart, clientId);
         return errorWithRateLimit(throwable, clientId);
     }
 
@@ -627,24 +619,25 @@ public class BlockingDataResource
      * Future failures are attached as suppressed exceptions to the primary error.
      * This matches the DataResource version's whenAllComplete behavior in finalizeAddDataPagesRequest
      */
-    private static void awaitFuturesQuietlyOnError(List<ListenableFuture<Void>> futures, Duration timeout, Throwable primaryError)
+    private static void awaitFuturesQuietlyOnError(List<ListenableFuture<Void>> futures, Throwable primaryError)
     {
-        awaitFutures(futures, timeout).ifPresent(primaryError::addSuppressed);
+        awaitFutures(futures).ifPresent(primaryError::addSuppressed);
     }
 
-    private static Optional<Throwable> awaitFutures(List<ListenableFuture<Void>> futures, Duration timeout)
+    private static Optional<Throwable> awaitFutures(List<ListenableFuture<Void>> futures)
     {
         Throwable failure = null;
         for (ListenableFuture<Void> future : futures) {
             try {
-                awaitFuture(future, timeout);
+                getUninterruptibly(future);
             }
-            catch (Throwable e) {
+            catch (ExecutionException e) {
+                Throwable cause = e.getCause() != null ? e.getCause() : e;
                 if (failure == null) {
-                    failure = e;
+                    failure = cause;
                 }
                 else {
-                    failure.addSuppressed(e);
+                    failure.addSuppressed(cause);
                 }
             }
         }
