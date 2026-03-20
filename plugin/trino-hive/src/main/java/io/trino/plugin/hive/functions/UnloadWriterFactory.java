@@ -164,7 +164,7 @@ public class UnloadWriterFactory
             case RCBINARY, RCTEXT -> ".rc";
             case SEQUENCEFILE -> ".seq";
             case SEQUENCEFILE_PROTOBUF -> throw new TrinoException(NOT_SUPPORTED, "Unsupported file format: " + format);
-            case JSON, OPENX_JSON, ESRI -> ".json";
+            case JSON, OPENX_JSON, ESRI, ESRI_GEO_JSON -> ".json";
             case TEXTFILE -> ".txt";
             case CSV -> ".csv";
             case REGEX -> "";
