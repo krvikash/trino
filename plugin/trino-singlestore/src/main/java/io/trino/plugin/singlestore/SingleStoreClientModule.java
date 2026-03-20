@@ -36,6 +36,7 @@ import java.util.Properties;
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.trino.plugin.jdbc.DecimalModule.MappingToNumber.ON_BY_DEFAULT;
 import static io.trino.plugin.jdbc.JdbcModule.bindSessionPropertiesProvider;
 
 public class SingleStoreClientModule
@@ -50,7 +51,7 @@ public class SingleStoreClientModule
         configBinder(binder).bindConfig(SingleStoreConfig.class);
         bindSessionPropertiesProvider(binder, SingleStoreSessionProperties.class);
         newOptionalBinder(binder, QueryBuilder.class).setBinding().to(BinaryComparisonQueryBuilder.class).in(Scopes.SINGLETON);
-        binder.install(new DecimalModule());
+        binder.install(DecimalModule.withNumberMapping(ON_BY_DEFAULT));
         newSetBinder(binder, ConnectorTableFunction.class).addBinding().toProvider(Query.class).in(Scopes.SINGLETON);
     }
 
