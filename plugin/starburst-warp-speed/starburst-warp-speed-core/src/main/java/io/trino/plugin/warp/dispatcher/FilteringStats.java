@@ -20,9 +20,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 public class FilteringStats
 {
-    public static final float FILTERING_THRESHOLD = 0.01f;
-    public static final int MIN_STARTED_SPLITS = 16;
-    public static final int MIN_PROCESSED_SPLITS = 4;
+    public static final float FILTERING_THRESHOLD = 0.00001f;
+    public static final int MIN_STARTED_SPLITS = 4;
+    public static final int MIN_PROCESSED_SPLITS = 2;
 
     private long totalRows;
     private long rowsAfterFiltering;
