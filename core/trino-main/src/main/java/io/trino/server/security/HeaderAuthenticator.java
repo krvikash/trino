@@ -25,6 +25,7 @@ import java.security.Principal;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
@@ -42,9 +43,7 @@ public class HeaderAuthenticator
     public HeaderAuthenticator(HeaderAuthenticatorConfig authenticatorConfig, HeaderAuthenticatorManager authenticatorManager)
     {
         this.authenticatorManager = requireNonNull(authenticatorManager, "authenticatorManager is null");
-
         this.userMapping = createUserMapping(authenticatorConfig.getUserMappingPattern(), authenticatorConfig.getUserMappingFile());
-
         this.authenticatorManager.setRequired();
     }
 
@@ -73,18 +72,28 @@ public class HeaderAuthenticator
         return authenticate(lowerCasedHeaders);
     }
 
-    private Identity authenticate(Map<String, List<String>> headers)
+    private Identity authenticate(Map<String, List<String>> lowerCasedHeaders)
             throws AuthenticationException
     {
         AuthenticationException exception = null;
-        for (io.trino.spi.security.HeaderAuthenticator authenticator : this.authenticatorManager.getAuthenticators()) {
-            try {
-                Principal principal = authenticator.createAuthenticatedPrincipal(name -> headers.get(name.toLowerCase(Locale.ENGLISH)));
-                String authenticatedUser = this.userMapping.mapUser(principal.toString());
 
-                return Identity.forUser(authenticatedUser)
+        for (io.trino.spi.security.HeaderAuthenticator authenticator : authenticatorManager.getAuthenticators()) {
+            try {
+                Optional<Identity> identity = authenticator.createAuthenticatedIdentity(name -> {
+                    String headerName = name.toLowerCase(Locale.ENGLISH);
+                    return lowerCasedHeaders.get(headerName);
+                });
+                if (identity.isPresent()) {
+                    return userMapping.mapIdentity(identity.get());
+                }
+                Principal principal = authenticator.createAuthenticatedPrincipal(name -> {
+                    String headerName = name.toLowerCase(Locale.ENGLISH);
+                    return lowerCasedHeaders.get(headerName);
+                });
+                Identity principalIdentity = Identity.forUser(principal.toString())
                         .withPrincipal(principal)
                         .build();
+                return userMapping.mapIdentity(principalIdentity);
             }
             catch (UserMappingException | AccessDeniedException e) {
                 if (exception == null) {
