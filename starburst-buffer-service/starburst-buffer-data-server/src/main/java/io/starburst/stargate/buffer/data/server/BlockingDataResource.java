@@ -66,7 +66,6 @@ import java.util.function.Supplier;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
-import static com.google.common.util.concurrent.Futures.allAsList;
 import static io.starburst.stargate.buffer.BufferServiceLimits.validateAttemptId;
 import static io.starburst.stargate.buffer.BufferServiceLimits.validateTaskId;
 import static io.starburst.stargate.buffer.data.client.DataClientHeaders.MAX_WAIT;
@@ -533,17 +532,7 @@ public class BlockingDataResource
             String clientId,
             Duration asyncTimeout)
     {
-        // Wait for all provided futures to complete (virtual thread will park)
-        Optional<Throwable> futureFailure = Optional.empty();
-        if (!addDataPagesFutures.isEmpty()) {
-            try {
-                awaitFuture(allAsList(addDataPagesFutures), asyncTimeout);
-            }
-            catch (Throwable e) {
-                futureFailure = Optional.of(e);
-            }
-        }
-
+        Optional<Throwable> futureFailure = awaitFutures(addDataPagesFutures, asyncTimeout);
         releaseResources(sliceLease, inProgressLatch, processingStart, clientId);
         return futureFailure;
     }
@@ -640,14 +629,26 @@ public class BlockingDataResource
      */
     private static void awaitFuturesQuietlyOnError(List<ListenableFuture<Void>> futures, Duration timeout, Throwable primaryError)
     {
-        if (!futures.isEmpty()) {
+        awaitFutures(futures, timeout).ifPresent(primaryError::addSuppressed);
+    }
+
+    private static Optional<Throwable> awaitFutures(List<ListenableFuture<Void>> futures, Duration timeout)
+    {
+        Throwable failure = null;
+        for (ListenableFuture<Void> future : futures) {
             try {
-                awaitFuture(allAsList(futures), timeout);
+                awaitFuture(future, timeout);
             }
-            catch (Throwable futureError) {
-                primaryError.addSuppressed(futureError);
+            catch (Throwable e) {
+                if (failure == null) {
+                    failure = e;
+                }
+                else {
+                    failure.addSuppressed(e);
+                }
             }
         }
+        return Optional.ofNullable(failure);
     }
 
     private static <T> T awaitFuture(ListenableFuture<T> future, Duration timeout)
