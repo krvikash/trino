@@ -30,10 +30,10 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.cloud.storage.StorageRetryStrategy.getUniformStorageRetryStrategy;
-import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.net.HttpHeaders.USER_AGENT;
-import static io.trino.filesystem.gcs.GcsFileSystemConstants.EXTRA_CREDENTIALS_OAUTH_TOKEN_EXPIRE_AT_PROPERTY;
-import static io.trino.filesystem.gcs.GcsFileSystemConstants.EXTRA_CREDENTIALS_OAUTH_TOKEN_PROPERTY;
+import static io.trino.filesystem.gcs.GcsFileSystemConstants.EXTRA_CREDENTIALS_GCS_OAUTH_TOKEN_EXPIRES_AT_PROPERTY;
+import static io.trino.filesystem.gcs.GcsFileSystemConstants.EXTRA_CREDENTIALS_GCS_OAUTH_TOKEN_PROPERTY;
+import static io.trino.filesystem.gcs.GcsFileSystemConstants.EXTRA_CREDENTIALS_GCS_PROJECT_ID_PROPERTY;
 import static java.util.Objects.requireNonNull;
 
 public class GcsStorageFactory
@@ -67,11 +67,11 @@ public class GcsStorageFactory
     {
         try {
             StorageOptions.Builder storageOptionsBuilder = StorageOptions.newBuilder();
-            if (projectId != null) {
-                storageOptionsBuilder.setProjectId(projectId);
-            }
 
             if (!setOAuthCredentials(storageOptionsBuilder, identity)) {
+                if (projectId != null) {
+                    storageOptionsBuilder.setProjectId(projectId);
+                }
                 gcsAuth.setAuth(storageOptionsBuilder, identity);
             }
 
@@ -97,15 +97,20 @@ public class GcsStorageFactory
         }
     }
 
-    private static boolean setOAuthCredentials(StorageOptions.Builder builder, ConnectorIdentity identity)
+    private boolean setOAuthCredentials(StorageOptions.Builder builder, ConnectorIdentity identity)
     {
-        if (identity.getExtraCredentials().containsKey(EXTRA_CREDENTIALS_OAUTH_TOKEN_PROPERTY)) {
-            String accessToken = nullToEmpty(identity.getExtraCredentials().get(EXTRA_CREDENTIALS_OAUTH_TOKEN_PROPERTY));
-            Optional<Date> expireAt = Optional.ofNullable(identity.getExtraCredentials().get(EXTRA_CREDENTIALS_OAUTH_TOKEN_EXPIRE_AT_PROPERTY))
+        if (identity.getExtraCredentials().containsKey(EXTRA_CREDENTIALS_GCS_OAUTH_TOKEN_PROPERTY)) {
+            String accessToken = identity.getExtraCredentials().get(EXTRA_CREDENTIALS_GCS_OAUTH_TOKEN_PROPERTY);
+            Optional<Date> expireAt = Optional.ofNullable(identity.getExtraCredentials().get(EXTRA_CREDENTIALS_GCS_OAUTH_TOKEN_EXPIRES_AT_PROPERTY))
                     .map(Long::parseLong)
                     .map(Instant::ofEpochMilli)
                     .map(Date::from);
             builder.setCredentials(GoogleCredentials.create(new AccessToken(accessToken, expireAt.orElse(null))));
+
+            String effectiveProjectId = identity.getExtraCredentials().getOrDefault(EXTRA_CREDENTIALS_GCS_PROJECT_ID_PROPERTY, projectId);
+            if (effectiveProjectId != null) {
+                builder.setProjectId(effectiveProjectId);
+            }
             return true;
         }
         return false;

@@ -18,8 +18,8 @@ import com.google.common.collect.ImmutableMap;
 import java.time.Instant;
 import java.util.Map;
 
-import static io.trino.filesystem.gcs.GcsFileSystemConstants.EXTRA_CREDENTIALS_OAUTH_TOKEN_EXPIRE_AT_PROPERTY;
-import static io.trino.filesystem.gcs.GcsFileSystemConstants.EXTRA_CREDENTIALS_OAUTH_TOKEN_PROPERTY;
+import static io.trino.filesystem.gcs.GcsFileSystemConstants.EXTRA_CREDENTIALS_GCS_OAUTH_TOKEN_EXPIRES_AT_PROPERTY;
+import static io.trino.filesystem.gcs.GcsFileSystemConstants.EXTRA_CREDENTIALS_GCS_OAUTH_TOKEN_PROPERTY;
 import static java.util.Objects.requireNonNull;
 
 public class GcsVendedCredentials
@@ -37,8 +37,8 @@ public class GcsVendedCredentials
     public Map<String, String> asExtraCredentials()
     {
         return ImmutableMap.<String, String>builder()
-                .put(EXTRA_CREDENTIALS_OAUTH_TOKEN_PROPERTY, gcsOauthToken)
-                .put(EXTRA_CREDENTIALS_OAUTH_TOKEN_EXPIRE_AT_PROPERTY, Long.toString(expireAt().toEpochMilli()))
+                .put(EXTRA_CREDENTIALS_GCS_OAUTH_TOKEN_PROPERTY, gcsOauthToken)
+                .put(EXTRA_CREDENTIALS_GCS_OAUTH_TOKEN_EXPIRES_AT_PROPERTY, Long.toString(expireAt().toEpochMilli()))
                 .buildOrThrow();
     }
 }

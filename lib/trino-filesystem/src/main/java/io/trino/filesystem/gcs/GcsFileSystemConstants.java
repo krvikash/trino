@@ -15,8 +15,9 @@ package io.trino.filesystem.gcs;
 
 public final class GcsFileSystemConstants
 {
-    public static final String EXTRA_CREDENTIALS_OAUTH_TOKEN_PROPERTY = "internal$gcs_oauth_token";
-    public static final String EXTRA_CREDENTIALS_OAUTH_TOKEN_EXPIRE_AT_PROPERTY = "internal$gcs_token_expire_at";
+    public static final String EXTRA_CREDENTIALS_GCS_OAUTH_TOKEN_PROPERTY = "internal$gcs_oauth2_token";
+    public static final String EXTRA_CREDENTIALS_GCS_OAUTH_TOKEN_EXPIRES_AT_PROPERTY = "internal$gcs_oauth2_token_expires_at";
+    public static final String EXTRA_CREDENTIALS_GCS_PROJECT_ID_PROPERTY = "internal$gcs_project_id";
 
     private GcsFileSystemConstants() {}
 }

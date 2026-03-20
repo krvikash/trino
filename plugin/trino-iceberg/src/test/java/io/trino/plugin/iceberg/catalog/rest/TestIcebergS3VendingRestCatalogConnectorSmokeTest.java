@@ -25,7 +25,7 @@ import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.testing.QueryFailedException;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
-import io.trino.testing.containers.IcebergRestCatalogBackendContainer;
+import io.trino.testing.containers.IcebergS3RestCatalogBackendContainer;
 import io.trino.testing.containers.Minio;
 import io.trino.testing.minio.MinioClient;
 import org.apache.iceberg.BaseTable;
@@ -61,15 +61,15 @@ import static org.apache.iceberg.FileFormat.PARQUET;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class TestIcebergVendingRestCatalogConnectorSmokeTest
+public class TestIcebergS3VendingRestCatalogConnectorSmokeTest
         extends BaseIcebergConnectorSmokeTest
 {
     private final String bucketName;
     private String warehouseLocation;
-    private IcebergRestCatalogBackendContainer restCatalogBackendContainer;
+    private IcebergS3RestCatalogBackendContainer restCatalogBackendContainer;
     private Minio minio;
 
-    public TestIcebergVendingRestCatalogConnectorSmokeTest()
+    public TestIcebergS3VendingRestCatalogConnectorSmokeTest()
     {
         super(new IcebergConfig().getFileFormat().toIceberg());
         this.bucketName = "test-iceberg-vending-rest-connector-smoke-test-" + randomNameSuffix();
@@ -105,7 +105,7 @@ public class TestIcebergVendingRestCatalogConnectorSmokeTest
                 .build();
 
         AssumeRoleResponse assumeRoleResponse = stsClient.assumeRole(AssumeRoleRequest.builder().build());
-        restCatalogBackendContainer = closeAfterClass(new IcebergRestCatalogBackendContainer(
+        restCatalogBackendContainer = closeAfterClass(new IcebergS3RestCatalogBackendContainer(
                 Optional.of(network),
                 warehouseLocation,
                 assumeRoleResponse.credentials().accessKeyId(),
