@@ -1040,7 +1040,7 @@ public class LocalExecutionPlanner
         private Visitor(Session session)
         {
             this.session = session;
-            evaluator = new IrExpressionEvaluator(plannerContext);
+            evaluator = plannerContext.getExpressionEvaluator();
         }
 
         @Override

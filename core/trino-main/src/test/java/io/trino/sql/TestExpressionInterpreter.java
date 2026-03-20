@@ -48,8 +48,6 @@ import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.Row;
 import io.trino.sql.ir.Switch;
 import io.trino.sql.ir.WhenClause;
-import io.trino.sql.ir.optimizer.IrExpressionEvaluator;
-import io.trino.sql.ir.optimizer.IrExpressionOptimizer;
 import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.assertions.SymbolAliases;
 import io.trino.transaction.TestingTransactionManager;
@@ -959,7 +957,7 @@ public class TestExpressionInterpreter
 
     static Object optimize(Expression parsedExpression)
     {
-        return IrExpressionOptimizer.newOptimizer(PLANNER_CONTEXT).process(parsedExpression, TEST_SESSION, INPUTS)
+        return PLANNER_CONTEXT.getExpressionOptimizer().process(parsedExpression, TEST_SESSION, INPUTS)
                 .orElse(parsedExpression);
     }
 
@@ -970,7 +968,7 @@ public class TestExpressionInterpreter
 
     private static Object evaluate(Expression expression)
     {
-        return new IrExpressionEvaluator(PLANNER_CONTEXT).evaluate(expression, TEST_SESSION, ImmutableMap.of());
+        return PLANNER_CONTEXT.getExpressionEvaluator().evaluate(expression, TEST_SESSION, ImmutableMap.of());
     }
 
     static Block batchAdd(ConnectorSession session, ValueBlock first, int[] firstPositions, ValueBlock second, int[] secondPositions)

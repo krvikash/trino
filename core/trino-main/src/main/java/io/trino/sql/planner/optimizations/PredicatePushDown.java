@@ -108,7 +108,6 @@ import static io.trino.sql.ir.IrExpressions.mayFail;
 import static io.trino.sql.ir.IrUtils.combineConjuncts;
 import static io.trino.sql.ir.IrUtils.extractConjuncts;
 import static io.trino.sql.ir.IrUtils.filterDeterministicConjuncts;
-import static io.trino.sql.ir.optimizer.IrExpressionOptimizer.newOptimizer;
 import static io.trino.sql.planner.DeterminismEvaluator.isDeterministic;
 import static io.trino.sql.planner.EqualityInference.isInferenceCandidate;
 import static io.trino.sql.planner.ExpressionSymbolInliner.inlineSymbols;
@@ -187,7 +186,7 @@ public class PredicatePushDown
             this.effectivePredicateExtractor = new EffectivePredicateExtractor(
                     plannerContext,
                     useTableProperties && isPredicatePushdownUseTableProperties(session));
-            optimizer = newOptimizer(plannerContext);
+            optimizer = plannerContext.getExpressionOptimizer();
             this.allowUnsafePushdown = SystemSessionProperties.isUnsafePushdownAllowed(session);
         }
 
