@@ -517,6 +517,8 @@ import static org.apache.iceberg.SnapshotSummary.REMOVED_EQ_DELETES_PROP;
 import static org.apache.iceberg.SnapshotSummary.REMOVED_POS_DELETES_PROP;
 import static org.apache.iceberg.SnapshotSummary.TOTAL_DATA_FILES_PROP;
 import static org.apache.iceberg.SnapshotSummary.TOTAL_DELETE_FILES_PROP;
+import static org.apache.iceberg.SnapshotSummary.TOTAL_EQ_DELETES_PROP;
+import static org.apache.iceberg.SnapshotSummary.TOTAL_POS_DELETES_PROP;
 import static org.apache.iceberg.SnapshotSummary.TOTAL_RECORDS_PROP;
 import static org.apache.iceberg.TableProperties.COMMIT_NUM_RETRIES;
 import static org.apache.iceberg.TableProperties.DELETE_ISOLATION_LEVEL;
@@ -3183,6 +3185,8 @@ public class IcebergMetadata
         Optional<String> deletedRecords = Optional.ofNullable(summary.get(DELETED_RECORDS_PROP));
         Optional<String> totalDataFiles = Optional.ofNullable(summary.get(TOTAL_DATA_FILES_PROP));
         Optional<String> totalDeleteFiles = Optional.ofNullable(summary.get(TOTAL_DELETE_FILES_PROP));
+        Optional<String> totalPositionDeletes = Optional.ofNullable(summary.get(TOTAL_POS_DELETES_PROP));
+        Optional<String> totalEqualityDeletes = Optional.ofNullable(summary.get(TOTAL_EQ_DELETES_PROP));
 
         return Optional.of(new IcebergInputInfo(
                 icebergTableHandle.getFormatVersion(),
@@ -3192,7 +3196,9 @@ public class IcebergMetadata
                 totalRecords,
                 deletedRecords,
                 totalDataFiles,
-                totalDeleteFiles));
+                totalDeleteFiles,
+                totalPositionDeletes,
+                totalEqualityDeletes));
     }
 
     @Override
