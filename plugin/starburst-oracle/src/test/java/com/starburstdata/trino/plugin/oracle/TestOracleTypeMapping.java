@@ -10,13 +10,13 @@
 package com.starburstdata.trino.plugin.oracle;
 
 import com.google.common.collect.ImmutableMap;
-import io.trino.plugin.oracle.AbstractTestOracleTypeMapping;
+import io.trino.plugin.oracle.BaseTestOracleTypeMapping;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.SharedResource.Lease;
 import io.trino.testing.sql.SqlExecutor;
 
 public class TestOracleTypeMapping
-        extends AbstractTestOracleTypeMapping
+        extends BaseTestOracleTypeMapping
 {
     private Lease<TestingStarburstOracleServer> oracleServer;
 
