@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -123,18 +124,19 @@ public class OpenAiResponsesLanguageModelClient
     }
 
     @Override
-    protected Response streamToolResponse(List<String> systemPrompts, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output)
+    protected Response streamToolResponse(List<String> systemPrompts, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled)
     {
         ResponseCreateParams.Builder builder = buildResponseCreateParams(systemPrompts, messages);
         tools.forEach(tool -> builder.addTool(toOpenAiTool(tool)));
-        return stream(builder.build(), output);
+        return stream(builder.build(), output, isCancelled);
     }
 
-    private Response stream(ResponseCreateParams params, Consumer<String> output)
+    private Response stream(ResponseCreateParams params, Consumer<String> output, Supplier<Boolean> isCancelled)
     {
         try (StreamResponse<ResponseStreamEvent> streamResponse =
                      client.responses().createStreaming(params)) {
             return streamResponse.stream()
+                    .takeWhile(_ -> !isCancelled.get())
                     .peek(event -> {
                         if (event.outputTextDelta().isPresent()) {
                             output.accept(event.outputTextDelta().get().delta());
@@ -146,6 +148,9 @@ public class OpenAiResponsesLanguageModelClient
                     .findFirst().orElseThrow(() -> new TrinoException(AI_CLIENT_ERROR, "No completion event received from streaming response"));
         }
         catch (Exception e) {
+            if (isCancelled.get()) {
+                return null;
+            }
             throw new TrinoException(AI_CLIENT_ERROR, "Error occurred during streaming response", e);
         }
     }

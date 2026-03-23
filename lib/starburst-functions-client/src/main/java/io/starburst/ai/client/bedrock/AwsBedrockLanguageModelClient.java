@@ -215,7 +215,8 @@ public class AwsBedrockLanguageModelClient
             List<String> systemPrompts,
             List<LlmMessage> messages,
             List<ToolDefinition<?>> tools,
-            Consumer<String> output)
+            Consumer<String> output,
+            Supplier<Boolean> isCancelled)
     {
         if (!isToolStreamingSupported) {
             ToolUseResponse response = generateCompletionWithTools(systemPrompts, messages, tools);
@@ -237,7 +238,7 @@ public class AwsBedrockLanguageModelClient
                     ConverseResponse.Builder builder = ConverseResponse.builder();
                     Message.Builder messageBuilder = Message.builder()
                             .role(ConversationRole.ASSISTANT);
-                    StreamResponseVisitor visitor = new StreamResponseVisitor(output, builder);
+                    StreamResponseVisitor visitor = new StreamResponseVisitor(output, builder, isCancelled);
                     ConverseStreamResponseHandler responseStreamHandler = ConverseStreamResponseHandler.builder()
                             .subscriber(visitor)
                             .build();
@@ -256,6 +257,12 @@ public class AwsBedrockLanguageModelClient
                         throw new TrinoException(AI_CLIENT_ERROR, "Streaming was interrupted", e);
                     }
                     catch (ExecutionException e) {
+                        if (isCancelled.get()) {
+                            List<ContentBlock> contentBlocks = visitor.getContentBlocks();
+                            return builder
+                                    .output(v -> v.message(messageBuilder.content(contentBlocks).build()))
+                                    .build();
+                        }
                         if (e.getCause() instanceof RuntimeException) {
                             throw toTrinoException((RuntimeException) e.getCause());
                         }
@@ -605,14 +612,16 @@ public class AwsBedrockLanguageModelClient
         private final List<ToolUseBlock> responseChunksTools;
         private final StringBuilder currentToolArgs;
         private final ConverseResponse.Builder responseBuilder;
+        private final Supplier<Boolean> isCancelled;
 
         private String currentToolName;
         private String currentToolUseId;
 
-        public StreamResponseVisitor(Consumer<String> output, ConverseResponse.Builder responseBuilder)
+        public StreamResponseVisitor(Consumer<String> output, ConverseResponse.Builder responseBuilder, Supplier<Boolean> isCancelled)
         {
             this.output = output;
             this.responseBuilder = responseBuilder;
+            this.isCancelled = isCancelled;
             this.responseChunksText = new StringBuilder();
             this.responseChunksTools = new ArrayList<>();
             this.currentToolArgs = new StringBuilder();
@@ -668,6 +677,9 @@ public class AwsBedrockLanguageModelClient
         @Override
         public void visitContentBlockDelta(ContentBlockDeltaEvent chunk)
         {
+            if (isCancelled.get()) {
+                throw new RuntimeException("Chat cancelled");
+            }
             ToolUseBlockDelta toolUse = chunk.delta().toolUse();
             if (toolUse != null) {
                 currentToolArgs.append(toolUse.input());

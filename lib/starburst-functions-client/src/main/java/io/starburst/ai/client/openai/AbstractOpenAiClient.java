@@ -87,17 +87,21 @@ public abstract class AbstractOpenAiClient<ResponseType>
     }
 
     @Override
-    protected ToolUseResponse generateCompletionWithTools(List<String> systemPrompts, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output)
+    protected ToolUseResponse generateCompletionWithTools(List<String> systemPrompts, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled)
     {
         if (!isToolStreamingSupported) {
             ToolUseResponse response = generateCompletionWithTools(systemPrompts, messages, tools);
             output.accept(response.textResponse());
             return response;
         }
-        return parseToolResponse(execute(() -> streamToolResponse(systemPrompts, messages, tools, output)));
+        ResponseType response = execute(() -> streamToolResponse(systemPrompts, messages, tools, output, isCancelled));
+        if (response == null) {
+            return new ToolUseResponse("", ImmutableList.of());
+        }
+        return parseToolResponse(response);
     }
 
-    protected abstract ResponseType streamToolResponse(List<String> systemPrompts, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output);
+    protected abstract ResponseType streamToolResponse(List<String> systemPrompts, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled);
 
     protected final ResponseType execute(Supplier<ResponseType> call)
     {
@@ -113,7 +117,9 @@ public abstract class AbstractOpenAiClient<ResponseType>
 
         try (var ignored = span.makeCurrent()) {
             ResponseType response = Failsafe.with(retryPolicy).get(call::get);
-            recordUsage(span, response);
+            if (response != null) {
+                recordUsage(span, response);
+            }
             return response;
         }
         catch (RuntimeException e) {

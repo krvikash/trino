@@ -210,7 +210,8 @@ public abstract class BaseTestToolUse
                         systemPrompt,
                         messages,
                         tools,
-                        streamedTokens::append);
+                        streamedTokens::append,
+                        () -> false);
         assertThat(streamedTokens.toString()).isEqualTo(response.textResponse());
         return response;
     }

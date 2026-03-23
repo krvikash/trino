@@ -11,6 +11,7 @@ package io.starburst.ai.client;
 
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public interface LanguageModelClient
 {
@@ -55,9 +56,10 @@ public interface LanguageModelClient
      * @param messages Conversation history
      * @param tools Available tools the LLM can use
      * @param output Consumer that receives incremental text chunks as they are streamed from the LLM
+     * @param isCancelled Supplier that returns true when the stream should be cancelled early
      * @return Response containing text and/or tool calls
      */
-    ToolUseResponse generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output);
+    ToolUseResponse generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled);
 
     String mask(String text, List<String> labels);
 

@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_OPENAI_RESPONSE_SERVICE_TIER;
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_OPENAI_RESPONSE_SYSTEM_FINGERPRINT;
@@ -117,19 +118,20 @@ public class OpenAiLanguageModelClient
     }
 
     @Override
-    protected ChatCompletion streamToolResponse(List<String> systemPrompts, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output)
+    protected ChatCompletion streamToolResponse(List<String> systemPrompts, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled)
     {
         ChatCompletionCreateParams.Builder builder = buildChatCompletionCreateParams(systemPrompts, messages);
         tools.forEach(tool -> builder.addTool(toOpenAiTool(tool)));
-        return stream(builder.build(), output);
+        return stream(builder.build(), output, isCancelled);
     }
 
-    private ChatCompletion stream(ChatCompletionCreateParams params, Consumer<String> output)
+    private ChatCompletion stream(ChatCompletionCreateParams params, Consumer<String> output, Supplier<Boolean> isCancelled)
     {
         ChatCompletionAccumulator chatCompletionAccumulator = ChatCompletionAccumulator.create();
         try (StreamResponse<ChatCompletionChunk> streamResponse =
                      client.chat().completions().createStreaming(params)) {
             streamResponse.stream()
+                    .takeWhile(_ -> !isCancelled.get())
                     .peek(chatCompletionAccumulator::accumulate)
                     .filter(completion -> !completion.choices().isEmpty())
                     .map(completion -> completion.choices().getFirst())
@@ -138,7 +140,13 @@ public class OpenAiLanguageModelClient
                     .forEach(output);
         }
         catch (Exception e) {
+            if (isCancelled.get()) {
+                return null;
+            }
             throw toTrinoException(e);
+        }
+        if (isCancelled.get()) {
+            return null;
         }
         return chatCompletionAccumulator.chatCompletion();
     }

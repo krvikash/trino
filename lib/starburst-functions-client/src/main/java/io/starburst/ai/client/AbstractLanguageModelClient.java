@@ -23,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -155,13 +156,13 @@ public abstract class AbstractLanguageModelClient
     }
 
     @Override
-    public ToolUseResponse generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output)
+    public ToolUseResponse generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled)
     {
         List<String> systemPrompts = ImmutableList.<String>builder()
                 .addAll(topLevelSystemPrompts)
                 .add(systemPrompt)
                 .build();
-        return generateCompletionWithTools(systemPrompts, messages, tools, output);
+        return generateCompletionWithTools(systemPrompts, messages, tools, output, isCancelled);
     }
 
     @Override
@@ -246,7 +247,8 @@ public abstract class AbstractLanguageModelClient
             List<String> systemPrompts,
             List<LlmMessage> messages,
             List<ToolDefinition<?>> tools,
-            Consumer<String> output);
+            Consumer<String> output,
+            Supplier<Boolean> isCancelled);
 
     protected record ModelWithFixedPrompt(String name, List<String> systemPrompts, String prompt) {}
 
