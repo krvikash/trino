@@ -3014,6 +3014,26 @@
                             <exception>
                                 <conflictingDependencies>
                                     <dependency>
+                                        <groupId>net.java.dev.jna</groupId>
+                                        <artifactId>jna</artifactId>
+                                    </dependency>
+                                    <dependency>
+                                        <groupId>net.java.dev.jna</groupId>
+                                        <artifactId>jna-jpms</artifactId>
+                                    </dependency>
+                                    <dependency>
+                                        <groupId>net.java.dev.jna</groupId>
+                                        <artifactId>jna-platform</artifactId>
+                                    </dependency>
+                                    <dependency>
+                                        <groupId>net.java.dev.jna</groupId>
+                                        <artifactId>jna-platform-jpms</artifactId>
+                                    </dependency>
+                                </conflictingDependencies>
+                            </exception>
+                            <exception>
+                                <conflictingDependencies>
+                                    <dependency>
                                         <groupId>com.google.api</groupId>
                                         <artifactId>gax</artifactId>
                                     </dependency>
