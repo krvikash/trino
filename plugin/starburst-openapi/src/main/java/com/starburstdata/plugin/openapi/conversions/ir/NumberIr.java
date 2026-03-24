@@ -9,12 +9,15 @@
  */
 package com.starburstdata.plugin.openapi.conversions.ir;
 
+/**
+ * A value validated as a JSON number.
+ */
 public record NumberIr(Format format)
         implements LeafIr
 {
     public enum Format {
-        NONE_NUMBER,
-        NONE_INTEGER,
+        NONE_NUMBER, // Number schema without a format.
+        NONE_INTEGER, // Integer schema (different validation) without a format.
         INT32, // https://spec.openapis.org/registry/format/int32.html
         INT64, // https://spec.openapis.org/registry/format/int64.html
         FLOAT, // https://spec.openapis.org/registry/format/float.html

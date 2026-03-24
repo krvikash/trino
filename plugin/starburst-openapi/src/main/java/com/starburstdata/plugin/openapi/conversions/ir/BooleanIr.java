@@ -9,6 +9,9 @@
  */
 package com.starburstdata.plugin.openapi.conversions.ir;
 
+/**
+ * Represents a value validated as a JSON boolean.
+ */
 public record BooleanIr()
         implements LeafIr
 {

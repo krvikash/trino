@@ -9,6 +9,9 @@
  */
 package com.starburstdata.plugin.openapi.conversions.ir;
 
+/**
+ * Represents a value validated as a JSON string.
+ */
 public record StringIr(Format format)
         implements LeafIr
 {
