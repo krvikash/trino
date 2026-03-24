@@ -348,7 +348,8 @@ public final class ThriftHiveMetastore
                     .stopOnIllegalExceptions()
                     .run("getTableColumnStatistics", stats.getGetTableColumnStatistics().wrap(() -> {
                         try (ThriftMetastoreClient client = createMetastoreClient()) {
-                            return groupStatisticsByColumn(client.getTableColumnStatistics(databaseName, tableName, ImmutableList.copyOf(columnNames)));
+                            List<ColumnStatisticsObj> tableColumnStatistics = client.getTableColumnStatistics(databaseName, tableName, ImmutableList.copyOf(columnNames));
+                            return groupStatisticsByColumn(databaseName, tableName, tableColumnStatistics);
                         }
                     }));
         }
@@ -370,7 +371,7 @@ public final class ThriftHiveMetastore
                 .filter(entry -> !entry.getValue().isEmpty())
                 .collect(toImmutableMap(
                         Map.Entry::getKey,
-                        entry -> groupStatisticsByColumn(entry.getValue())));
+                        entry -> groupStatisticsByColumn(databaseName, tableName, entry.getValue())));
     }
 
     @Override
@@ -426,11 +427,11 @@ public final class ThriftHiveMetastore
         }
     }
 
-    private static Map<String, HiveColumnStatistics> groupStatisticsByColumn(List<ColumnStatisticsObj> statistics)
+    private static Map<String, HiveColumnStatistics> groupStatisticsByColumn(String databaseName, String tableName, List<ColumnStatisticsObj> statistics)
     {
         Map<String, HiveColumnStatistics> statisticsByColumn = new HashMap<>();
         for (ColumnStatisticsObj stats : statistics) {
-            HiveColumnStatistics newColumnStatistics = ThriftMetastoreUtil.fromMetastoreApiColumnStatistics(stats);
+            HiveColumnStatistics newColumnStatistics = ThriftMetastoreUtil.fromMetastoreApiColumnStatistics(databaseName, tableName, stats);
             if (statisticsByColumn.containsKey(stats.getColName())) {
                 HiveColumnStatistics existingColumnStatistics = statisticsByColumn.get(stats.getColName());
                 if (!newColumnStatistics.equals(existingColumnStatistics)) {
