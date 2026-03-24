@@ -48,6 +48,7 @@ import io.trino.plugin.iceberg.catalog.hms.IcebergHiveMetastoreCatalogModule;
 import io.trino.plugin.iceberg.delete.DefaultDeletionVectorWriter;
 import io.trino.plugin.iceberg.delete.DeletionVectorWriter;
 import io.trino.plugin.iceberg.delete.OptimizePositionDeletes;
+import io.trino.plugin.iceberg.delete.RemoveDanglingDeleteFiles;
 import io.trino.plugin.iceberg.fileio.ForwardingFileIoFactory;
 import org.apache.iceberg.PartitionStatisticsWriter;
 
@@ -80,6 +81,7 @@ public class LakehouseIcebergModule
         binder.bind(PartitionStatisticsReader.class).in(Scopes.SINGLETON);
         binder.bind(PartitionStatisticsWriter.class).in(Scopes.SINGLETON);
         binder.bind(OptimizePositionDeletes.class).in(Scopes.SINGLETON);
+        binder.bind(RemoveDanglingDeleteFiles.class).in(Scopes.SINGLETON);
         binder.bind(IcebergFileSystemFactory.class).to(DefaultIcebergFileSystemFactory.class).in(Scopes.SINGLETON);
 
         newOptionalBinder(binder, Key.get(HiveMetastoreFactory.class, RawHiveMetastoreFactory.class));

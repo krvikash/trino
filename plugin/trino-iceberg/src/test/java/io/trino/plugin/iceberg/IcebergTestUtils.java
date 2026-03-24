@@ -49,6 +49,7 @@ import io.trino.plugin.iceberg.catalog.TrinoCatalog;
 import io.trino.plugin.iceberg.catalog.file.FileMetastoreTableOperationsProvider;
 import io.trino.plugin.iceberg.catalog.hms.TrinoHiveCatalog;
 import io.trino.plugin.iceberg.delete.OptimizePositionDeletes;
+import io.trino.plugin.iceberg.delete.RemoveDanglingDeleteFiles;
 import io.trino.plugin.iceberg.fileio.ForwardingFileIoFactory;
 import io.trino.plugin.iceberg.fileio.ForwardingInputFile;
 import io.trino.spi.NodeVersion;
@@ -126,6 +127,8 @@ public final class IcebergTestUtils
                     new IcebergConfig(),
                     new OrcWriterConfig()),
             new NodeVersion("test_version"));
+
+    public static final RemoveDanglingDeleteFiles REMOVE_DANGLING_DELETE_FILES = new RemoveDanglingDeleteFiles(newDirectExecutorService());
 
     private IcebergTestUtils() {}
 

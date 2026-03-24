@@ -996,6 +996,49 @@ from the table.
 ALTER TABLE test_table EXECUTE drop_extended_stats;
 ```
 
+(iceberg-remove-dangling-delete-files)=
+##### remove_dangling_delete_files
+
+The `remove_dangling_delete_files` command removes references to dangling delete files from the
+current snapshot. A delete file is dangling if it no longer applies to any live data
+file, as determined by the
+[Iceberg spec scan planning rules](https://iceberg.apache.org/spec/#scan-planning):
+
+- **Equality delete files** are dangling when all data files in their scope have a
+  data sequence number greater than or equal to the delete file's sequence number
+  (the delete cannot apply because equality deletes require `data_seq < delete_seq`).
+  Equality deletes written with an unpartitioned spec are evaluated globally against
+  all data files; otherwise they are scoped to the same partition.
+- **Position delete files** are dangling when they can no longer apply to any data
+  file. File-scoped position deletes (with a non-null `referenced_data_file`) are
+  dangling when the referenced data file no longer exists or has a data sequence
+  number greater than the delete's sequence number or deletion vector exists with same `referenced_data_file`.
+  Partition-scoped position deletes are dangling when all data files in the partition have a data sequence number
+  greater than the delete's (position deletes require `data_seq <= delete_seq`).
+- **Deletion vectors** are dangling when their referenced data file no longer exists
+  or has a data sequence number greater than the deletion vector's sequence number.
+
+:::{note}
+This command removes metadata references only. To remove the underlying physical
+files, run {ref}`remove_orphan_files <iceberg-remove-orphan-files>` afterward.
+:::
+
+`remove_dangling_delete_files` can be run as follows:
+
+```sql
+ALTER TABLE test_table EXECUTE remove_dangling_delete_files;
+```
+
+```text
+metric_name                           | metric_value
+--------------------------------------+--------------
+removed_delete_files_count            |            5
+dangling_equality_delete_files_count  |            2
+dangling_position_delete_files_count  |            1
+dangling_dv_files_count               |            2
+unexpected_delete_files_count         |            0
+```
+
 (iceberg-alter-table-set-properties)=
 #### ALTER TABLE SET PROPERTIES
 

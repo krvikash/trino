@@ -201,6 +201,7 @@ public class IcebergPageSinkProvider
                 return createGenerateEmbeddingsPageSink(session, executeHandle, getFileIoProperties(tableCredentials));
             case OPTIMIZE_MANIFESTS:
             case OPTIMIZE_POSITION_DELETES:
+            case REMOVE_DANGLING_DELETE_FILES:
             case DROP_EXTENDED_STATS:
             case ROLLBACK_TO_SNAPSHOT:
             case EXPIRE_SNAPSHOTS:

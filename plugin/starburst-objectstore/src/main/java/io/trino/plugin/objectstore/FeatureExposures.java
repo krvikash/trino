@@ -269,6 +269,7 @@ public final class FeatureExposures
                 .put(DELTA, "OPTIMIZE", EXPOSED)
                 .put(ICEBERG, "OPTIMIZE_MANIFESTS", EXPOSED)
                 .put(ICEBERG, "OPTIMIZE_POSITION_DELETES", EXPOSED)
+                .put(ICEBERG, "REMOVE_DANGLING_DELETE_FILES", EXPOSED)
                 .put(ICEBERG, "REMOVE_ORPHAN_FILES", EXPOSED)
                 .put(ICEBERG, "ROLLBACK_TO_SNAPSHOT", EXPOSED)
                 .buildOrThrow();

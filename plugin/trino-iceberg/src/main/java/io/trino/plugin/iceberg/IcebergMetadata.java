@@ -63,6 +63,8 @@ import io.trino.plugin.iceberg.delete.DeletionVectorWriter;
 import io.trino.plugin.iceberg.delete.DeletionVectorWriter.DeletionVectorInfo;
 import io.trino.plugin.iceberg.delete.OptimizePositionDeletes;
 import io.trino.plugin.iceberg.delete.PositionDeleteFiles;
+import io.trino.plugin.iceberg.delete.RemoveDanglingDeleteFiles;
+import io.trino.plugin.iceberg.delete.RemoveDanglingDeleteFiles.DanglingDeleteFilesResult;
 import io.trino.plugin.iceberg.functions.IcebergFunctionProvider;
 import io.trino.plugin.iceberg.procedure.IcebergAddFilesFromTableHandle;
 import io.trino.plugin.iceberg.procedure.IcebergAddFilesHandle;
@@ -72,6 +74,7 @@ import io.trino.plugin.iceberg.procedure.IcebergGenerateEmbeddingsHandle;
 import io.trino.plugin.iceberg.procedure.IcebergOptimizeHandle;
 import io.trino.plugin.iceberg.procedure.IcebergOptimizeManifestsHandle;
 import io.trino.plugin.iceberg.procedure.IcebergOptimizePositionDeletesHandle;
+import io.trino.plugin.iceberg.procedure.IcebergRemoveDanglingDeleteFilesHandle;
 import io.trino.plugin.iceberg.procedure.IcebergRemoveOrphanFilesHandle;
 import io.trino.plugin.iceberg.procedure.IcebergRollbackToSnapshotHandle;
 import io.trino.plugin.iceberg.procedure.IcebergTableExecuteHandle;
@@ -434,6 +437,7 @@ import static io.trino.plugin.iceberg.procedure.IcebergTableProcedureId.GENERATE
 import static io.trino.plugin.iceberg.procedure.IcebergTableProcedureId.OPTIMIZE;
 import static io.trino.plugin.iceberg.procedure.IcebergTableProcedureId.OPTIMIZE_MANIFESTS;
 import static io.trino.plugin.iceberg.procedure.IcebergTableProcedureId.OPTIMIZE_POSITION_DELETES;
+import static io.trino.plugin.iceberg.procedure.IcebergTableProcedureId.REMOVE_DANGLING_DELETE_FILES;
 import static io.trino.plugin.iceberg.procedure.IcebergTableProcedureId.REMOVE_ORPHAN_FILES;
 import static io.trino.plugin.iceberg.procedure.IcebergTableProcedureId.ROLLBACK_TO_SNAPSHOT;
 import static io.trino.plugin.iceberg.procedure.MigrationUtils.addFiles;
@@ -595,6 +599,7 @@ public class IcebergMetadata
     private final NonEvictableCache<SchemaTableName, IcebergTableCredentials> tableCredentialsCache;
     private final Map<String, org.apache.iceberg.Metrics> fileMetrics = new HashMap<>();
     private final DeletionVectorWriter deletionVectorWriter;
+    private final RemoveDanglingDeleteFiles removeDanglingDeleteFiles;
 
     private Transaction transaction;
     private OptionalLong fromSnapshotForRefresh = OptionalLong.empty();
@@ -611,6 +616,7 @@ public class IcebergMetadata
             PartitionStatisticsWriter partitionStatisticsWriter,
             DeletionVectorWriter deletionVectorWriter,
             OptimizePositionDeletes optimizePositionDeletes,
+            RemoveDanglingDeleteFiles removeDanglingDeleteFiles,
             Optional<HiveMetastoreFactory> metastoreFactory,
             int maxFormatVersion,
             boolean addFilesProcedureEnabled,
@@ -645,6 +651,7 @@ public class IcebergMetadata
         this.materializedViewRefreshMaxSnapshotsToExpire = materializedViewRefreshMaxSnapshotsToExpire;
         this.materializedViewRefreshSnapshotRetentionPeriod = materializedViewRefreshSnapshotRetentionPeriod;
         this.deletionVectorWriter = requireNonNull(deletionVectorWriter, "deletionVectorWriter is null");
+        this.removeDanglingDeleteFiles = requireNonNull(removeDanglingDeleteFiles, "removeDanglingDeleteFiles is null");
         this.tableCredentialsCache = buildNonEvictableCache(CacheBuilder.newBuilder());
     }
 
@@ -1933,6 +1940,7 @@ public class IcebergMetadata
             case OPTIMIZE -> getTableHandleForOptimize(tableHandle, icebergTable, executeProperties);
             case OPTIMIZE_MANIFESTS -> getTableHandleForOptimizeManifests(session, tableHandle);
             case OPTIMIZE_POSITION_DELETES -> getTableHandleForOptimizePositionDeletes(session, tableHandle);
+            case REMOVE_DANGLING_DELETE_FILES -> getTableHandleForRemoveDanglingDeleteFiles(session, tableHandle);
             case DROP_EXTENDED_STATS -> getTableHandleForDropExtendedStats(session, tableHandle);
             case ROLLBACK_TO_SNAPSHOT -> getTableHandleForRollbackToSnapshot(session, tableHandle, executeProperties);
             case EXPIRE_SNAPSHOTS -> getTableHandleForExpireSnapshots(session, tableHandle, executeProperties);
@@ -2002,6 +2010,18 @@ public class IcebergMetadata
                 tableHandle.getSchemaTableName(),
                 OPTIMIZE_POSITION_DELETES,
                 new IcebergOptimizePositionDeletesHandle(),
+                icebergTable.location(),
+                tableHandle.getFormatVersion()));
+    }
+
+    private Optional<ConnectorTableExecuteHandle> getTableHandleForRemoveDanglingDeleteFiles(ConnectorSession session, IcebergTableHandle tableHandle)
+    {
+        Table icebergTable = catalog.loadTable(session, tableHandle.getSchemaTableName());
+
+        return Optional.of(new IcebergTableExecuteHandle(
+                tableHandle.getSchemaTableName(),
+                REMOVE_DANGLING_DELETE_FILES,
+                new IcebergRemoveDanglingDeleteFilesHandle(),
                 icebergTable.location(),
                 tableHandle.getFormatVersion()));
     }
@@ -2251,7 +2271,7 @@ public class IcebergMetadata
         return switch (executeHandle.procedureId()) {
             case OPTIMIZE -> getColumnHandlesForOptimize(icebergTableHandle);
             case GENERATE_EMBEDDINGS -> getColumnHandlesForGenerateEmbeddings(icebergTableHandle);
-            case OPTIMIZE_MANIFESTS, OPTIMIZE_POSITION_DELETES, DROP_EXTENDED_STATS, ROLLBACK_TO_SNAPSHOT, EXPIRE_SNAPSHOTS, REMOVE_ORPHAN_FILES, ADD_FILES, ADD_FILES_FROM_TABLE ->
+            case OPTIMIZE_MANIFESTS, OPTIMIZE_POSITION_DELETES, DROP_EXTENDED_STATS, ROLLBACK_TO_SNAPSHOT, EXPIRE_SNAPSHOTS, REMOVE_ORPHAN_FILES, ADD_FILES, ADD_FILES_FROM_TABLE, REMOVE_DANGLING_DELETE_FILES ->
                     throw new IllegalArgumentException("Unknown procedure '" + executeHandle.procedureId() + "'");
         };
     }
@@ -2284,6 +2304,7 @@ public class IcebergMetadata
                 return getLayoutForOptimize(session, executeHandle);
             case OPTIMIZE_MANIFESTS:
             case OPTIMIZE_POSITION_DELETES:
+            case REMOVE_DANGLING_DELETE_FILES:
             case DROP_EXTENDED_STATS:
             case ROLLBACK_TO_SNAPSHOT:
             case EXPIRE_SNAPSHOTS:
@@ -2318,6 +2339,7 @@ public class IcebergMetadata
                 return beginGenerateEmbeddings(session, executeHandle, table);
             case OPTIMIZE_MANIFESTS:
             case OPTIMIZE_POSITION_DELETES:
+            case REMOVE_DANGLING_DELETE_FILES:
             case DROP_EXTENDED_STATS:
             case ROLLBACK_TO_SNAPSHOT:
             case EXPIRE_SNAPSHOTS:
@@ -2379,6 +2401,7 @@ public class IcebergMetadata
                 return;
             case OPTIMIZE_MANIFESTS:
             case OPTIMIZE_POSITION_DELETES:
+            case REMOVE_DANGLING_DELETE_FILES:
             case DROP_EXTENDED_STATS:
             case ROLLBACK_TO_SNAPSHOT:
             case EXPIRE_SNAPSHOTS:
@@ -2583,6 +2606,8 @@ public class IcebergMetadata
                 return executeOptimizeManifests(session, executeHandle);
             case OPTIMIZE_POSITION_DELETES:
                 return executeOptimizePositionDeletes(session, executeHandle);
+            case REMOVE_DANGLING_DELETE_FILES:
+                return executeRemoveDanglingDeleteFiles(session, executeHandle);
             case DROP_EXTENDED_STATS:
                 executeDropExtendedStats(session, executeHandle);
                 return ImmutableMap.of();
@@ -2776,6 +2801,50 @@ public class IcebergMetadata
         BaseTable icebergTable = catalog.loadTable(session, executeHandle.schemaTableName());
 
         return optimizePositionDeletes.execute(session, icebergTable, executeHandle.schemaTableName());
+    }
+
+    private Map<String, Long> executeRemoveDanglingDeleteFiles(ConnectorSession session, IcebergTableExecuteHandle executeHandle)
+    {
+        checkArgument(executeHandle.procedureHandle() instanceof IcebergRemoveDanglingDeleteFilesHandle, "Unexpected procedure handle %s", executeHandle.procedureHandle());
+
+        try {
+            BaseTable icebergTable = catalog.loadTable(session, executeHandle.schemaTableName());
+            try (var _ = icebergTable.io()) {
+                DanglingDeleteFilesResult danglingDeleteFilesResult = removeDanglingDeleteFiles.collectDanglingDeleteFiles(icebergTable);
+
+                if (danglingDeleteFilesResult.dangingDeleteFiles().isEmpty()) {
+                    return ImmutableMap.of(
+                            "removed_delete_files_count", 0L,
+                            "dangling_equality_delete_files_count", 0L,
+                            "dangling_position_delete_files_count", 0L,
+                            "dangling_dv_files_count", 0L,
+                            "data_files_without_sequence_numbers", 0L,
+                            "unexpected_delete_files_count", 0L);
+                }
+
+                Snapshot currentSnapshot = icebergTable.currentSnapshot();
+                beginTransaction(icebergTable);
+                RowDelta rowDelta = transaction.newRowDelta();
+                for (DeleteFile file : danglingDeleteFilesResult.dangingDeleteFiles()) {
+                    rowDelta.removeDeletes(file);
+                }
+                rowDelta.validateFromSnapshot(currentSnapshot.snapshotId());
+                commitUpdate(rowDelta, session, "remove_dangling_delete_files");
+                commitTransaction(transaction, "remove_dangling_delete_files");
+                transaction = null;
+
+                return ImmutableMap.of(
+                        "removed_delete_files_count", (long) danglingDeleteFilesResult.dangingDeleteFiles().size(),
+                        "dangling_equality_delete_files_count", danglingDeleteFilesResult.metrics().getDanglingEqualityDeleteFilesCount(),
+                        "dangling_position_delete_files_count", danglingDeleteFilesResult.metrics().getDanglingPositionDeleteFilesCount(),
+                        "dangling_dv_files_count", danglingDeleteFilesResult.metrics().getDanglingDvFilesCount(),
+                        "data_files_without_sequence_numbers", danglingDeleteFilesResult.metrics().getDataFilesWithoutSequenceNumbers(),
+                        "unexpected_delete_files_count", danglingDeleteFilesResult.metrics().getUnexpectedDeleteFilesCount());
+            }
+        }
+        catch (NotFoundException e) {
+            throw new TrinoException(ICEBERG_INVALID_METADATA, e);
+        }
     }
 
     private void executeDropExtendedStats(ConnectorSession session, IcebergTableExecuteHandle executeHandle)

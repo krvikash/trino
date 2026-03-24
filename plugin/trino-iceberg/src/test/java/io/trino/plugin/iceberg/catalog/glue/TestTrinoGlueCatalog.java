@@ -66,6 +66,7 @@ import static io.trino.plugin.iceberg.IcebergTableProperties.FILE_FORMAT_PROPERT
 import static io.trino.plugin.iceberg.IcebergTableProperties.FORMAT_VERSION_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergTestUtils.FILE_IO_FACTORY;
 import static io.trino.plugin.iceberg.IcebergTestUtils.OPTIMIZE_POSITION_DELETES;
+import static io.trino.plugin.iceberg.IcebergTestUtils.REMOVE_DANGLING_DELETE_FILES;
 import static io.trino.plugin.iceberg.IcebergTestUtils.TABLE_STATISTICS_READER;
 import static io.trino.plugin.iceberg.delete.DeletionVectorWriter.UNSUPPORTED_DELETION_VECTOR_WRITER;
 import static io.trino.spi.type.IntegerType.INTEGER;
@@ -177,6 +178,7 @@ public class TestTrinoGlueCatalog
                     PARTITION_STATISTICS_WRITER,
                     UNSUPPORTED_DELETION_VECTOR_WRITER,
                     OPTIMIZE_POSITION_DELETES,
+                    REMOVE_DANGLING_DELETE_FILES,
                     Optional.empty(),
                     3,
                     false,
