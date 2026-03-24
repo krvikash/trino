@@ -17,6 +17,7 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Throwables;
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
 import io.airlift.json.JsonMapperProvider;
@@ -33,10 +34,12 @@ import io.trino.spi.type.Decimals;
 import io.trino.spi.type.Type;
 import jakarta.annotation.Nullable;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
+import java.nio.file.NoSuchFileException;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -287,6 +290,13 @@ public final class TransactionLogParser
             // _last_checkpoint file was not found, we need to find latest checkpoint manually
             // ideally, we'd detect the condition by catching FileNotFoundException, but some file system implementations
             // will throw different exceptions if the checkpoint is not found
+            if (isFileNotFoundException(e)) {
+                return Optional.empty();
+            }
+            // it could be situation, like access deny or other permission failure error, which actually should not trigger manual check point read
+            // because we can not be sure, which exceptions could appear here, at least we should not silently hide them
+            // TODO after we collect more of such situations we could add exclusion rules here
+            log.warn(e, "Failed to read Delta Lake last checkpoint file %s, falling back to manual checkpoint discovery", checkpointPath);
             return Optional.empty();
         }
     }
@@ -296,6 +306,12 @@ public final class TransactionLogParser
     {
         long lastCheckpointVersion = readLastCheckpoint(fileSystem, tableLocation).map(LastCheckpoint::version).orElse(0L);
         return getMandatoryCurrentVersion(fileSystem, tableLocation, lastCheckpointVersion);
+    }
+
+    private static boolean isFileNotFoundException(Throwable throwable)
+    {
+        return Throwables.getCausalChain(throwable).stream()
+                .anyMatch(cause -> cause instanceof FileNotFoundException || cause instanceof NoSuchFileException);
     }
 
     public static long getMandatoryCurrentVersion(TrinoFileSystem fileSystem, String tableLocation, long readVersion)
