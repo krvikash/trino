@@ -514,6 +514,11 @@
                                 <include>com.amazonaws:*:*</include>
                             </includes>
                         </bannedDependencies>
+                        <requireUpperBoundDeps>
+                            <excludes combine.children="append">
+                                <exclude>io.github.classgraph:classgraph</exclude>
+                            </excludes>
+                        </requireUpperBoundDeps>
                     </rules>
                 </configuration>
             </plugin>
