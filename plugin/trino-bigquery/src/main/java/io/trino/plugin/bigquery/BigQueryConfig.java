@@ -29,6 +29,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.Optional;
 
 import static io.trino.plugin.base.logging.FormatInterpolator.hasValidPlaceholders;
+import static io.trino.plugin.bigquery.BigQueryAuthenticationType.STATIC_CREDENTIALS;
 import static io.trino.plugin.bigquery.BigQueryWriteStreamType.PENDING;
 import static java.util.concurrent.TimeUnit.HOURS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -68,6 +69,7 @@ public class BigQueryConfig
     private int metadataParallelism = Math.min(Runtime.getRuntime().availableProcessors(), MAX_METADATA_PARALLELISM);
     private Optional<Integer> maxParallelism = Optional.empty();
     private BigQueryWriteStreamType writeStreamType = PENDING;
+    private BigQueryAuthenticationType authenticationType = STATIC_CREDENTIALS;
 
     public Optional<String> getProjectId()
     {
@@ -438,5 +440,19 @@ public class BigQueryConfig
     public boolean isValidCaseInsensitiveNameMatchingCacheTtl()
     {
         return caseInsensitiveNameMatchingCacheTtl.isZero() || caseInsensitiveNameMatching;
+    }
+
+    @NotNull
+    public BigQueryAuthenticationType getAuthenticationType()
+    {
+        return authenticationType;
+    }
+
+    @Config("bigquery.authentication.type")
+    @ConfigDescription("BigQuery authentication mechanism type")
+    public BigQueryConfig setAuthenticationType(BigQueryAuthenticationType authenticationType)
+    {
+        this.authenticationType = authenticationType;
+        return this;
     }
 }

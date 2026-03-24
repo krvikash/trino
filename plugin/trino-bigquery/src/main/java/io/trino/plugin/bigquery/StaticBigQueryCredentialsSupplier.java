@@ -58,12 +58,12 @@ public class StaticBigQueryCredentialsSupplier
         return credentialsCreator.get();
     }
 
-    private static Credentials createCredentialsFromKey(Optional<HttpTransportFactory> httpTransportFactory, String key)
+    public static Credentials createCredentialsFromKey(Optional<HttpTransportFactory> httpTransportFactory, String key)
     {
         return createCredentialsFromStream(httpTransportFactory, new ByteArrayInputStream(decodeBase64(key)));
     }
 
-    private static Credentials createCredentialsFromFile(Optional<HttpTransportFactory> httpTransportFactory, String file)
+    public static Credentials createCredentialsFromFile(Optional<HttpTransportFactory> httpTransportFactory, String file)
     {
         try {
             return createCredentialsFromStream(httpTransportFactory, new FileInputStream(file));

@@ -177,13 +177,23 @@ public final class BigQueryQueryRunner
 
         public void createDataset(String datasetName)
         {
-            DatasetInfo dataset = DatasetInfo.newBuilder(datasetName)
+            createDataset(DatasetId.of(datasetName));
+        }
+
+        public void createDataset(DatasetId datasetId)
+        {
+            DatasetInfo dataset = DatasetInfo.newBuilder(datasetId)
                     .setLabels(ImmutableMap.copyOf(ImmutableSet.of(BIG_QUERY_SQL_EXECUTOR_LABEL)))
                     .build();
             bigQuery.create(dataset);
         }
 
         public void dropDatasetIfExists(String dataset)
+        {
+            dropDatasetIfExists(DatasetId.of(dataset));
+        }
+
+        public void dropDatasetIfExists(DatasetId dataset)
         {
             bigQuery.delete(dataset, deleteContents());
         }

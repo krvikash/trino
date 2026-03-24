@@ -24,6 +24,8 @@ import static io.airlift.configuration.testing.ConfigAssertions.assertFullMappin
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 import static io.airlift.testing.ValidationAssertions.assertFailsValidation;
+import static io.trino.plugin.bigquery.BigQueryAuthenticationType.DYNAMIC_CONNECTION;
+import static io.trino.plugin.bigquery.BigQueryAuthenticationType.STATIC_CREDENTIALS;
 import static io.trino.plugin.bigquery.BigQueryWriteStreamType.COMMITTED;
 import static io.trino.plugin.bigquery.BigQueryWriteStreamType.PENDING;
 import static java.util.concurrent.TimeUnit.DAYS;
@@ -61,7 +63,8 @@ public class TestBigQueryConfig
                 .setProjectionPushdownEnabled(true)
                 .setMetadataParallelism(Runtime.getRuntime().availableProcessors())
                 .setMaxParallelism(null)
-                .setWriteStreamType(PENDING));
+                .setWriteStreamType(PENDING)
+                .setAuthenticationType(STATIC_CREDENTIALS));
     }
 
     @Test
@@ -93,6 +96,7 @@ public class TestBigQueryConfig
                 .put("bigquery.max-parallelism", "100")
                 .put("bigquery.projection-pushdown-enabled", "false")
                 .put("bigquery.write-stream-type", "COMMITTED")
+                .put("bigquery.authentication.type", "DYNAMIC_CONNECTION")
                 .buildOrThrow();
 
         BigQueryConfig expected = new BigQueryConfig()
@@ -120,7 +124,8 @@ public class TestBigQueryConfig
                 .setProjectionPushdownEnabled(false)
                 .setMetadataParallelism(31)
                 .setMaxParallelism(100)
-                .setWriteStreamType(COMMITTED);
+                .setWriteStreamType(COMMITTED)
+                .setAuthenticationType(DYNAMIC_CONNECTION);
 
         assertFullMapping(properties, expected);
     }

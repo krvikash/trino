@@ -28,13 +28,13 @@ import static io.trino.tpch.TpchTable.NATION;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 
-class TestBigQueryParentProjectId
+public class TestBigQueryParentProjectId
         extends AbstractTestQueryFramework
 {
-    private final String projectId;
-    private final String parentProjectId;
+    protected final String projectId;
+    protected final String parentProjectId;
 
-    TestBigQueryParentProjectId()
+    public TestBigQueryParentProjectId()
     {
         projectId = requiredNonEmptySystemProperty("testing.bigquery-project-id");
         parentProjectId = requiredNonEmptySystemProperty("testing.bigquery-parent-project-id");

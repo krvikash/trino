@@ -554,6 +554,8 @@
                                 <exclude>**/TestBigQueryWithProxyTest.java</exclude>
                                 <exclude>**/TestBigQueryParentProjectId.java</exclude>
                                 <exclude>**/TestBigQueryWithBothProjectIdsSet.java</exclude>
+                                <exclude>**/TestBigQueryDynamicConnectionConnectorSmokeTest.java</exclude>
+                                <exclude>**/TestBigQueryDynamicConnectionParentProjectId.java</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
@@ -580,6 +582,8 @@
                                 <include>**/TestBigQueryCaseInsensitiveMappingWithCache.java</include>
                                 <include>**/TestBigQueryCaseInsensitiveMappingCacheFlush.java</include>
                                 <include>**/TestBigQueryCaseInsensitiveMappingInstanceCleaner.java</include>
+                                <include>**/TestBigQueryDynamicConnectionConnectorSmokeTest.java</include>
+                                <include>**/TestBigQueryDynamicConnectionParentProjectId.java</include>
                             </includes>
                         </configuration>
                     </plugin>

@@ -30,10 +30,15 @@ import io.trino.plugin.base.cache.identity.SingletonIdentityCacheMapping;
 import io.trino.plugin.base.logging.FormatInterpolator;
 import io.trino.plugin.base.logging.SessionInterpolatedValues;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
+import io.trino.plugin.bigquery.dynamic.BigQueryDynamicConnectionBasedIdentityCacheMapping;
+import io.trino.plugin.bigquery.dynamic.BigQueryDynamicConnectionPassthroughConfig;
+import io.trino.plugin.bigquery.dynamic.BigQueryDynamicCredentialsProvider;
+import io.trino.plugin.bigquery.dynamic.BigQueryDynamicProjectInfoProvider;
 import io.trino.plugin.bigquery.procedure.ExecuteProcedure;
 import io.trino.plugin.bigquery.procedure.FlushMetadataCacheProcedure;
 import io.trino.plugin.bigquery.ptf.Query;
 import io.trino.spi.Node;
+import io.trino.spi.TrinoException;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.procedure.Procedure;
@@ -48,6 +53,8 @@ import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.plugin.base.JdkCompatibilityChecks.verifyConnectorAccessOpened;
 import static io.trino.plugin.base.JdkCompatibilityChecks.verifyConnectorUnsafeAllowed;
+import static io.trino.plugin.bigquery.BigQueryAuthenticationType.DYNAMIC_CONNECTION;
+import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
 import static java.util.concurrent.Executors.newCachedThreadPool;
 import static java.util.concurrent.Executors.newFixedThreadPool;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
@@ -60,6 +67,9 @@ public class BigQueryConnectorModule
     {
         install(new ClientModule());
         install(new StaticCredentialsModule());
+        if (buildConfigObject(BigQueryConfig.class).getAuthenticationType() == DYNAMIC_CONNECTION) {
+            install(new DynamicConnectionPassthroughModule());
+        }
     }
 
     public static class ClientModule
@@ -176,6 +186,64 @@ public class BigQueryConnectorModule
                         .to(StaticBigQueryCredentialsSupplier.class)
                         .in(Scopes.SINGLETON);
             }
+        }
+    }
+
+    public static class DynamicConnectionPassthroughModule
+            extends AbstractConfigurationAwareModule
+    {
+        @Override
+        protected void setup(Binder binder)
+        {
+            BigQueryConfig bigQueryConfig = buildConfigObject(BigQueryConfig.class);
+            if (bigQueryConfig.isProxyEnabled()) {
+                configurationError(binder, "bigquery.rpc-proxy.enabled");
+            }
+            if (bigQueryConfig.getProjectId().isPresent()) {
+                configurationError(binder, "bigquery.project-id");
+            }
+            if (bigQueryConfig.getParentProjectId().isPresent()) {
+                configurationError(binder, "bigquery.parent-project-id");
+            }
+            if (bigQueryConfig.getViewMaterializationProject().isPresent()) {
+                configurationError(binder, "bigquery.view-materialization-project");
+            }
+            if (bigQueryConfig.getViewMaterializationDataset().isPresent()) {
+                configurationError(binder, "bigquery.view-materialization-dataset");
+            }
+
+            StaticCredentialsConfig staticCredentialsConfig = buildConfigObject(StaticCredentialsConfig.class);
+            if (staticCredentialsConfig.getCredentialsKey().isPresent()) {
+                configurationError(binder, "bigquery.credentials-key");
+            }
+            if (staticCredentialsConfig.getCredentialsFile().isPresent()) {
+                configurationError(binder, "bigquery.credentials-file");
+            }
+
+            newOptionalBinder(binder, IdentityCacheMapping.class)
+                    .setBinding()
+                    .to(BigQueryDynamicConnectionBasedIdentityCacheMapping.class)
+                    .in(Scopes.SINGLETON);
+
+            newOptionalBinder(binder, BigQueryProjectInfoProvider.class)
+                    .setBinding()
+                    .to(BigQueryDynamicProjectInfoProvider.class)
+                    .in(Scopes.SINGLETON);
+
+            configBinder(binder).bindConfig(BigQueryDynamicConnectionPassthroughConfig.class);
+
+            newOptionalBinder(binder, BigQueryCredentialsSupplier.class)
+                    .setBinding()
+                    .to(BigQueryDynamicCredentialsProvider.class)
+                    .in(Scopes.SINGLETON);
+        }
+
+        private void configurationError(Binder binder, String propertyName)
+        {
+            binder.addError(
+                    new TrinoException(
+                            CONFIGURATION_INVALID,
+                            "'%s' should not be set when 'bigquery.authentication.type' is set to '%s'".formatted(propertyName, DYNAMIC_CONNECTION)));
         }
     }
 

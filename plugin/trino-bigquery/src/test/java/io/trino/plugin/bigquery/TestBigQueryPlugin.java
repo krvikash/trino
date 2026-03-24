@@ -40,4 +40,25 @@ public class TestBigQueryPlugin
                         new TestingConnectorContext())
                 .shutdown();
     }
+
+    @Test
+    public void testCreateConnectorWithDynamicConnection()
+    {
+        BigQueryPlugin plugin = new BigQueryPlugin();
+        ConnectorFactory factory = getOnlyElement(plugin.getConnectorFactories());
+        assertThat(factory).isInstanceOf(BigQueryConnectorFactory.class);
+
+        factory.create(
+                        "test",
+                        Map.of(
+                                "bootstrap.quiet", "true",
+                                "bigquery.authentication.type", "DYNAMIC_CONNECTION",
+                                "bigquery.project-id.credential-name", "project_id",
+                                "bigquery.parent-project-id.credential-name", "parent_project_id",
+                                "bigquery.credentials-key.credential-name", "credentials_key",
+                                "bigquery.view-materialization-project.credential-name", "view_materialization_project",
+                                "bigquery.view-materialization-dataset.credential-name", "view_materialization_dataset"),
+                        new TestingConnectorContext())
+                .shutdown();
+    }
 }
