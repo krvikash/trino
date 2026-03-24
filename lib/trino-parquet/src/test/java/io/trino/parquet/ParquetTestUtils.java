@@ -220,21 +220,6 @@ public class ParquetTestUtils
         return pagesBuilder.build();
     }
 
-    public static List<io.trino.spi.Page> generateInputPagesSequential(List<Type> types, int positionsPerPage, int pageCount)
-    {
-        ImmutableList.Builder<io.trino.spi.Page> pagesBuilder = ImmutableList.builder();
-        int baseIndex = 0;
-        for (int i = 0; i < pageCount; i++) {
-            int finalBaseIndex = baseIndex;
-            List<Block> blocks = types.stream()
-                    .map(type -> generateBlock(type, finalBaseIndex, positionsPerPage))
-                    .collect(toImmutableList());
-            baseIndex += positionsPerPage;
-            pagesBuilder.add(new Page(blocks.toArray(Block[]::new)));
-        }
-        return pagesBuilder.build();
-    }
-
     public static List<Integer> generateGroupSizes(int positionsCount)
     {
         int maxGroupSize = 17;
