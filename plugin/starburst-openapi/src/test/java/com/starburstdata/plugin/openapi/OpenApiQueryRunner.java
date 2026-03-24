@@ -18,7 +18,6 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import io.airlift.log.Level;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
-import io.trino.plugin.memory.MemoryPlugin;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 
@@ -76,9 +75,6 @@ public final class OpenApiQueryRunner
                             connectorProperties.containsKey("openapi.base-uri"),
                     "connectorProperties must include spec-location and base-uri");
             try {
-                queryRunner.installPlugin(new MemoryPlugin());
-                queryRunner.createCatalog("memory", "memory");
-
                 queryRunner.installPlugin(new OpenApiPlugin());
                 queryRunner.createCatalog("openapi", "openapi", connectorProperties);
 
