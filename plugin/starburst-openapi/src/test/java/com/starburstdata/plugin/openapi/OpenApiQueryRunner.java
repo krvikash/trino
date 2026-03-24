@@ -27,6 +27,7 @@ import java.util.Map;
 import static com.google.common.base.Verify.verify;
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.trino.testing.TestingSession.testSessionBuilder;
+import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;
 
 public final class OpenApiQueryRunner
@@ -90,12 +91,17 @@ public final class OpenApiQueryRunner
     static void main()
             throws Exception
     {
-        FastApiServer fastApiServer = new FastApiServer();
+        StaticJavaServer server = new StaticJavaServer();
+        server.start();
+        String specificationLocation = requireNonNull(
+                OpenApiQueryRunner.class.getClassLoader().getResource("java_server/static.3.0.4.json"),
+                "Expected java_server/static specification was present")
+                .getFile();
         QueryRunner queryRunner = builder()
                 .addConnectorProperties(ImmutableMap.<String, String>builder()
                         .put("openapi.http-client.log.enabled", "true")
-                        .put("openapi.spec-location", fastApiServer.getSpecUrl())
-                        .put("openapi.base-uri", fastApiServer.getApiUrl())
+                        .put("openapi.spec-location", specificationLocation)
+                        .put("openapi.base-uri", server.getBaseUri().toString())
                         .buildOrThrow())
                 .addCoordinatorProperty("http-server.http.port", "8080")
                 .build();

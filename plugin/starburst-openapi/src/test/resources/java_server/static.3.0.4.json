@@ -1,0 +1,20 @@
+{
+    "openapi": "3.0.4",
+    "info": {
+        "title": "StaticJavaServer.java API",
+        "version": 1.0,
+        "description": "Specification describing endpoints returning static data."
+    },
+    "paths": {
+        "/static/boolean": {
+            "get": {
+                "responses": { "200": {
+                    "description": "Returns just a boolean value.",
+                    "content": { "application/json": {
+                        "schema": { "type": "boolean" }
+                    }}
+                }}
+            }
+        }
+    }
+}
