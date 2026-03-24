@@ -38,7 +38,7 @@ public class DispatcherCacheMetadata
 {
     private final ConnectorCacheMetadata proxiedConnectorCacheMetadata;
     private final DispatcherTableHandleBuilderProvider dispatcherTableHandleBuilderProvider;
-    public final int predicateThreashold;
+    public final int predicateThreshold;
     private final ObjectMapper objectMapper;
     private final ShapingLogger shapingLogger;
 
@@ -52,7 +52,7 @@ public class DispatcherCacheMetadata
     {
         this.proxiedConnectorCacheMetadata = requireNonNull(proxiedConnectorCacheMetadata);
         this.dispatcherTableHandleBuilderProvider = requireNonNull(dispatcherTableHandleBuilderProvider);
-        predicateThreashold = requireNonNull(globalConfig).getPredicateSimplifyThreshold();
+        predicateThreshold = requireNonNull(globalConfig).getPredicateSimplifyThreshold();
         objectMapper = requireNonNull(objectMapperProvider).get();
         shapingLogger = requireNonNull(shapingLoggerFactory).getInstance(DispatcherCacheMetadata.class);
     }
@@ -94,7 +94,7 @@ public class DispatcherCacheMetadata
         ConnectorTableHandle newProxiedConnectorTableHandle = proxiedConnectorCacheMetadata
                 .getCanonicalTableHandle(dispatcherTableHandle.getProxyConnectorTableHandle());
         return dispatcherTableHandleBuilderProvider
-                .builder(dispatcherTableHandle, predicateThreashold)
+                .builder(dispatcherTableHandle, predicateThreshold)
                 .warpExpression(Optional.empty())
                 .fullPredicate(TupleDomain.all())
                 .proxiedConnectorTableHandle(newProxiedConnectorTableHandle)
