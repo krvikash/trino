@@ -17,6 +17,8 @@ import io.airlift.slice.Slice;
 import io.airlift.slice.XxHash64;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.DefaultPreSizedBlockBuilder;
+import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.function.BlockIndex;
@@ -108,6 +110,18 @@ public class NumberType
     }
 
     @Override
+    public PreSizedBlockBuilder createPreSizedBlockBuilder(int positionCount)
+    {
+        return new DefaultPreSizedBlockBuilder(createBlockBuilder(null, positionCount));
+    }
+
+    @Override
+    public boolean supportsPreSizedBlockBuilder()
+    {
+        return true;
+    }
+
+    @Override
     public TypeOperatorDeclaration getTypeOperatorDeclaration(TypeOperators typeOperators)
     {
         return TYPE_OPERATOR_DECLARATION;
@@ -136,6 +150,12 @@ public class NumberType
     {
         TrinoNumber number = (TrinoNumber) value;
         ((VariableWidthBlockBuilder) blockBuilder).writeEntry(number.bytes());
+    }
+
+    @Override
+    public void writeObject(PreSizedBlockBuilder blockBuilder, Object value)
+    {
+        writeObject(((DefaultPreSizedBlockBuilder) blockBuilder).getBlockBuilder(), value);
     }
 
     @Override
