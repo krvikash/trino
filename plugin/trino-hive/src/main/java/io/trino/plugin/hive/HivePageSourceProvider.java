@@ -241,6 +241,7 @@ public class HivePageSourceProvider
             ConnectorSession session,
             ConnectorSplit split,
             ConnectorTableHandle tableHandle,
+            Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter)
     {

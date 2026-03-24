@@ -24,6 +24,7 @@ import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
+import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
@@ -36,6 +37,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiPredicate;
@@ -84,6 +86,7 @@ public class MockPlanAlternativeChooser
                 ConnectorSession session,
                 ConnectorSplit split,
                 ConnectorTableHandle table,
+                Optional<ConnectorTableCredentials> tableCredentials,
                 List<ColumnHandle> columns,
                 DynamicFilter dynamicFilter)
         {
@@ -100,11 +103,11 @@ public class MockPlanAlternativeChooser
                             .add(handle.filterColumn())
                             .build();
                 }
-                ConnectorPageSource pageSource = delegate.createPageSource(transaction, session, unwrappedSplit, handle.delegate(), columns, dynamicFilter);
+                ConnectorPageSource pageSource = delegate.createPageSource(transaction, session, unwrappedSplit, handle.delegate(), tableCredentials, columns, dynamicFilter);
                 return new PlanAlternativePageSource(pageSource, handle.filterDefinition().asPredicate(session), filterColumnIndex, returnFilterColumn);
             }
             log.debug("NOT filtering table %s, split %s by mock plan alternative connector. df: %s", table, split, dynamicFilter.getCurrentPredicate());
-            return delegate.createPageSource(transaction, session, unwrappedSplit, table, columns, dynamicFilter);
+            return delegate.createPageSource(transaction, session, unwrappedSplit, table, tableCredentials, columns, dynamicFilter);
         }
     }
 
