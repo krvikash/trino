@@ -639,6 +639,37 @@ public class BigQueryMetadata
     }
 
     @Override
+    public void renameTable(ConnectorSession session, ConnectorTableHandle handle, SchemaTableName newTableName)
+    {
+        BigQueryTableHandle tableHandle = ((BigQueryTableHandle) handle);
+        checkArgument(tableHandle.isNamedRelation(), "Unable to rename synthetic table: %s", tableHandle);
+
+        BigQueryClient client = bigQueryClientFactory.create(session);
+
+        RemoteTableName remoteTableName = tableHandle.asPlainTable().getRemoteTableName();
+        if (isWildcardTable(TableDefinition.Type.valueOf(tableHandle.asPlainTable().getType()), remoteTableName.tableName())) {
+            throw new TrinoException(BIGQUERY_UNSUPPORTED_OPERATION, "This connector does not support renaming wildcard tables");
+        }
+
+        String newRemoteSchemaName = getRemoteSchemaName(client, remoteTableName.projectId(), newTableName.getSchemaName());
+        if (!remoteTableName.datasetName().equals(newRemoteSchemaName)) {
+            throw new TrinoException(NOT_SUPPORTED, "This connector does not support renaming tables across schemas");
+        }
+
+        String sql = format(
+                "ALTER TABLE %s.%s.%s RENAME TO %s",
+                quote(remoteTableName.projectId()),
+                quote(remoteTableName.datasetName()),
+                quote(remoteTableName.tableName()),
+                quote(newTableName.getTableName()));
+        client.executeUpdate(session, QueryJobConfiguration.newBuilder(sql)
+                .setQuery(sql)
+                .build());
+
+        client.invalidateTableNameCache(TableId.of(remoteTableName.projectId(), remoteTableName.datasetName(), remoteTableName.tableName()));
+    }
+
+    @Override
     public void dropTable(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         BigQueryClient client = bigQueryClientFactory.create(session);

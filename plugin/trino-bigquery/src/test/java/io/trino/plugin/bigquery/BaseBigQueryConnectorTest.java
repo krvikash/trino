@@ -112,7 +112,7 @@ public abstract class BaseBigQueryConnectorTest
                     SUPPORTS_NOT_NULL_CONSTRAINT,
                     SUPPORTS_RENAME_COLUMN,
                     SUPPORTS_RENAME_SCHEMA,
-                    SUPPORTS_RENAME_TABLE,
+                    SUPPORTS_RENAME_TABLE_ACROSS_SCHEMAS,
                     SUPPORTS_SET_COLUMN_TYPE,
                     SUPPORTS_TOPN_PUSHDOWN,
                     SUPPORTS_UPDATE -> false;
@@ -972,7 +972,7 @@ public abstract class BaseBigQueryConnectorTest
             assertQueryFails("DROP TABLE test.\"" + wildcardTable + "\"", "This connector does not support dropping wildcard tables");
             assertQueryFails("INSERT INTO test.\"" + wildcardTable + "\" VALUES (1)", "This connector does not support inserting into wildcard tables");
             assertQueryFails("ALTER TABLE test.\"" + wildcardTable + "\" ADD COLUMN new_column INT", "This connector does not support adding columns");
-            assertQueryFails("ALTER TABLE test.\"" + wildcardTable + "\" RENAME TO test.new_wildcard_table", "This connector does not support renaming tables");
+            assertQueryFails("ALTER TABLE test.\"" + wildcardTable + "\" RENAME TO test.new_wildcard_table", "This connector does not support renaming wildcard tables");
         }
         finally {
             onBigQuery("DROP TABLE IF EXISTS test." + firstTable);

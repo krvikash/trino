@@ -465,6 +465,11 @@ public class BigQueryClient
         remoteTableCaseInsensitiveCache.invalidate(tableIdToLowerCase(tableId));
     }
 
+    public void invalidateTableNameCache(TableId tableId)
+    {
+        remoteTableCaseInsensitiveCache.invalidate(tableIdToLowerCase(tableId));
+    }
+
     Job create(JobInfo jobInfo)
     {
         return bigQuery.create(jobInfo);

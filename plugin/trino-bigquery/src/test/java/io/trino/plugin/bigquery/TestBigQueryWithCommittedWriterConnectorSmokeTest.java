@@ -44,7 +44,7 @@ public class TestBigQueryWithCommittedWriterConnectorSmokeTest
                  SUPPORTS_CREATE_VIEW,
                  SUPPORTS_MERGE,
                  SUPPORTS_RENAME_SCHEMA,
-                 SUPPORTS_RENAME_TABLE,
+                 SUPPORTS_RENAME_TABLE_ACROSS_SCHEMAS,
                  SUPPORTS_UPDATE -> false;
             default -> super.hasBehavior(connectorBehavior);
         };
