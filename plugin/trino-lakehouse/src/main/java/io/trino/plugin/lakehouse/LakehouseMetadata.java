@@ -1036,6 +1036,12 @@ public class LakehouseMetadata
         return forHandle(tableHandle).applyPartialTopN(session, tableHandle, sortProperties, count);
     }
 
+    @Override
+    public boolean useRemoteSplitsGeneration(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        return forHandle(tableHandle).useRemoteSplitsGeneration(session, tableHandle);
+    }
+
     private ConnectorMetadata forHandle(ConnectorTableHandle handle)
     {
         return switch (handle) {

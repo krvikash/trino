@@ -466,6 +466,23 @@ public class DispatcherMetadataTest
         assertThat(dispatcherTableHandle1.getLimit()).isEqualTo(OptionalLong.of(1));
     }
 
+    @Test
+    public void testRemoteSplitsGeneration()
+    {
+        DispatcherTableHandle tableHandle = createDispatcherTableHandle();
+        ConnectorMetadata hiveMetadata = mockHiveMetadata();
+        when(hiveMetadata.useRemoteSplitsGeneration(session, tableHandle.getProxyConnectorTableHandle())).thenReturn(true);
+        DispatcherMetadata dispatcherMetadata = new DispatcherMetadata(
+                hiveMetadata,
+                expressionService,
+                dispatcherStatisticsProvider,
+                dispatcherTableHandleBuilderProvider,
+                globalConfig,
+                shapingLoggerFactory);
+
+        assertThat(dispatcherMetadata.useRemoteSplitsGeneration(session, tableHandle)).isTrue();
+    }
+
     private DispatcherTableHandle createDispatcherTableHandle()
     {
         return new DispatcherTableHandle(

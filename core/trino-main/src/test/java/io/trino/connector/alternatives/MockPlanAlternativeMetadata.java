@@ -1162,6 +1162,12 @@ public class MockPlanAlternativeMetadata
         return delegate.getTableCredentials(session, tableFunctionHandle);
     }
 
+    @Override
+    public boolean useRemoteSplitsGeneration(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        return delegate.useRemoteSplitsGeneration(session, getDelegate(tableHandle));
+    }
+
     private ConnectorTableHandle getDelegate(ConnectorTableHandle tableHandle)
     {
         return tableHandle instanceof MockPlanAlternativeTableHandle handle ? handle.delegate() : tableHandle;

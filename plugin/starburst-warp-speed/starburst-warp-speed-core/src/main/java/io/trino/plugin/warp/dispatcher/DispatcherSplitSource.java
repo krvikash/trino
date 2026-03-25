@@ -99,4 +99,10 @@ public class DispatcherSplitSource
     {
         return proxiedConnectorSplitSource.isFinished();
     }
+
+    @Override
+    public long getMemoryUsage()
+    {
+        return proxiedConnectorSplitSource.getMemoryUsage();
+    }
 }

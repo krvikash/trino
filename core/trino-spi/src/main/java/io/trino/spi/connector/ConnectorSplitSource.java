@@ -96,4 +96,19 @@ public interface ConnectorSplitSource
     {
         return Metrics.EMPTY;
     }
+
+    /**
+     * Returns an estimate of the memory retained by this split source on the current node, in bytes.
+     * <p>
+     * When split enumeration runs on a worker, the engine polls this value and accounts it against
+     * the query's memory reservation, so enumeration state that does not fit in memory fails the
+     * query gracefully instead of exhausting the node. The engine may read it before the first
+     * {@link #getNextBatch} call, so connectors should report state they are about to retain, not
+     * only what is already allocated. The estimate must be cheap to produce; an approximation
+     * modeled from metadata already in memory is preferred over measuring live data structures.
+     */
+    default long getMemoryUsage()
+    {
+        return 0;
+    }
 }

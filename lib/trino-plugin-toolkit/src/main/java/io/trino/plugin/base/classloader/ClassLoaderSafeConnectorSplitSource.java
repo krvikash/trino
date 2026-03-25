@@ -80,6 +80,14 @@ public class ClassLoaderSafeConnectorSplitSource
     }
 
     @Override
+    public long getMemoryUsage()
+    {
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
+            return delegate.getMemoryUsage();
+        }
+    }
+
+    @Override
     public Metrics getMetrics()
     {
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {

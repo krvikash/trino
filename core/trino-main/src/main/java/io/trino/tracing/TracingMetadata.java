@@ -1818,6 +1818,15 @@ public class TracingMetadata
         }
     }
 
+    @Override
+    public boolean useRemoteSplitsGeneration(Session session, TableHandle tableHandle)
+    {
+        Span span = startSpan("useRemoteSplitsGeneration", tableHandle);
+        try (var _ = scopedSpan(span)) {
+            return delegate.useRemoteSplitsGeneration(session, tableHandle);
+        }
+    }
+
     private Span startSpan(String methodName)
     {
         return tracer.spanBuilder("Metadata." + methodName)

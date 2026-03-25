@@ -1068,6 +1068,14 @@ public class DispatcherMetadata
         return proxiedConnectorMetadata.getTableCredentials(session, tableFunctionHandle);
     }
 
+    @Override
+    public boolean useRemoteSplitsGeneration(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        return proxiedConnectorMetadata.useRemoteSplitsGeneration(
+                session,
+                ((DispatcherTableHandle) tableHandle).getProxyConnectorTableHandle());
+    }
+
     private static Metrics mergeMetrics(Metrics metrics, Map<String, Long> planningCounters)
     {
         Map<String, Metric<?>> counters = planningCounters.entrySet().stream()

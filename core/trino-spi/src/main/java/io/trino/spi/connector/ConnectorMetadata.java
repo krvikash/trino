@@ -1958,4 +1958,19 @@ public interface ConnectorMetadata
     {
         return Optional.empty();
     }
+
+    /**
+     * Returns whether the connector wants to use remote splits generation for the specified table.
+     * <p>
+     * The engine calls this method during stage scheduling, before split enumeration begins for
+     * a table scan, to determine whether split enumeration for the table should be delegated to
+     * a remote splits task rather than performed locally on the coordinator. It may be invoked
+     * more than once per query.
+     * Return {@code true} if the connector supports and wants remote splits generation for this table;
+     * return {@code false} (the default) to use the standard local split enumeration path.
+     */
+    default boolean useRemoteSplitsGeneration(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        return false;
+    }
 }
