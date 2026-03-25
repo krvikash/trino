@@ -43,6 +43,9 @@ public final class OrcTypeConverter
     public static final String ORC_ICEBERG_REQUIRED_KEY = "iceberg.required";
     public static final String ICEBERG_LONG_TYPE = "iceberg.long-type";
     public static final String ICEBERG_BINARY_TYPE = "iceberg.binary-type";
+    public static final String ICEBERG_TIMESTAMP_UNIT = "iceberg.timestamp-unit";
+    public static final String ICEBERG_TIMESTAMP_UNIT_MICROS = "MICROS";
+    public static final String ICEBERG_TIMESTAMP_UNIT_NANOS = "NANOS";
 
     private OrcTypeConverter() {}
 
@@ -69,14 +72,19 @@ public final class OrcTypeConverter
             }
             case TIMESTAMP -> {
                 OrcTypeKind timestampKind = ((TimestampType) type).shouldAdjustToUTC() ? OrcTypeKind.TIMESTAMP_INSTANT : OrcTypeKind.TIMESTAMP;
+                attributes = ImmutableMap.<String, String>builder()
+                        .putAll(attributes)
+                        .put(ICEBERG_TIMESTAMP_UNIT, ICEBERG_TIMESTAMP_UNIT_MICROS)
+                        .buildOrThrow();
                 yield ImmutableList.of(new OrcType(timestampKind, ImmutableList.of(), ImmutableList.of(), Optional.empty(), Optional.empty(), Optional.empty(), attributes));
             }
             case TIMESTAMP_NANO -> {
                 OrcTypeKind timestampKind = ((TimestampNanoType) type).shouldAdjustToUTC() ? OrcTypeKind.TIMESTAMP_INSTANT : OrcTypeKind.TIMESTAMP;
-                ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
-                builder.putAll(attributes);
-                builder.put("iceberg.timestamp-unit", "NANOS");
-                yield ImmutableList.of(new OrcType(timestampKind, ImmutableList.of(), ImmutableList.of(), Optional.empty(), Optional.empty(), Optional.empty(), builder.buildOrThrow()));
+                attributes = ImmutableMap.<String, String>builder()
+                        .putAll(attributes)
+                        .put(ICEBERG_TIMESTAMP_UNIT, ICEBERG_TIMESTAMP_UNIT_NANOS)
+                        .buildOrThrow();
+                yield ImmutableList.of(new OrcType(timestampKind, ImmutableList.of(), ImmutableList.of(), Optional.empty(), Optional.empty(), Optional.empty(), attributes));
             }
             case STRING -> ImmutableList.of(new OrcType(OrcTypeKind.STRING, ImmutableList.of(), ImmutableList.of(), Optional.empty(), Optional.empty(), Optional.empty(), attributes));
             case FIXED, BINARY -> ImmutableList.of(new OrcType(OrcTypeKind.BINARY, ImmutableList.of(), ImmutableList.of(), Optional.empty(), Optional.empty(), Optional.empty(), attributes));

@@ -61,8 +61,6 @@ import static java.lang.Math.multiplyExact;
 import static java.lang.Math.toIntExact;
 import static java.math.RoundingMode.UNNECESSARY;
 import static java.util.Objects.requireNonNull;
-import static org.apache.iceberg.util.DateTimeUtil.nanosToIsoTimestamp;
-import static org.apache.iceberg.util.DateTimeUtil.nanosToIsoTimestamptz;
 
 public final class IcebergTypes
 {
@@ -70,8 +68,8 @@ public final class IcebergTypes
 
     /**
      * Convert value from Trino representation to Iceberg representation.
-     * <p>
-     * Note: This accepts a Trino type because, currently, no two Iceberg types translate to one Trino type.
+     * Returns raw Java values suitable for Iceberg's Conversions.toByteBuffer().
+     * For nano timestamps, this will throw TrinoException if the value is outside the supported range.
      */
     public static Object convertTrinoValueToIceberg(io.trino.spi.type.Type type, Object trinoNativeValue)
     {
@@ -120,18 +118,18 @@ public final class IcebergTypes
             return (long) trinoNativeValue;
         }
 
-        if (type.equals(TIMESTAMP_NANOS)) {
-            long nanos = timestampToNanos((LongTimestamp) trinoNativeValue);
-            return nanosToIsoTimestamp(nanos);
-        }
-
         if (type.equals(TIMESTAMP_TZ_MICROS)) {
             return timestampTzToMicros((LongTimestampWithTimeZone) trinoNativeValue);
         }
 
+        if (type.equals(TIMESTAMP_NANOS)) {
+            // Will throw TrinoException if out of range
+            return timestampToNanos((LongTimestamp) trinoNativeValue);
+        }
+
         if (type.equals(TIMESTAMP_TZ_NANOS)) {
-            long nanos = timestampTzToNanos((LongTimestampWithTimeZone) trinoNativeValue);
-            return nanosToIsoTimestamptz(nanos);
+            // Will throw TrinoException if out of range
+            return timestampTzToNanos((LongTimestampWithTimeZone) trinoNativeValue);
         }
 
         if (type instanceof VarcharType) {

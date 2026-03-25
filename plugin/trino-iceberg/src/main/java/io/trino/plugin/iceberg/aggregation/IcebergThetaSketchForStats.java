@@ -48,8 +48,6 @@ import static io.trino.plugin.iceberg.TypeConverter.toIcebergTypeForNewColumn;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
-import static org.apache.iceberg.util.DateTimeUtil.isoTimestampToNanos;
-import static org.apache.iceberg.util.DateTimeUtil.isoTimestamptzToNanos;
 
 @AggregationFunction(value = IcebergThetaSketchForStats.NAME, hidden = true)
 public final class IcebergThetaSketchForStats
@@ -98,14 +96,6 @@ public final class IcebergThetaSketchForStats
         if (type.equals(Types.VariantType.get())) {
             String bytes = (String) value;
             return ByteBuffer.wrap(bytes.getBytes(UTF_8));
-        }
-        if (type.equals(Types.TimestampNanoType.withoutZone())) {
-            long nanos = isoTimestampToNanos((String) value);
-            return Conversions.toByteBuffer(type, nanos);
-        }
-        if (type.equals(Types.TimestampNanoType.withZone())) {
-            long nanos = isoTimestamptzToNanos((String) value);
-            return Conversions.toByteBuffer(type, nanos);
         }
         return Conversions.toByteBuffer(type, value);
     }

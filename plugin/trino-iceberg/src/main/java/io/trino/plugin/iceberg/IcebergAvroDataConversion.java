@@ -30,6 +30,7 @@ import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Decimals;
 import io.trino.spi.type.Int128;
 import io.trino.spi.type.LongTimestamp;
+import io.trino.spi.type.LongTimestampWithTimeZone;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
@@ -61,8 +62,7 @@ import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.trino.plugin.iceberg.util.Timestamps.getTimestampTz;
-import static io.trino.plugin.iceberg.util.Timestamps.getTimestampTzNanos;
+import static io.trino.plugin.iceberg.util.Timestamps.getTimestampTzMicros;
 import static io.trino.plugin.iceberg.util.Timestamps.timestampToNanos;
 import static io.trino.plugin.iceberg.util.Timestamps.timestampTzFromMicros;
 import static io.trino.plugin.iceberg.util.Timestamps.timestampTzFromNanos;
@@ -198,17 +198,18 @@ public final class IcebergAvroDataConversion
             long epochMicros = TIMESTAMP_MICROS.getLong(block, position);
             return timestampFromMicros(epochMicros);
         }
-        if (type.equals(TIMESTAMP_NANOS)) {
-            LongTimestamp longTimestamp = (LongTimestamp) TIMESTAMP_NANOS.getObject(block, position);
-            long epochNanos = timestampToNanos(longTimestamp);
-            return timestampFromNanos(epochNanos);
-        }
         if (type.equals(TIMESTAMP_TZ_MICROS)) {
-            long epochUtcMicros = timestampTzToMicros(getTimestampTz(block, position));
+            long epochUtcMicros = timestampTzToMicros(getTimestampTzMicros(block, position));
             return timestamptzFromMicros(epochUtcMicros);
         }
+        if (type.equals(TIMESTAMP_NANOS)) {
+            LongTimestamp timestamp = (LongTimestamp) TIMESTAMP_NANOS.getObject(block, position);
+            long epochNanos = timestampToNanos(timestamp);
+            return timestampFromNanos(epochNanos);
+        }
         if (type.equals(TIMESTAMP_TZ_NANOS)) {
-            long epochUtcNanos = timestampTzToNanos(getTimestampTzNanos(block, position));
+            LongTimestampWithTimeZone timestamp = (LongTimestampWithTimeZone) TIMESTAMP_TZ_NANOS.getObject(block, position);
+            long epochUtcNanos = timestampTzToNanos(timestamp);
             return timestamptzFromNanos(epochUtcNanos);
         }
         if (type.equals(UUID)) {
@@ -328,15 +329,14 @@ public final class IcebergAvroDataConversion
             type.writeLong(builder, epochMicros);
             return;
         }
-        if (type.equals(TIMESTAMP_NANOS)) {
-            long epochNanos = nanosFromTimestamp((LocalDateTime) object);
-            LongTimestamp timestamp = Timestamps.timestampFromNanos(epochNanos);
-            type.writeObject(builder, timestamp);
-            return;
-        }
         if (type.equals(TIMESTAMP_TZ_MICROS)) {
             long epochUtcMicros = microsFromTimestamptz((OffsetDateTime) object);
             type.writeObject(builder, timestampTzFromMicros(epochUtcMicros));
+            return;
+        }
+        if (type.equals(TIMESTAMP_NANOS)) {
+            long epochNanos = nanosFromTimestamp((LocalDateTime) object);
+            type.writeObject(builder, Timestamps.timestampFromNanos(epochNanos));
             return;
         }
         if (type.equals(TIMESTAMP_TZ_NANOS)) {

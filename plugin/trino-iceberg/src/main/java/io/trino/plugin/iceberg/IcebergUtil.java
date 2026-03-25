@@ -774,11 +774,11 @@ public final class IcebergUtil
             if (type.equals(TIMESTAMP_MICROS)) {
                 return parseLong(valueString);
             }
-            if (type.equals(TIMESTAMP_NANOS)) {
-                return timestampFromNanos(parseLong(valueString));
-            }
             if (type.equals(TIMESTAMP_TZ_MICROS)) {
                 return timestampTzFromMicros(parseLong(valueString));
+            }
+            if (type.equals(TIMESTAMP_NANOS)) {
+                return timestampFromNanos(parseLong(valueString));
             }
             if (type.equals(TIMESTAMP_TZ_NANOS)) {
                 return timestampTzFromNanos(parseLong(valueString));

@@ -68,7 +68,7 @@ import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_TOO_MANY_OPEN_PAR
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isSortedWritingEnabled;
 import static io.trino.plugin.iceberg.IcebergUtil.getTopLevelColumns;
 import static io.trino.plugin.iceberg.PartitionTransforms.getColumnTransform;
-import static io.trino.plugin.iceberg.util.Timestamps.getTimestampTz;
+import static io.trino.plugin.iceberg.util.Timestamps.getTimestampTzMicros;
 import static io.trino.plugin.iceberg.util.Timestamps.getTimestampTzNanos;
 import static io.trino.plugin.iceberg.util.Timestamps.timestampToNanos;
 import static io.trino.plugin.iceberg.util.Timestamps.timestampTzToMicros;
@@ -96,9 +96,6 @@ import static java.util.Objects.requireNonNull;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.iceberg.FileContent.DATA;
-import static org.apache.iceberg.util.DateTimeUtil.isoTimestampToNanos;
-import static org.apache.iceberg.util.DateTimeUtil.isoTimestamptzToNanos;
-import static org.apache.iceberg.util.DateTimeUtil.nanosToIsoTimestamp;
 
 public class IcebergPageSink
         implements ConnectorPageSink
@@ -475,11 +472,6 @@ public class IcebergPageSink
             Type type = column.sourceType();
             org.apache.iceberg.types.Type icebergType = outputSchema.findType(column.field().sourceId());
             Object value = getIcebergValue(block, position, type);
-            if (value != null && icebergType.equals(Types.TimestampNanoType.withoutZone())) {
-                Types.TimestampNanoType timestampNanoType = (Types.TimestampNanoType) icebergType;
-                String timestampString = (String) value;
-                value = timestampNanoType.shouldAdjustToUTC() ? isoTimestamptzToNanos(timestampString) : isoTimestampToNanos(timestampString);
-            }
             values[i] = applyTransform(column.field().transform(), icebergType, value);
         }
         return Optional.of(new PartitionData(values));
@@ -529,13 +521,11 @@ public class IcebergPageSink
         if (type.equals(TIMESTAMP_MICROS)) {
             return TIMESTAMP_MICROS.getLong(block, position);
         }
-        if (type.equals(TIMESTAMP_NANOS)) {
-            LongTimestamp timestamp = (LongTimestamp) TIMESTAMP_NANOS.getObject(block, position);
-            long nanos = timestampToNanos(timestamp);
-            return nanosToIsoTimestamp(nanos);
-        }
         if (type.equals(TIMESTAMP_TZ_MICROS)) {
-            return timestampTzToMicros(getTimestampTz(block, position));
+            return timestampTzToMicros(getTimestampTzMicros(block, position));
+        }
+        if (type.equals(TIMESTAMP_NANOS)) {
+            return timestampToNanos((LongTimestamp) TIMESTAMP_NANOS.getObject(block, position));
         }
         if (type.equals(TIMESTAMP_TZ_NANOS)) {
             return timestampTzToNanos(getTimestampTzNanos(block, position));

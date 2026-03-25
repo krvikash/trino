@@ -77,8 +77,6 @@ import static org.apache.iceberg.FileFormat.PARQUET;
 import static org.apache.iceberg.TableProperties.DEFAULT_FILE_FORMAT;
 import static org.apache.iceberg.TableProperties.DEFAULT_FILE_FORMAT_DEFAULT;
 import static org.apache.iceberg.TableUtil.formatVersion;
-import static org.apache.iceberg.util.DateTimeUtil.isoTimestampToNanos;
-import static org.apache.iceberg.util.DateTimeUtil.isoTimestamptzToNanos;
 import static org.apache.iceberg.util.PartitionUtil.coercePartition;
 import static org.apache.iceberg.util.SnapshotUtil.ancestorsBetween;
 
@@ -294,14 +292,7 @@ public class PartitionStatisticsWriter
             return partitionData;
         }
 
-        Object icebergValue = IcebergTypes.convertTrinoValueToIceberg(type, trinoValue);
-        if (icebergType.equals(Types.TimestampNanoType.withoutZone())) {
-            return isoTimestampToNanos((String) icebergValue);
-        }
-        if (icebergType.equals(Types.TimestampNanoType.withZone())) {
-            return isoTimestamptzToNanos((String) icebergValue);
-        }
-        return icebergValue;
+        return IcebergTypes.convertTrinoValueToIceberg(type, trinoValue);
     }
 
     private PartitionMap<PartitionStats> computeStatsDiff(Table table, Snapshot fromSnapshot, Snapshot toSnapshot)

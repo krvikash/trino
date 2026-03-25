@@ -51,6 +51,14 @@ public class TestPartitionFields
         assertParse("month(ts)", partitionSpec(builder -> builder.month("ts")));
         assertParse("day(ts)", partitionSpec(builder -> builder.day("ts")));
         assertParse("hour(ts)", partitionSpec(builder -> builder.hour("ts")));
+        assertParse("year(ts_nano)", partitionSpec(builder -> builder.year("ts_nano")));
+        assertParse("month(ts_nano)", partitionSpec(builder -> builder.month("ts_nano")));
+        assertParse("day(ts_nano)", partitionSpec(builder -> builder.day("ts_nano")));
+        assertParse("hour(ts_nano)", partitionSpec(builder -> builder.hour("ts_nano")));
+        assertParse("year(ts_nano_tz)", partitionSpec(builder -> builder.year("ts_nano_tz")));
+        assertParse("month(ts_nano_tz)", partitionSpec(builder -> builder.month("ts_nano_tz")));
+        assertParse("day(ts_nano_tz)", partitionSpec(builder -> builder.day("ts_nano_tz")));
+        assertParse("hour(ts_nano_tz)", partitionSpec(builder -> builder.hour("ts_nano_tz")));
         assertParse("bucket(order_key, 42)", partitionSpec(builder -> builder.bucket("order_key", 42)));
         assertParse("truncate(comment, 13)", partitionSpec(builder -> builder.truncate("comment", 13)));
         assertParse("truncate(order_key, 88)", partitionSpec(builder -> builder.truncate("order_key", 88)));
@@ -91,14 +99,6 @@ public class TestPartitionFields
         assertParse("bucket(\"MixedTs\", 42)", partitionSpec(builder -> builder.bucket("MixedTs", 42)));
         assertParse("truncate(\"MixedString\", 13)", partitionSpec(builder -> builder.truncate("MixedString", 13)));
         assertParse("void(\"MixedString\")", partitionSpec(builder -> builder.alwaysNull("MixedString")));
-        assertParse("year(ts_nano)", partitionSpec(builder -> builder.year("ts_nano")));
-        assertParse("month(ts_nano)", partitionSpec(builder -> builder.month("ts_nano")));
-        assertParse("day(ts_nano)", partitionSpec(builder -> builder.day("ts_nano")));
-        assertParse("hour(ts_nano)", partitionSpec(builder -> builder.hour("ts_nano")));
-        assertParse("year(tstz_nano)", partitionSpec(builder -> builder.year("tstz_nano")));
-        assertParse("month(tstz_nano)", partitionSpec(builder -> builder.month("tstz_nano")));
-        assertParse("day(tstz_nano)", partitionSpec(builder -> builder.day("tstz_nano")));
-        assertParse("hour(tstz_nano)", partitionSpec(builder -> builder.hour("tstz_nano")));
 
         assertInvalid("bucket()", "Invalid partition field declaration: bucket()");
         assertInvalid(".nested", "Invalid partition field declaration: .nested");
@@ -233,7 +233,7 @@ public class TestPartitionFields
                 NestedField.required(21, "MixedNested", Types.StructType.of(
                         NestedField.required(22, "MixedValue", StringType.get()))),
                 NestedField.required(23, "ts_nano", TimestampNanoType.withoutZone()),
-                NestedField.required(24, "tstz_nano", TimestampNanoType.withZone()));
+                NestedField.required(24, "ts_nano_tz", TimestampNanoType.withZone()));
 
         PartitionSpec.Builder builder = PartitionSpec.builderFor(schema);
         consumer.accept(builder);

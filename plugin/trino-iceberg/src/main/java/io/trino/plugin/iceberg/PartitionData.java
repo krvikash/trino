@@ -138,9 +138,9 @@ public class PartitionData
             case DATE:
                 return partitionValue.asInt();
             case LONG:
+            case TIME:
             case TIMESTAMP:
             case TIMESTAMP_NANO:
-            case TIME:
                 return partitionValue.asLong();
             case FLOAT:
                 if (partitionValue.asText().equalsIgnoreCase("NaN")) {
@@ -169,10 +169,10 @@ public class PartitionData
                 return rescale(
                         partitionValue.decimalValue(),
                         createDecimalType(decimalType.precision(), decimalType.scale()));
+            case VARIANT:
             case GEOMETRY:
             case GEOGRAPHY:
             case UNKNOWN:
-            case VARIANT:
             case LIST:
             case MAP:
             case STRUCT:

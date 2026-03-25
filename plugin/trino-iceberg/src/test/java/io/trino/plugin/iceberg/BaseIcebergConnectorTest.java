@@ -86,10 +86,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
@@ -169,6 +171,7 @@ import static io.trino.testing.TransactionBuilder.transaction;
 import static io.trino.testing.assertions.Assert.assertEventually;
 import static java.lang.String.format;
 import static java.lang.String.join;
+import static java.math.RoundingMode.HALF_UP;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.ZoneOffset.UTC;
 import static java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME;
@@ -194,6 +197,8 @@ import static org.assertj.core.api.Fail.fail;
 public abstract class BaseIcebergConnectorTest
         extends BaseConnectorTest
 {
+    private static final DateTimeFormatter SQL_TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss");
+    private static final String ICEBERG_TIMESTAMP_PRECISION_FAILURE = "Timestamp precision \\(3\\) not supported for Iceberg. Use \"timestamp\\(6\\)\"(?: or \"timestamp\\(9\\)\")? instead";
     private static final Pattern WITH_CLAUSE_EXTRACTOR = Pattern.compile(".*(WITH\\s*\\([^)]*\\))\\s*$", Pattern.DOTALL);
 
     protected final IcebergFileFormat format;
@@ -3434,6 +3439,158 @@ public abstract class BaseIcebergConnectorTest
                 .isFullyPushedDown();
 
         assertUpdate("DROP TABLE test_year_transform_timestamptz");
+    }
+
+    @Test
+    public void testYearTransformTimestampNano()
+    {
+        assertUpdate("CREATE TABLE test_year_transform_ts_nano (d TIMESTAMP(9), b INTEGER) WITH (format_version = 3, partitioning = ARRAY['year(d)'])");
+
+        String values = "VALUES " +
+                "(NULL, 101)," +
+                "(TIMESTAMP '2020-01-15 12:30:45.123456789', 1)," +
+                "(TIMESTAMP '2020-06-30 23:59:59.999999999', 2)," +
+                "(TIMESTAMP '2021-01-01 00:00:00.000000001', 3)," +
+                "(TIMESTAMP '2021-12-31 23:59:59.999999999', 4)";
+        assertUpdate("INSERT INTO test_year_transform_ts_nano " + values, 5);
+        assertThat(query("SELECT * FROM test_year_transform_ts_nano"))
+                .matches(values);
+
+        // Verify partition structure
+        assertThat(query("SELECT partition.d_year, record_count FROM \"test_year_transform_ts_nano$partitions\" ORDER BY d_year NULLS FIRST"))
+                .skippingTypesCheck()
+                .matches("VALUES (NULL, BIGINT '1'), (50, BIGINT '2'), (51, BIGINT '2')");
+
+        // Verify predicate pushdown
+        assertThat(query("SELECT * FROM test_year_transform_ts_nano WHERE d IS NOT NULL"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_year_transform_ts_nano WHERE d IS NULL"))
+                .isFullyPushedDown();
+        // Verify predicates work without overflow (key fix for nano timestamps)
+        assertThat(query("SELECT b FROM test_year_transform_ts_nano WHERE d >= DATE '2021-01-01' ORDER BY b"))
+                .matches("VALUES 3, 4");
+        assertThat(query("SELECT b FROM test_year_transform_ts_nano WHERE d >= TIMESTAMP '2021-01-01 00:00:00.000000000' ORDER BY b"))
+                .matches("VALUES 3, 4");
+        assertThat(query("SELECT b FROM test_year_transform_ts_nano WHERE d >= TIMESTAMP '2021-01-01 00:00:00.000000001' ORDER BY b"))
+                .matches("VALUES 3, 4");
+
+        // year()
+        assertThat(query("SELECT * FROM test_year_transform_ts_nano WHERE year(d) = 2020"))
+                .isFullyPushedDown();
+
+        // date_trunc
+        assertThat(query("SELECT * FROM test_year_transform_ts_nano WHERE date_trunc('year', d) = DATE '2020-01-01'"))
+                .isFullyPushedDown();
+
+        assertUpdate("DROP TABLE test_year_transform_ts_nano");
+    }
+
+    @Test
+    public void testYearTransformTimestampNanoWithTimeZone()
+    {
+        assertUpdate("CREATE TABLE test_year_transform_ts_nano_tz (d TIMESTAMP(9) WITH TIME ZONE, b INTEGER) WITH (format_version = 3, partitioning = ARRAY['year(d)'])");
+
+        String values = "VALUES " +
+                "(NULL, 101)," +
+                "(TIMESTAMP '2020-01-15 12:30:45.123456789 UTC', 1)," +
+                "(TIMESTAMP '2020-06-30 23:59:59.999999999 UTC', 2)," +
+                "(TIMESTAMP '2021-01-01 00:00:00.000000001 UTC', 3)," +
+                "(TIMESTAMP '2021-12-31 23:59:59.999999999 UTC', 4)";
+        assertUpdate("INSERT INTO test_year_transform_ts_nano_tz " + values, 5);
+        assertThat(query("SELECT * FROM test_year_transform_ts_nano_tz"))
+                .matches(values);
+
+        // Verify partition structure
+        assertThat(query("SELECT partition.d_year, record_count FROM \"test_year_transform_ts_nano_tz$partitions\" ORDER BY d_year NULLS FIRST"))
+                .skippingTypesCheck()
+                .matches("VALUES (NULL, BIGINT '1'), (50, BIGINT '2'), (51, BIGINT '2')");
+
+        // Verify predicate pushdown
+        assertThat(query("SELECT * FROM test_year_transform_ts_nano_tz WHERE d IS NOT NULL"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_year_transform_ts_nano_tz WHERE d IS NULL"))
+                .isFullyPushedDown();
+        // Verify predicates work without overflow (key fix for nano timestamps)
+        assertThat(query("SELECT b FROM test_year_transform_ts_nano_tz WHERE d >= TIMESTAMP '2021-01-01 00:00:00.000000000 UTC' ORDER BY b"))
+                .matches("VALUES 3, 4");
+        assertThat(query("SELECT b FROM test_year_transform_ts_nano_tz WHERE d >= TIMESTAMP '2021-01-01 00:00:00.000000001 UTC' ORDER BY b"))
+                .matches("VALUES 3, 4");
+
+        // year()
+        assertThat(query("SELECT * FROM test_year_transform_ts_nano_tz WHERE year(d) = 2020"))
+                .isFullyPushedDown();
+
+        // date_trunc
+        assertThat(query("SELECT * FROM test_year_transform_ts_nano_tz WHERE date_trunc('year', d) = TIMESTAMP '2020-01-01 00:00:00.000000 UTC'"))
+                .isFullyPushedDown();
+
+        assertUpdate("DROP TABLE test_year_transform_ts_nano_tz");
+    }
+
+    @Test
+    public void testHourTransformTimestampNano()
+    {
+        assertUpdate("CREATE TABLE test_hour_transform_ts_nano (d TIMESTAMP(9), b INTEGER) WITH (format_version = 3, partitioning = ARRAY['hour(d)'])");
+
+        String values = "VALUES " +
+                "(NULL, 101)," +
+                "(TIMESTAMP '2024-01-15 10:00:00.000000001', 1)," +
+                "(TIMESTAMP '2024-01-15 10:59:59.999999999', 2)," +
+                "(TIMESTAMP '2024-01-15 11:00:00.000000001', 3)," +
+                "(TIMESTAMP '2024-01-15 11:30:45.123456789', 4)";
+        assertUpdate("INSERT INTO test_hour_transform_ts_nano " + values, 5);
+        assertThat(query("SELECT * FROM test_hour_transform_ts_nano"))
+                .matches(values);
+
+        // Verify predicate pushdown
+        assertThat(query("SELECT * FROM test_hour_transform_ts_nano WHERE d IS NOT NULL"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_hour_transform_ts_nano WHERE d IS NULL"))
+                .isFullyPushedDown();
+        // Verify predicates work without overflow (key fix for nano timestamps)
+        assertThat(query("SELECT b FROM test_hour_transform_ts_nano WHERE d >= TIMESTAMP '2024-01-15 11:00:00.000000000' ORDER BY b"))
+                .matches("VALUES 3, 4");
+        assertThat(query("SELECT b FROM test_hour_transform_ts_nano WHERE d >= TIMESTAMP '2024-01-15 11:00:00.000000001' ORDER BY b"))
+                .matches("VALUES 3, 4");
+
+        // date_trunc
+        assertThat(query("SELECT * FROM test_hour_transform_ts_nano WHERE date_trunc('hour', d) = TIMESTAMP '2024-01-15 10:00:00'"))
+                .isFullyPushedDown();
+
+        assertUpdate("DROP TABLE test_hour_transform_ts_nano");
+    }
+
+    @Test
+    public void testHourTransformTimestampNanoWithTimeZone()
+    {
+        assertUpdate("CREATE TABLE test_hour_transform_ts_nano_tz (d TIMESTAMP(9) WITH TIME ZONE, b INTEGER) WITH (format_version = 3, partitioning = ARRAY['hour(d)'])");
+
+        String values = "VALUES " +
+                "(NULL, 101)," +
+                "(TIMESTAMP '2024-01-15 10:00:00.000000001 UTC', 1)," +
+                "(TIMESTAMP '2024-01-15 10:59:59.999999999 UTC', 2)," +
+                "(TIMESTAMP '2024-01-15 11:00:00.000000001 UTC', 3)," +
+                "(TIMESTAMP '2024-01-15 11:30:45.123456789 UTC', 4)";
+        assertUpdate("INSERT INTO test_hour_transform_ts_nano_tz " + values, 5);
+        assertThat(query("SELECT * FROM test_hour_transform_ts_nano_tz"))
+                .matches(values);
+
+        // Verify predicate pushdown
+        assertThat(query("SELECT * FROM test_hour_transform_ts_nano_tz WHERE d IS NOT NULL"))
+                .isFullyPushedDown();
+        assertThat(query("SELECT * FROM test_hour_transform_ts_nano_tz WHERE d IS NULL"))
+                .isFullyPushedDown();
+        // Verify predicates work without overflow (key fix for nano timestamps)
+        assertThat(query("SELECT b FROM test_hour_transform_ts_nano_tz WHERE d >= TIMESTAMP '2024-01-15 11:00:00.000000000 UTC' ORDER BY b"))
+                .matches("VALUES 3, 4");
+        assertThat(query("SELECT b FROM test_hour_transform_ts_nano_tz WHERE d >= TIMESTAMP '2024-01-15 11:00:00.000000001 UTC' ORDER BY b"))
+                .matches("VALUES 3, 4");
+
+        // date_trunc
+        assertThat(query("SELECT * FROM test_hour_transform_ts_nano_tz WHERE date_trunc('hour', d) = TIMESTAMP '2024-01-15 10:00:00.000000 UTC'"))
+                .isFullyPushedDown();
+
+        assertUpdate("DROP TABLE test_hour_transform_ts_nano_tz");
     }
 
     @Test
@@ -9062,7 +9219,43 @@ public abstract class BaseIcebergConnectorTest
 
     protected Optional<TypeCoercionTestSetup> filterTypeCoercionOnCreateTableAsSelectProvider(TypeCoercionTestSetup setup)
     {
+        if (formatVersion >= 3 &&
+                setup.newColumnType().equals("timestamp(6)") &&
+                setup.sourceValueLiteral().startsWith("TIMESTAMP '")) {
+            String timestampLiteral = setup.sourceValueLiteral().substring("TIMESTAMP '".length(), setup.sourceValueLiteral().length() - 1);
+            int fractionSeparator = timestampLiteral.indexOf('.');
+            if (fractionSeparator >= 0) {
+                String fractionalSeconds = timestampLiteral.substring(fractionSeparator + 1);
+                if (fractionalSeconds.length() > 6) {
+                    return Optional.of(new TypeCoercionTestSetup(
+                            setup.sourceValueLiteral(),
+                            "timestamp(9)",
+                            toTimestampNanosLiteral(timestampLiteral)));
+                }
+            }
+        }
+
         return Optional.of(setup);
+    }
+
+    private static String toTimestampNanosLiteral(String timestampLiteral)
+    {
+        int fractionSeparator = timestampLiteral.indexOf('.');
+        String wholeSeconds = timestampLiteral.substring(0, fractionSeparator);
+        String fractionalSeconds = timestampLiteral.substring(fractionSeparator + 1);
+
+        long nanos = new BigDecimal("0." + fractionalSeconds)
+                .movePointRight(9)
+                .setScale(0, HALF_UP)
+                .longValueExact();
+
+        LocalDateTime timestamp = LocalDateTime.parse(wholeSeconds, SQL_TIMESTAMP_FORMATTER);
+        if (nanos == 1_000_000_000L) {
+            timestamp = timestamp.plusSeconds(1);
+            nanos = 0;
+        }
+
+        return "TIMESTAMP '%s.%09d'".formatted(timestamp.format(SQL_TIMESTAMP_FORMATTER), nanos);
     }
 
     private List<TypeCoercionTestSetup> typeCoercionOnCreateTableAsSelectData()
@@ -9628,7 +9821,8 @@ public abstract class BaseIcebergConnectorTest
     protected void verifySetColumnTypeFailurePermissible(Throwable e)
     {
         assertThat(e).hasMessageMatching(".*(Failed to set column type: Cannot change (column type:|type from .* to )" +
-                "|Time(stamp)? precision \\(3\\) not supported for Iceberg. Use \"time(stamp)?\\(6\\)\" instead" +
+                "|Time precision \\(3\\) not supported for Iceberg. Use \"time\\(6\\)\" instead" +
+                "|" + ICEBERG_TIMESTAMP_PRECISION_FAILURE +
                 "|Type not supported for Iceberg: (tinyint|smallint|char\\(20\\))" +
                 "|Cannot update map keys).*");
     }
@@ -9670,7 +9864,8 @@ public abstract class BaseIcebergConnectorTest
     protected void verifySetFieldTypeFailurePermissible(Throwable e)
     {
         assertThat(e).hasMessageMatching(".*(Failed to set field type: Cannot change (column type:|type from .* to )" +
-                "|Time(stamp)? precision \\(3\\) not supported for Iceberg. Use \"time(stamp)?\\(6\\)\" instead" +
+                "|Time precision \\(3\\) not supported for Iceberg. Use \"time\\(6\\)\" instead" +
+                "|" + ICEBERG_TIMESTAMP_PRECISION_FAILURE +
                 "|Type not supported for Iceberg: (tinyint|smallint|char\\(20\\))" +
                 "|Cannot update map keys).*");
     }
