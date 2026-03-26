@@ -123,6 +123,7 @@ public class BenchmarkSortingFileWriter
             throws IOException
     {
         deleteRecursively(targetDir.toPath(), ALLOW_INSECURE);
+        data = null;
     }
 
     @Benchmark
