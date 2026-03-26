@@ -15,6 +15,8 @@ package com.starburstdata.plugin.openapi;
 
 import com.google.inject.Injector;
 import io.airlift.bootstrap.Bootstrap;
+import io.airlift.json.JsonModule;
+import io.trino.plugin.base.ConnectorContextModule;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
@@ -42,6 +44,8 @@ public class OpenApiConnectorFactory
         // A plugin is not required to use Guice; it is just very convenient
         Bootstrap app = new Bootstrap(
                 "io.trino.bootstrap.catalog." + catalogName,
+                new ConnectorContextModule(catalogName, context),
+                new JsonModule(),
                 new OpenApiModule());
 
         Injector injector = app

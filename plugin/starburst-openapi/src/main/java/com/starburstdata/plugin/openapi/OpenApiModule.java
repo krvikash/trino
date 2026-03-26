@@ -13,10 +13,9 @@
  */
 package com.starburstdata.plugin.openapi;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Binder;
+import com.starburstdata.plugin.openapi.conversions.decoder.ColumnWriterFactory;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.airlift.json.ObjectMapperProvider;
 
 import static com.google.inject.Scopes.SINGLETON;
 import static io.airlift.configuration.ConfigBinder.configBinder;
@@ -31,8 +30,8 @@ public class OpenApiModule
         binder.bind(OpenApiConnector.class).in(SINGLETON);
         binder.bind(OpenApiMetadata.class).in(SINGLETON);
         binder.bind(OpenApiSplitManager.class).in(SINGLETON);
+        binder.bind(ColumnWriterFactory.class).in(SINGLETON);
         binder.bind(OpenApiPageSourceProvider.class).in(SINGLETON);
-        binder.bind(ObjectMapper.class).toProvider(ObjectMapperProvider.class).in(SINGLETON);
         configBinder(binder).bindConfig(OpenApiConfig.class);
 
         binder.bind(OpenApiSpec.class).in(SINGLETON);
