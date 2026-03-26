@@ -188,6 +188,7 @@ public class MockConnector
     private final Optional<ConnectorAccessControl> accessControl;
     private final Function<SchemaTableName, List<List<?>>> data;
     private final Function<SchemaTableName, Metrics> metrics;
+    private final Function<SchemaTableName, Metrics> splitSourceMetrics;
     private final Set<Procedure> procedures;
     private final Set<TableProcedureMetadata> tableProcedures;
     private final Set<ConnectorTableFunction> tableFunctions;
@@ -248,6 +249,7 @@ public class MockConnector
             Optional<ConnectorAccessControl> accessControl,
             Function<SchemaTableName, List<List<?>>> data,
             Function<SchemaTableName, Metrics> metrics,
+            Function<SchemaTableName, Metrics> splitSourceMetrics,
             Set<Procedure> procedures,
             Set<TableProcedureMetadata> tableProcedures,
             Set<ConnectorTableFunction> tableFunctions,
@@ -307,6 +309,7 @@ public class MockConnector
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
         this.data = requireNonNull(data, "data is null");
         this.metrics = requireNonNull(metrics, "metrics is null");
+        this.splitSourceMetrics = requireNonNull(splitSourceMetrics, "splitSourceMetrics is null");
         this.procedures = requireNonNull(procedures, "procedures is null");
         this.tableProcedures = requireNonNull(tableProcedures, "tableProcedures is null");
         this.tableFunctions = requireNonNull(tableFunctions, "tableFunctions is null");
@@ -376,7 +379,14 @@ public class MockConnector
                     DynamicFilter dynamicFilter,
                     Constraint constraint)
             {
-                return new FixedSplitSource(MOCK_CONNECTOR_SPLIT);
+                SchemaTableName tableName = ((MockConnectorTableHandle) table).getTableName();
+                return new FixedSplitSource(MOCK_CONNECTOR_SPLIT) {
+                    @Override
+                    public Metrics getMetrics()
+                    {
+                        return splitSourceMetrics.apply(tableName);
+                    }
+                };
             }
 
             @Override

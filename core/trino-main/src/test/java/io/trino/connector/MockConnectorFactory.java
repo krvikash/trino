@@ -137,6 +137,7 @@ public class MockConnectorFactory
     private final Collection<String> branches;
     private final Function<SchemaTableName, List<List<?>>> data;
     private final Function<SchemaTableName, Metrics> metrics;
+    private final Function<SchemaTableName, Metrics> splitSourceMetrics;
     private final Set<Procedure> procedures;
     private final Set<TableProcedureMetadata> tableProcedures;
     private final Set<ConnectorTableFunction> tableFunctions;
@@ -201,6 +202,7 @@ public class MockConnectorFactory
             Collection<String> branches,
             Function<SchemaTableName, List<List<?>>> data,
             Function<SchemaTableName, Metrics> metrics,
+            Function<SchemaTableName, Metrics> splitSourceMetrics,
             Set<Procedure> procedures,
             Set<TableProcedureMetadata> tableProcedures,
             Set<ConnectorTableFunction> tableFunctions,
@@ -268,6 +270,7 @@ public class MockConnectorFactory
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
         this.data = requireNonNull(data, "data is null");
         this.metrics = requireNonNull(metrics, "metrics is null");
+        this.splitSourceMetrics = requireNonNull(splitSourceMetrics, "splitSourceMetrics is null");
         this.procedures = requireNonNull(procedures, "procedures is null");
         this.tableProcedures = requireNonNull(tableProcedures, "tableProcedures is null");
         this.tableFunctions = requireNonNull(tableFunctions, "tableFunctions is null");
@@ -334,6 +337,7 @@ public class MockConnectorFactory
                 accessControl,
                 data,
                 metrics,
+                splitSourceMetrics,
                 procedures,
                 tableProcedures,
                 tableFunctions,
@@ -500,6 +504,7 @@ public class MockConnectorFactory
         private BiFunction<ConnectorSession, SchemaTableName, Optional<CatalogSchemaTableName>> redirectTable = (session, tableName) -> Optional.empty();
         private Function<SchemaTableName, List<List<?>>> data = schemaTableName -> ImmutableList.of();
         private Function<SchemaTableName, Metrics> metrics = schemaTableName -> EMPTY;
+        private Function<SchemaTableName, Metrics> splitSourceMetrics = schemaTableName -> EMPTY;
         private Set<Procedure> procedures = ImmutableSet.of();
         private Set<TableProcedureMetadata> tableProcedures = ImmutableSet.of();
         private Set<ConnectorTableFunction> tableFunctions = ImmutableSet.of();
@@ -775,6 +780,12 @@ public class MockConnectorFactory
             return this;
         }
 
+        public Builder withSplitSourceMetrics(Function<SchemaTableName, Metrics> splitSourceMetrics)
+        {
+            this.splitSourceMetrics = requireNonNull(splitSourceMetrics, "splitSourceMetrics is null");
+            return this;
+        }
+
         public Builder withProcedures(Iterable<Procedure> procedures)
         {
             this.procedures = ImmutableSet.copyOf(procedures);
@@ -963,6 +974,7 @@ public class MockConnectorFactory
                     branches,
                     data,
                     metrics,
+                    splitSourceMetrics,
                     procedures,
                     tableProcedures,
                     tableFunctions,
