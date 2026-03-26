@@ -21,6 +21,7 @@ import io.trino.node.InternalNode;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.ToIntFunction;
 import java.util.stream.IntStream;
 
@@ -106,6 +107,6 @@ public class NodePartitionMap
         for (int partition : bucketToPartition.bucketToPartition()) {
             bucketToNode.add(partitionToNode.get(partition));
         }
-        return new BucketNodeMap(splitToBucket, bucketToNode.build());
+        return new BucketNodeMap(splitToBucket, bucketToNode.build(), Optional.of(partitionToNode));
     }
 }

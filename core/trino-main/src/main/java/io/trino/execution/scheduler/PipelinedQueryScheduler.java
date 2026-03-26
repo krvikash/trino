@@ -87,10 +87,10 @@ import io.trino.sql.planner.plan.RemoteSourceNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TableWriterNode;
 import io.trino.tracing.TrinoAttributes;
-import it.unimi.dsi.fastutil.ints.IntSet;
 
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -1145,15 +1145,11 @@ public class PipelinedQueryScheduler
                     // if fragment has more than one parent we use spooling exchange for its output.
                     // todo: consider dressing it in nicer abstraction
                     PlanFragmentId fragmentId = childStage.getFragment().getId();
-                    int[] bucketToPartitionMap = bucketToPartitionMaps.get(fragmentId).map(BucketToPartition::bucketToPartition).orElse(new int[] {0});
-                    verify(IntSet.of(bucketToPartitionMap).size() == bucketToPartitionMap.length, "Expected number of buckets to be equal to number of partitions");
-                    int numberOfPartitions = bucketToPartitionMap.length;
-
                     ExchangeContext exchangeContext = new ExchangeContextInstance(
                             queryId,
                             new ExchangeId("external-exchange-" + fragmentId),
                             schedulerSpan);
-                    Exchange exchange = exchangeManagerRegistry.getExchangeManager().createExchange(exchangeContext, numberOfPartitions, false); // todo preserverOrderInPartition
+                    Exchange exchange = exchangeManagerRegistry.getExchangeManager().createExchange(exchangeContext, getNumberOfPartitions(bucketToPartitionMaps.get(fragmentId)), false); // todo preserverOrderInPartition
                     exchangeMetricsCollector.register(queryId, exchange);
 
                     result.put(fragmentId, exchange);
@@ -1628,6 +1624,16 @@ public class PipelinedQueryScheduler
             return EMPTY;
         }
         return new PartitioningKey(partitioningHandle, partitionCount);
+    }
+
+    private static int getNumberOfPartitions(Optional<BucketToPartition> bucketToPartition)
+    {
+        return getNumberOfPartitionsFromArray(bucketToPartition.map(BucketToPartition::bucketToPartition));
+    }
+
+    static int getNumberOfPartitionsFromArray(Optional<int[]> bucketToPartition)
+    {
+        return bucketToPartition.map(ints -> Arrays.stream(ints).max().orElseThrow() + 1).orElse(1);
     }
 
     private enum DistributedStagesSchedulerState

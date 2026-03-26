@@ -59,7 +59,6 @@ import io.trino.sql.planner.plan.RemoteSourceNode;
 import io.trino.util.Failures;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.ints.IntSet;
 
 import java.net.URI;
 import java.util.Collection;
@@ -90,6 +89,7 @@ import static io.airlift.concurrent.MoreFutures.addExceptionCallback;
 import static io.airlift.concurrent.MoreFutures.addSuccessCallback;
 import static io.airlift.concurrent.MoreFutures.toListenableFuture;
 import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
+import static io.trino.execution.scheduler.PipelinedQueryScheduler.getNumberOfPartitionsFromArray;
 import static io.trino.execution.scheduler.StageExecution.State.ABORTED;
 import static io.trino.execution.scheduler.StageExecution.State.CANCELED;
 import static io.trino.execution.scheduler.StageExecution.State.FAILED;
@@ -413,10 +413,7 @@ public class PipelinedStageExecution
         if (hasSpoolingExchangeOutput()) {
             Exchange exchange = getOutputSpoolingExchange();
 
-            int[] bucketToPartitionMap = bucketToPartition.orElse(new int[] {0});
-            verify(IntSet.of(bucketToPartitionMap).size() == bucketToPartitionMap.length, "Expected number of buckets to be equal to number of partitions");
-            int numberOfPartitions = bucketToPartitionMap.length;
-
+            int numberOfPartitions = getNumberOfPartitionsFromArray(bucketToPartition);
             exchangeSinkHandle = exchange.addSink(partition);
             CompletableFuture<ExchangeSinkInstanceHandle> sinkInstanceHandleFuture = exchange.instantiateSink(exchangeSinkHandle, 0, Optional.of(node));
             ExchangeSinkInstanceHandle sinkInstanceHandle;

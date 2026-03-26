@@ -14,23 +14,40 @@
 package io.trino.execution.scheduler;
 
 import com.google.common.collect.ImmutableList;
+import io.trino.exchange.ExchangeInput;
+import io.trino.exchange.SpoolingExchangeInput;
 import io.trino.metadata.Split;
 import io.trino.node.InternalNode;
+import io.trino.spi.exchange.ExchangeSourceHandle;
+import io.trino.split.RemoteSplit;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.ToIntFunction;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.google.common.collect.Iterables.getFirst;
 import static java.util.Objects.requireNonNull;
 
 public final class BucketNodeMap
 {
     private final List<InternalNode> bucketToNode;
+    private final Optional<List<InternalNode>> partitionToNode;
     private final ToIntFunction<Split> splitToBucket;
 
     public BucketNodeMap(ToIntFunction<Split> splitToBucket, List<InternalNode> bucketToNode)
     {
+        this(splitToBucket, bucketToNode, Optional.empty());
+    }
+
+    public BucketNodeMap(ToIntFunction<Split> splitToBucket, List<InternalNode> bucketToNode, Optional<List<InternalNode>> partitionToNode)
+    {
         this.splitToBucket = requireNonNull(splitToBucket, "splitToBucket is null");
         this.bucketToNode = ImmutableList.copyOf(requireNonNull(bucketToNode, "bucketToNode is null"));
+        this.partitionToNode = partitionToNode.map(ImmutableList::copyOf);
     }
 
     public int getBucketCount()
@@ -50,6 +67,16 @@ public final class BucketNodeMap
 
     public InternalNode getAssignedNode(Split split)
     {
+        if (split.getConnectorSplit() instanceof RemoteSplit remoteSplit) {
+            checkState(partitionToNode.isPresent(), "partitionToNode must be set to handle RemoteSplit");
+            ExchangeInput exchangeInput = remoteSplit.getExchangeInput();
+            checkArgument(exchangeInput instanceof SpoolingExchangeInput, "Expected SpoolingExchangeInput in RemoteSplit");
+            SpoolingExchangeInput spoolingExchangeInput = (SpoolingExchangeInput) exchangeInput;
+            List<ExchangeSourceHandle> handles = spoolingExchangeInput.getExchangeSourceHandles();
+            Set<Integer> partitionIds = handles.stream().map(ExchangeSourceHandle::getPartitionId).collect(toImmutableSet());
+            checkArgument(partitionIds.size() == 1, "RemoteSplit referencing more than one partition: %s", partitionIds);
+            return partitionToNode.get().get(getFirst(partitionIds, null));
+        }
         return getAssignedNode(getBucket(split));
     }
 
