@@ -15,10 +15,7 @@ package com.starburstdata.plugin.openapi;
 
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.starburstdata.plugin.openapi.authentication.OpenApiAuthenticator;
 import com.starburstdata.plugin.openapi.conversions.OpenApiDecoder;
@@ -35,15 +32,15 @@ import io.swagger.v3.parser.core.models.SwaggerParseResult;
 import io.trino.spi.TrinoException;
 import io.trino.spi.function.table.ConnectorTableFunction;
 
-import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.starburstdata.plugin.openapi.SpecUtil.getGetOperation;
 import static com.starburstdata.plugin.openapi.SpecUtil.getJsonResponseSchema;
-import static com.starburstdata.plugin.openapi.SpecUtil.getSuccessfulResponse;
 import static com.starburstdata.plugin.openapi.conversions.OpenApiDecoder.ONE_COLUMN_DECODER;
 import static com.starburstdata.plugin.openapi.pagination.OpenApiPaginationStrategy.READ_ONCE_STRATEGY;
 import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
@@ -59,9 +56,7 @@ public class OpenApiSpec
     public static final String MIME_JSON = "application/json";
 
     private final Set<ConnectorTableFunction> tableFunctions;
-    private final Map<String, OpenApiDecoder> pathToDecoder;
-    private final Map<String, OpenApiPaginationStrategy<?>> pathToPaginationStrategy;
-    private final Map<String, OpenApiAuthenticator> pathToAuthenticator;
+    private final Map<String, PathMetadata> pathMetadata;
 
     @Inject
     public OpenApiSpec(OpenApiConfig config)
@@ -73,63 +68,17 @@ public class OpenApiSpec
     {
         requireNonNull(openApi, "openApi is null");
 
-        PathMetadataFactory pathMetadataFactory = new PathMetadataFactory(openApi);
-        ImmutableList.Builder<Exception> exceptionsBuilder = ImmutableList.builder();
-        ImmutableListMultimap.Builder<String, String> identifierToPathBuilder = ImmutableListMultimap.builder();
-        ImmutableSet.Builder<ConnectorTableFunction> tableFunctionsBuilder = ImmutableSet.builder();
-        ImmutableMap.Builder<String, OpenApiDecoder> pathToDecoderBuilder = ImmutableMap.builder();
-        ImmutableMap.Builder<String, OpenApiPaginationStrategy<?>> pathToPaginationStrategyBuilder = ImmutableMap.builder();
-        ImmutableMap.Builder<String, OpenApiAuthenticator> pathToAuthenticatorBuilder = ImmutableMap.builder();
-        openApi.getPaths().keySet().forEach(path -> {
-            String identifier = getIdentifier(path);
-            if (identifier.isEmpty()) {
-                log.warn("openApi specification uses empty path, ignoring");
-                return; // Table functions require non-empty names.
-            }
-            identifierToPathBuilder.put(identifier, path);
+        Map<String, ApiResponse> referenceableResponses = Optional.ofNullable(openApi.getComponents())
+                .flatMap(components -> Optional.ofNullable(components.getResponses()))
+                .orElse(ImmutableMap.of());
 
-            final Optional<PathMetadata> pathMetadata;
-            try {
-                pathMetadata = pathMetadataFactory.fromPath(path);
-            }
-            catch (Exception e) {
-                exceptionsBuilder.add(e);
-                return;
-            }
-
-            if (pathMetadata.isEmpty()) {
-                return;
-            }
-
-            OpenApiDecoder decoder = pathMetadata.get().decoder();
-            pathToDecoderBuilder.put(path, decoder);
-            pathToPaginationStrategyBuilder.put(path, pathMetadata.get().paginationStrategy());
-            pathToAuthenticatorBuilder.put(path, pathMetadata.get().authenticator());
-            tableFunctionsBuilder.add(new OpenApiRequestTableFunction(
-                    path,
-                    identifier,
-                    decoder.getColumnHandles()));
-        });
-        Map<String, Collection<String>> ambiguousIdentifiers = Maps.filterValues(
-                identifierToPathBuilder.build().asMap(),
-                paths -> paths.size() > 1);
-        if (!ambiguousIdentifiers.isEmpty()) {
-            ambiguousIdentifiers.forEach((identifier, paths) ->
-                    exceptionsBuilder.add(new RuntimeException(
-                            "Identifier %s maps to multiple API paths [%s]".formatted(
-                                    identifier,
-                                    join(",", paths)))));
-        }
-        List<Exception> exceptions = exceptionsBuilder.build();
-        if (!exceptions.isEmpty()) {
-            throw new TrinoException(
-                    CONFIGURATION_INVALID,
-                    new OpenApiValidationExceptions(exceptions));
-        }
-        this.tableFunctions = tableFunctionsBuilder.build();
-        this.pathToDecoder = pathToDecoderBuilder.buildOrThrow();
-        this.pathToPaginationStrategy = pathToPaginationStrategyBuilder.buildOrThrow();
-        this.pathToAuthenticator = pathToAuthenticatorBuilder.buildOrThrow();
+        this.pathMetadata = getPathMetadata(openApi.getPaths(), referenceableResponses);
+        this.tableFunctions = pathMetadata.entrySet().stream()
+                .map(entry -> new OpenApiRequestTableFunction(
+                        entry.getKey(),
+                        entry.getValue().identifier(),
+                        entry.getValue().decoder().getColumnHandles()))
+                .collect(toImmutableSet());
     }
 
     public static OpenAPI parse(String specLocation)
@@ -147,78 +96,59 @@ public class OpenApiSpec
         return result.getOpenAPI();
     }
 
-    private static class PathMetadataFactory
+    private static Map<String, PathMetadata> getPathMetadata(Map<String, PathItem> paths, Map<String, ApiResponse> responses)
     {
-        private final Map<String, ApiResponse> responses;
-        private final Map<String, PathItem> paths;
+        ImmutableMap.Builder<String, PathMetadata> pathMetadataBuilder = ImmutableMap.builder();
+        ImmutableList.Builder<Exception> exceptionsBuilder = ImmutableList.builder();
+        Map<String, String> identifierToPath = new HashMap<>();
+        for (Map.Entry<String, PathItem> entry : paths.entrySet()) {
+            String path = entry.getKey();
+            String identifier = getIdentifier(path);
+            PathItem pathItem = entry.getValue();
 
-        private PathMetadataFactory(OpenAPI openApi)
-        {
-            requireNonNull(openApi, "openApi is null");
-            responses = Optional.ofNullable(openApi.getComponents())
-                    .flatMap(components -> Optional.ofNullable(components.getResponses()))
-                    .orElse(ImmutableMap.of());
-            paths = openApi.getPaths();
-        }
+            if (identifier.isEmpty()) {
+                log.warn("openApi specification uses empty path, ignoring");
+                continue; // Table functions require non-empty names.
+            }
+            String previousPath = identifierToPath.put(identifier, path);
+            if (previousPath != null) {
+                exceptionsBuilder.add(new RuntimeException(
+                        "Identifier %s maps to multiple API paths [%s, %s]".formatted(
+                                identifier,
+                                previousPath,
+                                path)));
+            }
 
-        private Optional<PathMetadata> fromPath(String path)
-        {
             try {
-                return fromPathItem(paths.get(path));
+                Optional<Operation> operation = getGetOperation(pathItem, paths);
+                Optional<ApiResponse> response = operation.flatMap(SpecUtil::getSuccessfulResponse);
+                Optional<Schema<?>> schema = response.flatMap(r -> getJsonResponseSchema(r, responses));
+
+                // TODO transform the schema with SchemaIr factory ...
+                schema.map(_ -> new PathMetadata(path,
+                        identifier,
+                        ONE_COLUMN_DECODER,
+                        READ_ONCE_STRATEGY,
+                        OpenApiAuthenticator.NONE)).ifPresent(pm -> pathMetadataBuilder.put(path, pm));
             }
             catch (Exception e) {
-                throw new RuntimeException(
-                        "Failed mapping path %s to table function (%s)".formatted(
-                                path,
-                                e.getMessage()),
-                        e);
+                exceptionsBuilder.add(new RuntimeException("...", e));
             }
         }
 
-        private Optional<PathMetadata> fromPathItem(PathItem pathItem)
-        {
-            final Optional<Operation> getOperation;
-            try {
-                getOperation = getGetOperation(pathItem, paths);
-            }
-            catch (Exception e) {
-                throw new TrinoException(
-                        CONFIGURATION_INVALID,
-                        "Failed getting GET operation (%s)".formatted(e.getMessage()), e);
-            }
-            return getOperation.flatMap(this::fromOperation);
+        List<Exception> exceptions = exceptionsBuilder.build();
+        if (!exceptions.isEmpty()) {
+            throw new TrinoException(
+                    CONFIGURATION_INVALID,
+                    new OpenApiValidationExceptions(exceptions));
         }
 
-        private Optional<PathMetadata> fromOperation(Operation operation)
-        {
-            return getSuccessfulResponse(operation).flatMap(this::fromResponse);
-        }
-
-        private Optional<PathMetadata> fromResponse(ApiResponse response)
-        {
-            final Optional<Schema<?>> schema;
-            try {
-                schema = getJsonResponseSchema(response, responses);
-            }
-            catch (Exception e) {
-                throw new TrinoException(
-                        CONFIGURATION_INVALID,
-                        "Failed mapping api response (%s)".formatted(e.getMessage()));
-            }
-            return schema.flatMap(this::fromResponseSchema);
-        }
-
-        private Optional<PathMetadata> fromResponseSchema(Schema<?> schema)
-        {
-            // TODO transform the schema with SchemaIr factory ...
-            return Optional.of(new PathMetadata(
-                    ONE_COLUMN_DECODER,
-                    READ_ONCE_STRATEGY,
-                    OpenApiAuthenticator.NONE));
-        }
+        return pathMetadataBuilder.buildOrThrow();
     }
 
     private record PathMetadata(
+            String path,
+            String identifier,
             OpenApiDecoder decoder,
             OpenApiPaginationStrategy<?> paginationStrategy,
             OpenApiAuthenticator authenticator)
@@ -247,17 +177,17 @@ public class OpenApiSpec
 
     public OpenApiAuthenticator getAuthenticator(String path)
     {
-        return pathToAuthenticator.get(path);
+        return pathMetadata.get(path).authenticator();
     }
 
     public OpenApiPaginationStrategy<?> getPaginationStrategy(String path)
     {
-        return pathToPaginationStrategy.get(path);
+        return pathMetadata.get(path).paginationStrategy();
     }
 
     public OpenApiDecoder getDecoder(String path)
     {
-        return pathToDecoder.get(path);
+        return pathMetadata.get(path).decoder();
     }
 
     public Set<ConnectorTableFunction> getTableFunctions()
