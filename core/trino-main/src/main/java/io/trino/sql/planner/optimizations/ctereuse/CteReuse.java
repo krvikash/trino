@@ -1431,6 +1431,10 @@ public class CteReuse
                 DynamicFilterSource newDynamicFilterSource = removeDynamicFilterAssignments(dynamicFilterSource, retainedDynamicFilterIds, nameAllocator);
                 newOperations.put(newDynamicFilterSource.result(), newDynamicFilterSource);
             }
+            if (operation instanceof SemiJoin semiJoin) {
+                SemiJoin newSemiJoin = removeDynamicFilterAssignments(semiJoin, retainedDynamicFilterIds);
+                newOperations.put(newSemiJoin.result(), newSemiJoin);
+            }
         }
 
         // build the new query plan with the modified Filter and Join operations
@@ -1646,6 +1650,25 @@ public class CteReuse
             dynamicFilterIds = ImmutableList.copyOf(dynamicFilterIds);
             requireNonNull(dynamicFilterTargetSelector, "dynamicFilterTargetSelector is null");
         }
+    }
+
+    private static SemiJoin removeDynamicFilterAssignments(SemiJoin semiJoin, Set<String> retainedDynamicFilterIds)
+    {
+        String dynamicFilterId = SemiJoinOperationMetadata.DYNAMIC_FILTER_ID.getAttribute(semiJoin.attributes());
+        if (dynamicFilterId == null || retainedDynamicFilterIds.contains(dynamicFilterId)) {
+            return semiJoin;
+        }
+
+        return new SemiJoin(
+                semiJoin.result().name(),
+                semiJoin.source(),
+                semiJoin.filteringSource(),
+                semiJoin.sourceFieldSelector(),
+                semiJoin.filteringSourceFieldSelector(),
+                Optional.ofNullable(SemiJoinOperationMetadata.DISTRIBUTION_TYPE.getAttribute(semiJoin.attributes())),
+                Optional.empty(),
+                ImmutableMap.of(),
+                ImmutableMap.of());
     }
 
     private record EquivalentDynamicFilters(Set<String> ids, String representative)
