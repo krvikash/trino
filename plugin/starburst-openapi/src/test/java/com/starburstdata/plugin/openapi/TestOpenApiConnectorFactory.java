@@ -13,13 +13,10 @@
  */
 package com.starburstdata.plugin.openapi;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.CreationException;
 import com.google.inject.spi.Message;
-import com.starburstdata.plugin.openapi.OpenApiValidationExceptions.AmbiguousTableFunctionPath;
-import com.starburstdata.plugin.openapi.OpenApiValidationExceptions.BadPathItem;
-import com.starburstdata.plugin.openapi.OpenApiValidationExceptions.BadResponseReference;
-import com.starburstdata.plugin.openapi.OpenApiValidationExceptions.FailedValidation;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.function.table.ConnectorTableFunction;
@@ -31,18 +28,16 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import java.net.URL;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.starburstdata.plugin.openapi.OpenApiSpec.SCHEMA_NAME;
 import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
-import static org.assertj.core.api.Fail.fail;
-import static org.assertj.core.api.InstanceOfAssertFactories.list;
 import static org.assertj.core.api.InstanceOfAssertFactories.throwable;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
@@ -90,71 +85,59 @@ final class TestOpenApiConnectorFactory
     @Test
     void testAmbiguousTableFunctions()
     {
-        assertThat(getConfigurationThrowable("ambiguouspaths.json"))
+        List<Exception> exceptions = assertThat(getConfigurationThrowable("ambiguouspaths.json"))
                 .cause()
                 .asInstanceOf(type(OpenApiValidationExceptions.class))
-                .extracting(OpenApiValidationExceptions::getFailedValidations)
-                .asInstanceOf(list(FailedValidation.class))
-                .hasOnlyElementsOfType(AmbiguousTableFunctionPath.class)
-                .asInstanceOf(list(AmbiguousTableFunctionPath.class))
-                .allSatisfy(ambiguousError -> {
-                    switch (ambiguousError.identifier()) {
-                        case "colliding_path" -> assertThat(ambiguousError)
-                                .extracting(AmbiguousTableFunctionPath::paths)
-                                .asInstanceOf(list(String.class))
-                                .containsExactlyInAnyOrder("/collidingPath", "/colliding_path");
-                        case "non_unique" -> assertThat(ambiguousError)
-                                .extracting(AmbiguousTableFunctionPath::paths)
-                                .asInstanceOf(list(String.class))
-                                .containsExactlyInAnyOrder("/non/unique", "/non/{unique}");
-                        case String other -> fail("Unexpected ambiguous identifier %s", other);
-                    }
-                });
+                .extracting(OpenApiValidationExceptions::getSpecificationExceptions)
+                .actual();
+
+        assertThat(exceptions).hasSize(2);
+        assertThat(exceptions)
+                .map(Exception::getMessage)
+                .anySatisfy(message ->
+                        assertThat(message)
+                                .startsWith("Identifier colliding_path maps to multiple API paths"));
+        assertThat(exceptions)
+                .map(Exception::getMessage)
+                .anySatisfy(message ->
+                        assertThat(message)
+                                .startsWith("Identifier non_unique maps to multiple API paths"));
     }
 
     @Test
     public void testResponses()
     {
-        Map<String, String> badResponseReferences =
-                assertThat(getConfigurationThrowable("responses.json"))
+        List<Exception> exceptions = assertThat(getConfigurationThrowable("responses.json"))
                 .cause()
                 .asInstanceOf(type(OpenApiValidationExceptions.class))
-                .extracting(OpenApiValidationExceptions::getFailedValidations)
-                .asInstanceOf(list(FailedValidation.class))
-                .asInstanceOf(list(BadResponseReference.class))
-                .actual()
-                .stream()
-                .collect(toImmutableMap(
-                        BadResponseReference::path,
-                        BadResponseReference::error));
-        assertThat(badResponseReferences).containsOnlyKeys("/circular", "/badref");
-        assertThat(badResponseReferences.get("/circular"))
-                .isEqualTo("Response references form a cycle");
-        assertThat(badResponseReferences.get("/badref"))
-                .isEqualTo("Response references re-usable response that doesn't exist: badref");
+                .extracting(OpenApiValidationExceptions::getSpecificationExceptions)
+                .actual();
+
+        assertThat(exceptions)
+                .map(Exception::getMessage)
+                .containsExactlyInAnyOrderElementsOf(ImmutableList.<String>builder()
+                        .add("Failed mapping path /circular to table function (Failed mapping api response (Response references form a cycle))")
+                        .add("Failed mapping path /badref to table function (Failed mapping api response (Response references re-usable response that doesn't exist: badref))")
+                        .build());
     }
 
     @Test
     public void testPaths()
     {
-        Map<String, String> badPaths = assertThat(getConfigurationThrowable("paths.json"))
+        List<Exception> exceptions = assertThat(getConfigurationThrowable("paths.json"))
                 .cause()
                 .asInstanceOf(type(OpenApiValidationExceptions.class))
-                .extracting(OpenApiValidationExceptions::getFailedValidations)
-                .asInstanceOf(list(FailedValidation.class))
-                .asInstanceOf(list(BadPathItem.class))
-                .actual()
-                .stream()
-                .collect(toImmutableMap(
-                        BadPathItem::path,
-                        BadPathItem::error));
-        assertThat(badPaths).containsOnlyKeys("/circular", "/circularSTART", "/circularEND", "/badref");
-        assertThat(badPaths.get("/circular"))
-                .isEqualTo("Path references form a cycle");
-        assertThat(badPaths.get("/circularSTART"))
-                .isEqualTo("Path references form a cycle");
-        assertThat(badPaths.get("/badref"))
-                .isEqualTo("Path references path that doesn't exist: notreal");
+                .extracting(OpenApiValidationExceptions::getSpecificationExceptions)
+                .actual();
+
+        assertThat(exceptions)
+                .map(Exception::getMessage)
+                .containsExactlyInAnyOrderElementsOf(ImmutableList.<String>builder()
+                        .add("Failed mapping path /circular to table function (Failed getting GET operation (Path references form a cycle))")
+                        .add("Failed mapping path /circularSTART to table function (Failed getting GET operation (Path references form a cycle))")
+                        .add("Failed mapping path /circularEND to table function (Failed getting GET operation (Path references form a cycle))")
+                        .add("Failed mapping path /badref to table function (Failed getting GET operation (Path references path that doesn't exist: notreal))")
+                        .build());
     }
 
     private Connector createConnector(String location)

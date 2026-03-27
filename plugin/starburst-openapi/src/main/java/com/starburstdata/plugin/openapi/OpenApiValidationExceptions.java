@@ -9,80 +9,37 @@
  */
 package com.starburstdata.plugin.openapi;
 
+import io.trino.spi.TrinoException;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static java.lang.String.format;
+import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
 
 /**
- * An exception class to collect and truncate validation errors from an OpenApiSpec.
+ * An exception class to collect errors from an OpenApiSpec.
  */
 public class OpenApiValidationExceptions
-        extends RuntimeException
+        extends TrinoException
 {
-    private final List<FailedValidation> failedValidations;
+    private final List<Exception> specificationExceptions;
 
-    public OpenApiValidationExceptions(List<FailedValidation> failedValidations)
+    public OpenApiValidationExceptions(List<Exception> specificationExceptions)
     {
-        super(getMessage(failedValidations));
-        this.failedValidations = failedValidations;
+        super(CONFIGURATION_INVALID, getMessage(specificationExceptions), specificationExceptions.getFirst());
+        this.specificationExceptions = specificationExceptions;
+        specificationExceptions.stream().skip(1).forEach(this::addSuppressed);
     }
 
-    private static String getMessage(List<FailedValidation> failedValidations)
+    private static String getMessage(List<Exception> specificationExceptions)
     {
-        return failedValidations.stream()
-                .map(failedValidation -> format("\"%s\"", failedValidation.getMessage()))
-                .collect(Collectors.joining(", ", "There were a number of exceptions: ", ""));
+        return specificationExceptions.stream()
+                .map(Exception::getMessage)
+                .collect(Collectors.joining("\n * ", "There were a number of exceptions: \n * ", ""));
     }
 
-    public List<FailedValidation> getFailedValidations()
+    public List<Exception> getSpecificationExceptions()
     {
-        return failedValidations;
-    }
-
-    public interface FailedValidation
-    {
-        String getMessage();
-    }
-
-    record AmbiguousTableFunctionPath(
-            String identifier,
-            List<String> paths)
-            implements FailedValidation
-    {
-        @Override
-        public String getMessage()
-        {
-            return paths.stream()
-                    .map(path -> format("\"%s\"", path))
-                    .collect(Collectors.joining(
-                            ", ",
-                            "Paths ",
-                            " all map to table function %s".formatted(identifier)));
-        }
-    }
-
-    record BadPathItem(
-            String path,
-            String error)
-            implements FailedValidation
-    {
-        @Override
-        public String getMessage()
-        {
-            return "Following references from path %s led to error: %s".formatted(path, error);
-        }
-    }
-
-    record BadResponseReference(
-            String path,
-            String error)
-            implements FailedValidation
-    {
-        @Override
-        public String getMessage()
-        {
-            return "Following references from responses of %s led to error: %s".formatted(path, error);
-        }
+        return specificationExceptions;
     }
 }
