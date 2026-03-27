@@ -116,8 +116,8 @@ final class TestOpenApiConnectorFactory
         assertThat(exceptions)
                 .map(Exception::getMessage)
                 .containsExactlyInAnyOrderElementsOf(ImmutableList.<String>builder()
-                        .add("Failed mapping path /circular to table function (Failed mapping api response (Response references form a cycle))")
-                        .add("Failed mapping path /badref to table function (Failed mapping api response (Response references re-usable response that doesn't exist: badref))")
+                        .add("Failed to transform path /circular (Response references form a cycle)")
+                        .add("Failed to transform path /badref (Response references re-usable response that doesn't exist: badref)")
                         .build());
     }
 
@@ -133,10 +133,10 @@ final class TestOpenApiConnectorFactory
         assertThat(exceptions)
                 .map(Exception::getMessage)
                 .containsExactlyInAnyOrderElementsOf(ImmutableList.<String>builder()
-                        .add("Failed mapping path /circular to table function (Failed getting GET operation (Path references form a cycle))")
-                        .add("Failed mapping path /circularSTART to table function (Failed getting GET operation (Path references form a cycle))")
-                        .add("Failed mapping path /circularEND to table function (Failed getting GET operation (Path references form a cycle))")
-                        .add("Failed mapping path /badref to table function (Failed getting GET operation (Path references path that doesn't exist: notreal))")
+                        .add("Failed to transform path /circular (Path references form a cycle)")
+                        .add("Failed to transform path /circularSTART (Path references form a cycle)")
+                        .add("Failed to transform path /circularEND (Path references form a cycle)")
+                        .add("Failed to transform path /badref (Path references path that doesn't exist: notreal)")
                         .build());
     }
 

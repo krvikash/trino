@@ -96,19 +96,19 @@ public class OpenApiSpec
         return result.getOpenAPI();
     }
 
-    private static Map<String, PathMetadata> getPathMetadata(Map<String, PathItem> paths, Map<String, ApiResponse> responses)
+    private static Map<String, PathMetadata> getPathMetadata(
+            Map<String, PathItem> paths,
+            Map<String, ApiResponse> responses)
     {
         ImmutableMap.Builder<String, PathMetadata> pathMetadataBuilder = ImmutableMap.builder();
         ImmutableList.Builder<Exception> exceptionsBuilder = ImmutableList.builder();
         Map<String, String> identifierToPath = new HashMap<>();
-        for (Map.Entry<String, PathItem> entry : paths.entrySet()) {
-            String path = entry.getKey();
+        paths.forEach((path, pathItem) -> {
             String identifier = getIdentifier(path);
-            PathItem pathItem = entry.getValue();
 
             if (identifier.isEmpty()) {
                 log.warn("openApi specification uses empty path, ignoring");
-                continue; // Table functions require non-empty names.
+                return; // Table functions require non-empty names.
             }
             String previousPath = identifierToPath.put(identifier, path);
             if (previousPath != null) {
@@ -125,16 +125,19 @@ public class OpenApiSpec
                 Optional<Schema<?>> schema = response.flatMap(r -> getJsonResponseSchema(r, responses));
 
                 // TODO transform the schema with SchemaIr factory ...
-                schema.map(_ -> new PathMetadata(path,
+                Optional<PathMetadata> pathMetadata = schema.map(_ -> new PathMetadata(
                         identifier,
                         ONE_COLUMN_DECODER,
                         READ_ONCE_STRATEGY,
-                        OpenApiAuthenticator.NONE)).ifPresent(pm -> pathMetadataBuilder.put(path, pm));
+                        OpenApiAuthenticator.NONE));
+                pathMetadata.ifPresent(pm -> pathMetadataBuilder.put(path, pm));
             }
             catch (Exception e) {
-                exceptionsBuilder.add(new RuntimeException("...", e));
+                exceptionsBuilder.add(new RuntimeException(
+                        "Failed to transform path %s (%s)".formatted(path, e.getMessage()),
+                        e));
             }
-        }
+        });
 
         List<Exception> exceptions = exceptionsBuilder.build();
         if (!exceptions.isEmpty()) {
@@ -147,7 +150,6 @@ public class OpenApiSpec
     }
 
     private record PathMetadata(
-            String path,
             String identifier,
             OpenApiDecoder decoder,
             OpenApiPaginationStrategy<?> paginationStrategy,
