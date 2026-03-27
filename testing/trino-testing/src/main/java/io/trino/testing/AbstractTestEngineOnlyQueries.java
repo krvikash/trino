@@ -745,11 +745,26 @@ public abstract class AbstractTestEngineOnlyQueries
         assertQuery("SELECT CAST(292 AS DECIMAL(38,1)) = CAST(CAST(121 AS DECIMAL(30,1)) AS SMALLINT)");
 
         // DECIMAL - NUMBER
-        assertThat(query("SELECT CAST(1.1 AS DECIMAL(38,1)) + CAST(1.1 AS NUMBER)")).matches("VALUES NUMBER '2.2'");
+        String testClassName = getClass().getSimpleName();
+        // TODO https://starburstdata.atlassian.net/browse/ENG-7894 Support NUMBER in Trino protocol spooling to Arrow
+        boolean isArrowSpooling = testClassName.endsWith("TestArrowSpooledDistributedQueries") || testClassName.equals("TestArrowZstdSpooledDistributedQueries");
+        if (isArrowSpooling) {
+            assertThat(query("SELECT CAST(1.1 AS DECIMAL(38,1)) + CAST(1.1 AS NUMBER)")).failure()
+                    .hasMessageContaining("Output columns [OutputColumn[sourcePageChannel=0, columnName=_col0, type=number]] are not supported for spooling encoding");
+        }
+        else {
+            assertThat(query("SELECT CAST(1.1 AS DECIMAL(38,1)) + CAST(1.1 AS NUMBER)")).matches("VALUES NUMBER '2.2'");
+        }
         assertThat(query("SELECT CAST(1.1 AS DECIMAL(7,1)) = CAST(1.1 AS NUMBER)")).matches("VALUES true");
         assertThat(query("SELECT CAST(1.1 AS DECIMAL(38,1)) = CAST(1.1 AS NUMBER)")).matches("VALUES true");
-        assertThat(query("SELECT ARRAY[CAST(282.1 AS NUMBER), CAST(283.2 AS NUMBER)] || CAST(101.3 AS DECIMAL(5,1))"))
-                .matches("SELECT ARRAY[CAST(282.1 AS NUMBER), CAST(283.2 AS NUMBER), CAST(101.3 AS NUMBER)]");
+        if (isArrowSpooling) {
+            assertThat(query("SELECT ARRAY[CAST(282.1 AS NUMBER), CAST(283.2 AS NUMBER)] || CAST(101.3 AS DECIMAL(5,1))")).failure()
+                    .hasMessageContaining("Output columns [OutputColumn[sourcePageChannel=0, columnName=_col0, type=array(number)]] are not supported for spooling encoding");
+        }
+        else {
+            assertThat(query("SELECT ARRAY[CAST(282.1 AS NUMBER), CAST(283.2 AS NUMBER)] || CAST(101.3 AS DECIMAL(5,1))"))
+                    .matches("SELECT ARRAY[CAST(282.1 AS NUMBER), CAST(283.2 AS NUMBER), CAST(101.3 AS NUMBER)]");
+        }
 
         // Complex coercions across joins
         assertQuery("SELECT * FROM (" +

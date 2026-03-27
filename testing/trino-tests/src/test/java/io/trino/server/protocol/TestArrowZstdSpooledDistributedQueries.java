@@ -14,8 +14,11 @@
 package io.trino.server.protocol;
 
 import com.google.common.collect.ImmutableMap;
+import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestArrowZstdSpooledDistributedQueries
         extends AbstractSpooledQueryDataDistributedQueries
@@ -30,5 +33,13 @@ public class TestArrowZstdSpooledDistributedQueries
     protected String encoding()
     {
         return "arrow-preview+zstd";
+    }
+
+    @Test
+    @Override // TODO https://starburstdata.atlassian.net/browse/ENG-7894 Support NUMBER in Trino protocol spooling to Arrow
+    public void testNumber()
+    {
+        assertThatThrownBy(super::testNumber)
+                .hasMessage("Output columns [OutputColumn[sourcePageChannel=0, columnName=_col0, type=number]] are not supported for spooling encoding 'arrow-preview+zstd'");
     }
 }
