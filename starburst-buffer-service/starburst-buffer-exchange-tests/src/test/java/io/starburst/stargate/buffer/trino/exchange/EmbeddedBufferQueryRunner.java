@@ -32,6 +32,7 @@ final class EmbeddedBufferQueryRunner
 {
     static final long EMBEDDED_BUFFER_TEST_TIMEOUT_MILLIS = 240_000;
     static final long BUFFER_NODE_STATE_TRANSITION_TIMEOUT_MILLIS = 30_000;
+    static final long CHUNKS_AVAILABLE_TIMEOUT_MILLIS = 30_000;
 
     private EmbeddedBufferQueryRunner() {}
 

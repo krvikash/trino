@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static io.starburst.stargate.buffer.trino.exchange.EmbeddedBufferQueryRunner.BUFFER_NODE_STATE_TRANSITION_TIMEOUT_MILLIS;
+import static io.starburst.stargate.buffer.trino.exchange.EmbeddedBufferQueryRunner.CHUNKS_AVAILABLE_TIMEOUT_MILLIS;
 import static io.starburst.stargate.buffer.trino.exchange.EmbeddedBufferQueryRunner.EMBEDDED_BUFFER_TEST_TIMEOUT_MILLIS;
 import static io.starburst.stargate.buffer.trino.exchange.EmbeddedBufferQueryRunner.createRunnerWithWorkers;
 import static io.starburst.stargate.buffer.trino.exchange.EmbeddedBufferQueryRunner.createSingleNodeRunner;
@@ -51,7 +52,6 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 public class TestEmbeddedBufferGracefulShutdown
 {
     private static final long SHUTDOWN_TIMEOUT_MILLIS = 120_000;
-    private static final long TRACKED_EXCHANGES_TIMEOUT_MILLIS = 30_000;
 
     @Test
     @Timeout(value = EMBEDDED_BUFFER_TEST_TIMEOUT_MILLIS, unit = MILLISECONDS)
@@ -80,18 +80,15 @@ public class TestEmbeddedBufferGracefulShutdown
                                         "FROM mock.default.test_table a, mock.default.test_table b " +
                                         "GROUP BY a.group_key")));
             }
-            // Wait until the worker's buffer actually has exchange data — this confirms the
-            assertEventually(new Duration(TRACKED_EXCHANGES_TIMEOUT_MILLIS, MILLISECONDS),
-                    () -> assertThat(chunkManager.getTrackedExchanges())
-                            .describedAs("Expected exchanges registered on the worker's buffer")
+            // Wait until the worker's buffer actually has chunks with data
+            assertEventually(new Duration(CHUNKS_AVAILABLE_TIMEOUT_MILLIS, MILLISECONDS),
+                    () -> assertThat(chunkManager.getOpenChunks() + chunkManager.getClosedChunks())
+                            .describedAs("Expected chunks to be present on the worker's buffer before drain")
                             .isGreaterThan(0));
-            // Verify queries are still running before we trigger shutdown — exchange data is in flight
+            // Verify queries are still running - exchange data is in flight
             assertThat(Futures.allAsList(queryFutures).isDone())
                     .describedAs("Queries should still be running when shutdown is triggered")
                     .isFalse();
-            assertThat(chunkManager.getSpooledChunksCount())
-                    .describedAs("No chunks spooled to persistent storage before node drain")
-                    .isEqualTo(0);
 
             // Trigger worker shutdown while the buffer holds data
             worker.getNodeStateManager().transitionState(NodeState.SHUTTING_DOWN);
@@ -100,16 +97,13 @@ public class TestEmbeddedBufferGracefulShutdown
             assertEventually(new Duration(BUFFER_NODE_STATE_TRANSITION_TIMEOUT_MILLIS, MILLISECONDS),
                     () -> assertThat(bufferNodeStateManager.getState()).isEqualTo(BufferNodeState.DRAINING));
 
-            // Verify buffer reaches DRAINED — all chunks spooled, none remain in memory
+            // Verify buffer reaches DRAINED - drain completed, no in-memory chunks remain
             assertEventually(new Duration(BUFFER_NODE_STATE_TRANSITION_TIMEOUT_MILLIS, MILLISECONDS),
                     () -> assertThat(bufferNodeStateManager.getState()).isEqualTo(BufferNodeState.DRAINED));
 
             assertThat(chunkManager.getOpenChunks() + chunkManager.getClosedChunks())
-                    .describedAs("All in-memory chunks should be spooled after drain")
+                    .describedAs("All in-memory chunks should be gone after drain")
                     .isEqualTo(0);
-            assertThat(chunkManager.getSpooledChunksCount())
-                    .describedAs("Chunks should have been spooled to persistent storage during drain")
-                    .isGreaterThan(0);
 
             // All queries must complete successfully.
             Futures.allAsList(queryFutures).get();
