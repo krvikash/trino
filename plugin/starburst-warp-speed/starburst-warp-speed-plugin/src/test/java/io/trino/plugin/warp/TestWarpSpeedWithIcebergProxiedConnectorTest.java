@@ -262,16 +262,20 @@ public class TestWarpSpeedWithIcebergProxiedConnectorTest
             return Optional.of(setup.withNewValueLiteral("TIMESTAMP '2020-02-12 14:03:00.123000 +00:00'"));
         }
         return switch ("%s -> %s".formatted(setup.sourceColumnType(), setup.newColumnType())) {
-            case "row(x integer) -> row(y integer)" ->
+            case "row(x integer) -> row(\"y\" integer)" ->
                 // TODO https://github.com/trinodb/trino/issues/15822 The connector returns incorrect NULL when a field in row type doesn't exist in Parquet files
                 Optional.of(setup.withNewValueLiteral("NULL"));
             case "tinyint -> smallint",
                  "bigint -> integer",
+                 "bigint -> smallint",
+                 "bigint -> tinyint",
                  "decimal(5,3) -> decimal(5,2)",
+                 "char(25) -> char(20)",
                  "varchar -> char(20)",
                  "time(6) -> time(3)",
                  "timestamp(6) -> timestamp(3)",
-                 "array(integer) -> array(bigint)" ->
+                 // Iceberg cannot update map keys
+                 "map(integer, varchar) -> map(bigint, varchar)" ->
                 // Iceberg allows updating column types if the update is safe. Safe updates are:
                 // - int to bigint
                 // - float to double
@@ -290,29 +294,34 @@ public class TestWarpSpeedWithIcebergProxiedConnectorTest
     {
         assertThat(e).hasMessageMatching(".*(Failed to set column type: Cannot change (column type:|type from .* to )" +
                 "|Time(stamp)? precision \\(3\\) not supported for Iceberg. Use \"time(stamp)?\\(6\\)\" instead" +
-                "|Type not supported for Iceberg: smallint|char\\(20\\)).*");
+                "|Type not supported for Iceberg: (tinyint|smallint|char\\(20\\))" +
+                "|Cannot update map keys).*");
     }
 
     @Override
     protected Optional<SetColumnTypeSetup> filterSetFieldTypesDataProvider(SetColumnTypeSetup setup)
     {
+        if (setup.sourceColumnType().equals("timestamp(3) with time zone")) {
+            // The connector returns UTC instead of the given time zone
+            return Optional.of(setup.withNewValueLiteral("TIMESTAMP '2020-02-12 14:03:00.123000 +00:00'"));
+        }
         return switch ("%s -> %s".formatted(setup.sourceColumnType(), setup.newColumnType())) {
+            case "row(x integer) -> row(\"y\" integer)" ->
+                // TODO https://github.com/trinodb/trino/issues/15822 The connector returns incorrect NULL when a field in row type doesn't exist in Parquet files
+                // Skip this test entirely, as the newValueLiteral is always wrapped in a row
+                Optional.empty();
+
             case "tinyint -> smallint",
                  "bigint -> integer",
+                 "bigint -> smallint",
+                 "bigint -> tinyint",
                  "decimal(5,3) -> decimal(5,2)",
+                 "char(25) -> char(20)",
                  "varchar -> char(20)",
                  "time(6) -> time(3)",
                  "timestamp(6) -> timestamp(3)",
-                 "array(integer) -> array(bigint)",
-                 "row(x integer) -> row(x bigint)",
-                 "row(x integer) -> row(y integer)",
-                 "row(x integer, y integer) -> row(x integer, z integer)",
-                 "row(x integer) -> row(x integer, y integer)",
-                 "row(x integer, y integer) -> row(x integer)",
-                 "row(x integer, y integer) -> row(y integer, x integer)",
-                 "row(x integer, y integer) -> row(z integer, y integer, x integer)",
-                 "row(x row(nested integer)) -> row(x row(nested bigint))",
-                 "row(x row(a integer, b integer)) -> row(x row(b integer, a integer))" ->
+                 // Iceberg cannot update map keys
+                 "map(integer, varchar) -> map(bigint, varchar)" ->
                 // Iceberg allows updating column types if the update is safe. Safe updates are:
                 // - int to bigint
                 // - float to double
@@ -349,8 +358,8 @@ public class TestWarpSpeedWithIcebergProxiedConnectorTest
     {
         assertThat(e).hasMessageMatching(".*(Failed to set field type: Cannot change (column type:|type from .* to )" +
                 "|Time(stamp)? precision \\(3\\) not supported for Iceberg. Use \"time(stamp)?\\(6\\)\" instead" +
-                "|Type not supported for Iceberg: smallint|char\\(20\\)" +
-                "|Iceberg doesn't support changing field type (from|to) non-primitive types).*");
+                "|Type not supported for Iceberg: (tinyint|smallint|char\\(20\\))" +
+                "|Cannot update map keys).*");
     }
 
     @Override
