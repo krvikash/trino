@@ -11,6 +11,7 @@ package com.starburstdata.trino.plugin.snowflake;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import io.airlift.log.Level;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
 import io.trino.Session;
@@ -51,6 +52,11 @@ public class SnowflakeQueryRunner
     public static final String TEST_SCHEMA = "test_schema_2";
 
     public static final String ALICE_USER = "alice";
+
+    static {
+        Logging logging = Logging.initialize();
+        logging.setLevel("net.snowflake", Level.WARN);
+    }
 
     public static Map<String, String> impersonationDisabled()
     {
