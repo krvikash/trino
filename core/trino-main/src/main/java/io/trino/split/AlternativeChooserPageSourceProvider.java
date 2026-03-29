@@ -24,7 +24,6 @@ import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
-import io.trino.spi.predicate.TupleDomain;
 
 import java.util.List;
 
@@ -58,25 +57,5 @@ public class AlternativeChooserPageSourceProvider
         try (ConnectorAlternativePageSourceProvider provider = choice.pageSourceProvider()) {
             return provider.createPageSource(transaction, session, columns, dynamicFilter);
         }
-    }
-
-    @Override
-    public TupleDomain<ColumnHandle> getUnenforcedPredicate(
-            ConnectorSession session,
-            ConnectorSplit split,
-            ConnectorTableHandle table,
-            TupleDomain<ColumnHandle> dynamicFilter)
-    {
-        return alternativeChooser.getUnenforcedPredicate(session, split, table, dynamicFilter);
-    }
-
-    @Override
-    public TupleDomain<ColumnHandle> prunePredicate(
-            ConnectorSession session,
-            ConnectorSplit split,
-            ConnectorTableHandle table,
-            TupleDomain<ColumnHandle> predicate)
-    {
-        return alternativeChooser.prunePredicate(session, split, table, predicate);
     }
 }

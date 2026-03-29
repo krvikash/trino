@@ -13,8 +13,6 @@
  */
 package io.trino.spi.connector;
 
-import io.trino.spi.predicate.TupleDomain;
-
 import java.util.List;
 
 import static java.util.Objects.requireNonNull;
@@ -29,33 +27,6 @@ public interface ConnectorAlternativeChooser
             ConnectorSession session,
             ConnectorSplit split,
             List<ConnectorTableHandle> alternatives);
-
-    /**
-     * Returns unenforced (effective) predicate that {@link ConnectorPageSource} would use to filter split data.
-     * If split is completely filtered out, then this method should return {@link TupleDomain#none}.
-     */
-    default TupleDomain<ColumnHandle> getUnenforcedPredicate(
-            ConnectorSession session,
-            ConnectorSplit split,
-            ConnectorTableHandle table,
-            TupleDomain<ColumnHandle> dynamicFilter)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * Prunes columns from predicate that are not effective in filtering split data.
-     * If split is completely filtered out by given predicate, then this
-     * method must return {@link TupleDomain#none}.
-     */
-    default TupleDomain<ColumnHandle> prunePredicate(
-            ConnectorSession session,
-            ConnectorSplit split,
-            ConnectorTableHandle table,
-            TupleDomain<ColumnHandle> predicate)
-    {
-        throw new UnsupportedOperationException();
-    }
 
     record Choice(int chosenTableHandleIndex, ConnectorAlternativePageSourceProvider pageSourceProvider)
     {
