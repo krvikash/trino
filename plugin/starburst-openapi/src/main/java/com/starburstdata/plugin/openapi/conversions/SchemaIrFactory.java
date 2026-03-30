@@ -34,6 +34,7 @@ import java.util.stream.Stream;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.starburstdata.plugin.openapi.SpecUtil.castSchemaMap;
 import static com.starburstdata.plugin.openapi.conversions.ReferenceUtil.extractRefKey;
+import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy.JSON;
 import static com.starburstdata.plugin.openapi.conversions.ir.NumberIr.Format.DOUBLE;
 import static com.starburstdata.plugin.openapi.conversions.ir.NumberIr.Format.FLOAT;
 import static com.starburstdata.plugin.openapi.conversions.ir.NumberIr.Format.INT32;
@@ -98,10 +99,13 @@ public class SchemaIrFactory
                 .flatMap(Optional::stream)
                 .collect(toImmutableList());
 
-        if (!unsupportedBooleanKeywords.isEmpty()) {
+        if (!unsupportedBooleanKeywords.isEmpty() && !castPolicy.equals(JSON)) {
             throw new SchemaException(format(
                     "Schema uses unsupported boolean keywords [%s]",
                     join(",", unsupportedBooleanKeywords)));
+        }
+        else if (!unsupportedBooleanKeywords.isEmpty()) {
+            return new JsonIr();
         }
 
         String ref = schema.get$ref();
@@ -149,9 +153,12 @@ public class SchemaIrFactory
             };
         }
 
-        if (schema.getEnum() != null) {
+        if (schema.getEnum() != null && !castPolicy.equals(JSON)) {
             throw new SchemaException("Enum keyword without type keyword is unsupported")
                     .fromMember("enum");
+        }
+        else if (schema.getEnum() != null) {
+            return new JsonIr();
         }
 
         // Lack of keywords means any JSON value allowed.

@@ -45,30 +45,18 @@ final class TestOpenApiConnectorFactory
 {
     @ParameterizedTest
     @ValueSource(strings = {
+            "github.json",
+            "github-patched.json",
             "jira.json",
             "galaxy.json",
             "petstore.yaml",
+            "datadog.yaml",
+            "cloudflare.json",
             "openmeteo.yml"
     })
     public void testLoadsSpecification(String specification)
     {
         assertThatNoException().isThrownBy(() -> createConnector(specification).shutdown());
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {
-            "github.json",
-            "github-patched.json",
-            "datadog.yaml",
-            "cloudflare.json"
-    })
-    public void testDoesNotLoadSpecification(String specification)
-    {
-        assertThat(getConfigurationThrowable(specification))
-                .cause()
-                .asInstanceOf(throwable(TrinoException.class))
-                .extracting(TrinoException::getErrorCode)
-                .isEqualTo(CONFIGURATION_INVALID.toErrorCode());
     }
 
     @Test
