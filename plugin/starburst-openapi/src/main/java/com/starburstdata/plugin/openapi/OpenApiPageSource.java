@@ -14,7 +14,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.starburstdata.plugin.openapi.authentication.OpenApiAuthenticator;
 import com.starburstdata.plugin.openapi.conversions.OpenApiDecoder;
-import com.starburstdata.plugin.openapi.conversions.OpenApiDecoder.DecodingException;
 import com.starburstdata.plugin.openapi.pagination.OpenApiPaginationStrategy;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpStatus;
@@ -96,14 +95,9 @@ public class OpenApiPageSource<S>
             catch (IOException e) {
                 throw new RuntimeException("Failed to read JSON from response", e);
             }
-            try {
-                return new OpenApiResult<>(
-                        decoder.decodeToPage(root, columnHandles),
-                        paginationStrategy.nextStateFromResponse(currentState, response));
-            }
-            catch (DecodingException decodingException) {
-                throw new RuntimeException(decodingException);
-            }
+            return new OpenApiResult<>(
+                    decoder.decodeToPage(root, columnHandles),
+                    paginationStrategy.nextStateFromResponse(currentState, response));
         }
     }
 

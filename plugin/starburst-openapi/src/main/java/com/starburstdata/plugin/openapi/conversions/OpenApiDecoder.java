@@ -22,15 +22,5 @@ public interface OpenApiDecoder
 
     List<OpenApiColumnHandle> getColumnHandles();
 
-    Page decodeToPage(JsonNode root, List<ColumnHandle> columnHandles)
-            throws DecodingException;
-
-    class DecodingException
-            extends Exception
-    {
-        public DecodingException(String message)
-        {
-            super(message);
-        }
-    }
+    Page decodeToPage(JsonNode root, List<ColumnHandle> columnHandles);
 }
