@@ -89,6 +89,7 @@ public class OpenApiSpec
                 columnWriterFactory);
         this.tableFunctions = pathMetadata.entrySet().stream()
                 .map(entry -> new OpenApiRequestTableFunction(
+                        config.getBaseUri(),
                         entry.getKey(),
                         entry.getValue().identifier(),
                         entry.getValue().decoder().getColumnHandles()))

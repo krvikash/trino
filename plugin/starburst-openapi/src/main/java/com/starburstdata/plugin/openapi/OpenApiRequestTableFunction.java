@@ -17,6 +17,7 @@ import io.trino.spi.function.table.Argument;
 import io.trino.spi.function.table.ReturnTypeSpecification.DescribedTable;
 import io.trino.spi.function.table.TableFunctionAnalysis;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
@@ -24,18 +25,16 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.starburstdata.plugin.openapi.OpenApiSpec.SCHEMA_NAME;
 import static io.trino.spi.function.table.Descriptor.descriptor;
 import static java.util.Collections.emptyList;
+import static java.util.Objects.requireNonNull;
 
 class OpenApiRequestTableFunction
         extends AbstractConnectorTableFunction
 {
-    private final OpenApiRequestTableHandle handle;
-
-    public String getPath()
-    {
-        return handle.path();
-    }
+    private final String path;
+    private final URI baseUri;
 
     public OpenApiRequestTableFunction(
+            URI baseUri,
             String path,
             String identifier,
             List<OpenApiColumnHandle> columns)
@@ -47,7 +46,13 @@ class OpenApiRequestTableFunction
                 new DescribedTable(descriptor(
                         columns.stream().map(OpenApiColumnHandle::name).collect(toImmutableList()),
                         columns.stream().map(OpenApiColumnHandle::type).collect(toImmutableList()))));
-        this.handle = new OpenApiRequestTableHandle(path);
+        this.baseUri = requireNonNull(baseUri, "baseUri is null");
+        this.path = requireNonNull(path, "path is null");
+    }
+
+    public String getPath()
+    {
+        return path;
     }
 
     @Override
@@ -57,8 +62,12 @@ class OpenApiRequestTableFunction
             Map<String, Argument> arguments,
             ConnectorAccessControl accessControl)
     {
+        // TODO: Resolve variables in path template.
+        URI uri = baseUri.resolve(path);
         return TableFunctionAnalysis.builder()
-                .handle(new OpenApiTableFunctionHandle(handle))
+                .handle(new OpenApiTableFunctionHandle(new OpenApiRequestTableHandle(
+                        path,
+                        uri)))
                 .build();
     }
 }
