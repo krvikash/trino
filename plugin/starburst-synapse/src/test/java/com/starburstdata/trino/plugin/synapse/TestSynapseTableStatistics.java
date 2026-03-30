@@ -32,6 +32,7 @@ import java.util.function.Consumer;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Streams.stream;
 import static com.starburstdata.trino.plugin.synapse.SynapseQueryRunner.createSynapseQueryRunner;
+import static com.starburstdata.trino.plugin.synapse.SynapseServer.TEST_SCHEMA;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.sql.TestTable.fromColumns;
 import static io.trino.tpch.TpchTable.NATION;
@@ -235,7 +236,7 @@ public class TestSynapseTableStatistics
     @Test
     public void testView()
     {
-        String tableName = "dbo.test_stats_view_" + randomNameSuffix();
+        String tableName = "test_stats_view_" + randomNameSuffix();
         synapseServer.execute("DROP VIEW IF EXISTS " + tableName);
         synapseServer.execute("CREATE VIEW " + tableName + " AS SELECT * FROM nation");
         try {
@@ -386,13 +387,15 @@ public class TestSynapseTableStatistics
     @Override
     protected void gatherStats(String tableName)
     {
-        List<String> columnNames = stream(computeActual("SHOW COLUMNS FROM " + tableName))
+        List<String> columnNames = stream(computeActual(format("SHOW COLUMNS FROM %s.%s", TEST_SCHEMA, tableName)))
                 .map(row -> (String) row.getField(0))
                 .collect(toImmutableList());
         for (Object columnName : columnNames) {
-            synapseServer.executeIgnoringErrors(format("CREATE STATISTICS %1$s ON %2$s (%1$s)", columnName, tableName), ERROR_STATISTICS_EXIST);
+            synapseServer.executeIgnoringErrors(
+                    format("CREATE STATISTICS %1$s ON %2$s.%3$s (%1$s)", columnName, TEST_SCHEMA, tableName),
+                    ERROR_STATISTICS_EXIST);
         }
-        synapseServer.execute("UPDATE STATISTICS " + tableName);
+        synapseServer.execute(format("UPDATE STATISTICS %s.%s", TEST_SCHEMA, tableName));
     }
 
     private Optional<TableStatistics> showStats(String tableName)
