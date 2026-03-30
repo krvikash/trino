@@ -1,0 +1,143 @@
+{
+    "openapi": "3.0.4",
+    "info": {
+        "title": "TypesServer.java API",
+        "version": 1.0,
+        "description": "Specification describing endpoints returning static data."
+    },
+    "paths": {
+        "/boolean/null": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "boolean" } } } } } } },
+        "/boolean/unexpectedobject": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "boolean" } } } } } } },
+        "/boolean/valid": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "boolean" } } } } } } },
+
+        "/string/none/null": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "string" } } } } } } },
+        "/string/none/unexpectedobject": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "string" } } } } } } },
+        "/string/none/valid": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "string" } } } } } } },
+
+        "/string/byte/null": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "string", "format": "byte" } } } } } } },
+        "/string/byte/unexpectedobject": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "string", "format": "byte" } } } } } } },
+        "/string/byte/invalid": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "string", "format": "byte" } } } } } } },
+        "/string/byte/valid": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "string", "format": "byte" } } } } } } },
+
+        "/string/uuid/null": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "string", "format": "uuid" } } } } } } },
+        "/string/uuid/unexpectedobject": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "string", "format": "uuid" } } } } } } },
+        "/string/uuid/invalid": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "string", "format": "uuid" } } } } } } },
+        "/string/uuid/valid": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "string", "format": "uuid" } } } } } } },
+
+        "/number/none/null": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "number" } } } } } } },
+        "/number/none/unexpectedobject": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "number" } } } } } } },
+        "/number/none/valid": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "number" } } } } } } },
+
+        "/integer/none/null": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "integer" } } } } } } },
+        "/integer/none/unexpectedobject": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "integer" } } } } } } },
+        "/integer/none/invalid": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "integer" } } } } } } },
+        "/integer/none/valid": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "integer" } } } } } } },
+
+        "/integer/int32/null": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "integer", "format": "int32" } } } } } } },
+        "/integer/int32/unexpectedobject": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "integer", "format": "int32"} } } } } } },
+        "/integer/int32/style/invalid": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "integer", "format": "int32"} } } } } } },
+        "/integer/int32/style/min": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "integer", "format": "int32"} } } } } } },
+        "/integer/int32/style/max": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "integer", "format": "int32"} } } } } } },
+        "/integer/int32/style/toonegative": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "integer", "format": "int32"} } } } } } },
+        "/integer/int32/style/toopositive": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "integer", "format": "int32"} } } } } } },
+
+        "/integer/int64/null": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "integer", "format": "int64" } } } } } } },
+        "/integer/int64/unexpectedobject": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "integer", "format": "int64"} } } } } } },
+        "/integer/int64/style/invalid": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "integer", "format": "int64"} } } } } } },
+        "/integer/int64/style/min": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "integer", "format": "int64"} } } } } } },
+        "/integer/int64/style/max": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "integer", "format": "int64"} } } } } } },
+        "/integer/int64/style/toonegative": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "integer", "format": "int64"} } } } } } },
+        "/integer/int64/style/toopositive": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "integer", "format": "int64"} } } } } } },
+
+        "/number/float/null": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "number", "format": "float" } } } } } } },
+        "/number/float/unexpectedobject": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "number", "format": "float"} } } } } } },
+        "/number/float/style/min": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "number", "format": "float"} } } } } } },
+        "/number/float/style/precise": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "number", "format": "float"} } } } } } },
+        "/number/float/style/max": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "number", "format": "float"} } } } } } },
+        "/number/float/style/toonegative": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "number", "format": "float"} } } } } } },
+        "/number/float/style/tooprecise": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "number", "format": "float"} } } } } } },
+        "/number/float/style/toopositive": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "number", "format": "float"} } } } } } },
+
+        "/number/double/null": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "number", "format": "double" } } } } } } },
+        "/number/double/unexpectedobject": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "number", "format": "double"} } } } } } },
+        "/number/double/style/min": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "number", "format": "double"} } } } } } },
+        "/number/double/style/precise": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "number", "format": "double"} } } } } } },
+        "/number/double/style/max": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "number", "format": "double"} } } } } } },
+        "/number/double/style/toonegative": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "number", "format": "double"} } } } } } },
+        "/number/double/style/tooprecise": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "number", "format": "double"} } } } } } },
+        "/number/double/style/toopositive": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { "type": "number", "format": "double"} } } } } } },
+
+        "/json/null": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { } } } } } } },
+        "/json/value": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": { } } } } } } },
+
+        "/object/row/null": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": {
+            "type": "object",
+            "properties": { "typed": { "type": "boolean" } }
+        } } } } } } },
+
+        "/object/row/valid": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": {
+            "type": "object",
+            "properties": {
+                "present": { "type": "boolean" },
+                "missing": { "type": "boolean" },
+                "null": { "type": "boolean" }
+            },
+            "additionalProperties": false
+        } } } } } } },
+
+        "/object/row/unexpectedarray": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": {
+            "type": "object",
+            "properties": { "typed": { "type": "boolean" } },
+            "additionalProperties": false
+        } } } } } } },
+
+        "/object/row/invalid": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": {
+            "type": "object",
+            "properties": {
+                "typed": { "type": "boolean", "description": "Use the wrong type here!" }
+            },
+            "additionalProperties": false
+        } } } } } } },
+
+        "/object/map/null": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": {
+            "type": "object",
+            "additionalProperties": { "type": "boolean" }
+        } } } } } } },
+
+        "/object/map/valid": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": {
+            "type": "object",
+            "additionalProperties": { "type": "boolean" }
+        } } } } } } },
+
+        "/object/map/unexpectedarray": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": {
+            "type": "object",
+            "additionalProperties": { "type": "boolean" }
+        } } } } } } },
+
+        "/object/map/invalid": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": {
+            "type": "object",
+            "additionalProperties": { "type": "boolean", "description": "Use the wrong type here!" }
+        } } } } } } },
+
+        "/array/null": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": {
+            "type": "array",
+            "items": { "type": "boolean" }
+        } } } } } } },
+
+        "/array/valid": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": {
+            "type": "array",
+            "items": { "type": "boolean" }
+        } } } } } } },
+
+        "/array/unexpectedobject": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": {
+            "type": "array",
+            "items": { "type": "boolean" }
+        } } } } } } },
+
+        "/array/invalid": { "get": { "responses": { "200": { "description": "", "content": { "application/json": { "schema": {
+            "type": "array",
+            "items": { "type": "boolean", "title": "Use wrong type here!" }
+        } } } } } } }
+    }
+}
+

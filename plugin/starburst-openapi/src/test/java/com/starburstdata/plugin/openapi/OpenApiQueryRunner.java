@@ -91,10 +91,10 @@ public final class OpenApiQueryRunner
     static void main()
             throws Exception
     {
-        StaticJavaServer server = new StaticJavaServer();
+        TypesServer server = new TypesServer();
         server.start();
         String specificationLocation = requireNonNull(
-                OpenApiQueryRunner.class.getClassLoader().getResource("java_server/static.3.0.4.json"),
+                OpenApiQueryRunner.class.getClassLoader().getResource("java_server/types.3.0.4.json"),
                 "Expected java_server/static specification was present")
                 .getFile();
         QueryRunner queryRunner = builder()
