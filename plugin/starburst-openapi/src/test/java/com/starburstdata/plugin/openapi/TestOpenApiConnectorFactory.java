@@ -45,18 +45,29 @@ final class TestOpenApiConnectorFactory
 {
     @ParameterizedTest
     @ValueSource(strings = {
-            "github.json",
-            "github-patched.json",
-            "jira.json",
             "galaxy.json",
             "petstore.yaml",
-            "datadog.yaml",
-            "cloudflare.json",
-            "openmeteo.yml"
+            "openmeteo.yml",
     })
     public void testLoadsSpecification(String specification)
     {
         assertThatNoException().isThrownBy(() -> createConnector(specification).shutdown());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "github.json",
+            "github-patched.json",
+            "jira.json",
+            "cloudflare.json",
+            "datadog.yaml",
+    })
+    public void testFailsSpecification(String specification)
+    {
+        // Fail from unsupported parameters.
+        assertThat(getConfigurationThrowable(specification))
+                .cause()
+                .isInstanceOf(OpenApiValidationExceptions.class);
     }
 
     @Test
@@ -152,6 +163,25 @@ final class TestOpenApiConnectorFactory
         assertThat(exceptions)
                 .map(Exception::getMessage)
                 .containsExactly("Failed to transform path /ambiguousobject (properties: Uses keys that cannot be referenced unambiguously with case-insensitivity: AMBIGUOUS)");
+    }
+
+    @Test
+    public void testParameters()
+    {
+        List<Exception> exceptions = assertThat(getConfigurationThrowable("parameters.json"))
+                .cause()
+                .asInstanceOf(type(OpenApiValidationExceptions.class))
+                .extracting(OpenApiValidationExceptions::getSpecificationExceptions)
+                .actual();
+
+        assertThat(exceptions)
+                .map(Exception::getMessage)
+                .containsExactlyInAnyOrderElementsOf(ImmutableList.<String>builder()
+                        .add("Failed to transform path /badref (Reference refers to parameter 'badref' that doesn't exist)")
+                        .add("Failed to transform path /circularref (Reference from parameter forms a cycle)")
+                        .add("Failed to transform path /badschema (Must create a parameter from a primitive type (supported string/number format or boolean) or array of primitive type)")
+                        .add("Failed to transform path /ambiguous/{param} (Cannot refer to parameter 'param' unambiguously, parameter with identifier 'PARAM' already exists)")
+                        .build());
     }
 
     private Connector createConnector(String location)

@@ -17,6 +17,7 @@ import com.google.common.base.CaseFormat;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
+import com.starburstdata.plugin.openapi.SpecUtil.ParameterIdentifier;
 import com.starburstdata.plugin.openapi.authentication.OpenApiAuthenticator;
 import com.starburstdata.plugin.openapi.conversions.OneColumnDecoder;
 import com.starburstdata.plugin.openapi.conversions.OpenApiDecoder;
@@ -24,6 +25,7 @@ import com.starburstdata.plugin.openapi.conversions.SchemaIrFactory;
 import com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy;
 import com.starburstdata.plugin.openapi.conversions.decoder.ColumnWriter;
 import com.starburstdata.plugin.openapi.conversions.decoder.ColumnWriterFactory;
+import com.starburstdata.plugin.openapi.conversions.encoder.OpenApiParameterHandle;
 import com.starburstdata.plugin.openapi.conversions.ir.SchemaIr;
 import com.starburstdata.plugin.openapi.pagination.OpenApiPaginationStrategy;
 import io.airlift.log.Logger;
@@ -32,6 +34,7 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.parser.OpenAPIV3Parser;
 import io.swagger.v3.parser.core.models.ParseOptions;
@@ -40,17 +43,22 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.function.table.ConnectorTableFunction;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.starburstdata.plugin.openapi.OpenApiErrorCode.OPENAPI_AMBIGUOUS_REFERENCE;
 import static com.starburstdata.plugin.openapi.SpecUtil.getGetOperation;
 import static com.starburstdata.plugin.openapi.SpecUtil.getJsonResponseSchema;
+import static com.starburstdata.plugin.openapi.SpecUtil.getParameterSchema;
+import static com.starburstdata.plugin.openapi.SpecUtil.getParameters;
 import static com.starburstdata.plugin.openapi.pagination.OpenApiPaginationStrategy.READ_ONCE_STRATEGY;
 import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
 import static java.lang.String.join;
+import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 
 public class OpenApiSpec
@@ -80,11 +88,15 @@ public class OpenApiSpec
                 .flatMap(components -> Optional.ofNullable(components.getSchemas()))
                 .map(SpecUtil::castSchemaMap)
                 .orElse(ImmutableMap.of());
+        Map<String, Parameter> referenceableParameters = componentsOptional
+                .flatMap(components -> Optional.ofNullable(components.getParameters()))
+                .orElse(ImmutableMap.of());
 
         this.pathMetadata = getPathMetadata(
                 openApi.getPaths(),
                 referenceableResponses,
                 referenceableSchemas,
+                referenceableParameters,
                 CastPolicy.JSON,
                 columnWriterFactory);
         this.tableFunctions = pathMetadata.entrySet().stream()
@@ -92,6 +104,7 @@ public class OpenApiSpec
                         config.getBaseUri(),
                         entry.getKey(),
                         entry.getValue().identifier(),
+                        entry.getValue().identifierToParameterHandle(),
                         entry.getValue().decoder().getColumnHandles()))
                 .collect(toImmutableSet());
     }
@@ -115,6 +128,7 @@ public class OpenApiSpec
             Map<String, PathItem> paths,
             Map<String, ApiResponse> responses,
             Map<String, Schema<?>> schemas,
+            Map<String, Parameter> parameters,
             CastPolicy castPolicy,
             ColumnWriterFactory columnWriterFactory)
     {
@@ -139,19 +153,49 @@ public class OpenApiSpec
             }
 
             try {
-                Optional<Operation> operation = getGetOperation(pathItem, paths);
-                Optional<ApiResponse> response = operation.flatMap(SpecUtil::getSuccessfulResponse);
+                Optional<Operation> operationOptional = getGetOperation(pathItem, paths);
+                if (operationOptional.isEmpty()) {
+                    return;
+                }
+                Operation operation = operationOptional.get();
+                Optional<ApiResponse> response = operationOptional.flatMap(SpecUtil::getSuccessfulResponse);
                 Optional<Schema<?>> schema = response.flatMap(r -> getJsonResponseSchema(r, responses));
                 if (schema.isEmpty()) {
                     return;
                 }
                 SchemaIr schemaIr = schemaIrFactory.convert(schema.get());
                 ColumnWriter columnWriter = columnWriterFactory.createFrom(schemaIr);
+
+                Map<ParameterIdentifier, Parameter> resolvedParameters = getParameters(
+                        pathItem,
+                        operation,
+                        parameters);
+                Set<String> argumentNames = new HashSet<>();
+                ImmutableMap.Builder<String, OpenApiParameterHandle> identifierToParameterHandleBuilder =
+                        ImmutableMap.builder();
+                for (ParameterIdentifier parameterIdentifier : resolvedParameters.keySet()) {
+                    String argumentName = getIdentifier(parameterIdentifier.name()).toUpperCase(ENGLISH);
+                    Parameter resolvedParameter = resolvedParameters.get(parameterIdentifier);
+                    if (!argumentNames.add(argumentName)) {
+                        throw new TrinoException(
+                                OPENAPI_AMBIGUOUS_REFERENCE,
+                                "Cannot refer to parameter '%s' unambiguously, parameter with identifier '%s' already exists".formatted(
+                                        parameterIdentifier.name(),
+                                        argumentName));
+                    }
+                    Schema<?> parameterSchema = getParameterSchema(resolvedParameter);
+                    SchemaIr parameterSchemaIr = schemaIrFactory.convert(parameterSchema);
+                    identifierToParameterHandleBuilder.put(
+                            argumentName,
+                            OpenApiParameterHandle.from(resolvedParameter, parameterSchemaIr));
+                }
+
                 pathMetadataBuilder.put(
                         path,
                         new PathMetadata(
                             identifier,
                             new OneColumnDecoder(columnWriter),
+                            identifierToParameterHandleBuilder.buildOrThrow(),
                             READ_ONCE_STRATEGY,
                             OpenApiAuthenticator.NONE));
             }
@@ -175,6 +219,7 @@ public class OpenApiSpec
     private record PathMetadata(
             String identifier,
             OpenApiDecoder decoder,
+            Map<String, OpenApiParameterHandle> identifierToParameterHandle,
             OpenApiPaginationStrategy<?> paginationStrategy,
             OpenApiAuthenticator authenticator)
     {

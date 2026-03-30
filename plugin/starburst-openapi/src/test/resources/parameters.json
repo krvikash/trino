@@ -1,0 +1,57 @@
+{
+    "openapi": "3.0.4",
+    "info": {
+        "title": "Parameter references and error test",
+        "version": 1.0
+    },
+    "paths": {
+        "/normal/{path}": {
+            "parameters": [
+                { "name": "param", "in": "query", "schema": { "type": "string" } },
+                { "name": "path", "in": "path", "schema": { "type": "string" } }
+            ],
+            "get": { "responses": { "200": { "content": { "application/json": { "schema": {} } }, "description": "" } } }
+        },
+        "/badref": {
+            "parameters": [ { "$ref": "#/components/parameters/badref" } ],
+            "get": { "responses": { "200": { "content": { "application/json": { "schema": {} } }, "description": "" } } }
+        },
+        "/circularref": {
+            "parameters": [ { "$ref": "#/components/parameters/circularSTART" } ],
+            "get": { "responses": { "200": { "content": { "application/json": { "schema": {} } }, "description": "" } } }
+        },
+        "/badschema": {
+            "parameters": [
+                {
+                    "name": "param",
+                    "in": "query",
+                    "schema": {
+                        "oneOf": [ { "type": "string" }, { "type": "array", "items": {} } ]
+                    }
+                }
+            ],
+            "get": { "responses": { "200": { "content": { "application/json": { "schema": {} } }, "description": "" } } }
+        },
+        "/ambiguous/{param}": {
+            "parameters": [
+                {
+                    "name": "param",
+                    "in": "query",
+                    "schema": { "type": "string" }
+                },
+                {
+                    "name": "param",
+                    "in": "path",
+                    "schema": { "type": "string" }
+                }
+            ],
+            "get": { "responses": { "200": { "content": { "application/json": { "schema": {} } }, "description": "" } } }
+        }
+    },
+    "components": {
+        "parameters": {
+            "circularSTART": { "$ref": "#/components/parameters/circularEND" },
+            "circularEND": { "$ref": "#/components/parameters/circularSTART" }
+        }
+    }
+}

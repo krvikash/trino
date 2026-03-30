@@ -1,0 +1,196 @@
+{
+    "openapi": "3.0.4",
+    "info": {
+        "title": "TypesServer.java API",
+        "version": 1.0,
+        "description": "Specification describing endpoints returning static data."
+    },
+    "paths": {
+        "/repeat/queryParams": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Returns all the query parameters as they were serialized.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "parameters": [
+                {
+                    "name": "string_none",
+                    "in": "query",
+                    "schema": {
+                        "type": "string"
+                    }
+                },
+                {
+                    "name": "string_byte",
+                    "in": "query",
+                    "schema": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                {
+                    "name": "string_uuid",
+                    "in": "query",
+                    "schema": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                {
+                    "name": "number_none",
+                    "in": "query",
+                    "schema": {
+                        "type": "number"
+                    }
+                },
+                {
+                    "name": "integer_none",
+                    "in": "query",
+                    "schema": {
+                        "type": "integer"
+                    }
+                },
+                {
+                    "name": "integer_int32",
+                    "in": "query",
+                    "schema": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                },
+                {
+                    "name": "integer_int64",
+                    "in": "query",
+                    "schema": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                {
+                    "name": "number_float",
+                    "in": "query",
+                    "schema": {
+                        "type": "number",
+                        "format": "float"
+                    }
+                },
+                {
+                    "name": "number_double",
+                    "in": "query",
+                    "schema": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                {
+                    "name": "boolean",
+                    "in": "query",
+                    "schema": {
+                        "type": "boolean"
+                    }
+                },
+                {
+                    "name": "list_string_explode",
+                    "in": "query",
+                    "explode": true,
+                    "schema": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            ]
+        },
+        "/repeat/unexplodedQueryParams": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Returns the single query parameter as it was deserialized from a list.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "parameters": [
+                {
+                    "name": "input",
+                    "in": "query",
+                    "explode": false,
+                    "schema": {
+                        "type": "string"
+                    }
+                }
+            ]
+        },
+        "/repeat/path/{paramOne}/{paramTwo}": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Returns the two path parameters.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "paramOne": {
+                                            "type": "string"
+                                        },
+                                        "paramTwo": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "parameters": [
+                {
+                    "name": "paramOne",
+                    "in": "path",
+                    "schema": {
+                        "type": "string"
+                    }
+                },
+                {
+                    "name": "paramTwo",
+                    "in": "path",
+                    "schema": {
+                        "type": "string"
+                    }
+                }
+            ]
+        }
+    }
+}
+

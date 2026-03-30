@@ -31,7 +31,7 @@ final class TestOpenApiPlugin
         factory.create(
                         "openapi",
                         ImmutableMap.<String, String>builder()
-                                .put("openapi.spec-location", "github.json")
+                                .put("openapi.spec-location", "petstore.yaml")
                                 .put("openapi.base-uri", "https://github.com")
                                 .put("bootstrap.quiet", "true")
                                 .buildOrThrow(),
