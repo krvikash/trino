@@ -9,8 +9,6 @@
  */
 package io.starburst.stargate.buffer.trino.exchange;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -20,35 +18,28 @@ import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.server.BufferNodeStateManager;
-import io.trino.connector.MockConnectorFactory;
-import io.trino.connector.MockConnectorPlugin;
 import io.trino.execution.QueryManager;
 import io.trino.node.NodeState;
-import io.trino.plugin.memory.MemoryQueryRunner;
 import io.trino.server.BasicQueryInfo;
 import io.trino.server.testing.TestingTrinoServer;
 import io.trino.server.testing.TestingTrinoServer.TestShutdownAction;
-import io.trino.spi.connector.ColumnMetadata;
 import io.trino.testing.DistributedQueryRunner;
-import io.trino.testing.FaultTolerantExecutionConnectorTestHelper;
 import io.trino.testing.MaterializedResult;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.parallel.Execution;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
+import static io.starburst.stargate.buffer.trino.exchange.EmbeddedBufferQueryRunner.BUFFER_NODE_STATE_TRANSITION_TIMEOUT_MILLIS;
+import static io.starburst.stargate.buffer.trino.exchange.EmbeddedBufferQueryRunner.EMBEDDED_BUFFER_TEST_TIMEOUT_MILLIS;
+import static io.starburst.stargate.buffer.trino.exchange.EmbeddedBufferQueryRunner.createRunnerWithWorkers;
+import static io.starburst.stargate.buffer.trino.exchange.EmbeddedBufferQueryRunner.createSingleNodeRunner;
+import static io.starburst.stargate.buffer.trino.exchange.EmbeddedBufferQueryRunner.getWorker;
 import static io.trino.execution.QueryState.FINISHED;
-import static io.trino.spi.type.BigintType.BIGINT;
-import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.testing.assertions.Assert.assertEventually;
-import static java.nio.file.Files.createTempDirectory;
 import static java.util.concurrent.Executors.newCachedThreadPool;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -59,18 +50,16 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 @Execution(SAME_THREAD)
 public class TestEmbeddedBufferGracefulShutdown
 {
-    private static final long TEST_TIMEOUT_MILLIS = 240_000;
     private static final long SHUTDOWN_TIMEOUT_MILLIS = 120_000;
-    private static final long BUFFER_NODE_STATE_TRANSITION_TIMEOUT_MILLIS = 30_000;
     private static final long TRACKED_EXCHANGES_TIMEOUT_MILLIS = 30_000;
 
     @Test
-    @Timeout(value = TEST_TIMEOUT_MILLIS, unit = MILLISECONDS)
+    @Timeout(value = EMBEDDED_BUFFER_TEST_TIMEOUT_MILLIS, unit = MILLISECONDS)
     public void testEmbeddedBufferDrainsOnWorkerShutdown()
             throws Exception
     {
         ListeningExecutorService executor = MoreExecutors.listeningDecorator(newCachedThreadPool());
-        try (DistributedQueryRunner queryRunner = createBufferNodeQueryRunner(2)) {
+        try (DistributedQueryRunner queryRunner = createRunnerWithWorkers(2)) {
             TestingTrinoServer worker = getWorker(queryRunner);
             QueryManager queryManager = queryRunner.getCoordinator().getQueryManager();
 
@@ -140,11 +129,11 @@ public class TestEmbeddedBufferGracefulShutdown
     }
 
     @Test
-    @Timeout(value = TEST_TIMEOUT_MILLIS, unit = MILLISECONDS)
+    @Timeout(value = EMBEDDED_BUFFER_TEST_TIMEOUT_MILLIS, unit = MILLISECONDS)
     public void testEmbeddedBufferStateAfterIdleWorkerShutdown()
             throws Exception
     {
-        try (DistributedQueryRunner queryRunner = createBufferNodeQueryRunner(1)) {
+        try (DistributedQueryRunner queryRunner = createRunnerWithWorkers(1)) {
             TestingTrinoServer worker = getWorker(queryRunner);
 
             BufferNodeStateManager bufferNodeStateManager = worker.getInstance(Key.get(BufferNodeStateManager.class));
@@ -166,11 +155,11 @@ public class TestEmbeddedBufferGracefulShutdown
     }
 
     @Test
-    @Timeout(value = TEST_TIMEOUT_MILLIS, unit = MILLISECONDS)
+    @Timeout(value = EMBEDDED_BUFFER_TEST_TIMEOUT_MILLIS, unit = MILLISECONDS)
     public void testEmbeddedBufferOnSingleNodeShutdown()
             throws Exception
     {
-        try (DistributedQueryRunner queryRunner = createBufferNodeQueryRunner(0)) {
+        try (DistributedQueryRunner queryRunner = createSingleNodeRunner()) {
             TestingTrinoServer coordinator = queryRunner.getCoordinator();
 
             BufferNodeStateManager bufferNodeStateManager = coordinator.getInstance(Key.get(BufferNodeStateManager.class));
@@ -188,77 +177,5 @@ public class TestEmbeddedBufferGracefulShutdown
             // Trigger coordinator shutdown — should close the embedded buffer without errors
             coordinator.close();
         }
-    }
-
-    private static TestingTrinoServer getWorker(DistributedQueryRunner queryRunner)
-    {
-        return queryRunner.getServers()
-                .stream()
-                .filter(server -> !server.isCoordinator())
-                .findFirst()
-                .orElseThrow();
-    }
-
-    private static DistributedQueryRunner createBufferNodeQueryRunner(int workerCount)
-            throws Exception
-    {
-        Map<String, String> extraProperties = getFaultTolerantExecutionExtraProperties();
-        ImmutableMap<String, String> exchangeManagerProperties = getExchangeManagerProperties();
-
-        DistributedQueryRunner queryRunner = MemoryQueryRunner.builder()
-                .addCoordinatorProperty("node-scheduler.include-coordinator", "true")
-                .setExtraProperties(extraProperties)
-                .setWorkerCount(workerCount)
-                .withExchange("buffer", exchangeManagerProperties)
-                .build();
-
-        // Install mock connector — its splits have remotelyAccessible=true (SPI default),
-        // unlike tpch/memory splits which are pinned to specific nodes and cause
-        // "No nodes available" errors when a worker shuts down during FTE task retries.
-        queryRunner.installPlugin(new MockConnectorPlugin(
-                MockConnectorFactory.builder()
-                        .withGetColumns(schemaTableName -> ImmutableList.of(
-                                new ColumnMetadata("id", BIGINT),
-                                new ColumnMetadata("group_key", VARCHAR)))
-                        .withData(schemaTableName -> {
-                            ImmutableList.Builder<List<?>> rows = ImmutableList.builder();
-                            for (int i = 0; i < 5000; i++) {
-                                rows.add(ImmutableList.of((long) i, "group_" + (i % 100)));
-                            }
-                            return rows.build();
-                        })
-                        .build()));
-        queryRunner.createCatalog("mock", "mock");
-
-        return queryRunner;
-    }
-
-    private static ImmutableMap<String, String> getExchangeManagerProperties()
-    {
-        // Use 1 buffer node per partition so exchange data is NOT replicated across nodes.
-        // This ensures partitions assigned to a specific buffer node can only be read
-        // from that node (or from spooled storage after it drains).
-        return ImmutableMap.<String, String>builder()
-                .put("exchange.use-embedded-buffer-service", "true")
-                .put("exchange.sink-target-written-pages-count", "3")
-                .put("exchange.source-handle-target-chunks-count", "4")
-                .put("exchange.min-base-buffer-nodes-per-partition", "1")
-                .put("exchange.max-base-buffer-nodes-per-partition", "1")
-                .buildOrThrow();
-    }
-
-    private static Map<String, String> getFaultTolerantExecutionExtraProperties()
-            throws IOException
-    {
-        Map<String, String> extraProperties = new HashMap<>(FaultTolerantExecutionConnectorTestHelper.getExtraProperties());
-        File exchangeManagerDirectory = createTempDirectory("exchange_manager").toFile();
-        extraProperties.put("embedded-buffer-service-enabled", "true");
-        extraProperties.put("buffer.spooling.directory", exchangeManagerDirectory.getAbsolutePath());
-        extraProperties.put("buffer.testing.allow-local-spooling", "true");
-        extraProperties.put("buffer.draining.min-duration", "5s");
-        extraProperties.put("query.max-memory-per-node", "30%");
-        extraProperties.put("query.executor-pool-size", "10");
-        extraProperties.put("shutdown.grace-period", "1s");
-        return extraProperties;
     }
 }
