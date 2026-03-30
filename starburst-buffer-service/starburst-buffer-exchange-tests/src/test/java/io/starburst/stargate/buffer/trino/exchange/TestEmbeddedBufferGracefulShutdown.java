@@ -256,6 +256,7 @@ public class TestEmbeddedBufferGracefulShutdown
         extraProperties.put("buffer.spooling.directory", exchangeManagerDirectory.getAbsolutePath());
         extraProperties.put("buffer.testing.allow-local-spooling", "true");
         extraProperties.put("buffer.draining.min-duration", "5s");
+        extraProperties.put("query.max-memory-per-node", "30%");
         extraProperties.put("query.executor-pool-size", "10");
         extraProperties.put("shutdown.grace-period", "1s");
         return extraProperties;

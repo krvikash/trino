@@ -40,6 +40,7 @@ public class TestEmbeddedBufferServiceNoSchedulingOnCoordinator
         extraProperties.put("embedded-buffer-service-enabled", "true");
         extraProperties.put("buffer.spooling.directory", exchangeManagerDirectory.getAbsolutePath());
         extraProperties.put("buffer.testing.allow-local-spooling", "true");
+        extraProperties.put("query.max-memory-per-node", "30%");
         extraProperties.put("query.executor-pool-size", "100");
 
         // exchange manager config

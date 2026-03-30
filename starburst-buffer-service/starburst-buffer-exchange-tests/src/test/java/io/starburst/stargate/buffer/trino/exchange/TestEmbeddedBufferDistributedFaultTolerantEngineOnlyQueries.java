@@ -51,6 +51,8 @@ public class TestEmbeddedBufferDistributedFaultTolerantEngineOnlyQueries
         // TODO: update code in Trino so it is not needed
         extraProperties.put("query.executor-pool-size", "100");
 
+        extraProperties.put("query.max-memory-per-node", "30%");
+
         // exchange manager config
         ImmutableMap<String, String> exchangeManagerProperties = ImmutableMap.<String, String>builder()
                 .put("exchange.use-embedded-buffer-service", "true")
