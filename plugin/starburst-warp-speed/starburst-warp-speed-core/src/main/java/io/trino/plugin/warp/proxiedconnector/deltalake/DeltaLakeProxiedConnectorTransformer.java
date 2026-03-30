@@ -73,8 +73,6 @@ public class DeltaLakeProxiedConnectorTransformer
                 TupleDomain.all(),
                 tableHandle.getWriteType(),
                 tableHandle.getProjectedColumns(),
-                tableHandle.getUpdatedColumns(),
-                tableHandle.getUpdateRowIdColumns(),
                 tableHandle.getAnalyzeHandle(),
                 tableHandle.getReadVersion(),
                 tableHandle.isTimeTravel());
@@ -177,8 +175,6 @@ public class DeltaLakeProxiedConnectorTransformer
                 TupleDomain.all(),
                 tableHandle.getWriteType(),
                 tableHandle.getProjectedColumns(),
-                tableHandle.getUpdatedColumns(),
-                tableHandle.getUpdateRowIdColumns(),
                 tableHandle.getAnalyzeHandle(),
                 tableHandle.getReadVersion(),
                 tableHandle.isTimeTravel());

@@ -66,8 +66,6 @@ public class DeltaLakeCacheMetadata
                 deltaLakeTableHandle.getNonPartitionConstraint(),
                 deltaLakeTableHandle.getWriteType(),
                 deltaLakeTableHandle.getProjectedColumns(),
-                deltaLakeTableHandle.getUpdatedColumns(),
-                deltaLakeTableHandle.getUpdateRowIdColumns(),
                 deltaLakeTableHandle.getAnalyzeHandle(),
                 deltaLakeTableHandle.getReadVersion(),
                 deltaLakeTableHandle.isTimeTravel());

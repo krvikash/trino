@@ -133,8 +133,6 @@ public class DeltaLakeProxiedConnectorTransformerTest
                         TupleDomain.all(),
                         tableHandle.getWriteType(),
                         tableHandle.getProjectedColumns(),
-                        tableHandle.getUpdatedColumns(),
-                        tableHandle.getUpdateRowIdColumns(),
                         tableHandle.getAnalyzeHandle(),
                         tableHandle.getReadVersion(),
                         tableHandle.isTimeTravel()));
@@ -173,8 +171,6 @@ public class DeltaLakeProxiedConnectorTransformerTest
                 mock(ProtocolEntry.class),
                 TupleDomain.all(),
                 TupleDomain.all(),
-                Optional.empty(),
-                Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),

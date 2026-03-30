@@ -598,8 +598,6 @@ public class TestTransactionLogAccess
                                     Optional.empty(),
                                     Optional.empty(),
                                     Optional.empty(),
-                                    Optional.empty(),
-                                    Optional.empty(),
                                     0,
                                     false),
                             updatedTableSnapshot,

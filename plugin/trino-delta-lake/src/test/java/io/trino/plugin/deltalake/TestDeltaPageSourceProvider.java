@@ -212,8 +212,6 @@ public class TestDeltaPageSourceProvider
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
-                Optional.empty(),
-                Optional.empty(),
                 0,
                 false);
     }
