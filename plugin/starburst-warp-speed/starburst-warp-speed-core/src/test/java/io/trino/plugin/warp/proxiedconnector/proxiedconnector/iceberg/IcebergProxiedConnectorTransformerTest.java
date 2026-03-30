@@ -258,6 +258,7 @@ public class IcebergProxiedConnectorTransformerTest
                 100L,
                 IcebergFileFormat.ORC,
                 0,
+                0,
                 """
                         { "partitionValues": [] }
                         """,

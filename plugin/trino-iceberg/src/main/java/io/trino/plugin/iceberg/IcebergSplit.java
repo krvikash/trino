@@ -48,6 +48,7 @@ public class IcebergSplit
     private final IcebergFileFormat fileFormat;
     private final Optional<List<Object>> partitionValues;
     private final int specId;
+    private final int sortOrderId;
     private final String partitionDataJson;
     private final List<DeleteFile> deletes;
     private final SplitWeight splitWeight;
@@ -65,6 +66,7 @@ public class IcebergSplit
             @JsonProperty("fileRecordCount") long fileRecordCount,
             @JsonProperty("fileFormat") IcebergFileFormat fileFormat,
             @JsonProperty("specId") int specId,
+            @JsonProperty("sortOrderId") int sortOrderId,
             @JsonProperty("partitionDataJson") String partitionDataJson,
             @JsonProperty("deletes") List<DeleteFile> deletes,
             @JsonProperty("splitWeight") SplitWeight splitWeight,
@@ -81,6 +83,7 @@ public class IcebergSplit
                 fileFormat,
                 Optional.empty(),
                 specId,
+                sortOrderId,
                 partitionDataJson,
                 deletes,
                 splitWeight,
@@ -99,6 +102,7 @@ public class IcebergSplit
             IcebergFileFormat fileFormat,
             Optional<List<Object>> partitionValues,
             int specId,
+            int sortOrderId,
             String partitionDataJson,
             List<DeleteFile> deletes,
             SplitWeight splitWeight,
@@ -115,6 +119,7 @@ public class IcebergSplit
         this.fileFormat = requireNonNull(fileFormat, "fileFormat is null");
         this.partitionValues = requireNonNull(partitionValues, "partitionValues is null");
         this.specId = specId;
+        this.sortOrderId = sortOrderId;
         this.partitionDataJson = requireNonNull(partitionDataJson, "partitionDataJson is null");
         this.deletes = ImmutableList.copyOf(requireNonNull(deletes, "deletes is null"));
         this.splitWeight = requireNonNull(splitWeight, "splitWeight is null");
@@ -173,6 +178,12 @@ public class IcebergSplit
         return specId;
     }
 
+    @JsonProperty
+    public int getSortOrderId()
+    {
+        return sortOrderId;
+    }
+
     /**
      * Trino (stack) values of the partition columns. The values are the result of evaluating
      * the partition expressions on the partition data.
@@ -227,6 +238,7 @@ public class IcebergSplit
                 + estimatedSizeOf(path)
                 + SIZE_OF_LONG * 4 // start, length, fileSize, fileRecordCount
                 + SIZE_OF_INT // specId
+                + SIZE_OF_INT // sortOrderId
                 + estimatedSizeOf(partitionDataJson)
                 + estimatedSizeOf(deletes, DeleteFile::retainedSizeInBytes)
                 + splitWeight.getRetainedSizeInBytes()

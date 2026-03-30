@@ -747,6 +747,7 @@ public class IcebergSplitSource
                 IcebergFileFormat.fromIceberg(task.file().format()),
                 partitionValues,
                 task.spec().specId(),
+                task.file().sortOrderId(),
                 PartitionData.toJson(task.file().partition()),
                 task.deletes().stream()
                         .peek(file -> verifyDeletionVectorReferencesDataFile(task, file))

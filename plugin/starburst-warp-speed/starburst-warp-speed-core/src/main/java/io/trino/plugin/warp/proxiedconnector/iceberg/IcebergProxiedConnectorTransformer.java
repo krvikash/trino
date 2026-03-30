@@ -156,6 +156,7 @@ public class IcebergProxiedConnectorTransformer
                 original.getFileRecordCount(),
                 original.getFileFormat(),
                 original.getSpecId(),
+                original.getSortOrderId(),
                 original.getPartitionDataJson(),
                 original.getDeletes(),
                 original.getSplitWeight(),

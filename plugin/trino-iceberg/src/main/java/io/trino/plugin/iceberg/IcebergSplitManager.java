@@ -194,6 +194,7 @@ public class IcebergSplitManager
                 icebergSplit.getFileRecordCount(),
                 icebergSplit.getFileFormat(),
                 icebergSplit.getSpecId(),
+                icebergSplit.getSortOrderId(),
                 icebergSplit.getPartitionDataJson(),
                 icebergSplit.getDeletes(),
                 // weight does not impact split rows

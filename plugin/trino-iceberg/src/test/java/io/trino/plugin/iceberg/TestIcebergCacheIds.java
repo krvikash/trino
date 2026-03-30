@@ -328,6 +328,7 @@ public class TestIcebergCacheIds
                 0L,
                 fileFormat,
                 specId,
+                0,
                 partitionDataJson,
                 deletes,
                 SplitWeight.standard(),
