@@ -1,0 +1,21 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "test",
+        "version": 1.0,
+        "description": "An object containing fields that cannot be read unambiguously."
+    },
+    "components": {},
+    "paths": {
+        "/ambiguousobject": { "get": { "responses": { "200": {
+            "description": "Not real.",
+            "content": { "application/json": { "schema": {
+                "type": "object",
+                "properties": {
+                    "ambiguous": { "type": "boolean" },
+                    "AMBIGUOUS": { "type": "boolean" }
+                }
+            }}}
+        }}}}
+    }
+}

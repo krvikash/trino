@@ -12,6 +12,7 @@ package com.starburstdata.plugin.openapi.conversions;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.starburstdata.plugin.openapi.OpenApiColumnHandle;
+import com.starburstdata.plugin.openapi.conversions.decoder.ColumnWriter;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
@@ -24,34 +25,45 @@ import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterators.singletonIterator;
-import static io.trino.spi.type.VarcharType.VARCHAR;
+import static java.util.Objects.requireNonNull;
 
+/**
+ * An OpenApiDecoder that decodes values into one column with one row.
+ */
 public class OneColumnDecoder
         implements OpenApiDecoder
 {
-    private static final OpenApiColumnHandle SINGLE_COLUMN_HANDLE = new OpenApiColumnHandle("value", VARCHAR);
-    private static final List<OpenApiColumnHandle> COLUMNS = ImmutableList.of(SINGLE_COLUMN_HANDLE);
+    private final ColumnWriter columnWriter;
+    private final OpenApiColumnHandle columnHandle;
+    private final List<OpenApiColumnHandle> columnHandles;
+
+    public OneColumnDecoder(ColumnWriter columnWriter)
+    {
+        this.columnWriter = requireNonNull(columnWriter, "columnWriter is null");
+        this.columnHandle = new OpenApiColumnHandle("value", columnWriter.getType());
+        this.columnHandles = ImmutableList.of(columnHandle);
+    }
 
     @Override
     public List<OpenApiColumnHandle> getColumnHandles()
     {
-        return COLUMNS;
+        return columnHandles;
     }
 
     @Override
     public Iterator<SourcePage> decodeFromRoot(JsonNode root, List<ColumnHandle> columnHandles)
     {
+        checkArgument(
+                columnHandles.stream().allMatch(columnHandle::equals),
+                "Expected only single value column handle");
         if (columnHandles.isEmpty()) {
             return singletonIterator(SourcePage.create(1));
         }
-        checkArgument(
-                columnHandles.stream().allMatch(SINGLE_COLUMN_HANDLE::equals),
-                "Expected only single value column handle");
-        BlockBuilder blockBuilder = VARCHAR.createBlockBuilder(null, 1);
-        VARCHAR.writeString(blockBuilder, root.toString());
+        BlockBuilder blockBuilder = columnWriter.getType().createBlockBuilder(null, 1);
+        columnWriter.writeToBuilder(blockBuilder, root);
         Block block = blockBuilder.build();
         Block[] blocks = new Block[columnHandles.size()];
         Arrays.fill(blocks, block);
-        return singletonIterator(SourcePage.create(new Page(blocks)));
+        return singletonIterator(SourcePage.create(new Page(1, blocks)));
     }
 }

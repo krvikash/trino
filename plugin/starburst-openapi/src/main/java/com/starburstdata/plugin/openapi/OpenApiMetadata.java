@@ -28,16 +28,20 @@ import io.trino.spi.function.table.ConnectorTableFunctionHandle;
 import java.util.List;
 import java.util.Optional;
 
-import static io.trino.spi.type.VarcharType.VARCHAR;
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static java.util.Objects.requireNonNull;
 
 public class OpenApiMetadata
         implements ConnectorMetadata
 {
     public static final String SCHEMA_NAME = "default";
 
+    private final OpenApiSpec spec;
+
     @Inject
-    public OpenApiMetadata()
+    public OpenApiMetadata(OpenApiSpec spec)
     {
+        this.spec = requireNonNull(spec, "spec is null");
     }
 
     @Override
@@ -51,9 +55,14 @@ public class OpenApiMetadata
             ConnectorSession connectorSession,
             ConnectorTableHandle connectorTableHandle)
     {
+        OpenApiRequestTableHandle handle = (OpenApiRequestTableHandle) connectorTableHandle;
         return new ConnectorTableMetadata(
                 new SchemaTableName("_generated", "_table"),
-                ImmutableList.of(new ColumnMetadata("value", VARCHAR)));
+                spec.getDecoder(handle.path())
+                        .getColumnHandles()
+                        .stream()
+                        .map(OpenApiColumnHandle::toColumnMetadata)
+                        .collect(toImmutableList()));
     }
 
     @Override
@@ -74,7 +83,7 @@ public class OpenApiMetadata
         if (handle instanceof OpenApiTableFunctionHandle(OpenApiRequestTableHandle requestHandle)) {
             return Optional.of(new TableFunctionApplicationResult<>(
                     requestHandle,
-                    ImmutableList.of(new OpenApiColumnHandle("value", VARCHAR))));
+                    ImmutableList.copyOf(spec.getDecoder(requestHandle.path()).getColumnHandles())));
         }
         return Optional.empty();
     }

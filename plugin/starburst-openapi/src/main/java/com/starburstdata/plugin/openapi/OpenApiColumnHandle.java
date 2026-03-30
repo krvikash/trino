@@ -14,6 +14,7 @@
 package com.starburstdata.plugin.openapi;
 
 import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.type.Type;
 
 import static java.util.Objects.requireNonNull;
@@ -31,5 +32,10 @@ public record OpenApiColumnHandle(String name, Type type)
     public String toString()
     {
         return "%s:%s".formatted(name, type);
+    }
+
+    public ColumnMetadata toColumnMetadata()
+    {
+        return new ColumnMetadata(name, type);
     }
 }

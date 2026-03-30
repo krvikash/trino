@@ -45,18 +45,30 @@ final class TestOpenApiConnectorFactory
 {
     @ParameterizedTest
     @ValueSource(strings = {
-            "github.json",
-            "github-patched.json",
             "jira.json",
             "galaxy.json",
             "petstore.yaml",
-            "datadog.yaml",
-            "cloudflare.json",
             "openmeteo.yml"
     })
     public void testLoadsSpecification(String specification)
     {
         assertThatNoException().isThrownBy(() -> createConnector(specification).shutdown());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "github.json",
+            "github-patched.json",
+            "datadog.yaml",
+            "cloudflare.json"
+    })
+    public void testDoesNotLoadSpecification(String specification)
+    {
+        assertThat(getConfigurationThrowable(specification))
+                .cause()
+                .asInstanceOf(throwable(TrinoException.class))
+                .extracting(TrinoException::getErrorCode)
+                .isEqualTo(CONFIGURATION_INVALID.toErrorCode());
     }
 
     @Test
@@ -138,6 +150,20 @@ final class TestOpenApiConnectorFactory
                         .add("Failed to transform path /circularEND (Path references form a cycle)")
                         .add("Failed to transform path /badref (Path references path that doesn't exist: notreal)")
                         .build());
+    }
+
+    @Test
+    public void testAmbiguousObject()
+    {
+        List<Exception> exceptions = assertThat(getConfigurationThrowable("ambiguousobject.json"))
+                .cause()
+                .asInstanceOf(type(OpenApiValidationExceptions.class))
+                .extracting(OpenApiValidationExceptions::getSpecificationExceptions)
+                .actual();
+
+        assertThat(exceptions)
+                .map(Exception::getMessage)
+                .containsExactly("Failed to transform path /ambiguousobject (properties: Uses keys that cannot be referenced unambiguously with case-insensitivity: AMBIGUOUS)");
     }
 
     private Connector createConnector(String location)

@@ -18,9 +18,16 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.starburstdata.plugin.openapi.authentication.OpenApiAuthenticator;
+import com.starburstdata.plugin.openapi.conversions.OneColumnDecoder;
 import com.starburstdata.plugin.openapi.conversions.OpenApiDecoder;
+import com.starburstdata.plugin.openapi.conversions.SchemaIrFactory;
+import com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy;
+import com.starburstdata.plugin.openapi.conversions.decoder.ColumnWriter;
+import com.starburstdata.plugin.openapi.conversions.decoder.ColumnWriterFactory;
+import com.starburstdata.plugin.openapi.conversions.ir.SchemaIr;
 import com.starburstdata.plugin.openapi.pagination.OpenApiPaginationStrategy;
 import io.airlift.log.Logger;
+import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
@@ -41,7 +48,6 @@ import java.util.Set;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.starburstdata.plugin.openapi.SpecUtil.getGetOperation;
 import static com.starburstdata.plugin.openapi.SpecUtil.getJsonResponseSchema;
-import static com.starburstdata.plugin.openapi.conversions.OpenApiDecoder.ONE_COLUMN_DECODER;
 import static com.starburstdata.plugin.openapi.pagination.OpenApiPaginationStrategy.READ_ONCE_STRATEGY;
 import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
 import static java.lang.String.join;
@@ -59,20 +65,28 @@ public class OpenApiSpec
     private final Map<String, PathMetadata> pathMetadata;
 
     @Inject
-    public OpenApiSpec(OpenApiConfig config)
+    public OpenApiSpec(
+            OpenApiConfig config,
+            ColumnWriterFactory columnWriterFactory)
     {
-        this(parse(config.getSpecLocation()));
-    }
-
-    OpenApiSpec(OpenAPI openApi)
-    {
+        OpenAPI openApi = parse(config.getSpecLocation());
         requireNonNull(openApi, "openApi is null");
 
-        Map<String, ApiResponse> referenceableResponses = Optional.ofNullable(openApi.getComponents())
+        Optional<Components> componentsOptional = Optional.ofNullable(openApi.getComponents());
+        Map<String, ApiResponse> referenceableResponses = componentsOptional
                 .flatMap(components -> Optional.ofNullable(components.getResponses()))
                 .orElse(ImmutableMap.of());
+        Map<String, Schema<?>> referenceableSchemas = componentsOptional
+                .flatMap(components -> Optional.ofNullable(components.getSchemas()))
+                .map(SpecUtil::castSchemaMap)
+                .orElse(ImmutableMap.of());
 
-        this.pathMetadata = getPathMetadata(openApi.getPaths(), referenceableResponses);
+        this.pathMetadata = getPathMetadata(
+                openApi.getPaths(),
+                referenceableResponses,
+                referenceableSchemas,
+                CastPolicy.JSON,
+                columnWriterFactory);
         this.tableFunctions = pathMetadata.entrySet().stream()
                 .map(entry -> new OpenApiRequestTableFunction(
                         entry.getKey(),
@@ -98,8 +112,12 @@ public class OpenApiSpec
 
     private static Map<String, PathMetadata> getPathMetadata(
             Map<String, PathItem> paths,
-            Map<String, ApiResponse> responses)
+            Map<String, ApiResponse> responses,
+            Map<String, Schema<?>> schemas,
+            CastPolicy castPolicy,
+            ColumnWriterFactory columnWriterFactory)
     {
+        SchemaIrFactory schemaIrFactory = new SchemaIrFactory(castPolicy, schemas);
         ImmutableMap.Builder<String, PathMetadata> pathMetadataBuilder = ImmutableMap.builder();
         ImmutableList.Builder<Exception> exceptionsBuilder = ImmutableList.builder();
         Map<String, String> identifierToPath = new HashMap<>();
@@ -123,14 +141,18 @@ public class OpenApiSpec
                 Optional<Operation> operation = getGetOperation(pathItem, paths);
                 Optional<ApiResponse> response = operation.flatMap(SpecUtil::getSuccessfulResponse);
                 Optional<Schema<?>> schema = response.flatMap(r -> getJsonResponseSchema(r, responses));
-
-                // TODO transform the schema with SchemaIr factory ...
-                Optional<PathMetadata> pathMetadata = schema.map(_ -> new PathMetadata(
-                        identifier,
-                        ONE_COLUMN_DECODER,
-                        READ_ONCE_STRATEGY,
-                        OpenApiAuthenticator.NONE));
-                pathMetadata.ifPresent(pm -> pathMetadataBuilder.put(path, pm));
+                if (schema.isEmpty()) {
+                    return;
+                }
+                SchemaIr schemaIr = schemaIrFactory.convert(schema.get());
+                ColumnWriter columnWriter = columnWriterFactory.createFrom(schemaIr);
+                pathMetadataBuilder.put(
+                        path,
+                        new PathMetadata(
+                            identifier,
+                            new OneColumnDecoder(columnWriter),
+                            READ_ONCE_STRATEGY,
+                            OpenApiAuthenticator.NONE));
             }
             catch (Exception e) {
                 exceptionsBuilder.add(new RuntimeException(

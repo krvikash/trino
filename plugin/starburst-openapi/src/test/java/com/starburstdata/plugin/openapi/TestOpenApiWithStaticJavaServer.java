@@ -45,6 +45,6 @@ public class TestOpenApiWithStaticJavaServer
                 .result()
                 .onlyColumnAsSet()
                 .singleElement()
-                .isEqualTo("true");
+                .isEqualTo(true);
     }
 }

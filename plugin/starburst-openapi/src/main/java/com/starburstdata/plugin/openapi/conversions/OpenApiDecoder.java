@@ -19,8 +19,6 @@ import java.util.List;
 
 public interface OpenApiDecoder
 {
-    OpenApiDecoder ONE_COLUMN_DECODER = new OneColumnDecoder();
-
     List<OpenApiColumnHandle> getColumnHandles();
 
     Iterator<SourcePage> decodeFromRoot(JsonNode root, List<ColumnHandle> columnHandles);
