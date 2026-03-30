@@ -16,11 +16,14 @@ import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.SourcePage;
 
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.Iterators.singletonIterator;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 
 public class OneColumnDecoder
@@ -36,10 +39,10 @@ public class OneColumnDecoder
     }
 
     @Override
-    public Page decodeToPage(JsonNode root, List<ColumnHandle> columnHandles)
+    public Iterator<SourcePage> decodeFromRoot(JsonNode root, List<ColumnHandle> columnHandles)
     {
         if (columnHandles.isEmpty()) {
-            return new Page(1);
+            return singletonIterator(SourcePage.create(1));
         }
         checkArgument(
                 columnHandles.stream().allMatch(SINGLE_COLUMN_HANDLE::equals),
@@ -49,6 +52,6 @@ public class OneColumnDecoder
         Block block = blockBuilder.build();
         Block[] blocks = new Block[columnHandles.size()];
         Arrays.fill(blocks, block);
-        return new Page(blocks);
+        return singletonIterator(SourcePage.create(new Page(blocks)));
     }
 }

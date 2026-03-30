@@ -20,18 +20,19 @@ import io.airlift.http.client.HttpStatus;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.Response;
 import io.airlift.http.client.ResponseHandler;
-import io.trino.spi.Page;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.SourcePage;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.concurrent.MoreFutures.toCompletableFuture;
+import static java.util.Collections.emptyIterator;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -45,8 +46,9 @@ public class OpenApiPageSource<S>
     private final OpenApiDecoder decoder;
     private final List<ColumnHandle> columnHandles;
     private CompletableFuture<OpenApiResult<S>> pageFuture;
+    private Iterator<SourcePage> currentIterator = emptyIterator();
     private S currentState;
-    private Request currentRequest;
+    private Request nextRequest;
     private final OpenApiAuthenticator authenticator;
     private final ObjectMapper objectMapper;
     private final ResponseHandler<OpenApiResult<S>, RuntimeException> jsonResponseHandler = new ReadFromJson();
@@ -63,7 +65,7 @@ public class OpenApiPageSource<S>
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.paginationStrategy = requireNonNull(paginationStrategy, "paginationStrategy is null");
         this.currentState = paginationStrategy.initialState();
-        this.currentRequest = requireNonNull(initialRequest, "initialRequest is null");
+        this.nextRequest = requireNonNull(initialRequest, "initialRequest is null");
         this.decoder = requireNonNull(decoder, "decoder is null");
         this.columnHandles = ImmutableList.copyOf(columnHandles);
         this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
@@ -96,7 +98,7 @@ public class OpenApiPageSource<S>
                 throw new RuntimeException("Failed to read JSON from response", e);
             }
             return new OpenApiResult<>(
-                    decoder.decodeToPage(root, columnHandles),
+                    decoder.decodeFromRoot(root, columnHandles),
                     paginationStrategy.nextStateFromResponse(currentState, response));
         }
     }
@@ -118,7 +120,7 @@ public class OpenApiPageSource<S>
     @Override
     public boolean isFinished()
     {
-        return paginationStrategy.isFinished(currentState);
+        return paginationStrategy.isFinished(currentState) && !currentIterator.hasNext();
     }
 
     @Override
@@ -128,14 +130,18 @@ public class OpenApiPageSource<S>
             return null;
         }
 
+        if (currentIterator.hasNext()) {
+            return currentIterator.next();
+        }
+
         if (pageFuture != null && pageFuture.isDone()) {
             OpenApiResult<S> result = getFutureValue(pageFuture);
             currentState = result.newPaginationState();
+            currentIterator = result.pageIterator();
             if (!isFinished()) {
-                currentRequest = paginationStrategy.nextRequestFromState(currentRequest, currentState);
-                pageFuture = nextFuture();
+                nextRequest = paginationStrategy.nextRequestFromState(nextRequest, currentState);
+                return currentIterator.next();
             }
-            return SourcePage.create(result.page());
         }
 
         if (pageFuture == null) {
@@ -148,7 +154,7 @@ public class OpenApiPageSource<S>
     {
         checkState(!isFinished(), "Unexpectedly tried to make request when finished.");
         return toCompletableFuture(httpClient.executeAsync(
-                authenticator.filterRequest(currentRequest),
+                authenticator.filterRequest(nextRequest),
                 jsonResponseHandler));
     }
 
@@ -172,7 +178,7 @@ public class OpenApiPageSource<S>
         return pageFuture == null ? NOT_BLOCKED : pageFuture;
     }
 
-    record OpenApiResult<P>(Page page, P newPaginationState)
+    record OpenApiResult<P>(Iterator<SourcePage> pageIterator, P newPaginationState)
     {
     }
 }

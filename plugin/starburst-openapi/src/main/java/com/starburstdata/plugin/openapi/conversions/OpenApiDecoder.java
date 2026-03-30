@@ -11,9 +11,10 @@ package com.starburstdata.plugin.openapi.conversions;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.starburstdata.plugin.openapi.OpenApiColumnHandle;
-import io.trino.spi.Page;
 import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.SourcePage;
 
+import java.util.Iterator;
 import java.util.List;
 
 public interface OpenApiDecoder
@@ -22,5 +23,5 @@ public interface OpenApiDecoder
 
     List<OpenApiColumnHandle> getColumnHandles();
 
-    Page decodeToPage(JsonNode root, List<ColumnHandle> columnHandles);
+    Iterator<SourcePage> decodeFromRoot(JsonNode root, List<ColumnHandle> columnHandles);
 }
