@@ -10,6 +10,8 @@
 package com.starburstdata.trino.plugin.synapse;
 
 import com.google.common.collect.ImmutableMap;
+import io.trino.Session;
+import io.trino.SystemSessionProperties;
 import io.trino.connector.TestingColumnHandle;
 import io.trino.plugin.jdbc.BaseJdbcTableStatisticsTest;
 import io.trino.spi.connector.ColumnHandle;
@@ -20,13 +22,17 @@ import io.trino.testing.MaterializedRow;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.assertj.core.api.InstanceOfAssertFactory;
+import org.assertj.core.api.MapAssert;
 import org.assertj.core.api.SoftAssertions;
+import org.assertj.core.data.Percentage;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.function.Consumer;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -46,6 +52,10 @@ import static org.junit.jupiter.api.Assumptions.abort;
 public class TestSynapseTableStatistics
         extends BaseJdbcTableStatisticsTest
 {
+    private static final Percentage STAT_TOLERANCE_PERCENT = withinPercentage(80.0);
+    private static final InstanceOfAssertFactory<Map, MapAssert<ColumnHandle, ColumnStatistics>> COLUMN_STATS_MAP =
+            InstanceOfAssertFactories.map(ColumnHandle.class, ColumnStatistics.class);
+
     private static final int ERROR_STATISTICS_EXIST = 1927;
     private SynapseServer synapseServer;
 
@@ -99,7 +109,7 @@ public class TestSynapseTableStatistics
             assertThat(showStats(tableName))
                     .get()
                     .returns(Estimate.of(25), from(TableStatistics::getRowCount))
-                    .extracting(TableStatistics::getColumnStatistics, InstanceOfAssertFactories.map(ColumnHandle.class, ColumnStatistics.class))
+                    .extracting(TableStatistics::getColumnStatistics, COLUMN_STATS_MAP)
                     .hasEntrySatisfying(handle("nationkey"), statsCloseTo(25, 0, Double.NaN))
                     .hasEntrySatisfying(handle("name"), statsCloseTo(25, 0, 353))
                     .hasEntrySatisfying(handle("regionkey"), statsCloseTo(5, 0, Double.NaN))
@@ -164,7 +174,7 @@ public class TestSynapseTableStatistics
             assertThat(showStats(tableName))
                     .get()
                     .returns(Estimate.of(25), from(TableStatistics::getRowCount))
-                    .extracting(TableStatistics::getColumnStatistics, InstanceOfAssertFactories.map(ColumnHandle.class, ColumnStatistics.class))
+                    .extracting(TableStatistics::getColumnStatistics, COLUMN_STATS_MAP)
                     .hasEntrySatisfying(handle("nationkey"), statsCloseTo(16, 0.36, Double.NaN))
                     .hasEntrySatisfying(handle("regionkey"), statsCloseTo(5, 0, Double.NaN));
         }
@@ -193,7 +203,7 @@ public class TestSynapseTableStatistics
             assertThat(showStats(tableName))
                     .get()
                     .returns(Estimate.of(25), from(TableStatistics::getRowCount))
-                    .extracting(TableStatistics::getColumnStatistics, InstanceOfAssertFactories.map(ColumnHandle.class, ColumnStatistics.class))
+                    .extracting(TableStatistics::getColumnStatistics, COLUMN_STATS_MAP)
                     .hasEntrySatisfying(handle("nationkey"), statsCloseTo(25, 0, Double.NaN))
                     .hasEntrySatisfying(handle("v3_in_3"), statsCloseTo(1, 0, 150))
                     .hasEntrySatisfying(handle("v3_in_42"), statsCloseTo(1, 0, 150))
@@ -221,7 +231,7 @@ public class TestSynapseTableStatistics
             assertThat(showStats(tableName))
                     .get()
                     .returns(Estimate.of(25), from(TableStatistics::getRowCount))
-                    .extracting(TableStatistics::getColumnStatistics, InstanceOfAssertFactories.map(ColumnHandle.class, ColumnStatistics.class))
+                    .extracting(TableStatistics::getColumnStatistics, COLUMN_STATS_MAP)
                     .hasEntrySatisfying(handle("nationkey"), statsCloseTo(25, 0, Double.NaN))
                     .hasEntrySatisfying(handle("name"), statsCloseTo(25, 0, 353))
                     .hasEntrySatisfying(handle("regionkey"), statsCloseTo(5, 0, Double.NaN))
@@ -281,7 +291,7 @@ public class TestSynapseTableStatistics
             assertThat(showStats(tableName))
                     .get()
                     .returns(Estimate.of(25), from(TableStatistics::getRowCount))
-                    .extracting(TableStatistics::getColumnStatistics, InstanceOfAssertFactories.map(ColumnHandle.class, ColumnStatistics.class))
+                    .extracting(TableStatistics::getColumnStatistics, COLUMN_STATS_MAP)
                     .hasEntrySatisfying(handle("case_unquoted_upper"), statsCloseTo(25, 0, Double.NaN))
                     .hasEntrySatisfying(handle("case_unquoted_lower"), statsCloseTo(25, 0, 353))
                     .hasEntrySatisfying(handle("case_unquoted_mixed"), statsCloseTo(5, 0, Double.NaN))
@@ -348,7 +358,7 @@ public class TestSynapseTableStatistics
             assertThat(showStats(tableName))
                     .get()
                     .returns(Estimate.of(25), from(TableStatistics::getRowCount))
-                    .extracting(TableStatistics::getColumnStatistics, InstanceOfAssertFactories.map(ColumnHandle.class, ColumnStatistics.class))
+                    .extracting(TableStatistics::getColumnStatistics, COLUMN_STATS_MAP)
                     .hasEntrySatisfying(handle("nationkey"), statsCloseTo(25, 0, Double.NaN))
                     .hasEntrySatisfying(handle("name"), statsCloseTo(25, 0, 353))
                     .hasEntrySatisfying(handle("regionkey"), statsCloseTo(5, 0, Double.NaN))
@@ -360,7 +370,7 @@ public class TestSynapseTableStatistics
             assertThat(showStats(tableName))
                     .get()
                     .returns(Estimate.of(25), from(TableStatistics::getRowCount))
-                    .extracting(TableStatistics::getColumnStatistics, InstanceOfAssertFactories.map(ColumnHandle.class, ColumnStatistics.class))
+                    .extracting(TableStatistics::getColumnStatistics, COLUMN_STATS_MAP)
                     .hasEntrySatisfying(handle("nationkey"), statsCloseTo(25, 0, Double.NaN))
                     .hasEntrySatisfying(handle("name"), statsCloseTo(25, 0, 353))
                     .hasEntrySatisfying(handle("regionkey"), statsCloseTo(5, 0, Double.NaN))
@@ -398,9 +408,14 @@ public class TestSynapseTableStatistics
         synapseServer.execute(format("UPDATE STATISTICS %s.%s", TEST_SCHEMA, tableName));
     }
 
-    private Optional<TableStatistics> showStats(String tableName)
+    private Optional<TableStatistics> showStats(String target)
     {
-        List<MaterializedRow> showStatsResult = computeActual("SHOW STATS FOR " + tableName).getMaterializedRows();
+        return showStats(getSession(), target);
+    }
+
+    private Optional<TableStatistics> showStats(Session session, String target)
+    {
+        List<MaterializedRow> showStatsResult = computeActual(session, "SHOW STATS FOR " + target).getMaterializedRows();
         double rowCount = (double) showStatsResult.get(showStatsResult.size() - 1).getField(4);
 
         TableStatistics.Builder tableStatistics = TableStatistics.builder();
@@ -410,8 +425,8 @@ public class TestSynapseTableStatistics
             if (materializedRow.getField(0) != null) {
                 ColumnStatistics statistics = ColumnStatistics.builder()
                         .setDataSize(asEstimate(materializedRow.getField(1)))
-                        .setDistinctValuesCount(Estimate.of((Double) materializedRow.getField(2)))
-                        .setNullsFraction(Estimate.of((Double) materializedRow.getField(3)))
+                        .setDistinctValuesCount(asEstimate(materializedRow.getField(2)))
+                        .setNullsFraction(asEstimate(materializedRow.getField(3)))
                         .build();
 
                 tableStatistics.setColumnStatistics(
@@ -422,22 +437,253 @@ public class TestSynapseTableStatistics
         return Optional.of(tableStatistics.build());
     }
 
+    private static Consumer<ColumnStatistics> statsCloseTo(double distinctValues, double nullsFraction)
+    {
+        return statsCloseTo(distinctValues, nullsFraction, OptionalDouble.empty());
+    }
+
     private static Consumer<ColumnStatistics> statsCloseTo(double distinctValues, double nullsFraction, double dataSize)
+    {
+        return statsCloseTo(distinctValues, nullsFraction, OptionalDouble.of(dataSize));
+    }
+
+    private static Consumer<ColumnStatistics> statsCloseTo(double distinctValues, double nullsFraction, OptionalDouble dataSize)
     {
         return stats -> {
             SoftAssertions softly = new SoftAssertions();
 
             softly.assertThat(stats.getDistinctValuesCount().getValue())
-                    .isCloseTo(distinctValues, withinPercentage(80.0));
+                    .isCloseTo(distinctValues, STAT_TOLERANCE_PERCENT);
 
             softly.assertThat(stats.getNullsFraction().getValue())
-                    .isCloseTo(nullsFraction, withinPercentage(80.0));
+                    .isCloseTo(nullsFraction, STAT_TOLERANCE_PERCENT);
 
-            softly.assertThat(stats.getDataSize().getValue())
-                    .isCloseTo(dataSize, withinPercentage(80.0));
+            dataSize.ifPresent(size ->
+                    softly.assertThat(stats.getDataSize().getValue())
+                            .isCloseTo(size, STAT_TOLERANCE_PERCENT));
 
             softly.assertThat(stats.getRange()).isEmpty();
             softly.assertAll();
         };
+    }
+
+    @Override
+    @Test
+    public void testStatsWithPredicatePushdown()
+    {
+        String query = "SELECT * FROM nation WHERE regionkey = 1";
+
+        assertThat(query(query)).isFullyPushedDown();
+
+        Optional<TableStatistics> stats = showStats("(" + query + ")");
+        assertThat(stats)
+                .get()
+                .extracting(s -> s.getRowCount().getValue(), InstanceOfAssertFactories.DOUBLE)
+                .isCloseTo(5, STAT_TOLERANCE_PERCENT);
+        assertThat(stats)
+                .get()
+                .extracting(TableStatistics::getColumnStatistics, COLUMN_STATS_MAP)
+                .hasEntrySatisfying(handle("nationkey"), statsCloseTo(5, 0))
+                .hasEntrySatisfying(handle("name"), statsCloseTo(5, 0))
+                .hasEntrySatisfying(handle("regionkey"), statsCloseTo(1, 0))
+                .hasEntrySatisfying(handle("comment"), statsCloseTo(5, 0));
+    }
+
+    @Override
+    @Test
+    public void testStatsWithVarcharPredicatePushdown()
+    {
+        Optional<TableStatistics> stats = showStats("(SELECT * FROM nation WHERE name = 'PERU')");
+
+        assertThat(stats)
+                .get()
+                .extracting(s -> s.getRowCount().getValue(), InstanceOfAssertFactories.DOUBLE)
+                .isCloseTo(1, STAT_TOLERANCE_PERCENT);
+        assertThat(stats)
+                .get()
+                .extracting(TableStatistics::getColumnStatistics, COLUMN_STATS_MAP)
+                .hasEntrySatisfying(handle("nationkey"), statsCloseTo(1, 0))
+                .hasEntrySatisfying(handle("name"), statsCloseTo(1, 0))
+                .hasEntrySatisfying(handle("regionkey"), statsCloseTo(1, 0))
+                .hasEntrySatisfying(handle("comment"), statsCloseTo(1, 0));
+
+        try (TestTable table = newTrinoTable(
+                "varchar_duplicates",
+                " AS SELECT nationkey, chr(codepoint('A') + nationkey / 5) fl FROM tpch.tiny.nation")) {
+            gatherStats(table.getName());
+
+            stats = showStats("(SELECT * FROM " + table.getName() + " WHERE fl = 'B')");
+            assertThat(stats)
+                    .get()
+                    .extracting(s -> s.getRowCount().getValue(), InstanceOfAssertFactories.DOUBLE)
+                    .isCloseTo(5, STAT_TOLERANCE_PERCENT);
+            assertThat(stats)
+                    .get()
+                    .extracting(TableStatistics::getColumnStatistics, COLUMN_STATS_MAP)
+                    .hasEntrySatisfying(handle("nationkey"), statsCloseTo(5, 0))
+                    .hasEntrySatisfying(handle("fl"), statsCloseTo(1, 0));
+        }
+    }
+
+    /**
+     * Verify that when {@value SystemSessionProperties#STATISTICS_PRECALCULATION_FOR_PUSHDOWN_ENABLED} is disabled,
+     * the connector still returns reasonable statistics.
+     */
+    @Override
+    @Test
+    public void testStatsWithPredicatePushdownWithStatsPrecalculationDisabled()
+    {
+        String query = "SELECT * FROM nation WHERE regionkey = 1";
+        Session session = Session.builder(getSession())
+                .setSystemProperty(SystemSessionProperties.STATISTICS_PRECALCULATION_FOR_PUSHDOWN_ENABLED, "false")
+                .build();
+
+        assertThat(query(session, query)).isFullyPushedDown();
+        assertThat(showStats(session, "(" + query + ")"))
+                .get()
+                .extracting(TableStatistics::getColumnStatistics, COLUMN_STATS_MAP)
+                .hasEntrySatisfying(handle("nationkey"), statsCloseTo(25, 0))
+                .hasEntrySatisfying(handle("name"), statsCloseTo(25, 0))
+                .hasEntrySatisfying(handle("regionkey"), statsCloseTo(5, 0))
+                .hasEntrySatisfying(handle("comment"), statsCloseTo(25, 0));
+    }
+
+    @Override
+    @Test
+    public void testStatsWithLimitPushdown()
+    {
+        String query = "SELECT regionkey, nationkey FROM nation LIMIT 2";
+
+        assertThat(query(query)).skipResultsCorrectnessCheckForPushdown().isFullyPushedDown();
+
+        Optional<TableStatistics> stats = showStats("(" + query + ")");
+        assertThat(stats)
+                .get()
+                .extracting(s -> s.getRowCount().getValue(), InstanceOfAssertFactories.DOUBLE)
+                .isCloseTo(2, STAT_TOLERANCE_PERCENT);
+        assertThat(stats)
+                .get()
+                .extracting(TableStatistics::getColumnStatistics, COLUMN_STATS_MAP)
+                .hasEntrySatisfying(handle("regionkey"), statsCloseTo(2, 0))
+                .hasEntrySatisfying(handle("nationkey"), statsCloseTo(2, 0));
+    }
+
+    @Override
+    @Test
+    public void testStatsWithTopNPushdown()
+    {
+        String query = "SELECT regionkey, nationkey FROM nation ORDER BY regionkey LIMIT 2";
+
+        assertThat(query(query)).skipResultsCorrectnessCheckForPushdown().isFullyPushedDown();
+
+        Optional<TableStatistics> stats = showStats("(" + query + ")");
+        assertThat(stats)
+                .get()
+                .extracting(s -> s.getRowCount().getValue(), InstanceOfAssertFactories.DOUBLE)
+                .isCloseTo(2, STAT_TOLERANCE_PERCENT);
+        assertThat(stats)
+                .get()
+                .extracting(TableStatistics::getColumnStatistics, COLUMN_STATS_MAP)
+                .hasEntrySatisfying(handle("regionkey"), statsCloseTo(2, 0))
+                .hasEntrySatisfying(handle("nationkey"), statsCloseTo(2, 0));
+    }
+
+    @Override
+    @Test
+    public void testStatsWithDistinctPushdown()
+    {
+        String query = "SELECT DISTINCT regionkey FROM nation";
+
+        assertThat(query(query)).isFullyPushedDown();
+
+        Optional<TableStatistics> stats = showStats("(" + query + ")");
+        assertThat(stats)
+                .get()
+                .extracting(s -> s.getRowCount().getValue(), InstanceOfAssertFactories.DOUBLE)
+                .isCloseTo(5, STAT_TOLERANCE_PERCENT);
+        assertThat(stats)
+                .get()
+                .extracting(TableStatistics::getColumnStatistics, COLUMN_STATS_MAP)
+                .hasEntrySatisfying(handle("regionkey"), statsCloseTo(5, 0));
+    }
+
+    @Override
+    @Test
+    public void testStatsWithDistinctLimitPushdown()
+    {
+        String query = "SELECT DISTINCT regionkey FROM nation LIMIT 3";
+
+        assertThat(query(query)).skipResultsCorrectnessCheckForPushdown().isFullyPushedDown();
+
+        Optional<TableStatistics> stats = showStats("(" + query + ")");
+        assertThat(stats)
+                .get()
+                .extracting(s -> s.getRowCount().getValue(), InstanceOfAssertFactories.DOUBLE)
+                .isCloseTo(3, STAT_TOLERANCE_PERCENT);
+        assertThat(stats)
+                .get()
+                .extracting(TableStatistics::getColumnStatistics, COLUMN_STATS_MAP)
+                .hasEntrySatisfying(handle("regionkey"), statsCloseTo(3, 0));
+    }
+
+    @Override
+    @Test
+    public void testStatsWithAggregationPushdown()
+    {
+        String query = "SELECT regionkey, max(nationkey) max_nationkey, count(*) c FROM nation GROUP BY regionkey";
+
+        assertThat(query(query)).isFullyPushedDown();
+
+        Optional<TableStatistics> stats = showStats("(" + query + ")");
+        assertThat(stats)
+                .get()
+                .extracting(s -> s.getRowCount().getValue(), InstanceOfAssertFactories.DOUBLE)
+                .isCloseTo(5, STAT_TOLERANCE_PERCENT);
+        assertThat(stats)
+                .get()
+                .extracting(TableStatistics::getColumnStatistics, COLUMN_STATS_MAP)
+                .hasEntrySatisfying(handle("regionkey"), statsCloseTo(5, 0))
+                .hasEntrySatisfying(handle("max_nationkey"), statsCloseTo(Double.NaN, Double.NaN))
+                .hasEntrySatisfying(handle("c"), statsCloseTo(Double.NaN, Double.NaN));
+    }
+
+    @Override
+    @Test
+    public void testStatsWithSimpleJoinPushdown()
+    {
+        String query = "SELECT n.name n_name FROM nation n JOIN region r ON n.nationkey = r.regionkey";
+
+        assertThat(query(query)).isFullyPushedDown();
+
+        Optional<TableStatistics> stats = showStats("(" + query + ")");
+        assertThat(stats)
+                .get()
+                .extracting(s -> s.getRowCount().getValue(), InstanceOfAssertFactories.DOUBLE)
+                .isCloseTo(5, STAT_TOLERANCE_PERCENT);
+        assertThat(stats)
+                .get()
+                .extracting(TableStatistics::getColumnStatistics, COLUMN_STATS_MAP)
+                .hasEntrySatisfying(handle("n_name"), statsCloseTo(5, 0));
+    }
+
+    @Override
+    @Test
+    public void testStatsWithJoinPushdown()
+    {
+        String query = "SELECT r.regionkey regionkey, r.name r_name, n.name n_name FROM region r JOIN nation n ON r.regionkey = n.regionkey WHERE n.nationkey = 5";
+
+        assertThat(query(query)).isFullyPushedDown();
+
+        Optional<TableStatistics> stats = showStats("(" + query + ")");
+        assertThat(stats)
+                .get()
+                .extracting(s -> s.getRowCount().getValue(), InstanceOfAssertFactories.DOUBLE)
+                .isCloseTo(1, STAT_TOLERANCE_PERCENT);
+        assertThat(stats)
+                .get()
+                .extracting(TableStatistics::getColumnStatistics, COLUMN_STATS_MAP)
+                .hasEntrySatisfying(handle("regionkey"), statsCloseTo(1, 0))
+                .hasEntrySatisfying(handle("r_name"), statsCloseTo(1, 0))
+                .hasEntrySatisfying(handle("n_name"), statsCloseTo(1, 0));
     }
 }
