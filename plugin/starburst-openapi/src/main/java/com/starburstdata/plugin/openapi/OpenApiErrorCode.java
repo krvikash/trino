@@ -17,12 +17,14 @@ import io.trino.spi.ErrorCode;
 import io.trino.spi.ErrorCodeSupplier;
 import io.trino.spi.ErrorType;
 
-import static io.trino.spi.ErrorType.USER_ERROR;
+import static io.trino.spi.ErrorType.EXTERNAL;
+import static io.trino.spi.ErrorType.INTERNAL_ERROR;
 
 public enum OpenApiErrorCode
         implements ErrorCodeSupplier
 {
-    OPENAPI_INVALID_FILTER(0, USER_ERROR),
+    OPENAPI_UNEXPECTED_RESPONSE_SCHEMA(0, EXTERNAL),
+    OPENAPI_AMBIGUOUS_REFERENCE(1, INTERNAL_ERROR),
     /**/;
 
     private final ErrorCode errorCode;
