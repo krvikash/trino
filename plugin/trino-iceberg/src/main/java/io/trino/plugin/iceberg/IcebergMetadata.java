@@ -2847,6 +2847,17 @@ public class IcebergMetadata
         }
     }
 
+    private static void getAllFutureValues(List<Future<?>> futures)
+    {
+        try {
+            futures.forEach(MoreFutures::getFutureValue);
+            futures.clear();
+        }
+        finally {
+            futures.forEach(future -> future.cancel(true));
+        }
+    }
+
     private void executeDropExtendedStats(ConnectorSession session, IcebergTableExecuteHandle executeHandle)
     {
         checkArgument(executeHandle.procedureHandle() instanceof IcebergDropExtendedStatsHandle, "Unexpected procedure handle %s", executeHandle.procedureHandle());
@@ -3030,15 +3041,8 @@ public class IcebergMetadata
 
         validFileNames.add("version-hint.text");
 
-        try {
-            manifestScanFutures.forEach(MoreFutures::getFutureValue);
-            // All futures completed normally
-            manifestScanFutures.clear();
-        }
-        finally {
-            // Ensure any futures still running are canceled in case of failure
-            manifestScanFutures.forEach(future -> future.cancel(true));
-        }
+        getAllFutureValues(manifestScanFutures);
+
         ScanAndDeleteResult result = scanAndDeleteInvalidFiles(table, session, schemaTableName, expiration, validFileNames, fileIoProperties);
         log.info("remove_orphan_files for table %s processed %d manifest files, found %d active files, scanned %d files, deleted %d files",
                 schemaTableName,
@@ -3115,16 +3119,10 @@ public class IcebergMetadata
                 fileSystem.deleteFiles(filesToDelete);
             }
 
-            deleteFutures.forEach(MoreFutures::getFutureValue);
-            // All futures completed normally
-            deleteFutures.clear();
+            getAllFutureValues(deleteFutures);
         }
         catch (IOException | UncheckedIOException e) {
             throw new TrinoException(ICEBERG_FILESYSTEM_ERROR, "Failed removing orphan files for table: " + schemaTableName, e);
-        }
-        finally {
-            // Ensure any futures still running are canceled in case of failure
-            deleteFutures.forEach(future -> future.cancel(true));
         }
         return new ScanAndDeleteResult(scannedFilesCount, deletedFilesCount);
     }
