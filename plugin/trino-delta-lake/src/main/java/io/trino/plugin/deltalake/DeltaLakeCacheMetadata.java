@@ -44,7 +44,7 @@ public class DeltaLakeCacheMetadata
         DeltaLakeTableHandle deltaLakeTableHandle = (DeltaLakeTableHandle) tableHandle;
 
         // skip caching if it is UPDATE / INSERT query
-        if (((DeltaLakeTableHandle) tableHandle).getWriteType().isPresent()) {
+        if (((DeltaLakeTableHandle) tableHandle).isMerge()) {
             return Optional.empty();
         }
 
@@ -64,7 +64,7 @@ public class DeltaLakeCacheMetadata
                 deltaLakeTableHandle.getProtocolEntry(),
                 deltaLakeTableHandle.getEnforcedPartitionConstraint(),
                 deltaLakeTableHandle.getNonPartitionConstraint(),
-                deltaLakeTableHandle.getWriteType(),
+                deltaLakeTableHandle.isMerge(),
                 deltaLakeTableHandle.getProjectedColumns(),
                 deltaLakeTableHandle.getAnalyzeHandle(),
                 deltaLakeTableHandle.getReadVersion(),

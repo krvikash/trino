@@ -71,7 +71,7 @@ public class DeltaLakeProxiedConnectorTransformer
                 tableHandle.getProtocolEntry(),
                 TupleDomain.all(),
                 TupleDomain.all(),
-                tableHandle.getWriteType(),
+                tableHandle.isMerge(),
                 tableHandle.getProjectedColumns(),
                 tableHandle.getAnalyzeHandle(),
                 tableHandle.getReadVersion(),
@@ -114,7 +114,7 @@ public class DeltaLakeProxiedConnectorTransformer
         }
 
         DeltaLakeTableHandle tableHandle = (DeltaLakeTableHandle) dispatcherTableHandle.getProxyConnectorTableHandle();
-        return tableHandle.getWriteType().isEmpty();
+        return !tableHandle.isMerge();
     }
 
     @Override
@@ -173,7 +173,7 @@ public class DeltaLakeProxiedConnectorTransformer
                 tableHandle.getProtocolEntry(),
                 TupleDomain.all(),
                 TupleDomain.all(),
-                tableHandle.getWriteType(),
+                tableHandle.isMerge(),
                 tableHandle.getProjectedColumns(),
                 tableHandle.getAnalyzeHandle(),
                 tableHandle.getReadVersion(),

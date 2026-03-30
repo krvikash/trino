@@ -209,7 +209,7 @@ public class TestDeltaPageSourceProvider
                 new ProtocolEntry(1, 2, Optional.empty(), Optional.empty()),
                 TupleDomain.all(),
                 nonPartitionConstraint.transformKeys(DeltaLakeColumnHandle.class::cast),
-                Optional.empty(),
+                false,
                 Optional.empty(),
                 Optional.empty(),
                 0,

@@ -29,18 +29,11 @@ import java.util.Optional;
 import java.util.Set;
 
 import static io.trino.plugin.deltalake.DeltaLakeMetadata.isCatalogManagedTable;
-import static io.trino.plugin.deltalake.DeltaLakeTableHandle.WriteType.MERGE;
 import static java.util.Objects.requireNonNull;
 
 public class DeltaLakeTableHandle
         implements LocatedTableHandle
 {
-    // Insert is not included here because it uses a separate TableHandle type
-    public enum WriteType
-    {
-        MERGE,
-    }
-
     private final String schemaName;
     private final String tableName;
     private final boolean managed;
@@ -50,7 +43,7 @@ public class DeltaLakeTableHandle
     private final ProtocolEntry protocolEntry;
     private final TupleDomain<DeltaLakeColumnHandle> enforcedPartitionConstraint;
     private final TupleDomain<DeltaLakeColumnHandle> nonPartitionConstraint;
-    private final Optional<WriteType> writeType;
+    private final boolean merge;
     private final long readVersion;
     private final boolean timeTravel;
 
@@ -77,7 +70,7 @@ public class DeltaLakeTableHandle
             @JsonProperty("protocolEntry") ProtocolEntry protocolEntry,
             @JsonProperty("enforcedPartitionConstraint") TupleDomain<DeltaLakeColumnHandle> enforcedPartitionConstraint,
             @JsonProperty("nonPartitionConstraint") TupleDomain<DeltaLakeColumnHandle> nonPartitionConstraint,
-            @JsonProperty("writeType") Optional<WriteType> writeType,
+            @JsonProperty("merge") boolean merge,
             @JsonProperty("projectedColumns") Optional<Set<DeltaLakeColumnHandle>> projectedColumns,
             @JsonProperty("analyzeHandle") Optional<AnalyzeHandle> analyzeHandle,
             @JsonProperty("readVersion") long readVersion,
@@ -94,7 +87,7 @@ public class DeltaLakeTableHandle
                 enforcedPartitionConstraint,
                 nonPartitionConstraint,
                 ImmutableSet.of(),
-                writeType,
+                merge,
                 projectedColumns,
                 analyzeHandle,
                 false,
@@ -115,7 +108,7 @@ public class DeltaLakeTableHandle
             TupleDomain<DeltaLakeColumnHandle> enforcedPartitionConstraint,
             TupleDomain<DeltaLakeColumnHandle> nonPartitionConstraint,
             Set<DeltaLakeColumnHandle> constraintColumns,
-            Optional<WriteType> writeType,
+            boolean merge,
             Optional<Set<DeltaLakeColumnHandle>> projectedColumns,
             Optional<AnalyzeHandle> analyzeHandle,
             boolean recordScannedFiles,
@@ -133,7 +126,7 @@ public class DeltaLakeTableHandle
         this.protocolEntry = requireNonNull(protocolEntry, "protocolEntry is null");
         this.enforcedPartitionConstraint = requireNonNull(enforcedPartitionConstraint, "enforcedPartitionConstraint is null");
         this.nonPartitionConstraint = requireNonNull(nonPartitionConstraint, "nonPartitionConstraint is null");
-        this.writeType = requireNonNull(writeType, "writeType is null");
+        this.merge = merge;
         this.projectedColumns = requireNonNull(projectedColumns, "projectedColumns is null");
         this.analyzeHandle = requireNonNull(analyzeHandle, "analyzeHandle is null");
         this.recordScannedFiles = recordScannedFiles;
@@ -157,7 +150,7 @@ public class DeltaLakeTableHandle
                 enforcedPartitionConstraint,
                 nonPartitionConstraint,
                 constraintColumns,
-                writeType,
+                merge,
                 Optional.of(projectedColumns),
                 analyzeHandle,
                 recordScannedFiles,
@@ -180,7 +173,7 @@ public class DeltaLakeTableHandle
                 enforcedPartitionConstraint,
                 nonPartitionConstraint,
                 constraintColumns,
-                writeType,
+                merge,
                 projectedColumns,
                 analyzeHandle,
                 recordScannedFiles,
@@ -203,7 +196,7 @@ public class DeltaLakeTableHandle
                 enforcedPartitionConstraint,
                 nonPartitionConstraint,
                 constraintColumns,
-                Optional.of(MERGE),
+                true,
                 projectedColumns,
                 analyzeHandle,
                 recordScannedFiles,
@@ -297,9 +290,9 @@ public class DeltaLakeTableHandle
     }
 
     @JsonProperty
-    public Optional<WriteType> getWriteType()
+    public boolean isMerge()
     {
-        return writeType;
+        return merge;
     }
 
     // Projected columns are not needed on workers
@@ -368,7 +361,7 @@ public class DeltaLakeTableHandle
                     but has different predicates.
                 */
                 TupleDomain.all(),
-                getWriteType(),
+                isMerge(),
                 getProjectedColumns(),
                 getAnalyzeHandle(),
                 getReadVersion(),
@@ -402,7 +395,7 @@ public class DeltaLakeTableHandle
                 Objects.equals(protocolEntry, that.protocolEntry) &&
                 Objects.equals(enforcedPartitionConstraint, that.enforcedPartitionConstraint) &&
                 Objects.equals(nonPartitionConstraint, that.nonPartitionConstraint) &&
-                Objects.equals(writeType, that.writeType) &&
+                merge == that.merge &&
                 Objects.equals(projectedColumns, that.projectedColumns) &&
                 Objects.equals(analyzeHandle, that.analyzeHandle) &&
                 isOptimize == that.isOptimize &&
@@ -424,7 +417,7 @@ public class DeltaLakeTableHandle
                 protocolEntry,
                 enforcedPartitionConstraint,
                 nonPartitionConstraint,
-                writeType,
+                merge,
                 projectedColumns,
                 analyzeHandle,
                 recordScannedFiles,

@@ -77,7 +77,6 @@ import static io.trino.hdfs.HdfsTestUtils.HDFS_FILE_SYSTEM_STATS;
 import static io.trino.metadata.InternalBlockEncodingSerde.TESTING_BLOCK_ENCODING_SERDE;
 import static io.trino.node.TestingInternalNodeManager.CURRENT_NODE;
 import static io.trino.plugin.deltalake.DeltaLakeAnalyzeProperties.AnalyzeMode.FULL_REFRESH;
-import static io.trino.plugin.deltalake.DeltaLakeTableHandle.WriteType.MERGE;
 import static io.trino.spi.predicate.Domain.singleValue;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.IntegerType.INTEGER;
@@ -183,7 +182,7 @@ public class TestDeltaLakeCacheIds
         assertThat(metadata.getCacheTableId(createDeltaLakeTableHandle(
                 createMetadataEntry("id", schema),
                 ImmutableSet.of(partitionColumn),
-                Optional.of(MERGE)))
+                true))
         ).isEqualTo(Optional.empty());
 
         // `managed` shouldn't be part of table id
@@ -202,12 +201,12 @@ public class TestDeltaLakeCacheIds
         assertThat(metadata.getCacheTableId(createDeltaLakeTableHandle(
                 createMetadataEntry("id1", schema),
                 ImmutableSet.of(),
-                Optional.empty()))
-        ).isNotEqualTo(metadata.getCacheTableId(createDeltaLakeTableHandle(createMetadataEntry("id2", schema), ImmutableSet.of(), Optional.empty())));
+                false))
+        ).isNotEqualTo(metadata.getCacheTableId(createDeltaLakeTableHandle(createMetadataEntry("id2", schema), ImmutableSet.of(), false)));
 
         // projectedColumns shouldn't be part of table id
-        assertThat(metadata.getCacheTableId(createDeltaLakeTableHandle(createMetadataEntry("id", schema), ImmutableSet.of(partitionColumn), Optional.empty())))
-                .isEqualTo(metadata.getCacheTableId(createDeltaLakeTableHandle(createMetadataEntry("id", schema), ImmutableSet.of(), Optional.empty())));
+        assertThat(metadata.getCacheTableId(createDeltaLakeTableHandle(createMetadataEntry("id", schema), ImmutableSet.of(partitionColumn), false)))
+                .isEqualTo(metadata.getCacheTableId(createDeltaLakeTableHandle(createMetadataEntry("id", schema), ImmutableSet.of(), false)));
 
         // nonPartitionConstraint should not be part of table id
         assertThat(metadata.getCacheTableId(createDeltaLakeTableHandle(TupleDomain.all(), TupleDomain.withColumnDomains(ImmutableMap.of(partitionColumn, singleValue(BIGINT, 1L))))))
@@ -226,7 +225,7 @@ public class TestDeltaLakeCacheIds
                 .isNotEqualTo(metadata.getCacheTableId(createDeltaLakeTableHandle("schema", "table2", false, "location", 0)));
 
         // writing queries should result in empty cacheTableId
-        assertThat(metadata.getCacheTableId(createDeltaLakeTableHandle(createMetadataEntry("id", schema), ImmutableSet.of(), Optional.of(MERGE))))
+        assertThat(metadata.getCacheTableId(createDeltaLakeTableHandle(createMetadataEntry("id", schema), ImmutableSet.of(), true)))
                 .isEmpty();
 
         // analyze queries should result in empty cacheTableId
@@ -239,7 +238,7 @@ public class TestDeltaLakeCacheIds
                 TupleDomain.all(),
                 TupleDomain.all(),
                 createMetadataEntry("id", schema),
-                Optional.empty(),
+                false,
                 Optional.empty(),
                 Optional.of(new AnalyzeHandle(FULL_REFRESH, Optional.empty(), Optional.empty())))))
                 .isEmpty();
@@ -359,7 +358,7 @@ public class TestDeltaLakeCacheIds
                 TupleDomain.all(),
                 TupleDomain.all(),
                 createMetadataEntry("id", "{\"fields\": [{\"name\": \"value\", \"metadata\": {}}]}"),
-                Optional.empty(),
+                false,
                 Optional.empty(),
                 Optional.empty());
     }
@@ -367,7 +366,7 @@ public class TestDeltaLakeCacheIds
     private static DeltaLakeTableHandle createDeltaLakeTableHandle(
             MetadataEntry entry,
             Set<DeltaLakeColumnHandle> projectedColumns,
-            Optional<DeltaLakeTableHandle.WriteType> writeType)
+            boolean isMerge)
     {
         return createDeltaLakeTableHandle(
                 "schema",
@@ -378,7 +377,7 @@ public class TestDeltaLakeCacheIds
                 TupleDomain.all(),
                 TupleDomain.all(),
                 entry,
-                writeType,
+                isMerge,
                 Optional.of(projectedColumns),
                 Optional.empty());
     }
@@ -396,7 +395,7 @@ public class TestDeltaLakeCacheIds
                 enforcedPartitionConstraint,
                 nonPartitionConstraint,
                 createMetadataEntry("id", "{\"fields\": [{\"name\": \"value\", \"metadata\": {}}]}"),
-                Optional.empty(),
+                false,
                 Optional.empty(),
                 Optional.empty());
     }
@@ -410,7 +409,7 @@ public class TestDeltaLakeCacheIds
             TupleDomain<DeltaLakeColumnHandle> enforcedPartitionConstraint,
             TupleDomain<DeltaLakeColumnHandle> nonPartitionConstraint,
             MetadataEntry metadataEntry,
-            Optional<DeltaLakeTableHandle.WriteType> writeType,
+            boolean isMerge,
             Optional<Set<DeltaLakeColumnHandle>> projectedColumns,
             Optional<AnalyzeHandle> analyzeHandle)
     {
@@ -424,7 +423,7 @@ public class TestDeltaLakeCacheIds
                 new ProtocolEntry(3, 7, Optional.empty(), Optional.empty()),
                 enforcedPartitionConstraint,
                 nonPartitionConstraint,
-                writeType,
+                isMerge,
                 projectedColumns,
                 analyzeHandle,
                 readVersion,

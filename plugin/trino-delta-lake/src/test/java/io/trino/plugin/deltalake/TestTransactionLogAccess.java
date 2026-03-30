@@ -595,7 +595,7 @@ public class TestTransactionLogAccess
                                     protocolEntry,
                                     TupleDomain.none(),
                                     TupleDomain.none(),
-                                    Optional.empty(),
+                                    false,
                                     Optional.empty(),
                                     Optional.empty(),
                                     0,

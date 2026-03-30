@@ -496,7 +496,7 @@ public class TestDeltaLakeMetadata
                 new ProtocolEntry(1, 2, Optional.empty(), Optional.empty()),
                 createConstrainedColumnsTuple(constrainedColumns),
                 TupleDomain.all(),
-                Optional.empty(),
+                false,
                 Optional.of(projectedColumns),
                 Optional.empty(),
                 0,
