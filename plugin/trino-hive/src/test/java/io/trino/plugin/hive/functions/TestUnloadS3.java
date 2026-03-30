@@ -23,6 +23,7 @@ import io.trino.plugin.hive.HiveQueryRunner;
 import io.trino.testing.QueryRunner;
 
 import java.io.IOException;
+import java.nio.file.Files;
 
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 
@@ -37,9 +38,13 @@ public class TestUnloadS3
     {
         return HiveQueryRunner.builder()
                 .setHiveProperties(ImmutableMap.<String, String>builder()
-                        .put("hive.s3.region", requireEnv("AWS_REGION"))
-                        .put("hive.s3.aws-access-key", requireEnv("AWS_ACCESS_KEY_ID"))
-                        .put("hive.s3.aws-secret-key", requireEnv("AWS_SECRET_ACCESS_KEY"))
+                        .put("fs.hadoop.enabled", "false")
+                        .put("fs.native-s3.enabled", "true")
+                        .put("s3.region", requireEnv("AWS_REGION"))
+                        .put("s3.aws-access-key", requireEnv("AWS_ACCESS_KEY_ID"))
+                        .put("s3.aws-secret-key", requireEnv("AWS_SECRET_ACCESS_KEY"))
+                        .put("hive.metastore", "file")
+                        .put("hive.metastore.catalog.dir", "local://" + Files.createTempDirectory("metastore"))
                         .buildOrThrow())
                 .build();
     }

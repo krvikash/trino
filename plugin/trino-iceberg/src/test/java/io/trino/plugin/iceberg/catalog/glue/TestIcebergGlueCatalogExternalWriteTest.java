@@ -75,6 +75,7 @@ final class TestIcebergGlueCatalogExternalWriteTest
                 .put("iceberg.catalog.type", "glue")
                 // Enable metastore cache shared across queries - this is where external writes can cause stale reads
                 .put("iceberg.glue.metastore-cache.ttl", "30m")
+                .put("fs.native-s3.enabled", "true")
                 .put("hive.metastore.glue.default-warehouse-dir", "s3://%s/%s".formatted(bucketName, testPrefix))
                 .put("iceberg.file-format", PARQUET.name())
                 .buildOrThrow();

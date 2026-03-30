@@ -14,18 +14,11 @@
 package io.trino.plugin.hive.functions;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
+import io.opentelemetry.api.OpenTelemetry;
 import io.trino.filesystem.TrinoFileSystemFactory;
-import io.trino.filesystem.hdfs.HdfsFileSystemFactory;
-import io.trino.hdfs.DynamicHdfsConfiguration;
-import io.trino.hdfs.HdfsConfig;
-import io.trino.hdfs.HdfsConfiguration;
-import io.trino.hdfs.HdfsConfigurationInitializer;
-import io.trino.hdfs.HdfsEnvironment;
-import io.trino.hdfs.TrinoHdfsFileSystemStats;
-import io.trino.hdfs.authentication.NoHdfsAuthentication;
-import io.trino.hdfs.azure.HiveAzureConfig;
-import io.trino.hdfs.azure.TrinoAzureConfigurationInitializer;
+import io.trino.filesystem.azure.AzureAuthAccessKey;
+import io.trino.filesystem.azure.AzureFileSystemConfig;
+import io.trino.filesystem.azure.AzureFileSystemFactory;
 import io.trino.plugin.hive.HiveQueryRunner;
 import io.trino.testing.QueryRunner;
 
@@ -69,14 +62,8 @@ public class TestUnloadAbfs
     protected TrinoFileSystemFactory getFileSystemFactory()
             throws IOException
     {
-        HdfsConfig hdfsConfig = new HdfsConfig();
-        HiveAzureConfig azureConfig = new HiveAzureConfig()
-                .setAbfsStorageAccount(account)
-                .setAbfsAccessKey(accessKey);
-        HdfsConfiguration hdfsConfiguration = new DynamicHdfsConfiguration(
-                new HdfsConfigurationInitializer(hdfsConfig, ImmutableSet.of(new TrinoAzureConfigurationInitializer(azureConfig))),
-                ImmutableSet.of());
-        return new HdfsFileSystemFactory(new HdfsEnvironment(hdfsConfiguration, hdfsConfig, new NoHdfsAuthentication()), new TrinoHdfsFileSystemStats());
+        AzureFileSystemConfig config = new AzureFileSystemConfig().setAuthType(AzureFileSystemConfig.AuthType.ACCESS_KEY);
+        return new AzureFileSystemFactory(OpenTelemetry.noop(), new AzureAuthAccessKey(accessKey), config);
     }
 
     @Override

@@ -363,6 +363,12 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>trino-filesystem-azure</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-filesystem-gcs</artifactId>
             <scope>runtime</scope>
         </dependency>
