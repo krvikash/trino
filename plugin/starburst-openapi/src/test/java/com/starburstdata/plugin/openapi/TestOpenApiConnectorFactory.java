@@ -116,8 +116,8 @@ final class TestOpenApiConnectorFactory
         assertThat(exceptions)
                 .map(Exception::getMessage)
                 .containsExactlyInAnyOrderElementsOf(ImmutableList.<String>builder()
-                        .add("Failed to transform path /circular (Response references form a cycle)")
-                        .add("Failed to transform path /badref (Response references re-usable response that doesn't exist: badref)")
+                        .add("Failed to transform path /circular (Reference from response forms a cycle)")
+                        .add("Failed to transform path /badref (Reference refers to response 'badref' that doesn't exist)")
                         .build());
     }
 
@@ -133,10 +133,10 @@ final class TestOpenApiConnectorFactory
         assertThat(exceptions)
                 .map(Exception::getMessage)
                 .containsExactlyInAnyOrderElementsOf(ImmutableList.<String>builder()
-                        .add("Failed to transform path /circular (Path references form a cycle)")
-                        .add("Failed to transform path /circularSTART (Path references form a cycle)")
-                        .add("Failed to transform path /circularEND (Path references form a cycle)")
-                        .add("Failed to transform path /badref (Path references path that doesn't exist: notreal)")
+                        .add("Failed to transform path /circular (Reference from path forms a cycle)")
+                        .add("Failed to transform path /circularSTART (Reference from path forms a cycle)")
+                        .add("Failed to transform path /circularEND (Reference from path forms a cycle)")
+                        .add("Failed to transform path /badref (Reference refers to path 'notreal' that doesn't exist)")
                         .build());
     }
 
