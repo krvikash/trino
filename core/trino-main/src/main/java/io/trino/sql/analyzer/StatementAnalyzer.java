@@ -4390,7 +4390,6 @@ class StatementAnalyzer
                                 analysis,
                                 warningCollector,
                                 correlationSupport);
-                        // default values can contain subqueries - the subqueries are recorded under the enclosing JsonTable node
                         analysis.recordSubqueries(jsonTable, typeAndAnalysis.analysis());
                         outputFields.add(Field.newUnqualified(name, typeAndAnalysis.type()));
                         orderedOutputColumns.add(NodeRef.of(valueColumn));
