@@ -48,7 +48,6 @@ import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.predicate.ValueSet;
 import io.trino.spi.type.VarcharType;
-import io.trino.split.AlternativeChooserPageSourceProvider;
 import io.trino.split.PageSourceManager.PageSourceProviderInstance;
 import io.trino.split.PageSourceProvider;
 import io.trino.split.SplitSource;
@@ -597,12 +596,6 @@ public abstract class BaseCacheSubqueriesTest
         ConnectorPageSourceProvider pageSourceProvider = null;
         try {
             pageSourceProvider = workerConnector.getPageSourceProviderFactory().createPageSourceProvider();
-        }
-        catch (UnsupportedOperationException ignored) {
-        }
-
-        try {
-            pageSourceProvider = new AlternativeChooserPageSourceProvider(workerConnector.getAlternativeChooser());
         }
         catch (UnsupportedOperationException ignored) {
         }

@@ -19,6 +19,7 @@ import io.trino.cache.CacheDriverFactory;
 import io.trino.execution.ScheduledSplit;
 import io.trino.metadata.TableHandle;
 import io.trino.spi.cache.CacheSplitId;
+import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.split.AlternativeChooser;
 import io.trino.split.AlternativeChooser.Choice;
 import io.trino.sql.planner.plan.PlanNodeId;
@@ -26,6 +27,7 @@ import io.trino.sql.planner.plan.PlanNodeId;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
@@ -36,6 +38,7 @@ public class AlternativesAwareDriverFactory
     private final AlternativeChooser alternativeChooser;
     private final Session session;
     private final Map<TableHandle, AlternativeDriverFactory> alternatives;
+    private final Map<TableHandle, ConnectorPageSourceProvider> alternativePageSourceProviders;
     private final PlanNodeId chooseAlternativeNodeId;
     private final Optional<CacheDriverFactory> cacheDriverFactory;
     private final int pipelineId;
@@ -62,6 +65,7 @@ public class AlternativesAwareDriverFactory
             alternativesBuilder.put(entry.getKey(), new AlternativeDriverFactory(alternativeId++, entry.getValue()));
         }
         this.alternatives = alternativesBuilder.buildOrThrow();
+        this.alternativePageSourceProviders = new ConcurrentHashMap<>();
         this.chooseAlternativeNodeId = requireNonNull(chooseAlternativeNodeId, "chooseAlternativeNodeId is null");
         this.cacheDriverFactory = requireNonNull(cacheDriverFactory, "cacheDriverFactory is null");
         this.pipelineId = pipelineId;
@@ -107,8 +111,13 @@ public class AlternativesAwareDriverFactory
 
         Choice chosen = alternativeChooser.chooseAlternative(session, split.split(), alternatives.keySet());
 
+        // Get or create the page source provider for this alternative (cached per alternative)
+        ConnectorPageSourceProvider pageSourceProvider = alternativePageSourceProviders.computeIfAbsent(
+                chosen.tableHandle(),
+                key -> chosen.pageSourceProviderFactory().createPageSourceProvider());
+
         AlternativeDriverFactory alternative = alternatives.get(chosen.tableHandle());
-        return alternative.driverFactory().createDriver(driverContext.setAlternativePlanContext(chosen.pageSourceProvider(), alternative.id()));
+        return alternative.driverFactory().createDriver(driverContext.setAlternativePlanContext(pageSourceProvider, alternative.id()));
     }
 
     @Override

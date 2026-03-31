@@ -28,11 +28,11 @@ public interface ConnectorAlternativeChooser
             ConnectorSplit split,
             List<ConnectorTableHandle> alternatives);
 
-    record Choice(int chosenTableHandleIndex, ConnectorAlternativePageSourceProvider pageSourceProvider)
+    record Choice(int chosenTableHandleIndex, ConnectorPageSourceProviderFactory pageSourceProviderFactory)
     {
         public Choice
         {
-            requireNonNull(pageSourceProvider, "pageSourceProvider is null");
+            requireNonNull(pageSourceProviderFactory, "pageSourceProviderFactory is null");
         }
     }
 }

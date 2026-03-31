@@ -25,7 +25,7 @@ import io.trino.execution.TaskId;
 import io.trino.memory.QueryContextVisitor;
 import io.trino.memory.context.MemoryTrackingContext;
 import io.trino.operator.OperationTimer.OperationTiming;
-import io.trino.spi.connector.ConnectorAlternativePageSourceProvider;
+import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.sql.planner.plan.PlanNodeId;
 
 import java.time.Instant;
@@ -457,9 +457,9 @@ public class DriverContext
         return yieldExecutor;
     }
 
-    public Optional<ConnectorAlternativePageSourceProvider> getConnectorAlternativePageSourceProvider()
+    public Optional<ConnectorPageSourceProvider> getAlternativePageSourceProvider()
     {
-        return alternativePlanContext.get().map(AlternativePlanContext::connectorAlternativePageSourceProvider);
+        return alternativePlanContext.get().map(AlternativePlanContext::pageSourceProvider);
     }
 
     public Optional<Integer> getAlternativeId()
@@ -467,11 +467,11 @@ public class DriverContext
         return alternativePlanContext.get().map(AlternativePlanContext::alternativeId);
     }
 
-    public DriverContext setAlternativePlanContext(ConnectorAlternativePageSourceProvider connectorAlternativePageSourceProvider, int alternativeId)
+    public DriverContext setAlternativePlanContext(ConnectorPageSourceProvider pageSourceProvider, int alternativeId)
     {
         if (!alternativePlanContext.compareAndSet(
                 Optional.empty(),
-                Optional.of(new AlternativePlanContext(connectorAlternativePageSourceProvider, alternativeId)))) {
+                Optional.of(new AlternativePlanContext(pageSourceProvider, alternativeId)))) {
             throw new IllegalStateException("alternativePlanContext was already set to " + alternativePlanContext.get());
         }
 
@@ -510,11 +510,11 @@ public class DriverContext
         return max(0, end - start);
     }
 
-    private record AlternativePlanContext(ConnectorAlternativePageSourceProvider connectorAlternativePageSourceProvider, int alternativeId)
+    private record AlternativePlanContext(ConnectorPageSourceProvider pageSourceProvider, int alternativeId)
     {
-        private AlternativePlanContext(ConnectorAlternativePageSourceProvider connectorAlternativePageSourceProvider, int alternativeId)
+        private AlternativePlanContext(ConnectorPageSourceProvider pageSourceProvider, int alternativeId)
         {
-            this.connectorAlternativePageSourceProvider = requireNonNull(connectorAlternativePageSourceProvider, "connectorAlternativePageSourceProvider is null");
+            this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
             this.alternativeId = alternativeId;
         }
     }

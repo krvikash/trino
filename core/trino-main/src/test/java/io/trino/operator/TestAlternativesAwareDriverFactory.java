@@ -20,6 +20,7 @@ import io.trino.metadata.Split;
 import io.trino.metadata.TableHandle;
 import io.trino.operator.ValuesOperator.ValuesOperatorFactory;
 import io.trino.spi.connector.ConnectorAlternativeChooser;
+import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.split.AlternativeChooser;
 import io.trino.sql.planner.plan.PlanNodeId;
@@ -33,6 +34,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -69,13 +71,125 @@ public class TestAlternativesAwareDriverFactory
     }
 
     @Test
+    public void testPageSourceProviderCachedPerAlternative()
+    {
+        // Track created providers to verify caching
+        Map<Integer, ConnectorPageSourceProvider> createdProviders = new HashMap<>();
+        ConnectorAlternativeChooser connectorAlternativeChooser = (session, split, alternatives) -> {
+            int chosenIndex = 0;  // Always choose first alternative
+            return new ConnectorAlternativeChooser.Choice(chosenIndex, () -> {
+                ConnectorPageSourceProvider provider = new ConnectorPageSourceProvider() {};
+                assertThat(createdProviders.putIfAbsent(chosenIndex, provider))
+                        .describedAs("Provider factory should only be called once per alternative")
+                        .isNull();
+                return provider;
+            });
+        };
+
+        AlternativesAwareDriverFactory factory = new AlternativesAwareDriverFactory(
+                new AlternativeChooser(catalogHandle -> connectorAlternativeChooser),
+                TEST_SESSION,
+                alternatives(ImmutableMap.of("alternative0", new MockOperatorFactory())),
+                CHOOSE_ALTERNATIVE_NODE_ID,
+                Optional.empty(),
+                0,
+                true,
+                false,
+                OptionalInt.empty());
+
+        // Create first driver
+        Driver driver0 = factory.createDriver(createDriverContext(scheduledExecutor), Optional.of(split(0)));
+        ConnectorPageSourceProvider provider0 = driver0.getDriverContext().getAlternativePageSourceProvider().orElseThrow();
+
+        // Create second driver for different split but same alternative
+        Driver driver1 = factory.createDriver(createDriverContext(scheduledExecutor), Optional.of(split(1)));
+        ConnectorPageSourceProvider provider1 = driver1.getDriverContext().getAlternativePageSourceProvider().orElseThrow();
+
+        // Verify same instance is reused
+        assertThat(provider1).isSameAs(provider0)
+                .describedAs("Same page source provider should be reused for same alternative");
+
+        // Verify factory was only called once
+        assertThat(createdProviders)
+                .describedAs("Provider factory should only be called once even for multiple splits")
+                .hasSize(1);
+    }
+
+    @Test
+    public void testDifferentPageSourceProvidersForDifferentAlternatives()
+    {
+        // Track created providers per alternative
+        Map<Integer, ConnectorPageSourceProvider> createdProviders = new HashMap<>();
+        AtomicInteger currentAlternative = new AtomicInteger(0);
+
+        ConnectorAlternativeChooser connectorAlternativeChooser = (session, split, alternatives) -> {
+            int chosenIndex = currentAlternative.get();
+            return new ConnectorAlternativeChooser.Choice(chosenIndex, () -> {
+                ConnectorPageSourceProvider provider = new ConnectorPageSourceProvider() {};
+                assertThat(createdProviders.putIfAbsent(chosenIndex, provider))
+                        .describedAs("Provider factory should only be called once per alternative")
+                        .isNull();
+                return provider;
+            });
+        };
+
+        AlternativesAwareDriverFactory factory = new AlternativesAwareDriverFactory(
+                new AlternativeChooser(catalogHandle -> connectorAlternativeChooser),
+                TEST_SESSION,
+                alternatives(ImmutableMap.of(
+                        "alternative0", new MockOperatorFactory(),
+                        "alternative1", new MockOperatorFactory())),
+                CHOOSE_ALTERNATIVE_NODE_ID,
+                Optional.empty(),
+                0,
+                true,
+                false,
+                OptionalInt.empty());
+
+        // Create driver for alternative 0
+        currentAlternative.set(0);
+        Driver driver0 = factory.createDriver(createDriverContext(scheduledExecutor), Optional.of(split(0)));
+        ConnectorPageSourceProvider provider0 = driver0.getDriverContext().getAlternativePageSourceProvider().orElseThrow();
+
+        // Create driver for alternative 1
+        currentAlternative.set(1);
+        Driver driver1 = factory.createDriver(createDriverContext(scheduledExecutor), Optional.of(split(1)));
+        ConnectorPageSourceProvider provider1 = driver1.getDriverContext().getAlternativePageSourceProvider().orElseThrow();
+
+        // Verify different providers for different alternatives
+        assertThat(provider1).isNotSameAs(provider0)
+                .describedAs("Different alternatives should have different providers");
+
+        // Go back to alternative 0
+        currentAlternative.set(0);
+        Driver driver2 = factory.createDriver(createDriverContext(scheduledExecutor), Optional.of(split(2)));
+        ConnectorPageSourceProvider provider2 = driver2.getDriverContext().getAlternativePageSourceProvider().orElseThrow();
+
+        // Verify same instance is reused for same alternative
+        assertThat(provider2).isSameAs(provider0)
+                .describedAs("Same page source provider should be reused for same alternative 0");
+
+        // Create another driver for alternative 1
+        currentAlternative.set(1);
+        Driver driver3 = factory.createDriver(createDriverContext(scheduledExecutor), Optional.of(split(3)));
+        ConnectorPageSourceProvider provider3 = driver3.getDriverContext().getAlternativePageSourceProvider().orElseThrow();
+
+        // Verify same instance for same alternative
+        assertThat(provider3).isSameAs(provider1)
+                .describedAs("Same page source provider should be reused for same alternative 1");
+
+        // Verify factories were only once per alternative
+        assertThat(createdProviders)
+                .describedAs("Provider factory should only be called once per each alternative")
+                .hasSize(2);
+    }
+
+    @Test
     public void testCorrectAlternativeDriversCreated()
     {
         AtomicInteger currentAlternative = new AtomicInteger(0);
         ConnectorAlternativeChooser connectorAlternativeChooser = (session, split, alternatives) ->
-                new ConnectorAlternativeChooser.Choice(currentAlternative.get(), (transaction, session1, columns, dynamicFilter) -> {
-                    throw new UnsupportedOperationException();
-                });
+                new ConnectorAlternativeChooser.Choice(currentAlternative.get(), () -> new ConnectorPageSourceProvider() {});
 
         MockOperatorFactory alternativeOperatorFactory0 = new MockOperatorFactory();
         MockOperatorFactory alternativeOperatorFactory1 = new MockOperatorFactory();
@@ -94,19 +208,19 @@ public class TestAlternativesAwareDriverFactory
 
         Driver driver0 = factory.createDriver(createDriverContext(scheduledExecutor), Optional.of(split(0)));
         assertThat(alternativeOperatorFactory0.createdOperators).isEqualTo(1);
-        assertThat(driver0.getDriverContext().getConnectorAlternativePageSourceProvider()).isPresent();
+        assertThat(driver0.getDriverContext().getAlternativePageSourceProvider()).isPresent();
         assertThat(driver0.getDriverContext().getAlternativeId()).hasValue(0);
 
         currentAlternative.set(1);
         Driver driver1 = factory.createDriver(createDriverContext(scheduledExecutor), Optional.of(split(1)));
         assertThat(alternativeOperatorFactory0.createdOperators).isEqualTo(1);
-        assertThat(driver1.getDriverContext().getConnectorAlternativePageSourceProvider()).isPresent();
+        assertThat(driver1.getDriverContext().getAlternativePageSourceProvider()).isPresent();
         assertThat(driver1.getDriverContext().getAlternativeId()).hasValue(1);
 
         currentAlternative.set(0);
         Driver driver2 = factory.createDriver(createDriverContext(scheduledExecutor), Optional.of(split(2)));
         assertThat(alternativeOperatorFactory0.createdOperators).isEqualTo(2);
-        assertThat(driver2.getDriverContext().getConnectorAlternativePageSourceProvider()).isPresent();
+        assertThat(driver2.getDriverContext().getAlternativePageSourceProvider()).isPresent();
         assertThat(driver2.getDriverContext().getAlternativeId()).hasValue(0);
     }
 

@@ -21,6 +21,7 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorAlternativeChooser;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
+import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
@@ -46,12 +47,11 @@ import static java.util.Objects.requireNonNull;
 public class MockPlanAlternativeChooser
         implements ConnectorAlternativeChooser
 {
-    private static final Logger log = Logger.get(MockPlanAlternativeChooser.class);
-    private final ConnectorPageSourceProvider delegate;
+    private final ConnectorPageSourceProviderFactory pageSourceProviderFactory;
 
-    public MockPlanAlternativeChooser(ConnectorPageSourceProvider delegate)
+    public MockPlanAlternativeChooser(ConnectorPageSourceProviderFactory pageSourceProviderFactory)
     {
-        this.delegate = requireNonNull(delegate, "delegate is null");
+        this.pageSourceProviderFactory = requireNonNull(pageSourceProviderFactory, "pageSourceProviderFactory is null");
     }
 
     @Override
@@ -63,37 +63,52 @@ public class MockPlanAlternativeChooser
         int alternative = (planAlternativeSplit.getSplitNumber() + 1) % alternatives.size();
         ConnectorTableHandle table = alternatives.get(alternative);
         checkArgument(alternative == 0 || table instanceof MockPlanAlternativeTableHandle, "Not the trivial alternative, expected a MockPlanAlternativeTableHandle");
-        return new Choice(alternative, (transaction, session1, columns, dynamicFilter) ->
-                createPageSource(transaction, session1, planAlternativeSplit, table, columns, dynamicFilter));
+        return new Choice(alternative, pageSourceProviderFactory);
     }
 
-    private ConnectorPageSource createPageSource(
-            ConnectorTransactionHandle transaction,
-            ConnectorSession session,
-            MockPlanAlternativeSplit split,
-            ConnectorTableHandle table,
-            List<ColumnHandle> columns,
-            DynamicFilter dynamicFilter)
+    public static class MockPlanAlternativePageSourceProvider
+            implements ConnectorPageSourceProvider
     {
-        if (table instanceof MockPlanAlternativeTableHandle handle) {
-            log.debug("filtering table %s, split %s by mock plan alternative connector. df: %s", table, split, dynamicFilter.getCurrentPredicate());
-            int filterColumnIndex = columns.indexOf(handle.filterColumn());
-            boolean returnFilterColumn = filterColumnIndex >= 0;
-            if (!returnFilterColumn) {
-                filterColumnIndex = columns.size();
-                columns = ImmutableList.<ColumnHandle>builder()
-                        .addAll(columns)
-                        .add(handle.filterColumn())
-                        .build();
-            }
-            ConnectorPageSource pageSource = delegate.createPageSource(transaction, session, split.getDelegate(), handle.delegate(), columns, dynamicFilter);
-            return new PlanAlternativePageSource(pageSource, handle.filterDefinition().asPredicate(session), filterColumnIndex, returnFilterColumn);
+        private static final Logger log = Logger.get(MockPlanAlternativePageSourceProvider.class);
+
+        private final ConnectorPageSourceProvider delegate;
+
+        public MockPlanAlternativePageSourceProvider(ConnectorPageSourceProvider delegate)
+        {
+            this.delegate = requireNonNull(delegate, "delegate is null");
         }
-        log.debug("NOT filtering table %s, split %s by mock plan alternative connector. df: %s", table, split, dynamicFilter.getCurrentPredicate());
-        return delegate.createPageSource(transaction, session, split.getDelegate(), table, columns, dynamicFilter);
+
+        @Override
+        public ConnectorPageSource createPageSource(
+                ConnectorTransactionHandle transaction,
+                ConnectorSession session,
+                ConnectorSplit split,
+                ConnectorTableHandle table,
+                List<ColumnHandle> columns,
+                DynamicFilter dynamicFilter)
+        {
+            ConnectorSplit unwrappedSplit = split instanceof MockPlanAlternativeSplit mockSplit ? mockSplit.getDelegate() : split;
+
+            if (table instanceof MockPlanAlternativeTableHandle handle) {
+                log.debug("filtering table %s, split %s by mock plan alternative connector. df: %s", table, split, dynamicFilter.getCurrentPredicate());
+                int filterColumnIndex = columns.indexOf(handle.filterColumn());
+                boolean returnFilterColumn = filterColumnIndex >= 0;
+                if (!returnFilterColumn) {
+                    filterColumnIndex = columns.size();
+                    columns = ImmutableList.<ColumnHandle>builder()
+                            .addAll(columns)
+                            .add(handle.filterColumn())
+                            .build();
+                }
+                ConnectorPageSource pageSource = delegate.createPageSource(transaction, session, unwrappedSplit, handle.delegate(), columns, dynamicFilter);
+                return new PlanAlternativePageSource(pageSource, handle.filterDefinition().asPredicate(session), filterColumnIndex, returnFilterColumn);
+            }
+            log.debug("NOT filtering table %s, split %s by mock plan alternative connector. df: %s", table, split, dynamicFilter.getCurrentPredicate());
+            return delegate.createPageSource(transaction, session, unwrappedSplit, table, columns, dynamicFilter);
+        }
     }
 
-    public static class PlanAlternativePageSource
+    private static class PlanAlternativePageSource
             implements ConnectorPageSource
     {
         public static final String FILTERED_OUT_POSITIONS = "filteredOutPositions";

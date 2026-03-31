@@ -13,6 +13,7 @@
  */
 package io.trino.operator;
 
+import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.sql.planner.plan.PlanNodeId;
 import org.junit.jupiter.api.Test;
 
@@ -33,10 +34,10 @@ public class TestPipelineContext
         MockScheduledExecutorService scheduledExecutor = new MockScheduledExecutorService();
         PipelineContext pipelineContext = TestingOperatorContext.createDriverContext(scheduledExecutor).getPipelineContext();
         DriverContext alternative0DriverContext = pipelineContext.addDriverContext();
-        alternative0DriverContext.setAlternativePlanContext((transaction, session, columns, dynamicFilter) -> null, 0);
+        alternative0DriverContext.setAlternativePlanContext(new ConnectorPageSourceProvider() {}, 0);
         alternative0DriverContext.addOperatorContext(0, new PlanNodeId("0"), "operator");
         DriverContext alternative1DriverContext = pipelineContext.addDriverContext();
-        alternative1DriverContext.setAlternativePlanContext((transaction, session, columns, dynamicFilter) -> null, 1);
+        alternative1DriverContext.setAlternativePlanContext(new ConnectorPageSourceProvider() {}, 1);
         alternative1DriverContext.addOperatorContext(0, new PlanNodeId("0"), "operator");
         pipelineContext.driverFinished(alternative0DriverContext);
         pipelineContext.driverFinished(alternative1DriverContext);
@@ -56,10 +57,10 @@ public class TestPipelineContext
         MockScheduledExecutorService scheduledExecutor = new MockScheduledExecutorService();
         PipelineContext pipelineContext = TestingOperatorContext.createDriverContext(scheduledExecutor).getPipelineContext();
         DriverContext alternative0DriverContext = pipelineContext.addDriverContext();
-        alternative0DriverContext.setAlternativePlanContext((transaction, session, columns, dynamicFilter) -> null, 3);
+        alternative0DriverContext.setAlternativePlanContext(new ConnectorPageSourceProvider() {}, 3);
         alternative0DriverContext.addOperatorContext(0, new PlanNodeId("0"), "operator");
         DriverContext alternative1DriverContext = pipelineContext.addDriverContext();
-        alternative1DriverContext.setAlternativePlanContext((transaction, session, columns, dynamicFilter) -> null, 3);
+        alternative1DriverContext.setAlternativePlanContext(new ConnectorPageSourceProvider() {}, 3);
         alternative1DriverContext.addOperatorContext(0, new PlanNodeId("0"), "operator");
         pipelineContext.driverFinished(alternative0DriverContext);
         pipelineContext.driverFinished(alternative1DriverContext);

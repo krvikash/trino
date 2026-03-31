@@ -46,7 +46,6 @@ import io.trino.spi.function.table.TableArgumentSpecification;
 import io.trino.spi.procedure.Procedure;
 import io.trino.spi.security.TrinoPrincipal;
 import io.trino.spi.session.PropertyMetadata;
-import io.trino.split.AlternativeChooserPageSourceProvider;
 import io.trino.split.RecordPageSourceProvider;
 
 import java.util.Arrays;
@@ -161,9 +160,7 @@ public class ConnectorServices
         try {
             connectorAlternativeChooser = connector.getAlternativeChooser();
             requireNonNull(connectorAlternativeChooser, format("Connector '%s' returned a null alternative chooser", catalogHandle));
-            verify(connectorPageSourceProviderFactory == null, "Connector '%s' returned both page source or record set provider and alternative chooser", catalogHandle);
-            var pageSourceProvider = new AlternativeChooserPageSourceProvider(connectorAlternativeChooser);
-            connectorPageSourceProviderFactory = () -> pageSourceProvider;
+            verify(connectorPageSourceProviderFactory != null, "Connector '%s' returned alternative chooser without a page source provider", catalogHandle);
         }
         catch (UnsupportedOperationException ignored) {
         }
