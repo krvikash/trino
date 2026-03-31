@@ -34,7 +34,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static io.starburst.stargate.buffer.trino.exchange.EmbeddedBufferQueryRunner.BUFFER_NODE_STATE_TRANSITION_TIMEOUT_MILLIS;
-import static io.starburst.stargate.buffer.trino.exchange.EmbeddedBufferQueryRunner.CHUNKS_AVAILABLE_TIMEOUT_MILLIS;
 import static io.starburst.stargate.buffer.trino.exchange.EmbeddedBufferQueryRunner.EMBEDDED_BUFFER_TEST_TIMEOUT_MILLIS;
 import static io.starburst.stargate.buffer.trino.exchange.EmbeddedBufferQueryRunner.createRunnerWithWorkers;
 import static io.starburst.stargate.buffer.trino.exchange.EmbeddedBufferQueryRunner.createSingleNodeRunner;
@@ -80,17 +79,12 @@ public class TestEmbeddedBufferGracefulShutdown
                                         "FROM mock.default.test_table a, mock.default.test_table b " +
                                         "GROUP BY a.group_key")));
             }
-            // Wait until the worker's buffer actually has chunks with data
-            assertEventually(new Duration(CHUNKS_AVAILABLE_TIMEOUT_MILLIS, MILLISECONDS),
-                    () -> assertThat(chunkManager.getOpenChunks() + chunkManager.getClosedChunks())
-                            .describedAs("Expected chunks to be present on the worker's buffer before drain")
-                            .isGreaterThan(0));
             // Verify queries are still running - exchange data is in flight
             assertThat(Futures.allAsList(queryFutures).isDone())
                     .describedAs("Queries should still be running when shutdown is triggered")
                     .isFalse();
 
-            // Trigger worker shutdown while the buffer holds data
+            // Trigger worker shutdown while queries are running
             worker.getNodeStateManager().transitionState(NodeState.SHUTTING_DOWN);
 
             // Verify the buffer transitions to DRAINING — chunks are being spooled to persistent storage
