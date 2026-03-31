@@ -4285,7 +4285,7 @@ public class IcebergMetadata
             Map<Integer, SortOrder> sortOrders = icebergTable.sortOrders();
             DataFiles.Builder builder = DataFiles.builder(partitionSpec)
                     .withPath(task.path())
-                    .withFormat(task.fileFormat())
+                    .withFormat(task.fileFormat().toIceberg())
                     .withFileSizeInBytes(task.fileSizeInBytes())
                     .withMetrics(task.metrics().metrics())
                     .withSortOrder(sortOrders.get(task.sortOrderId()));
@@ -4320,7 +4320,7 @@ public class IcebergMetadata
                 PartitionSpec partitionSpec = PartitionSpecParser.fromJson(schema, task.partitionSpecJson());
                 FileMetadata.Builder deleteBuilder = FileMetadata.deleteFileBuilder(partitionSpec)
                         .withPath(task.path())
-                        .withFormat(task.fileFormat())
+                        .withFormat(task.fileFormat().toIceberg())
                         .ofPositionDeletes()
                         .withFileSizeInBytes(task.fileSizeInBytes())
                         .withMetrics(task.metrics().metrics());

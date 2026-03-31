@@ -120,7 +120,7 @@ public class IcebergMergeSink
                 Optional<PartitionData> partitionData = createPartitionData(partitionSpec, deletion.partitionDataJson());
                 CommitTaskData task = new CommitTaskData(
                         "", // path of the v2 delete file
-                        fileFormat.toIceberg(),
+                        fileFormat,
                         0, // size of the v2 delete file
                         new MetricsWrapper(new Metrics(deletionVector.cardinality())),
                         PartitionSpecParser.toJson(partitionSpec),

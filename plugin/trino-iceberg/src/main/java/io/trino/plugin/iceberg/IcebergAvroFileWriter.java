@@ -18,7 +18,6 @@ import io.trino.plugin.hive.HiveCompressionCodec;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.Type;
-import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.data.Record;
@@ -80,18 +79,6 @@ public final class IcebergAvroFileWriter
         catch (IOException | UncheckedIOException e) {
             throw new TrinoException(ICEBERG_WRITER_OPEN_ERROR, "Error creating Avro file: " + location, e);
         }
-    }
-
-    @Override
-    public FileFormat fileFormat()
-    {
-        return FileFormat.AVRO;
-    }
-
-    @Override
-    public String location()
-    {
-        return location;
     }
 
     @Override

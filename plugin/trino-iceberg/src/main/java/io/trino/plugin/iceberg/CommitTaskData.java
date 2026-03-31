@@ -14,7 +14,6 @@
 package io.trino.plugin.iceberg;
 
 import org.apache.iceberg.FileContent;
-import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.SortOrder;
 
 import java.util.List;
@@ -25,7 +24,7 @@ import static java.util.Objects.requireNonNull;
 
 public record CommitTaskData(
         String path,
-        FileFormat fileFormat,
+        IcebergFileFormat fileFormat,
         long fileSizeInBytes,
         MetricsWrapper metrics,
         String partitionSpecJson,

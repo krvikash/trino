@@ -50,7 +50,9 @@ public class PositionDeleteWriter
     private final Block dataFilePathBlock;
     private final PartitionSpec partitionSpec;
     private final Optional<PartitionData> partition;
+    private final String outputPath;
     private final IcebergFileWriter writer;
+    private final IcebergFileFormat fileFormat;
 
     public PositionDeleteWriter(
             String dataFilePath,
@@ -70,13 +72,13 @@ public class PositionDeleteWriter
         this.dataFilePathBlock = nativeValueToBlock(VARCHAR, utf8Slice(dataFilePath));
         this.partitionSpec = requireNonNull(partitionSpec, "partitionSpec is null");
         this.partition = requireNonNull(partition, "partition is null");
-        requireNonNull(fileFormat, "fileFormat is null");
+        this.fileFormat = requireNonNull(fileFormat, "fileFormat is null");
         // Prepend query ID to the file name, allowing us to determine the files written by a query.
         // This is necessary for opportunistic cleanup of extra files, which may be present for
         // successfully completed queries in the presence of failure recovery mechanisms.
         FileFormat icebergFileFormat = formatVersion >= 3 ? PUFFIN : fileFormat.toIceberg();
         String fileName = icebergFileFormat.addExtension(session.getQueryId() + "-" + randomUUID());
-        String outputPath = partition
+        this.outputPath = partition
                 .map(partitionData -> locationProvider.newDataLocation(partitionSpec, partitionData, fileName))
                 .orElseGet(() -> locationProvider.newDataLocation(fileName));
         this.writer = fileWriterFactory.createPositionDeleteWriter(
@@ -97,8 +99,8 @@ public class PositionDeleteWriter
         writer.commit();
 
         return new CommitTaskData(
-                writer.location(),
-                writer.fileFormat(),
+                outputPath,
+                fileFormat,
                 writer.getWrittenBytes(),
                 new MetricsWrapper(writer.getFileMetrics().metrics()),
                 PartitionSpecParser.toJson(partitionSpec),

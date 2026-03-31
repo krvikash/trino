@@ -124,7 +124,7 @@ public class CopyOnWriteIcebergMergeSink
             Location outputPath = Location.of(partitionSpec.isPartitioned() ? locationProvider.newDataLocation(partitionSpec, partitionData, fileName) : locationProvider.newDataLocation(fileName));
             IcebergFileWriter fileWriter = fileWriterFactory.createDataFileWriter(fileSystem, outputPath, supportsRowLineage(formatVersion) ? TypeUtil.join(schema, new Schema(MetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER)) : schema, session, fileFormat, MetricsConfig.getDefault(), storageProperties);
             try {
-                rewriteFile(fileWriter, dataFile, deletion, partitionSpec, partitionData).ifPresent(fragments::add);
+                rewriteFile(fileWriter, outputPath, dataFile, deletion, partitionSpec, partitionData).ifPresent(fragments::add);
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
@@ -136,6 +136,7 @@ public class CopyOnWriteIcebergMergeSink
 
     private Optional<Slice> rewriteFile(
             IcebergFileWriter writer,
+            Location outputPath,
             Location dataFilePath,
             FileDeletion deletion,
             PartitionSpec partitionSpec,
@@ -176,8 +177,8 @@ public class CopyOnWriteIcebergMergeSink
         }
 
         CommitTaskData task = new CommitTaskData(
-                writer.location(),
-                writer.fileFormat(),
+                outputPath.toString(),
+                fileFormat,
                 writer.getWrittenBytes(),
                 new MetricsWrapper(writer.getFileMetrics().metrics()),
                 PartitionSpecParser.toJson(partitionSpec),
@@ -195,7 +196,7 @@ public class CopyOnWriteIcebergMergeSink
     {
         return new CommitTaskData(
                 "",
-                IcebergFileFormat.PARQUET.toIceberg(),
+                IcebergFileFormat.PARQUET,
                 0,
                 new MetricsWrapper(new Metrics()),
                 partitionSpecJson,

@@ -255,7 +255,6 @@ public class IcebergFileWriterFactory
                     .orElse(toCompressionCodec(hiveCompressionOption));
 
             return new IcebergOrcFileWriter(
-                    outputPath,
                     metricsConfig,
                     icebergSchema,
                     orcDataSink,

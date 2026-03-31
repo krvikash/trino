@@ -434,7 +434,7 @@ public class IcebergPageSink
 
         CommitTaskData task = new CommitTaskData(
                 writeContext.getPath(),
-                writer.fileFormat(),
+                fileFormat,
                 writer.getWrittenBytes(),
                 new MetricsWrapper(writer.getFileMetrics().metrics()),
                 PartitionSpecParser.toJson(partitionSpec),
