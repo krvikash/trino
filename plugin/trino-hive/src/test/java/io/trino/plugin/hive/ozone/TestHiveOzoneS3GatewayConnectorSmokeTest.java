@@ -26,9 +26,9 @@ import io.trino.testing.QueryRunner;
 import io.trino.tpch.TpchTable;
 import org.junit.jupiter.api.Test;
 
-import java.util.Map;
-
 import static io.trino.plugin.hive.TestingThriftHiveMetastoreBuilder.testingThriftHiveMetastoreBuilder;
+import static io.trino.plugin.hive.ozone.ApacheOzoneContainer.DUMMY_ACCESS_KEY;
+import static io.trino.plugin.hive.ozone.ApacheOzoneContainer.DUMMY_SECRET_KEY;
 import static io.trino.plugin.tpch.TpchMetadata.TINY_SCHEMA_NAME;
 import static io.trino.testing.QueryAssertions.copyTpchTables;
 import static io.trino.testing.TestingNames.randomNameSuffix;
@@ -36,16 +36,14 @@ import static io.trino.tpch.TpchTable.LINE_ITEM;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public abstract class BaseHiveOzoneS3GatewayConnectorSmokeTest
+final class TestHiveOzoneS3GatewayConnectorSmokeTest
         extends TestHiveConnectorSmokeTest
 {
     private static final String CATALOG_NAME = "hive";
     private static final String SCHEMA_NAME = "ozone";
 
     private String bucketName;
-    protected HiveOzoneS3Gateway hiveOzoneS3Gateway;
-
-    protected abstract Map<String, String> s3Config();
+    private HiveOzoneS3Gateway hiveOzoneS3Gateway;
 
     @Override
     protected QueryRunner createQueryRunner()
@@ -64,7 +62,12 @@ public abstract class BaseHiveOzoneS3GatewayConnectorSmokeTest
                 .setHiveProperties(ImmutableMap.<String, String>builder()
                         .put("hive.non-managed-table-writes-enabled", "true")
                         .put("hive.security", "allow-all")
-                        .putAll(s3Config())
+                        .put("fs.hadoop.enabled", "false")
+                        .put("fs.native-s3.enabled", "true")
+                        .put("s3.aws-access-key", DUMMY_ACCESS_KEY)
+                        .put("s3.aws-secret-key", DUMMY_SECRET_KEY)
+                        .put("s3.endpoint", hiveOzoneS3Gateway.getApacheOzoneContainer().getS3EndpointAddress())
+                        .put("s3.path-style-access", "true")
                         .buildOrThrow())
                 .build();
 

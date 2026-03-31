@@ -20,20 +20,18 @@ import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
 import org.junit.jupiter.api.Test;
 
-import java.util.Map;
-
+import static io.trino.plugin.hive.ozone.ApacheOzoneContainer.DUMMY_ACCESS_KEY;
+import static io.trino.plugin.hive.ozone.ApacheOzoneContainer.DUMMY_SECRET_KEY;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 // TODO extends from BaseDeltaLakeConnectorSmokeTest https://starburstdata.atlassian.net/browse/SEP-13328
-public abstract class BaseDeltaLakeOzoneConnectorSmokeTest
+final class TestDeltaLakeOzoneConnectorSmokeTest
         extends BaseConnectorSmokeTest
 {
     private final String bucketName = "test-delta-lake-ozone-integration-smoke-test-" + randomNameSuffix();
-
-    protected abstract Map<String, String> s3Config(HiveOzoneS3Gateway hiveOzoneS3Gateway);
 
     @Override
     protected QueryRunner createQueryRunner()
@@ -51,7 +49,13 @@ public abstract class BaseDeltaLakeOzoneConnectorSmokeTest
                         .put("delta.enable-non-concurrent-writes", "true")
                         .put("delta.register-table-procedure.enabled", "true")
                         .put("hive.metastore.uri", hiveOzoneS3Gateway.getHiveHadoop().getHiveMetastoreEndpoint().toString())
-                        .putAll(s3Config(hiveOzoneS3Gateway))
+                        .put("fs.hadoop.enabled", "false")
+                        .put("fs.native-s3.enabled", "true")
+                        .put("s3.aws-access-key", DUMMY_ACCESS_KEY)
+                        .put("s3.aws-secret-key", DUMMY_SECRET_KEY)
+                        .put("s3.endpoint", hiveOzoneS3Gateway.getApacheOzoneContainer().getS3EndpointAddress())
+                        .put("s3.path-style-access", "true")
+                        .put("s3.max-connections", "2")
                         .buildOrThrow())
                 .build();
 

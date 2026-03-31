@@ -29,9 +29,11 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.plugin.hive.TestingThriftHiveMetastoreBuilder.testingThriftHiveMetastoreBuilder;
+import static io.trino.plugin.hive.ozone.ApacheOzoneContainer.DEFAULT_REGION;
+import static io.trino.plugin.hive.ozone.ApacheOzoneContainer.DUMMY_ACCESS_KEY;
+import static io.trino.plugin.hive.ozone.ApacheOzoneContainer.DUMMY_SECRET_KEY;
 import static io.trino.plugin.iceberg.IcebergTestUtils.checkParquetFileSorting;
 import static io.trino.plugin.tpch.TpchMetadata.TINY_SCHEMA_NAME;
 import static io.trino.testing.QueryAssertions.copyTpchTables;
@@ -41,24 +43,22 @@ import static java.lang.String.format;
 import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public abstract class BaseIcebergOzoneS3GatewayConnectorSmokeTest
+final class TestIcebergOzoneS3GatewayConnectorSmokeTest
         extends BaseIcebergConnectorSmokeTest
 {
     private final String schemaName;
     private final String bucketName;
 
     private HiveMetastore metastore;
-    protected HiveOzoneS3Gateway hiveOzoneS3Gateway;
-    protected HiveHadoop hiveHadoop;
+    private HiveOzoneS3Gateway hiveOzoneS3Gateway;
+    private HiveHadoop hiveHadoop;
 
-    public BaseIcebergOzoneS3GatewayConnectorSmokeTest()
+    public TestIcebergOzoneS3GatewayConnectorSmokeTest()
     {
         super(FileFormat.PARQUET);
         this.schemaName = "ozone_" + format.name().toLowerCase(ENGLISH);
         this.bucketName = "test-iceberg-ozone-smoke-test-" + randomNameSuffix();
     }
-
-    protected abstract Map<String, String> s3Config(HiveOzoneS3Gateway hiveOzoneS3Gateway);
 
     @Override
     protected QueryRunner createQueryRunner()
@@ -77,7 +77,16 @@ public abstract class BaseIcebergOzoneS3GatewayConnectorSmokeTest
                                 .put("hive.metastore.thrift.client.read-timeout", "1m") // read timed out sometimes happens with the default timeout
                                 .put("iceberg.register-table-procedure.enabled", "true")
                                 .put("iceberg.writer-sort-buffer-size", "1MB")
-                                .putAll(s3Config(hiveOzoneS3Gateway))
+                                .put("fs.hadoop.enabled", "false")
+                                .put("fs.native-s3.enabled", "true")
+                                .put("s3.aws-access-key", DUMMY_ACCESS_KEY)
+                                .put("s3.aws-secret-key", DUMMY_SECRET_KEY)
+                                .put("s3.region", DEFAULT_REGION)
+                                .put("s3.endpoint", hiveOzoneS3Gateway.getApacheOzoneContainer().getS3EndpointAddress())
+                                .put("s3.path-style-access", "true")
+                                .put("s3.streaming.part-size", "5MB") // minimize memory usage
+                                .put("s3.max-connections", "2") // verify no leaks
+                                .put("iceberg.allowed-extra-properties", "write.metadata.delete-after-commit.enabled,write.metadata.previous-versions-max")
                                 .buildOrThrow())
                 .build();
 

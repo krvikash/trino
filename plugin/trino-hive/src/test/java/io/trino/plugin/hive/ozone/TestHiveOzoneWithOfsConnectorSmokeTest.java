@@ -49,7 +49,7 @@ import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 
-final class HiveOzoneConnectorSmokeTest
+final class TestHiveOzoneWithOfsConnectorSmokeTest
         extends TestHiveConnectorSmokeTest
 {
     private static final String CATALOG_NAME = "hive";
