@@ -28,7 +28,7 @@ import java.util.Optional;
 
 import static com.starburstdata.plugin.openapi.OpenApiSpec.MIME_JSON;
 import static com.starburstdata.plugin.openapi.SpecUtil.castSchemaMap;
-import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy.JSON;
+import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy.ERROR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -45,8 +45,7 @@ public class TestSchemaIrFactoryWithPetstore
     public static void init()
     {
         openApi = OpenApiSpec.parse("petstore.yaml");
-        // JSON because petstore currently uses unsupported formats.
-        schemaIrFactory = new SchemaIrFactory(JSON, castSchemaMap(openApi.getComponents().getSchemas()));
+        schemaIrFactory = new SchemaIrFactory(ERROR, castSchemaMap(openApi.getComponents().getSchemas()));
     }
 
     @Test
