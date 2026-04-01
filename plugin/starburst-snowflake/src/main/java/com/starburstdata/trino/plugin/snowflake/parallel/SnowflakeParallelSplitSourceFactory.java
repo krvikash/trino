@@ -9,20 +9,14 @@
  */
 package com.starburstdata.trino.plugin.snowflake.parallel;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.VerifyException;
-import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import com.starburstdata.trino.plugin.snowflake.jdbc.SnowflakeClient;
-import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.trino.plugin.jdbc.BooleanWriteFunction;
 import io.trino.plugin.jdbc.ColumnMapping;
 import io.trino.plugin.jdbc.ConnectionFactory;
 import io.trino.plugin.jdbc.DoubleWriteFunction;
-import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.plugin.jdbc.JdbcTableHandle;
 import io.trino.plugin.jdbc.JdbcTypeHandle;
 import io.trino.plugin.jdbc.LongWriteFunction;
@@ -36,11 +30,8 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.type.Type;
-import net.snowflake.client.core.ExecTimeTelemetryData;
 import net.snowflake.client.core.ParameterBindingDTO;
-import net.snowflake.client.core.SFException;
 import net.snowflake.client.core.SFSession;
-import net.snowflake.client.core.SFStatement;
 import net.snowflake.client.jdbc.SnowflakeConnectionV1;
 import net.snowflake.client.jdbc.StarburstSnowflakeStatementV1;
 
@@ -51,8 +42,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.base.Verify.verify;
-import static com.starburstdata.trino.plugin.snowflake.jdbc.SnowflakeClient.throwIfInvalidWarehouse;
-import static com.starburstdata.trino.plugin.snowflake.parallel.ChunkParser.parseChunks;
 import static com.starburstdata.trino.plugin.snowflake.parallel.SnowflakeColumns.getPrimaryKeys;
 import static com.starburstdata.trino.plugin.snowflake.parallel.SnowflakeColumns.getScanColumns;
 import static io.trino.plugin.jdbc.JdbcDynamicFilteringSessionProperties.dynamicFilteringEnabled;
@@ -62,7 +51,6 @@ import static java.util.Objects.requireNonNull;
 
 public class SnowflakeParallelSplitSourceFactory
 {
-    private static final Logger LOG = Logger.get(SnowflakeParallelSplitSource.class);
     private final ConnectionFactory connectionFactory;
     private final SnowflakeClient snowflakeClient;
     private final RemoteQueryModifier queryModifier;
@@ -83,41 +71,40 @@ public class SnowflakeParallelSplitSourceFactory
         // Synthetic handles represent operations that haven't been pushed down (sort, aggregations etc.)
         // In Snowflake Parallel the only thing "parallel" is the data transfer - each split doesn't result in its own table scan
         // which makes it safe to generate multiple splits even for synthetic handles because exactly the same data is returned in the parallel and no-parallel paths.
-        try (Connection connection = connectionFactory.openConnection(session)) {
-            List<JdbcColumnHandle> columns =
-                    getScanColumns(
-                            table.getColumns().map(List::copyOf).orElseGet(() -> snowflakeClient.getColumns(session, table)),
-                            () -> getPrimaryKeys(session, snowflakeClient, table));
+        final Connection connection;
+        try {
+            connection = connectionFactory.openConnection(session);
+        }
+        catch (SQLException e) {
+            throw new TrinoException(JDBC_ERROR, "Couldn't open connection, %s".formatted(e.getMessage()), e);
+        }
 
-            PreparedQuery preparedQuery = snowflakeClient.prepareQuery(
+        final SFSession sfSession;
+        final PreparedQuery preparedQuery;
+        final Map<String, ParameterBindingDTO> bindValues;
+        try {
+            sfSession = connection.unwrap(SnowflakeConnectionV1.class).getSfSession();
+            preparedQuery = snowflakeClient.prepareQuery(
                     session,
                     connection,
                     dynamicFilteringEnabled(session) ? table.intersectedWithConstraint(dynamicFilter.getCurrentPredicate()) : table,
-                    columns,
+                    getScanColumns(
+                            table.getColumns().map(List::copyOf).orElseGet(() -> snowflakeClient.getColumns(session, table)),
+                            () -> getPrimaryKeys(session, snowflakeClient, table)),
                     Optional.empty());
-
-            Map<String, ParameterBindingDTO> bindValues = convertToSnowflakeFormatWithStatement(preparedQuery, session, connection);
-            SFSession sfSession = connection.unwrap(SnowflakeConnectionV1.class).getSfSession();
-            SFStatement sFStatement = new SFStatement(sfSession);
-
-            JsonNode jsonResult = (JsonNode) sFStatement.executeHelper(
-                    preparedQuery.query(),
-                    "application/snowflake",
-                    bindValues,
-                    false,
-                    false,
-                    false,
-                    new ExecTimeTelemetryData());
-
-            logFiltered(jsonResult);
-
-            return new SnowflakeParallelSplitSource(parseChunks(session, jsonResult, sfSession));
+            bindValues = convertToSnowflakeFormatWithStatement(preparedQuery, session, connection);
         }
-        catch (SFException | SQLException e) {
-            // TODO: https://starburstdata.atlassian.net/browse/SEP-6500
-            throwIfInvalidWarehouse(e);
-            throw new TrinoException(JDBC_ERROR, "Couldn't get Snowflake splits, %s".formatted(e.getMessage()), e);
+        catch (SQLException e) {
+            try {
+                connection.close();
+            }
+            catch (SQLException connExn) {
+                e.addSuppressed(connExn);
+            }
+            throw new TrinoException(JDBC_ERROR, "Couldn't prepare split source, %s".formatted(e.getMessage()), e);
         }
+
+        return new SnowflakeParallelSplitSource(session, connection, sfSession, preparedQuery, bindValues);
     }
 
     /**
@@ -175,44 +162,5 @@ public class SnowflakeParallelSplitSourceFactory
     private WriteFunction getWriteFunction(ConnectorSession session, Type type)
     {
         return snowflakeClient.toWriteMapping(session, type).getWriteFunction();
-    }
-
-    /**
-     * Debug log non-sensitive information from the JSON object returned by Snowflake.
-     */
-    private static void logFiltered(JsonNode fullJson)
-    {
-        if (!LOG.isDebugEnabled()) {
-            return;
-        }
-        ObjectNode filteredJson = JsonNodeFactory.instance.objectNode();
-
-        ImmutableList.of(
-                        "code",
-                        "message",
-                        "success")
-                .forEach(column -> filteredJson.set(column, fullJson.path(column)));
-
-        JsonNode dataPath = fullJson.path("data");
-        ImmutableList.of(
-                        "parameters",
-                        "rowtype",
-                        "total",
-                        "returned",
-                        "queryId",
-                        "databaseProvider",
-                        "finalDatabaseName",
-                        "finalSchemaName",
-                        "finalWarehouseName",
-                        "finalRoleName",
-                        "numberOfBinds",
-                        "arrayBindSupported",
-                        "statementTypeId",
-                        "version",
-                        "sendResultTime",
-                        "queryResultFormat")
-                .forEach(column -> filteredJson.set(column, dataPath.path(column)));
-
-        LOG.debug(filteredJson.toPrettyString());
     }
 }
