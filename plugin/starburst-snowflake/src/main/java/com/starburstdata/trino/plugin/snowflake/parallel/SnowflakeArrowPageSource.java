@@ -50,8 +50,9 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.MoreCollectors.toOptional;
+import static com.starburstdata.trino.plugin.snowflake.parallel.SnowflakeColumns.getPrimaryKeys;
+import static com.starburstdata.trino.plugin.snowflake.parallel.SnowflakeColumns.getScanColumns;
 import static com.starburstdata.trino.plugin.snowflake.parallel.SnowflakeParallelSessionProperties.getQuotedIdentifiersIgnoreCase;
-import static com.starburstdata.trino.plugin.snowflake.parallel.SnowflakeSplitManager.getScanColumns;
 import static io.trino.plugin.jdbc.DefaultJdbcMetadata.MERGE_ROW_ID;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 import static io.trino.plugin.jdbc.JdbcPageSourceProvider.buildMergeIdColumnAdaptation;
@@ -95,10 +96,10 @@ public class SnowflakeArrowPageSource
             this.columns = ImmutableList.copyOf(columns);
         }
         else {
-            List<JdbcColumnHandle> primaryKeys = jdbcClient.getPrimaryKeys(session, table.getRequiredNamedRelation().getRemoteTableName());
+            List<JdbcColumnHandle> primaryKeys = getPrimaryKeys(session, jdbcClient, table);
             checkArgument(!primaryKeys.isEmpty(), "Primary keys must be defined for table %s", table.getRequiredNamedRelation().getRemoteTableName());
 
-            List<JdbcColumnHandle> scanColumns = getScanColumns(columns, primaryKeys);
+            List<JdbcColumnHandle> scanColumns = getScanColumns(columns, () -> primaryKeys);
             ImmutableList.Builder<MergeJdbcPageSource.ColumnAdaptation> columnAdaptationsBuilder = ImmutableList.builderWithExpectedSize(columns.size());
             for (JdbcColumnHandle columnHandle : columns) {
                 if (columnHandle.equals(mergeRowId.get())) {

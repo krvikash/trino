@@ -37,6 +37,7 @@ public class SnowflakeParallelModule
     @Override
     protected void setup(Binder binder)
     {
+        binder.bind(SnowflakeParallelSplitSourceFactory.class).in(SINGLETON);
         newOptionalBinder(binder, Key.get(ConnectorSplitManager.class, ForJdbcDynamicFiltering.class))
                 .setBinding().to(SnowflakeSplitManager.class).in(SINGLETON);
         bindSessionPropertiesProvider(binder, SnowflakeParallelSessionProperties.class);
