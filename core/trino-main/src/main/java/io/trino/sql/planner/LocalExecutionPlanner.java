@@ -4590,7 +4590,8 @@ public class LocalExecutionPlanner
 
             this.types = toTypes(layout);
             this.pipelineTail = requireNonNull(pipelineTail, "pipelineEnd is null");
-            checkArgument(chooseAlternativePlanNodeId.isPresent() ^ pipelineHeadAlternatives.isEmpty(),
+            checkArgument(
+                    chooseAlternativePlanNodeId.isEmpty() == pipelineHeadAlternatives.isEmpty(),
                     "pipelineHeadAlternatives and chooseAlternativePlanNodeId must be both provided or neither one but got: %s and %s",
                     chooseAlternativePlanNodeId,
                     pipelineHeadAlternatives);
