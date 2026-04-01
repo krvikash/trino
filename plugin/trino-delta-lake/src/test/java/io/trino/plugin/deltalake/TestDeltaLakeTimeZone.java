@@ -592,6 +592,38 @@ final class TestDeltaLakeTimeZone
     }
 
     @Test
+    void testSelectTimestampTzWithTimeZoneSetInSession()
+    {
+        try (TestTable testTable = newTrinoTable(
+                "test_timestamp_tz_session_timezone_",
+                "(id int, timestamp_tz timestamp with time zone)",
+                ImmutableList.<String>builder()
+                        .add("1, TIMESTAMP '2024-08-01 03:00:00.987 UTC'")
+                        .add("2, TIMESTAMP '2024-07-31 23:00:00.987 America/New_York'")
+                        .build())) {
+            assertThat(query("SELECT * FROM " + testTable.getName()))
+                    .matches("VALUES " +
+                            "(1, TIMESTAMP '2024-08-01 08:30:00.987 Asia/Kolkata')," +
+                            "(2, TIMESTAMP '2024-08-01 08:30:00.987 Asia/Kolkata')");
+            assertThat(query(WITHOUT_TIME_ZONE_SESSION, "SELECT * FROM " + testTable.getName()))
+                    .matches("VALUES " +
+                            "(1, TIMESTAMP '2024-08-01 03:00:00.987 UTC')," +
+                            "(2, TIMESTAMP '2024-08-01 03:00:00.987 UTC')");
+
+            // the current time zone in the Trino session does not influence
+            // the reading of timestamp with time zone columns from Delta Lake tables
+            assertThat(query("WITH SESSION time_zone_id = 'America/Los_Angeles' SELECT * FROM " + testTable.getName()))
+                    .matches("VALUES " +
+                            "(1, TIMESTAMP '2024-08-01 08:30:00.987 Asia/Kolkata')," +
+                            "(2, TIMESTAMP '2024-08-01 08:30:00.987 Asia/Kolkata')");
+            assertThat(query(WITHOUT_TIME_ZONE_SESSION, "WITH SESSION time_zone_id = 'America/Los_Angeles' SELECT * FROM " + testTable.getName()))
+                    .matches("VALUES " +
+                            "(1, TIMESTAMP '2024-08-01 03:00:00.987 UTC')," +
+                            "(2, TIMESTAMP '2024-08-01 03:00:00.987 UTC')");
+        }
+    }
+
+    @Test
     void testSelectTimestampTzPredicate()
     {
         try (TestTable testTable = newTrinoTable(
