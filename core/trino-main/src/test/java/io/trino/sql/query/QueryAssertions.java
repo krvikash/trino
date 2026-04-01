@@ -29,6 +29,9 @@ import io.trino.spi.type.SqlTimeWithTimeZone;
 import io.trino.spi.type.SqlTimestamp;
 import io.trino.spi.type.SqlTimestampWithTimeZone;
 import io.trino.spi.type.Type;
+import io.trino.sql.dialect.trino.operation.EnforceSingleRow;
+import io.trino.sql.dialect.trino.operation.TrinoOperation;
+import io.trino.sql.newir.Program;
 import io.trino.sql.planner.Plan;
 import io.trino.sql.planner.assertions.PlanMatchPattern;
 import io.trino.sql.planner.optimizations.PlanNodeSearcher;
@@ -992,6 +995,39 @@ public class QueryAssertions
         {
             objects.assertEqual(info, actualType, type);
             return this;
+        }
+    }
+
+    public static class ProgramAssert
+            extends AbstractAssert<ProgramAssert, Program>
+    {
+        public ProgramAssert(Program program)
+        {
+            super(program, ProgramAssert.class);
+        }
+
+        public static AssertProvider<ProgramAssert> newProgramAssert(Program program)
+        {
+            return () -> new ProgramAssert(program);
+        }
+
+        @CanIgnoreReturnValue
+        public ProgramAssert expectedEnforceSingleRowOperationCount(int expectedCount)
+        {
+            assertOperationCount(EnforceSingleRow.class, expectedCount);
+            return this;
+        }
+
+        private void assertOperationCount(Class<? extends TrinoOperation> trinoOperationClass, int expectedCount)
+        {
+            int actualOperationCount = (int) actual.root().regions().stream()
+                    .flatMap(region -> region.blocks().stream())
+                    .flatMap(block -> block.operations().stream())
+                    .filter(trinoOperationClass::isInstance)
+                    .count();
+            assertThat(actualOperationCount)
+                    .withFailMessage("Expected %d occurrences of %s operation, but found %d", expectedCount, trinoOperationClass.getSimpleName(), actualOperationCount)
+                    .isEqualTo(expectedCount);
         }
     }
 }

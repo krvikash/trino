@@ -355,13 +355,13 @@ IR version = 1
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {exchange:type = "GATHER", exchange:scope = "REMOTE", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false"}
-        %184 = exchange(%2115) : ("multiset(row(decimal(7,2)))") -> "multiset(row(decimal(7,2)))" ({
-            ^inputSelector (%185 : "row(decimal(7,2))")
-                %186 = field_reference(%185) : ("row(decimal(7,2))") -> "decimal(7,2)" ()
+        %2182 = exchange(%2115) : ("multiset(row(decimal(7,2)))") -> "multiset(row(decimal(7,2)))" ({
+            ^inputSelector (%2178 : "row(decimal(7,2))")
+                %2179 = field_reference(%2178) : ("row(decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %187 = row(%186) : ("decimal(7,2)") -> "row(decimal(7,2))" ()
+                %2180 = row(%2179) : ("decimal(7,2)") -> "row(decimal(7,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %188 = return(%187) : ("row(decimal(7,2))") -> "row(decimal(7,2))" ()
+                %2181 = return(%2180) : ("row(decimal(7,2))") -> "row(decimal(7,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
             ^boundArguments (%189 : "row(decimal(7,2))")
@@ -377,15 +377,14 @@ IR version = 1
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false"}
-        %195 = enforce_single_row(%184) : ("multiset(row(decimal(7,2)))") -> "multiset(row(decimal(7,2)))" ()
-            {ir.has_side_effects = "false"}
-        %196 = exchange(%195) : ("multiset(row(decimal(7,2)))") -> "multiset(row(decimal(7,2)))" ({
-            ^inputSelector (%197 : "row(decimal(7,2))")
-                %198 = field_reference(%197) : ("row(decimal(7,2))") -> "decimal(7,2)" ()
+        %2236 = enforce_single_row(%2182) : ("multiset(row(decimal(7,2)))") -> "multiset(row(decimal(7,2)))" ()
+        %2327 = exchange(%2236) : ("multiset(row(decimal(7,2)))") -> "multiset(row(decimal(7,2)))" ({
+            ^inputSelector (%2323 : "row(decimal(7,2))")
+                %2324 = field_reference(%2323) : ("row(decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %199 = row(%198) : ("decimal(7,2)") -> "row(decimal(7,2))" ()
+                %2325 = row(%2324) : ("decimal(7,2)") -> "row(decimal(7,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %200 = return(%199) : ("row(decimal(7,2))") -> "row(decimal(7,2))" ()
+                %2326 = return(%2325) : ("row(decimal(7,2))") -> "row(decimal(7,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
             ^boundArguments (%201 : "row(decimal(7,2))")
@@ -400,8 +399,8 @@ IR version = 1
                 %206 = return(%205) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {exchange:type = "REPLICATE", exchange:scope = "REMOTE", exchange:partitioning_handle = "BROADCAST", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
-        %207 = project(%196) : ("multiset(row(decimal(7,2)))") -> "multiset(row(decimal(9,3)))" ({
+            {exchange:type = "REPLICATE", exchange:scope = "REMOTE", exchange:partitioning_handle = "BROADCAST", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false"}
+        %207 = project(%2327) : ("multiset(row(decimal(7,2)))") -> "multiset(row(decimal(9,3)))" ({
             ^assignments (%208 : "row(decimal(7,2))")
                 %209 = field_reference(%208) : ("row(decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
@@ -414,7 +413,6 @@ IR version = 1
                 %213 = return(%212) : ("row(decimal(9,3))") -> "row(decimal(9,3))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
             })
-            {ir.has_side_effects = "false"}
         %214 = exchange(%207) : ("multiset(row(decimal(9,3)))") -> "multiset(row(decimal(9,3)))" ({
             ^inputSelector (%215 : "row(decimal(9,3))")
                 %216 = field_reference(%215) : ("row(decimal(9,3))") -> "decimal(9,3)" ()
@@ -693,53 +691,7 @@ IR version = 1
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {aggregation:grouping_sets_count = "1", aggregation:global_grouping_sets = "[]", aggregation:pre_grouped_indexes = "[]", aggregation:step = "FINAL", aggregation:input_reducing = "false", ir.has_side_effects = "false"}
-        %503 = exchange(%2115) : ("multiset(row(decimal(7,2)))") -> "multiset(row(decimal(7,2)))" ({
-            ^inputSelector (%504 : "row(decimal(7,2))")
-                %505 = field_reference(%504) : ("row(decimal(7,2))") -> "decimal(7,2)" ()
-                    {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %506 = row(%505) : ("decimal(7,2)") -> "row(decimal(7,2))" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %507 = return(%506) : ("row(decimal(7,2))") -> "row(decimal(7,2))" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
-            }, {
-            ^boundArguments (%508 : "row(decimal(7,2))")
-                %509 = constant() : () -> "empty row" ()
-                    {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %510 = return(%509) : ("empty row") -> "empty row" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
-            }, {
-            ^orderingSelector (%511 : "row(decimal(7,2))")
-                %512 = constant() : () -> "empty row" ()
-                    {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %513 = return(%512) : ("empty row") -> "empty row" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
-            })
-            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false"}
-        %514 = enforce_single_row(%503) : ("multiset(row(decimal(7,2)))") -> "multiset(row(decimal(7,2)))" ()
-            {ir.has_side_effects = "false"}
-        %515 = exchange(%514) : ("multiset(row(decimal(7,2)))") -> "multiset(row(decimal(7,2)))" ({
-            ^inputSelector (%516 : "row(decimal(7,2))")
-                %517 = field_reference(%516) : ("row(decimal(7,2))") -> "decimal(7,2)" ()
-                    {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %518 = row(%517) : ("decimal(7,2)") -> "row(decimal(7,2))" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %519 = return(%518) : ("row(decimal(7,2))") -> "row(decimal(7,2))" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
-            }, {
-            ^boundArguments (%520 : "row(decimal(7,2))")
-                %521 = constant() : () -> "empty row" ()
-                    {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %522 = return(%521) : ("empty row") -> "empty row" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
-            }, {
-            ^orderingSelector (%523 : "row(decimal(7,2))")
-                %524 = constant() : () -> "empty row" ()
-                    {constant:value = "[type=empty row, value=null]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %525 = return(%524) : ("empty row") -> "empty row" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
-            })
-            {exchange:type = "REPLICATE", exchange:scope = "REMOTE", exchange:partitioning_handle = "BROADCAST", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
-        %526 = project(%515) : ("multiset(row(decimal(7,2)))") -> "multiset(row(decimal(9,3)))" ({
+        %526 = project(%2327) : ("multiset(row(decimal(7,2)))") -> "multiset(row(decimal(9,3)))" ({
             ^assignments (%527 : "row(decimal(7,2))")
                 %528 = field_reference(%527) : ("row(decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
@@ -752,7 +704,6 @@ IR version = 1
                 %532 = return(%531) : ("row(decimal(9,3))") -> "row(decimal(9,3))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
             })
-            {ir.has_side_effects = "false"}
         %533 = exchange(%526) : ("multiset(row(decimal(9,3)))") -> "multiset(row(decimal(9,3)))" ({
             ^inputSelector (%534 : "row(decimal(9,3))")
                 %535 = field_reference(%534) : ("row(decimal(9,3))") -> "decimal(9,3)" ()

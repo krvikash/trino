@@ -30,7 +30,7 @@ import static java.util.Objects.requireNonNull;
 
 public class SingleGroupMerger
 {
-    private static final List<SingleGroupProcessor> SINGLE_GROUP_PROCESSORS = ImmutableList.of(new ExchangeMerger(), new ProjectMerger(), new AggregationMerger(), new DynamicFilterSourceMerger());
+    private static final List<SingleGroupProcessor> SINGLE_GROUP_PROCESSORS = ImmutableList.of(new ExchangeMerger(), new ProjectMerger(), new AggregationMerger(), new DynamicFilterSourceMerger(), new EnforceSingleRowMerger());
 
     private SingleGroupMerger()
     {}
