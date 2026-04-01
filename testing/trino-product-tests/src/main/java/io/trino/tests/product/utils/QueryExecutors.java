@@ -21,6 +21,7 @@ import io.trino.tempto.query.QueryExecutor;
 import io.trino.tempto.query.QueryResult;
 
 import java.sql.Connection;
+import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 
 import static io.trino.tempto.context.ThreadLocalTestContextHolder.testContext;
@@ -124,9 +125,9 @@ public final class QueryExecutors
 
         RetryPolicy<QueryResult> databricksRetryPolicy = RetryPolicy.<QueryResult>builder()
                 // Retry on 503 may lead to unexpected test results: https://github.com/trinodb/trino/pull/14392#issuecomment-1264041917
-                .handleIf(throwable -> throwable.getMessage().contains("HTTP Response code: 502") || throwable.getMessage().contains("The current cluster state is Pending"))
-                .withBackoff(1, 10, ChronoUnit.SECONDS)
-                .withMaxRetries(60)
+                .handleIf(throwable -> throwable.getMessage().contains("HTTP Response code: 502") || throwable.getMessage().contains("The current cluster state is Pending") || throwable.getMessage().contains("The current cluster state is Terminated"))
+                .withDelay(Duration.of(30, ChronoUnit.SECONDS))
+                .withMaxRetries(20)
                 .onRetry(event -> log.warn(event.getLastException(), "Query failed on attempt %d, will retry.", event.getAttemptCount()))
                 .build();
 
