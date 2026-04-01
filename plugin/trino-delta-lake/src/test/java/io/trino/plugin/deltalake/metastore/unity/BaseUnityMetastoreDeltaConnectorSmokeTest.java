@@ -53,21 +53,20 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     protected static final String SCHEMA_NAME = TPCH_SCHEMA + "_delta_ci_external";
     private static final String HIVE_TABLE_NAME = "hive_table";
 
-    private static final String DATABRICKS_COMMUNICATION_FAILURE_MATCH =
+    private static final Pattern DATABRICKS_COMMUNICATION_FAILURE_MATCH = Pattern.compile(
             "\\Q[Databricks][\\E(DatabricksJDBCDriver|JDBCDriver)\\Q](500593) Communication link failure. Failed to connect to server. Reason: " +
-            "TemporarilyUnavailableRetry timeout of 900 seconds has been hit.*";
+            "TemporarilyUnavailableRetry timeout of 900 seconds has been hit.*");
     private static final String DATABRICKS_PENDING_CLUSTER_MATCH = "The current cluster state is Pending";
     private static final RetryPolicy<Object> DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY = RetryPolicy.builder()
-            .handleIf(throwable -> Throwables.getRootCause(throwable) instanceof SQLException)
-            .handleIf(throwable -> Pattern.compile(DATABRICKS_COMMUNICATION_FAILURE_MATCH).matcher(Throwables.getRootCause(throwable).getMessage()).find())
+            .handleIf(BaseUnityMetastoreDeltaConnectorSmokeTest::isDatabricksCommunicationFailure)
             .withBackoff(1, 10, ChronoUnit.SECONDS)
             .withMaxRetries(30)
             .onRetry(event -> LOG.warn(event.getLastException(), "Query failed on attempt %d, will retry (communication failure).", event.getAttemptCount()))
             .build();
     private static final RetryPolicy<Object> DATABRICKS_PENDING_CLUSTER_RETRY_POLICY = RetryPolicy.builder()
-            .handleIf(throwable -> getStackTraceAsString(throwable).contains(DATABRICKS_PENDING_CLUSTER_MATCH))
+            .handleIf(BaseUnityMetastoreDeltaConnectorSmokeTest::isPendingClusterFailure)
             .withDelay(Duration.of(30, ChronoUnit.SECONDS))
-            .withMaxRetries(5)
+            .withMaxRetries(20)
             .onRetry(event -> LOG.warn(event.getLastException(), "Query failed on attempt %d, will retry (pending cluster).", event.getAttemptCount()))
             .build();
 
@@ -92,9 +91,25 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
                 .setCreateTpchSchemas(false)
                 .build();
 
-        Failsafe.with(DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY, DATABRICKS_PENDING_CLUSTER_RETRY_POLICY)
+        Failsafe.with(DATABRICKS_PENDING_CLUSTER_RETRY_POLICY, DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY)
                 .run(() -> createTpchTables(queryRunner));
         return queryRunner;
+    }
+
+    private static boolean isDatabricksCommunicationFailure(Throwable throwable)
+    {
+        if (isPendingClusterFailure(throwable)) {
+            return false;
+        }
+        Throwable rootCause = Throwables.getRootCause(throwable);
+        return rootCause instanceof SQLException &&
+                rootCause.getMessage() != null &&
+                DATABRICKS_COMMUNICATION_FAILURE_MATCH.matcher(rootCause.getMessage()).find();
+    }
+
+    private static boolean isPendingClusterFailure(Throwable throwable)
+    {
+        return getStackTraceAsString(throwable).contains(DATABRICKS_PENDING_CLUSTER_MATCH);
     }
 
     private void createTpchTables(QueryRunner queryRunner)
