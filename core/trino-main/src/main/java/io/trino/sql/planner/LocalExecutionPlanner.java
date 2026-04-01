@@ -709,6 +709,7 @@ public class LocalExecutionPlanner
                                 outputTypes,
                                 pagePreprocessor,
                                 createExchangePagesSerdeFactory(plannerContext.getBlockEncodingSerde(), session)),
+                        ImmutableMap.of(),
                         physicalOperation),
                 context);
 
@@ -2973,7 +2974,7 @@ public class LocalExecutionPlanner
 
             context.addDriverFactory(
                     false,
-                    new PhysicalOperation(nestedLoopBuildOperatorFactory, buildSource),
+                    new PhysicalOperation(nestedLoopBuildOperatorFactory, ImmutableMap.of(), buildSource),
                     buildContext);
 
             // build output mapping
@@ -3110,7 +3111,7 @@ public class LocalExecutionPlanner
 
             context.addDriverFactory(
                     false,
-                    new PhysicalOperation(builderOperatorFactory, buildSource),
+                    new PhysicalOperation(builderOperatorFactory, ImmutableMap.of(), buildSource),
                     buildContext);
 
             return builderOperatorFactory.getPagesSpatialIndexFactory();
@@ -3246,7 +3247,7 @@ public class LocalExecutionPlanner
 
                 context.addDriverFactory(
                         false,
-                        new PhysicalOperation(hashBuilderOperatorFactory, buildSource),
+                        new PhysicalOperation(hashBuilderOperatorFactory, ImmutableMap.of(), buildSource),
                         buildContext);
 
                 JoinOperatorType joinType = JoinOperatorType.ofJoinNodeType(node.getType(), outputSingleMatch, waitForBuild);
@@ -3298,7 +3299,7 @@ public class LocalExecutionPlanner
 
                 context.addDriverFactory(
                         false,
-                        new PhysicalOperation(hashBuilderOperatorFactory, buildSource),
+                        new PhysicalOperation(hashBuilderOperatorFactory, ImmutableMap.of(), buildSource),
                         buildContext);
 
                 JoinOperatorType joinType = JoinOperatorType.ofJoinNodeType(node.getType(), outputSingleMatch, waitForBuild);
@@ -3535,7 +3536,7 @@ public class LocalExecutionPlanner
             SetSupplier setProvider = setBuilderOperatorFactory.getSetProvider();
             context.addDriverFactory(
                     false,
-                    new PhysicalOperation(setBuilderOperatorFactory, buildSource),
+                    new PhysicalOperation(setBuilderOperatorFactory, ImmutableMap.of(), buildSource),
                     buildContext);
 
             // Source channels are always laid out first, followed by the boolean output symbol
@@ -3971,6 +3972,7 @@ public class LocalExecutionPlanner
                                     subContext.getNextOperatorId(),
                                     node.getId(),
                                     pagePreprocessor),
+                            ImmutableMap.of(),
                             source),
                     subContext);
             // the main driver is not an input... the exchange sources are the input for the plan
@@ -4053,6 +4055,7 @@ public class LocalExecutionPlanner
                                         subContext.getNextOperatorId(),
                                         node.getId(),
                                         pagePreprocessor),
+                                ImmutableMap.of(),
                                 source),
                         subContext);
             }
@@ -4537,22 +4540,24 @@ public class LocalExecutionPlanner
         private final Map<Symbol, Integer> layout;
         private final List<Type> types;
 
-        public PhysicalOperation(OperatorFactory operatorFactory, Map<Symbol, Integer> layout)
+        PhysicalOperation(OperatorFactory operatorFactory, Map<Symbol, Integer> layout)
         {
-            this(operatorFactory, layout, Optional.empty());
+            this(ImmutableList.of(operatorFactory), ImmutableMap.of(), Optional.empty(), layout);
         }
 
-        public PhysicalOperation(OperatorFactory operatorFactory, Map<Symbol, Integer> layout, PhysicalOperation source)
+        PhysicalOperation(OperatorFactory operatorFactory, Map<Symbol, Integer> layout, PhysicalOperation source)
         {
-            this(operatorFactory, layout, Optional.of(requireNonNull(source, "source is null")));
+            this(
+                    ImmutableList.<OperatorFactory>builder()
+                            .addAll(source.getPipelineTail())
+                            .add(operatorFactory)
+                            .build(),
+                    source.pipelineHeadAlternatives,
+                    source.chooseAlternativePlanNodeId,
+                    layout);
         }
 
-        public PhysicalOperation(OperatorFactory outputOperatorFactory, PhysicalOperation source)
-        {
-            this(outputOperatorFactory, ImmutableMap.of(), Optional.of(requireNonNull(source, "source is null")));
-        }
-
-        public PhysicalOperation(
+        PhysicalOperation(
                 Map<TableHandle, PhysicalOperation> pipelineHeadAlternatives,
                 PlanNodeId chooseAlternativePlanNodeId,
                 Map<Symbol, Integer> layout)
@@ -4561,21 +4566,6 @@ public class LocalExecutionPlanner
                     ImmutableList.of(),
                     Maps.transformValues(pipelineHeadAlternatives, PhysicalOperation::getPipelineTail),
                     Optional.of(chooseAlternativePlanNodeId),
-                    layout);
-        }
-
-        private PhysicalOperation(
-                OperatorFactory operatorFactory,
-                Map<Symbol, Integer> layout,
-                Optional<PhysicalOperation> source)
-        {
-            this(
-                    ImmutableList.<OperatorFactory>builder()
-                            .addAll(source.map(PhysicalOperation::getPipelineTail).orElse(ImmutableList.of()))
-                            .add(operatorFactory)
-                            .build(),
-                    source.map(operation -> operation.pipelineHeadAlternatives).orElse(ImmutableMap.of()),
-                    source.flatMap(operation -> operation.chooseAlternativePlanNodeId),
                     layout);
         }
 
