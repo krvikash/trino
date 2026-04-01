@@ -77,10 +77,11 @@ public final class EqualityDeleteUtils
                 .createWriterFunc(GenericParquetWriter::create)
                 .equalityFieldIds(equalityDeleteFieldIds)
                 .overwrite();
-        if (partitionSpec.isPresent() && partitionData.isPresent()) {
-            writerBuilder = writerBuilder
-                    .withSpec(partitionSpec.get())
-                    .withPartition(partitionData.get());
+        if (partitionSpec.isPresent()) {
+            writerBuilder = writerBuilder.withSpec(partitionSpec.get());
+            if (partitionData.isPresent()) {
+                writerBuilder = writerBuilder.withPartition(partitionData.get());
+            }
         }
         EqualityDeleteWriter<Record> writer = writerBuilder.buildEqualityWriter();
 
