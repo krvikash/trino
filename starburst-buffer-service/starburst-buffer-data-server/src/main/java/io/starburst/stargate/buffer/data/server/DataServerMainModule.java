@@ -118,7 +118,7 @@ public class DataServerMainModule
             binder.bind(DiscoveryBroadcast.class).in(SINGLETON);
         }
 
-        if (buildConfigObject(DataServerConfig.class).isTestingEnableStatsLogging()) {
+        if (buildConfigObject(DataServerConfig.class, configPrefix.orElse(null)).isTestingEnableStatsLogging()) {
             binder.bind(DataServerStatsLogger.class).in(SINGLETON);
         }
 
