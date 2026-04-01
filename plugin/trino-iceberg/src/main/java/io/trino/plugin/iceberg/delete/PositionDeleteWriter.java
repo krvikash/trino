@@ -60,7 +60,6 @@ public class PositionDeleteWriter
             Optional<PartitionData> partition,
             LocationProvider locationProvider,
             IcebergFileWriterFactory fileWriterFactory,
-            DeletePageSourceProvider deletePageSourceProvider,
             TrinoFileSystem fileSystem,
             ConnectorSession session,
             int formatVersion,

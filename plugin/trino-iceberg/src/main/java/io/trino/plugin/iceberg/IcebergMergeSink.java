@@ -142,14 +142,12 @@ public class IcebergMergeSink
 
     private PositionDeleteWriter createPositionDeleteWriter(String dataFilePath, PartitionSpec partitionSpec, String partitionDataJson)
     {
-        IcebergPageSourceProvider icebergPageSourceProvider = pageSourceProviderFactory.createPageSourceProvider();
         return new PositionDeleteWriter(
                 dataFilePath,
                 partitionSpec,
                 createPartitionData(partitionSpec, partitionDataJson),
                 locationProvider,
                 fileWriterFactory,
-                icebergPageSourceProvider.deletePageSourceProvider(session, fileSystem, formatVersion),
                 fileSystem,
                 session,
                 formatVersion,
