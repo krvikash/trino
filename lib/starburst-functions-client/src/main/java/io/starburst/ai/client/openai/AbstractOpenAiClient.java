@@ -94,11 +94,21 @@ public abstract class AbstractOpenAiClient<ResponseType>
             output.accept(response.textResponse());
             return response;
         }
-        ResponseType response = execute(() -> streamToolResponse(systemPrompts, messages, tools, output, isCancelled));
+        StringBuilder streamedText = new StringBuilder();
+        Consumer<String> trackingOutput = chunk -> {
+            streamedText.append(chunk);
+            output.accept(chunk);
+        };
+        ResponseType response = execute(() -> streamToolResponse(systemPrompts, messages, tools, trackingOutput, isCancelled));
         if (response == null) {
             return new ToolUseResponse("", ImmutableList.of());
         }
-        return parseToolResponse(response);
+        ToolUseResponse toolUseResponse = parseToolResponse(response);
+        // Ensure textResponse matches what was actually streamed to the caller
+        if (toolUseResponse.textResponse().isBlank() && !streamedText.isEmpty()) {
+            return new ToolUseResponse(streamedText.toString(), toolUseResponse.toolCalls());
+        }
+        return toolUseResponse;
     }
 
     protected abstract ResponseType streamToolResponse(List<String> systemPrompts, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled);
