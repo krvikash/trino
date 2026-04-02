@@ -1742,6 +1742,7 @@ jobs:
             - { modules: plugin/trino-elasticsearch }
             - { modules: starburst-buffer-service/starburst-buffer-exchange-tests, profile: test-buffer-exchange-failure-recovery }
             - { modules: starburst-buffer-service/starburst-buffer-exchange-tests }
+            - { modules: plugin/trino-exchange-filesystem, profile: cloud-tests }
             - { modules: plugin/trino-exasol }
             # - { modules: plugin/trino-google-sheets }
             - { modules: plugin/trino-hive, runners: [ self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest ] }
@@ -1835,6 +1836,7 @@ jobs:
           && ! (contains(matrix.modules, 'trino-delta-lake') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-iceberg') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-snowflake') && contains(matrix.profile, 'cloud-tests'))
+          && ! (contains(matrix.modules, 'trino-exchange-filesystem') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-filesystem-azure') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-filesystem-gcs') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-filesystem-s3') && contains(matrix.profile, 'cloud-tests'))
@@ -1885,6 +1887,16 @@ jobs:
           (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || env.AWS_ACCESS_KEY_ID != '' || env.AWS_SECRET_ACCESS_KEY != '')
         run: |
           $MAVEN test ${MAVEN_TEST} -pl :trino-hdfs -P cloud-tests
+      - name: FileSystem Exchange Storage Cloud Tests
+        id: tests-filesystem-exchange
+        env:
+          ABFS_FLAT_ACCOUNT: ${{ vars.AZURE_ABFS_FLAT_ACCOUNT }}
+          ABFS_FLAT_ACCESS_KEY: ${{ secrets.AZURE_ABFS_FLAT_ACCESS_KEY }}
+        if: >-
+          contains(matrix.modules, 'trino-exchange-filesystem') && contains(matrix.profile, 'cloud-tests') &&
+          (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || env.ABFS_FLAT_ACCESS_KEY != '')
+        run: |
+          $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ format('-P {0}', matrix.profile) }}
       - name: S3 FileSystem Cloud Tests
         id: tests-s3
         env:
@@ -2180,6 +2192,7 @@ jobs:
               || steps.tests-hdfs.outcome == 'failure'
               || steps.tests-s3.outcome == 'failure'
               || steps.tests-azure.outcome == 'failure'
+              || steps.tests-filesystem-exchange.outcome == 'failure'
               || steps.tests-gcs.outcome == 'failure'
               || steps.tests-delta.outcome == 'failure'
               || steps.tests-objectstore.outcome == 'failure'
