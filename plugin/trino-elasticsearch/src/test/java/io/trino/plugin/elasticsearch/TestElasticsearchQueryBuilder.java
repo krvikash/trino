@@ -13,8 +13,11 @@
  */
 package io.trino.plugin.elasticsearch;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.slice.Slices;
 import io.trino.plugin.elasticsearch.client.IndexMetadata;
 import io.trino.plugin.elasticsearch.decoders.DoubleDecoder;
@@ -24,14 +27,9 @@ import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.predicate.ValueSet;
-import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.query.ExistsQueryBuilder;
-import org.elasticsearch.index.query.MatchAllQueryBuilder;
-import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.index.query.RangeQueryBuilder;
-import org.elasticsearch.index.query.TermQueryBuilder;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 
@@ -43,6 +41,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestElasticsearchQueryBuilder
 {
+    private static final JsonMapper JSON_MAPPER = new JsonMapperProvider().get();
+
     private static final ElasticsearchColumnHandle NAME = new ElasticsearchColumnHandle(ImmutableList.of("name"), VARCHAR, new IndexMetadata.PrimitiveType("text"), new VarcharDecoder.Descriptor("name"), true);
     private static final ElasticsearchColumnHandle AGE = new ElasticsearchColumnHandle(ImmutableList.of("age"), INTEGER, new IndexMetadata.PrimitiveType("int"), new IntegerDecoder.Descriptor("age"), true);
     private static final ElasticsearchColumnHandle SCORE = new ElasticsearchColumnHandle(ImmutableList.of("score"), DOUBLE, new IndexMetadata.PrimitiveType("double"), new DoubleDecoder.Descriptor("score"), true);
@@ -51,66 +51,70 @@ public class TestElasticsearchQueryBuilder
 
     @Test
     public void testMatchAll()
+            throws IOException
     {
         assertQueryBuilder(
                 ImmutableMap.of(),
-                new MatchAllQueryBuilder());
+                """
+                {"match_all":{}}""");
     }
 
     @Test
     public void testOneConstraint()
+            throws IOException
     {
         // SingleValue
         assertQueryBuilder(
                 ImmutableMap.of(AGE, Domain.singleValue(INTEGER, 1L)),
-                new BoolQueryBuilder().filter(new TermQueryBuilder(AGE.name(), 1L)));
+                """
+                {"bool":{"filter":[{"term":{"age":1}}]}}""");
 
         // Range
         assertQueryBuilder(
                 ImmutableMap.of(SCORE, Domain.create(ValueSet.ofRanges(Range.range(DOUBLE, 65.0, false, 80.0, true)), false)),
-                new BoolQueryBuilder().filter(new RangeQueryBuilder(SCORE.name()).gt(65.0).lte(80.0)));
+                """
+                {"bool":{"filter":[{"range":{"score":{"gt":65.0,"lte":80.0}}}]}}""");
 
         // List
         assertQueryBuilder(
                 ImmutableMap.of(NAME, Domain.multipleValues(VARCHAR, ImmutableList.of("alice", "bob"))),
-                new BoolQueryBuilder().filter(
-                        new BoolQueryBuilder()
-                                .should(new TermQueryBuilder(NAME.name(), "alice"))
-                                .should(new TermQueryBuilder(NAME.name(), "bob"))));
+                """
+                {"bool":{"filter":[{"bool":{"should":[{"term":{"name":"alice"}},{"term":{"name":"bob"}}]}}]}}""");
         // all
         assertQueryBuilder(
                 ImmutableMap.of(AGE, Domain.all(INTEGER)),
-                new MatchAllQueryBuilder());
+                """
+                {"match_all":{}}""");
 
         // notNull
         assertQueryBuilder(
                 ImmutableMap.of(AGE, Domain.notNull(INTEGER)),
-                new BoolQueryBuilder().filter(new ExistsQueryBuilder(AGE.name())));
+                """
+                {"bool":{"filter":[{"exists":{"field":"age"}}]}}""");
 
         // isNull
         assertQueryBuilder(
                 ImmutableMap.of(AGE, Domain.onlyNull(INTEGER)),
-                new BoolQueryBuilder().mustNot(new ExistsQueryBuilder(AGE.name())));
+                """
+                {"bool":{"must_not":[{"exists":{"field":"age"}}]}}""");
 
         // isNullAllowed
         assertQueryBuilder(
                 ImmutableMap.of(AGE, Domain.singleValue(INTEGER, 1L, true)),
-                new BoolQueryBuilder().filter(
-                        new BoolQueryBuilder()
-                                .should(new TermQueryBuilder(AGE.name(), 1L))
-                                .should(new BoolQueryBuilder().mustNot(new ExistsQueryBuilder(AGE.name())))));
+                """
+                {"bool":{"filter":[{"bool":{"should":[{"term":{"age":1}},{"bool":{"must_not":[{"exists":{"field":"age"}}]}}]}}]}}""");
     }
 
     @Test
     public void testMultiConstraint()
+            throws IOException
     {
         assertQueryBuilder(
                 ImmutableMap.of(
                         AGE, Domain.singleValue(INTEGER, 1L),
                         SCORE, Domain.create(ValueSet.ofRanges(Range.range(DOUBLE, 65.0, false, 80.0, true)), false)),
-                new BoolQueryBuilder()
-                        .filter(new TermQueryBuilder(AGE.name(), 1L))
-                        .filter(new RangeQueryBuilder(SCORE.name()).gt(65.0).lte(80.0)));
+                """
+                {"bool":{"filter":[{"term":{"age":1}},{"range":{"score":{"gt":65.0,"lte":80.0}}}]}}""");
 
         assertQueryBuilder(
                 ImmutableMap.of(
@@ -118,64 +122,63 @@ public class TestElasticsearchQueryBuilder
                         SCORE, Domain.create(ValueSet.ofRanges(
                                 Range.range(DOUBLE, 65.0, false, 80.0, true),
                                 Range.equal(DOUBLE, 90.0)), false)),
-                new BoolQueryBuilder()
-                        .filter(new RangeQueryBuilder(LENGTH.name()).gte(160.0).lte(180.0))
-                        .filter(new BoolQueryBuilder()
-                                .should(new RangeQueryBuilder(SCORE.name()).gt(65.0).lte(80.0))
-                                .should(new TermQueryBuilder(SCORE.name(), 90.0))));
+                """
+                {"bool":{"filter":[{"range":{"length":{"gte":160.0,"lte":180.0}}},{"bool":{"should":[{"range":{"score":{"gt":65.0,"lte":80.0}}},{"term":{"score":90.0}}]}}]}}""");
 
         assertQueryBuilder(
                 ImmutableMap.of(
                         AGE, Domain.singleValue(INTEGER, 10L),
                         SCORE, Domain.onlyNull(DOUBLE)),
-                new BoolQueryBuilder()
-                        .filter(new TermQueryBuilder(AGE.name(), 10L))
-                        .mustNot(new ExistsQueryBuilder(SCORE.name())));
+                """
+                {"bool":{"filter":[{"term":{"age":10}}],"must_not":[{"exists":{"field":"score"}}]}}""");
     }
 
     @Test
     public void testMultiFields()
+            throws IOException
     {
         // SingleValue
         assertQueryBuilder(
                 ImmutableMap.of(PRODUCT, Domain.singleValue(VARCHAR, Slices.utf8Slice("PN1"))),
-                new BoolQueryBuilder().filter(new TermQueryBuilder("product.product_code", "PN1")));
+                """
+                {"bool":{"filter":[{"term":{"product.product_code":"PN1"}}]}}""");
 
         // Range
         assertQueryBuilder(
                 ImmutableMap.of(PRODUCT, Domain.create(ValueSet.ofRanges(Range.range(VARCHAR, Slices.utf8Slice("PA"), false, Slices.utf8Slice("PZ"), true)), false)),
-                new BoolQueryBuilder().filter(new RangeQueryBuilder("product.product_code").gt("PA").lte("PZ")));
+                """
+                {"bool":{"filter":[{"range":{"product.product_code":{"gt":"PA","lte":"PZ"}}}]}}""");
 
         // List
         assertQueryBuilder(
                 ImmutableMap.of(PRODUCT, Domain.multipleValues(VARCHAR, ImmutableList.of(Slices.utf8Slice("PN1"), Slices.utf8Slice("PN2")))),
-                new BoolQueryBuilder().filter(
-                        new BoolQueryBuilder()
-                                .should(new TermQueryBuilder("product.product_code", "PN1"))
-                                .should(new TermQueryBuilder("product.product_code", "PN2"))));
+                """
+                {"bool":{"filter":[{"bool":{"should":[{"term":{"product.product_code":"PN1"}},{"term":{"product.product_code":"PN2"}}]}}]}}""");
 
         // notNull
         assertQueryBuilder(
                 ImmutableMap.of(PRODUCT, Domain.notNull(VARCHAR)),
-                new BoolQueryBuilder().filter(new ExistsQueryBuilder("product.product_code")));
+                """
+                {"bool":{"filter":[{"exists":{"field":"product.product_code"}}]}}""");
 
         // isNull
         assertQueryBuilder(
                 ImmutableMap.of(PRODUCT, Domain.onlyNull(VARCHAR)),
-                new BoolQueryBuilder().mustNot(new ExistsQueryBuilder("product.product_code")));
+                """
+                {"bool":{"must_not":[{"exists":{"field":"product.product_code"}}]}}""");
 
         // isNullAllowed
         assertQueryBuilder(
                 ImmutableMap.of(PRODUCT, Domain.singleValue(VARCHAR, Slices.utf8Slice("PN1"), true)),
-                new BoolQueryBuilder().filter(
-                        new BoolQueryBuilder()
-                                .should(new TermQueryBuilder("product.product_code", "PN1"))
-                                .should(new BoolQueryBuilder().mustNot(new ExistsQueryBuilder("product.product_code")))));
+                """
+                {"bool":{"filter":[{"bool":{"should":[{"term":{"product.product_code":"PN1"}},{"bool":{"must_not":[{"exists":{"field":"product.product_code"}}]}}]}}]}}""");
     }
 
-    private static void assertQueryBuilder(Map<ElasticsearchColumnHandle, Domain> domains, QueryBuilder expected)
+    private static void assertQueryBuilder(Map<ElasticsearchColumnHandle, Domain> domains, String expected)
+            throws IOException
     {
-        QueryBuilder actual = buildSearchQuery(TupleDomain.withColumnDomains(domains), Optional.empty(), Map.of());
-        assertThat(actual).isEqualTo(expected);
+        JsonNode actual = buildSearchQuery(TupleDomain.withColumnDomains(domains), Optional.empty(), Map.of());
+        // Compare as normalized JSON trees to handle numeric type differences (LongNode vs IntNode)
+        assertThat(JSON_MAPPER.readTree(actual.toString())).isEqualTo(JSON_MAPPER.readTree(expected));
     }
 }
