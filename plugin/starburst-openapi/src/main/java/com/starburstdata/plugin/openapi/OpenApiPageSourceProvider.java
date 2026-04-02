@@ -11,6 +11,7 @@ package com.starburstdata.plugin.openapi;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
+import io.airlift.http.client.HeaderNames;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
 import io.trino.spi.connector.ColumnHandle;
@@ -24,9 +25,6 @@ import io.trino.spi.connector.DynamicFilter;
 
 import java.util.List;
 
-import static com.google.common.net.HttpHeaders.ACCEPT;
-import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
-import static com.google.common.net.HttpHeaders.USER_AGENT;
 import static com.google.common.net.MediaType.JSON_UTF_8;
 import static java.util.Objects.requireNonNull;
 
@@ -68,17 +66,14 @@ public class OpenApiPageSourceProvider
                 openApiSpec.getAuthenticator(handle.path()));
     }
 
-    private static final String USER_AGENT_VALUE = "starburst-openapi";
-    private static final String JSON_MEDIA_TYPE = JSON_UTF_8.toString();
-
     private static Request toInitialRequest(OpenApiRequestTableHandle handle)
     {
         return Request.builder()
                 .setMethod("GET")
                 .setUri(handle.uri())
-                .addHeader(USER_AGENT, USER_AGENT_VALUE)
-                .addHeader(CONTENT_TYPE, JSON_MEDIA_TYPE)
-                .addHeader(ACCEPT, JSON_MEDIA_TYPE)
+                .addHeader(HeaderNames.USER_AGENT, "starburst-openapi")
+                .addHeader(HeaderNames.CONTENT_TYPE, JSON_UTF_8.toString())
+                .addHeader(HeaderNames.ACCEPT, JSON_UTF_8.toString())
                 .build();
     }
 }
