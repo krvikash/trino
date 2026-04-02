@@ -22,6 +22,7 @@ import io.airlift.stats.ExponentialDecay;
 import io.trino.spi.connector.SchemaTableName;
 import org.gaul.modernizer_maven_annotations.SuppressModernizer;
 
+import java.time.Duration;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -67,7 +68,7 @@ public final class RelationTypeCache
         // it is only used to decide about order of calls, so it doesn't affect correctness
         // for the same reason there is no invalidation logic or any other similar mechanism enabled
         this.cache = buildUnsafeCacheWithInvalidationRace(CacheBuilder.newBuilder()
-                .expireAfterWrite(1, HOURS)
+                .expireAfterWrite(Duration.ofHours(1))
                 .maximumSize(10_000));
 
         tableTypeCounters = DEFAULT_TABLE_TYPE_ORDER.stream()

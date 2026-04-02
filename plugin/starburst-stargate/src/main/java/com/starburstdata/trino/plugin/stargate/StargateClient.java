@@ -76,6 +76,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -143,7 +144,6 @@ import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.function.Function.identity;
 
 public class StargateClient
@@ -179,8 +179,8 @@ public class StargateClient
         this.enableWrites = enableWrites;
         this.jsonType = requireNonNull(typeManager, "typeManager is null").getType(new TypeSignature(JSON));
 
-        this.supportedScalarFunctions = buildNonEvictableCache(CacheBuilder.newBuilder().expireAfterWrite(30, MINUTES));
-        this.supportedAggregateFunctions = buildNonEvictableCache(CacheBuilder.newBuilder().expireAfterWrite(30, MINUTES));
+        this.supportedScalarFunctions = buildNonEvictableCache(CacheBuilder.newBuilder().expireAfterWrite(Duration.ofMinutes(30)));
+        this.supportedAggregateFunctions = buildNonEvictableCache(CacheBuilder.newBuilder().expireAfterWrite(Duration.ofMinutes(30)));
         JdbcTypeHandle bigintTypeHandle = new JdbcTypeHandle(Types.BIGINT, Optional.of("bigint"), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
         this.connectorExpressionRewriter = JdbcConnectorExpressionRewriterBuilder.newBuilder()
                 .addStandardRules(this::quoted)

@@ -114,7 +114,6 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 @ThreadSafe
@@ -161,7 +160,7 @@ public class ChunkManager
     private final ScheduledExecutorService exchangeTimeoutExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("chunk-manager-exchange-timeout-%s"));
     private final ScheduledExecutorService eagerDeliveryModeExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("chunk-manager-eager-delivery-%s"));
     private final ScheduledExecutorService traceResourceReportExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("chunk-manager-trace-resource-report-%s"));
-    private final Cache<String, ExchangeRemovalReason> recentlyRemovedExchanges = buildNonEvictableCache(CacheBuilder.newBuilder().expireAfterWrite(5, MINUTES));
+    private final Cache<String, ExchangeRemovalReason> recentlyRemovedExchanges = buildNonEvictableCache(CacheBuilder.newBuilder().expireAfterWrite(java.time.Duration.ofMinutes(5)));
     private final LoadingCache<Long, Map<Long, SpooledChunk>> drainedSpooledChunkMap;
     private final Set<String> exchangesBeingReleased = ConcurrentHashMap.newKeySet();
     private final boolean traceResourceReportingEnabled;

@@ -27,7 +27,6 @@ import java.util.Set;
 
 import static io.trino.cache.CacheUtils.uncheckedCacheGet;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 public class BigQueryClientFactory
 {
@@ -66,10 +65,9 @@ public class BigQueryClientFactory
         this.metadataPageSize = bigQueryConfig.getMetadataPageSize();
         this.optionsConfigurers = requireNonNull(optionsConfigurers, "optionsConfigurers is null");
 
-        EvictableCacheBuilder<Object, Object> cacheBuilder = EvictableCacheBuilder.newBuilder()
-                .expireAfterWrite(bigQueryConfig.getServiceCacheTtl().toMillis(), MILLISECONDS);
-
-        clientCache = cacheBuilder.build();
+        clientCache = EvictableCacheBuilder.newBuilder()
+                .expireAfterWrite(bigQueryConfig.getServiceCacheTtl().toJavaTime())
+                .build();
     }
 
     public BigQueryClient create(ConnectorSession session)

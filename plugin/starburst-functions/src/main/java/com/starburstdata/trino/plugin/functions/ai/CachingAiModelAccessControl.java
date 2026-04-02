@@ -16,12 +16,12 @@ import io.trino.cache.EvictableCacheBuilder;
 import io.trino.spi.TrinoException;
 import io.trino.spi.security.AiModelAccessControl;
 
+import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 
 import static com.google.common.base.Throwables.throwIfInstanceOf;
 import static io.trino.spi.security.AccessDeniedException.denyExecuteAiModelAccess;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.TimeUnit.HOURS;
 
 public class CachingAiModelAccessControl
         implements AiModelAccessControl
@@ -32,7 +32,7 @@ public class CachingAiModelAccessControl
     {
         requireNonNull(delegate, "delegate is null");
         this.accessControlCache = EvictableCacheBuilder.newBuilder()
-                .expireAfterWrite(4, HOURS)
+                .expireAfterWrite(Duration.ofHours(4))
                 .maximumSize(5000)
                 .build(CacheLoader.from(key -> {
                     delegate.checkCanExecuteModel(key.context(), key.modelId());

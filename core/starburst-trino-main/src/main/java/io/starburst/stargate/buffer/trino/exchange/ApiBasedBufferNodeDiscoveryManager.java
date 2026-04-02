@@ -91,7 +91,7 @@ public class ApiBasedBufferNodeDiscoveryManager
         this.minForceRefreshDelay = requireNonNull(minForceRefreshDelay, "minForceRefreshDelay is null");
         this.drainedNodes = buildNonEvictableCache(CacheBuilder.newBuilder()
                 .ticker(ticker)
-                .expireAfterWrite(DRAINED_NODES_KEEP_TIMEOUT.toMillis(), MILLISECONDS));
+                .expireAfterWrite(DRAINED_NODES_KEEP_TIMEOUT.toJavaTime()));
     }
 
     @PostConstruct
