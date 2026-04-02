@@ -13,9 +13,9 @@
  */
 package io.trino.plugin.clickhouse;
 
+import com.clickhouse.client.ClickHouseVersionUtils;
 import com.clickhouse.data.ClickHouseColumn;
 import com.clickhouse.data.ClickHouseDataType;
-import com.clickhouse.data.ClickHouseVersion;
 import com.google.common.base.Enums;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
@@ -236,7 +236,7 @@ public class ClickHouseClient
     private final ProjectFunctionRewriter<JdbcExpression, ParameterizedExpression> projectFunctionRewriter;
     private final Type uuidType;
     private final Type ipAddressType;
-    private final AtomicReference<ClickHouseVersion> clickHouseVersion = new AtomicReference<>();
+    private final AtomicReference<ClickHouseVersionUtils> clickHouseVersion = new AtomicReference<>();
 
     @Inject
     public ClickHouseClient(
@@ -669,7 +669,7 @@ public class ClickHouseClient
             return mapping;
         }
 
-        ClickHouseVersion version = getClickHouseServerVersion(session);
+        ClickHouseVersionUtils version = getClickHouseServerVersion(session);
         ClickHouseColumn column = ClickHouseColumn.of("", jdbcTypeName);
         ClickHouseDataType columnDataType = column.getDataType();
         switch (columnDataType) {
@@ -849,7 +849,7 @@ public class ClickHouseClient
         throw new TrinoException(NOT_SUPPORTED, "Unsupported column type: " + type);
     }
 
-    private ClickHouseVersion getClickHouseServerVersion(ConnectorSession session)
+    private ClickHouseVersionUtils getClickHouseServerVersion(ConnectorSession session)
     {
         return clickHouseVersion.updateAndGet(current -> {
             if (current != null) {
@@ -860,7 +860,7 @@ public class ClickHouseClient
                     PreparedStatement statement = connection.prepareStatement("SELECT version()");
                     ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
-                    current = ClickHouseVersion.of(resultSet.getString(1));
+                    current = ClickHouseVersionUtils.of(resultSet.getString(1));
                 }
                 return current;
             }
@@ -889,7 +889,7 @@ public class ClickHouseClient
         return Optional.of(prop.stream().map(this::quoted).collect(Collectors.joining(",", "(", ")")));
     }
 
-    private static LongWriteFunction uInt8WriteFunction(ClickHouseVersion version)
+    private static LongWriteFunction uInt8WriteFunction(ClickHouseVersionUtils version)
     {
         return (statement, index, value) -> {
             // ClickHouse stores incorrect results when the values are out of supported range.
@@ -898,7 +898,7 @@ public class ClickHouseClient
         };
     }
 
-    private static LongWriteFunction uInt16WriteFunction(ClickHouseVersion version)
+    private static LongWriteFunction uInt16WriteFunction(ClickHouseVersionUtils version)
     {
         return (statement, index, value) -> {
             // ClickHouse stores incorrect results when the values are out of supported range.
@@ -907,7 +907,7 @@ public class ClickHouseClient
         };
     }
 
-    private static LongWriteFunction uInt32WriteFunction(ClickHouseVersion version)
+    private static LongWriteFunction uInt32WriteFunction(ClickHouseVersionUtils version)
     {
         return (preparedStatement, parameterIndex, value) -> {
             // ClickHouse stores incorrect results when the values are out of supported range.
@@ -916,7 +916,7 @@ public class ClickHouseClient
         };
     }
 
-    private static ObjectWriteFunction uInt64WriteFunction(ClickHouseVersion version)
+    private static ObjectWriteFunction uInt64WriteFunction(ClickHouseVersionUtils version)
     {
         return ObjectWriteFunction.of(
                 Int128.class,
@@ -929,7 +929,7 @@ public class ClickHouseClient
                 });
     }
 
-    private static ColumnMapping dateColumnMappingUsingLocalDate(ClickHouseVersion version)
+    private static ColumnMapping dateColumnMappingUsingLocalDate(ClickHouseVersionUtils version)
     {
         return ColumnMapping.longMapping(
                 DATE,
@@ -937,7 +937,7 @@ public class ClickHouseClient
                 dateWriteFunctionUsingLocalDate(version));
     }
 
-    private static LongWriteFunction dateWriteFunctionUsingLocalDate(ClickHouseVersion version)
+    private static LongWriteFunction dateWriteFunctionUsingLocalDate(ClickHouseVersionUtils version)
     {
         return (statement, index, value) -> {
             LocalDate date = LocalDate.ofEpochDay(value);
@@ -947,7 +947,7 @@ public class ClickHouseClient
         };
     }
 
-    private static ColumnMapping date32ColumnMappingUsingLocalDate(ClickHouseVersion version)
+    private static ColumnMapping date32ColumnMappingUsingLocalDate(ClickHouseVersionUtils version)
     {
         return ColumnMapping.longMapping(
                 DATE,
@@ -955,7 +955,7 @@ public class ClickHouseClient
                 date32WriteFunctionUsingLocalDate(version));
     }
 
-    private static LongWriteFunction date32WriteFunctionUsingLocalDate(ClickHouseVersion version)
+    private static LongWriteFunction date32WriteFunctionUsingLocalDate(ClickHouseVersionUtils version)
     {
         return (statement, index, value) -> {
             LocalDate date = LocalDate.ofEpochDay(value);
@@ -965,7 +965,7 @@ public class ClickHouseClient
         };
     }
 
-    private static LongWriteFunction timestampSecondsWriteFunction(ClickHouseVersion version)
+    private static LongWriteFunction timestampSecondsWriteFunction(ClickHouseVersionUtils version)
     {
         return (statement, index, value) -> {
             long epochSecond = floorDiv(value, MICROSECONDS_PER_SECOND);
@@ -986,7 +986,7 @@ public class ClickHouseClient
         };
     }
 
-    private static LongWriteFunction shortTimestampWithTimeZoneWriteFunction(ClickHouseVersion version, TimeZone columnTimeZone, int precision, boolean isDateTime)
+    private static LongWriteFunction shortTimestampWithTimeZoneWriteFunction(ClickHouseVersionUtils version, TimeZone columnTimeZone, int precision, boolean isDateTime)
     {
         return (statement, index, value) -> {
             long millisUtc = unpackMillisUtc(value);
@@ -997,7 +997,7 @@ public class ClickHouseClient
         };
     }
 
-    private static ColumnMapping timestampColumnMapping(ClickHouseVersion version, TimestampType timestampType)
+    private static ColumnMapping timestampColumnMapping(ClickHouseVersionUtils version, TimestampType timestampType)
     {
         if (timestampType.isShort()) {
             return ColumnMapping.longMapping(
@@ -1012,7 +1012,7 @@ public class ClickHouseClient
                 longTimestampWriteFunction(version, timestampType.getPrecision()));
     }
 
-    private static LongWriteFunction timestampWriteFunction(ClickHouseVersion version, int precision)
+    private static LongWriteFunction timestampWriteFunction(ClickHouseVersionUtils version, int precision)
     {
         checkArgument(precision <= MAX_SHORT_PRECISION, "Precision is out of range: %s", precision);
         return LongWriteFunction.of(Types.TIMESTAMP, (statement, index, value) -> {
@@ -1023,7 +1023,7 @@ public class ClickHouseClient
         });
     }
 
-    private static ObjectWriteFunction longTimestampWriteFunction(ClickHouseVersion version, int precision)
+    private static ObjectWriteFunction longTimestampWriteFunction(ClickHouseVersionUtils version, int precision)
     {
         checkArgument(precision > MAX_SHORT_PRECISION && precision <= CLICKHOUSE_MAX_SUPPORTED_TIMESTAMP_PRECISION, "Precision is out of range: %s", precision);
 
@@ -1035,7 +1035,7 @@ public class ClickHouseClient
         });
     }
 
-    private static ColumnMapping timestampWithTimeZoneColumnMapping(ClickHouseVersion version, ClickHouseColumn clickHouseColumn)
+    private static ColumnMapping timestampWithTimeZoneColumnMapping(ClickHouseVersionUtils version, ClickHouseColumn clickHouseColumn)
     {
         int precision = clickHouseColumn.getScale();
         TimeZone columnTimeZone = clickHouseColumn.getTimeZone();
@@ -1064,7 +1064,7 @@ public class ClickHouseClient
         });
     }
 
-    private static ObjectWriteFunction longTimestampWithTimeZoneWriteFunction(ClickHouseVersion version, int precision, TimeZone columnTimeZone)
+    private static ObjectWriteFunction longTimestampWithTimeZoneWriteFunction(ClickHouseVersionUtils version, int precision, TimeZone columnTimeZone)
     {
         return ObjectWriteFunction.of(LongTimestampWithTimeZone.class, (statement, index, value) -> {
             long epochMillis = value.getEpochMillis();
@@ -1077,7 +1077,7 @@ public class ClickHouseClient
         });
     }
 
-    private static WriteMapping timestampWriteMapping(ClickHouseVersion version, TimestampType timstampType)
+    private static WriteMapping timestampWriteMapping(ClickHouseVersionUtils version, TimestampType timstampType)
     {
         int precision = timstampType.getPrecision();
         String dataType = "DateTime64(%s)".formatted(precision);

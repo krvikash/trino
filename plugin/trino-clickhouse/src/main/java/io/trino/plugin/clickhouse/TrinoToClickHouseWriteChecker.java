@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.clickhouse;
 
-import com.clickhouse.data.ClickHouseVersion;
+import com.clickhouse.client.ClickHouseVersionUtils;
 import com.google.common.collect.ImmutableList;
 import io.trino.spi.TrinoException;
 
@@ -108,7 +108,7 @@ public class TrinoToClickHouseWriteChecker<T>
         this.checkers = ImmutableList.copyOf(requireNonNull(checkers, "checkers is null"));
     }
 
-    public void validate(ClickHouseVersion version, T value)
+    public void validate(ClickHouseVersionUtils version, T value)
     {
         for (Checker<T> checker : checkers) {
             checker.validate(version, value);
@@ -117,23 +117,23 @@ public class TrinoToClickHouseWriteChecker<T>
 
     private interface Checker<T>
     {
-        void validate(ClickHouseVersion version, T value);
+        void validate(ClickHouseVersionUtils version, T value);
     }
 
     private static class LongWriteValueChecker
             implements Checker<Long>
     {
-        private final Predicate<ClickHouseVersion> predicate;
+        private final Predicate<ClickHouseVersionUtils> predicate;
         private final Range<Long> range;
 
-        public LongWriteValueChecker(Predicate<ClickHouseVersion> predicate, Range<Long> range)
+        public LongWriteValueChecker(Predicate<ClickHouseVersionUtils> predicate, Range<Long> range)
         {
             this.predicate = requireNonNull(predicate, "predicate is null");
             this.range = requireNonNull(range, "range is null");
         }
 
         @Override
-        public void validate(ClickHouseVersion version, Long value)
+        public void validate(ClickHouseVersionUtils version, Long value)
         {
             if (!predicate.test(version)) {
                 return;
@@ -150,17 +150,17 @@ public class TrinoToClickHouseWriteChecker<T>
     private static class BigDecimalWriteValueChecker
             implements Checker<BigDecimal>
     {
-        private final Predicate<ClickHouseVersion> predicate;
+        private final Predicate<ClickHouseVersionUtils> predicate;
         private final Range<BigDecimal> range;
 
-        public BigDecimalWriteValueChecker(Predicate<ClickHouseVersion> predicate, Range<BigDecimal> range)
+        public BigDecimalWriteValueChecker(Predicate<ClickHouseVersionUtils> predicate, Range<BigDecimal> range)
         {
             this.predicate = requireNonNull(predicate, "predicate is null");
             this.range = requireNonNull(range, "range is null");
         }
 
         @Override
-        public void validate(ClickHouseVersion version, BigDecimal value)
+        public void validate(ClickHouseVersionUtils version, BigDecimal value)
         {
             if (!predicate.test(version)) {
                 return;
@@ -177,17 +177,17 @@ public class TrinoToClickHouseWriteChecker<T>
     private static class DateWriteValueChecker
             implements Checker<LocalDate>
     {
-        private final Predicate<ClickHouseVersion> predicate;
+        private final Predicate<ClickHouseVersionUtils> predicate;
         private final Range<LocalDate> range;
 
-        public DateWriteValueChecker(Predicate<ClickHouseVersion> predicate, Range<LocalDate> range)
+        public DateWriteValueChecker(Predicate<ClickHouseVersionUtils> predicate, Range<LocalDate> range)
         {
             this.predicate = requireNonNull(predicate, "predicate is null");
             this.range = requireNonNull(range, "range is null");
         }
 
         @Override
-        public void validate(ClickHouseVersion version, LocalDate value)
+        public void validate(ClickHouseVersionUtils version, LocalDate value)
         {
             if (!predicate.test(version)) {
                 return;
@@ -202,17 +202,17 @@ public class TrinoToClickHouseWriteChecker<T>
     private static class TimestampWriteValueChecker
             implements Checker<LocalDateTime>
     {
-        private final Predicate<ClickHouseVersion> predicate;
+        private final Predicate<ClickHouseVersionUtils> predicate;
         private final Range<LocalDateTime> range;
 
-        public TimestampWriteValueChecker(Predicate<ClickHouseVersion> predicate, Range<LocalDateTime> range)
+        public TimestampWriteValueChecker(Predicate<ClickHouseVersionUtils> predicate, Range<LocalDateTime> range)
         {
             this.predicate = requireNonNull(predicate, "predicate is null");
             this.range = requireNonNull(range, "range is null");
         }
 
         @Override
-        public void validate(ClickHouseVersion version, LocalDateTime value)
+        public void validate(ClickHouseVersionUtils version, LocalDateTime value)
         {
             if (!predicate.test(version)) {
                 return;
@@ -252,7 +252,7 @@ public class TrinoToClickHouseWriteChecker<T>
         }
     }
 
-    public static void validateDateTimeAndDateTime64(ClickHouseVersion version, LocalDateTime timestamp, int precision, boolean isDateTime)
+    public static void validateDateTimeAndDateTime64(ClickHouseVersionUtils version, LocalDateTime timestamp, int precision, boolean isDateTime)
     {
         if (isDateTime) {
             DATETIME.validate(version, timestamp);

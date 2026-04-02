@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.clickhouse.expression;
 
-import com.clickhouse.data.ClickHouseVersion;
+import com.clickhouse.client.ClickHouseVersionUtils;
 import io.trino.plugin.jdbc.JdbcTypeHandle;
 import io.trino.plugin.jdbc.expression.AbstractRewriteCast;
 import io.trino.spi.connector.ConnectorSession;
@@ -33,9 +33,9 @@ import static java.util.Objects.requireNonNull;
 public class RewriteCast
         extends AbstractRewriteCast
 {
-    private final Function<ConnectorSession, ClickHouseVersion> clickHouseVersionProvider;
+    private final Function<ConnectorSession, ClickHouseVersionUtils> clickHouseVersionProvider;
 
-    public RewriteCast(Function<ConnectorSession, ClickHouseVersion> clickHouseVersionProvider, BiFunction<ConnectorSession, Type, String> jdbcTypeProvider)
+    public RewriteCast(Function<ConnectorSession, ClickHouseVersionUtils> clickHouseVersionProvider, BiFunction<ConnectorSession, Type, String> jdbcTypeProvider)
     {
         super(jdbcTypeProvider);
         this.clickHouseVersionProvider = requireNonNull(clickHouseVersionProvider, "clickHouseVersionProvider is null");
@@ -89,7 +89,7 @@ public class RewriteCast
 
     private boolean pushdownSupported(ConnectorSession session, JdbcTypeHandle sourceTypeHandle, Type sourceType, Type targetType)
     {
-        ClickHouseVersion clickHouseVersion = clickHouseVersionProvider.apply(session);
+        ClickHouseVersionUtils clickHouseVersion = clickHouseVersionProvider.apply(session);
         return switch (targetType) {
             case DateType _ -> sourceTypeHandle.jdbcType() == DATE || sourceTypeHandle.jdbcType() == TIMESTAMP;
             case TimestampType targetTimestampType -> {
