@@ -18,7 +18,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
-import io.airlift.concurrent.MoreFutures;
 import io.airlift.log.Logger;
 import io.trino.plugin.iceberg.ForIcebergSplitManager;
 import io.trino.spi.TrinoException;
@@ -38,16 +37,22 @@ import org.apache.iceberg.util.StructLikeWrapper;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static io.trino.plugin.base.util.ExecutorUtil.processWithAdditionalThreads;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_FILESYSTEM_ERROR;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_INVALID_METADATA;
 import static io.trino.plugin.iceberg.IcebergUtil.readerForManifest;
@@ -81,23 +86,17 @@ public class RemoveDanglingDeleteFiles
         Set<String> referencedDataFilePaths = collectDeleteFileReferencedDataFilePaths(icebergTable, currentSnapshot);
         DanglingDeleteFilesRemoveMetrics metrics = new DanglingDeleteFilesRemoveMetrics();
 
-        DataFilesMinSequenceNumberMetadata.Builder dataFilesBuilder = DataFilesMinSequenceNumberMetadata.builder();
-        processDataManifests(
+        DataFilesMinSequenceNumberMetadata dataFilesMinSequenceNumberMetadata = processDataManifests(
                 icebergTable,
                 currentSnapshot,
-                dataFilesBuilder,
                 referencedDataFilePaths,
                 metrics);
-        DataFilesMinSequenceNumberMetadata dataFilesMinSequenceNumberMetadata = dataFilesBuilder.build();
 
-        DeleteFilesMetadata.Builder deleteFilesBuilder = DeleteFilesMetadata.builder();
-        processDeleteManifests(
+        DeleteFilesMetadata deleteFilesMetadata = processDeleteManifests(
                 icebergTable,
                 currentSnapshot,
-                deleteFilesBuilder,
                 dataFilesMinSequenceNumberMetadata,
                 metrics);
-        DeleteFilesMetadata deleteFilesMetadata = deleteFilesBuilder.build();
 
         // Mark file-scoped position deletes as dangling if their referenced data file is covered by an active DV
         // (per spec: position deletes do not apply when a deletion vector exists for the same data file)
@@ -120,23 +119,31 @@ public class RemoveDanglingDeleteFiles
 
     private Set<String> collectDeleteFileReferencedDataFilePaths(BaseTable icebergTable, Snapshot currentSnapshot)
     {
-        Set<String> referencedDataFilePaths = ConcurrentHashMap.newKeySet();
-        List<Future<?>> futures = currentSnapshot.deleteManifests(icebergTable.io()).stream()
-                .map(manifest -> icebergScanExecutor.submit(() ->
-                        collectDeleteFileReferencedPathsFromManifest(icebergTable, manifest, referencedDataFilePaths)))
-                .collect(toImmutableList());
-        getAllFutureValues(futures);
-        return referencedDataFilePaths;
+        try {
+            return processWithAdditionalThreads(
+                    currentSnapshot.deleteManifests(icebergTable.io()).stream()
+                            .<Callable<Set<String>>>map(manifest ->
+                                    () -> collectDeleteFileReferencedPathsFromManifest(icebergTable, manifest))
+                            .collect(toImmutableList()),
+                    icebergScanExecutor)
+                    .stream()
+                    .flatMap(Set::stream)
+                    .collect(toImmutableSet());
+        }
+        catch (ExecutionException e) {
+            throw new TrinoException(ICEBERG_FILESYSTEM_ERROR, "Failed to process delete manifests for table: " + icebergTable.name(), e);
+        }
     }
 
-    private static void collectDeleteFileReferencedPathsFromManifest(BaseTable icebergTable, ManifestFile manifest, Set<String> referencedDataFilePaths)
+    private static Set<String> collectDeleteFileReferencedPathsFromManifest(BaseTable icebergTable, ManifestFile manifest)
     {
+        ImmutableSet.Builder<String> referencedDataFilePathsBuilder = ImmutableSet.builder();
         try (ManifestReader<? extends ContentFile<?>> manifestReader = readerForManifest(manifest, icebergTable);
                 CloseableIterator<? extends ContentFile<?>> readerIterator = manifestReader.iterator()) {
             while (readerIterator.hasNext()) {
                 ContentFile<?> contentFile = readerIterator.next();
                 if (contentFile instanceof DeleteFile deleteFile && deleteFile.referencedDataFile() != null) {
-                    referencedDataFilePaths.add(deleteFile.referencedDataFile());
+                    referencedDataFilePathsBuilder.add(deleteFile.referencedDataFile());
                 }
             }
         }
@@ -146,29 +153,38 @@ public class RemoveDanglingDeleteFiles
         catch (NotFoundException e) {
             throw new TrinoException(ICEBERG_INVALID_METADATA, "Manifest file does not exist: " + manifest.path(), e);
         }
+        return referencedDataFilePathsBuilder.build();
     }
 
-    private void processDataManifests(
+    private DataFilesMinSequenceNumberMetadata processDataManifests(
             BaseTable icebergTable,
             Snapshot currentSnapshot,
-            DataFilesMinSequenceNumberMetadata.Builder builder,
             Set<String> referencedDataFilePaths,
             DanglingDeleteFilesRemoveMetrics metrics)
     {
-        List<Future<?>> dataManifestFutures = currentSnapshot.dataManifests(icebergTable.io()).stream()
-                .map(manifest -> icebergScanExecutor.submit(() ->
-                        processDataManifestFile(icebergTable, manifest, builder, referencedDataFilePaths, metrics)))
-                .collect(toImmutableList());
-        getAllFutureValues(dataManifestFutures);
+        try {
+            return processWithAdditionalThreads(
+                    currentSnapshot.dataManifests(icebergTable.io()).stream()
+                            .<Callable<DataFilesMinSequenceNumberMetadata>>map(manifest ->
+                                    () -> processDataManifestFile(icebergTable, manifest, referencedDataFilePaths, metrics))
+                            .collect(toImmutableList()),
+                    icebergScanExecutor)
+                    .stream()
+                    .reduce(DataFilesMinSequenceNumberMetadata::merge)
+                    .orElseGet(() -> DataFilesMinSequenceNumberMetadata.builder().build());
+        }
+        catch (ExecutionException e) {
+            throw new TrinoException(ICEBERG_FILESYSTEM_ERROR, "Failed to process data manifests for table: " + icebergTable.name(), e);
+        }
     }
 
-    private static void processDataManifestFile(
+    private static DataFilesMinSequenceNumberMetadata processDataManifestFile(
             BaseTable icebergTable,
             ManifestFile manifest,
-            DataFilesMinSequenceNumberMetadata.Builder builder,
             Set<String> referencedDataFilePaths,
             DanglingDeleteFilesRemoveMetrics metrics)
     {
+        DataFilesMinSequenceNumberMetadata.Builder builder = DataFilesMinSequenceNumberMetadata.builder();
         try (ManifestReader<? extends ContentFile<?>> manifestReader = readerForManifest(manifest, icebergTable);
                 CloseableIterator<? extends ContentFile<?>> readerIterator = manifestReader.iterator()) {
             while (readerIterator.hasNext()) {
@@ -186,29 +202,38 @@ public class RemoveDanglingDeleteFiles
         catch (NotFoundException e) {
             throw new TrinoException(ICEBERG_INVALID_METADATA, "Manifest file does not exist: " + manifest.path(), e);
         }
+        return builder.build();
     }
 
-    private void processDeleteManifests(
+    private DeleteFilesMetadata processDeleteManifests(
             BaseTable icebergTable,
             Snapshot currentSnapshot,
-            DeleteFilesMetadata.Builder builder,
             DataFilesMinSequenceNumberMetadata dataFilesMinSequenceNumberMetadata,
             DanglingDeleteFilesRemoveMetrics metrics)
     {
-        List<Future<?>> deleteManifestFutures = currentSnapshot.deleteManifests(icebergTable.io()).stream()
-                .map(manifest -> icebergScanExecutor.submit(() ->
-                        processDeleteManifestFile(icebergTable, manifest, dataFilesMinSequenceNumberMetadata, builder, metrics)))
-                .collect(toImmutableList());
-        getAllFutureValues(deleteManifestFutures);
+        try {
+            return processWithAdditionalThreads(
+                    currentSnapshot.deleteManifests(icebergTable.io()).stream()
+                            .<Callable<DeleteFilesMetadata>>map(manifest ->
+                                    () -> processDeleteManifestFile(icebergTable, manifest, dataFilesMinSequenceNumberMetadata, metrics))
+                            .collect(toImmutableList()),
+                    icebergScanExecutor)
+                    .stream()
+                    .reduce(DeleteFilesMetadata::merge)
+                    .orElseGet(() -> DeleteFilesMetadata.builder().build());
+        }
+        catch (ExecutionException e) {
+            throw new TrinoException(ICEBERG_FILESYSTEM_ERROR, "Failed to process data manifests for table: " + icebergTable.name(), e);
+        }
     }
 
-    private static void processDeleteManifestFile(
+    private static DeleteFilesMetadata processDeleteManifestFile(
             BaseTable icebergTable,
             ManifestFile manifest,
             DataFilesMinSequenceNumberMetadata dataFilesMinSequenceNumberMetadata,
-            DeleteFilesMetadata.Builder builder,
             DanglingDeleteFilesRemoveMetrics metrics)
     {
+        DeleteFilesMetadata.Builder builder = DeleteFilesMetadata.builder();
         try (ManifestReader<? extends ContentFile<?>> manifestReader = readerForManifest(manifest, icebergTable);
                 CloseableIterator<? extends ContentFile<?>> readerIterator = manifestReader.iterator()) {
             while (readerIterator.hasNext()) {
@@ -224,6 +249,7 @@ public class RemoveDanglingDeleteFiles
         catch (NotFoundException e) {
             throw new TrinoException(ICEBERG_INVALID_METADATA, "Manifest file does not exist: " + manifest.path(), e);
         }
+        return builder.build();
     }
 
     private static void processDeleteFile(
@@ -324,16 +350,6 @@ public class RemoveDanglingDeleteFiles
         return minPartitionSequenceNumber == null || !(minPartitionSequenceNumber < deleteFile.dataSequenceNumber());
     }
 
-    private static void getAllFutureValues(List<Future<?>> futures)
-    {
-        try {
-            futures.forEach(MoreFutures::getFutureValue);
-        }
-        finally {
-            futures.forEach(future -> future.cancel(true));
-        }
-    }
-
     private record DataFilesMinSequenceNumberMetadata(
             long globalMinSequenceNumber,
             Map<PartitionKey, Long> minSequenceNumberByPartition,
@@ -345,6 +361,20 @@ public class RemoveDanglingDeleteFiles
             minSequenceNumberByReferencedPath = ImmutableMap.copyOf(minSequenceNumberByReferencedPath);
         }
 
+        private DataFilesMinSequenceNumberMetadata merge(DataFilesMinSequenceNumberMetadata other)
+        {
+            return new DataFilesMinSequenceNumberMetadata(
+                    Math.min(this.globalMinSequenceNumber, other.globalMinSequenceNumber()),
+                    Stream.concat(
+                                    this.minSequenceNumberByPartition.entrySet().stream(),
+                                    other.minSequenceNumberByPartition().entrySet().stream())
+                            .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue, Math::min)),
+                    Stream.concat(
+                                    this.minSequenceNumberByReferencedPath.entrySet().stream(),
+                                    other.minSequenceNumberByReferencedPath().entrySet().stream())
+                            .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue, Math::min)));
+        }
+
         private static Builder builder()
         {
             return new Builder();
@@ -352,21 +382,21 @@ public class RemoveDanglingDeleteFiles
 
         private static class Builder
         {
-            private final AtomicLong globalMinSequenceNumber;
             private final Map<PartitionKey, Long> minSequenceNumberByPartition;
             private final Map<String, Long> minSequenceNumberByPath;
+            private long globalMinSequenceNumber;
 
             private Builder()
             {
-                this.globalMinSequenceNumber = new AtomicLong(Long.MAX_VALUE);
-                this.minSequenceNumberByPartition = new ConcurrentHashMap<>();
-                this.minSequenceNumberByPath = new ConcurrentHashMap<>();
+                this.minSequenceNumberByPartition = new HashMap<>();
+                this.minSequenceNumberByPath = new HashMap<>();
+                this.globalMinSequenceNumber = Long.MAX_VALUE;
             }
 
             void addDataFile(ContentFile<?> contentFile, BaseTable icebergTable, Set<String> referencedDataFilePaths)
             {
                 long dataSequenceNumber = requireNonNullElse(contentFile.dataSequenceNumber(), 0L);
-                globalMinSequenceNumber.updateAndGet(current -> Math.min(current, dataSequenceNumber));
+                globalMinSequenceNumber = Math.min(globalMinSequenceNumber, dataSequenceNumber);
 
                 if (referencedDataFilePaths.contains(contentFile.location())) {
                     minSequenceNumberByPath.merge(contentFile.location(), dataSequenceNumber, Math::min);
@@ -382,7 +412,7 @@ public class RemoveDanglingDeleteFiles
             DataFilesMinSequenceNumberMetadata build()
             {
                 return new DataFilesMinSequenceNumberMetadata(
-                        globalMinSequenceNumber.get(),
+                        globalMinSequenceNumber,
                         minSequenceNumberByPartition,
                         minSequenceNumberByPath);
             }
@@ -401,6 +431,28 @@ public class RemoveDanglingDeleteFiles
             dataFilePathsWithPositionDeletes = ImmutableMap.copyOf(dataFilePathsWithPositionDeletes);
         }
 
+        private DeleteFilesMetadata merge(DeleteFilesMetadata other)
+        {
+            return new DeleteFilesMetadata(
+                    mergeSets(this.danglingDeleteFiles, other.danglingDeleteFiles()),
+                    ImmutableList.<String>builder()
+                            .addAll(this.dataFilePathsWithDV)
+                            .addAll(other.dataFilePathsWithDV())
+                            .build(),
+                    Stream.concat(
+                                    this.dataFilePathsWithPositionDeletes.entrySet().stream(),
+                                    other.dataFilePathsWithPositionDeletes().entrySet().stream())
+                            .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue, DeleteFilesMetadata::mergeSets)));
+        }
+
+        private static Set<DeleteFile> mergeSets(Set<DeleteFile> one, Set<DeleteFile> two)
+        {
+            return ImmutableSet.<DeleteFile>builder()
+                    .addAll(one)
+                    .addAll(two)
+                    .build();
+        }
+
         private static Builder builder()
         {
             return new Builder();
@@ -414,9 +466,9 @@ public class RemoveDanglingDeleteFiles
 
             private Builder()
             {
-                this.danglingDeleteFiles = ConcurrentHashMap.newKeySet();
-                this.dataFilePathsWithDV = Collections.synchronizedList(new ArrayList<>());
-                this.dataFilePathsWithPositionDeletes = new ConcurrentHashMap<>();
+                this.danglingDeleteFiles = new HashSet<>();
+                this.dataFilePathsWithDV = new ArrayList<>();
+                this.dataFilePathsWithPositionDeletes = new HashMap<>();
             }
 
             void addDanglingDeleteFile(DeleteFile deleteFile)
