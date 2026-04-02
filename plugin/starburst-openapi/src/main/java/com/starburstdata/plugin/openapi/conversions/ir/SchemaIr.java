@@ -16,6 +16,7 @@ package com.starburstdata.plugin.openapi.conversions.ir;
 public sealed interface SchemaIr
         permits ObjectIr,
         ArrayIr,
+        JsonIr,
         LeafIr
 {
 }

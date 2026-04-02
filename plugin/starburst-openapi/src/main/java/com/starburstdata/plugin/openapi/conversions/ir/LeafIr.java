@@ -10,12 +10,11 @@
 package com.starburstdata.plugin.openapi.conversions.ir;
 
 /**
- * An interface of intermediate representations separated out to values that don't contain other SchemaIr's.
+ * An interface of intermediate representations separated out to non-container JSON values.
  */
 public sealed interface LeafIr
         extends SchemaIr
         permits BooleanIr,
-        JsonIr,
         StringIr,
         NumberIr
 {

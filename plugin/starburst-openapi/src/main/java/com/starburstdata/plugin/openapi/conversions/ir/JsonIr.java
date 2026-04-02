@@ -10,6 +10,6 @@
 package com.starburstdata.plugin.openapi.conversions.ir;
 
 public record JsonIr()
-        implements LeafIr
+        implements SchemaIr
 {
 }

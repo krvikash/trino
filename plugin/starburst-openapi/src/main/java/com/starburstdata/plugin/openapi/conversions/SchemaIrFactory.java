@@ -15,7 +15,6 @@ import com.google.common.collect.ImmutableSet;
 import com.starburstdata.plugin.openapi.conversions.ir.ArrayIr;
 import com.starburstdata.plugin.openapi.conversions.ir.BooleanIr;
 import com.starburstdata.plugin.openapi.conversions.ir.JsonIr;
-import com.starburstdata.plugin.openapi.conversions.ir.LeafIr;
 import com.starburstdata.plugin.openapi.conversions.ir.NumberIr;
 import com.starburstdata.plugin.openapi.conversions.ir.ObjectIr;
 import com.starburstdata.plugin.openapi.conversions.ir.SchemaIr;
@@ -291,7 +290,7 @@ public class SchemaIrFactory
         return new ArrayIr(itemIr);
     }
 
-    private LeafIr convertNumber(
+    private SchemaIr convertNumber(
             Schema<?> schema,
             boolean isInteger)
             throws SchemaException
@@ -341,7 +340,7 @@ public class SchemaIrFactory
         });
     }
 
-    private LeafIr convertString(
+    private SchemaIr convertString(
             Schema<?> schema)
             throws SchemaException
     {
