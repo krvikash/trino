@@ -2267,32 +2267,30 @@ public class IcebergMetadata
         IcebergTableExecuteHandle executeHandle = (IcebergTableExecuteHandle) tableExecuteHandle;
         IcebergTableHandle icebergTableHandle = (IcebergTableHandle) tableHandle;
         return switch (executeHandle.procedureId()) {
-            case OPTIMIZE -> getColumnHandlesForOptimize(session, icebergTableHandle, icebergTableHandle.getFormatVersion());
-            case OPTIMIZE_MANIFESTS, OPTIMIZE_POSITION_DELETES, DROP_EXTENDED_STATS, ROLLBACK_TO_SNAPSHOT, EXPIRE_SNAPSHOTS, REMOVE_ORPHAN_FILES, ADD_FILES, ADD_FILES_FROM_TABLE, GENERATE_EMBEDDINGS ->
+            case OPTIMIZE -> getColumnHandlesForOptimize(icebergTableHandle);
+            case GENERATE_EMBEDDINGS -> getColumnHandlesForGenerateEmbeddings(icebergTableHandle);
+            case OPTIMIZE_MANIFESTS, OPTIMIZE_POSITION_DELETES, DROP_EXTENDED_STATS, ROLLBACK_TO_SNAPSHOT, EXPIRE_SNAPSHOTS, REMOVE_ORPHAN_FILES, ADD_FILES, ADD_FILES_FROM_TABLE ->
                     throw new IllegalArgumentException("Unknown procedure '" + executeHandle.procedureId() + "'");
         };
     }
 
-    private Set<ColumnHandle> getColumnHandlesForOptimize(ConnectorSession session, IcebergTableHandle tableHandle, int formatVersion)
+    private Set<ColumnHandle> getColumnHandlesForOptimize(IcebergTableHandle table)
     {
-        Map<String, ColumnHandle> columnHandles = getColumnHandles(session, tableHandle);
-        return getTableMetadata(session, tableHandle).getColumns().stream()
-                .filter(column -> isOptimizeReadColumn(formatVersion, column))
-                .map(ColumnMetadata::getName)
-                .map(columnName -> requireNonNull(columnHandles.get(columnName), "Cannot find column handle for " + columnName))
-                .collect(toImmutableSet());
+        ImmutableSet.Builder<ColumnHandle> columnHandles = ImmutableSet.builder();
+        for (IcebergColumnHandle columnHandle : getTopLevelColumns(SchemaParser.fromJson(table.getTableSchemaJson()), typeManager)) {
+            columnHandles.add(columnHandle);
+        }
+        if (table.getFormatVersion() >= 3) {
+            columnHandles.add(rowIdColumnHandle());
+            columnHandles.add(lastUpdatedSequenceNumberColumnHandle());
+        }
+        return columnHandles.build();
     }
 
-    private static boolean isOptimizeReadColumn(int formatVersion, ColumnMetadata column)
+    private Set<ColumnHandle> getColumnHandlesForGenerateEmbeddings(IcebergTableHandle table)
     {
-        if (!column.isHidden()) {
-            return true;
-        }
-        if (formatVersion < 3) {
-            return false;
-        }
-        String columnName = column.getName();
-        return columnName.equals(ROW_ID.getColumnName()) || columnName.equals(LAST_UPDATED_SEQUENCE_NUMBER.getColumnName());
+        return getTopLevelColumns(SchemaParser.fromJson(table.getTableSchemaJson()), typeManager).stream()
+                .collect(toImmutableSet());
     }
 
     @Override
