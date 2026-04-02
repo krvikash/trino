@@ -2387,7 +2387,7 @@ public class LocalExecutionPlanner
                 }
             }
 
-            return new PhysicalOperation(outputLayout, alternatives.buildOrThrow(), node.getId());
+            return new PhysicalOperation(alternatives.buildOrThrow(), node.getId(), outputLayout);
         }
 
         private TableHandle findTableScanForAlternative(PlanNode chain)
@@ -2797,8 +2797,7 @@ public class LocalExecutionPlanner
             List<Symbol> rightSymbols = Lists.transform(clauses, JoinNode.EquiJoinClause::getRight);
 
             return switch (node.getType()) {
-                case INNER, LEFT, RIGHT, FULL ->
-                        createLookupJoin(node, node.getLeft(), leftSymbols, node.getRight(), rightSymbols, localDynamicFilters, context);
+                case INNER, LEFT, RIGHT, FULL -> createLookupJoin(node, node.getLeft(), leftSymbols, node.getRight(), rightSymbols, localDynamicFilters, context);
             };
         }
 
@@ -4534,9 +4533,9 @@ public class LocalExecutionPlanner
     {
         private final List<OperatorFactory> pipelineTail;
         private final Map<TableHandle, List<OperatorFactory>> pipelineHeadAlternatives;
+        private final Optional<PlanNodeId> chooseAlternativePlanNodeId;
         private final Map<Symbol, Integer> layout;
         private final List<Type> types;
-        private final Optional<PlanNodeId> chooseAlternativePlanNodeId;
 
         public PhysicalOperation(OperatorFactory operatorFactory, Map<Symbol, Integer> layout)
         {
@@ -4554,15 +4553,15 @@ public class LocalExecutionPlanner
         }
 
         public PhysicalOperation(
-                Map<Symbol, Integer> layout,
                 Map<TableHandle, PhysicalOperation> pipelineHeadAlternatives,
-                PlanNodeId chooseAlternativePlanNodeId)
+                PlanNodeId chooseAlternativePlanNodeId,
+                Map<Symbol, Integer> layout)
         {
             this(
-                    layout,
                     ImmutableList.of(),
                     Maps.transformValues(pipelineHeadAlternatives, PhysicalOperation::getPipelineTail),
-                    Optional.of(chooseAlternativePlanNodeId));
+                    Optional.of(chooseAlternativePlanNodeId),
+                    layout);
         }
 
         private PhysicalOperation(
@@ -4571,33 +4570,31 @@ public class LocalExecutionPlanner
                 Optional<PhysicalOperation> source)
         {
             this(
-                    layout,
                     ImmutableList.<OperatorFactory>builder()
                             .addAll(source.map(PhysicalOperation::getPipelineTail).orElse(ImmutableList.of()))
                             .add(operatorFactory)
                             .build(),
                     source.map(operation -> operation.pipelineHeadAlternatives).orElse(ImmutableMap.of()),
-                    source.flatMap(operation -> operation.chooseAlternativePlanNodeId));
+                    source.flatMap(operation -> operation.chooseAlternativePlanNodeId),
+                    layout);
         }
 
         private PhysicalOperation(
-                Map<Symbol, Integer> layout,
                 List<OperatorFactory> pipelineTail,
                 Map<TableHandle, List<OperatorFactory>> pipelineHeadAlternatives,
-                Optional<PlanNodeId> chooseAlternativePlanNodeId)
+                Optional<PlanNodeId> chooseAlternativePlanNodeId,
+                Map<Symbol, Integer> layout)
         {
-            requireNonNull(layout, "layout is null");
-
-            this.types = toTypes(layout);
-            this.pipelineTail = requireNonNull(pipelineTail, "pipelineEnd is null");
+            this.pipelineTail = ImmutableList.copyOf(requireNonNull(pipelineTail, "pipelineTail is null"));
             checkArgument(
                     chooseAlternativePlanNodeId.isEmpty() == pipelineHeadAlternatives.isEmpty(),
                     "pipelineHeadAlternatives and chooseAlternativePlanNodeId must be both provided or neither one but got: %s and %s",
                     chooseAlternativePlanNodeId,
                     pipelineHeadAlternatives);
-            this.pipelineHeadAlternatives = requireNonNull(pipelineHeadAlternatives, "pipelineStartAlternatives is null");
+            this.pipelineHeadAlternatives = ImmutableMap.copyOf(requireNonNull(pipelineHeadAlternatives, "pipelineHeadAlternatives is null"));
             this.chooseAlternativePlanNodeId = requireNonNull(chooseAlternativePlanNodeId, "chooseAlternativePlanNodeId is null");
-            this.layout = ImmutableMap.copyOf(layout);
+            this.layout = ImmutableMap.copyOf(requireNonNull(layout, "layout is null"));
+            this.types = toTypes(layout);
         }
 
         private static List<Type> toTypes(Map<Symbol, Integer> layout)
