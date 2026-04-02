@@ -26,6 +26,7 @@ import io.trino.sql.planner.iterative.rule.PruneFilterColumns;
 import io.trino.sql.planner.iterative.rule.PruneTableScanColumns;
 import io.trino.sql.planner.iterative.rule.PushPredicateIntoTableScan;
 import io.trino.sql.planner.iterative.rule.RemoveRedundantIdentityProjectionsInOrder;
+import io.trino.sql.planner.iterative.rule.ReplacePartialTopNWithLimit;
 import io.trino.sql.planner.optimizations.AdaptivePlanOptimizer;
 import io.trino.sql.planner.optimizations.PlanOptimizer;
 
@@ -52,6 +53,7 @@ public class AlternativesOptimizers
                 costCalculator,
                 ImmutableSet.<Rule<?>>builder()
                         .add(new PushPredicateIntoTableScan(plannerContext, false))
+                        .add(new ReplacePartialTopNWithLimit(plannerContext))
                         .build());
 
         IterativeOptimizer iterativeOptimizer = new IterativeOptimizer(

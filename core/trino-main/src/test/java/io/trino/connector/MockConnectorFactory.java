@@ -20,6 +20,7 @@ import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.cache.CacheTableId;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.AggregationApplicationResult;
+import io.trino.spi.connector.ApplyPartialTopNResult;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ColumnMetadata;
@@ -50,6 +51,7 @@ import io.trino.spi.connector.RelationColumnsMetadata;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.connector.SortItem;
+import io.trino.spi.connector.SortingProperty;
 import io.trino.spi.connector.TableColumnsMetadata;
 import io.trino.spi.connector.TableFunctionApplicationResult;
 import io.trino.spi.connector.TableProcedureMetadata;
@@ -123,6 +125,7 @@ public class MockConnectorFactory
     private final ApplyTopN applyTopN;
     private final ApplyFilter applyFilter;
     private final ApplyPartialLimit applyPartialLimit;
+    private final ApplyPartialTopN applyPartialTopN;
     private final ApplyTableFunction applyTableFunction;
     private final ApplyTableScanRedirect applyTableScanRedirect;
     private final BiFunction<ConnectorSession, SchemaTableName, Optional<CatalogSchemaTableName>> redirectTable;
@@ -187,6 +190,7 @@ public class MockConnectorFactory
             ApplyTopN applyTopN,
             ApplyFilter applyFilter,
             ApplyPartialLimit applyPartialLimit,
+            ApplyPartialTopN applyPartialTopN,
             ApplyTableFunction applyTableFunction,
             ApplyTableScanRedirect applyTableScanRedirect,
             BiFunction<ConnectorSession, SchemaTableName, Optional<CatalogSchemaTableName>> redirectTable,
@@ -247,6 +251,7 @@ public class MockConnectorFactory
         this.applyTopN = requireNonNull(applyTopN, "applyTopN is null");
         this.applyFilter = requireNonNull(applyFilter, "applyFilter is null");
         this.applyPartialLimit = requireNonNull(applyPartialLimit, "applyPartialLimit is null");
+        this.applyPartialTopN = requireNonNull(applyPartialTopN, "applyPartialTopN is null");
         this.applyTableFunction = requireNonNull(applyTableFunction, "applyTableFunction is null");
         this.applyTableScanRedirect = requireNonNull(applyTableScanRedirect, "applyTableScanRedirection is null");
         this.redirectTable = requireNonNull(redirectTable, "redirectTable is null");
@@ -317,6 +322,7 @@ public class MockConnectorFactory
                 applyTopN,
                 applyFilter,
                 applyPartialLimit,
+                applyPartialTopN,
                 applyTableFunction,
                 applyTableScanRedirect,
                 redirectTable,
@@ -447,6 +453,16 @@ public class MockConnectorFactory
     }
 
     @FunctionalInterface
+    public interface ApplyPartialTopN
+    {
+        Optional<ApplyPartialTopNResult<ConnectorTableHandle>> apply(
+                ConnectorSession session,
+                ConnectorTableHandle handle,
+                List<SortingProperty<ColumnHandle>> sortProperties,
+                long count);
+    }
+
+    @FunctionalInterface
     public interface ListRoleGrants
     {
         Set<RoleGrant> apply(ConnectorSession session, Optional<Set<String>> roles, Optional<Set<String>> grantees, OptionalLong limit);
@@ -489,6 +505,7 @@ public class MockConnectorFactory
         private ApplyTopN applyTopN = (session, handle, topNCount, sortItems, assignments) -> Optional.empty();
         private ApplyFilter applyFilter = (session, handle, constraint) -> Optional.empty();
         private ApplyPartialLimit applyPartialLimit = (session, handle, limitHint) -> Optional.empty();
+        private ApplyPartialTopN applyPartialTopN = (session, handle, sortProperties, count) -> Optional.empty();
         private ApplyTableFunction applyTableFunction = (session, handle) -> Optional.empty();
         private ApplyTableScanRedirect applyTableScanRedirect = (session, handle) -> Optional.empty();
         private BiFunction<ConnectorSession, SchemaTableName, Optional<CatalogSchemaTableName>> redirectTable = (session, tableName) -> Optional.empty();
@@ -685,6 +702,12 @@ public class MockConnectorFactory
         public Builder withApplyPartialLimit(ApplyPartialLimit applyPartialLimit)
         {
             this.applyPartialLimit = applyPartialLimit;
+            return this;
+        }
+
+        public Builder withApplyPartialTopN(ApplyPartialTopN applyPartialTopN)
+        {
+            this.applyPartialTopN = applyPartialTopN;
             return this;
         }
 
@@ -945,6 +968,7 @@ public class MockConnectorFactory
                     applyTopN,
                     applyFilter,
                     applyPartialLimit,
+                    applyPartialTopN,
                     applyTableFunction,
                     applyTableScanRedirect,
                     redirectTable,

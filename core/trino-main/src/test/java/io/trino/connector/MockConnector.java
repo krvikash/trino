@@ -20,6 +20,7 @@ import io.trino.connector.MockConnectorFactory.ApplyAggregation;
 import io.trino.connector.MockConnectorFactory.ApplyFilter;
 import io.trino.connector.MockConnectorFactory.ApplyJoin;
 import io.trino.connector.MockConnectorFactory.ApplyPartialLimit;
+import io.trino.connector.MockConnectorFactory.ApplyPartialTopN;
 import io.trino.connector.MockConnectorFactory.ApplyProjection;
 import io.trino.connector.MockConnectorFactory.ApplyTableFunction;
 import io.trino.connector.MockConnectorFactory.ApplyTableScanRedirect;
@@ -33,6 +34,7 @@ import io.trino.spi.cache.CacheTableId;
 import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.AggregationApplicationResult;
+import io.trino.spi.connector.ApplyPartialTopNResult;
 import io.trino.spi.connector.BeginTableExecuteResult;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.ColumnHandle;
@@ -84,6 +86,7 @@ import io.trino.spi.connector.SaveMode;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.connector.SortItem;
+import io.trino.spi.connector.SortingProperty;
 import io.trino.spi.connector.TableColumnsMetadata;
 import io.trino.spi.connector.TableFunctionApplicationResult;
 import io.trino.spi.connector.TableProcedureMetadata;
@@ -170,6 +173,7 @@ public class MockConnector
     private final MockConnectorFactory.ApplyTopN applyTopN;
     private final MockConnectorFactory.ApplyFilter applyFilter;
     private final MockConnectorFactory.ApplyPartialLimit applyPartialLimit;
+    private final MockConnectorFactory.ApplyPartialTopN applyPartialTopN;
     private final MockConnectorFactory.ApplyTableFunction applyTableFunction;
     private final MockConnectorFactory.ApplyTableScanRedirect applyTableScanRedirect;
     private final BiFunction<ConnectorSession, SchemaTableName, Optional<CatalogSchemaTableName>> redirectTable;
@@ -230,6 +234,7 @@ public class MockConnector
             ApplyTopN applyTopN,
             ApplyFilter applyFilter,
             ApplyPartialLimit applyPartialLimit,
+            ApplyPartialTopN applyPartialTopN,
             ApplyTableFunction applyTableFunction,
             ApplyTableScanRedirect applyTableScanRedirect,
             BiFunction<ConnectorSession, SchemaTableName, Optional<CatalogSchemaTableName>> redirectTable,
@@ -289,6 +294,7 @@ public class MockConnector
         this.applyTopN = requireNonNull(applyTopN, "applyTopN is null");
         this.applyFilter = requireNonNull(applyFilter, "applyFilter is null");
         this.applyPartialLimit = requireNonNull(applyPartialLimit, "applyPartialLimit is null");
+        this.applyPartialTopN = requireNonNull(applyPartialTopN, "applyPartialTopN is null");
         this.applyTableFunction = requireNonNull(applyTableFunction, "applyTableFunction is null");
         this.applyTableScanRedirect = requireNonNull(applyTableScanRedirect, "applyTableScanRedirection is null");
         this.redirectTable = requireNonNull(redirectTable, "redirectTable is null");
@@ -531,6 +537,16 @@ public class MockConnector
         public Optional<ConnectorTableHandle> applyPartialLimit(ConnectorSession session, ConnectorTableHandle handle, long limitHint)
         {
             return applyPartialLimit.apply(session, handle, limitHint);
+        }
+
+        @Override
+        public Optional<ApplyPartialTopNResult<ConnectorTableHandle>> applyPartialTopN(
+                ConnectorSession session,
+                ConnectorTableHandle handle,
+                List<SortingProperty<ColumnHandle>> sortProperties,
+                long count)
+        {
+            return applyPartialTopN.apply(session, handle, sortProperties, count);
         }
 
         @Override

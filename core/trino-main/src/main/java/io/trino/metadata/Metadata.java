@@ -23,6 +23,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.AggregationApplicationResult;
+import io.trino.spi.connector.ApplyPartialTopNResult;
 import io.trino.spi.connector.BeginTableExecuteResult;
 import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.spi.connector.CatalogSchemaTableName;
@@ -54,6 +55,7 @@ import io.trino.spi.connector.SampleType;
 import io.trino.spi.connector.SaveMode;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SortItem;
+import io.trino.spi.connector.SortingProperty;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableColumnsMetadata;
 import io.trino.spi.connector.TableFunctionApplicationResult;
@@ -939,6 +941,29 @@ public interface Metadata
      * @return new table handle with the limit hint applied, or empty if the limit hint was not applied
      */
     Optional<TableHandle> applyPartialLimit(Session session, TableHandle tableHandle, long limitHint);
+
+    /**
+     * This method is called by the engine when there is a partial TopN above a table scan.
+     * The engine provides the desired sort properties and a row count hint so that the connector can produce an alternative
+     * table handle that delivers rows pre-sorted according to the requested sort properties. The row count is a hint
+     * that connectors can use to avoid over-reading
+     * data when delivering sorted output; enforcing it strictly is not required.
+     * <p>
+     * When the connector returns a result, the engine may replace the partial TopN with a limit over the alternative table handle.
+     * The connector is not required to guarantee sort order: {@link ApplyPartialTopNResult#retainOriginalPlan()} controls
+     * whether the engine keeps the original TopN plan as a fallback alternative alongside the limit-based plan.
+     * <p>
+     * Even when the connector returns a result, it should still be prepared to produce the full, unsorted scan output
+     * from the page source, since the engine may choose the original plan at runtime.
+     *
+     * @return {@link ApplyPartialTopNResult} with the alternative table handle and whether the original plan should be retained,
+     * or empty if the connector cannot optimize for the requested sort order
+     */
+    Optional<ApplyPartialTopNResult<TableHandle>> applyPartialTopN(
+            Session session,
+            TableHandle tableHandle,
+            List<SortingProperty<ColumnHandle>> sortProperties,
+            long count);
 
     void setEntityAuthorization(Session session, EntityKindAndName entityKindAndName, TrinoPrincipal principal);
 

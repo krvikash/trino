@@ -38,6 +38,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.AggregationApplicationResult;
+import io.trino.spi.connector.ApplyPartialTopNResult;
 import io.trino.spi.connector.Assignment;
 import io.trino.spi.connector.BeginTableExecuteResult;
 import io.trino.spi.connector.CatalogSchemaName;
@@ -86,6 +87,7 @@ import io.trino.spi.connector.SaveMode;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.connector.SortItem;
+import io.trino.spi.connector.SortingProperty;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableColumnsMetadata;
 import io.trino.spi.connector.TableFunctionApplicationResult;
@@ -3097,6 +3099,22 @@ public final class MetadataManager
         ConnectorSession connectorSession = session.toConnectorSession(catalogHandle);
         return metadata.applyPartialLimit(connectorSession, tableHandle.connectorHandle(), limitHint)
                 .map(newHandle -> new TableHandle(catalogHandle, newHandle, tableHandle.transaction()));
+    }
+
+    @Override
+    public Optional<ApplyPartialTopNResult<TableHandle>> applyPartialTopN(
+            Session session,
+            TableHandle tableHandle,
+            List<SortingProperty<ColumnHandle>> sortProperties,
+            long count)
+    {
+        CatalogHandle catalogHandle = tableHandle.catalogHandle();
+        ConnectorMetadata metadata = getMetadata(session, catalogHandle);
+        ConnectorSession connectorSession = session.toConnectorSession(catalogHandle);
+        return metadata.applyPartialTopN(connectorSession, tableHandle.connectorHandle(), sortProperties, count)
+                .map(result -> new ApplyPartialTopNResult<>(
+                        result.retainOriginalPlan(),
+                        new TableHandle(catalogHandle, result.alternative(), tableHandle.transaction())));
     }
 
     @Override

@@ -209,6 +209,9 @@ public class AlternativesOptimizer
                     new ChooseAlternativeNode(context.optimizerContext.idAllocator().getNextId(), alternatives, originalTableScan),
                     this.getClass().getName());
         }
+        else if (alternatives.size() == 1 && alternatives.getFirst() != node) {
+            context.memo.replace(group, alternatives.getFirst(), this.getClass().getName());
+        }
     }
 
     private static boolean canCreateAlternatives(PlanNode node)

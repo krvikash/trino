@@ -26,6 +26,7 @@ import io.trino.connector.alternatives.MockPlanAlternativeTableHandle.VarcharIn;
 import io.trino.spi.RefreshType;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.AggregationApplicationResult;
+import io.trino.spi.connector.ApplyPartialTopNResult;
 import io.trino.spi.connector.BeginTableExecuteResult;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.ColumnHandle;
@@ -72,6 +73,7 @@ import io.trino.spi.connector.SaveMode;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.connector.SortItem;
+import io.trino.spi.connector.SortingProperty;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableFunctionApplicationResult;
 import io.trino.spi.connector.TableScanRedirectApplicationResult;
@@ -1110,6 +1112,16 @@ public class MockPlanAlternativeMetadata
     public Optional<ConnectorTableHandle> applyPartialLimit(ConnectorSession session, ConnectorTableHandle handle, long limitHint)
     {
         return delegate.applyPartialLimit(session, handle, limitHint);
+    }
+
+    @Override
+    public Optional<ApplyPartialTopNResult<ConnectorTableHandle>> applyPartialTopN(
+            ConnectorSession session,
+            ConnectorTableHandle handle,
+            List<SortingProperty<ColumnHandle>> sortProperties,
+            long count)
+    {
+        return delegate.applyPartialTopN(session, handle, sortProperties, count);
     }
 
     @Override

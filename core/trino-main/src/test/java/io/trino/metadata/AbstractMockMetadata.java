@@ -28,6 +28,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.AggregationApplicationResult;
+import io.trino.spi.connector.ApplyPartialTopNResult;
 import io.trino.spi.connector.BeginTableExecuteResult;
 import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.spi.connector.CatalogSchemaTableName;
@@ -58,6 +59,7 @@ import io.trino.spi.connector.SampleType;
 import io.trino.spi.connector.SaveMode;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SortItem;
+import io.trino.spi.connector.SortingProperty;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableColumnsMetadata;
 import io.trino.spi.connector.TableFunctionApplicationResult;
@@ -1151,6 +1153,16 @@ public abstract class AbstractMockMetadata
 
     @Override
     public Optional<TableHandle> applyPartialLimit(Session session, TableHandle tableHandle, long limitHint)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Optional<ApplyPartialTopNResult<TableHandle>> applyPartialTopN(
+            Session session,
+            TableHandle tableHandle,
+            List<SortingProperty<ColumnHandle>> sortProperties,
+            long count)
     {
         throw new UnsupportedOperationException();
     }
