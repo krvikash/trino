@@ -997,12 +997,6 @@ public class LakehouseMetadata
     }
 
     @Override
-    public Optional<ConnectorTableHandle> applyPartialLimit(ConnectorSession session, ConnectorTableHandle tableHandle, long limitHint)
-    {
-        return forHandle(tableHandle).applyPartialLimit(session, tableHandle, limitHint);
-    }
-
-    @Override
     public Optional<ApplyPartialTopNResult<ConnectorTableHandle>> applyPartialTopN(
             ConnectorSession session,
             ConnectorTableHandle tableHandle,

@@ -1655,13 +1655,6 @@ public class ObjectStoreMetadata
     }
 
     @Override
-    public Optional<ConnectorTableHandle> applyPartialLimit(ConnectorSession session, ConnectorTableHandle tableHandle, long limitHint)
-    {
-        TableType tableType = tableType(tableHandle);
-        return delegate(tableType).applyPartialLimit(unwrap(tableType, session), tableHandle, limitHint);
-    }
-
-    @Override
     public Optional<ApplyPartialTopNResult<ConnectorTableHandle>> applyPartialTopN(
             ConnectorSession session,
             ConnectorTableHandle tableHandle,

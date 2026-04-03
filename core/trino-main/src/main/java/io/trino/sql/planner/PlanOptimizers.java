@@ -255,7 +255,6 @@ import io.trino.sql.planner.optimizations.AdaptivePartitioning;
 import io.trino.sql.planner.optimizations.AdaptivePlanOptimizer;
 import io.trino.sql.planner.optimizations.AddExchanges;
 import io.trino.sql.planner.optimizations.AddLocalExchanges;
-import io.trino.sql.planner.optimizations.ApplyPartialLimitHint;
 import io.trino.sql.planner.optimizations.BeginTableWrite;
 import io.trino.sql.planner.optimizations.CheckSubqueryNodesAreRewritten;
 import io.trino.sql.planner.optimizations.DeterminePartitionCount;
@@ -995,10 +994,6 @@ public class PlanOptimizers
                         .add(new PushRemoteExchangeThroughAssignUniqueId())
                         .add(new InlineProjections())
                         .build()));
-
-        // Push partial limit hints to table scans
-        // This should be run after AddExchanges to allow scenarios where PartialTopN is rewritten PartialLimitN to benefit from this rule
-        builder.add(new ApplyPartialLimitHint(metadata));
 
         // Optimizers above this don't understand local exchanges, so be careful moving this.
         builder.add(new AddLocalExchanges(plannerContext));

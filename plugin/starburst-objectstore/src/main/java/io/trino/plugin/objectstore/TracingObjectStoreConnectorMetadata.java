@@ -1572,15 +1572,6 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     }
 
     @Override
-    public Optional<ConnectorTableHandle> applyPartialLimit(ConnectorSession session, ConnectorTableHandle tableHandle, long limitHint)
-    {
-        Span span = startSpan("applyPartialLimit", tableHandle);
-        try (var _ = scopedSpan(span)) {
-            return delegate.applyPartialLimit(session, tableHandle, limitHint);
-        }
-    }
-
-    @Override
     public Optional<ApplyPartialTopNResult<ConnectorTableHandle>> applyPartialTopN(
             ConnectorSession session,
             ConnectorTableHandle tableHandle,

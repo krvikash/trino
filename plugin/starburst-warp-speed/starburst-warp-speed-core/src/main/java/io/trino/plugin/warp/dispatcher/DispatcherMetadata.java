@@ -424,19 +424,6 @@ public class DispatcherMetadata
     }
 
     @Override
-    public Optional<ConnectorTableHandle> applyPartialLimit(ConnectorSession session, ConnectorTableHandle tableHandle, long limitHint)
-    {
-        DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) tableHandle;
-        return proxiedConnectorMetadata.applyPartialLimit(session, dispatcherTableHandle.getProxyConnectorTableHandle(), limitHint)
-                .map(result ->
-                        convertTableHandle(
-                                session,
-                                dispatcherTableHandle,
-                                result,
-                                dispatcherTableHandle.getSchemaTableName()));
-    }
-
-    @Override
     public Optional<ApplyPartialTopNResult<ConnectorTableHandle>> applyPartialTopN(
             ConnectorSession session,
             ConnectorTableHandle tableHandle,

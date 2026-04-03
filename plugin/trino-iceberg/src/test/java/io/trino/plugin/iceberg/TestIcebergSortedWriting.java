@@ -66,7 +66,6 @@ public class TestIcebergSortedWriting
         return IcebergQueryRunner.builder()
                 .setInitialTables(ImmutableList.of(TpchTable.LINE_ITEM))
                 .addIcebergProperty("iceberg.sorted-writing-enabled", "true")
-                .addIcebergProperty("iceberg.optimize-partial-topn-enabled", "false")
                 // Test staging of sorted writes to local disk
                 .addIcebergProperty("iceberg.sorted-writing.local-staging-path", "/tmp/trino-${USER}")
                 // Allows testing the sorting writer flushing to the file system with smaller tables
@@ -105,110 +104,6 @@ public class TestIcebergSortedWriting
     }
 
     @Test
-    public void testPreSortedInput()
-    {
-        // Using a small file size forces multiple files to be created
-        Session withSmallFileSize = Session.builder(getSession())
-                .setCatalogSessionProperty("iceberg", "target_max_file_size", "20kB")
-                .build();
-        try (TestTable table = new TestTable(
-                getQueryRunner()::execute,
-                "test_sorted_lineitem_table",
-                "WITH (sorted_by = ARRAY['orderkey ASC NULLS FIRST', 'linenumber ASC NULLS FIRST'], format = '" + PARQUET + "') AS TABLE tpch.tiny.lineitem WITH NO DATA")) {
-            assertUpdate(
-                    withSmallFileSize,
-                    "INSERT INTO " + table.getName() + " TABLE tpch.tiny.lineitem",
-                    "VALUES 60175");
-            int filesCount = computeActual("SELECT file_path from \"" + table.getName() + "$files\"").getOnlyColumnAsSet().size();
-            assertThat(filesCount).isGreaterThanOrEqualTo(6);
-
-            // TopNPartial is used by default
-            assertThat(
-                    query("SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 10"))
-                    .matches(anyTree(
-                            topN(
-                                    10, ImmutableList.of(sort("o", ASCENDING, FIRST)), TopNNode.Step.PARTIAL,
-                                    tableScan(
-                                            handle -> !((IcebergTableHandle) handle).preferSmallInitialReads(),
-                                            TupleDomain.all(),
-                                            ImmutableMap.of("o", equalTo("orderkey"))))));
-
-            Session withUnsafeSortingProperty = Session.builder(getSession())
-                    .setCatalogSessionProperty("iceberg", "unsafe_sorting_properties_enabled", "true")
-                    .build();
-            // LimitPartial is used when sorting property is enabled
-            assertThat(
-                    query(withUnsafeSortingProperty, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 10"))
-                    .matches(anyTree(
-                            limit(
-                                    10, ImmutableList.of(), true, ImmutableList.of("o"),
-                                    tableScan(
-                                            handle -> ((IcebergTableHandle) handle).preferSmallInitialReads(),
-                                            TupleDomain.all(),
-                                            ImmutableMap.of("o", equalTo("orderkey"))))));
-            // preferSmallInitialReads should be false with large LIMIT
-            assertThat(
-                    query(withUnsafeSortingProperty, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 100001"))
-                    .matches(anyTree(
-                            limit(
-                                    100001, ImmutableList.of(), true, ImmutableList.of("o"),
-                                    tableScan(
-                                            handle -> !((IcebergTableHandle) handle).preferSmallInitialReads(),
-                                            TupleDomain.all(),
-                                            ImmutableMap.of("o", equalTo("orderkey"))))));
-            // Filter between TopN and Scan
-            assertThat(
-                    query(withUnsafeSortingProperty, "SELECT * FROM " + table.getName() + " WHERE orderkey > 10 ORDER BY orderkey ASC NULLS FIRST LIMIT 10"))
-                    .matches(anyTree(
-                            limit(
-                                    10, ImmutableList.of(), true, ImmutableList.of("o"),
-                                    node(
-                                            FilterNode.class,
-                                            tableScan(
-                                                    handle -> ((IcebergTableHandle) handle).preferSmallInitialReads(),
-                                                    TupleDomain.all(),
-                                                    ImmutableMap.of("o", equalTo("orderkey")))))));
-            // Multiple sorted columns
-            assertThat(
-                    query(withUnsafeSortingProperty, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST, linenumber ASC NULLS FIRST LIMIT 10"))
-                    .matches(anyTree(
-                            limit(
-                                    10, ImmutableList.of(), true, ImmutableList.of("o", "l"),
-                                    tableScan(
-                                            handle -> ((IcebergTableHandle) handle).preferSmallInitialReads(),
-                                            TupleDomain.all(),
-                                            ImmutableMap.of("o", equalTo("orderkey"), "l", equalTo("linenumber"))))));
-
-            // Sorting property mismatch on 2nd column
-            assertThat(
-                    query(withUnsafeSortingProperty, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST, linenumber LIMIT 10"))
-                    .matches(anyTree(
-                            topN(
-                                    10, ImmutableList.of(sort("o", ASCENDING, FIRST), sort("l", ASCENDING, LAST)), TopNNode.Step.PARTIAL,
-                                    tableScan(table.getName(), ImmutableMap.of("o", "orderkey", "l", "linenumber")))));
-            // Sorting property mismatch on 1st column
-            assertThat(
-                    query(withUnsafeSortingProperty, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC LIMIT 10"))
-                    .matches(anyTree(
-                            topN(
-                                    10, ImmutableList.of(sort("o", ASCENDING, LAST)), TopNNode.Step.PARTIAL,
-                                    tableScan(table.getName(), ImmutableMap.of("o", "orderkey")))));
-            assertThat(
-                    query(withUnsafeSortingProperty, "SELECT * FROM " + table.getName() + " ORDER BY orderkey DESC NULLS FIRST LIMIT 10"))
-                    .matches(anyTree(
-                            topN(
-                                    10, ImmutableList.of(sort("o", DESCENDING, FIRST)), TopNNode.Step.PARTIAL,
-                                    tableScan(table.getName(), ImmutableMap.of("o", "orderkey")))));
-
-            // Verify results
-            assertQuery(
-                    withUnsafeSortingProperty,
-                    "SELECT * FROM " + table.getName() + " WHERE orderkey BETWEEN 10 AND 14000 ORDER BY orderkey ASC NULLS FIRST LIMIT 100",
-                    "SELECT * FROM lineitem WHERE orderkey BETWEEN 10 AND 14000 ORDER BY orderkey ASC LIMIT 100");
-        }
-    }
-
-    @Test
     public void testPartialTopNOptimization()
     {
         Session withSmallFileSize = Session.builder(getSession())
@@ -223,14 +118,9 @@ public class TestIcebergSortedWriting
                     "INSERT INTO " + table.getName() + " TABLE tpch.tiny.lineitem",
                     "VALUES 60175");
 
-            Session withPartialTopN = Session.builder(getSession())
-                    .setSystemProperty("use_sub_plan_alternatives", "true")
-                    .setCatalogSessionProperty("iceberg", "optimize_partial_topn_enabled", "true")
-                    .build();
-
             // Single column prefix match - preferSmallInitialReads should be true
             assertThat(
-                    query(withPartialTopN, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 10"))
+                    query("SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 10"))
                     .matches(anyTree(
                             chooseAlternativeNode(
                                     topN(10, ImmutableList.of(sort("o", ASCENDING, FIRST)), TopNNode.Step.PARTIAL,
@@ -243,7 +133,7 @@ public class TestIcebergSortedWriting
 
             // Full sort order match
             assertThat(
-                    query(withPartialTopN, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST, linenumber ASC NULLS FIRST LIMIT 10"))
+                    query("SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST, linenumber ASC NULLS FIRST LIMIT 10"))
                     .matches(anyTree(
                             chooseAlternativeNode(
                                     topN(10, ImmutableList.of(sort("o", ASCENDING, FIRST), sort("l", ASCENDING, FIRST)), TopNNode.Step.PARTIAL,
@@ -256,7 +146,7 @@ public class TestIcebergSortedWriting
 
             // Large count - preferSmallInitialReads should be false
             assertThat(
-                    query(withPartialTopN, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 100001"))
+                    query("SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 100001"))
                     .matches(anyTree(
                             chooseAlternativeNode(
                                     topN(100001, ImmutableList.of(sort("o", ASCENDING, FIRST)), TopNNode.Step.PARTIAL,
@@ -269,7 +159,7 @@ public class TestIcebergSortedWriting
 
             // Filter between TopN and Scan
             assertThat(
-                    query(withPartialTopN, "SELECT * FROM " + table.getName() + " WHERE orderkey > 10 ORDER BY orderkey ASC NULLS FIRST LIMIT 10"))
+                    query("SELECT * FROM " + table.getName() + " WHERE orderkey > 10 ORDER BY orderkey ASC NULLS FIRST LIMIT 10"))
                     .matches(anyTree(
                             chooseAlternativeNode(
                                     topN(10, ImmutableList.of(sort("o", ASCENDING, FIRST)), TopNNode.Step.PARTIAL,
@@ -284,7 +174,7 @@ public class TestIcebergSortedWriting
 
             // Sorting property mismatch - wrong null ordering on 1st column
             assertThat(
-                    query(withPartialTopN, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC LIMIT 10"))
+                    query("SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC LIMIT 10"))
                     .matches(anyTree(
                             topN(
                                     10, ImmutableList.of(sort("o", ASCENDING, LAST)), TopNNode.Step.PARTIAL,
@@ -292,7 +182,7 @@ public class TestIcebergSortedWriting
 
             // Sorting property mismatch - wrong direction
             assertThat(
-                    query(withPartialTopN, "SELECT * FROM " + table.getName() + " ORDER BY orderkey DESC NULLS FIRST LIMIT 10"))
+                    query("SELECT * FROM " + table.getName() + " ORDER BY orderkey DESC NULLS FIRST LIMIT 10"))
                     .matches(anyTree(
                             topN(
                                     10, ImmutableList.of(sort("o", DESCENDING, FIRST)), TopNNode.Step.PARTIAL,
@@ -300,7 +190,7 @@ public class TestIcebergSortedWriting
 
             // Sorting property mismatch on 2nd column
             assertThat(
-                    query(withPartialTopN, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST, linenumber LIMIT 10"))
+                    query("SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST, linenumber LIMIT 10"))
                     .matches(anyTree(
                             topN(
                                     10, ImmutableList.of(sort("o", ASCENDING, FIRST), sort("l", ASCENDING, LAST)), TopNNode.Step.PARTIAL,
@@ -308,7 +198,6 @@ public class TestIcebergSortedWriting
 
             // Verify results
             assertQuery(
-                    withPartialTopN,
                     "SELECT * FROM " + table.getName() + " WHERE orderkey BETWEEN 10 AND 14000 ORDER BY orderkey ASC NULLS FIRST LIMIT 100",
                     "SELECT * FROM lineitem WHERE orderkey BETWEEN 10 AND 14000 ORDER BY orderkey ASC LIMIT 100");
         }
@@ -320,11 +209,6 @@ public class TestIcebergSortedWriting
         Session withSmallFileSize = Session.builder(getSession())
                 .setCatalogSessionProperty("iceberg", "target_max_file_size", "20kB")
                 .build();
-        Session withPartialTopN = Session.builder(getSession())
-                .setSystemProperty("use_sub_plan_alternatives", "true")
-                .setCatalogSessionProperty("iceberg", "optimize_partial_topn_enabled", "true")
-                .build();
-
         try (TestTable table = new TestTable(
                 getQueryRunner()::execute,
                 "test_mixed_sorted_table",
@@ -350,7 +234,7 @@ public class TestIcebergSortedWriting
 
             // The plan should have a ChooseAlternativeNode since the table has a sort order
             assertThat(
-                    query(withPartialTopN, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 10"))
+                    query("SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 10"))
                     .matches(anyTree(
                             chooseAlternativeNode(
                                     topN(10, ImmutableList.of(sort("o", ASCENDING, FIRST)), TopNNode.Step.PARTIAL,
@@ -364,7 +248,6 @@ public class TestIcebergSortedWriting
             // Verify correctness - the alternative chooser uses the optimized limit for sorted splits
             // and falls back to TopN for unsorted splits, producing correct results overall
             assertQuery(
-                    withPartialTopN,
                     "SELECT orderkey FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 10",
                     "SELECT orderkey FROM (SELECT orderkey FROM lineitem UNION ALL SELECT orderkey FROM lineitem) t ORDER BY orderkey ASC LIMIT 10");
         }
@@ -388,20 +271,20 @@ public class TestIcebergSortedWriting
                     "INSERT INTO " + table.getName() + " TABLE tpch.sf1.lineitem",
                     "VALUES 6001215");
 
-            Session withPartialTopN = Session.builder(getSession())
-                    .setSystemProperty("use_sub_plan_alternatives", "true")
-                    .setCatalogSessionProperty("iceberg", "optimize_partial_topn_enabled", "true")
+            Session withoutPartialTopN = Session.builder(getSession())
+                    .setCatalogSessionProperty("iceberg", "optimize_partial_topn_enabled", "false")
                     .build();
 
             // Baseline: no partial TopN optimization
             QueryRunner.MaterializedResultWithQueryId resultWithQueryId = getDistributedQueryRunner().executeWithQueryId(
-                    getSession(),
+                    withoutPartialTopN,
                     "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 10");
             long baselinePhysicalInputBytes = getPhysicalInputDataSize(resultWithQueryId.queryId());
             assertThat(baselinePhysicalInputBytes).isGreaterThan(0);
 
+            // With partial TopN optimization (enabled by default)
             resultWithQueryId = getDistributedQueryRunner().executeWithQueryId(
-                    withPartialTopN,
+                    getSession(),
                     "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 10");
             long optimizedPhysicalInputBytes = getPhysicalInputDataSize(resultWithQueryId.queryId());
             assertThat(optimizedPhysicalInputBytes)

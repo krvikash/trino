@@ -19,7 +19,6 @@ import io.airlift.slice.Slice;
 import io.trino.connector.MockConnectorFactory.ApplyAggregation;
 import io.trino.connector.MockConnectorFactory.ApplyFilter;
 import io.trino.connector.MockConnectorFactory.ApplyJoin;
-import io.trino.connector.MockConnectorFactory.ApplyPartialLimit;
 import io.trino.connector.MockConnectorFactory.ApplyPartialTopN;
 import io.trino.connector.MockConnectorFactory.ApplyProjection;
 import io.trino.connector.MockConnectorFactory.ApplyTableFunction;
@@ -172,7 +171,6 @@ public class MockConnector
     private final MockConnectorFactory.ApplyJoin applyJoin;
     private final MockConnectorFactory.ApplyTopN applyTopN;
     private final MockConnectorFactory.ApplyFilter applyFilter;
-    private final MockConnectorFactory.ApplyPartialLimit applyPartialLimit;
     private final MockConnectorFactory.ApplyPartialTopN applyPartialTopN;
     private final MockConnectorFactory.ApplyTableFunction applyTableFunction;
     private final MockConnectorFactory.ApplyTableScanRedirect applyTableScanRedirect;
@@ -233,7 +231,6 @@ public class MockConnector
             ApplyJoin applyJoin,
             ApplyTopN applyTopN,
             ApplyFilter applyFilter,
-            ApplyPartialLimit applyPartialLimit,
             ApplyPartialTopN applyPartialTopN,
             ApplyTableFunction applyTableFunction,
             ApplyTableScanRedirect applyTableScanRedirect,
@@ -293,7 +290,6 @@ public class MockConnector
         this.applyJoin = requireNonNull(applyJoin, "applyJoin is null");
         this.applyTopN = requireNonNull(applyTopN, "applyTopN is null");
         this.applyFilter = requireNonNull(applyFilter, "applyFilter is null");
-        this.applyPartialLimit = requireNonNull(applyPartialLimit, "applyPartialLimit is null");
         this.applyPartialTopN = requireNonNull(applyPartialTopN, "applyPartialTopN is null");
         this.applyTableFunction = requireNonNull(applyTableFunction, "applyTableFunction is null");
         this.applyTableScanRedirect = requireNonNull(applyTableScanRedirect, "applyTableScanRedirection is null");
@@ -531,12 +527,6 @@ public class MockConnector
         public Optional<ConstraintApplicationResult<ConnectorTableHandle>> applyFilter(ConnectorSession session, ConnectorTableHandle handle, Constraint constraint)
         {
             return applyFilter.apply(session, handle, constraint);
-        }
-
-        @Override
-        public Optional<ConnectorTableHandle> applyPartialLimit(ConnectorSession session, ConnectorTableHandle handle, long limitHint)
-        {
-            return applyPartialLimit.apply(session, handle, limitHint);
         }
 
         @Override

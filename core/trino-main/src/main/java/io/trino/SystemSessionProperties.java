@@ -120,7 +120,6 @@ public final class SystemSessionProperties
     public static final String PUSH_AGGREGATION_INTO_VALUES_ENABLED = "push_aggregation_into_values_enabled";
     public static final String PUSH_PARTIAL_AGGREGATION_THROUGH_JOIN = "push_partial_aggregation_through_join";
     public static final String ALLOW_UNSAFE_PUSHDOWN = "allow_unsafe_pushdown";
-    public static final String PARTIAL_LIMIT_HINT_ENABLED = "partial_limit_hint_enabled";
     public static final String PRE_AGGREGATE_CASE_AGGREGATIONS_ENABLED = "pre_aggregate_case_aggregations_enabled";
     public static final String FORCE_SINGLE_NODE_OUTPUT = "force_single_node_output";
     public static final String FILTER_AND_PROJECT_MIN_OUTPUT_PAGE_SIZE = "filter_and_project_min_output_page_size";
@@ -1288,11 +1287,6 @@ public final class SystemSessionProperties
                         optimizerConfig.isUnsafePushdownAllowed(),
                         true),
                 booleanProperty(
-                        PARTIAL_LIMIT_HINT_ENABLED,
-                        "Enable partial limit hint pushdown to table scans",
-                        optimizerConfig.isPartialLimitHintEnabled(),
-                        false),
-                booleanProperty(
                         SPOOLING_ENABLED,
                         "Enable client spooling protocol",
                         true,
@@ -2359,11 +2353,6 @@ public final class SystemSessionProperties
     public static boolean isUnsafePushdownAllowed(Session session)
     {
         return session.getSystemProperty(ALLOW_UNSAFE_PUSHDOWN, Boolean.class);
-    }
-
-    public static boolean isPartialLimitHintEnabled(Session session)
-    {
-        return session.getSystemProperty(PARTIAL_LIMIT_HINT_ENABLED, Boolean.class);
     }
 
     public static boolean isDebugAdaptivePlannerEnabled(Session session)

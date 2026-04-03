@@ -38,6 +38,7 @@ import static java.util.concurrent.TimeUnit.MINUTES;
         "use-highest-cardinality-column-for-forced-exchange-below-group-id",
         "optimizer.optimize-mixed-distinct-aggregations",
         "optimizer.optimize-hash-generation",
+        "optimizer.partial-limit-hint.enabled",
 })
 public class OptimizerConfig
 {
@@ -111,7 +112,6 @@ public class OptimizerConfig
     private long minInputRowsPerTask = 10_000_000L;
 
     private boolean allowUnsafePushdown; // TODO: remove once https://github.com/trinodb/trino/issues/22268 is fixed
-    private boolean partialLimitHintEnabled = true;
 
     public enum JoinReorderingStrategy
     {
@@ -950,19 +950,6 @@ public class OptimizerConfig
     public OptimizerConfig setUnsafePushdownAllowed(boolean value)
     {
         this.allowUnsafePushdown = value;
-        return this;
-    }
-
-    public boolean isPartialLimitHintEnabled()
-    {
-        return partialLimitHintEnabled;
-    }
-
-    @Config("optimizer.partial-limit-hint.enabled")
-    @ConfigDescription("Enable partial limit hint pushdown to table scans")
-    public OptimizerConfig setPartialLimitHintEnabled(boolean partialLimitHintEnabled)
-    {
-        this.partialLimitHintEnabled = partialLimitHintEnabled;
         return this;
     }
 }

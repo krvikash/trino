@@ -55,6 +55,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
         "iceberg.allow-legacy-snapshot-syntax",
         "iceberg.experimental.extended-statistics.enabled",
         "iceberg.extended-statistics.enabled",
+        "iceberg.unsafe-sorting-properties-enabled",
 })
 public class IcebergConfig
 {
@@ -99,7 +100,6 @@ public class IcebergConfig
     private boolean sortedWritingEnabled = true;
     private boolean optimizePartialTopNEnabled = true;
     private Optional<String> sortedWritingLocalStagingPath = Optional.empty();
-    private boolean unsafeSortingPropertiesEnabled;
     private boolean queryPartitionFilterRequired;
     private Set<String> queryPartitionFilterRequiredSchemas = ImmutableSet.of();
     private int splitManagerThreads = Math.min(Runtime.getRuntime().availableProcessors() * 2, 32);
@@ -561,19 +561,6 @@ public class IcebergConfig
         return scheme.isEmpty()
                 || scheme.equals(Optional.of("file"))
                 || scheme.equals(Optional.of("local"));
-    }
-
-    public boolean isUnsafeSortingPropertiesEnabled()
-    {
-        return unsafeSortingPropertiesEnabled;
-    }
-
-    @Config("iceberg.unsafe-sorting-properties-enabled")
-    @ConfigDescription("Enables use of table sorting definition for optimizing reads. This will lead to incorrect results if the data files are not sorted as specified in the current table definition.")
-    public IcebergConfig setUnsafeSortingPropertiesEnabled(boolean unsafeSortingPropertiesEnabled)
-    {
-        this.unsafeSortingPropertiesEnabled = unsafeSortingPropertiesEnabled;
-        return this;
     }
 
     @Config("iceberg.query-partition-filter-required")

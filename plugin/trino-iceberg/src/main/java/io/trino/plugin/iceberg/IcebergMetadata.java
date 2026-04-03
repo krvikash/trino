@@ -369,7 +369,6 @@ import static io.trino.plugin.iceberg.IcebergSessionProperties.isOptimizePartial
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isProjectionPushdownEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isQueryPartitionFilterRequired;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isStatisticsEnabled;
-import static io.trino.plugin.iceberg.IcebergSessionProperties.isUnsafeSortingPropertiesEnabled;
 import static io.trino.plugin.iceberg.IcebergTableName.isDataTable;
 import static io.trino.plugin.iceberg.IcebergTableName.isIcebergTableName;
 import static io.trino.plugin.iceberg.IcebergTableName.isMaterializedViewStorage;
@@ -1131,11 +1130,6 @@ public class IcebergMetadata
                     discreteTupleDomain);
         }
 
-        List<LocalProperty<ColumnHandle>> sortingProperties = ImmutableList.of();
-        if (isUnsafeSortingPropertiesEnabled(session)) {
-            sortingProperties = getSortingProperties(icebergTable, typeManager);
-        }
-
         return new ConnectorTableProperties(
                 // Using the predicate here directly avoids eagerly loading all partition values. Logically, this
                 // still keeps predicate and discretePredicates evaluation the same on every row of the table. This
@@ -1144,7 +1138,7 @@ public class IcebergMetadata
                 enforcedPredicate.transformKeys(ColumnHandle.class::cast),
                 table.getTablePartitioning().flatMap(IcebergTablePartitioning::toConnectorTablePartitioning),
                 Optional.ofNullable(discretePredicates),
-                sortingProperties);
+                ImmutableList.of());
     }
 
     @Override
@@ -4484,7 +4478,7 @@ public class IcebergMetadata
                 table.getUnenforcedPredicate(), // known to be ALL
                 table.getEnforcedPredicate(),
                 OptionalLong.of(limit),
-                table.preferSmallInitialReads(),
+                limit < 100_000,
                 OptionalInt.empty(),
                 table.getProjectedColumns(),
                 table.getNameMappingJson(),
@@ -5476,18 +5470,6 @@ public class IcebergMetadata
     public WriterScalingOptions getInsertWriterScalingOptions(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
         return WriterScalingOptions.ENABLED;
-    }
-
-    @Override
-    public Optional<ConnectorTableHandle> applyPartialLimit(ConnectorSession session, ConnectorTableHandle handle, long limitHint)
-    {
-        IcebergTableHandle tableHandle = (IcebergTableHandle) handle;
-        // Apply small reads per split optimization when limit hint is less than 100,000
-        if (limitHint < 100_000 && !tableHandle.preferSmallInitialReads()) {
-            return Optional.of(tableHandle.withPreferSmallInitialReads(true));
-        }
-
-        return Optional.empty();
     }
 
     @Override
