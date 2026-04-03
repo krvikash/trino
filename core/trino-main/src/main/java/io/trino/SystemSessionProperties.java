@@ -242,6 +242,7 @@ public final class SystemSessionProperties
     public static final String IDLE_WRITER_MIN_DATA_SIZE_THRESHOLD = "idle_writer_min_data_size_threshold";
     public static final String CLOSE_IDLE_WRITERS_TRIGGER_DURATION = "close_idle_writers_trigger_duration";
     public static final String COLUMNAR_FILTER_EVALUATION_ENABLED = "columnar_filter_evaluation_enabled";
+    public static final String GPU_ACCELERATION_ENABLED = "gpu_acceleration_enabled";
     public static final String DEBUG_OUTPUT_ENABLED = "debug_output_enabled";
     public static final String SPOOLING_ENABLED = "spooling_enabled";
     public static final String SPOOLING_UNSUPPORTED_WARNING = "spooling_unsupported_warning";
@@ -1239,6 +1240,11 @@ public final class SystemSessionProperties
                         "Enables columnar evaluation of filters",
                         featuresConfig.isColumnarFilterEvaluationEnabled(),
                         false),
+                booleanProperty(
+                        GPU_ACCELERATION_ENABLED,
+                        "Enable GPU-accelerated query execution",
+                        featuresConfig.isGpuAccelerationEnabled(),
+                        true /* TODO (https://starburstdata.atlassian.net/browse/ENG-9839) officialize config toggles */),
                 booleanProperty(
                         REUSE_COMMON_SUBQUERIES,
                         "Allow optimizing queries by common subquery reuse",
@@ -2344,6 +2350,11 @@ public final class SystemSessionProperties
     public static boolean isColumnarFilterEvaluationEnabled(Session session)
     {
         return session.getSystemProperty(COLUMNAR_FILTER_EVALUATION_ENABLED, Boolean.class);
+    }
+
+    public static boolean isGpuAccelerationEnabled(Session session)
+    {
+        return session.getSystemProperty(GPU_ACCELERATION_ENABLED, Boolean.class);
     }
 
     public static boolean isDebugOutputEnabled(Session session)

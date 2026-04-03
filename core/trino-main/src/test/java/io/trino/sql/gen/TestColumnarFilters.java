@@ -709,21 +709,21 @@ public class TestColumnarFilters
     {
         NO_NULLS {
             @Override
-            Optional<boolean[]> getNulls(int positionCount)
+            public Optional<boolean[]> getNulls(int positionCount)
             {
                 return Optional.empty();
             }
         },
         NO_NULLS_WITH_MAY_HAVE_NULL {
             @Override
-            Optional<boolean[]> getNulls(int positionCount)
+            public Optional<boolean[]> getNulls(int positionCount)
             {
                 return Optional.of(new boolean[positionCount]);
             }
         },
         ALL_NULLS {
             @Override
-            Optional<boolean[]> getNulls(int positionCount)
+            public Optional<boolean[]> getNulls(int positionCount)
             {
                 boolean[] nulls = new boolean[positionCount];
                 Arrays.fill(nulls, true);
@@ -732,7 +732,7 @@ public class TestColumnarFilters
         },
         RANDOM_NULLS {
             @Override
-            Optional<boolean[]> getNulls(int positionCount)
+            public Optional<boolean[]> getNulls(int positionCount)
             {
                 boolean[] nulls = new boolean[positionCount];
                 for (int i = 0; i < positionCount; i++) {
@@ -743,7 +743,7 @@ public class TestColumnarFilters
         },
         GROUPED_NULLS {
             @Override
-            Optional<boolean[]> getNulls(int positionCount)
+            public Optional<boolean[]> getNulls(int positionCount)
             {
                 boolean[] nulls = new boolean[positionCount];
                 int maxGroupSize = 23;
@@ -758,7 +758,7 @@ public class TestColumnarFilters
             }
         };
 
-        abstract Optional<boolean[]> getNulls(int positionCount);
+        public abstract Optional<boolean[]> getNulls(int positionCount);
     }
 
     private static Object[][] inputProviders()

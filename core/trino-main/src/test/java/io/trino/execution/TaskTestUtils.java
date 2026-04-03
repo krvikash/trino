@@ -38,6 +38,7 @@ import io.trino.node.TestingInternalNodeManager;
 import io.trino.operator.FlatHashStrategyCompiler;
 import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.PagesIndex;
+import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.index.IndexJoinLookupStats;
 import io.trino.operator.index.IndexManager;
 import io.trino.server.protocol.spooling.QueryDataEncoders;
@@ -177,6 +178,7 @@ public final class TaskTestUtils
                 new MockDirectExchangeClientSupplier(),
                 new ExpressionCompiler(pageFunctionCompiler, columnarFilterCompiler),
                 pageFunctionCompiler,
+                new GpuExpressionCompiler(),
                 new JoinFilterFunctionCompiler(PLANNER_CONTEXT.getFunctionManager(), new CompilerConfig()),
                 new IndexJoinLookupStats(),
                 cacheStats,

@@ -1,0 +1,97 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.operator.gpu;
+
+import ai.rapids.cudf.ColumnVector;
+import com.google.common.collect.ImmutableList;
+import io.trino.annotation.NotThreadSafe;
+import io.trino.operator.gpu.borrow.Borrow;
+import io.trino.operator.gpu.borrow.Own;
+import io.trino.spi.block.Block;
+
+import java.util.List;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+
+@NotThreadSafe
+public sealed interface Column
+        extends RuntimeCloseable
+{
+    int positionCount();
+
+    final class Blocks
+            implements Column
+    {
+        private final int positionCount;
+        private final List<Block> blocks;
+
+        public Blocks(List<Block> blocks)
+        {
+            this.positionCount = blocks.stream().mapToInt(Block::getPositionCount).sum();
+            this.blocks = ImmutableList.copyOf(blocks);
+        }
+
+        @Override
+        public int positionCount()
+        {
+            return positionCount;
+        }
+
+        public List<Block> blocks()
+        {
+            return blocks;
+        }
+
+        @Override
+        public void close() {}
+    }
+
+    final class DeviceMemory
+            implements Column
+    {
+        private final @Own ColumnVector columnVector;
+        private boolean closed;
+
+        public DeviceMemory(ColumnVector columnVector)
+        {
+            checkArgument(columnVector.getRowCount() <= Integer.MAX_VALUE, "Too many rows: %s", columnVector.getRowCount());
+            this.columnVector = columnVector;
+        }
+
+        public @Borrow ColumnVector columnVector()
+        {
+            checkState(!closed, "Already closed");
+            return columnVector;
+        }
+
+        @Override
+        public int positionCount()
+        {
+            checkState(!closed, "Already closed");
+            return (int) columnVector.getRowCount();
+        }
+
+        @Override
+        public void close()
+        {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            // Decrements internal refcount and disposes memory if it was the last reference.
+            columnVector.close();
+        }
+    }
+}

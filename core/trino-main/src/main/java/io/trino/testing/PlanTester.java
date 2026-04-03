@@ -132,6 +132,7 @@ import io.trino.operator.PagesIndex;
 import io.trino.operator.PagesIndexPageSorter;
 import io.trino.operator.SplitDriverFactory;
 import io.trino.operator.TaskContext;
+import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.index.IndexJoinLookupStats;
 import io.trino.operator.index.IndexManager;
 import io.trino.operator.scalar.json.JsonExistsFunction;
@@ -869,6 +870,7 @@ public class PlanTester
                 },
                 expressionCompiler,
                 pageFunctionCompiler,
+                new GpuExpressionCompiler(),
                 joinFilterFunctionCompiler,
                 new IndexJoinLookupStats(),
                 new CacheStats(),

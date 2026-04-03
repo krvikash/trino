@@ -125,6 +125,10 @@ import io.trino.operator.exchange.LocalMergeSourceOperator.LocalMergeSourceOpera
 import io.trino.operator.exchange.PageChannelSelector;
 import io.trino.operator.function.RegularTableFunctionPartition.PassThroughColumnSpecification;
 import io.trino.operator.function.TableFunctionOperator.TableFunctionOperatorFactory;
+import io.trino.operator.gpu.GpuFilter;
+import io.trino.operator.gpu.GpuOperator;
+import io.trino.operator.gpu.expression.CompiledExpression;
+import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.index.DynamicTupleFilterFactory;
 import io.trino.operator.index.FieldSetFilteringRecordSet;
 import io.trino.operator.index.IndexBuildDriverFactoryProvider;
@@ -349,6 +353,7 @@ import static io.trino.SystemSessionProperties.isColumnarFilterEvaluationEnabled
 import static io.trino.SystemSessionProperties.isDebugOutputEnabled;
 import static io.trino.SystemSessionProperties.isEnableDynamicRowFiltering;
 import static io.trino.SystemSessionProperties.isForceSpillingOperator;
+import static io.trino.SystemSessionProperties.isGpuAccelerationEnabled;
 import static io.trino.SystemSessionProperties.isParallelizeLookupOuterOperator;
 import static io.trino.SystemSessionProperties.isSpillEnabled;
 import static io.trino.SystemSessionProperties.isUseCardinalityBasedPartialAggregationController;
@@ -455,6 +460,7 @@ public class LocalExecutionPlanner
     private final PageSinkManager pageSinkManager;
     private final DirectExchangeClientSupplier directExchangeClientSupplier;
     private final ExpressionCompiler expressionCompiler;
+    private final GpuExpressionCompiler gpuExpressionCompiler;
     private final PageFunctionCompiler pageFunctionCompiler;
     private final JoinFilterFunctionCompiler joinFilterFunctionCompiler;
     private final DataSize maxIndexMemorySize;
@@ -510,6 +516,7 @@ public class LocalExecutionPlanner
             DirectExchangeClientSupplier directExchangeClientSupplier,
             ExpressionCompiler expressionCompiler,
             PageFunctionCompiler pageFunctionCompiler,
+            GpuExpressionCompiler gpuExpressionCompiler,
             JoinFilterFunctionCompiler joinFilterFunctionCompiler,
             IndexJoinLookupStats indexJoinLookupStats,
             CacheStats cacheStats,
@@ -545,6 +552,7 @@ public class LocalExecutionPlanner
         this.directExchangeClientSupplier = requireNonNull(directExchangeClientSupplier, "directExchangeClientSupplier is null");
         this.pageSinkManager = requireNonNull(pageSinkManager, "pageSinkManager is null");
         this.expressionCompiler = requireNonNull(expressionCompiler, "expressionCompiler is null");
+        this.gpuExpressionCompiler = requireNonNull(gpuExpressionCompiler, "gpuExpressionCompiler is null");
         this.pageFunctionCompiler = requireNonNull(pageFunctionCompiler, "pageFunctionCompiler is null");
         this.joinFilterFunctionCompiler = requireNonNull(joinFilterFunctionCompiler, "joinFilterFunctionCompiler is null");
         this.indexJoinLookupStats = requireNonNull(indexJoinLookupStats, "indexJoinLookupStats is null");
@@ -2261,6 +2269,27 @@ public class LocalExecutionPlanner
                     .map(expression -> toRowExpression(expression, sourceLayout))
                     .collect(toImmutableList());
 
+            // TODO (https://starburstdata.atlassian.net/browse/ENG-9852) implement gluing of GPU operations
+            //
+            // TODO (https://starburstdata.atlassian.net/browse/ENG-9808) implement mixed mode data channels CPU Blocks and GPU
+            //  - detect which data channels are already in GPU
+            //  - plan trivial projections on GPU channels as GpuProjectOperation.Projection.PassThrough
+            //  - plan trivial projections on CPU channels as GpuProjectOperation.Projection.PassThrough
+            //    and without triggering materialization on the GPU
+            //  - plan non-trivial projections on
+//            Optional.ofNullable(source)
+//                    .map(PhysicalOperation::getPipelineTail)
+//                    .map(List::getLast) // TODO might this be empty when PhysicalOperation is just alternatives?
+//                    .filter(GpuOperator.Factory.class::isInstance);
+
+            Optional<CompiledExpression> gpuFilter = Optional.empty();
+            if (columns == null /* no table scan */ && translatedFilter.isPresent() && isGpuAccelerationEnabled(session)) {
+                gpuFilter = gpuExpressionCompiler.compileExpression(translatedFilter.get());
+                if (gpuFilter.isPresent()) {
+                    translatedFilter = Optional.empty();
+                }
+            }
+
             try {
                 boolean columnarFilterEvaluationEnabled = isColumnarFilterEvaluationEnabled(session);
                 boolean isDebugOutputEnabled = isDebugOutputEnabled(session);
@@ -2299,6 +2328,18 @@ public class LocalExecutionPlanner
                             getFilterAndProjectMinOutputPageRowCount(session));
 
                     return new PhysicalOperation(operatorFactory, outputMappings);
+                }
+
+                if (gpuFilter.isPresent()) {
+                    source = new PhysicalOperation(
+                            new GpuOperator.Factory(
+                                    context.getNextOperatorId(),
+                                    planNodeId,
+                                    source.getTypes(),
+                                    ImmutableList.of(new GpuFilter.Factory(gpuFilter.get())),
+                                    source.getTypes()),
+                            outputMappings,
+                            source);
                 }
 
                 OperatorFactory operatorFactory = FilterAndProjectOperator.createOperatorFactory(

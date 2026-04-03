@@ -17,6 +17,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.configuration.ConfigHidden;
 import io.airlift.configuration.DefunctConfig;
 import io.airlift.configuration.LegacyConfig;
 import io.airlift.units.DataSize;
@@ -125,6 +126,8 @@ public class FeaturesConfig
     private int filterAndProjectMinOutputPageRowCount = 256;
     private boolean mergePartitionedPages = true;
     private int maxGroupingSets = 2048;
+
+    private boolean gpuAccelerationEnabled;
 
     private boolean legacyCatalogRoles;
     private boolean incrementalHashArrayLoadFactorEnabled = true;
@@ -486,6 +489,20 @@ public class FeaturesConfig
     public FeaturesConfig setMaxGroupingSets(int maxGroupingSets)
     {
         this.maxGroupingSets = maxGroupingSets;
+        return this;
+    }
+
+    public boolean isGpuAccelerationEnabled()
+    {
+        return gpuAccelerationEnabled;
+    }
+
+    @Config("gpu-acceleration.enabled")
+    @ConfigDescription("Enable GPU-accelerated query execution")
+    @ConfigHidden // TODO (https://starburstdata.atlassian.net/browse/ENG-9839) officialize config toggles
+    public FeaturesConfig setGpuAccelerationEnabled(boolean gpuAccelerationEnabled)
+    {
+        this.gpuAccelerationEnabled = gpuAccelerationEnabled;
         return this;
     }
 

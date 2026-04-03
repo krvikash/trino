@@ -98,6 +98,7 @@ import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.PagesIndex;
 import io.trino.operator.PagesIndexPageSorter;
 import io.trino.operator.RetryPolicy;
+import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.index.IndexJoinLookupStats;
 import io.trino.operator.index.IndexManager;
 import io.trino.operator.scalar.json.JsonExistsFunction;
@@ -301,6 +302,7 @@ public class ServerMainModule
         binder.bind(ExpressionCompiler.class).in(Scopes.SINGLETON);
         binder.bind(PageFunctionCompiler.class).in(Scopes.SINGLETON);
         newExporter(binder).export(PageFunctionCompiler.class).withGeneratedName();
+        binder.bind(GpuExpressionCompiler.class).in(Scopes.SINGLETON);
         binder.bind(ColumnarFilterCompiler.class).in(Scopes.SINGLETON);
         newExporter(binder).export(ColumnarFilterCompiler.class).withGeneratedName();
         NodeSchedulerConfig nodeSchedulerConfig = buildConfigObject(NodeSchedulerConfig.class);
