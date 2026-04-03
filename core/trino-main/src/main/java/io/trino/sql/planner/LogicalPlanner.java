@@ -306,7 +306,7 @@ public class LogicalPlanner
             }
         }
 
-        if (cacheEnabled || isUseSubPlanAlternatives(session)) {
+        if (cacheEnabled) {
             try (var _ = scopedSpan(plannerContext.getTracer(), "cache-subqueries")) {
                 root = cacheCommonSubqueries.cacheSubqueries(root);
                 if (stage.ordinal() >= OPTIMIZED_AND_VALIDATED.ordinal()) {
@@ -318,19 +318,20 @@ public class LogicalPlanner
             catch (Throwable t) {
                 throw new TrinoException(GENERIC_INTERNAL_ERROR, "SUBQUERY CACHE: planning exception", t);
             }
+        }
 
-            if (isUseSubPlanAlternatives(session)) {
-                for (PlanOptimizer optimizer : alternativeOptimizers) {
-                    try (var _ = scopedSpan(plannerContext.getTracer(), "alternative-optimizer")) {
-                        root = runOptimizer(root, tableStatsProvider, optimizer);
-                    }
+        boolean useSubPlanAlternatives = isUseSubPlanAlternatives(session);
+        if (useSubPlanAlternatives) {
+            for (PlanOptimizer optimizer : alternativeOptimizers) {
+                try (var _ = scopedSpan(plannerContext.getTracer(), "alternative-optimizer")) {
+                    root = runOptimizer(root, tableStatsProvider, optimizer);
                 }
             }
+        }
 
-            if (stage.ordinal() >= OPTIMIZED_AND_VALIDATED.ordinal()) {
-                try (var _ = scopedSpan(plannerContext.getTracer(), "validate-alternatives")) {
-                    planSanityChecker.validatePlanWithAlternatives(root, session, plannerContext, warningCollector);
-                }
+        if ((cacheEnabled || useSubPlanAlternatives) && stage.ordinal() >= OPTIMIZED_AND_VALIDATED.ordinal()) {
+            try (var _ = scopedSpan(plannerContext.getTracer(), "validate-alternatives")) {
+                planSanityChecker.validatePlanWithAlternatives(root, session, plannerContext, warningCollector);
             }
         }
 

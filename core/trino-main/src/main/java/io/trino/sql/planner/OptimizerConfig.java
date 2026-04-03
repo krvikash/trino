@@ -98,7 +98,7 @@ public class OptimizerConfig
     private boolean forceSingleNodeOutput;
     private boolean useExactPartitioning;
     private boolean useCostBasedPartitioning = true;
-    private boolean useSubPlanAlternatives;
+    private boolean useSubPlanAlternatives = true;
     private int pushFilterIntoValuesMaxRowCount = 100;
     private boolean reuseCommonSubqueries;
     // adaptive partial aggregation
