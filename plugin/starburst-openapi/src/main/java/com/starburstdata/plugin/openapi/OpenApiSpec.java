@@ -21,10 +21,8 @@ import com.starburstdata.plugin.openapi.SpecUtil.ParameterIdentifier;
 import com.starburstdata.plugin.openapi.authentication.OpenApiAuthenticator;
 import com.starburstdata.plugin.openapi.conversions.SchemaIrFactory;
 import com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy;
-import com.starburstdata.plugin.openapi.conversions.decoder.ColumnWriter;
-import com.starburstdata.plugin.openapi.conversions.decoder.ColumnWriterFactory;
-import com.starburstdata.plugin.openapi.conversions.decoder.OneColumnDecoder;
 import com.starburstdata.plugin.openapi.conversions.decoder.OpenApiDecoder;
+import com.starburstdata.plugin.openapi.conversions.decoder.OpenApiDecoderFactory;
 import com.starburstdata.plugin.openapi.conversions.encoder.OpenApiParameterHandle;
 import com.starburstdata.plugin.openapi.conversions.ir.SchemaIr;
 import com.starburstdata.plugin.openapi.pagination.OpenApiPaginationStrategy;
@@ -75,7 +73,7 @@ public class OpenApiSpec
     @Inject
     public OpenApiSpec(
             OpenApiConfig config,
-            ColumnWriterFactory columnWriterFactory)
+            OpenApiDecoderFactory openApiDecoderFactory)
     {
         OpenAPI openApi = parse(config.getSpecLocation());
         requireNonNull(openApi, "openApi is null");
@@ -98,7 +96,7 @@ public class OpenApiSpec
                 referenceableSchemas,
                 referenceableParameters,
                 CastPolicy.JSON,
-                columnWriterFactory);
+                openApiDecoderFactory);
         this.tableFunctions = pathMetadata.entrySet().stream()
                 .map(entry -> new OpenApiRequestTableFunction(
                         config.getBaseUri(),
@@ -130,7 +128,7 @@ public class OpenApiSpec
             Map<String, Schema<?>> schemas,
             Map<String, Parameter> parameters,
             CastPolicy castPolicy,
-            ColumnWriterFactory columnWriterFactory)
+            OpenApiDecoderFactory openApiDecoderFactory)
     {
         SchemaIrFactory schemaIrFactory = new SchemaIrFactory(castPolicy, schemas);
         ImmutableMap.Builder<String, PathMetadata> pathMetadataBuilder = ImmutableMap.builder();
@@ -164,7 +162,7 @@ public class OpenApiSpec
                     return;
                 }
                 SchemaIr schemaIr = schemaIrFactory.convert(schema.get());
-                ColumnWriter columnWriter = columnWriterFactory.createFrom(schemaIr);
+                OpenApiDecoder decoder = openApiDecoderFactory.createFrom(schemaIr);
 
                 Map<ParameterIdentifier, Parameter> resolvedParameters = getParameters(
                         pathItem,
@@ -189,12 +187,11 @@ public class OpenApiSpec
                             argumentName,
                             OpenApiParameterHandle.from(resolvedParameter, parameterSchemaIr));
                 }
-
                 pathMetadataBuilder.put(
                         path,
                         new PathMetadata(
                             identifier,
-                            new OneColumnDecoder(columnWriter),
+                            decoder,
                             identifierToParameterHandleBuilder.buildOrThrow(),
                             READ_ONCE_STRATEGY,
                             OpenApiAuthenticator.NONE));

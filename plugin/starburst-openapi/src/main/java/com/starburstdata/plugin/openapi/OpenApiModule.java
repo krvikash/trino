@@ -15,6 +15,7 @@ package com.starburstdata.plugin.openapi;
 
 import com.google.inject.Binder;
 import com.starburstdata.plugin.openapi.conversions.decoder.ColumnWriterFactory;
+import com.starburstdata.plugin.openapi.conversions.decoder.OpenApiDecoderFactory;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 
 import static com.google.inject.Scopes.SINGLETON;
@@ -31,6 +32,7 @@ public class OpenApiModule
         binder.bind(OpenApiMetadata.class).in(SINGLETON);
         binder.bind(OpenApiSplitManager.class).in(SINGLETON);
         binder.bind(ColumnWriterFactory.class).in(SINGLETON);
+        binder.bind(OpenApiDecoderFactory.class).in(SINGLETON);
         binder.bind(OpenApiPageSourceProvider.class).in(SINGLETON);
         configBinder(binder).bindConfig(OpenApiConfig.class);
 

@@ -11,8 +11,7 @@ package com.starburstdata.plugin.openapi;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import io.trino.spi.type.RowType;
-import io.trino.spi.type.RowType.Field;
+import io.trino.spi.type.Type;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.Test;
@@ -24,7 +23,6 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import static io.trino.spi.type.BooleanType.BOOLEAN;
-import static io.trino.spi.type.RowType.field;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
@@ -72,10 +70,24 @@ public class TestOpenApiWithTypesServer
                 .add("integer_int64_null")
                 .add("number_float_null")
                 .add("number_double_null")
-                .add("object_row_null")
                 .add("object_map_null")
-                .add("array_null")
                 .build();
+    }
+
+    @Test
+    void testArrayNull()
+    {
+        assertQueryFails(
+                "SELECT * FROM TABLE(openapi.default.array_null())",
+                "Expected JSON ARRAY but was NULL");
+    }
+
+    @Test
+    void testObjectRowNull()
+    {
+        assertQueryFails(
+                "SELECT * FROM TABLE(openapi.default.object_row_null())",
+                "Expected JSON OBJECT but was NULL");
     }
 
     @Test
@@ -246,7 +258,7 @@ public class TestOpenApiWithTypesServer
     void testValidArray()
     {
         assertThat(query("SELECT * FROM TABLE(openapi.default.array_valid())"))
-                .matches("VALUES ARRAY[TRUE, FALSE, NULL]");
+                .matches("VALUES TRUE, FALSE, NULL");
     }
 
     @Test
@@ -278,13 +290,18 @@ public class TestOpenApiWithTypesServer
     {
         assertThat(query("SELECT * FROM TABLE(openapi.default.object_row_valid())"))
                 .result()
-                .hasTypes(ImmutableList.of(RowType.from(ImmutableList.<Field>builder()
-                        .add(field("missing", BOOLEAN))
-                        .add(field("null", BOOLEAN))
-                        .add(field("present", BOOLEAN))
-                        .build())));
+                .hasColumnNames(ImmutableList.<String>builder()
+                        .add("missing")
+                        .add("null")
+                        .add("present")
+                        .build())
+                .hasTypes(ImmutableList.<Type>builder()
+                        .add(BOOLEAN)
+                        .add(BOOLEAN)
+                        .add(BOOLEAN)
+                        .build());
 
-        assertThat(query("SELECT value.missing, value.\"null\", value.present FROM TABLE(openapi.default.object_row_valid())"))
+        assertThat(query("SELECT missing, \"null\", present FROM TABLE(openapi.default.object_row_valid())"))
                 .matches("VALUES (CAST(NULL AS BOOLEAN), CAST(NULL AS BOOLEAN), TRUE)");
     }
 }

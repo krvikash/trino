@@ -48,7 +48,7 @@ public class TestOpenApiWithParametersServer
     @MethodSource("queryParameterSerializations")
     public void testQueryParameterSerialization(String argumentName, String inputSQL, String outputString)
     {
-        assertThat(query("SELECT value[1].value FROM TABLE(openapi.default.repeat_query_params(%s => %s))".formatted(
+        assertThat(query("SELECT value FROM TABLE(openapi.default.repeat_query_params(%s => %s))".formatted(
                 argumentName,
                 inputSQL)))
                 .matches("VALUES CAST('%s' AS VARCHAR)".formatted(outputString));
@@ -75,9 +75,8 @@ public class TestOpenApiWithParametersServer
     public void testUnexplodedQueryParameterSerialization()
     {
         assertThat(query("""
-                SELECT item.value
-                FROM TABLE(openapi.default.repeat_query_params(list_string_explode => ARRAY['H,e,l,l,o', 'T,h,e,r,e!']))
-                CROSS JOIN UNNEST(value) AS item"""))
+                SELECT value
+                FROM TABLE(openapi.default.repeat_query_params(list_string_explode => ARRAY['H,e,l,l,o', 'T,h,e,r,e!']))"""))
                 .matches("VALUES CAST('H,e,l,l,o' AS VARCHAR), CAST('T,h,e,r,e!' AS VARCHAR)");
     }
 
@@ -85,9 +84,8 @@ public class TestOpenApiWithParametersServer
     public void testExplodedQueryParameterSerialization()
     {
         assertThat(query("""
-                SELECT item.value
-                FROM TABLE(openapi.default.repeat_query_params(list_string_explode => ARRAY['Hello', 'There!']))
-                CROSS JOIN UNNEST(value) AS item"""))
+                SELECT value
+                FROM TABLE(openapi.default.repeat_query_params(list_string_explode => ARRAY['Hello', 'There!']))"""))
                 .matches("VALUES CAST('Hello' AS VARCHAR), CAST('There!' AS VARCHAR)");
     }
 
@@ -95,7 +93,7 @@ public class TestOpenApiWithParametersServer
     public void testMultiPathParameterSerialization()
     {
         assertThat(query("""
-                SELECT value.paramOne, value.paramTwo FROM TABLE(openapi.default.repeat_path_param_one_param_two(
+                SELECT paramOne, paramTwo FROM TABLE(openapi.default.repeat_path_param_one_param_two(
                         param_one => 'TEST',
                         param_two => 'ING'))"""))
                 .matches("VALUES (CAST('TEST' AS VARCHAR), CAST('ING' AS VARCHAR))");
