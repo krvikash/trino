@@ -339,10 +339,10 @@ public class ObjectStoreMetadata
     }
 
     @Override
-    public void finishTableExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle, Collection<Slice> fragments, List<Object> tableExecuteState)
+    public Map<String, Long> finishTableExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle, Collection<Slice> fragments, List<Object> tableExecuteState)
     {
         TableType tableType = tableType(tableExecuteHandle);
-        delegate(tableType).finishTableExecute(unwrap(tableType, session), tableExecuteHandle, fragments, tableExecuteState);
+        return delegate(tableType).finishTableExecute(unwrap(tableType, session), tableExecuteHandle, fragments, tableExecuteState);
     }
 
     @Override

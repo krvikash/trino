@@ -282,7 +282,7 @@ public final class PlanCopier
                     idAllocator.getNextId(),
                     context.rewrite(node.getSource()),
                     node.getTarget(),
-                    node.getRowCountSymbol(),
+                    node.getOutputSymbols(),
                     node.getStatisticsAggregation(),
                     node.getStatisticsAggregationDescriptor());
         }

@@ -696,7 +696,7 @@ public class PlanBuilder
                 idAllocator.getNextId(),
                 source,
                 target,
-                rowCountSymbol,
+                ImmutableList.of(rowCountSymbol),
                 Optional.empty(),
                 Optional.empty());
     }
