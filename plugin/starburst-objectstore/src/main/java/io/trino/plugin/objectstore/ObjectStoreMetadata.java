@@ -58,6 +58,7 @@ import io.trino.spi.ErrorCode;
 import io.trino.spi.ErrorCodeSupplier;
 import io.trino.spi.RefreshType;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.ApplyPartialTopNResult;
 import io.trino.spi.connector.BeginTableExecuteResult;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.ColumnHandle;
@@ -95,6 +96,7 @@ import io.trino.spi.connector.RowChangeParadigm;
 import io.trino.spi.connector.SaveMode;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SchemaTablePrefix;
+import io.trino.spi.connector.SortingProperty;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableColumnsMetadata;
 import io.trino.spi.connector.TableNotFoundException;
@@ -1657,6 +1659,17 @@ public class ObjectStoreMetadata
     {
         TableType tableType = tableType(tableHandle);
         return delegate(tableType).applyPartialLimit(unwrap(tableType, session), tableHandle, limitHint);
+    }
+
+    @Override
+    public Optional<ApplyPartialTopNResult<ConnectorTableHandle>> applyPartialTopN(
+            ConnectorSession session,
+            ConnectorTableHandle tableHandle,
+            List<SortingProperty<ColumnHandle>> sortProperties,
+            long count)
+    {
+        TableType tableType = tableType(tableHandle);
+        return delegate(tableType).applyPartialTopN(unwrap(tableType, session), tableHandle, sortProperties, count);
     }
 
     @Override

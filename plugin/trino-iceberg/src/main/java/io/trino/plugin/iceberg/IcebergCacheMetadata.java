@@ -23,6 +23,7 @@ import io.trino.spi.connector.ConnectorTableHandle;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static java.util.Objects.requireNonNull;
@@ -64,6 +65,7 @@ public class IcebergCacheMetadata
                 icebergTableHandle.getEnforcedPredicate(),
                 icebergTableHandle.getLimit(),
                 icebergTableHandle.preferSmallInitialReads(),
+                OptionalInt.empty(),
                 icebergTableHandle.getProjectedColumns(),
                 icebergTableHandle.getNameMappingJson(),
                 icebergTableHandle.getTableLocation(),

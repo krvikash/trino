@@ -42,6 +42,7 @@ import io.trino.plugin.iceberg.procedure.IcebergTableExecuteHandle;
 import io.trino.spi.RefreshType;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.AggregationApplicationResult;
+import io.trino.spi.connector.ApplyPartialTopNResult;
 import io.trino.spi.connector.BeginTableExecuteResult;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ColumnMetadata;
@@ -82,6 +83,7 @@ import io.trino.spi.connector.SaveMode;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.connector.SortItem;
+import io.trino.spi.connector.SortingProperty;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableColumnsMetadata;
 import io.trino.spi.connector.TopNApplicationResult;
@@ -998,6 +1000,16 @@ public class LakehouseMetadata
     public Optional<ConnectorTableHandle> applyPartialLimit(ConnectorSession session, ConnectorTableHandle tableHandle, long limitHint)
     {
         return forHandle(tableHandle).applyPartialLimit(session, tableHandle, limitHint);
+    }
+
+    @Override
+    public Optional<ApplyPartialTopNResult<ConnectorTableHandle>> applyPartialTopN(
+            ConnectorSession session,
+            ConnectorTableHandle tableHandle,
+            List<SortingProperty<ColumnHandle>> sortProperties,
+            long count)
+    {
+        return forHandle(tableHandle).applyPartialTopN(session, tableHandle, sortProperties, count);
     }
 
     private ConnectorMetadata forHandle(ConnectorTableHandle handle)

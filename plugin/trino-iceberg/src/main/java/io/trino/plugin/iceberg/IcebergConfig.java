@@ -97,6 +97,7 @@ public class IcebergConfig
     private boolean hideMaterializedViewStorageTable = true;
     private Optional<String> materializedViewsStorageSchema = Optional.empty();
     private boolean sortedWritingEnabled = true;
+    private boolean optimizePartialTopNEnabled = true;
     private Optional<String> sortedWritingLocalStagingPath = Optional.empty();
     private boolean unsafeSortingPropertiesEnabled;
     private boolean queryPartitionFilterRequired;
@@ -520,6 +521,19 @@ public class IcebergConfig
     public IcebergConfig setSortedWritingEnabled(boolean sortedWritingEnabled)
     {
         this.sortedWritingEnabled = sortedWritingEnabled;
+        return this;
+    }
+
+    public boolean isOptimizePartialTopNEnabled()
+    {
+        return optimizePartialTopNEnabled;
+    }
+
+    @Config("iceberg.optimize-partial-topn-enabled")
+    @ConfigDescription("Enable optimization of partial TopN queries on sorted tables")
+    public IcebergConfig setOptimizePartialTopNEnabled(boolean optimizePartialTopNEnabled)
+    {
+        this.optimizePartialTopNEnabled = optimizePartialTopNEnabled;
         return this;
     }
 

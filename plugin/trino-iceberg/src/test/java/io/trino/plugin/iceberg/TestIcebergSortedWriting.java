@@ -18,16 +18,10 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
-import io.trino.metadata.QualifiedObjectName;
-import io.trino.operator.OperatorStats;
 import io.trino.spi.QueryId;
-import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.predicate.TupleDomain;
-import io.trino.sql.planner.Plan;
-import io.trino.sql.planner.optimizations.PlanNodeSearcher;
 import io.trino.sql.planner.plan.FilterNode;
-import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TopNNode;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
@@ -40,13 +34,13 @@ import org.junit.jupiter.api.Test;
 import java.util.function.Predicate;
 
 import static io.trino.SystemSessionProperties.MAX_WRITER_TASK_COUNT;
-import static io.trino.SystemSessionProperties.PARTIAL_LIMIT_HINT_ENABLED;
 import static io.trino.SystemSessionProperties.SCALE_WRITERS;
 import static io.trino.SystemSessionProperties.TASK_SCALE_WRITERS_ENABLED;
 import static io.trino.plugin.iceberg.IcebergTestUtils.checkOrcFileSorting;
 import static io.trino.plugin.iceberg.IcebergTestUtils.checkParquetFileSorting;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.anyTree;
+import static io.trino.sql.planner.assertions.PlanMatchPattern.chooseAlternativeNode;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.limit;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.node;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.sort;
@@ -72,6 +66,7 @@ public class TestIcebergSortedWriting
         return IcebergQueryRunner.builder()
                 .setInitialTables(ImmutableList.of(TpchTable.LINE_ITEM))
                 .addIcebergProperty("iceberg.sorted-writing-enabled", "true")
+                .addIcebergProperty("iceberg.optimize-partial-topn-enabled", "false")
                 // Test staging of sorted writes to local disk
                 .addIcebergProperty("iceberg.sorted-writing.local-staging-path", "/tmp/trino-${USER}")
                 // Allows testing the sorting writer flushing to the file system with smaller tables
@@ -214,6 +209,168 @@ public class TestIcebergSortedWriting
     }
 
     @Test
+    public void testPartialTopNOptimization()
+    {
+        Session withSmallFileSize = Session.builder(getSession())
+                .setCatalogSessionProperty("iceberg", "target_max_file_size", "20kB")
+                .build();
+        try (TestTable table = new TestTable(
+                getQueryRunner()::execute,
+                "test_sorted_lineitem_table",
+                "WITH (sorted_by = ARRAY['orderkey ASC NULLS FIRST', 'linenumber ASC NULLS FIRST'], format = '" + PARQUET + "') AS TABLE tpch.tiny.lineitem WITH NO DATA")) {
+            assertUpdate(
+                    withSmallFileSize,
+                    "INSERT INTO " + table.getName() + " TABLE tpch.tiny.lineitem",
+                    "VALUES 60175");
+
+            Session withPartialTopN = Session.builder(getSession())
+                    .setSystemProperty("use_sub_plan_alternatives", "true")
+                    .setCatalogSessionProperty("iceberg", "optimize_partial_topn_enabled", "true")
+                    .build();
+
+            // Single column prefix match - preferSmallInitialReads should be true
+            assertThat(
+                    query(withPartialTopN, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 10"))
+                    .matches(anyTree(
+                            chooseAlternativeNode(
+                                    topN(10, ImmutableList.of(sort("o", ASCENDING, FIRST)), TopNNode.Step.PARTIAL,
+                                            tableScan(table.getName(), ImmutableMap.of("o", "orderkey"))),
+                                    limit(10, ImmutableList.of(), true, ImmutableList.of("o"),
+                                            tableScan(
+                                                    handle -> ((IcebergTableHandle) handle).preferSmallInitialReads(),
+                                                    TupleDomain.all(),
+                                                    ImmutableMap.of("o", equalTo("orderkey")))))));
+
+            // Full sort order match
+            assertThat(
+                    query(withPartialTopN, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST, linenumber ASC NULLS FIRST LIMIT 10"))
+                    .matches(anyTree(
+                            chooseAlternativeNode(
+                                    topN(10, ImmutableList.of(sort("o", ASCENDING, FIRST), sort("l", ASCENDING, FIRST)), TopNNode.Step.PARTIAL,
+                                            tableScan(table.getName(), ImmutableMap.of("o", "orderkey", "l", "linenumber"))),
+                                    limit(10, ImmutableList.of(), true, ImmutableList.of("o", "l"),
+                                            tableScan(
+                                                    handle -> ((IcebergTableHandle) handle).preferSmallInitialReads(),
+                                                    TupleDomain.all(),
+                                                    ImmutableMap.of("o", equalTo("orderkey"), "l", equalTo("linenumber")))))));
+
+            // Large count - preferSmallInitialReads should be false
+            assertThat(
+                    query(withPartialTopN, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 100001"))
+                    .matches(anyTree(
+                            chooseAlternativeNode(
+                                    topN(100001, ImmutableList.of(sort("o", ASCENDING, FIRST)), TopNNode.Step.PARTIAL,
+                                            tableScan(table.getName(), ImmutableMap.of("o", "orderkey"))),
+                                    limit(100001, ImmutableList.of(), true, ImmutableList.of("o"),
+                                            tableScan(
+                                                    handle -> !((IcebergTableHandle) handle).preferSmallInitialReads(),
+                                                    TupleDomain.all(),
+                                                    ImmutableMap.of("o", equalTo("orderkey")))))));
+
+            // Filter between TopN and Scan
+            assertThat(
+                    query(withPartialTopN, "SELECT * FROM " + table.getName() + " WHERE orderkey > 10 ORDER BY orderkey ASC NULLS FIRST LIMIT 10"))
+                    .matches(anyTree(
+                            chooseAlternativeNode(
+                                    topN(10, ImmutableList.of(sort("o", ASCENDING, FIRST)), TopNNode.Step.PARTIAL,
+                                            node(FilterNode.class,
+                                                    tableScan(table.getName(), ImmutableMap.of("o", "orderkey")))),
+                                    limit(10, ImmutableList.of(), true, ImmutableList.of("o"),
+                                            node(FilterNode.class,
+                                                    tableScan(
+                                                            handle -> ((IcebergTableHandle) handle).preferSmallInitialReads(),
+                                                            TupleDomain.all(),
+                                                            ImmutableMap.of("o", equalTo("orderkey"))))))));
+
+            // Sorting property mismatch - wrong null ordering on 1st column
+            assertThat(
+                    query(withPartialTopN, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC LIMIT 10"))
+                    .matches(anyTree(
+                            topN(
+                                    10, ImmutableList.of(sort("o", ASCENDING, LAST)), TopNNode.Step.PARTIAL,
+                                    tableScan(table.getName(), ImmutableMap.of("o", "orderkey")))));
+
+            // Sorting property mismatch - wrong direction
+            assertThat(
+                    query(withPartialTopN, "SELECT * FROM " + table.getName() + " ORDER BY orderkey DESC NULLS FIRST LIMIT 10"))
+                    .matches(anyTree(
+                            topN(
+                                    10, ImmutableList.of(sort("o", DESCENDING, FIRST)), TopNNode.Step.PARTIAL,
+                                    tableScan(table.getName(), ImmutableMap.of("o", "orderkey")))));
+
+            // Sorting property mismatch on 2nd column
+            assertThat(
+                    query(withPartialTopN, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST, linenumber LIMIT 10"))
+                    .matches(anyTree(
+                            topN(
+                                    10, ImmutableList.of(sort("o", ASCENDING, FIRST), sort("l", ASCENDING, LAST)), TopNNode.Step.PARTIAL,
+                                    tableScan(table.getName(), ImmutableMap.of("o", "orderkey", "l", "linenumber")))));
+
+            // Verify results
+            assertQuery(
+                    withPartialTopN,
+                    "SELECT * FROM " + table.getName() + " WHERE orderkey BETWEEN 10 AND 14000 ORDER BY orderkey ASC NULLS FIRST LIMIT 100",
+                    "SELECT * FROM lineitem WHERE orderkey BETWEEN 10 AND 14000 ORDER BY orderkey ASC LIMIT 100");
+        }
+    }
+
+    @Test
+    public void testPartialTopNWithMixedSortedAndUnsortedFiles()
+    {
+        Session withSmallFileSize = Session.builder(getSession())
+                .setCatalogSessionProperty("iceberg", "target_max_file_size", "20kB")
+                .build();
+        Session withPartialTopN = Session.builder(getSession())
+                .setSystemProperty("use_sub_plan_alternatives", "true")
+                .setCatalogSessionProperty("iceberg", "optimize_partial_topn_enabled", "true")
+                .build();
+
+        try (TestTable table = new TestTable(
+                getQueryRunner()::execute,
+                "test_mixed_sorted_table",
+                "WITH (format = '" + PARQUET + "') AS TABLE tpch.tiny.lineitem WITH NO DATA")) {
+            // Insert data without sort order - files will have sortOrderId=0 (unsorted)
+            assertUpdate(
+                    withSmallFileSize,
+                    "INSERT INTO " + table.getName() + " TABLE tpch.tiny.lineitem",
+                    "VALUES 60175");
+            int unsortedFilesCount = computeActual("SELECT file_path from \"" + table.getName() + "$files\"").getOnlyColumnAsSet().size();
+            assertThat(unsortedFilesCount).isGreaterThanOrEqualTo(6);
+
+            // Alter table to add sort order
+            assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES sorted_by = ARRAY['orderkey ASC NULLS FIRST']");
+
+            // Insert more data with sort order - files will have the table's sortOrderId
+            assertUpdate(
+                    withSmallFileSize,
+                    "INSERT INTO " + table.getName() + " TABLE tpch.tiny.lineitem",
+                    "VALUES 60175");
+            int totalFilesCount = computeActual("SELECT file_path from \"" + table.getName() + "$files\"").getOnlyColumnAsSet().size();
+            assertThat(totalFilesCount).isGreaterThan(unsortedFilesCount);
+
+            // The plan should have a ChooseAlternativeNode since the table has a sort order
+            assertThat(
+                    query(withPartialTopN, "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 10"))
+                    .matches(anyTree(
+                            chooseAlternativeNode(
+                                    topN(10, ImmutableList.of(sort("o", ASCENDING, FIRST)), TopNNode.Step.PARTIAL,
+                                            tableScan(table.getName(), ImmutableMap.of("o", "orderkey"))),
+                                    limit(10, ImmutableList.of(), true, ImmutableList.of("o"),
+                                            tableScan(
+                                                    handle -> ((IcebergTableHandle) handle).preferSmallInitialReads(),
+                                                    TupleDomain.all(),
+                                                    ImmutableMap.of("o", equalTo("orderkey")))))));
+
+            // Verify correctness - the alternative chooser uses the optimized limit for sorted splits
+            // and falls back to TopN for unsorted splits, producing correct results overall
+            assertQuery(
+                    withPartialTopN,
+                    "SELECT orderkey FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 10",
+                    "SELECT orderkey FROM (SELECT orderkey FROM lineitem UNION ALL SELECT orderkey FROM lineitem) t ORDER BY orderkey ASC LIMIT 10");
+        }
+    }
+
+    @Test
     public void testSmallReadsPerSplit()
     {
         try (TestTable table = new TestTable(
@@ -231,29 +388,24 @@ public class TestIcebergSortedWriting
                     "INSERT INTO " + table.getName() + " TABLE tpch.sf1.lineitem",
                     "VALUES 6001215");
 
-            Session withUnsafeSortingProperty = Session.builder(getSession())
-                    .setCatalogSessionProperty("iceberg", "unsafe_sorting_properties_enabled", "true")
-                    .build();
-            Session withoutSmallReadsPerSplit = Session.builder(withUnsafeSortingProperty)
-                    .setSystemProperty(PARTIAL_LIMIT_HINT_ENABLED, "false")
+            Session withPartialTopN = Session.builder(getSession())
+                    .setSystemProperty("use_sub_plan_alternatives", "true")
+                    .setCatalogSessionProperty("iceberg", "optimize_partial_topn_enabled", "true")
                     .build();
 
+            // Baseline: no partial TopN optimization
             QueryRunner.MaterializedResultWithQueryId resultWithQueryId = getDistributedQueryRunner().executeWithQueryId(
-                    withoutSmallReadsPerSplit,
+                    getSession(),
                     "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 10");
-            OperatorStats baselineScanStats = getScanOperatorStats(
-                    resultWithQueryId.queryId(),
-                    getQualifiedTableName(table.getName()));
-            assertThat(baselineScanStats.getPhysicalInputDataSize().toBytes()).isGreaterThan(0);
+            long baselinePhysicalInputBytes = getPhysicalInputDataSize(resultWithQueryId.queryId());
+            assertThat(baselinePhysicalInputBytes).isGreaterThan(0);
 
             resultWithQueryId = getDistributedQueryRunner().executeWithQueryId(
-                    withUnsafeSortingProperty,
+                    withPartialTopN,
                     "SELECT * FROM " + table.getName() + " ORDER BY orderkey ASC NULLS FIRST LIMIT 10");
-            OperatorStats scanStatsWithSmallReads = getScanOperatorStats(
-                    resultWithQueryId.queryId(),
-                    getQualifiedTableName(table.getName()));
-            assertThat(scanStatsWithSmallReads.getPhysicalInputDataSize().toBytes())
-                    .isLessThan((long) (0.5 * baselineScanStats.getPhysicalInputDataSize().toBytes()));
+            long optimizedPhysicalInputBytes = getPhysicalInputDataSize(resultWithQueryId.queryId());
+            assertThat(optimizedPhysicalInputBytes)
+                    .isLessThan((long) (0.5 * baselinePhysicalInputBytes));
         }
     }
 
@@ -265,20 +417,14 @@ public class TestIcebergSortedWriting
         return checkOrcFileSorting(fileSystem, path, sortColumnName);
     }
 
-    private OperatorStats getScanOperatorStats(QueryId queryId, QualifiedObjectName catalogSchemaTableName)
+    private long getPhysicalInputDataSize(QueryId queryId)
     {
-        Plan plan = getDistributedQueryRunner().getQueryPlan(queryId);
-        TableScanNode planNode = (TableScanNode) PlanNodeSearcher.searchFrom(plan.getRoot())
-                .where(node -> {
-                    if (!(node instanceof TableScanNode scanNode)) {
-                        return false;
-                    }
-                    CatalogSchemaTableName tableName = getTableName(scanNode.getTable());
-                    return tableName.equals(catalogSchemaTableName.asCatalogSchemaTableName());
-                })
-                .findOnlyElement();
-
-        return extractOperatorStatsForNodeId(queryId, planNode.getId(), "TableScanOperator");
+        return getDistributedQueryRunner().getCoordinator()
+                .getQueryManager()
+                .getFullQueryInfo(queryId)
+                .getQueryStats()
+                .getPhysicalInputDataSize()
+                .toBytes();
     }
 
     private static Predicate<ColumnHandle> equalTo(String columnName)

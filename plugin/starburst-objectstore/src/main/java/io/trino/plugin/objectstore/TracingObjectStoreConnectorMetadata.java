@@ -22,6 +22,7 @@ import io.trino.spi.RefreshType;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.AggregationApplicationResult;
+import io.trino.spi.connector.ApplyPartialTopNResult;
 import io.trino.spi.connector.BeginTableExecuteResult;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.ColumnHandle;
@@ -67,6 +68,7 @@ import io.trino.spi.connector.SaveMode;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SchemaTablePrefix;
 import io.trino.spi.connector.SortItem;
+import io.trino.spi.connector.SortingProperty;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableColumnsMetadata;
 import io.trino.spi.connector.TableFunctionApplicationResult;
@@ -1575,6 +1577,19 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
         Span span = startSpan("applyPartialLimit", tableHandle);
         try (var _ = scopedSpan(span)) {
             return delegate.applyPartialLimit(session, tableHandle, limitHint);
+        }
+    }
+
+    @Override
+    public Optional<ApplyPartialTopNResult<ConnectorTableHandle>> applyPartialTopN(
+            ConnectorSession session,
+            ConnectorTableHandle tableHandle,
+            List<SortingProperty<ColumnHandle>> sortProperties,
+            long count)
+    {
+        Span span = startSpan("applyPartialTopN", tableHandle);
+        try (var _ = scopedSpan(span)) {
+            return delegate.applyPartialTopN(session, tableHandle, sortProperties, count);
         }
     }
 

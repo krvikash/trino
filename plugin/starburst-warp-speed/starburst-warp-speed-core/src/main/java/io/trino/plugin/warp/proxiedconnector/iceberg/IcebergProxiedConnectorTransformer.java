@@ -52,6 +52,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.stream.Collectors;
 
 import static io.trino.plugin.iceberg.IcebergUtil.deserializePartitionValue;
@@ -95,6 +96,7 @@ public class IcebergProxiedConnectorTransformer
                 TupleDomain.all(),
                 icebergTableHandle.getLimit(),
                 false,
+                OptionalInt.empty(),
                 icebergTableHandle.getProjectedColumns(),
                 icebergTableHandle.getNameMappingJson(),
                 icebergTableHandle.getTableLocation(),
@@ -132,6 +134,7 @@ public class IcebergProxiedConnectorTransformer
                 TupleDomain.all(),
                 tableHandle.getLimit(),
                 tableHandle.preferSmallInitialReads(),
+                tableHandle.getSortOrderId(),
                 tableHandle.getProjectedColumns(),
                 tableHandle.getNameMappingJson(),
                 tableHandle.getTableLocation(),

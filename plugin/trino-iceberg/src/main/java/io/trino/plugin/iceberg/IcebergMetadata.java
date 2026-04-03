@@ -95,6 +95,7 @@ import io.trino.spi.ErrorCode;
 import io.trino.spi.RefreshType;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
+import io.trino.spi.connector.ApplyPartialTopNResult;
 import io.trino.spi.connector.Assignment;
 import io.trino.spi.connector.BeginTableExecuteResult;
 import io.trino.spi.connector.CatalogSchemaTableName;
@@ -364,6 +365,7 @@ import static io.trino.plugin.iceberg.IcebergSessionProperties.isCollectExtended
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isFileBasedConflictDetectionEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isIncrementalRefreshEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isMergeManifestsOnWrite;
+import static io.trino.plugin.iceberg.IcebergSessionProperties.isOptimizePartialTopNEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isProjectionPushdownEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isQueryPartitionFilterRequired;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isStatisticsEnabled;
@@ -903,6 +905,7 @@ public class IcebergMetadata
                 TupleDomain.all(),
                 OptionalLong.empty(),
                 false,
+                OptionalInt.empty(),
                 ImmutableSet.of(),
                 Optional.ofNullable(tableProperties.get(TableProperties.DEFAULT_NAME_MAPPING)),
                 table.location(),
@@ -4482,6 +4485,7 @@ public class IcebergMetadata
                 table.getEnforcedPredicate(),
                 OptionalLong.of(limit),
                 table.preferSmallInitialReads(),
+                OptionalInt.empty(),
                 table.getProjectedColumns(),
                 table.getNameMappingJson(),
                 table.getTableLocation(),
@@ -4596,6 +4600,7 @@ public class IcebergMetadata
                         newEnforcedConstraint,
                         table.getLimit(),
                         table.preferSmallInitialReads(),
+                        OptionalInt.empty(),
                         table.getProjectedColumns(),
                         table.getNameMappingJson(),
                         table.getTableLocation(),
@@ -4807,6 +4812,7 @@ public class IcebergMetadata
                 TupleDomain.all(),
                 OptionalLong.empty(),
                 false,
+                OptionalInt.empty(),
                 Sets.union(firstTable.getProjectedColumns(), secondTable.getProjectedColumns()),
                 firstTable.getNameMappingJson(),
                 firstTable.getTableLocation(),
@@ -4943,6 +4949,7 @@ public class IcebergMetadata
                 originalHandle.getEnforcedPredicate().filter((column, _) -> FILE_MODIFIED_TIME.getId() != column.getId()),
                 OptionalLong.empty(), // limit is currently not included in stats and is not enforced by the connector
                 false, // preferSmallInitialReads does not affect stats
+                OptionalInt.empty(), // sortOrderId does not affect stats
                 ImmutableSet.of(), // projectedColumns are used to request statistics only for the required columns, but are not part of cache key
                 originalHandle.getNameMappingJson(),
                 originalHandle.getTableLocation(),
@@ -5481,6 +5488,44 @@ public class IcebergMetadata
         }
 
         return Optional.empty();
+    }
+
+    @Override
+    public Optional<ApplyPartialTopNResult<ConnectorTableHandle>> applyPartialTopN(
+            ConnectorSession session,
+            ConnectorTableHandle handle,
+            List<SortingProperty<ColumnHandle>> sortProperties,
+            long count)
+    {
+        if (!isOptimizePartialTopNEnabled(session) || sortProperties.isEmpty()) {
+            return Optional.empty();
+        }
+
+        IcebergTableHandle tableHandle = (IcebergTableHandle) handle;
+        Table icebergTable = catalog.loadTable(session, tableHandle.getSchemaTableName());
+        SortFieldInfo sortInfo = getSupportedSortFields(icebergTable.schema(), icebergTable.sortOrder());
+        if (sortInfo.sortOrderId() == SortOrder.unsorted().orderId()) {
+            return Optional.empty();
+        }
+        List<TrinoSortField> tableSortFields = sortInfo.supportedSortFields();
+
+        if (tableSortFields.size() < sortProperties.size()) {
+            return Optional.empty();
+        }
+
+        for (int i = 0; i < sortProperties.size(); i++) {
+            SortingProperty<ColumnHandle> requested = sortProperties.get(i);
+            TrinoSortField tableSortField = tableSortFields.get(i);
+            IcebergColumnHandle requestedColumn = (IcebergColumnHandle) requested.getColumn();
+            if (requestedColumn.getId() != tableSortField.sourceColumnId() || !requested.getOrder().equals(tableSortField.sortOrder())) {
+                return Optional.empty();
+            }
+        }
+
+        IcebergTableHandle alternative = tableHandle
+                .withPreferSmallInitialReads(count < 100_000)
+                .withSortOrderId(sortInfo.sortOrderId());
+        return Optional.of(new ApplyPartialTopNResult(true, alternative));
     }
 
     public OptionalLong getIncrementalRefreshFromSnapshot()

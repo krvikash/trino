@@ -227,6 +227,12 @@ implementation is used:
   -  Enable [sorted writing](iceberg-sorted-files) to tables with a specified sort order. Equivalent
      session property is `sorted_writing_enabled`.
   -  `true` 
+* - `iceberg.optimize-partial-topn-enabled`
+  -  Enable optimization of TopN queries on sorted tables. When enabled, the
+     connector can replace a partial TopN with a limit for splits whose sort
+     order matches the query's requested sort order. Equivalent session
+     property is `optimize_partial_topn_enabled`.
+  -  `true`
 * - `iceberg.sorted-writing.local-staging-path`
   -  A local directory that Trino can use for staging writes to sorted tables.
      The `${USER}` placeholder can be used to use a different

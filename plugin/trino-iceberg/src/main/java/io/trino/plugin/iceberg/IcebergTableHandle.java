@@ -70,6 +70,10 @@ public class IcebergTableHandle
     // from the filesystem when the output consumed from page source is small.
     private final boolean preferSmallInitialReads;
 
+    // Sort order ID that this table handle expects data to be sorted by.
+    // Used by IcebergAlternativeChooser to match against the split's sort order.
+    private final OptionalInt sortOrderId;
+
     private final Set<IcebergColumnHandle> projectedColumns;
     private final Optional<String> nameMappingJson;
 
@@ -99,6 +103,7 @@ public class IcebergTableHandle
             @JsonProperty("enforcedPredicate") TupleDomain<IcebergColumnHandle> enforcedPredicate,
             @JsonProperty("limit") OptionalLong limit,
             @JsonProperty("preferSmallInitialReads") boolean preferSmallInitialReads,
+            @JsonProperty("sortOrderId") OptionalInt sortOrderId,
             @JsonProperty("projectedColumns") Set<IcebergColumnHandle> projectedColumns,
             @JsonProperty("nameMappingJson") Optional<String> nameMappingJson,
             @JsonProperty("tableLocation") String tableLocation,
@@ -118,6 +123,7 @@ public class IcebergTableHandle
                 enforcedPredicate,
                 limit,
                 preferSmallInitialReads,
+                sortOrderId,
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
@@ -144,6 +150,7 @@ public class IcebergTableHandle
             TupleDomain<IcebergColumnHandle> enforcedPredicate,
             OptionalLong limit,
             boolean preferSmallInitialReads,
+            OptionalInt sortOrderId,
             Set<IcebergColumnHandle> projectedColumns,
             Optional<String> nameMappingJson,
             String tableLocation,
@@ -172,6 +179,7 @@ public class IcebergTableHandle
         this.enforcedPredicate = requireNonNull(enforcedPredicate, "enforcedPredicate is null");
         this.limit = requireNonNull(limit, "limit is null");
         this.preferSmallInitialReads = preferSmallInitialReads;
+        this.sortOrderId = requireNonNull(sortOrderId, "sortOrderId is null");
         this.projectedColumns = ImmutableSet.copyOf(requireNonNull(projectedColumns, "projectedColumns is null"));
         this.nameMappingJson = requireNonNull(nameMappingJson, "nameMappingJson is null");
         this.tableLocation = requireNonNull(tableLocation, "tableLocation is null");
@@ -327,6 +335,12 @@ public class IcebergTableHandle
         return preferSmallInitialReads;
     }
 
+    @JsonProperty
+    public OptionalInt getSortOrderId()
+    {
+        return sortOrderId;
+    }
+
     public SchemaTableName getSchemaTableName()
     {
         return new SchemaTableName(schemaName, tableName);
@@ -352,6 +366,7 @@ public class IcebergTableHandle
                 enforcedPredicate,
                 limit,
                 preferSmallInitialReads,
+                sortOrderId,
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
@@ -380,6 +395,7 @@ public class IcebergTableHandle
                 enforcedPredicate,
                 limit,
                 preferSmallInitialReads,
+                sortOrderId,
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
@@ -408,6 +424,7 @@ public class IcebergTableHandle
                 enforcedPredicate,
                 limit,
                 preferSmallInitialReads,
+                sortOrderId,
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
@@ -436,6 +453,7 @@ public class IcebergTableHandle
                 enforcedPredicate,
                 limit,
                 preferSmallInitialReads,
+                sortOrderId,
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
@@ -464,6 +482,7 @@ public class IcebergTableHandle
                 enforcedPredicate,
                 limit,
                 preferSmallInitialReads,
+                sortOrderId,
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
@@ -497,6 +516,7 @@ public class IcebergTableHandle
                 enforcedPredicate,
                 limit,
                 preferSmallInitialReads,
+                sortOrderId,
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
@@ -525,6 +545,36 @@ public class IcebergTableHandle
                 enforcedPredicate,
                 limit,
                 preferSmallInitialReads,
+                sortOrderId,
+                projectedColumns,
+                nameMappingJson,
+                tableLocation,
+                storageProperties,
+                tablePartitioning,
+                branch,
+                recordScannedFiles,
+                maxScannedFileSize,
+                forceReadingAllFiles,
+                constraintColumns,
+                forAnalyze);
+    }
+
+    public IcebergTableHandle withSortOrderId(int sortOrderId)
+    {
+        return new IcebergTableHandle(
+                schemaName,
+                tableName,
+                tableType,
+                snapshotId,
+                tableSchemaJson,
+                specId,
+                partitionSpecJsons,
+                formatVersion,
+                unenforcedPredicate,
+                enforcedPredicate,
+                limit,
+                preferSmallInitialReads,
+                OptionalInt.of(sortOrderId),
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
@@ -570,7 +620,8 @@ public class IcebergTableHandle
                 forceReadingAllFiles == that.forceReadingAllFiles &&
                 Objects.equals(constraintColumns, that.constraintColumns) &&
                 Objects.equals(forAnalyze, that.forAnalyze) &&
-                preferSmallInitialReads == that.preferSmallInitialReads;
+                preferSmallInitialReads == that.preferSmallInitialReads &&
+                Objects.equals(sortOrderId, that.sortOrderId);
     }
 
     @Override
@@ -598,7 +649,8 @@ public class IcebergTableHandle
                 forceReadingAllFiles,
                 constraintColumns,
                 forAnalyze,
-                preferSmallInitialReads);
+                preferSmallInitialReads,
+                sortOrderId);
     }
 
     @Override

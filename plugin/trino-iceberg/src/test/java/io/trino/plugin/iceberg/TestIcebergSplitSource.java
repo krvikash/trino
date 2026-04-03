@@ -466,6 +466,7 @@ public class TestIcebergSplitSource
                 TupleDomain.all(),
                 OptionalLong.empty(),
                 false,
+                OptionalInt.empty(),
                 ImmutableSet.of(),
                 Optional.empty(),
                 nationTable.location(),

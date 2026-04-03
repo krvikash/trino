@@ -26,6 +26,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorAccessControl;
+import io.trino.spi.connector.ConnectorAlternativeChooser;
 import io.trino.spi.connector.ConnectorCapabilities;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
@@ -164,6 +165,12 @@ public class IcebergConnector
     public ConnectorPageSourceProviderFactory getPageSourceProviderFactory()
     {
         return pageSourceProviderFactory;
+    }
+
+    @Override
+    public ConnectorAlternativeChooser getAlternativeChooser()
+    {
+        return new IcebergAlternativeChooser(pageSourceProviderFactory);
     }
 
     @Override
