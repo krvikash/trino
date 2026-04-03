@@ -72,6 +72,7 @@ public class IcebergConnector
     private final ConnectorNodePartitioningProvider nodePartitioningProvider;
     private final List<PropertyMetadata<?>> sessionProperties;
     private final List<PropertyMetadata<?>> schemaProperties;
+    private final List<PropertyMetadata<?>> branchProperties;
     private final List<PropertyMetadata<?>> tableProperties;
     private final List<PropertyMetadata<?>> materializedViewProperties;
     private final List<PropertyMetadata<?>> analyzeProperties;
@@ -94,6 +95,7 @@ public class IcebergConnector
             ConnectorNodePartitioningProvider nodePartitioningProvider,
             Set<SessionPropertiesProvider> sessionPropertiesProviders,
             IcebergSchemaProperties schemaProperties,
+            IcebergBranchProperties branchProperties,
             IcebergTableProperties tableProperties,
             IcebergMaterializedViewProperties materializedViewProperties,
             IcebergAnalyzeProperties analyzeProperties,
@@ -116,6 +118,7 @@ public class IcebergConnector
                 .flatMap(sessionPropertiesProvider -> sessionPropertiesProvider.getSessionProperties().stream())
                 .collect(toImmutableList());
         this.schemaProperties = ImmutableList.copyOf(requireNonNull(schemaProperties, "schemaProperties is null").getSchemaProperties());
+        this.branchProperties = ImmutableList.copyOf(requireNonNull(branchProperties, "branchProperties is null").getBranchProperties());
         this.tableProperties = ImmutableList.copyOf(requireNonNull(tableProperties, "tableProperties is null").getTableProperties());
         this.materializedViewProperties = ImmutableList.copyOf(requireNonNull(materializedViewProperties, "materializedViewProperties is null").getMaterializedViewProperties());
         this.analyzeProperties = ImmutableList.copyOf(requireNonNull(analyzeProperties, "analyzeProperties is null").getAnalyzeProperties());
@@ -231,6 +234,12 @@ public class IcebergConnector
     public List<PropertyMetadata<?>> getTableProperties()
     {
         return tableProperties;
+    }
+
+    @Override
+    public List<PropertyMetadata<?>> getBranchProperties()
+    {
+        return branchProperties;
     }
 
     @Override

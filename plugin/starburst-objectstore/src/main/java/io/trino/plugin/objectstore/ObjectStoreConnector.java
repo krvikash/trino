@@ -104,6 +104,7 @@ public class ObjectStoreConnector
     private final ObjectStoreNodePartitioningProvider nodePartitioningProvider;
     private final List<PropertyMetadata<?>> schemaProperties;
     private final ObjectStoreTableProperties tableProperties;
+    private final List<PropertyMetadata<?>> branchProperties;
     private final List<PropertyMetadata<?>> columnProperties;
     private final ObjectStoreMaterializedViewProperties materializedViewProperties;
     private final ObjectStoreSessionProperties sessionProperties;
@@ -160,6 +161,7 @@ public class ObjectStoreConnector
         this.nodePartitioningProvider = requireNonNull(nodePartitioningProvider, "nodePartitioningProvider is null");
         this.schemaProperties = schemaProperties();
         this.tableProperties = requireNonNull(tableProperties, "tableProperties is null");
+        this.branchProperties = branchProperties(delegates);
         boolean hivePartitionProjectionEnabled = hiveConfig.isPartitionProjectionEnabled();
         this.columnProperties = columnProperties(delegates, hivePartitionProjectionEnabled);
         this.materializedViewProperties = requireNonNull(materializedViewProperties, "materializedViewProperties is null");
@@ -182,8 +184,6 @@ public class ObjectStoreConnector
         this.defaultIcebergFileFormat = objectStoreConfig.getDefaultIcebergFileFormat();
         this.tracer = requireNonNull(tracer, "tracer is null");
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
-
-        verifyNoBranchProperties(delegates);
     }
 
     @VisibleForTesting
@@ -232,12 +232,18 @@ public class ObjectStoreConnector
         return ImmutableList.copyOf(properties.values());
     }
 
-    private static void verifyNoBranchProperties(DelegateConnectors delegates)
+    private static List<PropertyMetadata<?>> branchProperties(DelegateConnectors delegates)
     {
+        Map<String, PropertyMetadata<?>> properties = new HashMap<>();
         for (Connector connector : delegates.asList()) {
-            // Update objectstore connector once sub connectors support branch properties
-            verify(connector.getBranchProperties().isEmpty(), "The objectstore connector expects no branch properties from sub connectors");
+            for (PropertyMetadata<?> property : connector.getBranchProperties()) {
+                PropertyMetadata<?> existing = properties.putIfAbsent(property.getName(), property);
+                if (existing != null) {
+                    verifyPropertyMetadata(property, existing);
+                }
+            }
         }
+        return ImmutableList.copyOf(properties.values());
     }
 
     private Set<Procedure> procedures(DelegateConnectors delegates, ObjectStoreSessionProperties sessionProperties, Set<Procedure> objectStoreProcedures)
@@ -527,6 +533,12 @@ public class ObjectStoreConnector
     public List<PropertyMetadata<?>> getTableProperties()
     {
         return tableProperties.getProperties();
+    }
+
+    @Override
+    public List<PropertyMetadata<?>> getBranchProperties()
+    {
+        return branchProperties;
     }
 
     @Override

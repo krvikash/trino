@@ -325,6 +325,9 @@ import static io.trino.plugin.iceberg.ColumnIdentity.createColumnIdentity;
 import static io.trino.plugin.iceberg.ExpressionConverter.isConvertibleToIcebergExpression;
 import static io.trino.plugin.iceberg.ExpressionConverter.toIcebergExpression;
 import static io.trino.plugin.iceberg.IcebergAnalyzeProperties.getColumnNames;
+import static io.trino.plugin.iceberg.IcebergBranchProperties.getReferenceType;
+import static io.trino.plugin.iceberg.IcebergBranchProperties.getRetention;
+import static io.trino.plugin.iceberg.IcebergBranchProperties.getSnapshotId;
 import static io.trino.plugin.iceberg.IcebergColumnHandle.TRINO_MERGE_PARTITION_DATA;
 import static io.trino.plugin.iceberg.IcebergColumnHandle.TRINO_MERGE_PARTITION_SPEC_ID;
 import static io.trino.plugin.iceberg.IcebergColumnHandle.TRINO_MERGE_ROW_ID;
@@ -444,6 +447,7 @@ import static io.trino.plugin.iceberg.procedure.IcebergTableProcedureId.ROLLBACK
 import static io.trino.plugin.iceberg.procedure.MigrationUtils.addFiles;
 import static io.trino.plugin.iceberg.procedure.MigrationUtils.addFilesFromTable;
 import static io.trino.plugin.iceberg.util.SystemTableUtil.getAllPartitionFields;
+import static io.trino.spi.StandardErrorCode.ALREADY_EXISTS;
 import static io.trino.spi.StandardErrorCode.BRANCH_NOT_FOUND;
 import static io.trino.spi.StandardErrorCode.COLUMN_ALREADY_EXISTS;
 import static io.trino.spi.StandardErrorCode.COLUMN_NOT_FOUND;
@@ -451,6 +455,7 @@ import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
 import static io.trino.spi.StandardErrorCode.GENERIC_USER_ERROR;
 import static io.trino.spi.StandardErrorCode.INVALID_ANALYZE_PROPERTY;
 import static io.trino.spi.StandardErrorCode.INVALID_ARGUMENTS;
+import static io.trino.spi.StandardErrorCode.INVALID_BRANCH_PROPERTY;
 import static io.trino.spi.StandardErrorCode.INVALID_PROCEDURE_ARGUMENT;
 import static io.trino.spi.StandardErrorCode.INVALID_TABLE_PROPERTY;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
@@ -831,7 +836,7 @@ public class IcebergMetadata
             if (version.getVersionType() instanceof VarcharType) {
                 String refName = ((Slice) version.getVersion()).toStringUtf8();
                 SnapshotRef ref = table.refs().get(refName);
-                if (ref.isBranch()) {
+                if (ref != null) {
                     branch = Optional.of(refName);
                     partitionSpec = Optional.of(table.spec());
                 }
@@ -3437,21 +3442,78 @@ public class IcebergMetadata
     @Override
     public void createBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String branch, Optional<String> fromBranch, SaveMode saveMode, Map<String, Object> properties)
     {
+        IcebergTableHandle table = (IcebergTableHandle) tableHandle;
+        BaseTable icebergTable = catalog.loadTable(session, table.getSchemaTableName());
+
+        switch (getReferenceType(properties)) {
+            case TAG -> createTag(icebergTable, branch, fromBranch, saveMode, properties);
+            case BRANCH -> createBranch(icebergTable, branch, fromBranch, saveMode, properties);
+        }
+    }
+
+    // Note: For FAIL and IGNORE save modes when a same-named ref already exists, the engine-level
+    // CreateBranchTask intercepts via branchExists() (which returns true for any ref including tags)
+    // before the connector is called. This means FAIL produces "Branch 'x' already exists" (BRANCH_ALREADY_EXISTS)
+    // rather than "Tag 'x' already exists", and IGNORE silently no-ops. This is a known trade-off:
+    // branchExists() must return true for tags so that DROP BRANCH can also drop tags via the engine's DropBranchTask.
+    private static void createTag(BaseTable icebergTable, String tagName, Optional<String> fromBranch, SaveMode saveMode, Map<String, Object> properties)
+    {
+        SnapshotRef existingRef = icebergTable.refs().get(tagName);
+        if (existingRef != null && existingRef.isBranch()) {
+            throw new TrinoException(ALREADY_EXISTS, "Tag '%s' does not exist, but a branch with that name exists".formatted(tagName));
+        }
+        OptionalLong explicitSnapshotId = getSnapshotId(properties);
+        if (explicitSnapshotId.isPresent() && fromBranch.isPresent()) {
+            throw new TrinoException(INVALID_ARGUMENTS, "Cannot specify both snapshot_id and FROM branch");
+        }
+
+        long snapshotId;
+        if (explicitSnapshotId.isPresent()) {
+            snapshotId = explicitSnapshotId.getAsLong();
+        }
+        else if (fromBranch.isPresent()) {
+            snapshotId = checkBranch(icebergTable, fromBranch.get()).snapshotId();
+        }
+        else {
+            if (icebergTable.currentSnapshot() == null) {
+                throw new TrinoException(INVALID_ARGUMENTS, "Cannot create tag for a table with no snapshots");
+            }
+            snapshotId = icebergTable.currentSnapshot().snapshotId();
+        }
+
+        ManageSnapshots manageSnapshots = switch (saveMode) {
+            case FAIL, IGNORE -> icebergTable.manageSnapshots().createTag(tagName, snapshotId);
+            case REPLACE -> existingRef != null
+                    ? icebergTable.manageSnapshots().replaceTag(tagName, snapshotId)
+                    : icebergTable.manageSnapshots().createTag(tagName, snapshotId);
+        };
+
+        getRetention(properties).ifPresent(retention -> manageSnapshots.setMaxRefAgeMs(tagName, retention.toMillis()));
+        try {
+            manageSnapshots.commit();
+        }
+        catch (Exception e) {
+            throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to create tag", e);
+        }
+    }
+
+    private static void createBranch(BaseTable icebergTable, String branch, Optional<String> fromBranch, SaveMode saveMode, Map<String, Object> properties)
+    {
+        SnapshotRef existingRef = icebergTable.refs().get(branch);
         if (saveMode == SaveMode.REPLACE) {
             throw new TrinoException(NOT_SUPPORTED, "The connector does not support replacing branches");
         }
-        checkArgument(properties.isEmpty(), "This connector does not support creating branches with properties");
+        if (existingRef != null && existingRef.isTag()) {
+            throw new TrinoException(ALREADY_EXISTS, "Branch '%s' does not exist, but a tag with that name exists".formatted(branch));
+        }
+        if (getSnapshotId(properties).isPresent() || getRetention(properties).isPresent()) {
+            throw new TrinoException(INVALID_BRANCH_PROPERTY, "This connector does not support creating branches with properties");
+        }
 
-        IcebergTableHandle table = (IcebergTableHandle) tableHandle;
-        BaseTable icebergTable = catalog.loadTable(session, table.getSchemaTableName());
         ManageSnapshots manageSnapshots = icebergTable.manageSnapshots();
         try {
             if (fromBranch.isPresent()) {
-                SnapshotRef ref = icebergTable.refs().get(fromBranch.get());
-                if (ref == null || !ref.isBranch()) {
-                    throw new TrinoException(GENERIC_USER_ERROR, "Branch '%s' does not exist".formatted(fromBranch.get()));
-                }
-                manageSnapshots.createBranch(branch, ref.snapshotId());
+                manageSnapshots.createBranch(branch, checkBranch(icebergTable, fromBranch.get()).snapshotId());
             }
             else {
                 manageSnapshots.createBranch(branch);
@@ -3466,15 +3528,24 @@ public class IcebergMetadata
     @Override
     public void dropBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String branch)
     {
-        if (branch.equals("main")) {
-            throw new TrinoException(NOT_SUPPORTED, "Cannot drop 'main' branch");
-        }
         IcebergTableHandle table = (IcebergTableHandle) tableHandle;
         BaseTable icebergTable = catalog.loadTable(session, table.getSchemaTableName());
+        SnapshotRef ref = icebergTable.refs().get(branch);
+        if (ref == null) {
+            throw new TrinoException(BRANCH_NOT_FOUND, "Branch '%s' does not exist".formatted(branch));
+        }
+        if (ref.isBranch() && branch.equals("main")) {
+            throw new TrinoException(NOT_SUPPORTED, "Cannot drop 'main' branch");
+        }
         try {
-            icebergTable.manageSnapshots()
-                    .removeBranch(branch)
-                    .commit();
+            ManageSnapshots manageSnapshots = icebergTable.manageSnapshots();
+            if (ref.isTag()) {
+                manageSnapshots.removeTag(branch);
+            }
+            else {
+                manageSnapshots.removeBranch(branch);
+            }
+            manageSnapshots.commit();
         }
         catch (Exception e) {
             throw new TrinoException(ICEBERG_COMMIT_ERROR, "Failed to drop branch", e);
@@ -3503,17 +3574,13 @@ public class IcebergMetadata
     public Collection<String> listBranches(ConnectorSession session, SchemaTableName tableName)
     {
         Table icebergTable = catalog.loadTable(session, tableName);
-        return icebergTable.refs().entrySet().stream()
-                .filter(ref -> ref.getValue().isBranch())
-                .map(Map.Entry::getKey)
-                .collect(toImmutableList());
+        return ImmutableList.copyOf(icebergTable.refs().keySet());
     }
 
     @Override
     public boolean branchExists(ConnectorSession session, SchemaTableName tableName, String branch)
     {
-        SnapshotRef ref = catalog.loadTable(session, tableName).refs().get(branch);
-        return ref != null && ref.isBranch();
+        return catalog.loadTable(session, tableName).refs().get(branch) != null;
     }
 
     @Override
