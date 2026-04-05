@@ -29,7 +29,6 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
-import io.trino.sql.DynamicFilters;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Row;
 import io.trino.sql.planner.PartitioningHandle;
@@ -97,8 +96,6 @@ import static io.trino.spi.connector.SortOrder.ASC_NULLS_FIRST;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
 import static io.trino.spi.connector.SortOrder.DESC_NULLS_FIRST;
 import static io.trino.spi.connector.SortOrder.DESC_NULLS_LAST;
-import static io.trino.sql.DynamicFilters.extractDynamicFilters;
-import static io.trino.sql.ir.IrUtils.extractDisjuncts;
 import static io.trino.sql.planner.assertions.MatchResult.NO_MATCH;
 import static io.trino.sql.planner.assertions.MatchResult.match;
 import static io.trino.sql.planner.assertions.SemiJoinDynamicFilterProducer.ignoreDynamicFilter;
@@ -158,25 +155,15 @@ public final class PlanMatchPattern
 
     public static PlanMatchPattern loadCachedDataPlanNode(PlanSignatureWithPredicate signature, String... outputSymbolAliases)
     {
-        return loadCachedDataPlanNode(signature, Optional.empty(), dynamicFilters -> true, outputSymbolAliases);
+        return loadCachedDataPlanNode(signature, Optional.empty(), outputSymbolAliases);
     }
 
     public static PlanMatchPattern loadCachedDataPlanNode(PlanSignatureWithPredicate signature, Map<CacheColumnId, ColumnHandle> commonColumnHandles, String... outputSymbolAliases)
     {
-        return loadCachedDataPlanNode(signature, Optional.of(commonColumnHandles), dynamicFilters -> true, outputSymbolAliases);
+        return loadCachedDataPlanNode(signature, Optional.of(commonColumnHandles), outputSymbolAliases);
     }
 
-    public static PlanMatchPattern loadCachedDataPlanNode(PlanSignatureWithPredicate signature, Predicate<List<List<DynamicFilters.Descriptor>>> dynamicFiltersPredicate, String... outputSymbolAliases)
-    {
-        return loadCachedDataPlanNode(signature, Optional.empty(), dynamicFiltersPredicate, outputSymbolAliases);
-    }
-
-    public static PlanMatchPattern loadCachedDataPlanNode(PlanSignatureWithPredicate signature, Map<CacheColumnId, ColumnHandle> commonColumnHandles, Predicate<List<List<DynamicFilters.Descriptor>>> dynamicFiltersPredicate, String... outputSymbolAliases)
-    {
-        return loadCachedDataPlanNode(signature, Optional.of(commonColumnHandles), dynamicFiltersPredicate, outputSymbolAliases);
-    }
-
-    private static PlanMatchPattern loadCachedDataPlanNode(PlanSignatureWithPredicate signature, Optional<Map<CacheColumnId, ColumnHandle>> commonColumnHandles, Predicate<List<List<DynamicFilters.Descriptor>>> dynamicFiltersPredicate, String... outputSymbolAliases)
+    private static PlanMatchPattern loadCachedDataPlanNode(PlanSignatureWithPredicate signature, Optional<Map<CacheColumnId, ColumnHandle>> commonColumnHandles, String... outputSymbolAliases)
     {
         PlanMatchPattern result = node(LoadCachedDataPlanNode.class);
         for (int i = 0; i < outputSymbolAliases.length; i++) {
@@ -190,10 +177,6 @@ public final class PlanMatchPattern
         }
         result.with(LoadCachedDataPlanNode.class, node -> node.getPlanSignature().equals(signature));
         result.with(LoadCachedDataPlanNode.class, node -> commonColumnHandles.map(handles -> node.getCommonColumnHandles().equals(handles)).orElse(true));
-        result.with(LoadCachedDataPlanNode.class, node -> dynamicFiltersPredicate.test(
-                extractDisjuncts(node.getDynamicFilterDisjuncts()).stream()
-                        .map(expression -> extractDynamicFilters(expression).getDynamicConjuncts())
-                        .collect(toImmutableList())));
         return result;
     }
 

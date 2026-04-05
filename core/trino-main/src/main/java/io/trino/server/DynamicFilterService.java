@@ -66,7 +66,6 @@ import io.trino.sql.planner.optimizations.PlanNodeSearcher;
 import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.DynamicFilterSourceNode;
 import io.trino.sql.planner.plan.JoinNode;
-import io.trino.sql.planner.plan.LoadCachedDataPlanNode;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.SemiJoinNode;
 import org.roaringbitmap.RoaringBitmap;
@@ -118,7 +117,6 @@ import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMeta
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType.GATHER;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType.REPARTITION;
 import static io.trino.sql.dialect.trino.operationmetadata.ExchangeOperationMetadata.ExchangeType.REPLICATE;
-import static io.trino.sql.ir.IrUtils.extractDisjuncts;
 import static io.trino.sql.planner.DomainCoercer.applySaturatedCasts;
 import static io.trino.sql.planner.ExpressionExtractor.extractExpressions;
 import static io.trino.sql.planner.SystemPartitioningHandle.SOURCE_DISTRIBUTION;
@@ -484,21 +482,8 @@ public class DynamicFilterService
     {
         // dynamic filters which are consumed by the given stage but produced by a different stage
         return ImmutableSet.copyOf(difference(
-                union(getConsumedDynamicFilters(plan.getRoot()), getCacheDynamicFilters(plan.getRoot())),
+                getConsumedDynamicFilters(plan.getRoot()),
                 getProducedDynamicFilters(plan.getRoot())));
-    }
-
-    @VisibleForTesting
-    static Set<DynamicFilterId> getCacheDynamicFilters(PlanNode planNode)
-    {
-        return PlanNodeSearcher.searchFrom(planNode)
-                .whereIsInstanceOfAny(LoadCachedDataPlanNode.class)
-                .findAll().stream()
-                .map(LoadCachedDataPlanNode.class::cast)
-                .flatMap(node -> extractDisjuncts(node.getDynamicFilterDisjuncts()).stream())
-                .flatMap(expression -> extractDynamicFilters(expression).getDynamicConjuncts().stream())
-                .map(DynamicFilters.Descriptor::getId)
-                .collect(toImmutableSet());
     }
 
     @VisibleForTesting

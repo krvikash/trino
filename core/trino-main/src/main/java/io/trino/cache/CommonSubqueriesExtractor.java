@@ -90,7 +90,6 @@ import static io.trino.sql.ir.Booleans.TRUE;
 import static io.trino.sql.ir.ExpressionFormatter.formatExpression;
 import static io.trino.sql.ir.IrUtils.and;
 import static io.trino.sql.ir.IrUtils.combineConjuncts;
-import static io.trino.sql.ir.IrUtils.combineDisjuncts;
 import static io.trino.sql.ir.IrUtils.extractConjuncts;
 import static io.trino.sql.ir.IrUtils.or;
 import static io.trino.sql.planner.iterative.rule.ExtractCommonPredicatesExpressionRewriter.extractCommonPredicates;
@@ -173,8 +172,7 @@ public final class CommonSubqueriesExtractor
                     .filter(subplan -> !processedSubplans.contains(subplan.getTableScanId()))
                     .collect(toImmutableList());
 
-            if (subplans.size() < cacheCandidate.minSubplans()) {
-                // skip if not enough subplans
+            if (subplans.isEmpty()) {
                 continue;
             }
 
@@ -235,7 +233,6 @@ public final class CommonSubqueriesExtractor
         Map<CacheColumnId, CacheExpression> commonProjections = extractCommonProjections(subplans, commonPredicate, intersectingConjuncts, Optional.empty(), Optional.empty());
         Map<CacheColumnId, ColumnHandle> commonColumnHandles = extractCommonColumnHandles(subplans);
         Map<CacheColumnId, Symbol> commonColumnIds = extractCommonColumnIds(subplans);
-        Expression commonDynamicFilterDisjuncts = extractCommonDynamicFilterDisjuncts(subplans);
         PlanSignatureWithPredicate planSignature = computePlanSignature(
                 commonColumnIds,
                 tableId,
@@ -259,7 +256,6 @@ public final class CommonSubqueriesExtractor
                             commonSubplan,
                             planSignature,
                             new FilteredTableScan(commonSubplanFilter.tableScan(), commonSubplanFilter.predicate()),
-                            symbolMapper.map(commonDynamicFilterDisjuncts),
                             commonColumnHandles,
                             createAdaptationPredicate(adaptationConjuncts, symbolMapper),
                             createAdaptationAssignments(commonSubplan, subplan, columnIdMapping),
@@ -515,14 +511,6 @@ public final class CommonSubqueriesExtractor
                 .flatMap(subplan -> subplan.getOriginalSymbolMapping().entrySet().stream())
                 .forEach(entry -> commonColumnIds.putIfAbsent(entry.getKey(), entry.getValue()));
         return commonColumnIds;
-    }
-
-    private Expression extractCommonDynamicFilterDisjuncts(List<CanonicalSubplan> subplans)
-    {
-        return combineDisjuncts(
-                subplans.stream()
-                        .map(subplan -> combineConjuncts(subplan.getDynamicConjuncts()))
-                        .collect(toImmutableList()));
     }
 
     private PlanSignatureWithPredicate computePlanSignature(

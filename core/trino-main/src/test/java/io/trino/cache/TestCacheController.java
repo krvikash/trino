@@ -40,11 +40,8 @@ import java.util.Map;
 import java.util.Set;
 
 import static io.trino.SystemSessionProperties.CACHE_AGGREGATIONS_ENABLED;
-import static io.trino.SystemSessionProperties.CACHE_COMMON_SUBQUERIES_ENABLED;
 import static io.trino.SystemSessionProperties.CACHE_PROJECTIONS_ENABLED;
 import static io.trino.connector.CatalogHandle.createRootCatalogHandle;
-import static io.trino.spi.predicate.Domain.multipleValues;
-import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.sql.planner.plan.TopNRankingNode.RankingType;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -70,195 +67,59 @@ public class TestCacheController
         List<CanonicalSubplan> subplans = ImmutableList.of(secondProjection, firstProjection, groupByA, secondGroupByAB, firstGroupByAB);
 
         CacheController cacheController = new CacheController();
-        assertThat(cacheController.getCachingCandidates(cacheProperties(true, true, true), subplans))
+        assertThat(cacheController.getCachingCandidates(cacheProperties(true, true), subplans))
                 .containsExactly(
-                        // common aggregations are first
-                        new CacheCandidate(ImmutableList.of(secondGroupByAB, firstGroupByAB), 2),
-                        // then common projections
-                        new CacheCandidate(ImmutableList.of(secondProjection, firstProjection), 2),
-                        // then single aggregations
-                        new CacheCandidate(ImmutableList.of(groupByA), 1),
-                        new CacheCandidate(ImmutableList.of(secondGroupByAB), 1),
-                        new CacheCandidate(ImmutableList.of(firstGroupByAB), 1),
-                        // then single projections
-                        new CacheCandidate(ImmutableList.of(secondProjection), 1),
-                        new CacheCandidate(ImmutableList.of(firstProjection), 1));
+                        // aggregations first
+                        new CacheCandidate(ImmutableList.of(groupByA)),
+                        new CacheCandidate(ImmutableList.of(secondGroupByAB)),
+                        new CacheCandidate(ImmutableList.of(firstGroupByAB)),
+                        // then projections
+                        new CacheCandidate(ImmutableList.of(secondProjection)),
+                        new CacheCandidate(ImmutableList.of(firstProjection)));
 
-        assertThat(cacheController.getCachingCandidates(cacheProperties(true, false, false), subplans))
+        assertThat(cacheController.getCachingCandidates(cacheProperties(true, false), subplans))
                 .containsExactly(
-                        new CacheCandidate(ImmutableList.of(secondGroupByAB, firstGroupByAB), 2),
-                        new CacheCandidate(ImmutableList.of(secondProjection, firstProjection), 2));
+                        new CacheCandidate(ImmutableList.of(groupByA)),
+                        new CacheCandidate(ImmutableList.of(secondGroupByAB)),
+                        new CacheCandidate(ImmutableList.of(firstGroupByAB)));
 
-        assertThat(cacheController.getCachingCandidates(cacheProperties(false, true, false), subplans))
+        assertThat(cacheController.getCachingCandidates(cacheProperties(false, true), subplans))
                 .containsExactly(
-                        new CacheCandidate(ImmutableList.of(groupByA), 1),
-                        new CacheCandidate(ImmutableList.of(secondGroupByAB), 1),
-                        new CacheCandidate(ImmutableList.of(firstGroupByAB), 1));
-
-        assertThat(cacheController.getCachingCandidates(cacheProperties(false, false, true), subplans))
-                .containsExactly(
-                        new CacheCandidate(ImmutableList.of(secondProjection), 1),
-                        new CacheCandidate(ImmutableList.of(firstProjection), 1));
+                        new CacheCandidate(ImmutableList.of(secondProjection)),
+                        new CacheCandidate(ImmutableList.of(firstProjection)));
 
         subplans = ImmutableList.of(secondProjection, firstProjection, topN);
-        assertThat(cacheController.getCachingCandidates(cacheProperties(true, true, true), subplans))
+        assertThat(cacheController.getCachingCandidates(cacheProperties(true, true), subplans))
                 .containsExactly(
-                        // common projections are first
-                        new CacheCandidate(ImmutableList.of(secondProjection, firstProjection), 2),
-                        // then single topN
-                        new CacheCandidate(ImmutableList.of(topN), 1),
-                        // then single projections
-                        new CacheCandidate(ImmutableList.of(secondProjection), 1),
-                        new CacheCandidate(ImmutableList.of(firstProjection), 1));
+                        // topN (treated as aggregation) first
+                        new CacheCandidate(ImmutableList.of(topN)),
+                        // then projections
+                        new CacheCandidate(ImmutableList.of(secondProjection)),
+                        new CacheCandidate(ImmutableList.of(firstProjection)));
 
-        assertThat(cacheController.getCachingCandidates(cacheProperties(true, false, false), subplans))
-                .containsExactly(new CacheCandidate(ImmutableList.of(secondProjection, firstProjection), 2));
-        assertThat(cacheController.getCachingCandidates(cacheProperties(false, true, false), subplans))
-                .containsExactly(new CacheCandidate(ImmutableList.of(topN), 1));
-        assertThat(cacheController.getCachingCandidates(cacheProperties(false, false, true), subplans))
+        assertThat(cacheController.getCachingCandidates(cacheProperties(true, false), subplans))
+                .containsExactly(new CacheCandidate(ImmutableList.of(topN)));
+        assertThat(cacheController.getCachingCandidates(cacheProperties(false, true), subplans))
                 .containsExactly(
-                        new CacheCandidate(ImmutableList.of(secondProjection), 1),
-                        new CacheCandidate(ImmutableList.of(firstProjection), 1));
+                        new CacheCandidate(ImmutableList.of(secondProjection)),
+                        new CacheCandidate(ImmutableList.of(firstProjection)));
 
         subplans = ImmutableList.of(secondProjection, firstProjection, topNRanking);
 
-        assertThat(cacheController.getCachingCandidates(cacheProperties(true, true, true), subplans))
+        assertThat(cacheController.getCachingCandidates(cacheProperties(true, true), subplans))
                 .containsExactly(
-                        // common projections are first
-                        new CacheCandidate(ImmutableList.of(secondProjection, firstProjection), 2),
-                        // then single topNRanking
-                        new CacheCandidate(ImmutableList.of(topNRanking), 1),
-                        // then single projections
-                        new CacheCandidate(ImmutableList.of(secondProjection), 1),
-                        new CacheCandidate(ImmutableList.of(firstProjection), 1));
+                        // topNRanking (treated as aggregation) first
+                        new CacheCandidate(ImmutableList.of(topNRanking)),
+                        // then projections
+                        new CacheCandidate(ImmutableList.of(secondProjection)),
+                        new CacheCandidate(ImmutableList.of(firstProjection)));
 
-        assertThat(cacheController.getCachingCandidates(cacheProperties(true, false, false), subplans))
-                .containsExactly(new CacheCandidate(ImmutableList.of(secondProjection, firstProjection), 2));
-        assertThat(cacheController.getCachingCandidates(cacheProperties(false, true, false), subplans))
-                .containsExactly(new CacheCandidate(ImmutableList.of(topNRanking), 1));
-        assertThat(cacheController.getCachingCandidates(cacheProperties(false, false, true), subplans))
+        assertThat(cacheController.getCachingCandidates(cacheProperties(true, false), subplans))
+                .containsExactly(new CacheCandidate(ImmutableList.of(topNRanking)));
+        assertThat(cacheController.getCachingCandidates(cacheProperties(false, true), subplans))
                 .containsExactly(
-                        new CacheCandidate(ImmutableList.of(secondProjection), 1),
-                        new CacheCandidate(ImmutableList.of(firstProjection), 1));
-    }
-
-    @Test
-    public void testExcludingCommonSubqueriesPlansWithTableEnforcedConstraint()
-    {
-        PlanNodeId firstId = new PlanNodeId("first");
-        PlanNodeId secondId = new PlanNodeId("second");
-        PlanNodeId thirdId = new PlanNodeId("third");
-        CanonicalSubplan firstProjection = createCanonicalTableScanSubplan(firstId, TupleDomain.all());
-        CanonicalSubplan secondProjection = createCanonicalTableScanSubplan(secondId, TupleDomain.all());
-        CanonicalSubplan topNRanking = createCanonicalTopNRankingSubplan(ImmutableList.of(COLUMN_B), ImmutableMap.of(COLUMN_A, SortOrder.ASC_NULLS_FIRST), RankingType.ROW_NUMBER, 10);
-        List<CanonicalSubplan> subplans = ImmutableList.of(secondProjection, firstProjection, topNRanking);
-
-        CacheController cacheController = new CacheController();
-        // full intersection with Tuple.all
-        assertThat(cacheController.getCachingCandidates(cacheProperties(true, false, true), subplans)).containsExactly(
-                new CacheCandidate(ImmutableList.of(secondProjection, firstProjection), 2),
-                // then single projections
-                new CacheCandidate(ImmutableList.of(secondProjection), 1),
-                new CacheCandidate(ImmutableList.of(firstProjection), 1));
-        assertThat(cacheController.getCachingCandidates(cacheProperties(true, true, true), subplans)).containsExactly(
-                new CacheCandidate(ImmutableList.of(secondProjection, firstProjection), 2),
-                new CacheCandidate(ImmutableList.of(topNRanking), 1),
-                // then single projections
-                new CacheCandidate(ImmutableList.of(secondProjection), 1),
-                new CacheCandidate(ImmutableList.of(firstProjection), 1));
-
-        // intersection between firstProjection and secondProjection via 3L value
-        firstProjection = createCanonicalTableScanSubplan(firstId, TupleDomain.withColumnDomains(ImmutableMap.of(new CacheColumnId("column1"), multipleValues(INTEGER, ImmutableList.of(1L, 2L, 3L)))));
-        secondProjection = createCanonicalTableScanSubplan(secondId, TupleDomain.withColumnDomains(ImmutableMap.of(new CacheColumnId("column1"), multipleValues(INTEGER, ImmutableList.of(3L, 4L, 5L)))));
-        subplans = ImmutableList.of(secondProjection, firstProjection, topNRanking);
-        assertThat(cacheController.getCachingCandidates(cacheProperties(true, false, true), subplans)).containsExactly(
-                new CacheCandidate(ImmutableList.of(secondProjection, firstProjection), 2),
-                // then single projections
-                new CacheCandidate(ImmutableList.of(secondProjection), 1),
-                new CacheCandidate(ImmutableList.of(firstProjection), 1));
-        assertThat(cacheController.getCachingCandidates(cacheProperties(true, true, true), subplans)).containsExactly(
-                new CacheCandidate(ImmutableList.of(secondProjection, firstProjection), 2),
-                new CacheCandidate(ImmutableList.of(topNRanking), 1),
-                // then single projections
-                new CacheCandidate(ImmutableList.of(secondProjection), 1),
-                new CacheCandidate(ImmutableList.of(firstProjection), 1));
-
-        // full exclude by Tuple.none
-        firstProjection = createCanonicalTableScanSubplan(firstId, TupleDomain.none());
-        secondProjection = createCanonicalTableScanSubplan(secondId, TupleDomain.none());
-        subplans = ImmutableList.of(secondProjection, firstProjection, topNRanking);
-        assertThat(cacheController.getCachingCandidates(cacheProperties(true, false, true), subplans)).containsExactly(
-                // then single projections
-                new CacheCandidate(ImmutableList.of(secondProjection), 1),
-                new CacheCandidate(ImmutableList.of(firstProjection), 1));
-        assertThat(cacheController.getCachingCandidates(cacheProperties(true, true, true), subplans)).containsExactly(
-                new CacheCandidate(ImmutableList.of(topNRanking), 1),
-                // then single projections
-                new CacheCandidate(ImmutableList.of(secondProjection), 1),
-                new CacheCandidate(ImmutableList.of(firstProjection), 1));
-
-        // no intersection exclude between firstProjection and secondProjection
-        firstProjection = createCanonicalTableScanSubplan(firstId, TupleDomain.withColumnDomains(ImmutableMap.of(new CacheColumnId("column1"), multipleValues(INTEGER, ImmutableList.of(1L, 2L, 3L)))));
-        secondProjection = createCanonicalTableScanSubplan(secondId, TupleDomain.withColumnDomains(ImmutableMap.of(new CacheColumnId("column1"), multipleValues(INTEGER, ImmutableList.of(7L)))));
-        subplans = ImmutableList.of(secondProjection, firstProjection, topNRanking);
-        assertThat(cacheController.getCachingCandidates(cacheProperties(true, false, true), subplans)).containsExactly(
-                // then single projections
-                new CacheCandidate(ImmutableList.of(secondProjection), 1),
-                new CacheCandidate(ImmutableList.of(firstProjection), 1));
-        assertThat(cacheController.getCachingCandidates(cacheProperties(true, true, true), subplans)).containsExactly(
-                new CacheCandidate(ImmutableList.of(topNRanking), 1),
-                // then single projections
-                new CacheCandidate(ImmutableList.of(secondProjection), 1),
-                new CacheCandidate(ImmutableList.of(firstProjection), 1));
-
-        // intersection between 3. plans via value 3L
-        firstProjection = createCanonicalTableScanSubplan(firstId, TupleDomain.withColumnDomains(ImmutableMap.of(new CacheColumnId("column1"), multipleValues(INTEGER, ImmutableList.of(1L, 2L, 3L)))));
-        CanonicalSubplan thirdProjection = createCanonicalTableScanSubplan(thirdId, TupleDomain.withColumnDomains(ImmutableMap.of(new CacheColumnId("column1"), multipleValues(INTEGER, ImmutableList.of(3L, 4L, 5L)))));
-        secondProjection = createCanonicalTableScanSubplan(secondId, TupleDomain.withColumnDomains(ImmutableMap.of(new CacheColumnId("column1"), multipleValues(INTEGER, ImmutableList.of(3L, 4L, 5L)))));
-        subplans = ImmutableList.of(secondProjection, firstProjection, thirdProjection);
-
-        assertThat(cacheController.getCachingCandidates(cacheProperties(true, false, true), subplans)).containsExactly(
-                new CacheCandidate(ImmutableList.of(secondProjection, firstProjection, thirdProjection), 2),
-                // then single projections
-                new CacheCandidate(ImmutableList.of(secondProjection), 1),
-                new CacheCandidate(ImmutableList.of(firstProjection), 1),
-                new CacheCandidate(ImmutableList.of(thirdProjection), 1));
-
-        // intersection between firstProjection and thirdProjection, but not with secondProjection
-        firstProjection = createCanonicalTableScanSubplan(firstId, TupleDomain.withColumnDomains(ImmutableMap.of(new CacheColumnId("column1"), multipleValues(INTEGER, ImmutableList.of(1L, 2L, 3L)))));
-        thirdProjection = createCanonicalTableScanSubplan(thirdId, TupleDomain.withColumnDomains(ImmutableMap.of(new CacheColumnId("column1"), multipleValues(INTEGER, ImmutableList.of(3L, 4L, 5L)))));
-        secondProjection = createCanonicalTableScanSubplan(secondId, TupleDomain.withColumnDomains(ImmutableMap.of(new CacheColumnId("column1"), multipleValues(INTEGER, ImmutableList.of(7L)))));
-        subplans = ImmutableList.of(thirdProjection, firstProjection, secondProjection);
-        assertThat(cacheController.getCachingCandidates(cacheProperties(true, false, true), subplans)).containsExactly(
-                new CacheCandidate(ImmutableList.of(thirdProjection, firstProjection), 2),
-                // then single projections
-                new CacheCandidate(ImmutableList.of(thirdProjection), 1),
-                new CacheCandidate(ImmutableList.of(firstProjection), 1),
-                new CacheCandidate(ImmutableList.of(secondProjection), 1));
-
-        // similar case as above, first element in subplans does not intersect with rest
-        subplans = ImmutableList.of(secondProjection, thirdProjection, firstProjection);
-        assertThat(cacheController.getCachingCandidates(cacheProperties(true, false, true), subplans)).containsExactly(
-                new CacheCandidate(ImmutableList.of(thirdProjection, firstProjection), 2),
-                // then single projections
-                new CacheCandidate(ImmutableList.of(secondProjection), 1),
-                new CacheCandidate(ImmutableList.of(thirdProjection), 1),
-                new CacheCandidate(ImmutableList.of(firstProjection), 1));
-
-        // split common subplans by intersection into two commonSubplans
-        firstProjection = createCanonicalTableScanSubplan(firstId, TupleDomain.withColumnDomains(ImmutableMap.of(new CacheColumnId("column1"), multipleValues(INTEGER, ImmutableList.of(1L, 2L, 3L)))));
-        thirdProjection = createCanonicalTableScanSubplan(thirdId, TupleDomain.withColumnDomains(ImmutableMap.of(new CacheColumnId("column1"), multipleValues(INTEGER, ImmutableList.of(3L, 4L, 5L)))));
-        CanonicalSubplan forthProjection = createCanonicalTableScanSubplan(thirdId, TupleDomain.withColumnDomains(ImmutableMap.of(new CacheColumnId("column1"), multipleValues(INTEGER, ImmutableList.of(7L, 8L, 9L)))));
-        secondProjection = createCanonicalTableScanSubplan(secondId, TupleDomain.withColumnDomains(ImmutableMap.of(new CacheColumnId("column1"), multipleValues(INTEGER, ImmutableList.of(7L, 0L)))));
-        subplans = ImmutableList.of(secondProjection, thirdProjection, firstProjection, forthProjection);
-        assertThat(cacheController.getCachingCandidates(cacheProperties(true, false, true), subplans)).containsExactly(
-                new CacheCandidate(ImmutableList.of(secondProjection, forthProjection), 2),
-                new CacheCandidate(ImmutableList.of(thirdProjection, firstProjection), 2),
-                // then single projections
-                new CacheCandidate(ImmutableList.of(secondProjection), 1),
-                new CacheCandidate(ImmutableList.of(thirdProjection), 1),
-                new CacheCandidate(ImmutableList.of(firstProjection), 1),
-                new CacheCandidate(ImmutableList.of(forthProjection), 1));
+                        new CacheCandidate(ImmutableList.of(secondProjection)),
+                        new CacheCandidate(ImmutableList.of(firstProjection)));
     }
 
     private CanonicalSubplan createCanonicalAggregationSubplan(Set<CacheColumnId> groupByColumns)
@@ -320,10 +181,9 @@ public class TestCacheController
                 .build();
     }
 
-    private Session cacheProperties(boolean cacheSubqueries, boolean cacheAggregations, boolean cacheProjections)
+    private Session cacheProperties(boolean cacheAggregations, boolean cacheProjections)
     {
         return testSessionBuilder()
-                .setSystemProperty(CACHE_COMMON_SUBQUERIES_ENABLED, Boolean.toString(cacheSubqueries))
                 .setSystemProperty(CACHE_AGGREGATIONS_ENABLED, Boolean.toString(cacheAggregations))
                 .setSystemProperty(CACHE_PROJECTIONS_ENABLED, Boolean.toString(cacheProjections))
                 .build();

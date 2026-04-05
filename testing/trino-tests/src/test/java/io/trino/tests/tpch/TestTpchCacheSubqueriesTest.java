@@ -65,20 +65,6 @@ public class TestTpchCacheSubqueriesTest
     }
 
     @Override
-    @Test
-    public void testPartitionedQueryCache()
-    {
-        abort("tpch does not support for partitioned tables");
-    }
-
-    @Override
-    @Test
-    public void testCommonSubqueryCacheSplitByIntersectionOfEnforcedConstraint()
-    {
-        abort("tpch does not support for partitioned tables");
-    }
-
-    @Override
     @ParameterizedTest
     @MethodSource("isDynamicRowFilteringEnabled")
     public void testGetUnenforcedPredicateAndPrunePredicate(boolean isDynamicRowFilteringEnabled)

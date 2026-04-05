@@ -114,7 +114,7 @@ public final class PlanCopier
         @Override
         public PlanNode visitLoadCachedDataPlanNode(LoadCachedDataPlanNode node, RewriteContext<Void> context)
         {
-            return new LoadCachedDataPlanNode(idAllocator.getNextId(), node.getPlanSignature(), node.getDynamicFilterDisjuncts(), node.getCommonColumnHandles(), node.getOutputSymbols());
+            return new LoadCachedDataPlanNode(idAllocator.getNextId(), node.getPlanSignature(), node.getCommonColumnHandles(), node.getOutputSymbols());
         }
 
         @Override

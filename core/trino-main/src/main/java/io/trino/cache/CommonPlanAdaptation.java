@@ -56,10 +56,6 @@ public class CommonPlanAdaptation
      */
     private final FilteredTableScan commonSubplanFilteredTableScan;
     /**
-     * Dynamic filter disjuncts from all common subplans.
-     */
-    private final Expression commonDynamicFilterDisjuncts;
-    /**
      * Mapping from {@link CacheColumnId} to {@link ColumnHandle}.
      */
     private final Map<CacheColumnId, ColumnHandle> commonColumnHandles;
@@ -95,7 +91,6 @@ public class CommonPlanAdaptation
                 commonSubplan,
                 commonSubplanSignature,
                 childAdaptation.getCommonSubplanFilteredTableScan(),
-                childAdaptation.getCommonDynamicFilterDisjuncts(),
                 childAdaptation.getCommonColumnHandles(),
                 adaptationPredicate,
                 adaptationAssignments,
@@ -107,7 +102,6 @@ public class CommonPlanAdaptation
             PlanNode commonSubplan,
             PlanSignatureWithPredicate commonSubplanSignature,
             FilteredTableScan commonSubplanFilteredTableScan,
-            Expression commonDynamicFilterDisjuncts,
             Map<CacheColumnId, ColumnHandle> commonColumnHandles,
             Optional<Expression> adaptationPredicate,
             Optional<Assignments> adaptationAssignments,
@@ -117,7 +111,6 @@ public class CommonPlanAdaptation
         this.commonSubplan = requireNonNull(commonSubplan, "commonSubplan is null");
         this.commonSubplanSignature = requireNonNull(commonSubplanSignature, "commonSubplanSignature is null");
         this.commonSubplanFilteredTableScan = requireNonNull(commonSubplanFilteredTableScan, "commonSubplanFilteredTableScan is null");
-        this.commonDynamicFilterDisjuncts = requireNonNull(commonDynamicFilterDisjuncts, "commonDynamicFilterDisjuncts is null");
         this.commonColumnHandles = requireNonNull(commonColumnHandles, "commonColumnHandles is null");
         this.adaptationPredicate = requireNonNull(adaptationPredicate, "adaptationPredicate is null");
         this.adaptationAssignments = requireNonNull(adaptationAssignments, "adaptationAssignments is null");
@@ -157,11 +150,6 @@ public class CommonPlanAdaptation
     public FilteredTableScan getCommonSubplanFilteredTableScan()
     {
         return commonSubplanFilteredTableScan;
-    }
-
-    public Expression getCommonDynamicFilterDisjuncts()
-    {
-        return commonDynamicFilterDisjuncts;
     }
 
     public Map<CacheColumnId, ColumnHandle> getCommonColumnHandles()

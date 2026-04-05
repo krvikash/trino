@@ -21,7 +21,6 @@ import static io.trino.tests.product.TestGroups.AZURE;
 import static io.trino.tests.product.TestGroups.CLI;
 import static io.trino.tests.product.TestGroups.FAULT_TOLERANT;
 import static io.trino.tests.product.TestGroups.FUNCTIONS;
-import static io.trino.tests.product.TestGroups.HIVE_CACHE_SUBQUERIES;
 import static io.trino.tests.product.TestGroups.HIVE_COMPRESSION;
 import static io.trino.tests.product.TestGroups.JDBC;
 import static io.trino.tests.product.TestGroups.JDBC_KERBEROS_CONSTRAINED_DELEGATION;
@@ -50,7 +49,6 @@ public abstract class SuiteGroups
             PROFILE_SPECIFIC_TESTS,
             STORAGE_FORMATS,
             STORAGE_FORMATS_DETAILED,
-            HIVE_CACHE_SUBQUERIES,
             TPCH,
             TPCDS);
 }

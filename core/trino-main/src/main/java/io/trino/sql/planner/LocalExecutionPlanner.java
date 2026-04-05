@@ -398,7 +398,6 @@ import static io.trino.sql.ir.Booleans.TRUE;
 import static io.trino.sql.ir.Comparison.Operator.LESS_THAN;
 import static io.trino.sql.ir.Comparison.Operator.LESS_THAN_OR_EQUAL;
 import static io.trino.sql.ir.IrUtils.combineConjuncts;
-import static io.trino.sql.ir.IrUtils.extractDisjuncts;
 import static io.trino.sql.planner.ExpressionExtractor.extractExpressions;
 import static io.trino.sql.planner.ExpressionNodeInliner.replaceExpression;
 import static io.trino.sql.planner.SortExpressionExtractor.extractSortExpression;
@@ -802,8 +801,7 @@ public class LocalExecutionPlanner
                                 cacheContext.getOriginalTableHandle(),
                                 cacheContext.getPlanSignature(),
                                 cacheContext.getCommonColumnHandles(),
-                                cacheContext.getCommonDynamicFilterSupplier(),
-                                cacheContext.getOriginalDynamicFilterSupplier(),
+                                cacheContext.getDynamicFilterSupplier(),
                                 ImmutableList.copyOf(alternatives.values()),
                                 cacheStats,
                                 cachePerformanceTracker));
@@ -953,21 +951,18 @@ public class LocalExecutionPlanner
         private final TableHandle originalTableHandle;
         private final PlanSignatureWithPredicate planSignature;
         private final Map<CacheColumnId, ColumnHandle> commonColumnHandles;
-        private final Supplier<StaticDynamicFilter> commonDynamicFilterSupplier;
-        private final Supplier<StaticDynamicFilter> originalDynamicFilterSupplier;
+        private final Supplier<StaticDynamicFilter> dynamicFilterSupplier;
 
         public CacheContext(
                 TableHandle originalTableHandle,
                 LoadCachedDataPlanNode loadCacheData,
-                Supplier<StaticDynamicFilter> commonDynamicFilterSupplier,
-                Supplier<StaticDynamicFilter> originalDynamicFilterSupplier)
+                Supplier<StaticDynamicFilter> dynamicFilterSupplier)
         {
             requireNonNull(loadCacheData, "loadCacheData is null");
             this.originalTableHandle = requireNonNull(originalTableHandle, "originalTableHandle is null");
             this.planSignature = loadCacheData.getPlanSignature();
             this.commonColumnHandles = loadCacheData.getCommonColumnHandles();
-            this.commonDynamicFilterSupplier = requireNonNull(commonDynamicFilterSupplier, "commonDynamicFilterSupplier is null");
-            this.originalDynamicFilterSupplier = requireNonNull(originalDynamicFilterSupplier, "originalDynamicFilterSupplier is null");
+            this.dynamicFilterSupplier = requireNonNull(dynamicFilterSupplier, "dynamicFilterSupplier is null");
         }
 
         public TableHandle getOriginalTableHandle()
@@ -985,14 +980,9 @@ public class LocalExecutionPlanner
             return commonColumnHandles;
         }
 
-        public Supplier<StaticDynamicFilter> getCommonDynamicFilterSupplier()
+        public Supplier<StaticDynamicFilter> getDynamicFilterSupplier()
         {
-            return commonDynamicFilterSupplier;
-        }
-
-        public Supplier<StaticDynamicFilter> getOriginalDynamicFilterSupplier()
-        {
-            return originalDynamicFilterSupplier;
+            return dynamicFilterSupplier;
         }
     }
 
@@ -2352,19 +2342,14 @@ public class LocalExecutionPlanner
                 // when splits are cached dynamic filter needs to be static during split processing
                 LoadCachedDataPlanNode loadCachedData = getLoadCachedDataPlanNode(node);
                 TableScanNode commonTableScan = node.getOriginalTableScan().tableScanNode();
-                List<InternalDynamicFilter> commonDynamicFilters = extractDisjuncts(loadCachedData.getDynamicFilterDisjuncts()).stream()
-                        .map(predicate -> getDynamicFilter(commonTableScan, predicate, context))
-                        .collect(toImmutableList());
-                Supplier<StaticDynamicFilter> commonDynamicFilterSupplier = createStaticDynamicFilterSupplier(commonDynamicFilters);
-                Supplier<StaticDynamicFilter> originalDynamicFilterSupplier = node.getOriginalTableScan().filterPredicate()
+                Supplier<StaticDynamicFilter> dynamicFilterSupplier = node.getOriginalTableScan().filterPredicate()
                         .map(predicate -> getDynamicFilter(commonTableScan, predicate, context))
                         .map(dynamicFilter -> createStaticDynamicFilterSupplier(ImmutableList.of(dynamicFilter)))
                         .orElse(() -> createStaticDynamicFilter(ImmutableList.of(InternalDynamicFilter.EMPTY)));
                 context.setCacheContext(new CacheContext(
                         node.getOriginalTableScan().tableHandle(),
                         loadCachedData,
-                        commonDynamicFilterSupplier,
-                        originalDynamicFilterSupplier));
+                        dynamicFilterSupplier));
             }
 
             ImmutableMap.Builder<TableHandle, PhysicalOperation> alternatives = ImmutableMap.builder();

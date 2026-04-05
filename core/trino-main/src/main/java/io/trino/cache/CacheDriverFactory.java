@@ -71,8 +71,6 @@ import static java.util.function.Function.identity;
 public class CacheDriverFactory
 {
     static final int MAX_UNENFORCED_PREDICATE_VALUE_COUNT = 1_000_000;
-    static final double DYNAMIC_FILTER_VALUES_HEURISTIC = 0.05;
-
     public static final float TOO_BIG_SPLITS_THRESHOLD = 0.3f;
     public static final int MIN_PROCESSED_SPLITS = 16;
     public static final int MIN_PROCESSED_BYTES = 5 * 1024 * 1024; // 5 MB (total across all splits)
@@ -86,8 +84,7 @@ public class CacheDriverFactory
     private final TupleDomain<CacheColumnId> enforcedPredicate;
     private final BiMap<ColumnHandle, CacheColumnId> commonColumnHandles;
     private final Map<CacheColumnId, Integer> projectedColumns;
-    private final Supplier<StaticDynamicFilter> commonDynamicFilterSupplier;
-    private final Supplier<StaticDynamicFilter> originalDynamicFilterSupplier;
+    private final Supplier<StaticDynamicFilter> dynamicFilterSupplier;
     private final List<DriverFactory> alternatives;
     private final CacheMetrics cacheMetrics = new CacheMetrics();
     private final CacheStats cacheStats;
@@ -102,8 +99,7 @@ public class CacheDriverFactory
             TableHandle originalTableHandle,
             PlanSignatureWithPredicate planSignature,
             Map<CacheColumnId, ColumnHandle> commonColumnHandles,
-            Supplier<StaticDynamicFilter> commonDynamicFilterSupplier,
-            Supplier<StaticDynamicFilter> originalDynamicFilterSupplier,
+            Supplier<StaticDynamicFilter> dynamicFilterSupplier,
             List<DriverFactory> alternatives,
             CacheStats cacheStats,
             CachePerformanceTracker cachePerformanceTracker)
@@ -119,8 +115,7 @@ public class CacheDriverFactory
         List<CacheColumnId> columns = planSignature.signature().getColumns();
         this.projectedColumns = IntStream.range(0, columns.size()).boxed()
                 .collect(toImmutableMap(columns::get, identity()));
-        this.commonDynamicFilterSupplier = requireNonNull(commonDynamicFilterSupplier, "commonDynamicFilterSupplier is null");
-        this.originalDynamicFilterSupplier = requireNonNull(originalDynamicFilterSupplier, "originalDynamicFilterSupplier is null");
+        this.dynamicFilterSupplier = requireNonNull(dynamicFilterSupplier, "dynamicFilterSupplier is null");
         this.alternatives = requireNonNull(alternatives, "alternatives is null");
         this.cacheStats = requireNonNull(cacheStats, "cacheStats is null");
         this.cachePerformanceTracker = requireNonNull(cachePerformanceTracker, "cachePerformanceTracker is null");
@@ -161,15 +156,13 @@ public class CacheDriverFactory
         }
         CacheSplitId splitId = cacheSplitIdOptional.get();
 
-        StaticDynamicFilter originalDynamicFilter = originalDynamicFilterSupplier.get();
-        if (originalDynamicFilter.getCurrentDynamicFilterTupleDomain().getDomains().orElse(ImmutableMap.of())
+        StaticDynamicFilter dynamicFilter = dynamicFilterSupplier.get();
+        if (dynamicFilter.getCurrentDynamicFilterTupleDomain().getDomains().orElse(ImmutableMap.of())
                 .values().stream().anyMatch(domain -> domain.getBloomfilterWithRange().isPresent())) {
             // bloom filters are not supported in cache
             cacheStats.recordDynamicFilterWithBloomFilter();
             return new DriverFactoryWithCacheContext(alternatives.get(ORIGINAL_PLAN_ALTERNATIVE), Optional.empty());
         }
-        StaticDynamicFilter commonDynamicFilter = commonDynamicFilterSupplier.get();
-        StaticDynamicFilter dynamicFilter = resolveDynamicFilter(originalDynamicFilter, commonDynamicFilter);
 
         TupleDomain<CacheColumnId> enforcedPredicate = pruneEnforcedPredicate(split);
         TupleDomain<CacheColumnId> unenforcedPredicate = getDynamicRowFilteringUnenforcedPredicate(
@@ -294,25 +287,6 @@ public class CacheDriverFactory
         catch (IOException exception) {
             throw new UncheckedIOException(exception);
         }
-    }
-
-    private StaticDynamicFilter resolveDynamicFilter(StaticDynamicFilter originalDynamicFilter, StaticDynamicFilter commonDynamicFilter)
-    {
-        TupleDomain<ColumnHandle> originalPredicate = originalDynamicFilter.getCurrentPredicate();
-        TupleDomain<ColumnHandle> commonPredicate = commonDynamicFilter.getCurrentPredicate();
-
-        if (commonPredicate.isNone() || originalPredicate.isNone()) {
-            // prefer original DF when common DF is absent
-            return originalDynamicFilter;
-        }
-
-        if (originalPredicate.getDomains().get().size() > commonPredicate.getDomains().get().size() ||
-                getTupleDomainValueCount(originalPredicate) < getTupleDomainValueCount(commonPredicate) * DYNAMIC_FILTER_VALUES_HEURISTIC) {
-            // prefer original DF when it contains more domains or original DF size is much smaller
-            return originalDynamicFilter;
-        }
-
-        return commonDynamicFilter;
     }
 
     @VisibleForTesting

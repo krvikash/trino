@@ -210,7 +210,6 @@ public class TestCacheDriverFactory
         DriverFactory driverFactory = createDriverFactory(new AtomicInteger());
         Map<ColumnHandle, CacheColumnId> columnHandles = ImmutableMap.of(columnHandle, cacheColumnId);
 
-        // use original dynamic filter
         CacheDriverFactory cacheDriverFactory = new CacheDriverFactory(
                 TEST_SESSION,
                 new TestPageSourceProviderFactory(),
@@ -219,8 +218,6 @@ public class TestCacheDriverFactory
                 TEST_TABLE_HANDLE,
                 signature,
                 columnHandles.entrySet().stream().collect(toImmutableMap(Map.Entry::getValue, Map.Entry::getKey)),
-                createStaticDynamicFilterSupplier(ImmutableList.of(new TestDynamicFilter(DynamicFilterTupleDomain.withColumnDomains(
-                        ImmutableMap.of(columnHandle, DynamicFilterDomain.multipleValues(BIGINT, LongStream.range(0L, 5000L).boxed().toList()))), true))),
                 createStaticDynamicFilterSupplier(ImmutableList.of(new TestDynamicFilter(DynamicFilterTupleDomain.withColumnDomains(
                         ImmutableMap.of(columnHandle, DynamicFilterDomain.multipleValues(BIGINT, LongStream.range(0L, 100L).boxed().toList()))), true))),
                 ImmutableList.of(driverFactory, driverFactory, driverFactory),
@@ -239,7 +236,6 @@ public class TestCacheDriverFactory
         assertThat(driver.getDriverContext().getCacheDriverContext()).isPresent();
         assertThat(driver.getDriverContext().getCacheDriverContext().get().pageSource()).isEqualTo(pageSource);
 
-        // use common dynamic filter
         cacheDriverFactory = new CacheDriverFactory(
                 TEST_SESSION,
                 new TestPageSourceProviderFactory(),
@@ -250,8 +246,6 @@ public class TestCacheDriverFactory
                 columnHandles.entrySet().stream().collect(toImmutableMap(Map.Entry::getValue, Map.Entry::getKey)),
                 createStaticDynamicFilterSupplier(ImmutableList.of(new TestDynamicFilter(DynamicFilterTupleDomain.withColumnDomains(
                         ImmutableMap.of(columnHandle, DynamicFilterDomain.multipleValues(BIGINT, LongStream.range(0L, 150L).boxed().toList()))), true))),
-                createStaticDynamicFilterSupplier(ImmutableList.of(new TestDynamicFilter(DynamicFilterTupleDomain.withColumnDomains(
-                        ImmutableMap.of(columnHandle, DynamicFilterDomain.multipleValues(BIGINT, LongStream.range(0L, 100L).boxed().toList()))), true))),
                 ImmutableList.of(driverFactory, driverFactory, driverFactory),
                 new CacheStats(),
                 cachePerformanceTracker);
@@ -266,48 +260,6 @@ public class TestCacheDriverFactory
         driver = cacheDriverFactory.createDriver(createDriverContext(), SPLIT, Optional.of(SPLIT_ID));
         assertThat(driver.getDriverContext().getCacheDriverContext()).isPresent();
         assertThat(driver.getDriverContext().getCacheDriverContext().get().pageSource()).isEqualTo(pageSource);
-    }
-
-    @Test
-    public void testCreateDriverWhenDynamicFilterWasChanged()
-    {
-        CacheColumnId columnId = new CacheColumnId("cacheColumnId");
-        PlanSignatureWithPredicate signature = new PlanSignatureWithPredicate(
-                new PlanSignature(SIGNATURE_KEY, Optional.empty(), ImmutableList.of(columnId), ImmutableList.of(BIGINT)),
-                TupleDomain.all());
-        ColumnHandle columnHandle = new TestingColumnHandle("column");
-        DynamicFilterTupleDomain<ColumnHandle> originalDynamicPredicate = DynamicFilterTupleDomain.withColumnDomains(
-                ImmutableMap.of(columnHandle, DynamicFilterDomain.singleValue(BIGINT, 0L)));
-
-        DriverFactory driverFactory = createDriverFactory(new AtomicInteger());
-        TestDynamicFilter commonDynamicFilter = new TestDynamicFilter(DynamicFilterTupleDomain.all(), false);
-        Map<ColumnHandle, CacheColumnId> columnHandles = ImmutableMap.of(columnHandle, columnId);
-        CacheDriverFactory cacheDriverFactory = new CacheDriverFactory(
-                TEST_SESSION,
-                new TestPageSourceProviderFactory(),
-                registry,
-                tupleDomainCodec,
-                TEST_TABLE_HANDLE,
-                signature,
-                ImmutableMap.of(columnId, columnHandle),
-                createStaticDynamicFilterSupplier(ImmutableList.of(commonDynamicFilter)),
-                createStaticDynamicFilterSupplier(ImmutableList.of(new TestDynamicFilter(originalDynamicPredicate, true))),
-                ImmutableList.of(driverFactory, driverFactory, driverFactory),
-                new CacheStats(),
-                cachePerformanceTracker);
-
-        // baseSignature should use original dynamic filter because it contains more domains
-        splitCache.addExpectedCacheLookup(TupleDomain.all(), originalDynamicPredicate.transformKeys(columnHandles::get).toTupleDomain());
-        Driver driver = cacheDriverFactory.createDriver(createDriverContext(), SPLIT, Optional.of(SPLIT_ID));
-        assertThat(driver.getDriverContext().getCacheDriverContext()).isPresent();
-
-        // baseSignature should use common dynamic filter as it uses same domains
-        commonDynamicFilter.setDynamicPredicate(
-                DynamicFilterTupleDomain.withColumnDomains(ImmutableMap.of(columnHandle, DynamicFilterDomain.multipleValues(BIGINT, ImmutableList.of(0L, 1L)))),
-                true);
-        splitCache.addExpectedCacheLookup(TupleDomain.all(), commonDynamicFilter.getCurrentPredicate().transformKeys(columnHandles::get));
-        cacheDriverFactory.createDriver(createDriverContext(), SPLIT, Optional.of(SPLIT_ID));
-        assertThat(driver.getDriverContext().getCacheDriverContext()).isPresent();
     }
 
     @Test
@@ -356,7 +308,6 @@ public class TestCacheDriverFactory
                 signature,
                 columnHandles,
                 createStaticDynamicFilterSupplier(ImmutableList.of(dynamicFilter)),
-                createStaticDynamicFilterSupplier(ImmutableList.of(InternalDynamicFilter.EMPTY)),
                 ImmutableList.of(driverFactory, driverFactory, driverFactory),
                 new CacheStats(),
                 cachePerformanceTracker);
@@ -531,7 +482,6 @@ public class TestCacheDriverFactory
                 TEST_TABLE_HANDLE,
                 signature,
                 ImmutableMap.of(new CacheColumnId("column"), new TestingColumnHandle("column")),
-                createStaticDynamicFilterSupplier(ImmutableList.of(InternalDynamicFilter.EMPTY)),
                 createStaticDynamicFilterSupplier(ImmutableList.of(InternalDynamicFilter.EMPTY)),
                 ImmutableList.of(driverFactory, driverFactory, driverFactory),
                 new CacheStats(),

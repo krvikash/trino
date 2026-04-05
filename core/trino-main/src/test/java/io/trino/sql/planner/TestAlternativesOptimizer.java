@@ -163,7 +163,6 @@ public class TestAlternativesOptimizer
                                 new PlanSignatureWithPredicate(
                                         new PlanSignature(new SignatureKey("sig"), Optional.empty(), ImmutableList.of(), ImmutableList.of()),
                                         TupleDomain.all()),
-                                FALSE,
                                 ImmutableMap.of(),
                                 ImmutableList.of())),
                 new FilteredTableScan(scan, Optional.empty()));

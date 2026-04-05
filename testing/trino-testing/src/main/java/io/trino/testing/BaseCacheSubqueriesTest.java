@@ -22,7 +22,6 @@ import io.opentelemetry.api.trace.Span;
 import io.trino.Session;
 import io.trino.cache.CacheDataOperator;
 import io.trino.cache.CacheMetadata;
-import io.trino.cache.CommonPlanAdaptation.PlanSignatureWithPredicate;
 import io.trino.cache.LoadCachedDataOperator;
 import io.trino.connector.CatalogHandle;
 import io.trino.metadata.Metadata;
@@ -34,9 +33,6 @@ import io.trino.operator.ScanFilterAndProjectOperator;
 import io.trino.operator.TableScanOperator;
 import io.trino.server.testing.TestingTrinoServer;
 import io.trino.spi.QueryId;
-import io.trino.spi.cache.CacheColumnId;
-import io.trino.spi.cache.CacheTableId;
-import io.trino.spi.cache.PlanSignature;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
@@ -57,10 +53,7 @@ import io.trino.split.PageSourceManager.PageSourceProviderInstance;
 import io.trino.split.PageSourceProvider;
 import io.trino.split.SplitSource;
 import io.trino.sql.planner.Plan;
-import io.trino.sql.planner.assertions.PlanAssert;
-import io.trino.sql.planner.assertions.PlanMatchPattern;
 import io.trino.sql.planner.plan.ExchangeNode;
-import io.trino.sql.planner.plan.LoadCachedDataPlanNode;
 import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
 import io.trino.tpch.TpchTable;
 import org.intellij.lang.annotations.Language;
@@ -83,26 +76,17 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.trino.SystemSessionProperties.CACHE_AGGREGATIONS_ENABLED;
-import static io.trino.SystemSessionProperties.CACHE_COMMON_SUBQUERIES_ENABLED;
 import static io.trino.SystemSessionProperties.CACHE_DATA_REDUCTION_THRESHOLD;
 import static io.trino.SystemSessionProperties.CACHE_PROJECTIONS_ENABLED;
 import static io.trino.SystemSessionProperties.ENABLE_DYNAMIC_ROW_FILTERING;
 import static io.trino.SystemSessionProperties.JOIN_DISTRIBUTION_TYPE;
 import static io.trino.SystemSessionProperties.JOIN_REORDERING_STRATEGY;
 import static io.trino.cache.CacheDriverFactory.getDynamicRowFilteringUnenforcedPredicate;
-import static io.trino.cache.CommonSubqueriesExtractor.scanFilterProjectKey;
-import static io.trino.cost.StatsCalculator.noopStatsCalculator;
-import static io.trino.metadata.FunctionManager.createTestingFunctionManager;
 import static io.trino.spi.connector.Constraint.alwaysTrue;
 import static io.trino.spi.predicate.Range.range;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.sql.planner.OptimizerConfig.JoinDistributionType.BROADCAST;
 import static io.trino.sql.planner.OptimizerConfig.JoinReorderingStrategy.NONE;
-import static io.trino.sql.planner.assertions.PlanMatchPattern.anyTree;
-import static io.trino.sql.planner.assertions.PlanMatchPattern.cacheDataPlanNode;
-import static io.trino.sql.planner.assertions.PlanMatchPattern.chooseAlternativeNode;
-import static io.trino.sql.planner.assertions.PlanMatchPattern.node;
-import static io.trino.sql.planner.assertions.PlanMatchPattern.tableScan;
 import static io.trino.sql.planner.optimizations.PlanNodeSearcher.searchFrom;
 import static io.trino.sql.planner.plan.ExchangeNode.Scope.REMOTE;
 import static io.trino.sql.planner.plan.ExchangeNode.Type.REPLICATE;
@@ -188,73 +172,16 @@ public abstract class BaseCacheSubqueriesTest
     }
 
     @Test
-    public void testJoinQuery()
-    {
-        @Language("SQL") String selectQuery = "select count(l.orderkey) from lineitem l, lineitem r where l.orderkey = r.orderkey";
-        MaterializedResultWithPlan resultWithCache = executeWithPlan(withCacheEnabled(), selectQuery);
-        MaterializedResultWithPlan resultWithoutCache = executeWithPlan(withCacheDisabled(), selectQuery);
-        assertEqualsIgnoreOrder(resultWithCache.result(), resultWithoutCache.result());
-
-        // make sure data was read from cache
-        assertThat(getLoadCachedDataOperatorInputPositions(resultWithCache.queryId())).isPositive();
-
-        // make sure data was cached
-        assertThat(getCacheDataOperatorInputPositions(resultWithCache.queryId())).isPositive();
-
-        // make sure less data is read from source when caching is on
-        assertThat(getScanOperatorInputPositions(resultWithCache.queryId()))
-                .isLessThan(getScanOperatorInputPositions(resultWithoutCache.queryId()));
-    }
-
-    @Test
-    public void testAggregationQuery()
-    {
-        @Language("SQL") String countQuery = """
-                SELECT * FROM
-                    (SELECT count(orderkey), orderkey FROM lineitem GROUP BY orderkey) a
-                JOIN
-                    (SELECT count(orderkey), orderkey FROM lineitem GROUP BY orderkey) b
-                ON a.orderkey = b.orderkey""";
-        @Language("SQL") String sumQuery = """
-                SELECT * FROM
-                    (SELECT sum(orderkey), orderkey FROM lineitem GROUP BY orderkey) a
-                JOIN
-                    (SELECT sum(orderkey), orderkey FROM lineitem GROUP BY orderkey) b
-                ON a.orderkey = b.orderkey""";
-        MaterializedResultWithPlan countWithCache = executeWithPlan(withCacheEnabled(), countQuery);
-        MaterializedResultWithPlan countWithoutCache = executeWithPlan(withCacheDisabled(), countQuery);
-        assertEqualsIgnoreOrder(countWithCache.result(), countWithoutCache.result());
-
-        // make sure data was read from cache
-        assertThat(getLoadCachedDataOperatorInputPositions(countWithCache.queryId())).isPositive();
-
-        // make sure data was cached
-        assertThat(getCacheDataOperatorInputPositions(countWithCache.queryId())).isPositive();
-
-        // make sure less data is read from source when caching is on
-        assertThat(getScanOperatorInputPositions(countWithCache.queryId()))
-                .isLessThan(getScanOperatorInputPositions(countWithoutCache.queryId()));
-
-        // subsequent count aggregation query should use cached data only
-        countWithCache = executeWithPlan(withCacheEnabled(), countQuery);
-        assertThat(getLoadCachedDataOperatorInputPositions(countWithCache.queryId())).isPositive();
-        assertThat(getScanOperatorInputPositions(countWithCache.queryId())).isZero();
-
-        // subsequent sum aggregation query should read from source as it doesn't match count plan signature
-        MaterializedResultWithPlan sumWithCache = executeWithPlan(withCacheEnabled(), sumQuery);
-        assertThat(getScanOperatorInputPositions(sumWithCache.queryId())).isPositive();
-    }
-
-    @Test
     public void testSubsequentQueryReadsFromCache()
     {
-        @Language("SQL") String selectQuery = "select orderkey from lineitem union all (select orderkey from lineitem union all select orderkey from lineitem)";
+        // use nation (small table) to minimize memory pressure on CI
+        @Language("SQL") String selectQuery = "select nationkey from nation";
         MaterializedResultWithPlan resultWithCache = executeWithPlan(withCacheEnabled(), selectQuery);
 
         // make sure data was cached
         assertThat(getCacheDataOperatorInputPositions(resultWithCache.queryId())).isPositive();
 
-        resultWithCache = executeWithPlan(withCacheEnabled(), "select orderkey from lineitem union all select orderkey from lineitem");
+        resultWithCache = executeWithPlan(withCacheEnabled(), selectQuery);
         // make sure data was read from cache as data should be cached across queries
         assertThat(getLoadCachedDataOperatorInputPositions(resultWithCache.queryId())).isPositive();
         assertThat(getScanOperatorInputPositions(resultWithCache.queryId())).isZero();
@@ -456,119 +383,6 @@ public abstract class BaseCacheSubqueriesTest
         assertThat(getLoadCachedDataOperatorInputPositions(thirdRun.queryId())).isLessThanOrEqualTo(1);
 
         assertUpdate("drop table orders_with_row");
-    }
-
-    @Test
-    public void testPartitionedQueryCache()
-    {
-        String tableName = "orders_part" + randomNameSuffix();
-        createPartitionedTableAsSelect(tableName, ImmutableList.of("orderpriority"), "select orderkey, orderdate, orderpriority from orders");
-        @Language("SQL") String selectTwoPartitions = """
-                        select orderkey from %1$s where orderpriority IN ('3-MEDIUM', '1-URGENT')
-                        union all
-                        select orderkey from %1$s where orderpriority IN ('3-MEDIUM', '1-URGENT')
-                """.formatted(tableName);
-        @Language("SQL") String selectAllPartitions = """
-                        select orderkey from %1$s
-                        union all
-                        select orderkey from %1$s
-                """.formatted(tableName);
-        @Language("SQL") String selectSinglePartition = """
-                        select orderkey from %1$s where orderpriority = '3-MEDIUM'
-                        union all
-                        select orderkey from %1$s where orderpriority = '3-MEDIUM'
-                """.formatted(tableName);
-
-        MaterializedResultWithPlan twoPartitionsQueryFirst = executeWithPlan(withCacheEnabled(), selectTwoPartitions);
-        Plan twoPartitionsQueryPlan = getDistributedQueryRunner().getQueryPlan(twoPartitionsQueryFirst.queryId());
-        MaterializedResultWithPlan twoPartitionsQuerySecond = executeWithPlan(withCacheEnabled(), selectTwoPartitions);
-
-        MaterializedResultWithPlan allPartitionsQuery = executeWithPlan(withCacheEnabled(), selectAllPartitions);
-        Plan allPartitionsQueryPlan = getDistributedQueryRunner().getQueryPlan(allPartitionsQuery.queryId());
-
-        String catalogId = withTransaction(session -> getDistributedQueryRunner().getCoordinator()
-                .getPlannerContext().getMetadata()
-                .getCatalogHandle(session, session.getCatalog().get())
-                .orElseThrow()
-                .getId());
-
-        PlanSignatureWithPredicate signature = new PlanSignatureWithPredicate(
-                new PlanSignature(
-                        scanFilterProjectKey(new CacheTableId(catalogId + ":" + getCacheTableId(getSession(), tableName))),
-                        Optional.empty(),
-                        ImmutableList.of(getCacheColumnId(getSession(), tableName, "orderkey")),
-                        ImmutableList.of(BIGINT)),
-                TupleDomain.all());
-
-        PlanMatchPattern chooseAlternativeNode = chooseAlternativeNode(
-                tableScan(tableName),
-                cacheDataPlanNode(tableScan(tableName)),
-                node(LoadCachedDataPlanNode.class)
-                        .with(LoadCachedDataPlanNode.class, node -> node.getPlanSignature().equals(signature)));
-
-        PlanMatchPattern originalPlanPattern = anyTree(chooseAlternativeNode, chooseAlternativeNode);
-
-        // predicate for both original plans were pushed down to tableHandle what means that there is no
-        // filter nodes. As a result, there is a same plan signatures for both (actually different) queries
-        assertPlan(getSession(), twoPartitionsQueryPlan, originalPlanPattern);
-        assertPlan(getSession(), allPartitionsQueryPlan, originalPlanPattern);
-
-        // make sure that full scan reads data from table instead of basing on cache even though
-        // plan signature is same
-        assertThat(getScanOperatorInputPositions(twoPartitionsQueryFirst.queryId())).isPositive();
-        assertThat(getScanOperatorInputPositions(twoPartitionsQuerySecond.queryId())).isZero();
-        assertThat(getScanOperatorInputPositions(allPartitionsQuery.queryId())).isPositive();
-
-        // notFilteringExecution should read from both cache (for partitions pre-loaded by filtering executions) and
-        // from source table
-        assertThat(getLoadCachedDataOperatorInputPositions(allPartitionsQuery.queryId())).isPositive();
-
-        // single partition query should read from cache only because data for all partitions have been pre-loaded
-        MaterializedResultWithPlan singlePartitionQuery = executeWithPlan(withCacheEnabled(), selectSinglePartition);
-        assertThat(getScanOperatorInputPositions(singlePartitionQuery.queryId())).isZero();
-        assertThat(getLoadCachedDataOperatorInputPositions(singlePartitionQuery.queryId())).isPositive();
-
-        // make sure that adding new partition doesn't invalidate existing cache entries
-        computeActual("insert into " + tableName + " values (-42, date '1991-01-01', 'foo')");
-        singlePartitionQuery = executeWithPlan(withCacheEnabled(), selectSinglePartition);
-        assertThat(getScanOperatorInputPositions(singlePartitionQuery.queryId())).isZero();
-        assertThat(getLoadCachedDataOperatorInputPositions(singlePartitionQuery.queryId())).isPositive();
-
-        // validate results
-        int twoPartitionsRowCount = twoPartitionsQueryFirst.result().getRowCount();
-        assertThat(twoPartitionsRowCount).isEqualTo(twoPartitionsQuerySecond.result().getRowCount());
-        assertThat(twoPartitionsRowCount).isLessThan(allPartitionsQuery.result().getRowCount());
-        assertThat(singlePartitionQuery.result().getRowCount()).isLessThan(twoPartitionsRowCount);
-        assertUpdate("drop table " + tableName);
-    }
-
-    @Test
-    public void testCommonSubqueryCacheSplitByIntersectionOfEnforcedConstraint()
-    {
-        String tableName = "orders_part" + randomNameSuffix();
-        createPartitionedTableAsSelect(tableName, ImmutableList.of("orderpriority"), "select orderkey, orderdate, orderpriority from orders");
-        @Language("SQL") String query = """
-                        select orderkey from %1$s where orderpriority = '3-MEDIUM'
-                        union all
-                        select orderkey from %1$s where orderpriority = '1-URGENT'
-                """.formatted(tableName);
-        // no caching because enforced constraint does not intersect between subplans
-        MaterializedResultWithPlan result = executeWithPlan(withCommonSubqueryCacheEnabled(), query);
-        assertThat(getScanOperatorInputPositions(result.queryId())).isPositive();
-        assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isZero();
-        result = executeWithPlan(withCommonSubqueryCacheEnabled(), query);
-        assertThat(getScanOperatorInputPositions(result.queryId())).isPositive();
-        assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isZero();
-        query = """
-                        select orderkey from %1$s where orderpriority = '1-URGENT'
-                        union all
-                        select orderkey from %1$s where orderpriority = '1-URGENT'
-                """.formatted(tableName);
-        executeWithPlan(withCommonSubqueryCacheEnabled(), query);
-        result = executeWithPlan(withCommonSubqueryCacheEnabled(), query);
-        assertThat(getScanOperatorInputPositions(result.queryId())).isZero();
-        assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isPositive();
-        assertUpdate("drop table " + tableName);
     }
 
     @ParameterizedTest
@@ -810,20 +624,6 @@ public abstract class BaseCacheSubqueriesTest
         return pageSourceProvider.getUnenforcedPredicate(session, split, table, predicate);
     }
 
-    protected CacheColumnId getCacheColumnId(Session session, String tableName, String columnName)
-    {
-        QueryRunner runner = getQueryRunner();
-        QualifiedObjectName table = new QualifiedObjectName(session.getCatalog().orElseThrow(), session.getSchema().orElseThrow(), tableName);
-        return transaction(runner.getTransactionManager(), runner.getPlannerContext().getMetadata(), runner.getAccessControl())
-                .singleStatement()
-                .execute(session, transactionSession -> {
-                    Metadata metadata = runner.getPlannerContext().getMetadata();
-                    CacheMetadata cacheMetadata = runner.getCacheMetadata();
-                    TableHandle tableHandle = metadata.getTableHandle(transactionSession, table).get();
-                    return new CacheColumnId("[" + cacheMetadata.getCacheColumnId(transactionSession, tableHandle, metadata.getColumnHandles(transactionSession, tableHandle).get(columnName)).get() + "]");
-                });
-    }
-
     protected boolean effectivePredicateReturnedPerSplit()
     {
         return true;
@@ -837,31 +637,6 @@ public abstract class BaseCacheSubqueriesTest
     protected boolean getUnenforcedPredicateIsPrune()
     {
         return false;
-    }
-
-    protected CacheTableId getCacheTableId(Session session, String tableName)
-    {
-        QueryRunner runner = getQueryRunner();
-        QualifiedObjectName table = new QualifiedObjectName(session.getCatalog().orElseThrow(), session.getSchema().orElseThrow(), tableName);
-        return transaction(runner.getTransactionManager(), runner.getPlannerContext().getMetadata(), runner.getAccessControl())
-                .singleStatement()
-                .execute(session, transactionSession -> {
-                    Metadata metadata = runner.getPlannerContext().getMetadata();
-                    CacheMetadata cacheMetadata = runner.getCacheMetadata();
-                    TableHandle tableHandle = metadata.getTableHandle(transactionSession, table).get();
-                    return cacheMetadata.getCacheTableId(transactionSession, tableHandle).get();
-                });
-    }
-
-    protected void assertPlan(Session session, Plan plan, PlanMatchPattern pattern)
-    {
-        QueryRunner runner = getQueryRunner();
-        transaction(runner.getTransactionManager(), runner.getPlannerContext().getMetadata(), runner.getAccessControl())
-                .singleStatement()
-                .execute(session, transactionSession -> {
-                    runner.getTransactionManager().getCatalogHandle(transactionSession.getTransactionId().get(), transactionSession.getCatalog().orElseThrow());
-                    PlanAssert.assertPlan(transactionSession, getQueryRunner().getPlannerContext().getMetadata(), createTestingFunctionManager(), noopStatsCalculator(), plan, pattern);
-                });
     }
 
     protected <T> T withTransaction(Function<Session, T> transactionSessionConsumer)
@@ -920,19 +695,8 @@ public abstract class BaseCacheSubqueriesTest
     protected Session withCacheEnabled()
     {
         return Session.builder(getSession())
-                .setSystemProperty(CACHE_COMMON_SUBQUERIES_ENABLED, "true")
                 .setSystemProperty(CACHE_AGGREGATIONS_ENABLED, "true")
                 .setSystemProperty(CACHE_PROJECTIONS_ENABLED, "true")
-                .setSystemProperty(CACHE_DATA_REDUCTION_THRESHOLD, "100")
-                .build();
-    }
-
-    protected Session withCommonSubqueryCacheEnabled()
-    {
-        return Session.builder(getSession())
-                .setSystemProperty(CACHE_COMMON_SUBQUERIES_ENABLED, "true")
-                .setSystemProperty(CACHE_AGGREGATIONS_ENABLED, "false")
-                .setSystemProperty(CACHE_PROJECTIONS_ENABLED, "false")
                 .setSystemProperty(CACHE_DATA_REDUCTION_THRESHOLD, "100")
                 .build();
     }
@@ -940,7 +704,6 @@ public abstract class BaseCacheSubqueriesTest
     protected Session withCacheDisabled()
     {
         return Session.builder(getSession())
-                .setSystemProperty(CACHE_COMMON_SUBQUERIES_ENABLED, "false")
                 .setSystemProperty(CACHE_AGGREGATIONS_ENABLED, "false")
                 .setSystemProperty(CACHE_PROJECTIONS_ENABLED, "false")
                 .build();

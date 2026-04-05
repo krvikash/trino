@@ -233,7 +233,6 @@ public final class SystemSessionProperties
     public static final String PUSH_FILTER_INTO_VALUES_MAX_ROW_COUNT = "push_filter_into_values_max_row_count";
     public static final String FORCE_SPILLING_JOIN = "force_spilling_join";
     public static final String CACHE_ENABLED = "cache_enabled";
-    public static final String CACHE_COMMON_SUBQUERIES_ENABLED = "cache_common_subqueries_enabled";
     public static final String CACHE_AGGREGATIONS_ENABLED = "cache_aggregations_enabled";
     public static final String CACHE_PROJECTIONS_ENABLED = "cache_projections_enabled";
     public static final String CACHE_MAX_SPLIT_SIZE = "cache_max_split_size";
@@ -1244,11 +1243,6 @@ public final class SystemSessionProperties
                                 throw new TrinoException(INVALID_SESSION_PROPERTY, "Subquery cache must be enabled via feature config");
                             }
                         },
-                        true),
-                booleanProperty(
-                        CACHE_COMMON_SUBQUERIES_ENABLED,
-                        "Enables caching of common subqueries when running a single query",
-                        cacheConfig.isEnabled() && cacheConfig.isCacheCommonSubqueriesEnabled(),
                         true),
                 booleanProperty(
                         CACHE_AGGREGATIONS_ENABLED,
@@ -2300,11 +2294,6 @@ public final class SystemSessionProperties
     public static boolean isCacheEnabled(Session session)
     {
         return session.getSystemProperty(CACHE_ENABLED, Boolean.class);
-    }
-
-    public static boolean isCacheCommonSubqueriesEnabled(Session session)
-    {
-        return session.getSystemProperty(CACHE_COMMON_SUBQUERIES_ENABLED, Boolean.class);
     }
 
     public static boolean isCacheAggregationsEnabled(Session session)

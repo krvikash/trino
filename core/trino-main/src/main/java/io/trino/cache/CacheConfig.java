@@ -15,18 +15,21 @@ package io.trino.cache;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
-import io.airlift.configuration.LegacyConfig;
+import io.airlift.configuration.DefunctConfig;
 import io.airlift.units.DataSize;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 
+@DefunctConfig({
+        "cache.common-subqueries.enabled",
+        "cache.subqueries.enabled",
+})
 public class CacheConfig
 {
     private boolean enabled;
     private double revokingThreshold = 0.9;
     private double revokingTarget = 0.7;
-    private boolean cacheCommonSubqueriesEnabled = true;
     private boolean cacheAggregationsEnabled = true;
     private boolean cacheProjectionsEnabled = true;
     private DataSize maxSplitSize = DataSize.of(256, DataSize.Unit.MEGABYTE);
@@ -80,20 +83,6 @@ public class CacheConfig
     public CacheConfig setRevokingTarget(double revokingTarget)
     {
         this.revokingTarget = revokingTarget;
-        return this;
-    }
-
-    public boolean isCacheCommonSubqueriesEnabled()
-    {
-        return cacheCommonSubqueriesEnabled;
-    }
-
-    @Config("cache.common-subqueries.enabled")
-    @LegacyConfig("cache.subqueries.enabled")
-    @ConfigDescription("Enables caching of common subqueries when running a single query")
-    public CacheConfig setCacheCommonSubqueriesEnabled(boolean cacheCommonSubqueriesEnabled)
-    {
-        this.cacheCommonSubqueriesEnabled = cacheCommonSubqueriesEnabled;
         return this;
     }
 

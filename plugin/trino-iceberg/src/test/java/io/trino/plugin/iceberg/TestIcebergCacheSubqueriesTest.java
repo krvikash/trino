@@ -57,15 +57,15 @@ public class TestIcebergCacheSubqueriesTest
                 ImmutableList.of("'value1'", "'value2'"))) {
             // multi insert to place 2 values in single split
             assertUpdate("insert into %s(name) values ('value3'), ('value4')".formatted(testTable.getName()), 2);
-            @Language("SQL") String selectQuery = "select name from %s union all select name from %s".formatted(testTable.getName(), testTable.getName());
+            @Language("SQL") String selectQuery = "select name from %s".formatted(testTable.getName());
             MaterializedResultWithPlan result = executeWithPlan(withCacheEnabled(), selectQuery);
-            assertThat(result.result().getRowCount()).isEqualTo(8);
+            assertThat(result.result().getRowCount()).isEqualTo(4);
             assertThat(getScanOperatorInputPositions(result.queryId())).isPositive();
 
             assertUpdate("delete from %s where name='value3'".formatted(testTable.getName()), 1);
             result = executeWithPlan(withCacheEnabled(), selectQuery);
 
-            assertThat(result.result().getRowCount()).isEqualTo(6);
+            assertThat(result.result().getRowCount()).isEqualTo(3);
             assertThat(result.result().getMaterializedRows().stream().noneMatch(row -> row.getField(0).equals("value3"))).isTrue();
             // split with deleted file should trigger table scan
             assertThat(getScanOperatorInputPositions(result.queryId())).isPositive();
@@ -73,7 +73,7 @@ public class TestIcebergCacheSubqueriesTest
             assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isPositive();
 
             result = executeWithPlan(withCacheEnabled(), selectQuery);
-            assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isEqualTo(6);
+            assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isEqualTo(3);
             assertThat(getScanOperatorInputPositions(result.queryId())).isZero();
         }
     }

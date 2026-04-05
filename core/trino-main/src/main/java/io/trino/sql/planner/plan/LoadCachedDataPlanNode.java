@@ -20,7 +20,6 @@ import com.google.errorprone.annotations.Immutable;
 import io.trino.cache.CommonPlanAdaptation.PlanSignatureWithPredicate;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.connector.ColumnHandle;
-import io.trino.sql.ir.Expression;
 import io.trino.sql.planner.Symbol;
 
 import java.util.List;
@@ -33,10 +32,6 @@ public class LoadCachedDataPlanNode
         extends PlanNode
 {
     private final PlanSignatureWithPredicate planSignature;
-    /**
-     * Dynamic filter disjuncts from all common subplans.
-     */
-    private final Expression dynamicFilterDisjuncts;
     private final Map<CacheColumnId, ColumnHandle> commonColumnHandles;
     private final List<Symbol> outputSymbols;
 
@@ -44,13 +39,11 @@ public class LoadCachedDataPlanNode
     public LoadCachedDataPlanNode(
             @JsonProperty PlanNodeId id,
             @JsonProperty PlanSignatureWithPredicate planSignature,
-            @JsonProperty Expression dynamicFilterDisjuncts,
             @JsonProperty Map<CacheColumnId, ColumnHandle> commonColumnHandles,
             @JsonProperty List<Symbol> outputSymbols)
     {
         super(id);
         this.planSignature = requireNonNull(planSignature, "planSignature is null");
-        this.dynamicFilterDisjuncts = requireNonNull(dynamicFilterDisjuncts, "dynamicFilterDisjuncts is null");
         this.commonColumnHandles = requireNonNull(commonColumnHandles, "commonColumnHandles is null");
         this.outputSymbols = requireNonNull(outputSymbols, "outputSymbols is null");
     }
@@ -59,12 +52,6 @@ public class LoadCachedDataPlanNode
     public PlanSignatureWithPredicate getPlanSignature()
     {
         return planSignature;
-    }
-
-    @JsonProperty
-    public Expression getDynamicFilterDisjuncts()
-    {
-        return dynamicFilterDisjuncts;
     }
 
     @JsonProperty
@@ -98,7 +85,6 @@ public class LoadCachedDataPlanNode
         return new LoadCachedDataPlanNode(
                 getId(),
                 planSignature,
-                dynamicFilterDisjuncts,
                 commonColumnHandles,
                 outputSymbols);
     }

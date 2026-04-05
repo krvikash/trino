@@ -18,17 +18,13 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.units.DataSize;
 import io.trino.Session;
-import io.trino.cache.CommonPlanAdaptation.PlanSignatureWithPredicate;
 import io.trino.connector.TestingColumnHandle;
 import io.trino.cost.StatsAndCosts;
 import io.trino.execution.DynamicFilterConfig;
 import io.trino.execution.StageId;
 import io.trino.execution.TaskId;
-import io.trino.metadata.Metadata;
 import io.trino.operator.RetryPolicy;
 import io.trino.spi.QueryId;
-import io.trino.spi.cache.PlanSignature;
-import io.trino.spi.cache.SignatureKey;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.predicate.Domain;
@@ -37,7 +33,6 @@ import io.trino.spi.predicate.ValueSet;
 import io.trino.sql.DynamicFilters;
 import io.trino.sql.ir.Cast;
 import io.trino.sql.ir.Expression;
-import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.DynamicFilterDomain;
 import io.trino.sql.planner.Partitioning;
 import io.trino.sql.planner.PartitioningHandle;
@@ -45,15 +40,12 @@ import io.trino.sql.planner.PartitioningScheme;
 import io.trino.sql.planner.PlanFragment;
 import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.SymbolAllocator;
-import io.trino.sql.planner.plan.Assignments;
 import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.JoinNode;
-import io.trino.sql.planner.plan.LoadCachedDataPlanNode;
 import io.trino.sql.planner.plan.PlanFragmentId;
 import io.trino.sql.planner.plan.PlanNodeId;
-import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.planner.plan.RemoteSourceNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.testing.TestingMetadata;
@@ -77,7 +69,6 @@ import static io.trino.SystemSessionProperties.RETRY_POLICY;
 import static io.trino.metadata.TestingMetadataManager.createTestingMetadataManager;
 import static io.trino.server.DynamicFilterService.DynamicFilterDomainStats;
 import static io.trino.server.DynamicFilterService.DynamicFiltersStats;
-import static io.trino.server.DynamicFilterService.getCacheDynamicFilters;
 import static io.trino.server.DynamicFilterService.getOutboundDynamicFilters;
 import static io.trino.server.DynamicFilterService.getSourceStageInnerLazyDynamicFilters;
 import static io.trino.spi.predicate.Domain.none;
@@ -87,8 +78,6 @@ import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.DynamicFilters.createDynamicFilterExpression;
 import static io.trino.sql.ir.Booleans.TRUE;
-import static io.trino.sql.ir.IrUtils.and;
-import static io.trino.sql.ir.IrUtils.or;
 import static io.trino.sql.planner.DynamicFilterDomain.multipleValues;
 import static io.trino.sql.planner.DynamicFilterDomain.singleValue;
 import static io.trino.sql.planner.SystemPartitioningHandle.FIXED_HASH_DISTRIBUTION;
@@ -1015,26 +1004,6 @@ public class TestDynamicFilterService
         assertThat(stats.getDynamicFilterDomainStats()).isEqualTo(ImmutableList.of(new DynamicFilterDomainStats(
                 filterId,
                 getSimplifiedDomainString(1L, 6L, 3, INTEGER))));
-    }
-
-    @Test
-    public void testCacheDynamicFilters()
-    {
-        Metadata metadata = createTestingMetadataManager();
-        assertThat(getCacheDynamicFilters(
-                new ProjectNode(new PlanNodeId("0"),
-                        new LoadCachedDataPlanNode(
-                                new PlanNodeId("1"),
-                                new PlanSignatureWithPredicate(
-                                        new PlanSignature(new SignatureKey("test"), Optional.empty(), ImmutableList.of(), ImmutableList.of()),
-                                        TupleDomain.all()),
-                                or(and(createDynamicFilterExpression(metadata, new DynamicFilterId("0"), BIGINT, new Reference(BIGINT, "symbol0")),
-                                                createDynamicFilterExpression(metadata, new DynamicFilterId("1"), BIGINT, new Reference(BIGINT, "symbol1"))),
-                                        createDynamicFilterExpression(metadata, new DynamicFilterId("2"), BIGINT, new Reference(BIGINT, "symbol2"))),
-                                ImmutableMap.of(),
-                                ImmutableList.of()),
-                        Assignments.of())))
-                .isEqualTo(ImmutableSet.of(new DynamicFilterId("0"), new DynamicFilterId("1"), new DynamicFilterId("2")));
     }
 
     private static DynamicFilterService createDynamicFilterService()

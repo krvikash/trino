@@ -102,7 +102,6 @@ public class CacheCommonSubqueries
                             new LoadCachedDataPlanNode(
                                     idAllocator.getNextId(),
                                     adaptation.getCommonSubplanSignature(),
-                                    adaptation.getCommonDynamicFilterDisjuncts(),
                                     adaptation.getCommonColumnHandles(),
                                     adaptation.getCommonSubplan().getOutputSymbols()),
                             idAllocator);

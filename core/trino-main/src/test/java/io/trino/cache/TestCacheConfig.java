@@ -32,7 +32,6 @@ public class TestCacheConfig
                 .setEnabled(false)
                 .setRevokingThreshold(0.9)
                 .setRevokingTarget(0.7)
-                .setCacheCommonSubqueriesEnabled(true)
                 .setCacheAggregationsEnabled(true)
                 .setCacheProjectionsEnabled(true)
                 .setMaxSplitSize(DataSize.of(256, DataSize.Unit.MEGABYTE))
@@ -47,7 +46,6 @@ public class TestCacheConfig
                 .put("cache.enabled", "true")
                 .put("cache.revoking-threshold", "0.6")
                 .put("cache.revoking-target", "0.5")
-                .put("cache.common-subqueries.enabled", "false")
                 .put("cache.aggregations.enabled", "false")
                 .put("cache.projections.enabled", "false")
                 .put("cache.max-split-size", "64MB")
@@ -61,7 +59,6 @@ public class TestCacheConfig
                 .setRevokingTarget(0.5)
                 .setCacheAggregationsEnabled(false)
                 .setCacheProjectionsEnabled(false)
-                .setCacheCommonSubqueriesEnabled(false)
                 .setMaxSplitSize(DataSize.of(64, DataSize.Unit.MEGABYTE))
                 .setDataReductionThreshold(0.3d)
                 .setCacheMinWorkerSplitSeparation(10000);

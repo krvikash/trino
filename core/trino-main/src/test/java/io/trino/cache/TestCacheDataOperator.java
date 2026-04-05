@@ -204,7 +204,6 @@ public class TestCacheDataOperator
                 new PlanSignatureWithPredicate(signature, TupleDomain.all()),
                 ImmutableMap.of(),
                 createStaticDynamicFilterSupplier(ImmutableList.of(InternalDynamicFilter.EMPTY)),
-                createStaticDynamicFilterSupplier(ImmutableList.of(InternalDynamicFilter.EMPTY)),
                 driverFactories,
                 cacheStats,
                 new CachePerformanceTracker());
@@ -280,7 +279,6 @@ public class TestCacheDataOperator
                 TEST_TABLE_HANDLE,
                 new PlanSignatureWithPredicate(signature, TupleDomain.all()),
                 ImmutableMap.of(),
-                createStaticDynamicFilterSupplier(ImmutableList.of(InternalDynamicFilter.EMPTY)),
                 createStaticDynamicFilterSupplier(ImmutableList.of(InternalDynamicFilter.EMPTY)),
                 driverFactories,
                 cacheStats,
