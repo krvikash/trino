@@ -23,8 +23,6 @@ public final class UpdateExpectedPlans
             throws Exception
     {
         // in alphabetical order
-        runMain(TestPartitionedTpcdsCostBasedPlan.class);
-        runMain(TestTpchCostBasedPlan.class);
         runMain(TestCteReuseTpcdsPlan.class);
         runMain(TestCteReuseTpchPlan.class);
         runMain(TestPartitionedTpcdsCostBasedPlan.class);
