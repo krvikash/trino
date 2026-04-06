@@ -13,7 +13,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.starburstdata.plugin.openapi.authentication.OpenApiAuthenticator;
-import com.starburstdata.plugin.openapi.conversions.OpenApiDecoder;
+import com.starburstdata.plugin.openapi.conversions.decoder.OpenApiDecoder;
 import com.starburstdata.plugin.openapi.pagination.OpenApiPaginationStrategy;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpStatus;

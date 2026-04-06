@@ -7,7 +7,7 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package com.starburstdata.plugin.openapi.conversions;
+package com.starburstdata.plugin.openapi.conversions.decoder;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.starburstdata.plugin.openapi.OpenApiColumnHandle;

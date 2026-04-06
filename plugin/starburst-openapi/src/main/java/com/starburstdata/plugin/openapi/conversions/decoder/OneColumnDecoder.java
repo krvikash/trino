@@ -7,12 +7,11 @@
  *
  * Redistribution of this material is strictly prohibited.
  */
-package com.starburstdata.plugin.openapi.conversions;
+package com.starburstdata.plugin.openapi.conversions.decoder;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.starburstdata.plugin.openapi.OpenApiColumnHandle;
-import com.starburstdata.plugin.openapi.conversions.decoder.ColumnWriter;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
