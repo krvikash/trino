@@ -66,6 +66,19 @@ Enabling this optimization can substantially speed up queries by reducing the
 amount of data that needs to be processed by the join. However, it may slow down
 some queries that have very selective joins.
 
+## `optimizer.push-aggregation-into-values-enabled`
+
+- **Type:** {ref}`prop-type-boolean`
+- **Default value:** `true`
+- **Session property:** `push_aggregation_into_values_enabled`
+
+Evaluate aggregations over constant values at planning time. When a global
+aggregation sits directly on top of a `VALUES` node with constant rows, the
+aggregation result is computed during planning and the subtree is replaced
+with a single-row `VALUES` containing the result. This eliminates unnecessary
+cross joins and broadcast exchanges that arise from decorrelating correlated
+scalar subqueries.
+
 ## `optimizer.push-table-write-through-union`
 
 - **Type:** {ref}`prop-type-boolean`

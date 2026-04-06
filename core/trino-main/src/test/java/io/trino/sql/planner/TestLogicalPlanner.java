@@ -81,6 +81,7 @@ import io.trino.sql.planner.rowpattern.ir.IrLabel;
 import io.trino.sql.planner.rowpattern.ir.IrQuantified;
 import io.trino.tests.QueryTemplate;
 import io.trino.type.Reals;
+import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -99,6 +100,7 @@ import static io.trino.SystemSessionProperties.DISTRIBUTED_SORT;
 import static io.trino.SystemSessionProperties.FILTERING_SEMI_JOIN_TO_INNER;
 import static io.trino.SystemSessionProperties.JOIN_DISTRIBUTION_TYPE;
 import static io.trino.SystemSessionProperties.JOIN_REORDERING_STRATEGY;
+import static io.trino.SystemSessionProperties.PUSH_AGGREGATION_INTO_VALUES_ENABLED;
 import static io.trino.spi.StandardErrorCode.SUBQUERY_MULTIPLE_ROWS;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
 import static io.trino.spi.predicate.Domain.multipleValues;
@@ -778,14 +780,17 @@ public class TestLogicalPlanner
     @Test
     public void testSameQualifiedSubqueryIsAppliedOnlyOnce()
     {
+        // With PushAggregationIntoValues enabled, the aggregation-over-values is folded
+        // so there are no AggregationNode instances left in the plan, so run these assertions with noPushAggregationIntoValues
+
         // same ALL query used for left, right and complex condition
         assertThat(countOfMatchingNodes(
-                plan("SELECT * FROM orders o1 JOIN orders o2 ON o1.orderkey <= ALL(SELECT 1) AND (o1.orderkey <= ALL(SELECT 1) OR o1.orderkey <= ALL(SELECT 1))"),
+                plan("SELECT * FROM orders o1 JOIN orders o2 ON o1.orderkey <= ALL(SELECT 1) AND (o1.orderkey <= ALL(SELECT 1) OR o1.orderkey <= ALL(SELECT 1))", noPushAggregationIntoValues()),
                 AggregationNode.class::isInstance)).isEqualTo(1);
 
         // one subquery used for "1 <= ALL(SELECT 1)", one subquery used for "2 <= ALL(SELECT 1)"
         assertThat(countOfMatchingNodes(
-                plan("SELECT 1 <= ALL(SELECT 1), 2 <= ALL(SELECT 1) WHERE 1 <= ALL(SELECT 1)"),
+                plan("SELECT 1 <= ALL(SELECT 1), 2 <= ALL(SELECT 1) WHERE 1 <= ALL(SELECT 1)", noPushAggregationIntoValues()),
                 AggregationNode.class::isInstance)).isEqualTo(2);
     }
 
@@ -1261,8 +1266,10 @@ public class TestLogicalPlanner
     @Test
     public void testCorrelatedDistinctAggregationRewriteToLeftOuterJoin()
     {
+        // With PushAggregationIntoValues disabled, the cross join with aggregation-over-values is preserved
         assertPlan(
                 "SELECT (SELECT count(DISTINCT o.orderkey) FROM orders o WHERE c.custkey = o.custkey), c.custkey FROM customer c",
+                noPushAggregationIntoValues(),
                 output(
                         project(
                                 join(INNER, builder -> builder
@@ -1285,6 +1292,30 @@ public class TestLogicalPlanner
                                                                                 FINAL,
                                                                                 anyTree(tableScan("orders", ImmutableMap.of("o_orderkey", "orderkey", "o_custkey", "custkey")))))))))
                                         .right(anyTree(node(ValuesNode.class)))))));
+
+        // With PushAggregationIntoValues enabled, the cross join is eliminated
+        // and the LEFT join becomes the top-level join
+        assertPlan(
+                "SELECT (SELECT count(DISTINCT o.orderkey) FROM orders o WHERE c.custkey = o.custkey), c.custkey FROM customer c",
+                output(
+                        project(
+                                join(LEFT, leftJoinBuilder -> leftJoinBuilder
+                                        .equiCriteria("c_custkey", "o_custkey")
+                                        .left(tableScan("customer", ImmutableMap.of("c_custkey", "custkey")))
+                                        .right(aggregation(
+                                                singleGroupingSet("o_custkey"),
+                                                ImmutableMap.of(Optional.of("count"), aggregationFunction("count", ImmutableList.of("o_orderkey"))),
+                                                ImmutableList.of(),
+                                                ImmutableList.of("non_null"),
+                                                Optional.empty(),
+                                                SINGLE,
+                                                project(ImmutableMap.of("non_null", expression(TRUE)),
+                                                        aggregation(
+                                                                singleGroupingSet("o_orderkey", "o_custkey"),
+                                                                ImmutableMap.of(),
+                                                                Optional.empty(),
+                                                                FINAL,
+                                                                anyTree(tableScan("orders", ImmutableMap.of("o_orderkey", "orderkey", "o_custkey", "custkey")))))))))));
     }
 
     @Test
@@ -2573,10 +2604,15 @@ public class TestLogicalPlanner
     @Test
     public void testDifferentOuterParentScopeSubqueries()
     {
-        assertPlan("SELECT customer.custkey AS custkey," +
-                        "(SELECT COUNT(*) FROM orders WHERE customer.custkey = orders.custkey) AS count1," +
-                        "(SELECT COUNT(*) FROM orders WHERE orders.custkey = customer.custkey) AS count2 " +
-                        "FROM customer",
+        @Language("SQL") String query = "SELECT customer.custkey AS custkey," +
+                "(SELECT COUNT(*) FROM orders WHERE customer.custkey = orders.custkey) AS count1," +
+                "(SELECT COUNT(*) FROM orders WHERE orders.custkey = customer.custkey) AS count2 " +
+                "FROM customer";
+
+        // With PushAggregationIntoValues disabled, cross joins with aggregation-over-values are preserved
+        assertPlan(
+                query,
+                noPushAggregationIntoValues(),
                 output(
                         project(
                                 join(INNER, builder -> builder
@@ -2596,6 +2632,22 @@ public class TestLogicalPlanner
                                                                 anyTree(tableScan("orders", ImmutableMap.of("ORDERS2_CUSTKEY", "custkey"))))))
                                         .right(
                                                 anyTree(node(ValuesNode.class)))))));
+
+        // With PushAggregationIntoValues enabled, cross joins are eliminated
+        assertPlan(
+                query,
+                output(
+                        project(
+                                join(LEFT, leftJoinBuilder -> leftJoinBuilder
+                                        .equiCriteria("CUSTOMER_CUSTKEY", "ORDERS2_CUSTKEY")
+                                        .left(
+                                                project(
+                                                        join(LEFT, innerBuilder -> innerBuilder
+                                                                .equiCriteria("CUSTOMER_CUSTKEY", "ORDERS_CUSTKEY")
+                                                                .left(tableScan("customer", ImmutableMap.of("CUSTOMER_CUSTKEY", "custkey")))
+                                                                .right(anyTree(project(tableScan("orders", ImmutableMap.of("ORDERS_CUSTKEY", "custkey"))))))))
+                                        .right(
+                                                anyTree(tableScan("orders", ImmutableMap.of("ORDERS2_CUSTKEY", "custkey"))))))));
     }
 
     @Test
@@ -2674,6 +2726,13 @@ public class TestLogicalPlanner
     {
         return Session.builder(getPlanTester().getDefaultSession())
                 .setSystemProperty(FILTERING_SEMI_JOIN_TO_INNER, "false")
+                .build();
+    }
+
+    private Session noPushAggregationIntoValues()
+    {
+        return Session.builder(getPlanTester().getDefaultSession())
+                .setSystemProperty(PUSH_AGGREGATION_INTO_VALUES_ENABLED, "false")
                 .build();
     }
 }

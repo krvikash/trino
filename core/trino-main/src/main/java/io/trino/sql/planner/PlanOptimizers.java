@@ -14,10 +14,12 @@
 package io.trino.sql.planner;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.trino.SystemSessionProperties;
+import io.trino.cache.NonEvictableCache;
 import io.trino.cost.CostCalculator;
 import io.trino.cost.CostCalculator.EstimatedExchanges;
 import io.trino.cost.CostComparator;
@@ -26,6 +28,7 @@ import io.trino.cost.StatsCalculator;
 import io.trino.cost.TaskCountEstimator;
 import io.trino.execution.TaskManagerConfig;
 import io.trino.metadata.Metadata;
+import io.trino.operator.aggregation.AccumulatorFactory;
 import io.trino.split.PageSourceManager;
 import io.trino.split.SplitManager;
 import io.trino.sql.PlannerContext;
@@ -137,6 +140,7 @@ import io.trino.sql.planner.iterative.rule.PruneUnnestSourceColumns;
 import io.trino.sql.planner.iterative.rule.PruneValuesColumns;
 import io.trino.sql.planner.iterative.rule.PruneWindowColumns;
 import io.trino.sql.planner.iterative.rule.PushAggregationIntoTableScan;
+import io.trino.sql.planner.iterative.rule.PushAggregationIntoValues;
 import io.trino.sql.planner.iterative.rule.PushAggregationThroughOuterJoin;
 import io.trino.sql.planner.iterative.rule.PushCastIntoRow;
 import io.trino.sql.planner.iterative.rule.PushDistinctLimitIntoTableScan;
@@ -271,7 +275,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static io.trino.cache.SafeCaches.buildNonEvictableCache;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.HOURS;
 
 public class PlanOptimizers
         implements PlanOptimizersFactory
@@ -280,6 +286,9 @@ public class PlanOptimizers
     private final List<AdaptivePlanOptimizer> adaptivePlanOptimizers;
     private final RuleStatsRecorder ruleStats;
     private final OptimizerStatsRecorder optimizerStats = new OptimizerStatsRecorder();
+    private final NonEvictableCache<PushAggregationIntoValues.AccumulatorFactoryKey, AccumulatorFactory> accumulatorFactoryCache = buildNonEvictableCache(CacheBuilder.newBuilder()
+            .maximumSize(200)
+            .expireAfterAccess(1, HOURS));
 
     @Inject
     public PlanOptimizers(
@@ -691,6 +700,7 @@ public class PlanOptimizers
                                 new RemoveEmptyExceptBranches(),
                                 new RemoveRedundantIdentityProjections(),
                                 new PushAggregationThroughOuterJoin(),
+                                new PushAggregationIntoValues(plannerContext, accumulatorFactoryCache), // must run in the same IterativeOptimizer as PushAggregationThroughOuterJoin
                                 new ReplaceRedundantJoinWithSource(), // Run this after PredicatePushDown optimizer as it inlines filter constants
                                 // Run this after PredicatePushDown and PushProjectionIntoTableScan as it uses stats, and those two rules may reduce the number of partitions
                                 // and columns we need stats for thus reducing the overhead of reading statistics from the metastore.

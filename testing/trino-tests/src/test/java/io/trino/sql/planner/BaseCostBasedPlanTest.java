@@ -368,17 +368,17 @@ public abstract class BaseCostBasedPlanTest
             DynamicFilters.ExtractResult filters = extractDynamicFilters(node.getPredicate());
             String unestimatableInputs = filters.getDynamicConjuncts().stream()
                     .filter(descriptor -> descriptor.getPreferredTimeout().isEmpty())
-                    .map(descriptor -> ((Reference) descriptor.getInput()).name() + "::" + descriptor.getOperator())
+                    .map(descriptor -> (descriptor.getInput() instanceof Reference reference ? reference.name() : descriptor.getInput().toString()) + "::" + descriptor.getOperator())
                     .sorted()
                     .collect(joining(", "));
             String inputs = filters.getDynamicConjuncts().stream()
                     .filter(descriptor -> descriptor.getPreferredTimeout().isPresent() && descriptor.getPreferredTimeout().getAsLong() == 0)
-                    .map(descriptor -> ((Reference) descriptor.getInput()).name() + "::" + descriptor.getOperator())
+                    .map(descriptor -> (descriptor.getInput() instanceof Reference reference ? reference.name() : descriptor.getInput().toString()) + "::" + descriptor.getOperator())
                     .sorted()
                     .collect(joining(", "));
             String awaitInputs = filters.getDynamicConjuncts().stream()
                     .filter(descriptor -> descriptor.getPreferredTimeout().isPresent() && descriptor.getPreferredTimeout().getAsLong() > 0)
-                    .map(descriptor -> ((Reference) descriptor.getInput()).name() + "::" + descriptor.getOperator())
+                    .map(descriptor -> (descriptor.getInput() instanceof Reference reference ? reference.name() : descriptor.getInput().toString()) + "::" + descriptor.getOperator())
                     .sorted()
                     .collect(joining(", "));
 

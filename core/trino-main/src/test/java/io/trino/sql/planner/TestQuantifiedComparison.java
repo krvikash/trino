@@ -21,6 +21,7 @@ import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.ValuesNode;
 import org.junit.jupiter.api.Test;
 
+import static io.trino.SystemSessionProperties.PUSH_AGGREGATION_INTO_VALUES_ENABLED;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.sql.ir.IrExpressions.not;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.anyTree;
@@ -32,9 +33,16 @@ import static io.trino.sql.planner.assertions.PlanMatchPattern.tableScan;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.values;
 import static io.trino.sql.planner.plan.JoinType.INNER;
 
+// Disable PushAggregationIntoValues to avoid interfering with existing test assertions
+// that verify the AggregationNode -> ValuesNode plan structure
 public class TestQuantifiedComparison
         extends BasePlanTest
 {
+    public TestQuantifiedComparison()
+    {
+        super(ImmutableMap.of(PUSH_AGGREGATION_INTO_VALUES_ENABLED, "false"));
+    }
+
     @Test
     public void testQuantifiedComparisonEqualsAny()
     {

@@ -78,6 +78,7 @@ public class OptimizerConfig
     private DistinctAggregationsStrategy distinctAggregationsStrategy;
     private boolean preferPartialAggregation = true;
     private boolean pushAggregationThroughOuterJoin = true;
+    private boolean pushAggregationIntoValuesEnabled = true;
     private boolean enableIntermediateAggregations;
     private boolean pushPartialAggregationThroughJoin = true;
     private boolean preAggregateCaseAggregationsEnabled = true;
@@ -472,6 +473,19 @@ public class OptimizerConfig
     public OptimizerConfig setPushAggregationThroughOuterJoin(boolean pushAggregationThroughOuterJoin)
     {
         this.pushAggregationThroughOuterJoin = pushAggregationThroughOuterJoin;
+        return this;
+    }
+
+    public boolean isPushAggregationIntoValuesEnabled()
+    {
+        return pushAggregationIntoValuesEnabled;
+    }
+
+    @Config("optimizer.push-aggregation-into-values-enabled")
+    @ConfigDescription("Evaluate aggregations over constant values at planning time")
+    public OptimizerConfig setPushAggregationIntoValuesEnabled(boolean pushAggregationIntoValuesEnabled)
+    {
+        this.pushAggregationIntoValuesEnabled = pushAggregationIntoValuesEnabled;
         return this;
     }
 

@@ -265,6 +265,11 @@ public class BasePlanTest
         return plan(sql, OPTIMIZED_AND_VALIDATED);
     }
 
+    protected Plan plan(@Language("SQL") String sql, Session session)
+    {
+        return plan(sql, session, OPTIMIZED_AND_VALIDATED, true);
+    }
+
     protected Plan plan(@Language("SQL") String sql, LogicalPlanner.Stage stage)
     {
         return plan(sql, stage, true);
@@ -272,8 +277,13 @@ public class BasePlanTest
 
     protected Plan plan(@Language("SQL") String sql, LogicalPlanner.Stage stage, boolean forceSingleNode)
     {
+        return plan(sql, planTester.getDefaultSession(), stage, forceSingleNode);
+    }
+
+    protected Plan plan(@Language("SQL") String sql, Session session, LogicalPlanner.Stage stage, boolean forceSingleNode)
+    {
         try {
-            return planTester.inTransaction(planTester.getDefaultSession(), transactionSession ->
+            return planTester.inTransaction(session, transactionSession ->
                     planTester.createPlan(
                             transactionSession,
                             sql,

@@ -2,31 +2,26 @@ final aggregation over ()
     local exchange (GATHER, SINGLE, [])
         remote exchange (GATHER, SINGLE, [])
             partial aggregation over ()
-                cross join:
-                    join (LEFT, REPLICATED):
-                        join (INNER, REPLICATED):
-                            join (INNER, REPLICATED):
-                                dynamic filter (await [ws_item_sk::EQUAL, ws_sold_date_sk::EQUAL])
-                                    scan web_sales
-                                local exchange (GATHER, SINGLE, [])
-                                    remote exchange (REPLICATE, BROADCAST, [])
-                                        scan date_dim
-                            local exchange (GATHER, SINGLE, [])
-                                remote exchange (REPLICATE, BROADCAST, [])
-                                    scan item
+                join (INNER, REPLICATED):
+                    join (INNER, REPLICATED):
+                        dynamic filter ([Cast(ws_ext_discount_amt::decimal(7,2), decimal(10,3))::GREATER_THAN, ws_item_sk::EQUAL], await [ws_sold_date_sk::EQUAL])
+                            scan web_sales
                         local exchange (GATHER, SINGLE, [])
                             remote exchange (REPLICATE, BROADCAST, [])
+                                scan date_dim
+                    local exchange (GATHER, SINGLE, [])
+                        remote exchange (REPLICATE, BROADCAST, [])
+                            join (INNER, PARTITIONED):
                                 final aggregation over (ws_item_sk_8)
                                     local exchange (GATHER, SINGLE, [])
                                         remote exchange (REPARTITION, HASH, [ws_item_sk_8])
                                             partial aggregation over (ws_item_sk_8)
                                                 join (INNER, REPLICATED):
-                                                    dynamic filter (await [ws_sold_date_sk_39::EQUAL])
+                                                    dynamic filter (await [ws_item_sk_8::EQUAL, ws_sold_date_sk_39::EQUAL])
                                                         scan web_sales
                                                     local exchange (GATHER, SINGLE, [])
                                                         remote exchange (REPLICATE, BROADCAST, [])
                                                             scan date_dim
-                    local exchange (GATHER, SINGLE, [])
-                        remote exchange (REPLICATE, BROADCAST, [])
-                            single aggregation over ()
-                                values (1 rows)
+                                local exchange (GATHER, SINGLE, [])
+                                    remote exchange (REPARTITION, HASH, [i_item_sk])
+                                        scan item

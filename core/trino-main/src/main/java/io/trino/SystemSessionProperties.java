@@ -117,6 +117,7 @@ public final class SystemSessionProperties
     public static final String EXCHANGE_COMPRESSION_CODEC = "exchange_compression_codec";
     public static final String ENABLE_INTERMEDIATE_AGGREGATIONS = "enable_intermediate_aggregations";
     public static final String PUSH_AGGREGATION_THROUGH_OUTER_JOIN = "push_aggregation_through_outer_join";
+    public static final String PUSH_AGGREGATION_INTO_VALUES_ENABLED = "push_aggregation_into_values_enabled";
     public static final String PUSH_PARTIAL_AGGREGATION_THROUGH_JOIN = "push_partial_aggregation_through_join";
     public static final String ALLOW_UNSAFE_PUSHDOWN = "allow_unsafe_pushdown";
     public static final String PARTIAL_LIMIT_HINT_ENABLED = "partial_limit_hint_enabled";
@@ -584,6 +585,11 @@ public final class SystemSessionProperties
                         PUSH_AGGREGATION_THROUGH_OUTER_JOIN,
                         "Allow pushing aggregations below joins",
                         optimizerConfig.isPushAggregationThroughOuterJoin(),
+                        false),
+                booleanProperty(
+                        PUSH_AGGREGATION_INTO_VALUES_ENABLED,
+                        "Evaluate aggregations over constant values at planning time",
+                        optimizerConfig.isPushAggregationIntoValuesEnabled(),
                         false),
                 booleanProperty(
                         PUSH_PARTIAL_AGGREGATION_THROUGH_JOIN,
@@ -1616,6 +1622,11 @@ public final class SystemSessionProperties
     public static boolean isPushAggregationThroughOuterJoin(Session session)
     {
         return session.getSystemProperty(PUSH_AGGREGATION_THROUGH_OUTER_JOIN, Boolean.class);
+    }
+
+    public static boolean isPushAggregationIntoValuesEnabled(Session session)
+    {
+        return session.getSystemProperty(PUSH_AGGREGATION_INTO_VALUES_ENABLED, Boolean.class);
     }
 
     public static boolean isPushPartialAggregationThroughJoin(Session session)
