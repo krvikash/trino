@@ -35,8 +35,7 @@ public class TestCacheConfig
                 .setCacheAggregationsEnabled(true)
                 .setCacheProjectionsEnabled(true)
                 .setMaxSplitSize(DataSize.of(256, DataSize.Unit.MEGABYTE))
-                .setDataReductionThreshold(100d)
-                .setCacheMinWorkerSplitSeparation(500));
+                .setDataReductionThreshold(100d));
     }
 
     @Test
@@ -50,7 +49,6 @@ public class TestCacheConfig
                 .put("cache.projections.enabled", "false")
                 .put("cache.max-split-size", "64MB")
                 .put("cache.data-reduction-threshold", "0.3")
-                .put("cache.min-worker-split-separation", "10000")
                 .buildOrThrow();
 
         CacheConfig expected = new CacheConfig()
@@ -60,8 +58,7 @@ public class TestCacheConfig
                 .setCacheAggregationsEnabled(false)
                 .setCacheProjectionsEnabled(false)
                 .setMaxSplitSize(DataSize.of(64, DataSize.Unit.MEGABYTE))
-                .setDataReductionThreshold(0.3d)
-                .setCacheMinWorkerSplitSeparation(10000);
+                .setDataReductionThreshold(0.3d);
         assertFullMapping(properties, expected);
     }
 }

@@ -22,7 +22,6 @@ import io.airlift.units.DataSize;
 import io.opentelemetry.api.trace.Span;
 import io.trino.Session;
 import io.trino.cache.ConsistentHashingAddressProvider;
-import io.trino.cache.SplitAdmissionControllerProvider;
 import io.trino.execution.QueryManagerConfig;
 import io.trino.execution.scheduler.ExchangeSplitSource;
 import io.trino.execution.scheduler.NodeSchedulerConfig;
@@ -144,14 +143,13 @@ public class SplitSourceFactory
             Session session,
             Span stageSpan,
             PlanFragment fragment,
-            Map<PlanFragmentId, Exchange> outputExchanges,
-            SplitAdmissionControllerProvider splitAdmissionControllerProvider)
+            Map<PlanFragmentId, Exchange> outputExchanges)
     {
         ImmutableList.Builder<SplitSource> allSplitSources = ImmutableList.builder();
         try {
             // get splits for this fragment, this is lazy so split assignments aren't actually calculated here
             return fragment.getRoot().accept(
-                    new Visitor(session, stageSpan, allSplitSources, outputExchanges, splitAdmissionControllerProvider),
+                    new Visitor(session, stageSpan, allSplitSources, outputExchanges),
                     null);
         }
         catch (Throwable t) {
@@ -177,20 +175,17 @@ public class SplitSourceFactory
         private final Span stageSpan;
         private final ImmutableList.Builder<SplitSource> splitSources;
         private final Map<PlanFragmentId, Exchange> outputExchanges;
-        private final SplitAdmissionControllerProvider splitAdmissionControllerProvider;
 
         private Visitor(
                 Session session,
                 Span stageSpan,
                 ImmutableList.Builder<SplitSource> allSplitSources,
-                Map<PlanFragmentId, Exchange> outputExchanges,
-                SplitAdmissionControllerProvider splitAdmissionControllerProvider)
+                Map<PlanFragmentId, Exchange> outputExchanges)
         {
             this.session = session;
             this.stageSpan = stageSpan;
             this.splitSources = allSplitSources;
             this.outputExchanges = ImmutableMap.copyOf(outputExchanges);
-            this.splitAdmissionControllerProvider = splitAdmissionControllerProvider;
         }
 
         @Override
@@ -413,7 +408,6 @@ public class SplitSourceFactory
                                 splitSource,
                                 addressProvider,
                                 nodeInfo,
-                                splitAdmissionControllerProvider,
                                 schedulerIncludeCoordinator,
                                 minScheduleSplitBatchSize));
             }

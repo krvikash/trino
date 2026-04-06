@@ -19,7 +19,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.SettableFuture;
 import io.opentelemetry.api.trace.Span;
-import io.trino.cache.SplitAdmissionControllerProvider;
 import io.trino.cost.StatsAndCosts;
 import io.trino.execution.buffer.PipelinedOutputBuffers;
 import io.trino.execution.scheduler.SplitSchedulerStats;
@@ -130,8 +129,7 @@ public class TestSqlStage
                 noopTracer(),
                 Span.getInvalid(),
                 new SplitSchedulerStats(),
-                (_, _) -> OptionalInt.empty(),
-                new SplitAdmissionControllerProvider(ImmutableList.of(), TEST_SESSION));
+                (_, _) -> OptionalInt.empty());
 
         // add listener that fetches stage info when the final status is available
         SettableFuture<StageInfo> finalStageInfo = SettableFuture.create();

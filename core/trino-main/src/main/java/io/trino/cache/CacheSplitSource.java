@@ -34,7 +34,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -59,7 +58,6 @@ public class CacheSplitSource
     private final ConsistentHashingAddressProvider addressProvider;
     private final String canonicalSignature;
     private final Map<HostAddress, Queue<Split>> splitQueuePerWorker = new ConcurrentHashMap<>();
-    private final SplitAdmissionController splitAdmissionController;
     private final int minSplitBatchSize;
     private final Executor executor;
     private final AtomicBoolean isLastBatchProcessed = new AtomicBoolean(false);
@@ -70,7 +68,6 @@ public class CacheSplitSource
             SplitSource delegate,
             ConsistentHashingAddressProvider addressProvider,
             NodeInfo nodeInfo,
-            SplitAdmissionControllerProvider splitAdmissionControllerProvider,
             boolean schedulerIncludeCoordinator,
             int minSplitBatchSize,
             Executor executor)
@@ -80,7 +77,6 @@ public class CacheSplitSource
         this.addressProvider = requireNonNull(addressProvider, "addressProvider is null");
         addressProvider.refreshHashRingIfNeeded();
         this.canonicalSignature = canonicalizePlanSignature(signature).toString();
-        this.splitAdmissionController = requireNonNull(splitAdmissionControllerProvider, "splitAdmissionControllerProvider is null").get(signature);
         this.minSplitBatchSize = minSplitBatchSize;
         this.executor = requireNonNull(executor, "executor is null");
     }
@@ -91,14 +87,12 @@ public class CacheSplitSource
             ConnectorSplitManager splitManager,
             SplitSource delegate,
             ConsistentHashingAddressProvider addressProvider,
-            SplitAdmissionController splitAdmissionController,
             int minSplitBatchSize)
     {
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.delegate = requireNonNull(delegate, "delegate is null");
         this.addressProvider = requireNonNull(addressProvider, "addressProvider is null");
         this.canonicalSignature = canonicalizePlanSignature(signature).toString();
-        this.splitAdmissionController = requireNonNull(splitAdmissionController, "splitAdmissionController is null");
         this.minSplitBatchSize = minSplitBatchSize;
         // Set the executor to direct executor for testing purposes
         this.executor = directExecutor();
@@ -149,14 +143,8 @@ public class CacheSplitSource
                             splitId,
                             Optional.of(ImmutableList.of(preferredAddress.get())),
                             split.isSplitAddressEnforced());
-                    if (splitAdmissionController.canScheduleSplit(splitId.get(), preferredAddress.get())) {
-                        batchBuilder.add(splitWithPreferredAddress);
-                        currentSize++;
-                    }
-                    else {
-                        splitQueuePerWorker.computeIfAbsent(preferredAddress.get(), _ -> new ConcurrentLinkedQueue<>())
-                                .add(splitWithPreferredAddress);
-                    }
+                    batchBuilder.add(splitWithPreferredAddress);
+                    currentSize++;
                 }
                 else {
                     // Skip caching if no preferred address could be located which could be due to no available nodes
@@ -195,21 +183,12 @@ public class CacheSplitSource
         // randomize queue order to prevent scheduling skewness
         shuffle(queues);
 
-        // When there are no more new splits (i.e. isLastBatchProcessed=true), forcefully release queued
-        // splits in order to avoid increasing of query latency at the cost of potential
-        // cache rejections. Additionally, if we don't do it, there is a possibility that the
-        // splits in the queue will never be scheduled (deadlock). For example, during self-join.
-        boolean forceRelease = isLastBatchProcessed.get() || getSplitQueueSize() > 1_000_000;
-
         for (Iterator<Map.Entry<HostAddress, Queue<Split>>> iter = cycle(queues);
                 iter.hasNext() && currentSize < maxSize; ) {
             Map.Entry<HostAddress, Queue<Split>> entry = iter.next();
-            HostAddress address = entry.getKey();
             Queue<Split> splitQueue = entry.getValue();
             Split split = splitQueue.peek();
-            if (split == null
-                    || !(forceRelease
-                    || splitAdmissionController.canScheduleSplit(split.getCacheSplitId().orElseThrow(), address))) {
+            if (split == null) {
                 iter.remove();
                 continue;
             }

@@ -22,7 +22,6 @@ import io.opentelemetry.context.Context;
 import io.trino.Session;
 import io.trino.cache.CacheSplitSource;
 import io.trino.cache.ConsistentHashingAddressProvider;
-import io.trino.cache.SplitAdmissionControllerProvider;
 import io.trino.connector.CatalogHandle;
 import io.trino.connector.CatalogServiceProvider;
 import io.trino.execution.QueryManagerConfig;
@@ -148,7 +147,6 @@ public class SplitManager
             SplitSource delegate,
             ConsistentHashingAddressProvider addressProvider,
             NodeInfo nodeInfo,
-            SplitAdmissionControllerProvider splitAdmissionControllerProvider,
             boolean schedulerIncludeCoordinator,
             int minScheduleSplitBatchSize)
     {
@@ -158,7 +156,6 @@ public class SplitManager
                 delegate,
                 addressProvider,
                 nodeInfo,
-                splitAdmissionControllerProvider,
                 schedulerIncludeCoordinator,
                 minScheduleSplitBatchSize,
                 // Use the same executor as the one used by BufferingSplitSource

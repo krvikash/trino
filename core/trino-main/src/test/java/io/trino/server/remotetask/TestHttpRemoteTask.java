@@ -35,7 +35,6 @@ import io.opentelemetry.api.trace.Span;
 import io.trino.FeaturesConfig;
 import io.trino.Session;
 import io.trino.block.BlockJsonSerde;
-import io.trino.cache.SplitAdmissionControllerProvider;
 import io.trino.connector.TestingColumnHandle;
 import io.trino.execution.BaseTestSqlTaskManager;
 import io.trino.execution.DynamicFilterConfig;
@@ -641,8 +640,7 @@ public class TestHttpRemoteTask
                 new NodeTaskMap.PartitionedSplitCountTracker(i -> {}),
                 outboundDynamicFilterIds,
                 Optional.empty(),
-                true,
-                new SplitAdmissionControllerProvider(ImmutableList.of(), session));
+                true);
     }
 
     private static HttpRemoteTaskFactory createHttpRemoteTaskFactory(TestingTaskResource testingTaskResource)

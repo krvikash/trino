@@ -19,10 +19,10 @@ import io.airlift.configuration.DefunctConfig;
 import io.airlift.units.DataSize;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Min;
 
 @DefunctConfig({
         "cache.common-subqueries.enabled",
+        "cache.min-worker-split-separation",
         "cache.subqueries.enabled",
 })
 public class CacheConfig
@@ -34,14 +34,6 @@ public class CacheConfig
     private boolean cacheProjectionsEnabled = true;
     private DataSize maxSplitSize = DataSize.of(256, DataSize.Unit.MEGABYTE);
     private double dataReductionThreshold = 100f;
-    // The minimum number of splits with distinct CacheSplitID that should be processed by a worker
-    // before scheduling the next batch of splits which can contain splits with the same CacheSplitID.
-    // We have to set this such that there is a sufficient gap between the splits with the same CacheSplitID
-    // considering 128 splits can be processed by a worker in parallel (in case of 32 core machines). Furthermore,
-    // we have to consider that from second batch onwards, some splits will get processed much faster since
-    // they are cached. Additionally, there might be some non-determinism in the scheduling. Hence, the gap
-    // should be a bit more than 128. Experimentally, we found that 500 is a good value.
-    private int cacheMinWorkerSplitSeparation = 500;
 
     public boolean isEnabled()
     {
@@ -136,20 +128,6 @@ public class CacheConfig
     public CacheConfig setDataReductionThreshold(double dataReductionThreshold)
     {
         this.dataReductionThreshold = dataReductionThreshold;
-        return this;
-    }
-
-    @Min(0)
-    public int getCacheMinWorkerSplitSeparation()
-    {
-        return cacheMinWorkerSplitSeparation;
-    }
-
-    @Config("cache.min-worker-split-separation")
-    @ConfigDescription("The minimum separation (in terms of processed splits) between two splits with same cache split id being scheduled on the single worker")
-    public CacheConfig setCacheMinWorkerSplitSeparation(int cacheMinWorkerSplitSeparation)
-    {
-        this.cacheMinWorkerSplitSeparation = cacheMinWorkerSplitSeparation;
         return this;
     }
 }
