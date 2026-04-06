@@ -249,9 +249,9 @@ properties in each catalog properties file. When upgrading:
 ## Recommendations
 
 The speed of the local cache storage is crucial to the performance of the cache.
-The most common and cost-efficient approach is to attach high performance SSD
-disk or equivalents. Fast cache performance can be also be achieved with a RAM
-disk used as in-memory cache.
+The most common and cost-efficient approach is to attach high-performance SSD
+disks or equivalent storage. Fast cache performance can also be achieved with a
+RAM disk used as an in-memory cache.
 
 In all cases, avoid using the root partition and disk of the node. Instead
 attach one or more dedicated storage devices for the cache on each node. Storage
@@ -259,4 +259,4 @@ should be local, dedicated on each node, and not shared.
 
 Your deployment method for Trino decides how to attach storage and create the
 directories for caching. Typically you need to connect a fast storage system,
-like an SSD drive, and ensure that is it mounted on the configured path.
+like an SSD drive, and ensure that it is mounted on the configured path.
