@@ -26,6 +26,7 @@ public final class UpdateExpectedPlans
         runMain(TestCteReuseTpcdsPlan.class);
         runMain(TestCteReuseTpchPlan.class);
         runMain(TestPartitionedTpcdsCostBasedPlan.class);
+        runMain(TestPartitionedWithPartitionStatisticsTpcdsCostBasedPlan.class);
         runMain(TestTpchCostBasedPlan.class);
     }
 
