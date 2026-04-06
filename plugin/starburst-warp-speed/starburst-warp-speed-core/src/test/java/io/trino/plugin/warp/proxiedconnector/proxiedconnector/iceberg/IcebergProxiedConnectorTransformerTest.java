@@ -48,6 +48,7 @@ import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
 
+import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -64,7 +65,7 @@ public class IcebergProxiedConnectorTransformerTest
     private static final long SNAPSHOT_ID = 1L;
 
     private final IcebergProxiedConnectorTransformer icebergProxiedConnectorTransformer =
-            new IcebergProxiedConnectorTransformer(new ProxiedConnectorConfig());
+            new IcebergProxiedConnectorTransformer(new ProxiedConnectorConfig(), TESTING_TYPE_MANAGER);
 
     @Test
     public void testCreateProxyTableHandleForWarming()
@@ -264,9 +265,7 @@ public class IcebergProxiedConnectorTransformerTest
                 IcebergFileFormat.ORC,
                 0,
                 0,
-                """
-                        { "partitionValues": [] }
-                        """,
+                ImmutableList.of(),
                 ImmutableList.of(),
                 SplitWeight.standard(),
                 TupleDomain.all(),
@@ -314,7 +313,7 @@ public class IcebergProxiedConnectorTransformerTest
 
         ProxiedConnectorConfig newConfig = new ProxiedConnectorConfig();
         newConfig.setEnableIcebergSnapshotIdUniqueness(true);
-        IcebergProxiedConnectorTransformer icebergProxiedConnectorTransformerUnique = new IcebergProxiedConnectorTransformer(newConfig);
+        IcebergProxiedConnectorTransformer icebergProxiedConnectorTransformerUnique = new IcebergProxiedConnectorTransformer(newConfig, TESTING_TYPE_MANAGER);
         dispatcherSplitAnotherSnapshot = icebergProxiedConnectorTransformerUnique.createDispatcherSplit(icebergSplit, dispatcherTableHandleAnotherSnapshot, splitDistributor, session);
         assertThat(dispatcherSplitAnotherSnapshot.getDeletedFilesHash()).isNotEqualTo(dispatcherSplit.getDeletedFilesHash());
     }

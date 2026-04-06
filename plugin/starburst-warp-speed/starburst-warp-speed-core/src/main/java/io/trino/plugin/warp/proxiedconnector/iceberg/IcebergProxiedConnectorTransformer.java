@@ -39,6 +39,7 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeManager;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionSpecParser;
@@ -63,11 +64,13 @@ public class IcebergProxiedConnectorTransformer
         implements DispatcherProxiedConnectorTransformer
 {
     private final ProxiedConnectorConfig proxiedConnectorConfig;
+    private final TypeManager typeManager;
 
     @Inject
-    public IcebergProxiedConnectorTransformer(ProxiedConnectorConfig proxiedConnectorConfig)
+    public IcebergProxiedConnectorTransformer(ProxiedConnectorConfig proxiedConnectorConfig, TypeManager typeManager)
     {
         this.proxiedConnectorConfig = requireNonNull(proxiedConnectorConfig);
+        this.typeManager = requireNonNull(typeManager, "typeManager is null");
     }
 
     @Override
@@ -160,7 +163,7 @@ public class IcebergProxiedConnectorTransformer
                 original.getFileFormat(),
                 original.getSpecId(),
                 original.getSortOrderId(),
-                original.getPartitionDataJson(),
+                original.getPartitionValues(),
                 original.getDeletes(),
                 original.getSplitWeight(),
                 TupleDomain.all(),
@@ -198,7 +201,7 @@ public class IcebergProxiedConnectorTransformer
         org.apache.iceberg.types.Type[] partitionColumnTypes = partitionSpec.fields().stream()
                 .map(field -> field.transform().getResultType(tableSchema.findType(field.sourceId())))
                 .toArray(org.apache.iceberg.types.Type[]::new);
-        PartitionData partitionData = PartitionData.fromJson(icebergSplit.getPartitionDataJson(), partitionColumnTypes);
+        PartitionData partitionData = PartitionData.fromBlocks(icebergSplit.getPartitionValues(), partitionColumnTypes, typeManager);
         Map<Integer, Optional<String>> partitionKeys = IcebergUtil.getPartitionKeys(partitionData, partitionSpec);
 
         List<PartitionKey> result = new ArrayList<>();

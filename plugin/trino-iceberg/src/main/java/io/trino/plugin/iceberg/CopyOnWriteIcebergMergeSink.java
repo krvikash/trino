@@ -237,7 +237,6 @@ public class CopyOnWriteIcebergMergeSink
                 fileSize,
                 fileSize,
                 fileCounts.get(path.toString()),
-                deletion.partitionDataJson(),
                 fileFormat,
                 fileIoProperties,
                 dataSequenceNumbers.get(path.toString()),

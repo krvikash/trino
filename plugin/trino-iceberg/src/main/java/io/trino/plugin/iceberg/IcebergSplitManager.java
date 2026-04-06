@@ -210,7 +210,7 @@ public class IcebergSplitManager
                 icebergSplit.getFileFormat(),
                 icebergSplit.getSpecId(),
                 icebergSplit.getSortOrderId(),
-                icebergSplit.getPartitionDataJson(),
+                icebergSplit.getPartitionValues(),
                 icebergSplit.getDeletes(),
                 // weight does not impact split rows
                 SplitWeight.standard(),

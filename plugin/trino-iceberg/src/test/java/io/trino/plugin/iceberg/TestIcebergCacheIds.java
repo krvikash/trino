@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.iceberg;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.json.JsonCodec;
@@ -265,35 +266,35 @@ public class TestIcebergCacheIds
     public void testSplitId()
     {
         int unpartitionedPartitionSpecJson = 1;
-        String unpartitionedPartitionDataJson = PartitionData.toJson(new PartitionData(new Object[] {}));
-        assertThat(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedPartitionDataJson, List.of())))
-                .isEqualTo(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedPartitionDataJson, List.of())));
+        List<Block> unpartitionedValues = ImmutableList.of();
+        assertThat(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedValues, List.of())))
+                .isEqualTo(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedValues, List.of())));
 
         // different path should make ids different
-        assertThat(splitManager.getCacheSplitId(createIcebergSplit("path1", 0, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedPartitionDataJson, List.of())))
-                .isNotEqualTo(splitManager.getCacheSplitId(createIcebergSplit("path2", 0, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedPartitionDataJson, List.of())));
+        assertThat(splitManager.getCacheSplitId(createIcebergSplit("path1", 0, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedValues, List.of())))
+                .isNotEqualTo(splitManager.getCacheSplitId(createIcebergSplit("path2", 0, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedValues, List.of())));
 
         // different start position should make ids different
-        assertThat(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedPartitionDataJson, List.of())))
-                .isNotEqualTo(splitManager.getCacheSplitId(createIcebergSplit("path", 10, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedPartitionDataJson, List.of())));
+        assertThat(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedValues, List.of())))
+                .isNotEqualTo(splitManager.getCacheSplitId(createIcebergSplit("path", 10, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedValues, List.of())));
 
         // different length should make ids different
-        assertThat(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedPartitionDataJson, List.of())))
-                .isNotEqualTo(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 20, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedPartitionDataJson, List.of())));
+        assertThat(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedValues, List.of())))
+                .isNotEqualTo(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 20, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedValues, List.of())));
 
         // different fileSize should make ids different
-        assertThat(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedPartitionDataJson, List.of())))
-                .isNotEqualTo(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 100, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedPartitionDataJson, List.of())));
+        assertThat(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedValues, List.of())))
+                .isNotEqualTo(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 100, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedValues, List.of())));
 
         // different file format should make ids different
-        assertThat(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedPartitionDataJson, List.of())))
-                .isNotEqualTo(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 100, IcebergFileFormat.PARQUET, unpartitionedPartitionSpecJson, unpartitionedPartitionDataJson, List.of())));
+        assertThat(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, unpartitionedPartitionSpecJson, unpartitionedValues, List.of())))
+                .isNotEqualTo(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 100, IcebergFileFormat.PARQUET, unpartitionedPartitionSpecJson, unpartitionedValues, List.of())));
 
         // different spec id should make ids different
         int partitionSpecId1 = 1;
         int partitionSpecId2 = 2;
-        assertThat(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, partitionSpecId1, unpartitionedPartitionDataJson, List.of())))
-                .isNotEqualTo(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 100, IcebergFileFormat.PARQUET, partitionSpecId2, unpartitionedPartitionDataJson, List.of())));
+        assertThat(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 10, IcebergFileFormat.ORC, partitionSpecId1, unpartitionedValues, List.of())))
+                .isNotEqualTo(splitManager.getCacheSplitId(createIcebergSplit("path", 0, 10, 100, IcebergFileFormat.PARQUET, partitionSpecId2, unpartitionedValues, List.of())));
     }
 
     @Test
@@ -313,7 +314,7 @@ public class TestIcebergCacheIds
             long fileSize,
             IcebergFileFormat fileFormat,
             int specId,
-            String partitionDataJson,
+            List<Block> partitionValues,
             List<DeleteFile> deletes)
     {
         return new IcebergSplit(
@@ -325,7 +326,7 @@ public class TestIcebergCacheIds
                 fileFormat,
                 specId,
                 0,
-                partitionDataJson,
+                partitionValues,
                 deletes,
                 SplitWeight.standard(),
                 TupleDomain.all(),

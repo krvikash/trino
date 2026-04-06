@@ -21,11 +21,11 @@ import com.google.common.collect.ImmutableList;
 import io.trino.plugin.iceberg.delete.DeleteFile;
 import io.trino.spi.HostAddress;
 import io.trino.spi.SplitWeight;
+import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.predicate.TupleDomain;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.OptionalLong;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
@@ -46,10 +46,9 @@ public class IcebergSplit
     private final long fileSize;
     private final long fileRecordCount;
     private final IcebergFileFormat fileFormat;
-    private final Optional<List<Object>> partitionValues;
     private final int specId;
     private final int sortOrderId;
-    private final String partitionDataJson;
+    private final List<Block> partitionValues;
     private final List<DeleteFile> deletes;
     private final SplitWeight splitWeight;
     private final TupleDomain<IcebergColumnHandle> fileStatisticsDomain;
@@ -67,7 +66,7 @@ public class IcebergSplit
             @JsonProperty("fileFormat") IcebergFileFormat fileFormat,
             @JsonProperty("specId") int specId,
             @JsonProperty("sortOrderId") int sortOrderId,
-            @JsonProperty("partitionDataJson") String partitionDataJson,
+            @JsonProperty("partitionValues") List<Block> partitionValues,
             @JsonProperty("deletes") List<DeleteFile> deletes,
             @JsonProperty("splitWeight") SplitWeight splitWeight,
             @JsonProperty("fileStatisticsDomain") TupleDomain<IcebergColumnHandle> fileStatisticsDomain,
@@ -81,10 +80,9 @@ public class IcebergSplit
                 fileSize,
                 fileRecordCount,
                 fileFormat,
-                Optional.empty(),
                 specId,
                 sortOrderId,
-                partitionDataJson,
+                partitionValues,
                 deletes,
                 splitWeight,
                 fileStatisticsDomain,
@@ -100,10 +98,9 @@ public class IcebergSplit
             long fileSize,
             long fileRecordCount,
             IcebergFileFormat fileFormat,
-            Optional<List<Object>> partitionValues,
             int specId,
             int sortOrderId,
-            String partitionDataJson,
+            List<Block> partitionValues,
             List<DeleteFile> deletes,
             SplitWeight splitWeight,
             TupleDomain<IcebergColumnHandle> fileStatisticsDomain,
@@ -117,10 +114,9 @@ public class IcebergSplit
         this.fileSize = fileSize;
         this.fileRecordCount = fileRecordCount;
         this.fileFormat = requireNonNull(fileFormat, "fileFormat is null");
-        this.partitionValues = requireNonNull(partitionValues, "partitionValues is null");
         this.specId = specId;
         this.sortOrderId = sortOrderId;
-        this.partitionDataJson = requireNonNull(partitionDataJson, "partitionDataJson is null");
+        this.partitionValues = ImmutableList.copyOf(partitionValues);
         this.deletes = ImmutableList.copyOf(requireNonNull(deletes, "deletes is null"));
         this.splitWeight = requireNonNull(splitWeight, "splitWeight is null");
         this.fileStatisticsDomain = requireNonNull(fileStatisticsDomain, "fileStatisticsDomain is null");
@@ -184,20 +180,10 @@ public class IcebergSplit
         return sortOrderId;
     }
 
-    /**
-     * Trino (stack) values of the partition columns. The values are the result of evaluating
-     * the partition expressions on the partition data.
-     */
-    @JsonIgnore
-    public Optional<List<Object>> getPartitionValues()
+    @JsonProperty
+    public List<Block> getPartitionValues()
     {
         return partitionValues;
-    }
-
-    @JsonProperty
-    public String getPartitionDataJson()
-    {
-        return partitionDataJson;
     }
 
     @JsonProperty
@@ -239,7 +225,7 @@ public class IcebergSplit
                 + SIZE_OF_LONG * 4 // start, length, fileSize, fileRecordCount
                 + SIZE_OF_INT // specId
                 + SIZE_OF_INT // sortOrderId
-                + estimatedSizeOf(partitionDataJson)
+                + estimatedSizeOf(partitionValues, Block::getRetainedSizeInBytes)
                 + estimatedSizeOf(deletes, DeleteFile::retainedSizeInBytes)
                 + splitWeight.getRetainedSizeInBytes()
                 + fileStatisticsDomain.getRetainedSizeInBytes(IcebergColumnHandle::getRetainedSizeInBytes)
