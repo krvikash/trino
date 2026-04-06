@@ -231,7 +231,7 @@
 
         <dep.databricks.jdbc.version>3.1.1</dep.databricks.jdbc.version>
         <dep.databricks.version>0.88.0</dep.databricks.version>
-        <dep.sap-hana-jdbc.version>2.26.12</dep.sap-hana-jdbc.version>
+        <dep.sap-hana-jdbc.version>2.28.6</dep.sap-hana-jdbc.version>
 
         <!-- released from https://github.com/starburstdata/starburst-dataframe -->
         <dep.starburst-dataframe.version>0.8.0.pr74-fbdfcb6</dep.starburst-dataframe.version>
