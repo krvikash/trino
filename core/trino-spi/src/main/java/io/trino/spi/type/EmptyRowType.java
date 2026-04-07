@@ -196,12 +196,6 @@ public class EmptyRowType
     }
 
     @Override
-    public void appendTo(Block block, int position, BlockBuilder blockBuilder)
-    {
-        throw new UnsupportedOperationException(getClass().getName());
-    }
-
-    @Override
     public Optional<Object> getNextValue(Object value)
     {
         throw new UnsupportedOperationException(getClass().getName());

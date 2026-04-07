@@ -70,12 +70,6 @@ public class MultisetType
     }
 
     @Override
-    public void appendTo(Block block, int position, BlockBuilder blockBuilder)
-    {
-        throw new UnsupportedOperationException(getClass().getName());
-    }
-
-    @Override
     public int getFlatFixedSize()
     {
         throw new UnsupportedOperationException(getClass().getName());
