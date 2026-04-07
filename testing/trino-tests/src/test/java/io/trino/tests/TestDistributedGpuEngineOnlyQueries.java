@@ -16,6 +16,7 @@ package io.trino.tests;
 import io.trino.connector.MockConnectorFactory;
 import io.trino.connector.MockConnectorPlugin;
 import io.trino.plugin.memory.MemoryQueryRunner;
+import io.trino.sql.planner.plan.FilterNode;
 import io.trino.testing.AbstractDistributedEngineOnlyQueries;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.Test;
@@ -48,7 +49,7 @@ public class TestDistributedGpuEngineOnlyQueries
     }
 
     @Test
-    public void testLikeFilter()
+    public void testGpuLikeFilter()
     {
         assertThat(query(
                 """
@@ -56,7 +57,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT CAST(i AS varchar) AS s FROM (UNNEST(sequence(0, 1000, 13))) t(i))
                 WHERE s LIKE '%6%7%'
                 """))
-                .matches("VALUES VARCHAR '637', '676', '767'");
+                .executesWithoutGpu();
 
         assertThat(query(
                 """
@@ -65,9 +66,9 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, CAST(i AS varchar)) AS s FROM (UNNEST(sequence(0, 1000, 13))) t(i))
                 WHERE s LIKE '%6%7%'
                 """))
-                .matches("VALUES VARCHAR '637', '676', '767'");
+                .executesWithGpu(FilterNode.class);
 
         assertThat(query("SELECT name FROM nation WHERE comment LIKE '%a%a___a%'"))
-                .matches("VALUES CAST('BRAZIL' AS varchar(25)), 'CANADA', 'JORDAN', 'MOROCCO', 'ROMANIA'");
+                .executesWithoutGpu();
     }
 }

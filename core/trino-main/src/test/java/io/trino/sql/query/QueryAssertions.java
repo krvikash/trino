@@ -20,7 +20,9 @@ import com.google.common.collect.Lists;
 import com.google.errorprone.annotations.CheckReturnValue;
 import io.trino.Session;
 import io.trino.cost.StatsAndCosts;
+import io.trino.execution.QueryStats;
 import io.trino.metadata.Metadata;
+import io.trino.operator.OperatorStats;
 import io.trino.spi.Plugin;
 import io.trino.spi.function.FunctionBundle;
 import io.trino.spi.function.OperatorType;
@@ -37,6 +39,7 @@ import io.trino.sql.planner.assertions.PlanMatchPattern;
 import io.trino.sql.planner.optimizations.PlanNodeSearcher;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.PlanNode;
+import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.ValuesNode;
 import io.trino.testing.MaterializedResult;
@@ -70,6 +73,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -79,6 +83,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.base.Suppliers.memoize;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.cost.StatsCalculator.noopStatsCalculator;
 import static io.trino.metadata.OperatorNameUtil.mangleOperatorName;
@@ -606,9 +611,91 @@ public class QueryAssertions
             return this;
         }
 
+        @CanIgnoreReturnValue
+        public QueryAssert executesWithGpu(Class<? extends PlanNode> planNodeType)
+        {
+            QueryResultAndExecutionStats result = executeAndGetExecutionStats();
+
+            // Validate results
+            validateResultsWithGpuDisabled(result.result().result());
+
+            // Validate GPU usage
+            Set<PlanNodeId> possiblePlanNodeIds = PlanNodeSearcher.searchFrom(result.result().queryPlan().orElseThrow(() -> new AssertionError("No plan")).getRoot())
+                    .where(planNodeType::isInstance)
+                    .findAll()
+                    .stream()
+                    .map(PlanNode::getId)
+                    .collect(toImmutableSet());
+            checkState(!possiblePlanNodeIds.isEmpty(), "Plan node %s not found in the query plan", planNodeType);
+
+            Optional<OperatorStats> gpuOperator = result.queryStats().getOperatorSummaries().stream()
+                    .filter(operatorStats -> possiblePlanNodeIds.contains(operatorStats.getPlanNodeId()))
+                    .filter(summary -> summary.getOperatorType().equals("GpuOperator"))
+                    .findAny();
+            if (gpuOperator.isEmpty()) {
+                throw new AssertionError("Query plan has PlanNodes of %s: %s, but none of these was executing with GpuOperator".formatted(planNodeType, possiblePlanNodeIds));
+            }
+
+            return this;
+        }
+
+        @CanIgnoreReturnValue
+        public QueryAssert executesWithoutGpu()
+        {
+            QueryResultAndExecutionStats result = executeAndGetExecutionStats();
+
+            // Validate not GPU usage
+            Optional<OperatorStats> gpuOperator = result.queryStats().getOperatorSummaries().stream()
+                    .filter(summary -> summary.getOperatorType().contains("Gpu"))
+                    .findAny();
+            if (gpuOperator.isPresent()) {
+                throw new AssertionError("Query executed with GPU: " + gpuOperator.get());
+            }
+
+            // Validate results (just in case)
+            validateResultsWithGpuDisabled(result.result().result());
+
+            return this;
+        }
+
+        private QueryResultAndExecutionStats executeAndGetExecutionStats()
+        {
+            MaterializedResultWithPlan result = runner.executeWithPlan(session, query());
+            QueryStats queryStats = runner.getCoordinator()
+                    .getQueryManager()
+                    .getFullQueryInfo(result.queryId())
+                    .getQueryStats();
+            return new QueryResultAndExecutionStats(result, queryStats);
+        }
+
+        private void validateResultsWithGpuDisabled(MaterializedResult result)
+        {
+            Session gpuDisabled = Session.builder(session)
+                    .setSystemProperty("gpu_acceleration_enabled", "false")
+                    .build();
+            MaterializedResult expected = runner.execute(gpuDisabled, query());
+            new ResultAssert(
+                    runner,
+                    session,
+                    description,
+                    result,
+                    ordered,
+                    skipTypesCheck)
+                    .matches(expected);
+        }
+
         private String query()
         {
             return query.orElseThrow(() -> new IllegalStateException("Original query is not available"));
+        }
+    }
+
+    private record QueryResultAndExecutionStats(MaterializedResultWithPlan result, QueryStats queryStats)
+    {
+        QueryResultAndExecutionStats
+        {
+            requireNonNull(result, "result is null");
+            requireNonNull(queryStats, "queryStats is null");
         }
     }
 
