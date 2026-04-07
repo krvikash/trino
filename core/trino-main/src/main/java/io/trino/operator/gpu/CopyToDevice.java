@@ -127,6 +127,8 @@ public class CopyToDevice
         source.close();
     }
 
+    // Keep in sync with GpuTypes#toDType
+    // TODO: Consider unifying type mapping in a single place: https://starburstdata.atlassian.net/browse/ENG-10144
     private @Move ColumnVector copyToDevice(Blocks blocks, Type type)
     {
         if (type == BOOLEAN) {

@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestDistributedGpuEngineOnlyQueries
         extends AbstractDistributedEngineOnlyQueries
@@ -48,6 +49,33 @@ public class TestDistributedGpuEngineOnlyQueries
         return queryRunner;
     }
 
+    @Override
+    @Test
+    public void testCorrelatedExistsSubqueries()
+    {
+        // TODO: https://starburstdata.atlassian.net/browse/ENG-10115
+        assertThatThrownBy(super::testCorrelatedExistsSubqueries)
+                .hasStackTraceContaining("Unsupported type: date");
+    }
+
+    @Override
+    @Test
+    public void testScalarSubquery()
+    {
+        // TODO: https://starburstdata.atlassian.net/browse/ENG-10115
+        assertThatThrownBy(super::testScalarSubquery)
+                .hasStackTraceContaining("Unsupported type: decimal(2,1)");
+    }
+
+    @Override
+    @Test
+    public void testCorrelatedScalarSubqueriesWithScalarAggregation()
+    {
+        // TODO: https://starburstdata.atlassian.net/browse/ENG-10115
+        assertThatThrownBy(super::testCorrelatedScalarSubqueriesWithScalarAggregation)
+                .hasStackTraceContaining("Unsupported type: date");
+    }
+
     @Test
     public void testGpuLikeFilter()
     {
@@ -70,5 +98,103 @@ public class TestDistributedGpuEngineOnlyQueries
 
         assertThat(query("SELECT name FROM nation WHERE comment LIKE '%a%a___a%'"))
                 .executesWithoutGpu();
+    }
+
+    @Test
+    public void testGpuComparisonFilter()
+    {
+        assertThat(query(
+                """
+                SELECT a, b
+                -- Use rand() to prevent Projection from being inlined in Filter
+                FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE a < b
+                """))
+                .executesWithGpu(FilterNode.class);
+
+        assertThat(query(
+                """
+                SELECT a, b
+                -- Use rand() to prevent Projection from being inlined in Filter
+                FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE a <= b
+                """))
+                .executesWithGpu(FilterNode.class);
+
+        assertThat(query(
+                """
+                SELECT a, b
+                -- Use rand() to prevent Projection from being inlined in Filter
+                FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE a > b
+                """))
+                .executesWithGpu(FilterNode.class);
+
+        assertThat(query(
+                """
+                SELECT a, b
+                -- Use rand() to prevent Projection from being inlined in Filter
+                FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE a >= b
+                """))
+                .executesWithGpu(FilterNode.class);
+
+        assertThat(query(
+                """
+                SELECT a, b
+                -- Use rand() to prevent Projection from being inlined in Filter
+                FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE a = b
+                """))
+                .executesWithGpu(FilterNode.class);
+    }
+
+    @Test
+    public void testGpuArithmeticFilter()
+    {
+        assertThat(query(
+                """
+                SELECT a, b
+                -- Use rand() to prevent Projection from being inlined in Filter
+                FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10 + 1) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE a + b > 50
+                """))
+                .executesWithGpu(FilterNode.class);
+
+        assertThat(query(
+                """
+                SELECT a, b
+                -- Use rand() to prevent Projection from being inlined in Filter
+                FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10 + 1) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE a - b > 50
+                """))
+                .executesWithGpu(FilterNode.class);
+
+        assertThat(query(
+                """
+                SELECT a, b
+                -- Use rand() to prevent Projection from being inlined in Filter
+                FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10 + 1) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE a * b > 100
+                """))
+                .executesWithGpu(FilterNode.class);
+
+        assertThat(query(
+                """
+                SELECT a, b
+                -- Use rand() to prevent Projection from being inlined in Filter
+                FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10 + 1) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE a / b > 10
+                """))
+                .executesWithGpu(FilterNode.class);
+
+        assertThat(query(
+                """
+                SELECT a, b
+                -- Use rand() to prevent Projection from being inlined in Filter
+                FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10 + 1) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE a % b > 5
+                """))
+                .executesWithGpu(FilterNode.class);
     }
 }

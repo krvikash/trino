@@ -13,10 +13,12 @@
  */
 package io.trino.operator.gpu.expression;
 
+import ai.rapids.cudf.BinaryOp;
 import com.google.common.collect.Ordering;
 import io.trino.operator.gpu.GpuScore;
 import io.trino.operator.project.PageFieldsToInputParametersRewriter.Result;
 import io.trino.spi.function.CatalogSchemaFunctionName;
+import io.trino.spi.function.OperatorType;
 import io.trino.spi.type.Type;
 import io.trino.sql.relational.CallExpression;
 import io.trino.sql.relational.ConstantExpression;
@@ -31,8 +33,11 @@ import io.trino.type.LikePattern;
 import java.util.Optional;
 
 import static io.trino.metadata.GlobalFunctionCatalog.builtinFunctionName;
+import static io.trino.metadata.OperatorNameUtil.isOperatorName;
+import static io.trino.metadata.OperatorNameUtil.unmangleOperator;
 import static io.trino.operator.gpu.GpuScore.POTENTIAL;
 import static io.trino.operator.gpu.GpuScore.PREFERRED;
+import static io.trino.operator.gpu.GpuTypes.toDType;
 import static io.trino.operator.project.PageFieldsToInputParametersRewriter.rewritePageFieldsToInputParameters;
 import static io.trino.type.LikeFunctions.LIKE_FUNCTION_NAME;
 import static io.trino.type.LikePatternType.LIKE_PATTERN;
@@ -82,10 +87,43 @@ public class GpuExpressionCompiler
                                 Ordering.natural().max(searched.score(), PREFERRED)));
             }
 
+            String name = functionName.functionName();
+            if (isOperatorName(name) && call.arguments().size() == 2) {
+                OperatorType operatorType = unmangleOperator(name);
+                return compileBinaryExpression(call, operatorType, context);
+            }
+
             // TODO (https://starburstdata.atlassian.net/browse/ENG-9851) detect regular expression functions (as PREFERRED)
-            // TODO (https://starburstdata.atlassian.net/browse/ENG-9851) implement arithmetics (as POTENTIAL)
 
             return Optional.empty();
+        }
+
+        private Optional<CompilationResult> compileBinaryExpression(CallExpression call, OperatorType operatorType, Void context)
+        {
+            return toBinaryOp(operatorType)
+                    .flatMap(operation -> call.arguments().get(0).accept(this, context)
+                            .flatMap(left -> call.arguments().get(1).accept(this, context)
+                                    .flatMap(right -> Optional.of(new CompilationResult(
+                                            new GpuBinaryExpression(left.expression(), right.expression(), operation, toDType(call.type())),
+                                            Ordering.natural().max(
+                                                    Ordering.natural().max(left.score(), right.score()),
+                                                    POTENTIAL))))));
+        }
+
+        private static Optional<BinaryOp> toBinaryOp(OperatorType operatorType)
+        {
+            BinaryOp operation = switch (operatorType) {
+                case ADD -> BinaryOp.ADD;
+                case SUBTRACT -> BinaryOp.SUB;
+                case MULTIPLY -> BinaryOp.MUL;
+                case DIVIDE -> BinaryOp.DIV;
+                case MODULUS -> BinaryOp.MOD;
+                case EQUAL -> BinaryOp.EQUAL;
+                case LESS_THAN -> BinaryOp.LESS;
+                case LESS_THAN_OR_EQUAL -> BinaryOp.LESS_EQUAL;
+                default -> null;
+            };
+            return Optional.ofNullable(operation);
         }
 
         @Override
