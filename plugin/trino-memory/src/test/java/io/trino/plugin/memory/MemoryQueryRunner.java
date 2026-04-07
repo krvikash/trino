@@ -119,6 +119,22 @@ public final class MemoryQueryRunner
         log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
     }
 
+    public static final class MemoryQueryRunnerWithGpu
+    {
+        static void main()
+                throws Exception
+        {
+            QueryRunner queryRunner = builder()
+                    .addCoordinatorProperty("http-server.http.port", "8080")
+                    .addExtraProperty("gpu-acceleration.enabled", "true")
+                    .setInitialTables(TpchTable.getTables())
+                    .build();
+            Logger log = Logger.get(MemoryQueryRunner.class);
+            log.info("======== SERVER STARTED ========");
+            log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
+        }
+    }
+
     public static final class MemoryQueryRunnerWithTaskRetries
     {
         private MemoryQueryRunnerWithTaskRetries() {}
