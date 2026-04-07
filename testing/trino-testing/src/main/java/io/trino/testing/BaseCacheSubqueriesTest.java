@@ -43,6 +43,9 @@ import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.ConstraintApplicationResult;
 import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.ProjectionApplicationResult;
+import io.trino.spi.expression.ConnectorExpression;
+import io.trino.spi.expression.Variable;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
@@ -411,6 +414,10 @@ public abstract class BaseCacheSubqueriesTest
                     TableHandle handle = metadata.getTableHandle(
                             transactionSession,
                             new QualifiedObjectName(catalog, transactionSession.getSchema().orElseThrow(), tableName)).orElseThrow();
+                    // Mimic the optimizer's projection pushdown so that connector-specific table handle state
+                    // (e.g. IcebergTableHandle#projectedColumns) reflects what would be observed at split generation
+                    // time in a real query.
+                    handle = applyIdentityProjection(metadata, transactionSession, handle);
                     ConnectorTableHandle connectorTableHandle = handle.connectorHandle();
 
                     SplitSource splitSource = coordinator.getSplitManager().getSplits(transactionSession, Span.current(), handle, DynamicFilter.EMPTY, alwaysTrue());
@@ -543,6 +550,10 @@ public abstract class BaseCacheSubqueriesTest
                     TableHandle handle = metadata.getTableHandle(
                             transactionSession,
                             new QualifiedObjectName(catalog, schema, "lineitem")).orElseThrow();
+                    // Mimic the optimizer's projection pushdown so that connector-specific table handle state
+                    // (e.g. IcebergTableHandle#projectedColumns) reflects what would be observed at split generation
+                    // time in a real query.
+                    handle = applyIdentityProjection(metadata, transactionSession, handle);
                     ConnectorTableHandle connectorTableHandle = handle.connectorHandle();
                     ColumnHandle orderKeyColumn = metadata.getColumnHandles(transactionSession, handle).get("orderkey");
 
@@ -715,6 +726,19 @@ public abstract class BaseCacheSubqueriesTest
                 .setSystemProperty(JOIN_DISTRIBUTION_TYPE, BROADCAST.name())
                 .setSystemProperty(JOIN_REORDERING_STRATEGY, NONE.name())
                 .build();
+    }
+
+    private static TableHandle applyIdentityProjection(Metadata metadata, Session session, TableHandle handle)
+    {
+        Map<String, ColumnHandle> columnHandles = metadata.getColumnHandles(session, handle);
+        List<ConnectorExpression> projections = columnHandles.entrySet().stream()
+                .map(entry -> new Variable(
+                        entry.getKey(),
+                        metadata.getColumnMetadata(session, handle, entry.getValue()).getType()))
+                .collect(toImmutableList());
+        return metadata.applyProjection(session, handle, projections, columnHandles)
+                .map(ProjectionApplicationResult::getHandle)
+                .orElse(handle);
     }
 
     abstract protected void createPartitionedTableAsSelect(String tableName, List<String> partitionColumns, String asSelect);
