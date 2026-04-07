@@ -76,6 +76,33 @@ public class TestDistributedGpuEngineOnlyQueries
                 .hasStackTraceContaining("Unsupported type: date");
     }
 
+    @Override
+    @Test
+    public void testTopNRank()
+    {
+        // TODO: https://starburstdata.atlassian.net/browse/ENG-10115
+        assertThatThrownBy(super::testTopNRank)
+                .hasStackTraceContaining("Unsupported type: date");
+    }
+
+    @Override
+    @Test
+    public void testIntersect()
+    {
+        // TODO: https://starburstdata.atlassian.net/browse/ENG-10115
+        assertThatThrownBy(super::testIntersect)
+                .hasStackTraceContaining("Unsupported type: decimal(11,1)");
+    }
+
+    @Override
+    @Test
+    public void testExcept()
+    {
+        // TODO: https://starburstdata.atlassian.net/browse/ENG-10115
+        assertThatThrownBy(super::testExcept)
+                .hasStackTraceContaining("Unsupported type: decimal(11,1)");
+    }
+
     @Test
     public void testGpuLikeFilter()
     {
@@ -194,6 +221,19 @@ public class TestDistributedGpuEngineOnlyQueries
                 -- Use rand() to prevent Projection from being inlined in Filter
                 FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10 + 1) AS b FROM (UNNEST(sequence(0, 100))) t(i))
                 WHERE a % b > 5
+                """))
+                .executesWithGpu(FilterNode.class);
+    }
+
+    @Test
+    public void testGpuAndFilter()
+    {
+        assertThat(query(
+                """
+                SELECT a, b
+                -- Use rand() to prevent Projection from being inlined in Filter
+                FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE a > 50 AND b < 5 AND a < 99
                 """))
                 .executesWithGpu(FilterNode.class);
     }

@@ -35,6 +35,7 @@ import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.relational.RowExpression;
+import io.trino.sql.relational.SpecialForm;
 import io.trino.testing.TestingSession;
 import io.trino.type.LikePattern;
 import org.junit.jupiter.api.Test;
@@ -248,6 +249,38 @@ public class TestGpuExpressions
             testComparison(operatorType, DOUBLE, nullsProvider);
             testComparison(operatorType, REAL, nullsProvider);
         }
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testAnd(NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        int channelB = 1;
+        List<Type> inputTypes = List.of(BIGINT, BIGINT);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(positionsCount,
+                createBigintBlock(positionsCount, nullsProvider, -100, 100),
+                createBigintBlock(positionsCount, nullsProvider, -100, 100)));
+
+        // AND of two comparisons: a < 50 AND b > 0
+        RowExpression left = call(
+                functionResolution.resolveOperator(OperatorType.LESS_THAN, List.of(BIGINT, BIGINT)),
+                field(channelA, BIGINT),
+                constant(50L, BIGINT));
+        RowExpression right = call(
+                functionResolution.resolveOperator(OperatorType.LESS_THAN, List.of(BIGINT, BIGINT)),
+                constant(0L, BIGINT),
+                field(channelB, BIGINT));
+        RowExpression rowExpression = new SpecialForm(SpecialForm.Form.AND, BOOLEAN, List.of(left, right), List.of());
+
+        CompiledExpression gpuExpression = gpuCompiler.compileExpression(rowExpression)
+                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + rowExpression));
+        assertThat(gpuExpression.inputChannels().getInputChannels()).containsExactly(channelA, channelB);
+
+        List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, rowExpression, gpuExpression, Set.of(channelA, channelB));
+        List<Page> cpuResults = executeWithCpu(inputPages, rowExpression);
+        assertSameData(gpuResults, cpuResults, List.of(BOOLEAN));
     }
 
     private void testArithmetic(OperatorType operatorType, NullsProvider nullsProvider)

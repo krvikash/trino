@@ -14,6 +14,7 @@
 package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.BinaryOp;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
 import io.trino.operator.gpu.GpuScore;
 import io.trino.operator.project.PageFieldsToInputParametersRewriter.Result;
@@ -30,8 +31,10 @@ import io.trino.sql.relational.SpecialForm;
 import io.trino.sql.relational.VariableReferenceExpression;
 import io.trino.type.LikePattern;
 
+import java.util.List;
 import java.util.Optional;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.metadata.GlobalFunctionCatalog.builtinFunctionName;
 import static io.trino.metadata.OperatorNameUtil.isOperatorName;
 import static io.trino.metadata.OperatorNameUtil.unmangleOperator;
@@ -129,11 +132,33 @@ public class GpuExpressionCompiler
         @Override
         public Optional<CompilationResult> visitSpecialForm(SpecialForm specialForm, Void context)
         {
-            // TODO (https://starburstdata.atlassian.net/browse/ENG-9851) Implement special forms (AND, OR, CASE, IN, etc.)
-            // This would recursively compile arguments and generate appropriate cuDF operations
+            if (specialForm.form() == SpecialForm.Form.AND) {
+                return compileAnd(specialForm.arguments(), context);
+            }
 
-            // For now, return empty as cuDF code generation not yet implemented
+            // TODO (https://starburstdata.atlassian.net/browse/ENG-9851) Implement special forms (OR, CASE, IN, etc.)
             return Optional.empty();
+        }
+
+        private Optional<CompilationResult> compileAnd(List<RowExpression> arguments, Void context)
+        {
+            checkArgument(arguments.size() >= 2, "AND requires at least 2 arguments, got %s", arguments.size());
+
+            ImmutableList.Builder<GpuExpression> operands = ImmutableList.builder();
+            GpuScore maxScore = POTENTIAL;
+
+            for (RowExpression argument : arguments) {
+                Optional<CompilationResult> compiled = argument.accept(this, context);
+                if (compiled.isEmpty()) {
+                    return Optional.empty();
+                }
+                operands.add(compiled.get().expression());
+                maxScore = Ordering.natural().max(maxScore, compiled.get().score());
+            }
+
+            return Optional.of(new CompilationResult(
+                    GpuLogicalExpression.and(operands.build()),
+                    maxScore));
         }
 
         @Override
