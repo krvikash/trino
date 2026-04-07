@@ -130,25 +130,25 @@ public class CopyToDevice
     private @Move ColumnVector copyToDevice(Blocks blocks, Type type)
     {
         if (type == BOOLEAN) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
+            return copyBooleanToDevice(blocks);
         }
         if (type == TINYINT) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
+            return copyTinyintToDevice(blocks);
         }
         if (type == SMALLINT) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
+            return copySmallintToDevice(blocks);
         }
         if (type == INTEGER) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
+            return copyIntegerToDevice(blocks);
         }
         if (type == BIGINT) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
+            return copyBigintToDevice(blocks);
         }
         if (type == REAL) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
+            return copyRealToDevice(blocks);
         }
         if (type == DOUBLE) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
+            return copyDoubleToDevice(blocks);
         }
         if (type instanceof DecimalType) {
             throw new UnsupportedOperationException("Unsupported type: " + type);
@@ -181,6 +181,125 @@ public class CopyToDevice
             throw new UnsupportedOperationException("Unsupported type: " + type);
         }
         throw new UnsupportedOperationException("Unsupported type: " + type);
+    }
+
+    private @Move ColumnVector copyBooleanToDevice(Blocks blocks)
+    {
+        try (HostColumnVector.Builder builder = HostColumnVector.builder(DType.BOOL8, blocks.positionCount())) {
+            for (Block block : blocks.blocks()) {
+                for (int blockPosition = 0; blockPosition < block.getPositionCount(); blockPosition++) {
+                    if (block.isNull(blockPosition)) {
+                        builder.appendNull();
+                    }
+                    else {
+                        builder.append(BOOLEAN.getBoolean(block, blockPosition));
+                    }
+                }
+            }
+            return builder.buildAndPutOnDevice();
+        }
+    }
+
+    private @Move ColumnVector copyTinyintToDevice(Blocks blocks)
+    {
+        try (HostColumnVector.Builder builder = HostColumnVector.builder(DType.INT8, blocks.positionCount())) {
+            for (Block block : blocks.blocks()) {
+                for (int blockPosition = 0; blockPosition < block.getPositionCount(); blockPosition++) {
+                    if (block.isNull(blockPosition)) {
+                        builder.appendNull();
+                    }
+                    else {
+                        builder.append(TINYINT.getByte(block, blockPosition));
+                    }
+                }
+            }
+            return builder.buildAndPutOnDevice();
+        }
+    }
+
+    private @Move ColumnVector copySmallintToDevice(Blocks blocks)
+    {
+        try (HostColumnVector.Builder builder = HostColumnVector.builder(DType.INT16, blocks.positionCount())) {
+            for (Block block : blocks.blocks()) {
+                for (int blockPosition = 0; blockPosition < block.getPositionCount(); blockPosition++) {
+                    if (block.isNull(blockPosition)) {
+                        builder.appendNull();
+                    }
+                    else {
+                        builder.append(SMALLINT.getShort(block, blockPosition));
+                    }
+                }
+            }
+            return builder.buildAndPutOnDevice();
+        }
+    }
+
+    private @Move ColumnVector copyIntegerToDevice(Blocks blocks)
+    {
+        try (HostColumnVector.Builder builder = HostColumnVector.builder(DType.INT32, blocks.positionCount())) {
+            for (Block block : blocks.blocks()) {
+                for (int blockPosition = 0; blockPosition < block.getPositionCount(); blockPosition++) {
+                    if (block.isNull(blockPosition)) {
+                        builder.appendNull();
+                    }
+                    else {
+                        builder.append(INTEGER.getInt(block, blockPosition));
+                    }
+                }
+            }
+            return builder.buildAndPutOnDevice();
+        }
+    }
+
+    private @Move ColumnVector copyBigintToDevice(Blocks blocks)
+    {
+        try (HostColumnVector.Builder builder = HostColumnVector.builder(DType.INT64, blocks.positionCount())) {
+            for (Block block : blocks.blocks()) {
+                for (int blockPosition = 0; blockPosition < block.getPositionCount(); blockPosition++) {
+                    if (block.isNull(blockPosition)) {
+                        builder.appendNull();
+                    }
+                    else {
+                        builder.append(BIGINT.getLong(block, blockPosition));
+                    }
+                }
+            }
+            return builder.buildAndPutOnDevice();
+        }
+    }
+
+    private @Move ColumnVector copyRealToDevice(Blocks blocks)
+    {
+        try (HostColumnVector.Builder builder = HostColumnVector.builder(DType.FLOAT32, blocks.positionCount())) {
+            for (Block block : blocks.blocks()) {
+                for (int blockPosition = 0; blockPosition < block.getPositionCount(); blockPosition++) {
+                    if (block.isNull(blockPosition)) {
+                        builder.appendNull();
+                    }
+                    else {
+                        builder.append(REAL.getFloat(block, blockPosition));
+                    }
+                }
+            }
+            return builder.buildAndPutOnDevice();
+        }
+    }
+
+    private @Move ColumnVector copyDoubleToDevice(Blocks blocks)
+    {
+        try (HostColumnVector.Builder builder = HostColumnVector.builder(DType.FLOAT64, blocks.positionCount())) {
+            for (Block block : blocks.blocks()) {
+                for (int blockPosition = 0; blockPosition < block.getPositionCount(); blockPosition++) {
+                    if (block.isNull(blockPosition)) {
+                        builder.appendNull();
+                    }
+                    else {
+                        builder.append(DOUBLE.getDouble(block, blockPosition));
+                    }
+                }
+            }
+            return builder.buildAndPutOnDevice();
+        }
     }
 
     private @Move ColumnVector copyVarcharToDevice(Blocks blocks)

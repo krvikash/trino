@@ -195,22 +195,22 @@ public class CopyToBlocks
             return new BooleanAppender(columnVector);
         }
         if (type == TINYINT) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
+            return new TinyintAppender(columnVector);
         }
         if (type == SMALLINT) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
+            return new SmallintAppender(columnVector);
         }
         if (type == INTEGER) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
+            return new IntegerAppender(columnVector);
         }
         if (type == BIGINT) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
+            return new BigintAppender(columnVector);
         }
         if (type == REAL) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
+            return new RealAppender(columnVector);
         }
         if (type == DOUBLE) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
+            return new DoubleAppender(columnVector);
         }
         if (type instanceof DecimalType) {
             throw new UnsupportedOperationException("Unsupported type: " + type);
@@ -278,6 +278,222 @@ public class CopyToBlocks
             }
             else {
                 BOOLEAN.writeBoolean(blockBuilder, hostColumnVector.getBoolean(position));
+            }
+        }
+
+        @Override
+        public void close()
+        {
+            hostColumnVector.close();
+        }
+    }
+
+    private static class TinyintAppender
+            implements BlockBuilderAppender
+    {
+        private final @Own HostColumnVector hostColumnVector;
+
+        public TinyintAppender(ColumnVector columnVector)
+        {
+            hostColumnVector = columnVector.copyToHost();
+        }
+
+        @Override
+        public void appendBatch(BlockBuilder blockBuilder, int positionOffset)
+        {
+            for (int i = 0; i < BATCH_SIZE; i++) {
+                append(blockBuilder, positionOffset + i);
+            }
+        }
+
+        @Override
+        public void append(BlockBuilder blockBuilder, int position)
+        {
+            if (hostColumnVector.isNull(position)) {
+                blockBuilder.appendNull();
+            }
+            else {
+                TINYINT.writeLong(blockBuilder, hostColumnVector.getByte(position));
+            }
+        }
+
+        @Override
+        public void close()
+        {
+            hostColumnVector.close();
+        }
+    }
+
+    private static class SmallintAppender
+            implements BlockBuilderAppender
+    {
+        private final @Own HostColumnVector hostColumnVector;
+
+        public SmallintAppender(ColumnVector columnVector)
+        {
+            hostColumnVector = columnVector.copyToHost();
+        }
+
+        @Override
+        public void appendBatch(BlockBuilder blockBuilder, int positionOffset)
+        {
+            for (int i = 0; i < BATCH_SIZE; i++) {
+                append(blockBuilder, positionOffset + i);
+            }
+        }
+
+        @Override
+        public void append(BlockBuilder blockBuilder, int position)
+        {
+            if (hostColumnVector.isNull(position)) {
+                blockBuilder.appendNull();
+            }
+            else {
+                SMALLINT.writeLong(blockBuilder, hostColumnVector.getShort(position));
+            }
+        }
+
+        @Override
+        public void close()
+        {
+            hostColumnVector.close();
+        }
+    }
+
+    private static class IntegerAppender
+            implements BlockBuilderAppender
+    {
+        private final @Own HostColumnVector hostColumnVector;
+
+        public IntegerAppender(ColumnVector columnVector)
+        {
+            hostColumnVector = columnVector.copyToHost();
+        }
+
+        @Override
+        public void appendBatch(BlockBuilder blockBuilder, int positionOffset)
+        {
+            for (int i = 0; i < BATCH_SIZE; i++) {
+                append(blockBuilder, positionOffset + i);
+            }
+        }
+
+        @Override
+        public void append(BlockBuilder blockBuilder, int position)
+        {
+            if (hostColumnVector.isNull(position)) {
+                blockBuilder.appendNull();
+            }
+            else {
+                INTEGER.writeLong(blockBuilder, hostColumnVector.getInt(position));
+            }
+        }
+
+        @Override
+        public void close()
+        {
+            hostColumnVector.close();
+        }
+    }
+
+    private static class BigintAppender
+            implements BlockBuilderAppender
+    {
+        private final @Own HostColumnVector hostColumnVector;
+
+        public BigintAppender(ColumnVector columnVector)
+        {
+            hostColumnVector = columnVector.copyToHost();
+        }
+
+        @Override
+        public void appendBatch(BlockBuilder blockBuilder, int positionOffset)
+        {
+            for (int i = 0; i < BATCH_SIZE; i++) {
+                append(blockBuilder, positionOffset + i);
+            }
+        }
+
+        @Override
+        public void append(BlockBuilder blockBuilder, int position)
+        {
+            if (hostColumnVector.isNull(position)) {
+                blockBuilder.appendNull();
+            }
+            else {
+                BIGINT.writeLong(blockBuilder, hostColumnVector.getLong(position));
+            }
+        }
+
+        @Override
+        public void close()
+        {
+            hostColumnVector.close();
+        }
+    }
+
+    private static class RealAppender
+            implements BlockBuilderAppender
+    {
+        private final @Own HostColumnVector hostColumnVector;
+
+        public RealAppender(ColumnVector columnVector)
+        {
+            hostColumnVector = columnVector.copyToHost();
+        }
+
+        @Override
+        public void appendBatch(BlockBuilder blockBuilder, int positionOffset)
+        {
+            for (int i = 0; i < BATCH_SIZE; i++) {
+                append(blockBuilder, positionOffset + i);
+            }
+        }
+
+        @Override
+        public void append(BlockBuilder blockBuilder, int position)
+        {
+            if (hostColumnVector.isNull(position)) {
+                blockBuilder.appendNull();
+            }
+            else {
+                REAL.writeFloat(blockBuilder, hostColumnVector.getFloat(position));
+            }
+        }
+
+        @Override
+        public void close()
+        {
+            hostColumnVector.close();
+        }
+    }
+
+    private static class DoubleAppender
+            implements BlockBuilderAppender
+    {
+        private final @Own HostColumnVector hostColumnVector;
+
+        public DoubleAppender(ColumnVector columnVector)
+        {
+            hostColumnVector = columnVector.copyToHost();
+        }
+
+        @Override
+        public void appendBatch(BlockBuilder blockBuilder, int positionOffset)
+        {
+            for (int i = 0; i < BATCH_SIZE; i++) {
+                append(blockBuilder, positionOffset + i);
+            }
+        }
+
+        @Override
+        public void append(BlockBuilder blockBuilder, int position)
+        {
+            if (hostColumnVector.isNull(position)) {
+                blockBuilder.appendNull();
+            }
+            else {
+                DOUBLE.writeDouble(blockBuilder, hostColumnVector.getDouble(position));
             }
         }
 
