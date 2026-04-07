@@ -17,7 +17,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.net.HostAndPort;
 import io.trino.testing.QueryRunner;
-import org.apache.http.HttpHost;
+import org.apache.hc.core5.http.HttpHost;
 import org.opensearch.client.RestClient;
 import org.opensearch.client.RestHighLevelClient;
 

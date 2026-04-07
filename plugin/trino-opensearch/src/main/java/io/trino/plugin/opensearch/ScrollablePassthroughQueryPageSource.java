@@ -94,7 +94,7 @@ public class ScrollablePassthroughQueryPageSource
         scrollId = searchResponse.getScrollId();
         SearchHits searchHits = searchResponse.getHits();
         checkArgument(searchHits.getTotalHits() != null, "Expected total hits to be non-null");
-        long totalHits = searchHits.getTotalHits().value;
+        long totalHits = searchHits.getTotalHits().value();
         seenScrollIds.add(scrollId);
         hitsSoFar += searchHits.getHits().length;
 

@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.opensearch;
 
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.client.Column;
@@ -26,10 +27,11 @@ import io.trino.testing.ResultsSession;
 import org.opensearch.action.bulk.BulkRequest;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.support.WriteRequest;
+import org.opensearch.client.Request;
 import org.opensearch.client.RequestOptions;
+import org.opensearch.client.Response;
+import org.opensearch.client.RestClient;
 import org.opensearch.client.RestHighLevelClient;
-import org.opensearch.client.indices.CreateIndexRequest;
-import org.opensearch.client.indices.GetIndexRequest;
 import org.opensearch.core.xcontent.XContentBuilder;
 
 import java.io.IOException;
@@ -46,11 +48,14 @@ import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static java.util.Objects.requireNonNull;
+import static org.apache.hc.core5.http.HttpStatus.SC_NOT_FOUND;
 import static org.opensearch.common.xcontent.XContentFactory.jsonBuilder;
 
 public class OpenSearchLoader
         extends AbstractTestingTrinoClient<Void>
 {
+    private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
+
     private final String tableName;
     private final RestHighLevelClient client;
 
@@ -152,15 +157,35 @@ public class OpenSearchLoader
 
     private void createIndexWithSettings(String tableName, Map<String, String> indexSettings)
     {
+        if (indexSettings.isEmpty()) {
+            // Nothing to configure, so let the first indexing request create the index.
+            return;
+        }
+        // The high-level client adds cluster_manager_timeout, which replaced master_timeout in
+        // OpenSearch 2.0, so the create request below is rejected by the 1.x server these tests also
+        // cover. Going through the low-level client keeps the request independent of the client
+        // major's parameter vocabulary; only create is affected today, and the existence check
+        // follows it so both stay on one code path.
+        RestClient restClient = client.getLowLevelClient();
         try {
-            if (!client.indices().exists(new GetIndexRequest(tableName), RequestOptions.DEFAULT)) {
-                CreateIndexRequest createIndexRequest = new CreateIndexRequest(tableName);
-                createIndexRequest.settings(indexSettings);
-                client.indices().create(createIndexRequest, RequestOptions.DEFAULT);
+            if (indexExists(restClient, tableName)) {
+                return;
             }
+            Request request = new Request("PUT", "/" + tableName);
+            request.setJsonEntity(JSON_MAPPER.writeValueAsString(ImmutableMap.of("settings", indexSettings)));
+            restClient.performRequest(request);
         }
         catch (IOException e) {
             throw new RuntimeException("Failed to check or create index: " + tableName, e);
         }
+    }
+
+    private static boolean indexExists(RestClient restClient, String tableName)
+            throws IOException
+    {
+        // The low-level client treats a 404 on HEAD as a normal response rather than an error,
+        // so the status code has to be read instead of catching ResponseException.
+        Response response = restClient.performRequest(new Request("HEAD", "/" + tableName));
+        return response.getStatusLine().getStatusCode() != SC_NOT_FOUND;
     }
 }
