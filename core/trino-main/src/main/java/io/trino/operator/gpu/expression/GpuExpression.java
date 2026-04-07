@@ -22,5 +22,5 @@ import java.util.List;
 public interface GpuExpression
 {
     @Move
-    ColumnVector evaluate(List<@Borrow ColumnVector> inputColumns);
+    ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns);
 }

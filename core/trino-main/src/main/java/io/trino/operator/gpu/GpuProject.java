@@ -79,7 +79,7 @@ public class GpuProject
                                 .map(DeviceMemory.class::cast)
                                 .map(DeviceMemory::columnVector)
                                 .collect(toImmutableList());
-                        yield new DeviceMemory(expression.expression().evaluate(inputs));
+                        yield new DeviceMemory(expression.expression().evaluate(input.positionCount(), inputs));
                     }
                 };
             }

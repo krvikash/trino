@@ -53,7 +53,7 @@ public class GpuExpressionCompiler
         public Optional<CompiledExpression> visitInputReference(InputReferenceExpression reference, Void context)
         {
             return Optional.of(new CompiledExpression(
-                    inputColumns -> getOnlyElement(inputColumns).incRefCount(),
+                    (_, inputColumns) -> getOnlyElement(inputColumns).incRefCount(),
                     new InputChannels(reference.field()),
                     POTENTIAL));
         }
@@ -93,11 +93,10 @@ public class GpuExpressionCompiler
         @Override
         public Optional<CompiledExpression> visitConstant(ConstantExpression literal, Void context)
         {
-            // TODO (https://starburstdata.atlassian.net/browse/ENG-9851) Implement constant expression
-            // This would create a cuDF scalar or constant column
-
-            // For now, return empty as cuDF code generation not yet implemented
-            return Optional.empty();
+            return Optional.of(new CompiledExpression(
+                    new GpuConstant(literal.value(), literal.type()),
+                    new InputChannels(),
+                    POTENTIAL));
         }
 
         @Override

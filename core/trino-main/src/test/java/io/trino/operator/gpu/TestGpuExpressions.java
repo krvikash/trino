@@ -35,6 +35,7 @@ import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.relational.RowExpression;
 import io.trino.testing.TestingSession;
 import io.trino.type.LikePattern;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
@@ -52,6 +53,13 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Streams.stream;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
+import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.DoubleType.DOUBLE;
+import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.spi.type.RealType.REAL;
+import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
@@ -142,6 +150,99 @@ public class TestGpuExpressions
                 assertSameData(gpuResults, cpuResults, List.of(rowExpression.type()));
             }
         }
+    }
+
+    @Test
+    public void testBooleanConstant()
+    {
+        testConstant(constant(true, BOOLEAN), BOOLEAN);
+        testConstant(constant(false, BOOLEAN), BOOLEAN);
+        testConstant(constant(null, BOOLEAN), BOOLEAN);
+    }
+
+    @Test
+    public void testTinyintConstant()
+    {
+        testConstant(constant(42L, TINYINT), TINYINT);
+        testConstant(constant(-1L, TINYINT), TINYINT);
+        testConstant(constant(0L, TINYINT), TINYINT);
+        testConstant(constant(null, TINYINT), TINYINT);
+    }
+
+    @Test
+    public void testSmallintConstant()
+    {
+        testConstant(constant(1234L, SMALLINT), SMALLINT);
+        testConstant(constant(-5678L, SMALLINT), SMALLINT);
+        testConstant(constant(null, SMALLINT), SMALLINT);
+    }
+
+    @Test
+    public void testIntegerConstant()
+    {
+        testConstant(constant(123456L, INTEGER), INTEGER);
+        testConstant(constant(-789012L, INTEGER), INTEGER);
+        testConstant(constant(0L, INTEGER), INTEGER);
+        testConstant(constant(null, INTEGER), INTEGER);
+    }
+
+    @Test
+    public void testBigintConstant()
+    {
+        testConstant(constant(1234567890123L, BIGINT), BIGINT);
+        testConstant(constant(-9876543210L, BIGINT), BIGINT);
+        testConstant(constant(0L, BIGINT), BIGINT);
+        testConstant(constant(null, BIGINT), BIGINT);
+    }
+
+    @Test
+    public void testRealConstant()
+    {
+        testConstant(constant((long) Float.floatToIntBits(3.14f), REAL), REAL);
+        testConstant(constant((long) Float.floatToIntBits(-2.5f), REAL), REAL);
+        testConstant(constant((long) Float.floatToIntBits(0.0f), REAL), REAL);
+        testConstant(constant((long) Float.floatToIntBits(Float.POSITIVE_INFINITY), REAL), REAL);
+        testConstant(constant((long) Float.floatToIntBits(Float.NEGATIVE_INFINITY), REAL), REAL);
+        testConstant(constant((long) Float.floatToIntBits(Float.NaN), REAL), REAL);
+        testConstant(constant(null, REAL), REAL);
+    }
+
+    @Test
+    public void testDoubleConstant()
+    {
+        testConstant(constant(3.14159265359, DOUBLE), DOUBLE);
+        testConstant(constant(-2.71828, DOUBLE), DOUBLE);
+        testConstant(constant(0.0, DOUBLE), DOUBLE);
+        testConstant(constant(Double.POSITIVE_INFINITY, DOUBLE), DOUBLE);
+        testConstant(constant(Double.NEGATIVE_INFINITY, DOUBLE), DOUBLE);
+        testConstant(constant(Double.NaN, DOUBLE), DOUBLE);
+        testConstant(constant(null, DOUBLE), DOUBLE);
+    }
+
+    @Test
+    public void testVarcharConstant()
+    {
+        testConstant(constant(Slices.utf8Slice("hello"), VARCHAR), VARCHAR);
+        testConstant(constant(Slices.utf8Slice(""), VARCHAR), VARCHAR);
+        testConstant(constant(Slices.utf8Slice("Łania szła piękną łąką pod Warszawą"), VARCHAR), VARCHAR);
+        testConstant(constant(null, VARCHAR), VARCHAR);
+    }
+
+    private void testConstant(RowExpression constantExpression, Type expectedType)
+    {
+        List<Page> inputPages = createVarcharBlocks(
+                List.of(64).iterator(),
+                NullsProvider.NO_NULLS).stream()
+                .map(Page::new)
+                .collect(toImmutableList());
+
+        CompiledExpression gpuExpression = gpuCompiler.compileExpression(constantExpression)
+                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + constantExpression));
+        assertThat(gpuExpression.inputChannels().getInputChannels()).isEmpty();
+
+        List<Page> gpuResults = executeWithGpu(inputPages, constantExpression, gpuExpression);
+        List<Page> cpuResults = executeWithCpu(inputPages, constantExpression);
+        assertSameData(gpuResults, cpuResults, List.of(expectedType));
     }
 
     private List<Page> executeWithGpu(List<Page> inputPages, RowExpression rowExpression, CompiledExpression gpuExpression)

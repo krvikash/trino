@@ -93,7 +93,7 @@ public class GpuFilter
                 .map(DeviceMemory::columnVector)
                 .collect(toImmutableList());
 
-        try (@Own ColumnVector mask = filter.expression().evaluate(inputs)) {
+        try (@Own ColumnVector mask = filter.expression().evaluate(input.positionCount(), inputs)) {
             try (@Own Scalar sum = mask.sum(DType.INT32)) {
                 int retained = sum.isValid() ? sum.getInt() : 0;
                 if (retained == 0) {
