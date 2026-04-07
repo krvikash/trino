@@ -24,8 +24,11 @@ import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.compression.CompressionUtil;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestArrowZstdEncodingDecoding
         extends AbstractTestEncodingDecoding
@@ -54,5 +57,14 @@ public class TestArrowZstdEncodingDecoding
     protected QueryDataEncoder createEncoder(List<OutputColumn> columns)
     {
         return new ArrowQueryDataEncoder(allocator, new ArrowCompressionFactory(), CompressionUtil.CodecType.ZSTD, columns);
+    }
+
+    @Test
+    @Override
+    public void testVariantSerialization()
+    {
+        // TODO https://starburstdata.atlassian.net/browse/ENG-9987 Support variant in Trino protocol spooling to Arrow
+        assertThatThrownBy(super::testVariantSerialization)
+                .hasMessage("Unsupported type: variant");
     }
 }

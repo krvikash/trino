@@ -36,6 +36,7 @@ import io.trino.spi.type.MapType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
+import io.trino.spi.variant.Variant;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
@@ -102,6 +103,7 @@ import static io.trino.spi.type.UuidType.UUID;
 import static io.trino.spi.type.UuidType.javaUuidToTrinoUuid;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
+import static io.trino.spi.type.VariantType.VARIANT;
 import static io.trino.type.IntervalDayTimeType.INTERVAL_DAY_TIME;
 import static io.trino.type.IntervalYearMonthType.INTERVAL_YEAR_MONTH;
 import static io.trino.type.IpAddressType.IPADDRESS;
@@ -669,6 +671,24 @@ public abstract class AbstractTestEncodingDecoding
         };
 
         assertRoundTrip(IPADDRESS, builder, "127.0.0.1", "192.168.0.1", "8.8.8.8", "2001:db8:3333:4444:5555:6666:7777:8888", null);
+    }
+
+    @Test
+    public void testVariantSerialization()
+            throws IOException
+    {
+        List<TypedColumn> columns = ImmutableList.of(TypedColumn.typed("col0", VARIANT));
+        var blockBuilder = VARIANT.createBlockBuilder(null, 3);
+        blockBuilder.appendNull();
+        VARIANT.writeObject(blockBuilder, Variant.ofObject(Map.of(
+                utf8Slice("a"), Variant.ofInt(1),
+                utf8Slice("b"), Variant.ofArray(List.of(Variant.ofBoolean(true), Variant.NULL_VALUE)))));
+        VARIANT.writeObject(blockBuilder, Variant.NULL_VALUE);
+        Block block = blockBuilder.build();
+
+        Page page = page(block);
+        assertThat(roundTrip(columns, page))
+                .isEqualTo(column(null, "{\"a\":1,\"b\":[true,null]}", null));
     }
 
     @Test
