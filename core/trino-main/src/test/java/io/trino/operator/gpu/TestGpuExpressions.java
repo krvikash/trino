@@ -20,12 +20,10 @@ import io.trino.FullConnectorSession;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.operator.DriverYieldSignal;
-import io.trino.operator.WorkProcessor;
 import io.trino.operator.gpu.borrow.Own;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.project.PageProcessor;
-import io.trino.operator.project.PageProcessorMetrics;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.VariableWidthBlockBuilder;
@@ -52,6 +50,7 @@ import java.util.stream.Stream;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.Streams.stream;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -74,7 +73,7 @@ public class TestGpuExpressions
     /**
      * Useful test strings, including interesting inputs and patterns for LIKE testing.
      */
-    private final ImmutableList<String> testStrings = ImmutableList.<String>builder()
+    private final List<String> testStrings = ImmutableList.<String>builder()
             .add("test1", "other", "test2", "nothing", "testing", "%test%")
             .add("a", "xyz", "ab", "z", "yz", "abcd", "", "abcdefg", "xabc", "xyxw", "xaxxxbx", "abcdefghij")
             .add("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
@@ -102,11 +101,31 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testLike(NullsProvider nullsProvider)
+    public void testLikeSmall(NullsProvider nullsProvider)
+    {
+        testLike(List.of(64), nullsProvider);
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testLikeMany(NullsProvider nullsProvider)
+    {
+        List<Integer> positionsCounts = Stream.generate(() -> 10_000).limit(42).toList();
+        testLike(positionsCounts, nullsProvider);
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testLikeRandomPages(NullsProvider nullsProvider)
+    {
+        List<Integer> positionsCounts = randomInts(0, 200_00).limit(42).toList();
+        testLike(positionsCounts, nullsProvider);
+    }
+
+    private void testLike(List<Integer> positionsCounts, NullsProvider nullsProvider)
     {
         List<Page> inputPages = createVarcharBlocks(
-                // TODO (https://starburstdata.atlassian.net/browse/ENG-9849) test does not work on bigger data set Stream.generate(() -> 10_000).limit(42).iterator(),
-                List.of(64).iterator(),
+                positionsCounts.iterator(),
                 nullsProvider).stream()
                 .map(Page::new)
                 .collect(toImmutableList());
@@ -116,7 +135,7 @@ public class TestGpuExpressions
             for (Optional<Character> escape : escapes) {
                 int channel = 0;
                 RowExpression rowExpression = createLikeExpression(stringChannel, pattern, escape);
-                CompiledExpression gpuExpression = gpuCompiler.compileExpression(rowExpression).orElseThrow(() -> new AssertionError("Gpu expression compile failed"));
+                CompiledExpression gpuExpression = gpuCompiler.compileExpression(rowExpression).orElseThrow(() -> new AssertionError("GPU expression compile failed"));
                 assertThat(gpuExpression.inputChannels().getInputChannels()).containsExactly(channel);
                 List<Page> gpuResults = executeWithGpu(inputPages, rowExpression, gpuExpression);
                 List<Page> cpuResults = executeWithCpu(inputPages, rowExpression);
@@ -184,15 +203,10 @@ public class TestGpuExpressions
         LocalMemoryContext context = newSimpleAggregatedMemoryContext().newLocalMemoryContext(PageProcessor.class.getSimpleName());
         ImmutableList.Builder<Page> outputPages = ImmutableList.builder();
         for (Page inputPage : inputPages) {
-            WorkProcessor<Page> workProcessor = compiledProcessor.createWorkProcessor(
-                    FULL_CONNECTOR_SESSION,
-                    new DriverYieldSignal(),
-                    context,
-                    new PageProcessorMetrics(),
-                    SourcePage.create(inputPage));
-            if (workProcessor.process() && !workProcessor.isFinished()) {
-                outputPages.add(workProcessor.getResult());
-            }
+            Iterator<Optional<Page>> processed = compiledProcessor.process(FULL_CONNECTOR_SESSION, new DriverYieldSignal(), context, SourcePage.create(inputPage));
+            stream(processed)
+                    .flatMap(Optional::stream)
+                    .forEachOrdered(outputPages::add);
         }
         return outputPages.build();
     }
@@ -208,7 +222,7 @@ public class TestGpuExpressions
     private List<Block> createVarcharBlocks(Iterator<Integer> positionsCounts, NullsProvider nullsProvider)
     {
         Iterator<String> strings = generateInputStrings().iterator();
-        return Streams.stream(positionsCounts)
+        return stream(positionsCounts)
                 .map(positionsCount -> {
                     Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
                     assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
@@ -257,6 +271,13 @@ public class TestGpuExpressions
                     assertThat(readValues(left.page, left.position, types))
                             .isEqualTo(readValues(right.page, right.position, types));
                 });
+    }
+
+    private static Stream<Integer> randomInts(int minInclusive, int maxExclusive)
+    {
+        Random random = new Random(42); // Fixed seed for reproducibility
+        return IntStream.generate(() -> random.nextInt(minInclusive, maxExclusive))
+                .boxed();
     }
 
     private static List<Optional<Object>> readValues(Page page, int position, List<Type> types)
