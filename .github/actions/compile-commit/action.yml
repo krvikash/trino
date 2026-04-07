@@ -15,7 +15,7 @@ runs:
         echo "tree-hash=${TREE_HASH}" >> $GITHUB_OUTPUT
     - name: Cache compile-commit action success
       id: check-compile-commit-success
-      uses: starburstdata/actions-cache@v1.0.0
+      uses: starburstdata/actions-cache@v1
       env:
         AWS_REGION: "us-east-1"
       with:

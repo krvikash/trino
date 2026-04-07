@@ -128,7 +128,7 @@ runs:
       - name: Cache and Restore local Maven repo
         id: cache
         if: ${{ format('{0}', inputs.cache) == 'true' }}
-        uses: starburstdata/actions-cache@v1.0.0
+        uses: starburstdata/actions-cache@v1
         env:
           AWS_REGION: "us-east-1"
         with:
@@ -143,7 +143,7 @@ runs:
       - name: Restore local Maven repo
         id: cache_restore
         if: ${{ format('{0}', inputs.cache) == 'restore' }}
-        uses: starburstdata/actions-cache/restore@v1.0.0
+        uses: starburstdata/actions-cache@v1
         env:
           AWS_REGION: "us-east-1"
         with:

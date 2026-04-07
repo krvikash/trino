@@ -50,8 +50,7 @@ runs:
         echo " *** AWS user info"
         aws sts get-caller-identity
     - name: "Fetch secrets"
-      # TODO Update once https://github.com/aws-actions/aws-secretsmanager-get-secrets/pull/292 is released
-      uses: aws-actions/aws-secretsmanager-get-secrets@98c2d6bf1dd67c2575fa2bb14294aa64103d426c # v2
+      uses: aws-actions/aws-secretsmanager-get-secrets@2cb1a461cbd4865ac4299648312e4704c646cd53 # v3
       with:
         secret-ids: ${{ inputs.secret-id }}
         parse-json-secrets: true
