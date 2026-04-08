@@ -337,11 +337,6 @@ public abstract class BaseIcebergBranchingTest
             // change table definition on main branch
             assertUpdate("ALTER TABLE " + table.getName() + " DROP COLUMN y");
 
-            // TODO This should be fixed after once https://github.com/trinodb/trino/issues/23601 is resolved
-            assertThat(query("DELETE FROM " + table.getName() + " @ dev WHERE y = 30")).nonTrinoExceptionFailure()
-                    .hasMessageContaining("Invalid metadata file")
-                    .hasStackTraceContaining("Cannot find field 'y'");
-
             // branch returns the latest schema once a new snapshot is created
             assertUpdate("DELETE FROM " + table.getName() + " @ dev WHERE x = 1", 1);
             assertThat(query("SELECT * FROM " + table.getName() + " FOR VERSION AS OF 'dev'"))
