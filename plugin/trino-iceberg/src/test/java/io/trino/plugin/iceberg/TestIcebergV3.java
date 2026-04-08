@@ -22,6 +22,7 @@ import io.trino.Session;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.metastore.HiveMetastore;
+import io.trino.parquet.metadata.ParquetMetadata;
 import io.trino.plugin.geospatial.GeoPlugin;
 import io.trino.plugin.hive.HivePlugin;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
@@ -57,8 +58,8 @@ import org.apache.iceberg.io.OutputFileFactory;
 import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.types.EdgeAlgorithm;
 import org.apache.iceberg.types.Types;
-import org.junit.jupiter.api.Disabled;
 import org.apache.iceberg.types.Types.GeometryType;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -80,6 +81,7 @@ import static io.trino.plugin.iceberg.IcebergQueryRunner.ICEBERG_CATALOG;
 import static io.trino.plugin.iceberg.IcebergTestUtils.SESSION;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getHiveMetastore;
+import static io.trino.plugin.iceberg.IcebergTestUtils.getParquetFileMetadata;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getTrinoCatalog;
 import static io.trino.plugin.iceberg.IcebergUtil.getLatestMetadataLocation;
 import static io.trino.plugin.iceberg.util.EqualityDeleteUtils.writeEqualityDeleteForTable;
@@ -87,6 +89,7 @@ import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static org.apache.iceberg.TableProperties.FORMAT_VERSION;
+import static org.apache.parquet.schema.LogicalTypeAnnotation.geometryType;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.keycloak.util.JsonSerialization.mapper;
@@ -1695,7 +1698,7 @@ public class TestIcebergV3
         Path metadataDir = tableLocation.resolve("metadata");
         try (var stream = Files.list(metadataDir)) {
             return stream
-                    .filter(path -> path.getFileName().toString().endsWith(".metadata.json"))
+                    .filter(path -> path.getFileName().endsWith(".metadata.json"))
                     .max(Comparator.naturalOrder())
                     .orElseThrow(() -> new IllegalStateException("No metadata.json found in " + metadataDir));
         }
@@ -1708,6 +1711,14 @@ public class TestIcebergV3
                 .create(ConnectorIdentity.ofUser("test"))
                 .newInputFile(Location.of(dataFilePath))
                 .length();
+    }
+
+    private ParquetMetadata getOnlyParquetDataFileMetadata(String tableName)
+    {
+        BaseTable table = loadTable(tableName);
+        table.refresh();
+        DataFile dataFile = getOnlyElement(table.currentSnapshot().addedDataFiles(table.io()));
+        return getParquetFileMetadata(fileSystemFactory.create(SESSION).newInputFile(Location.of(dataFile.location())));
     }
 
     @Test
@@ -1767,6 +1778,9 @@ public class TestIcebergV3
 
         assertThat(query("SELECT ST_AsText(geom), ST_SRID(geom) FROM " + registered))
                 .matches("VALUES (VARCHAR 'POINT (1 2)', 3857)");
+
+        assertThat(getOnlyParquetDataFileMetadata(registered).getFileMetaData().getSchema().getType("geom").asPrimitiveType().getLogicalTypeAnnotation())
+                .isEqualTo(geometryType("EPSG:3857"));
 
         assertUpdate("DROP TABLE " + registered);
     }
