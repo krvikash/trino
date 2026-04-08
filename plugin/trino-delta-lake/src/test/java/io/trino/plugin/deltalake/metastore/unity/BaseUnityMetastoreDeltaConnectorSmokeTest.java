@@ -66,7 +66,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     private static final RetryPolicy<Object> DATABRICKS_PENDING_CLUSTER_RETRY_POLICY = RetryPolicy.builder()
             .handleIf(BaseUnityMetastoreDeltaConnectorSmokeTest::isPendingClusterFailure)
             .withDelay(Duration.of(30, ChronoUnit.SECONDS))
-            .withMaxRetries(20)
+            .withMaxRetries(40)
             .onRetry(event -> LOG.warn(event.getLastException(), "Query failed on attempt %d, will retry (pending cluster).", event.getAttemptCount()))
             .build();
 

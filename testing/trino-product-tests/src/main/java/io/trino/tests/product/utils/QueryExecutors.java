@@ -127,7 +127,7 @@ public final class QueryExecutors
                 // Retry on 503 may lead to unexpected test results: https://github.com/trinodb/trino/pull/14392#issuecomment-1264041917
                 .handleIf(throwable -> throwable.getMessage().contains("HTTP Response code: 502") || throwable.getMessage().contains("The current cluster state is Pending") || throwable.getMessage().contains("The current cluster state is Terminated"))
                 .withDelay(Duration.of(30, ChronoUnit.SECONDS))
-                .withMaxRetries(20)
+                .withMaxRetries(40)
                 .onRetry(event -> log.warn(event.getLastException(), "Query failed on attempt %d, will retry.", event.getAttemptCount()))
                 .build();
 
