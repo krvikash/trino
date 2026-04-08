@@ -1237,7 +1237,7 @@ public final class SystemSessionProperties
                         REUSE_COMMON_SUBQUERIES,
                         "Allow optimizing queries by common subquery reuse",
                         optimizerConfig.isReuseCommonSubqueries(),
-                        true),
+                        false),
                 booleanProperty(
                         CACHE_ENABLED,
                         "Enables subquery caching",
