@@ -283,6 +283,38 @@ public class TestGpuExpressions
         assertSameData(gpuResults, cpuResults, List.of(BOOLEAN));
     }
 
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testOr(NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        int channelB = 1;
+        List<Type> inputTypes = List.of(BIGINT, BIGINT);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(positionsCount,
+                createBigintBlock(positionsCount, nullsProvider, -100, 100),
+                createBigintBlock(positionsCount, nullsProvider, -100, 100)));
+
+        // OR of two comparisons: a < 50 OR b > 0
+        RowExpression left = call(
+                functionResolution.resolveOperator(OperatorType.LESS_THAN, List.of(BIGINT, BIGINT)),
+                field(channelA, BIGINT),
+                constant(50L, BIGINT));
+        RowExpression right = call(
+                functionResolution.resolveOperator(OperatorType.LESS_THAN, List.of(BIGINT, BIGINT)),
+                constant(0L, BIGINT),
+                field(channelB, BIGINT));
+        RowExpression rowExpression = new SpecialForm(SpecialForm.Form.OR, BOOLEAN, List.of(left, right), List.of());
+
+        CompiledExpression gpuExpression = gpuCompiler.compileExpression(rowExpression)
+                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + rowExpression));
+        assertThat(gpuExpression.inputChannels().getInputChannels()).containsExactly(channelA, channelB);
+
+        List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, rowExpression, gpuExpression, Set.of(channelA, channelB));
+        List<Page> cpuResults = executeWithCpu(inputPages, rowExpression);
+        assertSameData(gpuResults, cpuResults, List.of(BOOLEAN));
+    }
+
     private void testArithmetic(OperatorType operatorType, NullsProvider nullsProvider)
     {
         int bigintChannelA = 0;

@@ -33,6 +33,7 @@ import io.trino.type.LikePattern;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.metadata.GlobalFunctionCatalog.builtinFunctionName;
@@ -132,17 +133,20 @@ public class GpuExpressionCompiler
         @Override
         public Optional<CompilationResult> visitSpecialForm(SpecialForm specialForm, Void context)
         {
-            if (specialForm.form() == SpecialForm.Form.AND) {
-                return compileAnd(specialForm.arguments(), context);
-            }
-
-            // TODO (https://starburstdata.atlassian.net/browse/ENG-9851) Implement special forms (OR, CASE, IN, etc.)
-            return Optional.empty();
+            return switch (specialForm.form()) {
+                case AND -> compileLogical(specialForm.arguments(), GpuLogicalExpression::and, context);
+                case OR -> compileLogical(specialForm.arguments(), GpuLogicalExpression::or, context);
+                // TODO (https://starburstdata.atlassian.net/browse/ENG-9851) Implement special forms (CASE, IN, etc.)
+                default -> Optional.empty();
+            };
         }
 
-        private Optional<CompilationResult> compileAnd(List<RowExpression> arguments, Void context)
+        private Optional<CompilationResult> compileLogical(
+                List<RowExpression> arguments,
+                Function<List<GpuExpression>, GpuExpression> expressionFactory,
+                Void context)
         {
-            checkArgument(arguments.size() >= 2, "AND requires at least 2 arguments, got %s", arguments.size());
+            checkArgument(arguments.size() >= 2, "Logical expression requires at least 2 arguments, got %s", arguments.size());
 
             ImmutableList.Builder<GpuExpression> operands = ImmutableList.builder();
             GpuScore maxScore = POTENTIAL;
@@ -157,7 +161,7 @@ public class GpuExpressionCompiler
             }
 
             return Optional.of(new CompilationResult(
-                    GpuLogicalExpression.and(operands.build()),
+                    expressionFactory.apply(operands.build()),
                     maxScore));
         }
 

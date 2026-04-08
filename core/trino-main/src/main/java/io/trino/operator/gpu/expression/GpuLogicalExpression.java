@@ -24,6 +24,7 @@ import io.trino.operator.gpu.borrow.Own;
 import java.util.List;
 
 import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_AND;
+import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_OR;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
@@ -43,6 +44,11 @@ public class GpuLogicalExpression
     public static GpuLogicalExpression and(List<GpuExpression> operands)
     {
         return new GpuLogicalExpression(operands, NULL_LOGICAL_AND);
+    }
+
+    public static GpuLogicalExpression or(List<GpuExpression> operands)
+    {
+        return new GpuLogicalExpression(operands, NULL_LOGICAL_OR);
     }
 
     @Override
