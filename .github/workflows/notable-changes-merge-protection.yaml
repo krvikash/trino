@@ -6,6 +6,7 @@ name: Notable Changes Merge Protection
 on:
   pull_request:
     types: [ opened, synchronize, reopened, labeled, unlabeled, edited ]
+    branches: [master, release-**]
   workflow_run:
     workflows: ["Notable Change"]
     types: [completed]

@@ -8,8 +8,10 @@ on:
     types: [created]
   pull_request:
     types: [opened, synchronize, reopened]
+    branches: [master, release-**]
   pull_request_review:
     types: [submitted]
+    branches: [master, release-**]
   workflow_dispatch:
     inputs:
       pr_number:
