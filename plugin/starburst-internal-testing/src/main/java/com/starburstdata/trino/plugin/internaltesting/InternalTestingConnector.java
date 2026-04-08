@@ -34,8 +34,11 @@ public class InternalTestingConnector
     private final InternalTestingMetadata connectorMetadata;
 
     @Inject
-    public InternalTestingConnector(LifeCycleManager lifeCycleManager, InternalTestingPageSourceProvider pageSourceProvider,
-                                    InternalTestingSplitManager splitManager, InternalTestingMetadata connectorMetadata)
+    public InternalTestingConnector(
+            LifeCycleManager lifeCycleManager,
+            InternalTestingPageSourceProvider pageSourceProvider,
+            InternalTestingSplitManager splitManager,
+            InternalTestingMetadata connectorMetadata)
     {
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");

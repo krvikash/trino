@@ -13,28 +13,22 @@
  */
 package com.starburstdata.trino.plugin.internaltesting;
 
-import com.google.inject.Inject;
 import io.airlift.log.Logger;
+import io.airlift.units.DataSize;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static java.util.Objects.requireNonNull;
+import static io.airlift.units.DataSize.Unit.GIGABYTE;
 
 public final class InternalTestingMemoryAllocator
 {
-    private final InternalTestingConfig internalTestingConfig;
     private static final Logger log = Logger.get(InternalTestingMemoryAllocator.class);
-
-    @Inject
-    public InternalTestingMemoryAllocator(InternalTestingConfig internalTestingConfig)
-    {
-        this.internalTestingConfig = requireNonNull(internalTestingConfig, "internalTestingConfig is null");
-    }
+    private static final DataSize OOM_ALLOCATION_SIZE = DataSize.of(100L, GIGABYTE);
 
     public List<byte[]> allocate()
     {
-        long targetBytes = internalTestingConfig.getOOMAllocationSize().toBytes();
+        long targetBytes = OOM_ALLOCATION_SIZE.toBytes();
         log.info("Starting allocating data of size %s".formatted(targetBytes));
         List<byte[]> blocks = new ArrayList<>();
         long allocated = 0;

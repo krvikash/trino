@@ -44,6 +44,6 @@ final class TestInternalTestingMetadata
 
     private static InternalTestingMetadata createMetadata()
     {
-        return new InternalTestingMetadata(new InternalTestingMemoryAllocator(new InternalTestingConfig()));
+        return new InternalTestingMetadata(new InternalTestingMemoryAllocator());
     }
 }

@@ -25,11 +25,12 @@ public class InternalTestingSplitManager
         implements ConnectorSplitManager
 {
     @Override
-    public ConnectorSplitSource getSplits(ConnectorTransactionHandle transaction,
-                                          ConnectorSession session,
-                                          ConnectorTableHandle table,
-                                          DynamicFilter dynamicFilter,
-                                          Constraint constraint)
+    public ConnectorSplitSource getSplits(
+            ConnectorTransactionHandle transaction,
+            ConnectorSession session,
+            ConnectorTableHandle table,
+            DynamicFilter dynamicFilter,
+            Constraint constraint)
     {
         return new InternalTestingSplitSource();
     }

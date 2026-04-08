@@ -41,12 +41,13 @@ public class InternalTestingPageSourceProvider
     }
 
     @Override
-    public ConnectorPageSource createPageSource(ConnectorTransactionHandle transaction,
-                                                ConnectorSession session,
-                                                ConnectorSplit split,
-                                                ConnectorTableHandle table,
-                                                List<ColumnHandle> columns,
-                                                DynamicFilter dynamicFilter)
+    public ConnectorPageSource createPageSource(
+            ConnectorTransactionHandle transaction,
+            ConnectorSession session,
+            ConnectorSplit split,
+            ConnectorTableHandle table,
+            List<ColumnHandle> columns,
+            DynamicFilter dynamicFilter)
     {
         InternalTestingTableHandle tableHandle = (InternalTestingTableHandle) table;
         if ("worker".equals(tableHandle.tableName())) {

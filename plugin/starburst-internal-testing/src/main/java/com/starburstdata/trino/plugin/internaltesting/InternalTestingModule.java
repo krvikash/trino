@@ -17,8 +17,6 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 
-import static io.airlift.configuration.ConfigBinder.configBinder;
-
 public class InternalTestingModule
         extends AbstractConfigurationAwareModule
 {
@@ -31,6 +29,5 @@ public class InternalTestingModule
         binder.bind(InternalTestingPageSourceProvider.class).in(Scopes.SINGLETON);
         binder.bind(InternalTestingWorkerOOMPageSource.class).in(Scopes.SINGLETON);
         binder.bind(InternalTestingMemoryAllocator.class).in(Scopes.SINGLETON);
-        configBinder(binder).bindConfig(InternalTestingConfig.class);
     }
 }

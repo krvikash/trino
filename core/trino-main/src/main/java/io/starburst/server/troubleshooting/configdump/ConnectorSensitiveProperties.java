@@ -625,12 +625,12 @@ public final class ConnectorSensitiveProperties
                             "s3.sse.customer-key"))
             .put("starburst_internal_testing",
                     ImmutableSet.of(
-                                    "http-client.http-proxy.password",
-                                    "http-client.https.automatic-shared-secret",
-                                    "http-client.key-store-password",
-                                    "http-client.trust-store-password",
-                                    "ldap.ssl.keystore.password",
-                                    "ldap.ssl.truststore.password"))
+                            "http-client.http-proxy.password",
+                            "http-client.https.automatic-shared-secret",
+                            "http-client.key-store-password",
+                            "http-client.trust-store-password",
+                            "ldap.ssl.keystore.password",
+                            "ldap.ssl.truststore.password"))
             .put("stargate",
                     ImmutableSet.of(
                             "connection-password",

@@ -82,10 +82,11 @@ public class InternalTestingMetadata
     }
 
     @Override
-    public ConnectorTableHandle getTableHandle(ConnectorSession session,
-                                               SchemaTableName tableName,
-                                               Optional<ConnectorTableVersion> startVersion,
-                                               Optional<ConnectorTableVersion> endVersion)
+    public ConnectorTableHandle getTableHandle(
+            ConnectorSession session,
+            SchemaTableName tableName,
+            Optional<ConnectorTableVersion> startVersion,
+            Optional<ConnectorTableVersion> endVersion)
     {
         if (OOM_SCHEMA_NAME.equals(tableName.getSchemaName())) {
             if ("coordinator".equals(tableName.getTableName())) {
