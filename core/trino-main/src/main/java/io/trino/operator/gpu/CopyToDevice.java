@@ -13,41 +13,20 @@
  */
 package io.trino.operator.gpu;
 
-import ai.rapids.cudf.ColumnVector;
-import ai.rapids.cudf.DType;
-import ai.rapids.cudf.HostColumnVector;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import io.airlift.slice.Slice;
 import io.trino.operator.gpu.Column.Blocks;
 import io.trino.operator.gpu.Column.DeviceMemory;
+import io.trino.operator.gpu.GpuTypeConversion.ToColumn;
 import io.trino.operator.gpu.borrow.Borrow;
 import io.trino.operator.gpu.borrow.Move;
 import io.trino.operator.gpu.borrow.Own;
-import io.trino.spi.block.Block;
-import io.trino.spi.type.CharType;
-import io.trino.spi.type.DecimalType;
-import io.trino.spi.type.TimeType;
-import io.trino.spi.type.TimeWithTimeZoneType;
-import io.trino.spi.type.TimestampType;
-import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
-import io.trino.spi.type.VarbinaryType;
-import io.trino.spi.type.VarcharType;
 
 import java.util.List;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.spi.type.BigintType.BIGINT;
-import static io.trino.spi.type.BooleanType.BOOLEAN;
-import static io.trino.spi.type.DateType.DATE;
-import static io.trino.spi.type.DoubleType.DOUBLE;
-import static io.trino.spi.type.IntegerType.INTEGER;
-import static io.trino.spi.type.NumberType.NUMBER;
-import static io.trino.spi.type.RealType.REAL;
-import static io.trino.spi.type.SmallintType.SMALLINT;
-import static io.trino.spi.type.TinyintType.TINYINT;
 import static java.util.Objects.requireNonNull;
 
 public class CopyToDevice
@@ -96,7 +75,13 @@ public class CopyToDevice
             for (int columnIndex = 0; columnIndex < page.columnCount(); columnIndex++) {
                 if (copyColumns.contains(columnIndex)) {
                     newColumns[columnIndex] = switch (page.column(columnIndex)) {
-                        case Blocks blocks -> new DeviceMemory(copyToDevice(blocks, types.get(columnIndex)));
+                        case Blocks blocks -> {
+                            Type type = types.get(columnIndex);
+                            ToColumn toColumn = GpuTypeConversion.toGpuMapping(type)
+                                    .orElseThrow(() -> new UnsupportedOperationException("Unsupported type: " + type))
+                                    .toColumn();
+                            yield new DeviceMemory(toColumn.copyToDevice(blocks));
+                        }
                         case DeviceMemory deviceMemory ->
                             // already on the device
                                 new DeviceMemory(deviceMemory.columnVector().incRefCount());
@@ -125,201 +110,5 @@ public class CopyToDevice
     public void close()
     {
         source.close();
-    }
-
-    // Keep in sync with GpuTypes#toDType
-    // TODO: Consider unifying type mapping in a single place: https://starburstdata.atlassian.net/browse/ENG-10144
-    private @Move ColumnVector copyToDevice(Blocks blocks, Type type)
-    {
-        if (type == BOOLEAN) {
-            return copyBooleanToDevice(blocks);
-        }
-        if (type == TINYINT) {
-            return copyTinyintToDevice(blocks);
-        }
-        if (type == SMALLINT) {
-            return copySmallintToDevice(blocks);
-        }
-        if (type == INTEGER) {
-            return copyIntegerToDevice(blocks);
-        }
-        if (type == BIGINT) {
-            return copyBigintToDevice(blocks);
-        }
-        if (type == REAL) {
-            return copyRealToDevice(blocks);
-        }
-        if (type == DOUBLE) {
-            return copyDoubleToDevice(blocks);
-        }
-        if (type instanceof DecimalType) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
-        }
-        if (type == NUMBER) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
-        }
-        if (type instanceof CharType) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
-        }
-        if (type instanceof VarcharType) {
-            return copyVarcharToDevice(blocks);
-        }
-        if (type instanceof VarbinaryType) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
-        }
-        if (type == DATE) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
-        }
-        if (type instanceof TimeType) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
-        }
-        if (type instanceof TimeWithTimeZoneType) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
-        }
-        if (type instanceof TimestampType) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
-        }
-        if (type instanceof TimestampWithTimeZoneType) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
-        }
-        throw new UnsupportedOperationException("Unsupported type: " + type);
-    }
-
-    private @Move ColumnVector copyBooleanToDevice(Blocks blocks)
-    {
-        try (HostColumnVector.Builder builder = HostColumnVector.builder(DType.BOOL8, blocks.positionCount())) {
-            for (Block block : blocks.blocks()) {
-                for (int blockPosition = 0; blockPosition < block.getPositionCount(); blockPosition++) {
-                    if (block.isNull(blockPosition)) {
-                        builder.appendNull();
-                    }
-                    else {
-                        builder.append(BOOLEAN.getBoolean(block, blockPosition));
-                    }
-                }
-            }
-            return builder.buildAndPutOnDevice();
-        }
-    }
-
-    private @Move ColumnVector copyTinyintToDevice(Blocks blocks)
-    {
-        try (HostColumnVector.Builder builder = HostColumnVector.builder(DType.INT8, blocks.positionCount())) {
-            for (Block block : blocks.blocks()) {
-                for (int blockPosition = 0; blockPosition < block.getPositionCount(); blockPosition++) {
-                    if (block.isNull(blockPosition)) {
-                        builder.appendNull();
-                    }
-                    else {
-                        builder.append(TINYINT.getByte(block, blockPosition));
-                    }
-                }
-            }
-            return builder.buildAndPutOnDevice();
-        }
-    }
-
-    private @Move ColumnVector copySmallintToDevice(Blocks blocks)
-    {
-        try (HostColumnVector.Builder builder = HostColumnVector.builder(DType.INT16, blocks.positionCount())) {
-            for (Block block : blocks.blocks()) {
-                for (int blockPosition = 0; blockPosition < block.getPositionCount(); blockPosition++) {
-                    if (block.isNull(blockPosition)) {
-                        builder.appendNull();
-                    }
-                    else {
-                        builder.append(SMALLINT.getShort(block, blockPosition));
-                    }
-                }
-            }
-            return builder.buildAndPutOnDevice();
-        }
-    }
-
-    private @Move ColumnVector copyIntegerToDevice(Blocks blocks)
-    {
-        try (HostColumnVector.Builder builder = HostColumnVector.builder(DType.INT32, blocks.positionCount())) {
-            for (Block block : blocks.blocks()) {
-                for (int blockPosition = 0; blockPosition < block.getPositionCount(); blockPosition++) {
-                    if (block.isNull(blockPosition)) {
-                        builder.appendNull();
-                    }
-                    else {
-                        builder.append(INTEGER.getInt(block, blockPosition));
-                    }
-                }
-            }
-            return builder.buildAndPutOnDevice();
-        }
-    }
-
-    private @Move ColumnVector copyBigintToDevice(Blocks blocks)
-    {
-        try (HostColumnVector.Builder builder = HostColumnVector.builder(DType.INT64, blocks.positionCount())) {
-            for (Block block : blocks.blocks()) {
-                for (int blockPosition = 0; blockPosition < block.getPositionCount(); blockPosition++) {
-                    if (block.isNull(blockPosition)) {
-                        builder.appendNull();
-                    }
-                    else {
-                        builder.append(BIGINT.getLong(block, blockPosition));
-                    }
-                }
-            }
-            return builder.buildAndPutOnDevice();
-        }
-    }
-
-    private @Move ColumnVector copyRealToDevice(Blocks blocks)
-    {
-        try (HostColumnVector.Builder builder = HostColumnVector.builder(DType.FLOAT32, blocks.positionCount())) {
-            for (Block block : blocks.blocks()) {
-                for (int blockPosition = 0; blockPosition < block.getPositionCount(); blockPosition++) {
-                    if (block.isNull(blockPosition)) {
-                        builder.appendNull();
-                    }
-                    else {
-                        builder.append(REAL.getFloat(block, blockPosition));
-                    }
-                }
-            }
-            return builder.buildAndPutOnDevice();
-        }
-    }
-
-    private @Move ColumnVector copyDoubleToDevice(Blocks blocks)
-    {
-        try (HostColumnVector.Builder builder = HostColumnVector.builder(DType.FLOAT64, blocks.positionCount())) {
-            for (Block block : blocks.blocks()) {
-                for (int blockPosition = 0; blockPosition < block.getPositionCount(); blockPosition++) {
-                    if (block.isNull(blockPosition)) {
-                        builder.appendNull();
-                    }
-                    else {
-                        builder.append(DOUBLE.getDouble(block, blockPosition));
-                    }
-                }
-            }
-            return builder.buildAndPutOnDevice();
-        }
-    }
-
-    private @Move ColumnVector copyVarcharToDevice(Blocks blocks)
-    {
-        // TODO (https://starburstdata.atlassian.net/browse/ENG-9841): Optimize Block → Device memory transfer, avoid HostColumnVector
-        try (HostColumnVector.Builder builder = HostColumnVector.builder(DType.STRING, blocks.positionCount())) {
-            for (Block block : blocks.blocks()) {
-                for (int blockPosition = 0; blockPosition < block.getPositionCount(); blockPosition++) {
-                    if (block.isNull(blockPosition)) {
-                        builder.appendNull();
-                    }
-                    else {
-                        Slice slice = VarcharType.VARCHAR.getSlice(block, blockPosition);
-                        builder.appendUTF8String(slice.byteArray(), slice.byteArrayOffset(), slice.length());
-                    }
-                }
-            }
-            return builder.buildAndPutOnDevice();
-        }
     }
 }

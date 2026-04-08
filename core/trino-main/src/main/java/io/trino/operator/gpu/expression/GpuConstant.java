@@ -15,34 +15,27 @@ package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.Scalar;
-import io.airlift.slice.Slice;
+import io.trino.operator.gpu.GpuTypeConversion;
 import io.trino.operator.gpu.borrow.Borrow;
 import io.trino.operator.gpu.borrow.Move;
 import io.trino.operator.gpu.borrow.Own;
 import io.trino.spi.type.Type;
-import io.trino.spi.type.VarcharType;
 import jakarta.annotation.Nullable;
 
 import java.util.List;
+import java.util.Optional;
 
-import static io.trino.spi.type.BigintType.BIGINT;
-import static io.trino.spi.type.BooleanType.BOOLEAN;
-import static io.trino.spi.type.DoubleType.DOUBLE;
-import static io.trino.spi.type.IntegerType.INTEGER;
-import static io.trino.spi.type.RealType.REAL;
-import static io.trino.spi.type.SmallintType.SMALLINT;
-import static io.trino.spi.type.TinyintType.TINYINT;
 import static java.util.Objects.requireNonNull;
 
 public class GpuConstant
         implements GpuExpression
 {
-    private final Object value;
+    private final Optional<Object> value;
     private final Type type;
 
     public GpuConstant(@Nullable Object value, Type type)
     {
-        this.value = value;
+        this.value = Optional.ofNullable(value);
         this.type = requireNonNull(type, "type is null");
     }
 
@@ -56,30 +49,9 @@ public class GpuConstant
 
     private @Move Scalar createScalar()
     {
-        if (type == BOOLEAN) {
-            return Scalar.fromBool((Boolean) value);
-        }
-        if (type == TINYINT) {
-            return Scalar.fromByte(value == null ? null : ((Long) value).byteValue());
-        }
-        if (type == SMALLINT) {
-            return Scalar.fromShort(value == null ? null : ((Long) value).shortValue());
-        }
-        if (type == INTEGER) {
-            return Scalar.fromInt(value == null ? null : ((Long) value).intValue());
-        }
-        if (type == BIGINT) {
-            return Scalar.fromLong((Long) value);
-        }
-        if (type == REAL) {
-            return Scalar.fromFloat(value == null ? null : Float.intBitsToFloat(((Long) value).intValue()));
-        }
-        if (type == DOUBLE) {
-            return Scalar.fromDouble((Double) value);
-        }
-        if (type instanceof VarcharType) {
-            return Scalar.fromString(value == null ? null : ((Slice) value).toStringUtf8());
-        }
-        throw new UnsupportedOperationException("Unsupported constant type: " + type);
+        return GpuTypeConversion.toGpuMapping(type)
+                .orElseThrow(() -> new UnsupportedOperationException("Unsupported constant type: " + type))
+                .toScalar()
+                .copyToScalar(value);
     }
 }

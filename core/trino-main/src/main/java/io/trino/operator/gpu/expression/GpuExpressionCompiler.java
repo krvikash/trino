@@ -41,7 +41,7 @@ import static io.trino.metadata.OperatorNameUtil.isOperatorName;
 import static io.trino.metadata.OperatorNameUtil.unmangleOperator;
 import static io.trino.operator.gpu.GpuScore.POTENTIAL;
 import static io.trino.operator.gpu.GpuScore.PREFERRED;
-import static io.trino.operator.gpu.GpuTypes.toDType;
+import static io.trino.operator.gpu.GpuTypeConversion.toDType;
 import static io.trino.operator.project.PageFieldsToInputParametersRewriter.rewritePageFieldsToInputParameters;
 import static io.trino.type.LikeFunctions.LIKE_FUNCTION_NAME;
 import static io.trino.type.LikePatternType.LIKE_PATTERN;
@@ -112,13 +112,14 @@ public class GpuExpressionCompiler
         private Optional<CompilationResult> compileBinaryExpression(CallExpression call, OperatorType operatorType, Void context)
         {
             return toBinaryOp(operatorType)
-                    .flatMap(operation -> call.arguments().get(0).accept(this, context)
-                            .flatMap(left -> call.arguments().get(1).accept(this, context)
-                                    .flatMap(right -> Optional.of(new CompilationResult(
-                                            new GpuBinaryExpression(left.expression(), right.expression(), operation, toDType(call.type())),
-                                            Ordering.natural().max(
-                                                    Ordering.natural().max(left.score(), right.score()),
-                                                    POTENTIAL))))));
+                    .flatMap(operation -> toDType(call.type())
+                            .flatMap(resultDType -> call.arguments().get(0).accept(this, context)
+                                    .flatMap(left -> call.arguments().get(1).accept(this, context)
+                                            .flatMap(right -> Optional.of(new CompilationResult(
+                                                    new GpuBinaryExpression(left.expression(), right.expression(), operation, resultDType),
+                                                    Ordering.natural().max(
+                                                            Ordering.natural().max(left.score(), right.score()),
+                                                            POTENTIAL)))))));
         }
 
         private static Optional<BinaryOp> toBinaryOp(OperatorType operatorType)
