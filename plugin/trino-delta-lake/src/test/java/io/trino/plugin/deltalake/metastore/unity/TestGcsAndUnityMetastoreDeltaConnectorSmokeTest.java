@@ -14,8 +14,6 @@
 package io.trino.plugin.deltalake.metastore.unity;
 
 import com.google.common.collect.ImmutableMap;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 
@@ -40,13 +38,5 @@ class TestGcsAndUnityMetastoreDeltaConnectorSmokeTest
         return ImmutableMap.<String, String>builder()
                 .put("gcs.json-key", GCP_CREDENTIALS_KEY)
                 .buildOrThrow();
-    }
-
-    @Test
-    @Disabled
-    @Override
-    void testCatalogManagedTable()
-    {
-        // TODO (https://starburstdata.atlassian.net/browse/ENG-6676) enable the test when delta.feature.catalogManaged table feature is supported
     }
 }

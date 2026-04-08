@@ -14,8 +14,6 @@
 package io.trino.plugin.deltalake.metastore.unity;
 
 import com.google.common.collect.ImmutableMap;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 
@@ -36,13 +34,5 @@ class TestGcsAndUnityMetastoreWithCredentialVendingDeltaConnectorSmokeTest
                 .put("hive.metastore.unity.vended-credentials-enabled", "true")
                 .put("gcs.auth-type", "APPLICATION_DEFAULT")
                 .buildOrThrow();
-    }
-
-    @Test
-    @Disabled
-    @Override
-    void testCatalogManagedTable()
-    {
-        // TODO (https://starburstdata.atlassian.net/browse/ENG-6676) enable the test when delta.feature.catalogManaged table feature is supported
     }
 }
