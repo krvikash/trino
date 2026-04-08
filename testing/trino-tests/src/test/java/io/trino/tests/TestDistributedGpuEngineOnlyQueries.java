@@ -230,4 +230,17 @@ public class TestDistributedGpuEngineOnlyQueries
                 """))
                 .executesWithGpu(FilterNode.class);
     }
+
+    @Test
+    public void testGpuBetweenFilter()
+    {
+        assertThat(query(
+                """
+                SELECT a
+                -- Use rand() to prevent Projection from being inlined in Filter
+                FROM (SELECT IF(rand()<42, i) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE a BETWEEN 20 AND 80
+                """))
+                .executesWithGpu(FilterNode.class);
+    }
 }

@@ -336,6 +336,26 @@ public class TestGpuExpressions
         assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA));
     }
 
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testBetween(NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        List<Type> inputTypes = List.of(BIGINT);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(positionsCount,
+                createBigintBlock(positionsCount, nullsProvider, -100, 100)));
+
+        // a BETWEEN 10 AND 50
+        RowExpression rowExpression = new SpecialForm(
+                SpecialForm.Form.BETWEEN,
+                BOOLEAN,
+                List.of(field(channelA, BIGINT), constant(10L, BIGINT), constant(50L, BIGINT)),
+                List.of(functionResolution.resolveOperator(OperatorType.LESS_THAN_OR_EQUAL, List.of(BIGINT, BIGINT))));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA));
+    }
+
     private void testArithmetic(OperatorType operatorType, NullsProvider nullsProvider)
     {
         int channelA = 0;

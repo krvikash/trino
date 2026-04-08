@@ -145,6 +145,7 @@ public class GpuExpressionCompiler
                 case AND -> compileLogical(specialForm.arguments(), GpuLogicalExpression::and, context);
                 case OR -> compileLogical(specialForm.arguments(), GpuLogicalExpression::or, context);
                 case IS_NULL -> compileIsNull(specialForm.arguments(), context);
+                case BETWEEN -> compileBetween(specialForm.arguments(), context);
                 // TODO (https://starburstdata.atlassian.net/browse/ENG-9851) Implement special forms (CASE, IN, etc.)
                 default -> Optional.empty();
             };
@@ -169,6 +170,15 @@ public class GpuExpressionCompiler
                     .map(operand -> new CompilationResult(
                             new GpuIsNull(operand.expression()),
                             Ordering.natural().max(operand.score(), POTENTIAL)));
+        }
+
+        private Optional<CompilationResult> compileBetween(List<RowExpression> arguments, Void context)
+        {
+            checkArgument(arguments.size() == 3, "BETWEEN requires 3 argument, got %s", arguments.size());
+            return compileAll(arguments, context)
+                    .map(results -> new CompilationResult(
+                            new GpuBetween(results.get(0).expression(), results.get(1).expression(), results.get(2).expression()),
+                            maxScore(results, POTENTIAL)));
         }
 
         private Optional<List<CompilationResult>> compileAll(List<RowExpression> expressions, Void context)
