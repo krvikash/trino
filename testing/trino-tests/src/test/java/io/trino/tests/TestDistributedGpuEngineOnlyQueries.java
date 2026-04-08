@@ -23,7 +23,6 @@ import org.junit.jupiter.api.Test;
 
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestDistributedGpuEngineOnlyQueries
         extends AbstractDistributedEngineOnlyQueries
@@ -47,60 +46,6 @@ public class TestDistributedGpuEngineOnlyQueries
             throw closeAllSuppress(e, queryRunner);
         }
         return queryRunner;
-    }
-
-    @Override
-    @Test
-    public void testCorrelatedExistsSubqueries()
-    {
-        // TODO: https://starburstdata.atlassian.net/browse/ENG-10115
-        assertThatThrownBy(super::testCorrelatedExistsSubqueries)
-                .hasStackTraceContaining("Unsupported type: date");
-    }
-
-    @Override
-    @Test
-    public void testScalarSubquery()
-    {
-        // TODO: https://starburstdata.atlassian.net/browse/ENG-10115
-        assertThatThrownBy(super::testScalarSubquery)
-                .hasStackTraceContaining("Unsupported type: decimal(2,1)");
-    }
-
-    @Override
-    @Test
-    public void testCorrelatedScalarSubqueriesWithScalarAggregation()
-    {
-        // TODO: https://starburstdata.atlassian.net/browse/ENG-10115
-        assertThatThrownBy(super::testCorrelatedScalarSubqueriesWithScalarAggregation)
-                .hasStackTraceContaining("Unsupported type: date");
-    }
-
-    @Override
-    @Test
-    public void testTopNRank()
-    {
-        // TODO: https://starburstdata.atlassian.net/browse/ENG-10115
-        assertThatThrownBy(super::testTopNRank)
-                .hasStackTraceContaining("Unsupported type: date");
-    }
-
-    @Override
-    @Test
-    public void testIntersect()
-    {
-        // TODO: https://starburstdata.atlassian.net/browse/ENG-10115
-        assertThatThrownBy(super::testIntersect)
-                .hasStackTraceContaining("Unsupported type: decimal(11,1)");
-    }
-
-    @Override
-    @Test
-    public void testExcept()
-    {
-        // TODO: https://starburstdata.atlassian.net/browse/ENG-10115
-        assertThatThrownBy(super::testExcept)
-                .hasStackTraceContaining("Unsupported type: decimal(11,1)");
     }
 
     @Test

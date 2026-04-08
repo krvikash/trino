@@ -42,6 +42,7 @@ import static io.trino.metadata.OperatorNameUtil.unmangleOperator;
 import static io.trino.operator.gpu.GpuScore.POTENTIAL;
 import static io.trino.operator.gpu.GpuScore.PREFERRED;
 import static io.trino.operator.gpu.GpuTypeConversion.toDType;
+import static io.trino.operator.gpu.GpuTypeConversion.toGpuMapping;
 import static io.trino.operator.project.PageFieldsToInputParametersRewriter.rewritePageFieldsToInputParameters;
 import static io.trino.type.LikeFunctions.LIKE_FUNCTION_NAME;
 import static io.trino.type.LikePatternType.LIKE_PATTERN;
@@ -176,9 +177,10 @@ public class GpuExpressionCompiler
         @Override
         public Optional<CompilationResult> visitConstant(ConstantExpression literal, Void context)
         {
-            return Optional.of(new CompilationResult(
-                    new GpuConstant(literal.value(), literal.type()),
-                    POTENTIAL));
+            return toGpuMapping(literal.type())
+                    .map(typeMapping -> new CompilationResult(
+                            new GpuConstant(typeMapping.toScalar(), Optional.ofNullable(literal.value())),
+                            POTENTIAL));
         }
 
         @Override

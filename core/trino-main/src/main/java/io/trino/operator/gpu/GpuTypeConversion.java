@@ -39,6 +39,11 @@ public final class GpuTypeConversion
 {
     private GpuTypeConversion() {}
 
+    public static boolean isConvertible(Type type)
+    {
+        return toDType(type).isPresent();
+    }
+
     public static Optional<DType> toDType(Type type)
     {
         return toGpuMapping(type)

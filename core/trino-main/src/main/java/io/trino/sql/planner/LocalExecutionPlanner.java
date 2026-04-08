@@ -127,6 +127,7 @@ import io.trino.operator.function.RegularTableFunctionPartition.PassThroughColum
 import io.trino.operator.function.TableFunctionOperator.TableFunctionOperatorFactory;
 import io.trino.operator.gpu.GpuFilter;
 import io.trino.operator.gpu.GpuOperator;
+import io.trino.operator.gpu.GpuTypeConversion;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.index.DynamicTupleFilterFactory;
@@ -2283,7 +2284,11 @@ public class LocalExecutionPlanner
 //                    .filter(GpuOperator.Factory.class::isInstance);
 
             Optional<CompiledExpression> gpuFilter = Optional.empty();
-            if (columns == null /* no table scan */ && translatedFilter.isPresent() && isGpuAccelerationEnabled(session)) {
+            if (isGpuAccelerationEnabled(session) &&
+                    columns == null /* no table scan */ &&
+                    translatedFilter.isPresent() &&
+                    // Currently (until https://starburstdata.atlassian.net/browse/ENG-9808), all source types need to be copyable into GPU
+                    source.getTypes().stream().allMatch(GpuTypeConversion::isConvertible)) {
                 gpuFilter = gpuExpressionCompiler.compileExpression(translatedFilter.get());
                 if (gpuFilter.isPresent()) {
                     translatedFilter = Optional.empty();

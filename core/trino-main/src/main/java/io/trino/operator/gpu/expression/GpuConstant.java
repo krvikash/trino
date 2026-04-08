@@ -15,12 +15,10 @@ package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.Scalar;
-import io.trino.operator.gpu.GpuTypeConversion;
+import io.trino.operator.gpu.GpuTypeConversion.ToScalar;
 import io.trino.operator.gpu.borrow.Borrow;
 import io.trino.operator.gpu.borrow.Move;
 import io.trino.operator.gpu.borrow.Own;
-import io.trino.spi.type.Type;
-import jakarta.annotation.Nullable;
 
 import java.util.List;
 import java.util.Optional;
@@ -30,28 +28,21 @@ import static java.util.Objects.requireNonNull;
 public class GpuConstant
         implements GpuExpression
 {
+    // TODO (https://starburstdata.atlassian.net/browse/ENG-9846) should the Scalar be created once?
+    private final ToScalar toScalar;
     private final Optional<Object> value;
-    private final Type type;
 
-    public GpuConstant(@Nullable Object value, Type type)
+    public GpuConstant(ToScalar toScalar, Optional<Object> value)
     {
-        this.value = Optional.ofNullable(value);
-        this.type = requireNonNull(type, "type is null");
+        this.toScalar = requireNonNull(toScalar, "toScalar is null");
+        this.value = requireNonNull(value, "value is null");
     }
 
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (@Own Scalar scalar = createScalar()) {
+        try (@Own Scalar scalar = toScalar.copyToScalar(value)) {
             return ColumnVector.fromScalar(scalar, positionCount);
         }
-    }
-
-    private @Move Scalar createScalar()
-    {
-        return GpuTypeConversion.toGpuMapping(type)
-                .orElseThrow(() -> new UnsupportedOperationException("Unsupported constant type: " + type))
-                .toScalar()
-                .copyToScalar(value);
     }
 }
