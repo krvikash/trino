@@ -91,6 +91,13 @@ public class GpuExpressionCompiler
                                 Ordering.natural().max(searched.score(), PREFERRED)));
             }
 
+            if (functionName.equals(builtinFunctionName("$not")) && call.arguments().size() == 1) {
+                return call.arguments().getFirst().accept(this, context)
+                        .map(operand -> new CompilationResult(
+                                new GpuNot(operand.expression()),
+                                operand.score()));
+            }
+
             String name = functionName.functionName();
             if (isOperatorName(name) && call.arguments().size() == 2) {
                 OperatorType operatorType = unmangleOperator(name);

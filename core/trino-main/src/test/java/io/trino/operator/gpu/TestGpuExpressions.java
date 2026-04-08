@@ -315,6 +315,34 @@ public class TestGpuExpressions
         assertSameData(gpuResults, cpuResults, List.of(BOOLEAN));
     }
 
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testNot(NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        List<Type> inputTypes = List.of(BIGINT);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(positionsCount,
+                createBigintBlock(positionsCount, nullsProvider, -100, 100)));
+
+        // NOT of a comparison: NOT(a < 50)
+        RowExpression comparison = call(
+                functionResolution.resolveOperator(OperatorType.LESS_THAN, List.of(BIGINT, BIGINT)),
+                field(channelA, BIGINT),
+                constant(50L, BIGINT));
+        RowExpression rowExpression = call(
+                functionResolution.resolveFunction("$not", fromTypes(BOOLEAN)),
+                comparison);
+
+        CompiledExpression gpuExpression = gpuCompiler.compileExpression(rowExpression)
+                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + rowExpression));
+        assertThat(gpuExpression.inputChannels().getInputChannels()).containsExactly(channelA);
+
+        List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, rowExpression, gpuExpression, Set.of(channelA));
+        List<Page> cpuResults = executeWithCpu(inputPages, rowExpression);
+        assertSameData(gpuResults, cpuResults, List.of(BOOLEAN));
+    }
+
     private void testArithmetic(OperatorType operatorType, NullsProvider nullsProvider)
     {
         int bigintChannelA = 0;
