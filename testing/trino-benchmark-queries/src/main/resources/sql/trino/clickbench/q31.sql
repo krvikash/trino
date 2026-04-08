@@ -1,0 +1,1 @@
+SELECT SearchEngineID, ClientIP, COUNT(*) AS c, SUM(IsRefresh), AVG(ResolutionWidth) FROM ${database}.${schema}.hits WHERE SearchPhrase <> '' GROUP BY SearchEngineID, ClientIP ORDER BY c, ClientIP DESC LIMIT 10;

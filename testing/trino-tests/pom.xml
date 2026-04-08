@@ -146,6 +146,12 @@
         </dependency>
 
         <dependency>
+            <groupId>info.picocli</groupId>
+            <artifactId>picocli</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>bootstrap</artifactId>
             <scope>test</scope>
@@ -638,7 +644,10 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <excludes>
-                                <exclude>**/tests/TestDistributedGpuEngineOnlyQueries.java</exclude>
+                                <!-- TestBenchmarkClickBench requires a data set to be downloaded from S3 -->
+                                <exclude>**/TestBenchmarkClickBench.java</exclude>
+                                <exclude>**/TestBenchmarkClickBenchGpu.java</exclude>
+                                <exclude>**/TestDistributedGpuEngineOnlyQueries.java</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
@@ -655,7 +664,9 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <includes>
-                                <include>**/tests/TestDistributedGpuEngineOnlyQueries.java</include>
+                                <!-- TODO: TestBenchmarkClickBenchGpu may fail with Query exceeded per-node memory limit when run from maven -->
+                                <!--<include>**/TestBenchmarkClickBenchGpu.java</include>-->
+                                <include>**/TestDistributedGpuEngineOnlyQueries.java</include>
                             </includes>
                         </configuration>
                     </plugin>

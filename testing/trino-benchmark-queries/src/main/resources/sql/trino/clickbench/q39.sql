@@ -1,0 +1,1 @@
+SELECT URL, COUNT(*) AS PageViews FROM ${database}.${schema}.hits WHERE CounterID = 62 AND EventDate >= DATE '2013-07-01' AND EventDate <= DATE '2013-07-31' AND IsRefresh = 0 AND IsLink <> 0 AND IsDownload = 0 GROUP BY URL ORDER BY PageViews, URL DESC OFFSET 1000 LIMIT 10;
