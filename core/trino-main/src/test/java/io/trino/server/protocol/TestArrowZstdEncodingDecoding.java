@@ -13,6 +13,7 @@
  */
 package io.trino.server.protocol;
 
+import io.trino.Session;
 import io.trino.client.Column;
 import io.trino.client.QueryDataDecoder;
 import io.trino.client.spooling.encoding.arrow.ArrowQueryDataDecoder;
@@ -54,7 +55,7 @@ public class TestArrowZstdEncodingDecoding
     }
 
     @Override
-    protected QueryDataEncoder createEncoder(List<OutputColumn> columns)
+    protected QueryDataEncoder createEncoder(Session session, List<OutputColumn> columns)
     {
         return new ArrowQueryDataEncoder(allocator, new ArrowCompressionFactory(), CompressionUtil.CodecType.ZSTD, columns);
     }
@@ -65,6 +66,33 @@ public class TestArrowZstdEncodingDecoding
     {
         // TODO https://starburstdata.atlassian.net/browse/ENG-9987 Support variant in Trino protocol spooling to Arrow
         assertThatThrownBy(super::testVariantSerialization)
+                .hasMessage("Unsupported type: variant");
+    }
+
+    @Test
+    @Override
+    public void testVariantJsonFallbackSerialization()
+    {
+        // TODO https://starburstdata.atlassian.net/browse/ENG-9987 Support variant in Trino protocol spooling to Arrow
+        assertThatThrownBy(super::testVariantJsonFallbackSerialization)
+                .hasMessage("Unsupported type: variant");
+    }
+
+    @Test
+    @Override
+    public void testVariantJsonFallbackSerializationInRows()
+    {
+        // TODO https://starburstdata.atlassian.net/browse/ENG-9987 Support variant in Trino protocol spooling to Arrow
+        assertThatThrownBy(super::testVariantJsonFallbackSerializationInRows)
+                .hasMessage("Unsupported type: variant");
+    }
+
+    @Test
+    @Override
+    public void testVariantJsonFallbackSerializationInMaps()
+    {
+        // TODO https://starburstdata.atlassian.net/browse/ENG-9987 Support variant in Trino protocol spooling to Arrow
+        assertThatThrownBy(super::testVariantJsonFallbackSerializationInMaps)
                 .hasMessage("Unsupported type: variant");
     }
 }

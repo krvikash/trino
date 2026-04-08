@@ -14,6 +14,7 @@
 package io.trino.server.protocol;
 
 import com.google.common.collect.ImmutableList;
+import io.trino.Session;
 import io.trino.client.Column;
 import io.trino.client.QueryDataDecoder;
 import io.trino.client.spooling.DataAttributes;
@@ -43,7 +44,7 @@ public class TestJsonEncodingDecoding
     }
 
     @Override
-    protected QueryDataEncoder createEncoder(List<OutputColumn> columns)
+    protected QueryDataEncoder createEncoder(Session session, List<OutputColumn> columns)
     {
         return new JsonQueryDataEncoder.Factory().create(TEST_SESSION, columns);
     }
@@ -75,7 +76,7 @@ public class TestJsonEncodingDecoding
     protected List<List<Object>> parseJson(List<TypedColumn> columns, String json)
             throws IOException
     {
-        QueryDataDecoder decoder = newDecoder(columns);
+        QueryDataDecoder decoder = newDecoder(columns, true);
         return ImmutableList.copyOf(decoder.decode(new ByteArrayInputStream(json.getBytes(UTF_8)), null));
     }
 }

@@ -17,6 +17,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.net.InetAddresses;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
+import io.trino.Session;
+import io.trino.client.ClientCapabilities;
 import io.trino.client.Column;
 import io.trino.client.QueryDataDecoder;
 import io.trino.client.Row;
@@ -57,6 +59,7 @@ import java.util.function.Consumer;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.slice.Slices.wrappedBuffer;
+import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.client.IntervalDayTime.toMillis;
 import static io.trino.client.IntervalYearMonth.toMonths;
 import static io.trino.server.protocol.AbstractTestEncodingDecoding.TypedColumn.typed;
@@ -123,23 +126,23 @@ public abstract class AbstractTestEncodingDecoding
 {
     protected abstract QueryDataDecoder createDecoder(List<Column> columns);
 
-    protected abstract QueryDataEncoder createEncoder(List<OutputColumn> columns);
+    protected abstract QueryDataEncoder createEncoder(Session session, List<OutputColumn> columns);
 
-    QueryDataEncoder newEncoder(List<TypedColumn> types)
+    private QueryDataEncoder newEncoder(Session session, List<TypedColumn> types)
     {
         ImmutableList.Builder<OutputColumn> columns = ImmutableList.builderWithExpectedSize(types.size());
         for (int i = 0; i < types.size(); i++) {
             TypedColumn typedColumn = types.get(i);
             columns.add(new OutputColumn(i, typedColumn.name(), typedColumn.type()));
         }
-        return createEncoder(columns.build());
+        return createEncoder(session, columns.build());
     }
 
-    QueryDataDecoder newDecoder(List<TypedColumn> types)
+    QueryDataDecoder newDecoder(List<TypedColumn> types, boolean supportsVariant)
     {
         ImmutableList.Builder<Column> columns = ImmutableList.builderWithExpectedSize(types.size());
         for (TypedColumn typedColumn : types) {
-            columns.add(createColumn(typedColumn.name(), typedColumn.type(), true, true));
+            columns.add(createColumn(typedColumn.name(), typedColumn.type(), true, true, supportsVariant));
         }
         return createDecoder(columns.build());
     }
@@ -678,7 +681,7 @@ public abstract class AbstractTestEncodingDecoding
             throws IOException
     {
         List<TypedColumn> columns = ImmutableList.of(TypedColumn.typed("col0", VARIANT));
-        var blockBuilder = VARIANT.createBlockBuilder(null, 3);
+        BlockBuilder blockBuilder = VARIANT.createBlockBuilder(null, 3);
         blockBuilder.appendNull();
         VARIANT.writeObject(blockBuilder, Variant.ofObject(Map.of(
                 utf8Slice("a"), Variant.ofInt(1),
@@ -689,6 +692,81 @@ public abstract class AbstractTestEncodingDecoding
         Page page = page(block);
         assertThat(roundTrip(columns, page))
                 .isEqualTo(column(null, "{\"a\":1,\"b\":[true,null]}", null));
+    }
+
+    @Test
+    public void testVariantJsonFallbackSerialization()
+            throws IOException
+    {
+        List<TypedColumn> columns = ImmutableList.of(typed("col0", VARIANT));
+        BlockBuilder blockBuilder = VARIANT.createBlockBuilder(null, 3);
+        blockBuilder.appendNull();
+        VARIANT.writeObject(blockBuilder, Variant.ofObject(Map.of(
+                utf8Slice("a"), Variant.ofInt(1),
+                utf8Slice("b"), Variant.ofArray(List.of(Variant.ofBoolean(true), Variant.NULL_VALUE)))));
+        VARIANT.writeObject(blockBuilder, Variant.NULL_VALUE);
+        Block block = blockBuilder.build();
+
+        Page page = page(block);
+        assertThat(roundTrip(sessionWithoutCapability(ClientCapabilities.VARIANT), columns, false, page))
+                .isEqualTo(column(null, "{\"a\":1,\"b\":[true,null]}", "null"));
+    }
+
+    @Test
+    public void testVariantJsonFallbackSerializationInRows()
+            throws IOException
+    {
+        RowType rowType = RowType.from(ImmutableList.of(
+                RowType.field("id", BIGINT),
+                RowType.field("payload", VARIANT)));
+        List<TypedColumn> columns = ImmutableList.of(typed("col0", rowType));
+        RowBlockBuilder blockBuilder = rowType.createBlockBuilder(null, 1);
+
+        blockBuilder.buildEntry(builders -> {
+            BIGINT.writeLong(builders.get(0), 1);
+            VARIANT.writeObject(builders.get(1), Variant.ofObject(Map.of(
+                    utf8Slice("a"), Variant.ofInt(1),
+                    utf8Slice("nested"), Variant.ofArray(List.of(Variant.ofBoolean(true), Variant.NULL_VALUE)))));
+        });
+
+        Page page = page(blockBuilder.build());
+        assertThat(roundTrip(sessionWithoutCapability(ClientCapabilities.VARIANT), columns, false, page))
+                .containsExactly(List.of(Row.builderWithExpectedSize(2)
+                        .addField("id", 1L)
+                        .addField("payload", "{\"a\":1,\"nested\":[true,null]}")
+                        .build()));
+    }
+
+    @Test
+    public void testVariantJsonFallbackSerializationInMaps()
+            throws IOException
+    {
+        MapType mapType = new MapType(VARCHAR, VARIANT, new TypeOperators());
+        List<TypedColumn> columns = ImmutableList.of(typed("col0", mapType));
+        MapBlockBuilder blockBuilder = mapType.createBlockBuilder(null, 3);
+
+        blockBuilder.buildEntry((keyBuilder, valueBuilder) -> {
+            VARCHAR.writeSlice(keyBuilder, utf8Slice("first"));
+            VARIANT.writeObject(valueBuilder, Variant.ofObject(Map.of(
+                    utf8Slice("a"), Variant.ofInt(1))));
+
+            VARCHAR.writeSlice(keyBuilder, utf8Slice("second"));
+            VARIANT.writeObject(valueBuilder, Variant.NULL_VALUE);
+
+            VARCHAR.writeSlice(keyBuilder, utf8Slice("third"));
+            valueBuilder.appendNull();
+        });
+
+        Page page = page(blockBuilder.build());
+        assertThat(roundTrip(
+                sessionWithoutCapability(ClientCapabilities.VARIANT),
+                columns,
+                false,
+                page).getFirst())
+                .containsExactly(map(
+                        entry("first", "{\"a\":1}"),
+                        entry("second", "null"),
+                        entry("third", null)));
     }
 
     @Test
@@ -808,10 +886,20 @@ public abstract class AbstractTestEncodingDecoding
     protected List<List<Object>> roundTrip(List<TypedColumn> columns, Page page)
             throws IOException
     {
-        QueryDataEncoder encoder = newEncoder(columns);
+        QueryDataEncoder encoder = newEncoder(TEST_SESSION, columns);
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         encoder.encodeTo(output, List.of(page));
-        return ImmutableList.copyOf(decodeValues(columns, output.toByteArray()));
+        return ImmutableList.copyOf(decodeValues(columns, true, output.toByteArray()));
+    }
+
+    protected List<List<Object>> roundTrip(Session session, List<TypedColumn> columns, boolean supportsVariant, Page page)
+            throws IOException
+    {
+        QueryDataEncoder encoder = newEncoder(session, columns);
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        encoder.encodeTo(output, List.of(page));
+
+        return ImmutableList.copyOf(decodeValues(columns, supportsVariant, output.toByteArray()));
     }
 
     protected void assertRoundTrip(Type type, Consumer<BlockBuilder> builder, Object... expectedValues)
@@ -826,10 +914,10 @@ public abstract class AbstractTestEncodingDecoding
                 .containsExactly(array(expectedValues));
     }
 
-    protected List<List<Object>> decodeValues(List<TypedColumn> columns, byte[] data)
+    protected List<List<Object>> decodeValues(List<TypedColumn> columns, boolean supportsVariant, byte[] data)
             throws IOException
     {
-        QueryDataDecoder decoder = newDecoder(columns);
+        QueryDataDecoder decoder = newDecoder(columns, supportsVariant);
         return ImmutableList.copyOf(decoder.decode(new ByteArrayInputStream(data), null));
     }
 
@@ -845,6 +933,27 @@ public abstract class AbstractTestEncodingDecoding
         {
             return new TypedColumn(name, type);
         }
+    }
+
+    private static Session sessionWithoutCapability(ClientCapabilities capability)
+    {
+        return Session.builder(TEST_SESSION)
+                .setClientCapabilities(TEST_SESSION.getClientCapabilities().stream()
+                        .filter(value -> !value.equals(capability.toString()))
+                        .collect(toImmutableSet()))
+                .build();
+    }
+
+    private static Session sessionWithCapability(ClientCapabilities capability)
+    {
+        return Session.builder(TEST_SESSION)
+                .setClientCapabilities(ImmutableList.<String>builder()
+                        .addAll(TEST_SESSION.getClientCapabilities())
+                        .add(capability.toString())
+                        .build()
+                        .stream()
+                        .collect(toImmutableSet()))
+                .build();
     }
 
     private static Page page(Block... blocks)
