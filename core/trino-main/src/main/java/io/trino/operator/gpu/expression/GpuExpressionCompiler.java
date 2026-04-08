@@ -36,6 +36,7 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.metadata.GlobalFunctionCatalog.builtinFunctionName;
 import static io.trino.metadata.OperatorNameUtil.isOperatorName;
 import static io.trino.metadata.OperatorNameUtil.unmangleOperator;
@@ -114,13 +115,10 @@ public class GpuExpressionCompiler
         {
             return toBinaryOp(operatorType)
                     .flatMap(operation -> toDType(call.type())
-                            .flatMap(resultDType -> call.arguments().get(0).accept(this, context)
-                                    .flatMap(left -> call.arguments().get(1).accept(this, context)
-                                            .map(right -> new CompilationResult(
-                                                    new GpuBinaryExpression(left.expression(), right.expression(), operation, resultDType),
-                                                    Ordering.natural().max(
-                                                            Ordering.natural().max(left.score(), right.score()),
-                                                            POTENTIAL))))));
+                            .flatMap(resultDType -> compileAll(call.arguments(), context)
+                                    .map(results -> new CompilationResult(
+                                            new GpuBinaryExpression(results.get(0).expression(), results.get(1).expression(), operation, resultDType),
+                                            maxScore(results, POTENTIAL)))));
         }
 
         private static Optional<BinaryOp> toBinaryOp(OperatorType operatorType)
@@ -156,22 +154,31 @@ public class GpuExpressionCompiler
                 Void context)
         {
             checkArgument(arguments.size() >= 2, "Logical expression requires at least 2 arguments, got %s", arguments.size());
+            return compileAll(arguments, context)
+                    .map(results -> new CompilationResult(
+                            expressionFactory.apply(results.stream().map(CompilationResult::expression).collect(toImmutableList())),
+                            maxScore(results, POTENTIAL)));
+        }
 
-            ImmutableList.Builder<GpuExpression> operands = ImmutableList.builder();
-            GpuScore maxScore = POTENTIAL;
-
-            for (RowExpression argument : arguments) {
-                Optional<CompilationResult> compiled = argument.accept(this, context);
+        private Optional<List<CompilationResult>> compileAll(List<RowExpression> expressions, Void context)
+        {
+            ImmutableList.Builder<CompilationResult> results = ImmutableList.builder();
+            for (RowExpression expression : expressions) {
+                Optional<CompilationResult> compiled = expression.accept(this, context);
                 if (compiled.isEmpty()) {
                     return Optional.empty();
                 }
-                operands.add(compiled.get().expression());
-                maxScore = Ordering.natural().max(maxScore, compiled.get().score());
+                results.add(compiled.get());
             }
+            return Optional.of(results.build());
+        }
 
-            return Optional.of(new CompilationResult(
-                    expressionFactory.apply(operands.build()),
-                    maxScore));
+        private static GpuScore maxScore(List<CompilationResult> results, GpuScore defaultScore)
+        {
+            return results.stream()
+                    .map(CompilationResult::score)
+                    .max(Ordering.natural())
+                    .orElse(defaultScore);
         }
 
         @Override
