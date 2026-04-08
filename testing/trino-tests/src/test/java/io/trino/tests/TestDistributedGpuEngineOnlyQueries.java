@@ -208,4 +208,26 @@ public class TestDistributedGpuEngineOnlyQueries
                 """))
                 .executesWithGpu(FilterNode.class);
     }
+
+    @Test
+    public void testGpuIsNullFilter()
+    {
+        assertThat(query(
+                """
+                SELECT a
+                -- Use rand() to prevent Projection from being inlined in Filter
+                FROM (SELECT IF(rand()<42, NULLIF(i % 10, 0)) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE a IS NULL
+                """))
+                .executesWithGpu(FilterNode.class);
+
+        assertThat(query(
+                """
+                SELECT a
+                -- Use rand() to prevent Projection from being inlined in Filter
+                FROM (SELECT IF(rand()<42, NULLIF(i % 10, 0)) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE a IS NOT NULL
+                """))
+                .executesWithGpu(FilterNode.class);
+    }
 }

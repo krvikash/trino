@@ -321,6 +321,21 @@ public class TestGpuExpressions
         assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA));
     }
 
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testIsNull(NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        List<Type> inputTypes = List.of(BIGINT);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(positionsCount,
+                createBigintBlock(positionsCount, nullsProvider, -100, 100)));
+
+        RowExpression rowExpression = new SpecialForm(SpecialForm.Form.IS_NULL, BOOLEAN, List.of(field(channelA, BIGINT)), List.of());
+
+        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA));
+    }
+
     private void testArithmetic(OperatorType operatorType, NullsProvider nullsProvider)
     {
         int channelA = 0;

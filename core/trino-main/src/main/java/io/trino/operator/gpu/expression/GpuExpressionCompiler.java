@@ -37,6 +37,7 @@ import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.metadata.GlobalFunctionCatalog.builtinFunctionName;
 import static io.trino.metadata.OperatorNameUtil.isOperatorName;
 import static io.trino.metadata.OperatorNameUtil.unmangleOperator;
@@ -143,6 +144,7 @@ public class GpuExpressionCompiler
             return switch (specialForm.form()) {
                 case AND -> compileLogical(specialForm.arguments(), GpuLogicalExpression::and, context);
                 case OR -> compileLogical(specialForm.arguments(), GpuLogicalExpression::or, context);
+                case IS_NULL -> compileIsNull(specialForm.arguments(), context);
                 // TODO (https://starburstdata.atlassian.net/browse/ENG-9851) Implement special forms (CASE, IN, etc.)
                 default -> Optional.empty();
             };
@@ -158,6 +160,15 @@ public class GpuExpressionCompiler
                     .map(results -> new CompilationResult(
                             expressionFactory.apply(results.stream().map(CompilationResult::expression).collect(toImmutableList())),
                             maxScore(results, POTENTIAL)));
+        }
+
+        private Optional<CompilationResult> compileIsNull(List<RowExpression> arguments, Void context)
+        {
+            checkArgument(arguments.size() == 1, "IS NULL requires 1 argument, got %s", arguments.size());
+            return getOnlyElement(arguments).accept(this, context)
+                    .map(operand -> new CompilationResult(
+                            new GpuIsNull(operand.expression()),
+                            Ordering.natural().max(operand.score(), POTENTIAL)));
         }
 
         private Optional<List<CompilationResult>> compileAll(List<RowExpression> expressions, Void context)
