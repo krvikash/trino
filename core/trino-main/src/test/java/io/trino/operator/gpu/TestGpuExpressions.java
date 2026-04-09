@@ -149,77 +149,77 @@ public class TestGpuExpressions
     @Test
     public void testBooleanConstant()
     {
-        testConstant(constant(true, BOOLEAN), BOOLEAN);
-        testConstant(constant(false, BOOLEAN), BOOLEAN);
-        testConstant(constant(null, BOOLEAN), BOOLEAN);
+        testConstant(constant(true, BOOLEAN));
+        testConstant(constant(false, BOOLEAN));
+        testConstant(constant(null, BOOLEAN));
     }
 
     @Test
     public void testTinyintConstant()
     {
-        testConstant(constant(42L, TINYINT), TINYINT);
-        testConstant(constant(-1L, TINYINT), TINYINT);
-        testConstant(constant(0L, TINYINT), TINYINT);
-        testConstant(constant(null, TINYINT), TINYINT);
+        testConstant(constant(42L, TINYINT));
+        testConstant(constant(-1L, TINYINT));
+        testConstant(constant(0L, TINYINT));
+        testConstant(constant(null, TINYINT));
     }
 
     @Test
     public void testSmallintConstant()
     {
-        testConstant(constant(1234L, SMALLINT), SMALLINT);
-        testConstant(constant(-5678L, SMALLINT), SMALLINT);
-        testConstant(constant(null, SMALLINT), SMALLINT);
+        testConstant(constant(1234L, SMALLINT));
+        testConstant(constant(-5678L, SMALLINT));
+        testConstant(constant(null, SMALLINT));
     }
 
     @Test
     public void testIntegerConstant()
     {
-        testConstant(constant(123456L, INTEGER), INTEGER);
-        testConstant(constant(-789012L, INTEGER), INTEGER);
-        testConstant(constant(0L, INTEGER), INTEGER);
-        testConstant(constant(null, INTEGER), INTEGER);
+        testConstant(constant(123456L, INTEGER));
+        testConstant(constant(-789012L, INTEGER));
+        testConstant(constant(0L, INTEGER));
+        testConstant(constant(null, INTEGER));
     }
 
     @Test
     public void testBigintConstant()
     {
-        testConstant(constant(1234567890123L, BIGINT), BIGINT);
-        testConstant(constant(-9876543210L, BIGINT), BIGINT);
-        testConstant(constant(0L, BIGINT), BIGINT);
-        testConstant(constant(null, BIGINT), BIGINT);
+        testConstant(constant(1234567890123L, BIGINT));
+        testConstant(constant(-9876543210L, BIGINT));
+        testConstant(constant(0L, BIGINT));
+        testConstant(constant(null, BIGINT));
     }
 
     @Test
     public void testRealConstant()
     {
-        testConstant(constant((long) Float.floatToIntBits(3.14f), REAL), REAL);
-        testConstant(constant((long) Float.floatToIntBits(-2.5f), REAL), REAL);
-        testConstant(constant((long) Float.floatToIntBits(0.0f), REAL), REAL);
-        testConstant(constant((long) Float.floatToIntBits(Float.POSITIVE_INFINITY), REAL), REAL);
-        testConstant(constant((long) Float.floatToIntBits(Float.NEGATIVE_INFINITY), REAL), REAL);
-        testConstant(constant((long) Float.floatToIntBits(Float.NaN), REAL), REAL);
-        testConstant(constant(null, REAL), REAL);
+        testConstant(constant((long) Float.floatToIntBits(3.14f), REAL));
+        testConstant(constant((long) Float.floatToIntBits(-2.5f), REAL));
+        testConstant(constant((long) Float.floatToIntBits(0.0f), REAL));
+        testConstant(constant((long) Float.floatToIntBits(Float.POSITIVE_INFINITY), REAL));
+        testConstant(constant((long) Float.floatToIntBits(Float.NEGATIVE_INFINITY), REAL));
+        testConstant(constant((long) Float.floatToIntBits(Float.NaN), REAL));
+        testConstant(constant(null, REAL));
     }
 
     @Test
     public void testDoubleConstant()
     {
-        testConstant(constant(3.14159265359, DOUBLE), DOUBLE);
-        testConstant(constant(-2.71828, DOUBLE), DOUBLE);
-        testConstant(constant(0.0, DOUBLE), DOUBLE);
-        testConstant(constant(Double.POSITIVE_INFINITY, DOUBLE), DOUBLE);
-        testConstant(constant(Double.NEGATIVE_INFINITY, DOUBLE), DOUBLE);
-        testConstant(constant(Double.NaN, DOUBLE), DOUBLE);
-        testConstant(constant(null, DOUBLE), DOUBLE);
+        testConstant(constant(3.14159265359, DOUBLE));
+        testConstant(constant(-2.71828, DOUBLE));
+        testConstant(constant(0.0, DOUBLE));
+        testConstant(constant(Double.POSITIVE_INFINITY, DOUBLE));
+        testConstant(constant(Double.NEGATIVE_INFINITY, DOUBLE));
+        testConstant(constant(Double.NaN, DOUBLE));
+        testConstant(constant(null, DOUBLE));
     }
 
     @Test
     public void testVarcharConstant()
     {
-        testConstant(constant(Slices.utf8Slice("hello"), VARCHAR), VARCHAR);
-        testConstant(constant(Slices.utf8Slice(""), VARCHAR), VARCHAR);
-        testConstant(constant(Slices.utf8Slice("Łania szła piękną łąką pod Warszawą"), VARCHAR), VARCHAR);
-        testConstant(constant(null, VARCHAR), VARCHAR);
+        testConstant(constant(Slices.utf8Slice("hello"), VARCHAR));
+        testConstant(constant(Slices.utf8Slice(""), VARCHAR));
+        testConstant(constant(Slices.utf8Slice("Łania szła piękną łąką pod Warszawą"), VARCHAR));
+        testConstant(constant(null, VARCHAR));
     }
 
     @ParameterizedTest
@@ -407,7 +407,7 @@ public class TestGpuExpressions
         return builder.build();
     }
 
-    private void testConstant(RowExpression constantExpression, Type expectedType)
+    private void testConstant(RowExpression constantExpression)
     {
         List<Type> inputTypes = List.of(BIGINT);
         int positionsCount = 64;
@@ -420,7 +420,7 @@ public class TestGpuExpressions
 
         List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, constantExpression, gpuExpression, Set.of(0));
         List<Page> cpuResults = executeWithCpu(inputPages, constantExpression);
-        assertSameData(gpuResults, cpuResults, List.of(expectedType));
+        assertSameData(gpuResults, cpuResults, List.of(constantExpression.type()));
     }
 
     private void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, RowExpression rowExpression, Set<Integer> expectedInputChannels)
