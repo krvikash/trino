@@ -116,11 +116,11 @@ public class GpuExpressionCompiler
                     .flatMap(operation -> toDType(call.type())
                             .flatMap(resultDType -> call.arguments().get(0).accept(this, context)
                                     .flatMap(left -> call.arguments().get(1).accept(this, context)
-                                            .flatMap(right -> Optional.of(new CompilationResult(
+                                            .map(right -> new CompilationResult(
                                                     new GpuBinaryExpression(left.expression(), right.expression(), operation, resultDType),
                                                     Ordering.natural().max(
                                                             Ordering.natural().max(left.score(), right.score()),
-                                                            POTENTIAL)))))));
+                                                            POTENTIAL))))));
         }
 
         private static Optional<BinaryOp> toBinaryOp(OperatorType operatorType)
