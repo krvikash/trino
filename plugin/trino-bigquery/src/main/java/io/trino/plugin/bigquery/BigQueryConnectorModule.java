@@ -70,6 +70,11 @@ public class BigQueryConnectorModule
         {
             BigQueryConfig config = buildConfigObject(BigQueryConfig.class);
 
+            newOptionalBinder(binder, BigQueryProjectInfoProvider.class)
+                    .setDefault()
+                    .to(BigQueryStaticProjectInfoProvider.class)
+                    .in(Scopes.SINGLETON);
+
             // BigQuery related
             binder.bind(BigQueryReadClientFactory.class).in(Scopes.SINGLETON);
             binder.bind(BigQueryWriteClientFactory.class).in(Scopes.SINGLETON);

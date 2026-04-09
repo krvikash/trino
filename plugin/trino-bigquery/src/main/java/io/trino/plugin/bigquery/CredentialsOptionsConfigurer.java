@@ -30,13 +30,13 @@ import static java.util.Objects.requireNonNull;
 public class CredentialsOptionsConfigurer
         implements BigQueryOptionsConfigurer
 {
+    private final BigQueryProjectInfoProvider bigQueryProjectInfoProvider;
     private final BigQueryCredentialsSupplier credentialsSupplier;
-    private final Optional<String> configParentProjectId;
 
     @Inject
-    public CredentialsOptionsConfigurer(BigQueryConfig bigQueryConfig, BigQueryCredentialsSupplier credentialsSupplier)
+    public CredentialsOptionsConfigurer(BigQueryProjectInfoProvider bigQueryProjectInfoProvider, BigQueryCredentialsSupplier credentialsSupplier)
     {
-        this.configParentProjectId = bigQueryConfig.getParentProjectId();
+        this.bigQueryProjectInfoProvider = requireNonNull(bigQueryProjectInfoProvider, "bigQueryProjectInfoProvider is null");
         this.credentialsSupplier = requireNonNull(credentialsSupplier, "credentialsSupplier is null");
     }
 
@@ -44,7 +44,7 @@ public class CredentialsOptionsConfigurer
     public BigQueryOptions.Builder configure(BigQueryOptions.Builder builder, ConnectorSession session)
     {
         Optional<Credentials> credentials = credentialsSupplier.getCredentials(session);
-        String parentProjectId = resolveProjectId(configParentProjectId, credentials);
+        String parentProjectId = resolveProjectId(bigQueryProjectInfoProvider.parentProjectId(session), credentials);
         credentials.ifPresent(builder::setCredentials);
         builder.setProjectId(parentProjectId);
         return builder;

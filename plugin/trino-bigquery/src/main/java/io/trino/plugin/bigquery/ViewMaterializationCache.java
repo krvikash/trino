@@ -31,7 +31,6 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.TableNotFoundException;
 
-import java.util.Optional;
 import java.util.function.Supplier;
 
 import static io.trino.cache.CacheUtils.uncheckedCacheGet;
@@ -51,30 +50,28 @@ public class ViewMaterializationCache
 
     private final NonEvictableCache<ViewCacheKey, TableInfo> destinationTableCache;
     private final IdentityCacheMapping identityCacheMapping;
-    private final Optional<String> viewMaterializationProject;
-    private final Optional<String> viewMaterializationDataset;
+    private final BigQueryProjectInfoProvider bigQueryProjectInfoProvider;
 
     @Inject
-    public ViewMaterializationCache(BigQueryConfig config, IdentityCacheMapping identityCacheMapping)
+    public ViewMaterializationCache(BigQueryConfig config, IdentityCacheMapping identityCacheMapping, BigQueryProjectInfoProvider bigQueryProjectInfoProvider)
     {
         this.destinationTableCache = buildNonEvictableCache(
                 CacheBuilder.newBuilder()
                         .expireAfterWrite(config.getViewsCacheTtl().toMillis(), MILLISECONDS)
                         .maximumSize(1000));
         this.identityCacheMapping = requireNonNull(identityCacheMapping, "identityCacheMapping is null");
-        this.viewMaterializationProject = config.getViewMaterializationProject();
-        this.viewMaterializationDataset = config.getViewMaterializationDataset();
+        this.bigQueryProjectInfoProvider = requireNonNull(bigQueryProjectInfoProvider, "bigQueryProjectInfoProvider is null");
     }
 
     public TableInfo getCachedTable(ConnectorSession session, BigQueryClient client, String query, Duration viewExpiration, TableInfo remoteTableId)
     {
-        return uncheckedCacheGet(destinationTableCache, new ViewCacheKey(identityCacheMapping.getRemoteUserCacheKey(session), query), new DestinationTableBuilder(client, viewExpiration, query, buildDestinationTable(remoteTableId.getTableId())));
+        return uncheckedCacheGet(destinationTableCache, new ViewCacheKey(identityCacheMapping.getRemoteUserCacheKey(session), query), new DestinationTableBuilder(client, viewExpiration, query, buildDestinationTable(session, remoteTableId.getTableId())));
     }
 
-    private TableId buildDestinationTable(TableId remoteTableId)
+    private TableId buildDestinationTable(ConnectorSession session, TableId remoteTableId)
     {
-        String project = viewMaterializationProject.orElseGet(remoteTableId::getProject);
-        String dataset = viewMaterializationDataset.orElseGet(remoteTableId::getDataset);
+        String project = bigQueryProjectInfoProvider.viewMaterializationProject(session, remoteTableId);
+        String dataset = bigQueryProjectInfoProvider.viewMaterializationDataset(session, remoteTableId);
 
         String name = format("%s%s", TEMP_TABLE_PREFIX, randomUUID().toString().toLowerCase(ENGLISH).replace("-", ""));
         return TableId.of(project, dataset, name);

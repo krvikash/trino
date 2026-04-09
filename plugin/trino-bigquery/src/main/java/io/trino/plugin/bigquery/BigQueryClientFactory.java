@@ -22,7 +22,6 @@ import io.trino.cache.EvictableCacheBuilder;
 import io.trino.plugin.base.cache.identity.IdentityCacheMapping;
 import io.trino.spi.connector.ConnectorSession;
 
-import java.util.Optional;
 import java.util.Set;
 
 import static io.trino.cache.CacheUtils.uncheckedCacheGet;
@@ -33,11 +32,11 @@ public class BigQueryClientFactory
 {
     private final IdentityCacheMapping identityCacheMapping;
     private final BigQueryTypeManager typeManager;
-    private final Optional<String> projectId;
     private final boolean caseInsensitiveNameMatching;
     private final Duration caseInsensitiveNameMatchingCacheTtl;
     private final ViewMaterializationCache materializationCache;
     private final BigQueryLabelFactory labelFactory;
+    private final BigQueryProjectInfoProvider bigQueryProjectInfoProvider;
 
     private final Cache<IdentityCacheMapping.IdentityCacheKey, BigQueryClient> clientCache;
     private final Duration metadataCacheTtl;
@@ -49,6 +48,7 @@ public class BigQueryClientFactory
             IdentityCacheMapping identityCacheMapping,
             BigQueryTypeManager typeManager,
             BigQueryConfig bigQueryConfig,
+            BigQueryProjectInfoProvider bigQueryProjectInfoProvider,
             ViewMaterializationCache materializationCache,
             BigQueryLabelFactory labelFactory,
             Set<BigQueryOptionsConfigurer> optionsConfigurers)
@@ -56,9 +56,9 @@ public class BigQueryClientFactory
         this.identityCacheMapping = requireNonNull(identityCacheMapping, "identityCacheMapping is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         requireNonNull(bigQueryConfig, "bigQueryConfig is null");
-        this.projectId = bigQueryConfig.getProjectId();
         this.caseInsensitiveNameMatching = bigQueryConfig.isCaseInsensitiveNameMatching();
         this.caseInsensitiveNameMatchingCacheTtl = bigQueryConfig.getCaseInsensitiveNameMatchingCacheTtl();
+        this.bigQueryProjectInfoProvider = requireNonNull(bigQueryProjectInfoProvider, "bigQueryProjectInfoProvider is null");
         this.materializationCache = requireNonNull(materializationCache, "materializationCache is null");
         this.labelFactory = requireNonNull(labelFactory, "labelFactory is null");
         this.metadataCacheTtl = bigQueryConfig.getMetadataCacheTtl();
@@ -93,7 +93,7 @@ public class BigQueryClientFactory
                 materializationCache,
                 metadataCacheTtl,
                 metadataPageSize,
-                projectId);
+                bigQueryProjectInfoProvider.projectId(session));
     }
 
     protected BigQuery createBigQuery(ConnectorSession session)
