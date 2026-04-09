@@ -26,6 +26,8 @@ import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.trino.cache.NonEvictableCache;
+import io.trino.plugin.base.cache.identity.IdentityCacheMapping;
+import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.TableNotFoundException;
 
@@ -47,24 +49,26 @@ public class ViewMaterializationCache
 
     public static final String TEMP_TABLE_PREFIX = "_pbc_";
 
-    private final NonEvictableCache<String, TableInfo> destinationTableCache;
+    private final NonEvictableCache<ViewCacheKey, TableInfo> destinationTableCache;
+    private final IdentityCacheMapping identityCacheMapping;
     private final Optional<String> viewMaterializationProject;
     private final Optional<String> viewMaterializationDataset;
 
     @Inject
-    public ViewMaterializationCache(BigQueryConfig config)
+    public ViewMaterializationCache(BigQueryConfig config, IdentityCacheMapping identityCacheMapping)
     {
         this.destinationTableCache = buildNonEvictableCache(
                 CacheBuilder.newBuilder()
                         .expireAfterWrite(config.getViewsCacheTtl().toMillis(), MILLISECONDS)
                         .maximumSize(1000));
+        this.identityCacheMapping = requireNonNull(identityCacheMapping, "identityCacheMapping is null");
         this.viewMaterializationProject = config.getViewMaterializationProject();
         this.viewMaterializationDataset = config.getViewMaterializationDataset();
     }
 
-    public TableInfo getCachedTable(BigQueryClient client, String query, Duration viewExpiration, TableInfo remoteTableId)
+    public TableInfo getCachedTable(ConnectorSession session, BigQueryClient client, String query, Duration viewExpiration, TableInfo remoteTableId)
     {
-        return uncheckedCacheGet(destinationTableCache, query, new DestinationTableBuilder(client, viewExpiration, query, buildDestinationTable(remoteTableId.getTableId())));
+        return uncheckedCacheGet(destinationTableCache, new ViewCacheKey(identityCacheMapping.getRemoteUserCacheKey(session), query), new DestinationTableBuilder(client, viewExpiration, query, buildDestinationTable(remoteTableId.getTableId())));
     }
 
     private TableId buildDestinationTable(TableId remoteTableId)
@@ -131,6 +135,15 @@ public class ViewMaterializationCache
                 Thread.currentThread().interrupt();
                 throw new BigQueryException(BaseServiceException.UNKNOWN_CODE, format("Job %s has been interrupted", job.getJobId()), e);
             }
+        }
+    }
+
+    private record ViewCacheKey(IdentityCacheMapping.IdentityCacheKey identityCacheKey, String query)
+    {
+        public ViewCacheKey
+        {
+            requireNonNull(identityCacheKey, "identityCacheKey is null");
+            requireNonNull(query, "query is null");
         }
     }
 }

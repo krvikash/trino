@@ -85,7 +85,7 @@ public class ReadSessionCreator
         TableInfo tableDetails = client.getTable(remoteTable)
                 .orElseThrow(() -> new TableNotFoundException(new SchemaTableName(remoteTable.getDataset(), remoteTable.getTable())));
 
-        TableInfo actualTable = getActualTable(client, tableDetails, selectedFields, isViewMaterializationWithFilter(session) ? filter : Optional.empty());
+        TableInfo actualTable = getActualTable(session, client, tableDetails, selectedFields, isViewMaterializationWithFilter(session) ? filter : Optional.empty());
 
         List<String> filteredSelectedFields = selectedFields.stream()
                 .map(BigQueryColumnHandle::getQualifiedName)
@@ -142,6 +142,7 @@ public class ReadSessionCreator
     }
 
     private TableInfo getActualTable(
+            ConnectorSession session,
             BigQueryClient client,
             TableInfo remoteTable,
             List<BigQueryColumnHandle> requiredColumns,
@@ -159,7 +160,7 @@ public class ReadSessionCreator
                         BigQueryConfig.VIEWS_ENABLED));
             }
             // get it from the view
-            return client.getCachedTable(viewExpiration, remoteTable, requiredColumns, filter);
+            return client.getCachedTable(session, viewExpiration, remoteTable, requiredColumns, filter);
         }
         // Storage API doesn't support reading other table types (materialized views, non-biglake external tables)
         throw new TrinoException(NOT_SUPPORTED, format("Table type '%s' of table '%s.%s' is not supported",
