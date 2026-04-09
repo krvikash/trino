@@ -12,12 +12,16 @@ package io.starburst.stargate.buffer.data.spooling.gcs;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigSecuritySensitive;
+import io.airlift.configuration.validation.FileExists;
+import jakarta.annotation.Nullable;
+import jakarta.validation.constraints.AssertTrue;
 
 import java.util.Optional;
 
 public class GcsClientConfig
 {
     private Optional<String> gcsJsonKey = Optional.empty();
+    private Optional<String> gcsJsonKeyFilePath = Optional.empty();
     private int deleteExecutorThreadCount = 50;
 
     public Optional<String> getGcsJsonKey()
@@ -34,6 +38,26 @@ public class GcsClientConfig
         return this;
     }
 
+    public Optional<String> getGcsJsonKeyFilePath()
+    {
+        return gcsJsonKeyFilePath;
+    }
+
+    @Nullable
+    @FileExists
+    public String getGcsJsonKeyFilePathValidated()
+    {
+        return gcsJsonKeyFilePath.orElse(null);
+    }
+
+    @Config("spooling.gcs.json-key-file-path")
+    @ConfigDescription("Path to a JSON key file used to access Google Cloud Storage")
+    public GcsClientConfig setGcsJsonKeyFilePath(String gcsJsonKeyFilePath)
+    {
+        this.gcsJsonKeyFilePath = Optional.ofNullable(gcsJsonKeyFilePath);
+        return this;
+    }
+
     public int getDeleteExecutorThreadCount()
     {
         return deleteExecutorThreadCount;
@@ -44,5 +68,11 @@ public class GcsClientConfig
     {
         this.deleteExecutorThreadCount = deleteExecutorThreadCount;
         return this;
+    }
+
+    @AssertTrue(message = "spooling.gcs.json-key and spooling.gcs.json-key-file-path are mutually exclusive")
+    public boolean isJsonKeyConfigValid()
+    {
+        return !(gcsJsonKey.isPresent() && gcsJsonKeyFilePath.isPresent());
     }
 }

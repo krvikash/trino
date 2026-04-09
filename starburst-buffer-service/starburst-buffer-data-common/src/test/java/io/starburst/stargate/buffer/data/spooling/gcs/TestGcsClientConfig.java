@@ -10,6 +10,8 @@
 package io.starburst.stargate.buffer.data.spooling.gcs;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import jakarta.validation.constraints.AssertTrue;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -17,6 +19,7 @@ import java.util.Map;
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
+import static io.airlift.testing.ValidationAssertions.assertFailsValidation;
 
 public class TestGcsClientConfig
 {
@@ -25,11 +28,12 @@ public class TestGcsClientConfig
     {
         assertRecordedDefaults(recordDefaults(GcsClientConfig.class)
                 .setGcsJsonKey(null)
+                .setGcsJsonKeyFilePath(null)
                 .setDeleteExecutorThreadCount(50));
     }
 
     @Test
-    public void testExplicitPropertyMappings()
+    public void testExplicitPropertyMappingsJsonKey()
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("spooling.gcs.json-key", "key")
@@ -40,6 +44,33 @@ public class TestGcsClientConfig
                 .setGcsJsonKey("key")
                 .setDeleteExecutorThreadCount(100);
 
-        assertFullMapping(properties, expected);
+        assertFullMapping(properties, expected, ImmutableSet.of("spooling.gcs.json-key-file-path"));
+    }
+
+    @Test
+    public void testExplicitPropertyMappingsJsonKeyFilePath()
+    {
+        Map<String, String> properties = ImmutableMap.<String, String>builder()
+                .put("spooling.gcs.json-key-file-path", "/dev/null")
+                .put("spooling.gcs.delete-executor-thread-count", "100")
+                .buildOrThrow();
+
+        GcsClientConfig expected = new GcsClientConfig()
+                .setGcsJsonKeyFilePath("/dev/null")
+                .setDeleteExecutorThreadCount(100);
+
+        assertFullMapping(properties, expected, ImmutableSet.of("spooling.gcs.json-key"));
+    }
+
+    @Test
+    public void testValidation()
+    {
+        assertFailsValidation(
+                new GcsClientConfig()
+                        .setGcsJsonKey("key")
+                        .setGcsJsonKeyFilePath("/dev/null"),
+                "jsonKeyConfigValid",
+                "spooling.gcs.json-key and spooling.gcs.json-key-file-path are mutually exclusive",
+                AssertTrue.class);
     }
 }

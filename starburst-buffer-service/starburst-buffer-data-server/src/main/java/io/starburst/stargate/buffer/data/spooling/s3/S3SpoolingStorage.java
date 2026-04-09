@@ -52,7 +52,9 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Publisher;
 
 import java.io.ByteArrayInputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
@@ -118,9 +120,16 @@ public class S3SpoolingStorage
 
         if (compatibilityMode == GCP) {
             Optional<String> gcsJsonKey = gcsClientConfig.getGcsJsonKey();
+            Optional<String> gcsJsonKeyFilePath = gcsClientConfig.getGcsJsonKeyFilePath();
             if (gcsJsonKey.isPresent()) {
                 Credentials credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(gcsJsonKey.get().getBytes(StandardCharsets.UTF_8)));
                 this.gcsClient = Optional.of(StorageOptions.newBuilder().setCredentials(credentials).build().getService());
+            }
+            else if (gcsJsonKeyFilePath.isPresent()) {
+                try (InputStream inputStream = new FileInputStream(gcsJsonKeyFilePath.get())) {
+                    Credentials credentials = GoogleCredentials.fromStream(inputStream);
+                    this.gcsClient = Optional.of(StorageOptions.newBuilder().setCredentials(credentials).build().getService());
+                }
             }
             else {
                 this.gcsClient = Optional.of(StorageOptions.getDefaultInstance().getService());
