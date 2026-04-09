@@ -39,9 +39,7 @@ public class OpenApiDecoderFactory
             rowSplitter = RowSplitter.LINE_SPLITTER;
         }
 
-        if (rowIr instanceof ObjectIr objectIr &&
-                !objectIr.properties().isEmpty() &&
-                objectIr.additionalProperties().isEmpty()) {
+        if (rowIr instanceof ObjectIr objectIr && objectIr.strictlyNamedProperties()) {
             return new MultiColumnDecoder(
                     Maps.transformValues(objectIr.properties(), columnWriterFactory::createFrom),
                     rowSplitter);

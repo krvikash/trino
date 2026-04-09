@@ -68,13 +68,13 @@ public class ColumnWriterFactory
     private ColumnWriter createFromObject(ObjectIr objectIr)
     {
         // TODO filter out writeOnly properties.
-        if (objectIr.properties().isEmpty() && objectIr.additionalProperties().isEmpty()) {
+        if (objectIr.unknownProperties()) {
             return jsonColumnWriter;
         }
-        else if (objectIr.additionalProperties().isEmpty()) {
+        else if (objectIr.strictlyNamedProperties()) {
             return new RowColumnWriter(Maps.transformValues(objectIr.properties(), this::createFrom));
         }
-        else if (objectIr.properties().isEmpty()) {
+        else if (objectIr.strictlyUnnamedProperties()) {
             return new MapColumnWriter(createFrom(objectIr.additionalProperties().get()), typeOperators);
         }
         // Value is union type of properties and additionalProperties, JSON is safest.

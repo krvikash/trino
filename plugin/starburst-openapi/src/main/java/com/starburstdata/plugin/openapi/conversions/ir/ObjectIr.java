@@ -24,4 +24,27 @@ public record ObjectIr(
         Optional<SchemaIr> additionalProperties)
         implements SchemaIr
 {
+    /**
+     * If this object has no validations on either properties or additional properties.
+     */
+    public boolean unknownProperties()
+    {
+        return properties.isEmpty() && additionalProperties.isEmpty();
+    }
+
+    /**
+     * If this object is expected to have fields of known names and types.
+     */
+    public boolean strictlyNamedProperties()
+    {
+        return !properties.isEmpty() && additionalProperties.isEmpty();
+    }
+
+    /**
+     * If this object has fields of a known type but unknown names.
+     */
+    public boolean strictlyUnnamedProperties()
+    {
+        return properties.isEmpty() && additionalProperties.isPresent();
+    }
 }
