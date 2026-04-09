@@ -356,6 +356,27 @@ public class TestGpuExpressions
         assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA));
     }
 
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testCoalesce(NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        int channelB = 1;
+        List<Type> inputTypes = List.of(BIGINT, BIGINT);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(positionsCount,
+                createBigintBlock(positionsCount, nullsProvider, -100, 100),
+                createBigintBlock(positionsCount, nullsProvider, -100, 100)));
+
+        RowExpression rowExpression = new SpecialForm(
+                SpecialForm.Form.COALESCE,
+                BIGINT,
+                List.of(field(channelA, BIGINT), field(channelB, BIGINT)),
+                List.of());
+
+        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA, channelB));
+    }
+
     private void testArithmetic(OperatorType operatorType, NullsProvider nullsProvider)
     {
         int channelA = 0;

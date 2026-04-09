@@ -243,4 +243,17 @@ public class TestDistributedGpuEngineOnlyQueries
                 """))
                 .executesWithGpu(FilterNode.class);
     }
+
+    @Test
+    public void testGpuCoalesceFilter()
+    {
+        assertThat(query(
+                """
+                SELECT a, b
+                -- Use rand() to prevent Projection from being inlined in Filter
+                FROM (SELECT IF(rand()<42, NULLIF(i % 10, 0)) AS a, IF(rand()<42, NULLIF(i % 5, 0)) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE COALESCE(a, b) > 3
+                """))
+                .executesWithGpu(FilterNode.class);
+    }
 }

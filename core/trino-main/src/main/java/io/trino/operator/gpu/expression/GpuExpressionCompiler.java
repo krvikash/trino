@@ -142,8 +142,9 @@ public class GpuExpressionCompiler
         public Optional<CompilationResult> visitSpecialForm(SpecialForm specialForm, Void context)
         {
             return switch (specialForm.form()) {
-                case AND -> compileLogical(specialForm.arguments(), GpuLogicalExpression::and, context);
-                case OR -> compileLogical(specialForm.arguments(), GpuLogicalExpression::or, context);
+                case AND -> compileNary(specialForm.arguments(), GpuLogicalExpression::and, context);
+                case OR -> compileNary(specialForm.arguments(), GpuLogicalExpression::or, context);
+                case COALESCE -> compileNary(specialForm.arguments(), GpuCoalesce::new, context);
                 case IS_NULL -> compileIsNull(specialForm.arguments(), context);
                 case BETWEEN -> compileBetween(specialForm.arguments(), context);
                 // TODO (https://starburstdata.atlassian.net/browse/ENG-9851) Implement special forms (CASE, IN, etc.)
@@ -151,12 +152,12 @@ public class GpuExpressionCompiler
             };
         }
 
-        private Optional<CompilationResult> compileLogical(
+        private Optional<CompilationResult> compileNary(
                 List<RowExpression> arguments,
                 Function<List<GpuExpression>, GpuExpression> expressionFactory,
                 Void context)
         {
-            checkArgument(arguments.size() >= 2, "Logical expression requires at least 2 arguments, got %s", arguments.size());
+            checkArgument(arguments.size() >= 2, "Expression requires at least 2 arguments, got %s", arguments.size());
             return compileAll(arguments, context)
                     .map(results -> new CompilationResult(
                             expressionFactory.apply(results.stream().map(CompilationResult::expression).collect(toImmutableList())),
