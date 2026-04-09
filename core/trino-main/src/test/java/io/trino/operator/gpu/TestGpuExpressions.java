@@ -141,11 +141,7 @@ public class TestGpuExpressions
         for (String pattern : testStrings) {
             for (Optional<Character> escape : escapes) {
                 RowExpression rowExpression = createLikeExpression(varcharChannel, pattern, escape);
-                CompiledExpression gpuExpression = gpuCompiler.compileExpression(rowExpression).orElseThrow(() -> new AssertionError("GPU expression compile failed"));
-                assertThat(gpuExpression.inputChannels().getInputChannels()).containsExactly(varcharChannel);
-                List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, rowExpression, gpuExpression, Set.of(varcharChannel));
-                List<Page> cpuResults = executeWithCpu(inputPages, rowExpression);
-                assertSameData(gpuResults, cpuResults, List.of(rowExpression.type()));
+                assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(varcharChannel));
             }
         }
     }
@@ -274,13 +270,7 @@ public class TestGpuExpressions
                 field(channelB, BIGINT));
         RowExpression rowExpression = new SpecialForm(SpecialForm.Form.AND, BOOLEAN, List.of(left, right), List.of());
 
-        CompiledExpression gpuExpression = gpuCompiler.compileExpression(rowExpression)
-                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + rowExpression));
-        assertThat(gpuExpression.inputChannels().getInputChannels()).containsExactly(channelA, channelB);
-
-        List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, rowExpression, gpuExpression, Set.of(channelA, channelB));
-        List<Page> cpuResults = executeWithCpu(inputPages, rowExpression);
-        assertSameData(gpuResults, cpuResults, List.of(BOOLEAN));
+        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA, channelB));
     }
 
     @ParameterizedTest
@@ -306,13 +296,7 @@ public class TestGpuExpressions
                 field(channelB, BIGINT));
         RowExpression rowExpression = new SpecialForm(SpecialForm.Form.OR, BOOLEAN, List.of(left, right), List.of());
 
-        CompiledExpression gpuExpression = gpuCompiler.compileExpression(rowExpression)
-                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + rowExpression));
-        assertThat(gpuExpression.inputChannels().getInputChannels()).containsExactly(channelA, channelB);
-
-        List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, rowExpression, gpuExpression, Set.of(channelA, channelB));
-        List<Page> cpuResults = executeWithCpu(inputPages, rowExpression);
-        assertSameData(gpuResults, cpuResults, List.of(BOOLEAN));
+        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA, channelB));
     }
 
     @ParameterizedTest
@@ -334,19 +318,13 @@ public class TestGpuExpressions
                 functionResolution.resolveFunction("$not", fromTypes(BOOLEAN)),
                 comparison);
 
-        CompiledExpression gpuExpression = gpuCompiler.compileExpression(rowExpression)
-                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + rowExpression));
-        assertThat(gpuExpression.inputChannels().getInputChannels()).containsExactly(channelA);
-
-        List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, rowExpression, gpuExpression, Set.of(channelA));
-        List<Page> cpuResults = executeWithCpu(inputPages, rowExpression);
-        assertSameData(gpuResults, cpuResults, List.of(BOOLEAN));
+        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA));
     }
 
     private void testArithmetic(OperatorType operatorType, NullsProvider nullsProvider)
     {
-        int bigintChannelA = 0;
-        int bigintChannelB = 1;
+        int channelA = 0;
+        int channelB = 1;
         List<Type> inputTypes = List.of(BIGINT, BIGINT);
         int positionsCount = 64;
         List<Page> inputPages = List.of(new Page(positionsCount,
@@ -355,16 +333,10 @@ public class TestGpuExpressions
 
         RowExpression rowExpression = call(
                 functionResolution.resolveOperator(operatorType, List.of(BIGINT, BIGINT)),
-                field(bigintChannelA, BIGINT),
-                field(bigintChannelB, BIGINT));
+                field(channelA, BIGINT),
+                field(channelB, BIGINT));
 
-        CompiledExpression gpuExpression = gpuCompiler.compileExpression(rowExpression)
-                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + rowExpression));
-        assertThat(gpuExpression.inputChannels().getInputChannels()).containsExactly(bigintChannelA, bigintChannelB);
-
-        List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, rowExpression, gpuExpression, Set.of(bigintChannelA, bigintChannelB));
-        List<Page> cpuResults = executeWithCpu(inputPages, rowExpression);
-        assertSameData(gpuResults, cpuResults, List.of(BIGINT));
+        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA, channelB));
     }
 
     private void testComparison(OperatorType operatorType, Type type, NullsProvider nullsProvider)
@@ -382,13 +354,7 @@ public class TestGpuExpressions
                 field(channelA, type),
                 field(channelB, type));
 
-        CompiledExpression gpuExpression = gpuCompiler.compileExpression(rowExpression)
-                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + rowExpression));
-        assertThat(gpuExpression.inputChannels().getInputChannels()).containsExactly(channelA, channelB);
-
-        List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, rowExpression, gpuExpression, Set.of(channelA, channelB));
-        List<Page> cpuResults = executeWithCpu(inputPages, rowExpression);
-        assertSameData(gpuResults, cpuResults, List.of(BOOLEAN));
+        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA, channelB));
     }
 
     private static Block createBigintBlock(int positionsCount, NullsProvider nullsProvider, long minValue, long maxValue)
@@ -455,6 +421,19 @@ public class TestGpuExpressions
         List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, constantExpression, gpuExpression, Set.of(0));
         List<Page> cpuResults = executeWithCpu(inputPages, constantExpression);
         assertSameData(gpuResults, cpuResults, List.of(expectedType));
+    }
+
+    private void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, RowExpression rowExpression, Set<Integer> expectedInputChannels)
+    {
+        CompiledExpression gpuExpression = gpuCompiler.compileExpression(rowExpression)
+                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + rowExpression));
+
+        assertThat(gpuExpression.inputChannels().getInputChannels())
+                .containsExactlyInAnyOrderElementsOf(expectedInputChannels);
+
+        List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, rowExpression, gpuExpression, expectedInputChannels);
+        List<Page> cpuResults = executeWithCpu(inputPages, rowExpression);
+        assertSameData(gpuResults, cpuResults, List.of(rowExpression.type()));
     }
 
     private List<Page> executeWithGpu(List<Page> inputPages, List<Type> inputTypes, RowExpression rowExpression, CompiledExpression gpuExpression, Set<Integer> deviceChannels)
