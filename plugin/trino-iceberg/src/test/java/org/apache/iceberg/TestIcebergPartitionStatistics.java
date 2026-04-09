@@ -436,6 +436,100 @@ public final class TestIcebergPartitionStatistics
     }
 
     @Test
+    void testIncrementalMergeNewPartitionSortedBeforeExisting()
+    {
+        try (TestTable table = newTrinoTable("test_incremental_sort_before", "(id INT, part INT) WITH (partitioning = ARRAY['part'])")) {
+            // First insert creates initial stats in REPLACE mode — only part=20 is present.
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 20)", 1);
+
+            // Second insert introduces part=10 which must sort BEFORE part=20 in the merged output.
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (2, 10)", 1);
+
+            BaseTable icebergTable = loadTable(table.getName());
+            long currentSnapshotId = icebergTable.currentSnapshot().snapshotId();
+            PartitionStatisticsFile statsFile = icebergTable.partitionStatisticsFiles().stream()
+                    .filter(statisticsFile -> statisticsFile.snapshotId() == currentSnapshotId)
+                    .collect(onlyElement());
+
+            List<GenericData.Record> records = readPartitionStatistics(icebergTable, statsFile.path());
+            assertThat(records).hasSize(2);
+            // The incremental partition (part=10) must appear first in sorted order.
+            assertThat(((GenericData.Record) records.get(0).get("partition")).get("part")).isEqualTo(10);
+            assertThat(records.get(0).get("data_record_count")).isEqualTo(1L);
+            assertThat(((GenericData.Record) records.get(1).get("partition")).get("part")).isEqualTo(20);
+            assertThat(records.get(1).get("data_record_count")).isEqualTo(1L);
+        }
+    }
+
+    @Test
+    void testIncrementalMergeUpdatesExistingAndAddsNewPartition()
+    {
+        try (TestTable table = newTrinoTable("test_incremental_merge_mixed", "(id INT, part INT) WITH (partitioning = ARRAY['part'])")) {
+            // First insert part=10 and part=30
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 10), (2, 30)", 2);
+
+            // Second insert, adds another record to part=10 and introduces part=20 (sorts between 10 and 30).
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (3, 10), (4, 20)", 2);
+
+            BaseTable icebergTable = loadTable(table.getName());
+            long currentSnapshotId = icebergTable.currentSnapshot().snapshotId();
+            PartitionStatisticsFile statsFile = icebergTable.partitionStatisticsFiles().stream()
+                    .filter(statisticsFile -> statisticsFile.snapshotId() == currentSnapshotId)
+                    .collect(onlyElement());
+
+            List<GenericData.Record> records = readPartitionStatistics(icebergTable, statsFile.path());
+            assertThat(records).hasSize(3);
+            // part=10, merged — two separate data files from two separate inserts
+            assertThat(((GenericData.Record) records.get(0).get("partition")).get("part")).isEqualTo(10);
+            assertThat(records.get(0).get("data_record_count")).isEqualTo(2L);
+            assertThat(records.get(0).get("data_file_count")).isEqualTo(2);
+            // part=20, new partition inserted in sorted position between part=10 and part=30
+            assertThat(((GenericData.Record) records.get(1).get("partition")).get("part")).isEqualTo(20);
+            assertThat(records.get(1).get("data_record_count")).isEqualTo(1L);
+            // part=30, passed through unchanged from the base stats file
+            assertThat(((GenericData.Record) records.get(2).get("partition")).get("part")).isEqualTo(30);
+            assertThat(records.get(2).get("data_record_count")).isEqualTo(1L);
+        }
+    }
+
+    @Test
+    void testIncrementalMergeKeepsSamePartitionWithDifferentSpecIdSeparate()
+    {
+        // Verifies that incremental merge does not collapse entries that project to the same current
+        // partition value but originate from different partition specs.
+        try (TestTable table = newTrinoTable("test_incremental_merge_same_partition_different_spec", "(id INT, part VARCHAR, nested VARCHAR) WITH (partitioning = ARRAY['part', 'nested'])")) {
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (1, 'same', 'nested#1')", 1);
+
+            assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES partitioning = ARRAY['part']");
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (2, 'same', 'nested#2')", 1);
+
+            BaseTable icebergTable = loadTable(table.getName());
+            long currentSnapshotId = icebergTable.currentSnapshot().snapshotId();
+            PartitionStatisticsFile statsFile = icebergTable.partitionStatisticsFiles().stream()
+                    .filter(statisticsFile -> statisticsFile.snapshotId() == currentSnapshotId)
+                    .collect(onlyElement());
+
+            List<GenericData.Record> records = readPartitionStatistics(icebergTable, statsFile.path());
+            assertThat(records).hasSize(2);
+
+            // According to https://iceberg.apache.org/spec/#partition-statistics-file.
+            // These rows must be sorted (in ascending manner with NULL FIRST) by partition field.
+            // the first record is the partition part only
+            // the second record is the partition part + nested
+            GenericData.Record first = records.get(0);
+            GenericData.Record second = records.get(1);
+            assertThat(((GenericData.Record) first.get("partition")).get("part").toString()).isEqualTo("same");
+            assertThat(((GenericData.Record) first.get("partition")).get("nested")).isNull();
+            assertThat(((GenericData.Record) second.get("partition")).get("part").toString()).isEqualTo("same");
+            assertThat(((GenericData.Record) second.get("partition")).get("nested").toString()).isEqualTo("nested#1");
+            assertThat(first.get("spec_id")).isEqualTo(1);
+            assertThat(second.get("spec_id")).isEqualTo(0);
+            assertThat(first.get("data_record_count")).isEqualTo(1L);
+            assertThat(second.get("data_record_count")).isEqualTo(1L);
+        }
+    }
+
+    @Test
     void testTruncate()
     {
         try (TestTable table = newTrinoTable("test_truncate", "(id INT, part INT) WITH (partitioning = ARRAY['part'])")) {
