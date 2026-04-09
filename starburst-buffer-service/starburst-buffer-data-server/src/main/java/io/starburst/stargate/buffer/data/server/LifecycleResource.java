@@ -89,7 +89,7 @@ public class LifecycleResource
     private static Response errorResponse(Exception e)
     {
         return Response.status(Status.INTERNAL_SERVER_ERROR)
-                .header(ERROR_CODE_HEADER, ErrorCode.INTERNAL_ERROR)
+                .header(ERROR_CODE_HEADER.toString(), ErrorCode.INTERNAL_ERROR)
                 .entity(e.getMessage())
                 .build();
     }

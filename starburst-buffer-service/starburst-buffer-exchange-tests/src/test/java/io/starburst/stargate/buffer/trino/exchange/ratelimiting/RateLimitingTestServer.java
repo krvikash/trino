@@ -288,7 +288,7 @@ public class RateLimitingTestServer
             if (dataServerException.isPresent()) {
                 servletResponse.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
                 servletResponse.getWriter().write(dataServerException.get().getMessage());
-                servletResponse.setHeader(ERROR_CODE_HEADER, dataServerException.get().getErrorCode().toString());
+                servletResponse.setHeader(ERROR_CODE_HEADER.toString(), dataServerException.get().getErrorCode().toString());
             }
             else {
                 servletResponse.setStatus(HttpServletResponse.SC_OK);
@@ -304,8 +304,8 @@ public class RateLimitingTestServer
             OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(clientId, inProgressAddDataPagesRequests.get());
             if (rateLimit.isPresent()) {
                 ImmutableMap<String, String> headers = ImmutableMap.of(
-                        RATE_LIMIT_HEADER, Double.toString(rateLimit.getAsDouble()),
-                        AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER, Long.toString(addDataPagesThrottlingCalculator.getAverageProcessTimeInMillis()));
+                        RATE_LIMIT_HEADER.toString(), Double.toString(rateLimit.getAsDouble()),
+                        AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER.toString(), Long.toString(addDataPagesThrottlingCalculator.getAverageProcessTimeInMillis()));
                 return headers;
             }
             return ImmutableMap.of();

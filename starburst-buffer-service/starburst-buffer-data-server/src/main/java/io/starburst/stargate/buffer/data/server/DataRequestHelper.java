@@ -35,7 +35,7 @@ public final class DataRequestHelper
 
     public static String getClientId(HttpServletRequest request)
     {
-        String clientId = request.getHeader(CLIENT_ID_HEADER);
+        String clientId = request.getHeader(CLIENT_ID_HEADER.toString());
         if (clientId == null) {
             clientId = request.getRemoteHost();
         }

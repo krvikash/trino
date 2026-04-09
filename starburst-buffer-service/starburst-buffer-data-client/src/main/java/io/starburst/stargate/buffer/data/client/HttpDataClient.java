@@ -17,6 +17,7 @@ import com.google.common.net.MediaType;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.http.client.ByteBufferBodyGenerator;
 import io.airlift.http.client.FullJsonResponseHandler.JsonResponse;
+import io.airlift.http.client.HeaderName;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpClient.HttpResponseFuture;
 import io.airlift.http.client.HttpStatus;
@@ -78,13 +79,15 @@ import static java.util.Objects.requireNonNull;
 public class HttpDataClient
         implements DataApi
 {
-    public static final String ERROR_CODE_HEADER = "X-trino-buffer-error-code";
-    public static final String RATE_LIMIT_HEADER = "X-trino-rate-limit";
-    public static final String AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER = "X-trino-average-process-time-in-millis";
-    public static final String SPOOLING_FILE_LOCATION_HEADER = "X-trino-buffer-spooling-file-location";
-    public static final String SPOOLED_CHUNK_OFFSET_HEADER = "X-trino-buffer-spooled-chunk-offset";
-    public static final String SPOOLED_CHUNK_LENGTH_HEADER = "X-trino-buffer-spooled-chunk-length";
-    public static final String CLIENT_ID_HEADER = "X-trino-buffer-client-id";
+    public static final HeaderName CONTENT_TYPE = HeaderName.of(HttpHeaders.CONTENT_TYPE);
+
+    public static final HeaderName ERROR_CODE_HEADER = HeaderName.of("X-trino-buffer-error-code");
+    public static final HeaderName RATE_LIMIT_HEADER = HeaderName.of("X-trino-rate-limit");
+    public static final HeaderName AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER = HeaderName.of("X-trino-average-process-time-in-millis");
+    public static final HeaderName SPOOLING_FILE_LOCATION_HEADER = HeaderName.of("X-trino-buffer-spooling-file-location");
+    public static final HeaderName SPOOLED_CHUNK_OFFSET_HEADER = HeaderName.of("X-trino-buffer-spooled-chunk-offset");
+    public static final HeaderName SPOOLED_CHUNK_LENGTH_HEADER = HeaderName.of("X-trino-buffer-spooled-chunk-length");
+    public static final HeaderName CLIENT_ID_HEADER = HeaderName.of("X-trino-buffer-client-id");
 
     private static final JsonCodec<ChunkList> CHUNK_LIST_JSON_CODEC = jsonCodec(ChunkList.class);
     private static final JsonCodec<BufferNodeInfo> BUFFER_NODE_INFO_JSON_CODEC = jsonCodec(BufferNodeInfo.class);
@@ -154,9 +157,9 @@ public class HttpDataClient
 
         return transformAsync(responseFuture, response -> {
             if (response.getStatusCode() != HttpStatus.OK.code()) {
-                String errorCode = response.getHeader(ERROR_CODE_HEADER);
+                Optional<String> errorCode = response.getHeader(ERROR_CODE_HEADER);
                 String errorMessage = requestErrorMessage(request, response.getResponseBody());
-                return immediateFailedFuture(new DataApiException(errorCode == null ? INTERNAL_ERROR : ErrorCode.valueOf(errorCode), errorMessage));
+                return immediateFailedFuture(new DataApiException(errorCode.map(ErrorCode::valueOf).orElse(INTERNAL_ERROR), errorMessage));
             }
             return immediateFuture(response.getValue());
         }, directExecutor());
@@ -228,9 +231,9 @@ public class HttpDataClient
         HttpResponseFuture<StringResponse> responseFuture = httpClient.executeAsync(request, createStringResponseHandler());
         return transformAsync(catchAndDecorateExceptions(request, responseFuture), response -> {
             if (response.getStatusCode() != HttpStatus.OK.code()) {
-                String errorCode = response.getHeader(ERROR_CODE_HEADER);
+                Optional<String> errorCode = response.getHeader(ERROR_CODE_HEADER);
                 String errorMessage = requestErrorMessage(request, response.getBody());
-                return immediateFailedFuture(new DataApiException(errorCode == null ? INTERNAL_ERROR : ErrorCode.valueOf(errorCode), errorMessage));
+                return immediateFailedFuture(new DataApiException(errorCode.map(ErrorCode::valueOf).orElse(INTERNAL_ERROR), errorMessage));
             }
 
             // Check if response is empty to distinguish old vs new buffer service. '{}' will be handled properly
@@ -323,20 +326,20 @@ public class HttpDataClient
         return transform(
                 catchAndDecorateExceptions(request, responseFuture),
                 response -> {
-                    String rateLimit = response.getHeader(RATE_LIMIT_HEADER);
-                    String averageProcessTimeInMillis = response.getHeader(AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER);
+                    Optional<String> rateLimit = response.getHeader(RATE_LIMIT_HEADER);
+                    Optional<String> averageProcessTimeInMillis = response.getHeader(AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER);
                     Optional<RateLimitInfo> rateLimitInfo;
-                    if (rateLimit != null && averageProcessTimeInMillis != null) {
-                        rateLimitInfo = Optional.of(new RateLimitInfo(Double.parseDouble(rateLimit), Long.parseLong(averageProcessTimeInMillis)));
+                    if (rateLimit.isPresent() && averageProcessTimeInMillis.isPresent()) {
+                        rateLimitInfo = Optional.of(new RateLimitInfo(Double.parseDouble(rateLimit.get()), Long.parseLong(averageProcessTimeInMillis.get())));
                     }
                     else {
                         rateLimitInfo = Optional.empty();
                     }
 
                     if (response.getStatusCode() != HttpStatus.OK.code()) {
-                        String errorCode = response.getHeader(ERROR_CODE_HEADER);
+                        Optional<String> errorCode = response.getHeader(ERROR_CODE_HEADER);
                         String errorMessage = requestErrorMessage(request, response.getBody());
-                        throw new DataApiException(errorCode == null ? INTERNAL_ERROR : ErrorCode.valueOf(errorCode), errorMessage, rateLimitInfo);
+                        throw new DataApiException(errorCode.map(ErrorCode::valueOf).orElse(INTERNAL_ERROR), errorMessage, rateLimitInfo);
                     }
                     return rateLimitInfo;
                 },
@@ -416,17 +419,17 @@ public class HttpDataClient
         public ChunkDataResponse handle(Request request, Response response)
                 throws RuntimeException
         {
-            if (response.getStatusCode() == HttpStatus.NOT_FOUND.code() && response.getHeader(SPOOLING_FILE_LOCATION_HEADER) != null) {
-                String location = response.getHeader(SPOOLING_FILE_LOCATION_HEADER);
-                String offset = response.getHeader(SPOOLED_CHUNK_OFFSET_HEADER);
-                String length = response.getHeader(SPOOLED_CHUNK_LENGTH_HEADER);
+            Optional<String> spoolingFileLocation = response.getHeader(SPOOLING_FILE_LOCATION_HEADER);
+            if (response.getStatusCode() == HttpStatus.NOT_FOUND.code() && spoolingFileLocation.isPresent()) {
+                String offset = response.getHeader(SPOOLED_CHUNK_OFFSET_HEADER).orElseThrow(() -> new IllegalArgumentException(SPOOLED_CHUNK_OFFSET_HEADER + " not set"));
+                Optional<String> length = response.getHeader(SPOOLED_CHUNK_LENGTH_HEADER);
 
-                if (length == null) {
+                if (length.isEmpty()) {
                     throw new DataApiException(INTERNAL_ERROR, requestErrorMessage(request,
                             "Expected %s, %s and %s to be all present in response")
                             .formatted(SPOOLING_FILE_LOCATION_HEADER, SPOOLED_CHUNK_OFFSET_HEADER, SPOOLED_CHUNK_LENGTH_HEADER));
                 }
-                return ChunkDataResponse.createSpooledChunkResponse(location, Long.parseLong(offset), Integer.parseInt(length));
+                return ChunkDataResponse.createSpooledChunkResponse(spoolingFileLocation.get(), Long.parseLong(offset), Integer.parseInt(length.get()));
             }
             if (response.getStatusCode() != HttpStatus.OK.code()) {
                 StringBuilder body = new StringBuilder();
@@ -444,16 +447,16 @@ public class HttpDataClient
                 catch (RuntimeException | IOException e) {
                     // Ignored. Just return whatever message we were able to decode
                 }
-                String errorCode = response.getHeader(ERROR_CODE_HEADER);
-                if (errorCode != null) {
-                    throw new DataApiException(ErrorCode.valueOf(errorCode), requestErrorMessage(request, body.toString()));
+                Optional<String> errorCode = response.getHeader(ERROR_CODE_HEADER);
+                if (errorCode.isPresent()) {
+                    throw new DataApiException(ErrorCode.valueOf(errorCode.get()), requestErrorMessage(request, body.toString()));
                 }
                 throw new DataApiException(INTERNAL_ERROR, requestErrorMessage(request, "Expected response code to be 200, but was %d:%n%s".formatted(response.getStatusCode(), body)));
             }
 
             // invalid content type can happen when an error page is returned, but is unlikely given the above 200
-            String contentType = response.getHeader(HttpHeaders.CONTENT_TYPE);
-            if (contentType == null || !mediaTypeMatches(contentType, TRINO_CHUNK_DATA_TYPE)) {
+            Optional<String> contentType = response.getHeader(CONTENT_TYPE);
+            if (contentType.isEmpty() || !mediaTypeMatches(contentType.get(), TRINO_CHUNK_DATA_TYPE)) {
                 throw new DataApiException(INTERNAL_ERROR, requestErrorMessage(request, "Expected %s response from server but got %s").formatted(TRINO_CHUNK_DATA_TYPE, contentType));
             }
 
@@ -519,9 +522,9 @@ public class HttpDataClient
 
         return transformAsync(catchingResponseFuture, response -> {
             if (response.getStatusCode() != HttpStatus.OK.code()) {
-                String errorCode = response.getHeader(ERROR_CODE_HEADER);
+                Optional<String> errorCode = response.getHeader(ERROR_CODE_HEADER);
                 String errorMessage = requestErrorMessage(request, response.getBody());
-                return immediateFailedFuture(new DataApiException(errorCode == null ? INTERNAL_ERROR : ErrorCode.valueOf(errorCode), errorMessage));
+                return immediateFailedFuture(new DataApiException(errorCode.map(ErrorCode::valueOf).orElse(INTERNAL_ERROR), errorMessage));
             }
             return immediateVoidFuture();
         }, directExecutor());

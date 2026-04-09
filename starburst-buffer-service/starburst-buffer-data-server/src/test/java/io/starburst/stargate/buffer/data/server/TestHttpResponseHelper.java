@@ -49,7 +49,7 @@ public class TestHttpResponseHelper
 
         assertThat(response.getStatus()).isEqualTo(INTERNAL_SERVER_ERROR.getStatusCode());
         assertThat(response.getHeaderString("Content-Type")).isEqualTo("text/plain");
-        assertThat(response.getHeaderString(ERROR_CODE_HEADER)).isEqualTo(DRAINING.toString());
+        assertThat(response.getHeaderString(ERROR_CODE_HEADER.toString())).isEqualTo(DRAINING.toString());
         assertThat(response.getEntity()).isEqualTo("Node is draining");
     }
 
@@ -62,7 +62,7 @@ public class TestHttpResponseHelper
 
         assertThat(response.getStatus()).isEqualTo(INTERNAL_SERVER_ERROR.getStatusCode());
         assertThat(response.getHeaderString("Content-Type")).isEqualTo("text/plain");
-        assertThat(response.getHeaderString(ERROR_CODE_HEADER)).isEqualTo(INTERNAL_ERROR.toString());
+        assertThat(response.getHeaderString(ERROR_CODE_HEADER.toString())).isEqualTo(INTERNAL_ERROR.toString());
         assertThat(response.getEntity()).isEqualTo("Generic error");
     }
 
@@ -75,7 +75,7 @@ public class TestHttpResponseHelper
         Response response = HttpResponseHelper.errorResponse(exception, headers);
 
         assertThat(response.getStatus()).isEqualTo(INTERNAL_SERVER_ERROR.getStatusCode());
-        assertThat(response.getHeaderString(ERROR_CODE_HEADER)).isEqualTo(INTERNAL_ERROR.toString());
+        assertThat(response.getHeaderString(ERROR_CODE_HEADER.toString())).isEqualTo(INTERNAL_ERROR.toString());
         assertThat(response.getHeaderString("X-Rate-Limit")).isEqualTo("100");
     }
 
@@ -88,7 +88,7 @@ public class TestHttpResponseHelper
 
         assertThat(response.getStatus()).isEqualTo(INTERNAL_SERVER_ERROR.getStatusCode());
         assertThat(response.getHeaderString("Content-Type")).isEqualTo("text/plain");
-        assertThat(response.getHeaderString(ERROR_CODE_HEADER)).isEqualTo(DRAINING.toString());
+        assertThat(response.getHeaderString(ERROR_CODE_HEADER.toString())).isEqualTo(DRAINING.toString());
         assertThat(response.getEntity()).isEqualTo("Custom message");
         assertThat(response.getHeaderString("X-Custom")).isEqualTo("value");
     }

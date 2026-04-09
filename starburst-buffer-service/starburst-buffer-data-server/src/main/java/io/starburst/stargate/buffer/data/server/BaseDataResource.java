@@ -248,8 +248,8 @@ public abstract class BaseDataResource
         OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(clientId, inProgressTracker.getInProgressAddDataPagesRequests());
         if (rateLimit.isPresent()) {
             return ImmutableMap.of(
-                    RATE_LIMIT_HEADER, Double.toString(rateLimit.getAsDouble()),
-                    AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER, Long.toString(addDataPagesThrottlingCalculator.getAverageProcessTimeInMillis()));
+                    RATE_LIMIT_HEADER.toString(), Double.toString(rateLimit.getAsDouble()),
+                    AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER.toString(), Long.toString(addDataPagesThrottlingCalculator.getAverageProcessTimeInMillis()));
         }
         return ImmutableMap.of();
     }

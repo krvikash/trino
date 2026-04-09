@@ -48,12 +48,12 @@ public final class HttpResponseHelper
 
         if (throwable instanceof DataServerException dataServerException) {
             responseBuilder
-                    .header(ERROR_CODE_HEADER, dataServerException.getErrorCode())
+                    .header(ERROR_CODE_HEADER.toString(), dataServerException.getErrorCode())
                     .entity(throwable.getMessage());
         }
         else {
             responseBuilder
-                    .header(ERROR_CODE_HEADER, INTERNAL_ERROR)
+                    .header(ERROR_CODE_HEADER.toString(), INTERNAL_ERROR)
                     .entity(throwable.getMessage());
         }
 
@@ -66,7 +66,7 @@ public final class HttpResponseHelper
         Response.ResponseBuilder responseBuilder = Response
                 .status(Status.INTERNAL_SERVER_ERROR)
                 .header(CONTENT_TYPE, TEXT_PLAIN)
-                .header(ERROR_CODE_HEADER, errorCode)
+                .header(ERROR_CODE_HEADER.toString(), errorCode)
                 .entity(message);
         headers.forEach(responseBuilder::header);
         return responseBuilder.build();

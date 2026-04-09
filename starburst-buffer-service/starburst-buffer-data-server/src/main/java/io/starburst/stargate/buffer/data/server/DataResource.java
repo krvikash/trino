@@ -608,9 +608,9 @@ public class DataResource
             SpooledChunk spooledChunk = chunkDataResult.spooledChunk().get();
 
             asyncResponse.resume(Response.status(Status.NOT_FOUND)
-                    .header(SPOOLING_FILE_LOCATION_HEADER, spooledChunk.location())
-                    .header(SPOOLED_CHUNK_OFFSET_HEADER, String.valueOf(spooledChunk.offset()))
-                    .header(SPOOLED_CHUNK_LENGTH_HEADER, String.valueOf(spooledChunk.length()))
+                    .header(SPOOLING_FILE_LOCATION_HEADER.toString(), spooledChunk.location())
+                    .header(SPOOLED_CHUNK_OFFSET_HEADER.toString(), String.valueOf(spooledChunk.offset()))
+                    .header(SPOOLED_CHUNK_LENGTH_HEADER.toString(), String.valueOf(spooledChunk.length()))
                     .build());
             return;
         }
