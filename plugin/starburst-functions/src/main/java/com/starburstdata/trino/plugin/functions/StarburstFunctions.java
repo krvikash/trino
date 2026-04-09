@@ -446,7 +446,7 @@ public class StarburstFunctions
         if (prompt.length() == 0) {
             return null;
         }
-        return utf8Slice(clientProvider.languageModelClient(modelId).generate(prompt.toStringUtf8()));
+        return utf8Slice(clientProvider.languageModelClient(modelId).generate(prompt.toStringUtf8()).response());
     }
 
     public Slice promptSystem(ConnectorSession session, Slice systemPrompt, Slice prompt, Slice modelId)
@@ -456,7 +456,7 @@ public class StarburstFunctions
         if (prompt.length() == 0) {
             return null;
         }
-        return utf8Slice(clientProvider.languageModelClient(modelId).generate(prompt.toStringUtf8(), systemPrompt.toStringUtf8()));
+        return utf8Slice(clientProvider.languageModelClient(modelId).generate(prompt.toStringUtf8(), systemPrompt.toStringUtf8()).response());
     }
 
     public Slice mask(ConnectorSession session, Slice text, Block labels, Slice modelId)

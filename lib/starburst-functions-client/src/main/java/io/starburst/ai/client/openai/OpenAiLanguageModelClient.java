@@ -24,12 +24,15 @@ import com.openai.models.chat.completions.ChatCompletionAssistantMessageParam;
 import com.openai.models.chat.completions.ChatCompletionChunk;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import com.openai.models.chat.completions.ChatCompletionMessage;
+import com.openai.models.chat.completions.ChatCompletionStreamOptions;
 import com.openai.models.chat.completions.ChatCompletionTool;
 import com.openai.models.completions.CompletionUsage;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.LlmMessage;
+import io.starburst.ai.client.ModelResponse;
 import io.starburst.ai.client.PromptDao;
+import io.starburst.ai.client.TokenUsage;
 import io.starburst.ai.client.ToolDefinition;
 import io.starburst.ai.client.ToolUseResponse;
 import io.trino.spi.TrinoException;
@@ -90,6 +93,12 @@ public class OpenAiLanguageModelClient
     @Override
     protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> llmMessages)
     {
+        return generateCompletionWithUsage(systemPrompts, llmMessages).response();
+    }
+
+    @Override
+    protected ModelResponse<String> generateCompletionWithUsage(List<String> systemPrompts, List<LlmMessage> llmMessages)
+    {
         ChatCompletion response = execute(() -> client.chat().completions().create(buildChatCompletionCreateParams(systemPrompts, llmMessages).build()));
         ChatCompletionMessage message = response.choices().stream()
                 .map(ChatCompletion.Choice::message)
@@ -100,11 +109,11 @@ public class OpenAiLanguageModelClient
             throw new TrinoException(AI_CLIENT_ERROR, "AI model refused to generate response: " + message.refusal());
         }
 
-        return message.content().orElse("");
+        return new ModelResponse<>(message.content().orElse(""), getTokenUsage(response));
     }
 
     @Override
-    protected ToolUseResponse generateCompletionWithTools(
+    protected ModelResponse<ToolUseResponse> generateCompletionWithTools(
             List<String> systemPrompts,
             List<LlmMessage> messages,
             List<ToolDefinition<?>> tools)
@@ -122,6 +131,7 @@ public class OpenAiLanguageModelClient
     {
         ChatCompletionCreateParams.Builder builder = buildChatCompletionCreateParams(systemPrompts, messages);
         tools.forEach(tool -> builder.addTool(toOpenAiTool(tool)));
+        builder.streamOptions(ChatCompletionStreamOptions.builder().includeUsage(true).build());
         return stream(builder.build(), output, isCancelled);
     }
 
@@ -222,7 +232,7 @@ public class OpenAiLanguageModelClient
     }
 
     @Override
-    protected ToolUseResponse parseToolResponse(ChatCompletion response)
+    protected ModelResponse<ToolUseResponse> parseToolResponse(ChatCompletion response)
     {
         ChatCompletionMessage message = response.choices().stream()
                 .map(ChatCompletion.Choice::message)
@@ -250,8 +260,12 @@ public class OpenAiLanguageModelClient
                         throw new TrinoException(AI_CLIENT_ERROR, "Failed to parse tool call arguments", e);
                     }
                 }));
+        return new ModelResponse<>(new ToolUseResponse(message.content().orElse(""), toolCallBuilder.build()), getTokenUsage(response));
+    }
 
-        return new ToolUseResponse(message.content().orElse(""), toolCallBuilder.build());
+    private Optional<TokenUsage> getTokenUsage(ChatCompletion completion)
+    {
+        return completion.usage().map(u -> new TokenUsage(u.promptTokens(), u.completionTokens(), 0, 0, modelName));
     }
 
     private static ChatCompletionAssistantMessageParam createAssistantMessage(String content)

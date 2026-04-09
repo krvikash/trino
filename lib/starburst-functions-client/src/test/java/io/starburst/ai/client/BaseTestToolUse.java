@@ -74,18 +74,18 @@ public abstract class BaseTestToolUse
         List<LlmMessage> messages = ImmutableList.of(
                 new LlmMessage(USER, "What is 25 + 37? Use the calculator tool."));
 
-        ToolUseResponse response = executeToolUse(
+        ModelResponse<ToolUseResponse> response = executeToolUse(
                 modelId,
                 "You are a helpful assistant with access to a calculator.",
                 messages,
                 ImmutableList.of(tool));
 
-        for (ToolUseResponse.ToolCall call : response.toolCalls()) {
+        for (ToolUseResponse.ToolCall call : response.response().toolCalls()) {
             log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
         }
-        assertThat(response.toolCalls()).hasSize(1);
+        assertThat(response.response().toolCalls()).hasSize(1);
 
-        ToolUseResponse.ToolCall toolCall = response.toolCalls().getFirst();
+        ToolUseResponse.ToolCall toolCall = response.response().toolCalls().getFirst();
         assertThat(toolCall.name()).isEqualTo("calculator");
         assertThat(toolCall.input().has("operation")).isTrue();
         assertThat(toolCall.input().has("left_operand")).isTrue();
@@ -108,19 +108,19 @@ public abstract class BaseTestToolUse
         List<LlmMessage> messages = ImmutableList.of(
                 new LlmMessage(USER, "What's the weather like in Paris, France?"));
 
-        ToolUseResponse response = executeToolUse(
+        ModelResponse<ToolUseResponse> response = executeToolUse(
                 modelId,
                 "You are a helpful assistant. Use the appropriate tool to answer questions.",
                 messages,
                 tools);
-        for (ToolUseResponse.ToolCall call : response.toolCalls()) {
+        for (ToolUseResponse.ToolCall call : response.response().toolCalls()) {
             log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
         }
 
-        assertThat(response.toolCalls()).isNotEmpty();
+        assertThat(response.response().toolCalls()).isNotEmpty();
 
         // Should call the weather tool
-        ToolUseResponse.ToolCall toolCall = response.toolCalls().getFirst();
+        ToolUseResponse.ToolCall toolCall = response.response().toolCalls().getFirst();
         assertThat(toolCall.name()).isEqualTo("get_weather");
         assertThat(toolCall.input().has("location")).isTrue();
     }
@@ -136,17 +136,17 @@ public abstract class BaseTestToolUse
                 new LlmMessage(ASSISTANT, "I can use my calculator for that! What calculation do you need?"),
                 new LlmMessage(USER, "What's 42 times 13?"));
 
-        ToolUseResponse response = executeToolUse(
+        ModelResponse<ToolUseResponse> response = executeToolUse(
                 modelId,
                 "You are a helpful math assistant.",
                 messages,
                 ImmutableList.of(tool));
-        for (ToolUseResponse.ToolCall call : response.toolCalls()) {
+        for (ToolUseResponse.ToolCall call : response.response().toolCalls()) {
             log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
         }
 
-        assertThat(response.toolCalls()).isNotEmpty();
-        ToolUseResponse.ToolCall toolCall = response.toolCalls().getFirst();
+        assertThat(response.response().toolCalls()).isNotEmpty();
+        ToolUseResponse.ToolCall toolCall = response.response().toolCalls().getFirst();
         ToolResult<Double> toolResult = tool.execute(toolCall.input());
         assertThat(toolResult.content()).contains(42d * 13d);
     }
@@ -160,17 +160,17 @@ public abstract class BaseTestToolUse
         List<LlmMessage> messages = ImmutableList.of(
                 new LlmMessage(USER, "Hello, how are you?"));
 
-        ToolUseResponse response = executeToolUse(
+        ModelResponse<ToolUseResponse> response = executeToolUse(
                 modelId,
                 "You are a helpful assistant",
                 messages,
                 ImmutableList.of(tool));
-        for (ToolUseResponse.ToolCall call : response.toolCalls()) {
+        for (ToolUseResponse.ToolCall call : response.response().toolCalls()) {
             log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
         }
 
-        assertThat(response.textResponse()).isNotEmpty();
-        assertThat(response.toolCalls()).isEmpty();
+        assertThat(response.response().textResponse()).isNotEmpty();
+        assertThat(response.response().toolCalls()).isEmpty();
     }
 
     @ParameterizedTest
@@ -182,29 +182,29 @@ public abstract class BaseTestToolUse
         List<LlmMessage> messages = ImmutableList.of(
                 new LlmMessage(USER, "What's the current time in UTC?"));
 
-        ToolUseResponse response = executeToolUse(
+        ModelResponse<ToolUseResponse> response = executeToolUse(
                 modelId,
                 "You are a helpful assistant",
                 messages,
                 ImmutableList.of(tool));
-        for (ToolUseResponse.ToolCall call : response.toolCalls()) {
+        for (ToolUseResponse.ToolCall call : response.response().toolCalls()) {
             log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
         }
 
         // Should call the clock tool
-        ToolUseResponse.ToolCall toolCall = response.toolCalls().getFirst();
+        ToolUseResponse.ToolCall toolCall = response.response().toolCalls().getFirst();
         assertThat(toolCall.name()).isEqualTo("clock");
         assertThat(toolCall.input().isNull() || toolCall.input().isEmpty()).isTrue();
     }
 
-    protected ToolUseResponse executeToolUse(
+    protected ModelResponse<ToolUseResponse> executeToolUse(
             String modelId,
             String systemPrompt,
             List<LlmMessage> messages,
             List<ToolDefinition<?>> tools)
     {
         StringBuilder streamedTokens = new StringBuilder();
-        ToolUseResponse response = modelClientProvider
+        ModelResponse<ToolUseResponse> modelResponse = modelClientProvider
                 .languageModelClient(utf8Slice(modelId))
                 .generateWithTools(
                         systemPrompt,
@@ -212,8 +212,14 @@ public abstract class BaseTestToolUse
                         tools,
                         streamedTokens::append,
                         () -> false);
-        assertThat(streamedTokens.toString()).isEqualTo(response.textResponse());
-        return response;
+        assertThat(streamedTokens.toString()).isEqualTo(modelResponse.response().textResponse());
+        assertThat(modelResponse.tokenUsage()).isPresent();
+        modelResponse.tokenUsage().ifPresent(usage -> {
+            assertThat(usage.inputTokens()).isGreaterThan(0);
+            assertThat(usage.outputTokens()).isGreaterThan(0);
+            assertThat(usage.modelName()).isNotEmpty();
+        });
+        return modelResponse;
     }
 
     protected static class CalculatorTool
