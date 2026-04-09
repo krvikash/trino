@@ -149,6 +149,151 @@ final class TestMongoSamplingDocuments
         }
     }
 
+    @Test
+    void testUpdateSchemaProcedureFirstOrder()
+    {
+        try (MongoTable table = new MongoTable(client, "test_update_schema_first")) {
+            table.insert("{\"id\":1}");
+
+            assertThat(query("SELECT * FROM " + table.name()))
+                    .matches("VALUES BIGINT '1'");
+
+            table.insert("{\"id\":2, \"name\":\"alice\"}");
+            table.insert("{\"id\":3, \"name\":\"bob\", \"data\":1.23}");
+            assertThat(query("SELECT * FROM " + table.name()))
+                    .matches("VALUES BIGINT '1', 2, 3");
+
+            assertUpdate("ALTER TABLE " + table.name() + " EXECUTE update_schema(2, 'FIRST')");
+            assertThat(query("SELECT * FROM " + table.name()))
+                    .matches("VALUES (BIGINT '1', CAST(NULL AS varchar)), (2, 'alice'), (3, 'bob')");
+        }
+    }
+
+    @Test
+    void testUpdateSchemaProcedureLastOrder()
+    {
+        try (MongoTable table = new MongoTable(client, "test_update_schema_last")) {
+            table.insert("{\"id\":1}");
+
+            assertThat(query("SELECT * FROM " + table.name()))
+                    .matches("VALUES BIGINT '1'");
+
+            table.insert("{\"id\":2, \"name\":\"alice\"}");
+            table.insert("{\"id\":3, \"name\":\"bob\", \"data\":1.23}");
+            assertThat(query("SELECT * FROM " + table.name()))
+                    .matches("VALUES BIGINT '1', 2, 3");
+
+            assertUpdate("ALTER TABLE " + table.name() + " EXECUTE update_schema(2, 'LAST')");
+            assertThat(query("SELECT * FROM " + table.name()))
+                    .matches("VALUES (BIGINT '1', CAST(NULL AS varchar), CAST(NULL AS double)), (2, 'alice', NULL), (3, 'bob', 1.23)");
+        }
+    }
+
+    @Test
+    void testUpdateSchemaProcedureTypeChange()
+    {
+        try (MongoTable table = new MongoTable(client, "test_update_schema_mode")) {
+            table.insert("{\"id\":1}");
+            assertThat(query("SELECT * FROM " + table.name()))
+                    .matches("VALUES BIGINT '1'");
+
+            table.truncate();
+            table.insert("{\"id\":\"test id\"}");
+            assertThat(query("SELECT * FROM " + table.name()))
+                    .matches("VALUES CAST(NULL AS BIGINT)");
+
+            assertQueryFails(
+                    "ALTER TABLE " + table.name() + " EXECUTE update_schema(100, 'FIRST')",
+                    "Conflicting types for column 'id': bigint and varchar");
+            assertQueryFails(
+                    "ALTER TABLE " + table.name() + " EXECUTE update_schema(100, 'FIRST', 'FAIL')",
+                    "Conflicting types for column 'id': bigint and varchar");
+
+            assertUpdate("ALTER TABLE " + table.name() + " EXECUTE update_schema(100, 'FIRST', 'REPLACE')");
+            assertThat(query("SELECT * FROM " + table.name()))
+                    .matches("VALUES VARCHAR 'test id'");
+        }
+    }
+
+    @Test
+    void testUpdateSchemaProcedureMissingColumn()
+    {
+        try (MongoTable table = new MongoTable(client, "test_update_schema_mode")) {
+            table.insert("{\"id\":1}");
+            assertThat(query("SELECT * FROM " + table.name()))
+                    .matches("VALUES BIGINT '1'");
+
+            table.truncate();
+            table.insert("{\"name\":\"alice\"}");
+            assertThat(query("SELECT * FROM " + table.name()))
+                    .matches("VALUES CAST(NULL AS BIGINT)");
+
+            assertQueryFails(
+                    "ALTER TABLE " + table.name() + " EXECUTE update_schema(100, 'FIRST')",
+                    "\\QColumns are missing in the new schema: [id]");
+            assertQueryFails(
+                    "ALTER TABLE " + table.name() + " EXECUTE update_schema(100, 'FIRST', 'FAIL')",
+                    "\\QColumns are missing in the new schema: [id]");
+
+            assertUpdate("ALTER TABLE " + table.name() + " EXECUTE update_schema(100, 'FIRST', 'REPLACE')");
+            assertThat(query("SELECT * FROM " + table.name()))
+                    .matches("VALUES VARCHAR 'alice'");
+        }
+    }
+
+    @Test
+    void testUpdateSchemaProcedureWithExistingComment()
+    {
+        try (MongoTable table = new MongoTable(client, "test_update_schema_comment")) {
+            table.insert("{\"id\":1}");
+
+            assertUpdate("COMMENT ON TABLE " + table.name() + " IS 'table comment'");
+            assertUpdate("COMMENT ON COLUMN " + table.name() + ".id IS 'column comment'");
+
+            assertThat((String) computeScalar("SHOW CREATE TABLE " + table.name()))
+                    .contains("COMMENT 'table comment'")
+                    .contains("id bigint COMMENT 'column comment'");
+
+            table.insert("{\"id\":2, \"name\":\"alice\"}");
+
+            assertUpdate("ALTER TABLE " + table.name() + " EXECUTE update_schema(100, 'FIRST')");
+            assertThat((String) computeScalar("SHOW CREATE TABLE " + table.name()))
+                    .contains("COMMENT 'table comment'")
+                    .contains("id bigint COMMENT 'column comment'");
+
+            assertThat(query("SELECT * FROM " + table.name()))
+                    .matches("VALUES (BIGINT '1', CAST(NULL AS varchar)), (2, 'alice')");
+        }
+    }
+
+    @Test
+    void testUpdateSchemaProcedureEmptyField()
+    {
+        try (MongoTable table = new MongoTable(client, "test_update_schema_mode")) {
+            table.insert("{\"id\":1}");
+            assertThat(query("SELECT * FROM " + table.name()))
+                    .matches("VALUES BIGINT '1'");
+
+            table.truncate();
+
+            assertQueryFails("ALTER TABLE " + table.name() + " EXECUTE update_schema(100, 'FIRST')", ".* has no fields");
+            assertQueryFails("ALTER TABLE " + table.name() + " EXECUTE update_schema(100, 'FIRST', 'REPLACE')", ".* has no fields");
+            assertQueryFails("ALTER TABLE " + table.name() + " EXECUTE update_schema(100, 'FIRST', 'FAIL')", ".* has no fields");
+        }
+    }
+
+    @Test
+    void testUpdateSchemaProcedureInvalidArgument()
+    {
+        try (MongoTable table = new MongoTable(client, "test_update_schema_invalid_argument_")) {
+            table.insert("{\"id\":1}");
+
+            assertQueryFails("ALTER TABLE " + table.name() + " EXECUTE update_schema(0, 'FIRST')", ".*sampling_count must be positive: 0");
+            assertQueryFails("ALTER TABLE " + table.name() + " EXECUTE update_schema(1, 'INVALID')", ".*Invalid value \\[INVALID]. Valid values: \\[FIRST, LAST]");
+            assertQueryFails("ALTER TABLE " + table.name() + " EXECUTE update_schema(1, 'FIRST', 'INVALID')", ".*Invalid value \\[INVALID]. Valid values: \\[REPLACE, FAIL]");
+        }
+    }
+
     private static class MongoTable
             implements AutoCloseable
     {
@@ -169,6 +314,11 @@ final class TestMongoSamplingDocuments
         public void insert(@Language("JSON") String document)
         {
             collection.insertOne(Document.parse(document));
+        }
+
+        public void truncate()
+        {
+            collection.deleteMany(new Document());
         }
 
         @Override

@@ -20,6 +20,7 @@ import com.google.inject.Binder;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
+import com.google.inject.multibindings.Multibinder;
 import com.google.inject.multibindings.ProvidesIntoSet;
 import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
@@ -29,7 +30,9 @@ import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.instrumentation.mongo.v3_1.MongoTelemetry;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
+import io.trino.plugin.mongodb.procedure.UpdateSchemaProcedure;
 import io.trino.plugin.mongodb.ptf.Query;
+import io.trino.spi.connector.TableProcedureMetadata;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.type.TypeManager;
 
@@ -57,6 +60,9 @@ public class MongoClientModule
 
         configBinder(binder).bindConfig(MongoClientConfig.class);
         newSetBinder(binder, MongoClientSettingConfigurator.class);
+
+        Multibinder<TableProcedureMetadata> tableProcedures = newSetBinder(binder, TableProcedureMetadata.class);
+        tableProcedures.addBinding().toProvider(UpdateSchemaProcedure.class).in(Scopes.SINGLETON);
 
         MongoClientConfig clientConfig = buildConfigObject(MongoClientConfig.class);
 

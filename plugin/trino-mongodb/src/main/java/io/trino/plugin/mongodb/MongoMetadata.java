@@ -22,18 +22,26 @@ import com.mongodb.client.MongoCollection;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.trino.plugin.base.projection.ApplyProjectionUtil;
+import io.trino.plugin.mongodb.MongoClientConfig.SamplingOrder;
 import io.trino.plugin.mongodb.MongoIndex.MongodbIndexKey;
+import io.trino.plugin.mongodb.procedure.MongoTableExecuteHandle;
+import io.trino.plugin.mongodb.procedure.MongoTableProcedureId;
+import io.trino.plugin.mongodb.procedure.MongoUpdateSchemaHandle;
+import io.trino.plugin.mongodb.procedure.UpdateSchemaProcedure.UpdateMode;
 import io.trino.plugin.mongodb.ptf.Query.QueryFunctionHandle;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.Assignment;
+import io.trino.spi.connector.BeginTableExecuteResult;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.connector.ColumnPosition;
+import io.trino.spi.connector.ConnectorAccessControl;
 import io.trino.spi.connector.ConnectorInsertTableHandle;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorOutputMetadata;
 import io.trino.spi.connector.ConnectorOutputTableHandle;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.ConnectorTableExecuteHandle;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTableLayout;
 import io.trino.spi.connector.ConnectorTableMetadata;
@@ -870,6 +878,97 @@ public class MongoMetadata
                 && fields.get(1).getType().equals(VARCHAR)
                 && fields.get(2).getName().orElseThrow().equals(ID);
                // Id type can be of any type
+    }
+
+    @Override
+    public BeginTableExecuteResult<ConnectorTableExecuteHandle, ConnectorTableHandle> beginTableExecute(
+            ConnectorSession session,
+            ConnectorTableExecuteHandle tableExecuteHandle,
+            ConnectorTableHandle updatedSourceTableHandle)
+    {
+        MongoTableExecuteHandle executeHandle = (MongoTableExecuteHandle) tableExecuteHandle;
+        //noinspection SwitchStatementWithTooFewBranches
+        switch (executeHandle.procedureId()) {
+            case UPDATE_SCHEMA -> {
+                // handled via executeTableExecute
+            }
+        }
+        throw new IllegalArgumentException("Unknown procedure '" + executeHandle.procedureId() + "'");
+    }
+
+    @Override
+    public Map<String, Long> finishTableExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle, Collection<Slice> fragments, List<Object> tableExecuteState)
+    {
+        MongoTableExecuteHandle executeHandle = (MongoTableExecuteHandle) tableExecuteHandle;
+        //noinspection SwitchStatementWithTooFewBranches
+        switch (executeHandle.procedureId()) {
+            case UPDATE_SCHEMA -> {
+                // handled via executeTableExecute
+            }
+        }
+        throw new IllegalArgumentException("Unknown procedure '" + executeHandle.procedureId() + "'");
+    }
+
+    @Override
+    public Optional<ConnectorTableExecuteHandle> getTableHandleForExecute(
+            ConnectorSession session,
+            ConnectorAccessControl accessControl,
+            ConnectorTableHandle tableHandle,
+            String procedureName,
+            Map<String, Object> executeProperties,
+            RetryMode retryMode)
+    {
+        MongoTableHandle mongoTableHandle = (MongoTableHandle) tableHandle;
+
+        MongoTableProcedureId procedureId;
+        try {
+            procedureId = MongoTableProcedureId.valueOf(procedureName);
+        }
+        catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Unknown procedure '" + procedureName + "'");
+        }
+
+        return switch (procedureId) {
+            case UPDATE_SCHEMA -> getTableHandleForUpdateSchema(mongoTableHandle, executeProperties);
+        };
+    }
+
+    private static Optional<ConnectorTableExecuteHandle> getTableHandleForUpdateSchema(MongoTableHandle tableHandle, Map<String, Object> executeProperties)
+    {
+        int samplingCount = (int) executeProperties.get("sampling_count");
+        SamplingOrder samplingOrder = (SamplingOrder) executeProperties.get("sampling_order");
+        UpdateMode mode = (UpdateMode) executeProperties.get("mode");
+        return Optional.of(new MongoTableExecuteHandle(
+                tableHandle.remoteTableName(),
+                MongoTableProcedureId.UPDATE_SCHEMA,
+                new MongoUpdateSchemaHandle(samplingCount, samplingOrder, mode)));
+    }
+
+    @Override
+    public Map<String, Long> executeTableExecute(ConnectorSession session, ConnectorTableExecuteHandle tableExecuteHandle)
+    {
+        MongoTableExecuteHandle executeHandle = (MongoTableExecuteHandle) tableExecuteHandle;
+        return switch (executeHandle.procedureId()) {
+            case UPDATE_SCHEMA -> {
+                executeUpdateSchema(executeHandle);
+                yield ImmutableMap.of();
+            }
+        };
+    }
+
+    private void executeUpdateSchema(MongoTableExecuteHandle executeHandle)
+    {
+        if (mongoSession.isFederatedDatabase()) {
+            throw new TrinoException(NOT_SUPPORTED, "Updating schemas is not supported on Atlas data federation");
+        }
+
+        RemoteTableName tableName = executeHandle.tableName();
+        MongoUpdateSchemaHandle updateSchemaProcedure = (MongoUpdateSchemaHandle) executeHandle.procedureHandle();
+        mongoSession.updateSchema(
+                tableName,
+                updateSchemaProcedure.samplingCount(),
+                updateSchemaProcedure.samplingOrder(),
+                updateSchemaProcedure.mode());
     }
 
     @Override

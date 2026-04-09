@@ -24,6 +24,7 @@ import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.TableProcedureMetadata;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.session.PropertyMetadata;
 import io.trino.spi.transaction.IsolationLevel;
@@ -42,6 +43,7 @@ public class MongoConnector
     private final MongoSplitManager splitManager;
     private final MongoPageSourceProvider pageSourceProvider;
     private final MongoPageSinkProvider pageSinkProvider;
+    private final Set<TableProcedureMetadata> tableProcedures;
     private final Set<ConnectorTableFunction> connectorTableFunctions;
     private final List<PropertyMetadata<?>> sessionProperties;
 
@@ -52,6 +54,7 @@ public class MongoConnector
             MongoSplitManager splitManager,
             MongoPageSourceProvider pageSourceProvider,
             MongoPageSinkProvider pageSinkProvider,
+            Set<TableProcedureMetadata> tableProcedures,
             Set<ConnectorTableFunction> connectorTableFunctions,
             Set<SessionPropertiesProvider> sessionPropertiesProviders)
     {
@@ -60,6 +63,7 @@ public class MongoConnector
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
         this.pageSinkProvider = requireNonNull(pageSinkProvider, "pageSinkProvider is null");
+        this.tableProcedures = ImmutableSet.copyOf(tableProcedures);
         this.connectorTableFunctions = ImmutableSet.copyOf(requireNonNull(connectorTableFunctions, "connectorTableFunctions is null"));
         this.sessionProperties = sessionPropertiesProviders.stream()
                 .flatMap(sessionPropertiesProvider -> sessionPropertiesProvider.getSessionProperties().stream())
@@ -106,6 +110,12 @@ public class MongoConnector
     public ConnectorPageSinkProvider getPageSinkProvider()
     {
         return pageSinkProvider;
+    }
+
+    @Override
+    public Set<TableProcedureMetadata> getTableProcedures()
+    {
+        return tableProcedures;
     }
 
     @Override

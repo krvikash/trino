@@ -21,6 +21,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
+import com.google.common.collect.Sets;
+import com.google.common.collect.Sets.SetView;
 import com.google.common.collect.Streams;
 import com.google.common.primitives.Primitives;
 import com.google.common.primitives.Shorts;
@@ -44,6 +46,7 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.trino.cache.EvictableCacheBuilder;
 import io.trino.plugin.mongodb.MongoClientConfig.SamplingOrder;
+import io.trino.plugin.mongodb.procedure.UpdateSchemaProcedure.UpdateMode;
 import io.trino.spi.HostAddress;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
@@ -95,6 +98,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Throwables.throwIfInstanceOf;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.plugin.mongodb.MongoErrorCode.MONGODB_CLUSTER_ERROR;
 import static io.trino.plugin.mongodb.MongoSessionProperties.getSamplingCount;
@@ -478,6 +482,57 @@ public class MongoSession
                 .findOneAndReplace(new Document(TABLE_NAME_KEY, remoteTableName), metadata);
 
         tableCache.invalidate(table.schemaTableName());
+    }
+
+    public void updateSchema(RemoteTableName table, int samplingCount, SamplingOrder samplingOrder, UpdateMode mode)
+    {
+        MongoCollection<Document> schemaCollection = getSchemaCollection(table.databaseName());
+
+        Document oldMetadata = Iterables.getOnlyElement(schemaCollection.find(new Document(TABLE_NAME_KEY, table.collectionName())));
+        Map<String, Document> oldFields = getColumnMetadata(oldMetadata).stream()
+                .collect(toImmutableMap(document -> document.getString(FIELDS_NAME_KEY), document -> document));
+
+        ImmutableList.Builder<Document> newFieldsBuilder = ImmutableList.builder();
+        for (Document newField : guessTableFields(table.databaseName(), table.collectionName(), samplingCount, Optional.of(samplingOrder))) {
+            String fieldName = newField.getString(FIELDS_NAME_KEY);
+            Document oldField = oldFields.get(fieldName);
+            if (oldField != null) {
+                newField.put(COMMENT_KEY, oldField.getString(COMMENT_KEY));
+                newField.put(FIELDS_HIDDEN_KEY, oldField.getBoolean(FIELDS_HIDDEN_KEY, false));
+                switch (mode) {
+                    case REPLACE -> {
+                        // no-op
+                    }
+                    case FAIL -> {
+                        String oldType = oldField.getString(FIELDS_TYPE_KEY);
+                        String newType = newField.getString(FIELDS_TYPE_KEY);
+                        if (!oldType.equals(newType)) {
+                            throw new TrinoException(GENERIC_INTERNAL_ERROR, "Conflicting types for column '%s': %s and %s".formatted(fieldName, oldType, newType));
+                        }
+                    }
+                }
+            }
+            newFieldsBuilder.add(newField);
+        }
+        List<Document> newFields = newFieldsBuilder.build();
+        if (newFields.isEmpty()) {
+            throw new TrinoException(GENERIC_INTERNAL_ERROR, "'%s.%s' has no fields".formatted(table.databaseName(), table.collectionName()));
+        }
+
+        if (mode == UpdateMode.FAIL) {
+            // Check if all old fields exist in new fields
+            Set<String> newFieldNames = newFields.stream().map(document -> document.getString(FIELDS_NAME_KEY)).collect(toImmutableSet());
+            SetView<String> difference = Sets.difference(oldFields.keySet(), newFieldNames);
+            if (!difference.isEmpty()) {
+                throw new TrinoException(GENERIC_INTERNAL_ERROR, "Columns are missing in the new schema: %s".formatted(difference));
+            }
+        }
+
+        Document newMetadata = new Document(oldMetadata);
+        newMetadata.append(FIELDS_KEY, newFields);
+        schemaCollection.findOneAndReplace(new Document(TABLE_NAME_KEY, table.collectionName()), newMetadata);
+
+        tableCache.invalidate(new SchemaTableName(table.databaseName(), table.collectionName()));
     }
 
     private MongoTable loadTableSchema(ConnectorSession session, SchemaTableName schemaTableName)
