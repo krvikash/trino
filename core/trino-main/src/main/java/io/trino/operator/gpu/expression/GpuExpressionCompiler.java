@@ -17,6 +17,7 @@ import ai.rapids.cudf.BinaryOp;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
 import io.trino.operator.gpu.GpuScore;
+import io.trino.operator.gpu.GpuTypeConversion.GpuTypeMapping;
 import io.trino.operator.project.PageFieldsToInputParametersRewriter.Result;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.function.OperatorType;
@@ -147,7 +148,8 @@ public class GpuExpressionCompiler
                 case COALESCE -> compileNary(specialForm.arguments(), GpuCoalesce::new, context);
                 case IS_NULL -> compileIsNull(specialForm.arguments(), context);
                 case BETWEEN -> compileBetween(specialForm.arguments(), context);
-                // TODO (https://starburstdata.atlassian.net/browse/ENG-9851) Implement special forms (CASE, IN, etc.)
+                case IN -> compileIn(specialForm.arguments(), context);
+                // TODO (https://starburstdata.atlassian.net/browse/ENG-9851) Implement special forms (CASE, etc.)
                 default -> Optional.empty();
             };
         }
@@ -180,6 +182,44 @@ public class GpuExpressionCompiler
                     .map(results -> new CompilationResult(
                             new GpuBetween(results.get(0).expression(), results.get(1).expression(), results.get(2).expression()),
                             maxScore(results, POTENTIAL)));
+        }
+
+        private Optional<CompilationResult> compileIn(List<RowExpression> arguments, Void context)
+        {
+            checkArgument(arguments.size() >= 2, "IN requires at least 2 arguments, got %s", arguments.size());
+
+            // First argument is the value to test
+            RowExpression valueExpression = arguments.getFirst();
+
+            Optional<GpuTypeMapping> typeMapping = toGpuMapping(valueExpression.type());
+            if (typeMapping.isEmpty()) {
+                return Optional.empty();
+            }
+
+            Optional<CompilationResult> valueCompiled = valueExpression.accept(this, context);
+            if (valueCompiled.isEmpty()) {
+                return Optional.empty();
+            }
+
+            // Currently, we support only constants
+            boolean hasNull = false;
+            ImmutableList.Builder<Object> nonNullConstants = ImmutableList.builder();
+            for (int i = 1; i < arguments.size(); i++) {
+                if (!(arguments.get(i) instanceof ConstantExpression constant)) {
+                    return Optional.empty();
+                }
+                Object value = constant.value();
+                if (value == null) {
+                    hasNull = true;
+                }
+                else {
+                    nonNullConstants.add(value);
+                }
+            }
+
+            return Optional.of(new CompilationResult(
+                    new GpuIn(valueCompiled.get().expression(), nonNullConstants.build(), hasNull, valueExpression.type(), typeMapping.get().toColumn()),
+                    Ordering.natural().max(valueCompiled.get().score(), POTENTIAL)));
         }
 
         private Optional<List<CompilationResult>> compileAll(List<RowExpression> expressions, Void context)

@@ -18,6 +18,7 @@ import com.google.common.collect.Streams;
 import io.airlift.slice.Slices;
 import io.trino.FullConnectorSession;
 import io.trino.memory.context.LocalMemoryContext;
+import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.operator.DriverYieldSignal;
 import io.trino.operator.gpu.borrow.Own;
@@ -42,6 +43,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -377,6 +380,66 @@ public class TestGpuExpressions
         assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA, channelB));
     }
 
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testIn(NullsProvider nullsProvider)
+    {
+        testIn(BIGINT, List.of(-50L, 0L, 25L, 50L, 75L), nullsProvider);
+        testIn(INTEGER, List.of(-50L, 0L, 25L, 50L, 75L), nullsProvider);
+        testIn(SMALLINT, List.of(-50L, 0L, 25L, 50L, 75L), nullsProvider);
+        testIn(TINYINT, List.of(-50L, 0L, 25L, 50L, 75L), nullsProvider);
+        testIn(DOUBLE, List.of(-50.0, 0.0, 25.5, 50.0, 75.5), nullsProvider);
+        testIn(REAL, List.of(
+                (long) Float.floatToIntBits(-50.0f),
+                (long) Float.floatToIntBits(0.0f),
+                (long) Float.floatToIntBits(25.5f),
+                (long) Float.floatToIntBits(50.0f),
+                (long) Float.floatToIntBits(75.5f)), nullsProvider);
+        testIn(VARCHAR, List.of(
+                Slices.utf8Slice("test1"),
+                Slices.utf8Slice("other"),
+                Slices.utf8Slice("xyz")), nullsProvider);
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testInWithNull(NullsProvider nullsProvider)
+    {
+        testIn(BIGINT, Arrays.asList(10L, null, 50L), nullsProvider);
+        testIn(BIGINT, Collections.singletonList(null), nullsProvider);
+    }
+
+    private void testIn(Type type, List<Object> inValues, NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        List<Type> inputTypes = List.of(type);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(positionsCount,
+                createBlock(type, positionsCount, nullsProvider)));
+
+        ImmutableList.Builder<RowExpression> arguments = ImmutableList.builder();
+        arguments.add(field(channelA, type));
+        for (Object value : inValues) {
+            arguments.add(constant(value, type));
+        }
+
+        RowExpression rowExpression = new SpecialForm(
+                SpecialForm.Form.IN,
+                BOOLEAN,
+                arguments.build(),
+                getInFunctionalDependencies(type));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA));
+    }
+
+    private List<ResolvedFunction> getInFunctionalDependencies(Type type)
+    {
+        return ImmutableList.of(
+                functionResolution.resolveOperator(OperatorType.EQUAL, ImmutableList.of(type, type)),
+                functionResolution.resolveOperator(OperatorType.HASH_CODE, ImmutableList.of(type)),
+                functionResolution.resolveOperator(OperatorType.INDETERMINATE, ImmutableList.of(type)));
+    }
+
     private void testArithmetic(OperatorType operatorType, NullsProvider nullsProvider)
     {
         int channelA = 0;
@@ -455,6 +518,9 @@ public class TestGpuExpressions
             }
             else if (type == REAL) {
                 REAL.writeLong(builder, Float.floatToIntBits((float) random.nextDouble(-1000, 1000)));
+            }
+            else if (type == VARCHAR) {
+                VARCHAR.writeSlice(builder, Slices.utf8Slice("test" + random.nextInt(100)));
             }
             else {
                 throw new UnsupportedOperationException("Unsupported type: " + type);

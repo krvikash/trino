@@ -256,4 +256,101 @@ public class TestDistributedGpuEngineOnlyQueries
                 """))
                 .executesWithGpu(FilterNode.class);
     }
+
+    @Test
+    public void testGpuInFilter()
+    {
+        assertThat(query(
+                """
+                SELECT a
+                -- Use rand() to prevent Projection from being inlined in Filter
+                FROM (SELECT IF(rand()<42, i) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE a IN (10, 20, 30, 40, 50)
+                """))
+                .executesWithGpu(FilterNode.class);
+
+        assertThat(query(
+                """
+                SELECT a
+                -- Use rand() to prevent Projection from being inlined in Filter
+                FROM (SELECT IF(rand()<42, i) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE a IN (10, NULL, 50)
+                """))
+                .executesWithGpu(FilterNode.class);
+
+        assertThat(query(
+                """
+                SELECT s
+                -- Use rand() to prevent Projection from being inlined in Filter
+                FROM (SELECT IF(rand()<42, CAST(i AS varchar)) AS s FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE s IN ('10', '20', '30')
+                """))
+                .executesWithGpu(FilterNode.class);
+
+        assertThat(query(
+                """
+                SELECT a
+                FROM (SELECT IF(rand()<42, ARRAY[i, i+1]) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE a IN (ARRAY[10, 11], ARRAY[20, 21])
+                """))
+                .executesWithoutGpu();
+        assertThat(query(
+                """
+                SELECT a
+                FROM (SELECT IF(rand()<42, ARRAY[i, i+1]) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE a IN (ARRAY[10, 11], NULL)
+                """))
+                .executesWithoutGpu();
+        assertThat(query(
+                """
+                SELECT a
+                FROM (SELECT IF(rand()<42, ARRAY[i, i+1]) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE a IN (ARRAY[10, 11], ARRAY[20, NULL])
+                """))
+                .executesWithoutGpu();
+
+        assertThat(query(
+                """
+                SELECT m
+                FROM (SELECT IF(rand()<42, MAP(ARRAY[i], ARRAY[i+1])) AS m FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE m IN (MAP(ARRAY[10], ARRAY[11]), MAP(ARRAY[20], ARRAY[21]))
+                """))
+                .executesWithoutGpu();
+        assertThat(query(
+                """
+                SELECT m
+                FROM (SELECT IF(rand()<42, MAP(ARRAY[i], ARRAY[i+1])) AS m FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE m IN (MAP(ARRAY[10], ARRAY[11]), NULL)
+                """))
+                .executesWithoutGpu();
+        assertThat(query(
+                """
+                SELECT m
+                FROM (SELECT IF(rand()<42, MAP(ARRAY[i], ARRAY[i+1])) AS m FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE m IN (MAP(ARRAY[10], ARRAY[11]), MAP(ARRAY[20], ARRAY[CAST(NULL AS bigint)]))
+                """))
+                .executesWithoutGpu();
+
+        assertThat(query(
+                """
+                SELECT r
+                FROM (SELECT IF(rand()<42, ROW(i, i+1)) AS r FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE r IN (ROW(10, 11), ROW(20, 21))
+                """))
+                .executesWithoutGpu();
+        assertThat(query(
+                """
+                SELECT r
+                FROM (SELECT IF(rand()<42, ROW(i, i+1)) AS r FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE r IN (ROW(10, 11), NULL)
+                """))
+                .executesWithoutGpu();
+        assertThat(query(
+                """
+                SELECT r
+                FROM (SELECT IF(rand()<42, ROW(i, i+1)) AS r FROM (UNNEST(sequence(0, 100))) t(i))
+                WHERE r IN (ROW(10, 11), ROW(20, NULL))
+                """))
+                .executesWithoutGpu();
+    }
 }
