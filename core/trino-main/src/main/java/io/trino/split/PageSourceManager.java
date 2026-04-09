@@ -26,8 +26,11 @@ import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableCredentials;
+import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
+import io.trino.spi.gpu.ConnectorGpuPageSource;
+import io.trino.spi.gpu.EmptyGpuPageSource;
 import io.trino.spi.predicate.TupleDomain;
 
 import java.util.List;
@@ -48,6 +51,12 @@ public class PageSourceManager
         this.pageSourceProviderFactory = requireNonNull(pageSourceProviderFactory, "pageSourceProviderFactory is null");
     }
 
+    public boolean supportsConnectorGpuPageSource(CatalogHandle catalogHandle, ConnectorTableHandle connectorTableHandle)
+    {
+        ConnectorPageSourceProviderFactory provider = pageSourceProviderFactory.getService(catalogHandle);
+        return provider.supportsConnectorGpuPageSource(connectorTableHandle);
+    }
+
     @Override
     public PageSourceProvider createPageSourceProvider(CatalogHandle catalogHandle)
     {
@@ -62,6 +71,36 @@ public class PageSourceManager
         public PageSourceProviderInstance
         {
             requireNonNull(pageSourceProvider, "pageSourceProvider is null");
+        }
+
+        @Override
+        public ConnectorGpuPageSource createGpuPageSource(
+                Session session,
+                Split split,
+                TableHandle table,
+                Optional<ConnectorTableCredentials> tableCredentials,
+                List<ColumnHandle> columns,
+                DynamicFilter dynamicFilter)
+        {
+            requireNonNull(columns, "columns is null");
+            checkArgument(split.getCatalogHandle().equals(table.catalogHandle()), "mismatched split and table");
+
+            TupleDomain<ColumnHandle> constraint = dynamicFilter.getCurrentPredicate();
+            if (constraint.isNone()) {
+                return new EmptyGpuPageSource();
+            }
+            if (!isAllowPushdownIntoConnectors(session)) {
+                dynamicFilter = DynamicFilter.EMPTY;
+            }
+            return pageSourceProvider.createGpuPageSource(
+                    table.transaction(),
+                    session.toConnectorSession(table.catalogHandle()),
+                    split.getConnectorSplit(),
+                    table.connectorHandle(),
+                    tableCredentials,
+                    columns,
+                    dynamicFilter)
+                    .orElseThrow(() -> new IllegalStateException("No ConnectorGpuPageSource created"));
         }
 
         @Override

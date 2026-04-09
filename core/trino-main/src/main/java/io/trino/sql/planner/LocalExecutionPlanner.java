@@ -355,6 +355,7 @@ import static io.trino.SystemSessionProperties.isDebugOutputEnabled;
 import static io.trino.SystemSessionProperties.isEnableDynamicRowFiltering;
 import static io.trino.SystemSessionProperties.isForceSpillingOperator;
 import static io.trino.SystemSessionProperties.isGpuAccelerationEnabled;
+import static io.trino.SystemSessionProperties.isGpuTableScanEnabled;
 import static io.trino.SystemSessionProperties.isParallelizeLookupOuterOperator;
 import static io.trino.SystemSessionProperties.isSpillEnabled;
 import static io.trino.SystemSessionProperties.isUseCardinalityBasedPartialAggregationController;
@@ -2450,6 +2451,21 @@ public class LocalExecutionPlanner
             }
 
             Optional<ConnectorTableCredentials> tableCredentials = context.getTaskContext().getTableCredentials(node.getId());
+            if (isGpuAccelerationEnabled(session) &&
+                    isGpuTableScanEnabled(session) &&
+                    columnTypes.build().stream().allMatch(GpuTypeConversion::isConvertible) &&
+                    pageSourceManager.supportsConnectorGpuPageSource(node.getTable().catalogHandle(), node.getTable().connectorHandle())) {
+                OperatorFactory operatorFactory = new GpuOperator.SourceFactory(
+                        context.getNextOperatorId(),
+                        planNodeId,
+                        pageSourceManager.createPageSourceProvider(node.getTable().catalogHandle()),
+                        session,
+                        node.getTable(),
+                        tableCredentials,
+                        columns.build(),
+                        columnTypes.build());
+                return new PhysicalOperation(operatorFactory, makeLayout(node));
+            }
             OperatorFactory operatorFactory = new TableScanOperatorFactory(context.getNextOperatorId(), planNodeId, node.getId(), pageSourceManager, node.getTable(), tableCredentials, columns.build(), columnTypes.build(), InternalDynamicFilter.EMPTY);
             return new PhysicalOperation(operatorFactory, makeLayout(node));
         }

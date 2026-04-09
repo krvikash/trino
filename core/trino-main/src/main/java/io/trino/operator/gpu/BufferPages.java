@@ -13,6 +13,7 @@
  */
 package io.trino.operator.gpu;
 
+import io.trino.metadata.Split;
 import io.trino.spi.Page;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.Blocks;
@@ -34,6 +35,12 @@ class BufferPages
     private final List<Page> bufferedPages = new ArrayList<>();
     private int bufferedPagesPositions;
     private boolean finishing;
+
+    @Override
+    public void setSplit(Split split)
+    {
+        throw new UnsupportedOperationException();
+    }
 
     @Override
     public boolean needsInput()

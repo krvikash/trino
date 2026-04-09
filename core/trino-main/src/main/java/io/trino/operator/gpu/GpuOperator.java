@@ -13,20 +13,31 @@
  */
 package io.trino.operator.gpu;
 
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.trino.Session;
+import io.trino.metadata.Split;
+import io.trino.metadata.TableHandle;
 import io.trino.operator.DriverContext;
 import io.trino.operator.Operator;
 import io.trino.operator.OperatorContext;
 import io.trino.operator.OperatorFactory;
+import io.trino.operator.SourceOperator;
+import io.trino.operator.SourceOperatorFactory;
 import io.trino.operator.gpu.GpuOperation.Blocked;
 import io.trino.operator.gpu.GpuOperation.Data;
 import io.trino.operator.gpu.GpuOperation.Finished;
 import io.trino.operator.gpu.GpuOperation.Yielded;
 import io.trino.spi.Page;
+import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.borrow.Borrow;
+import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.Type;
+import io.trino.split.PageSourceProvider;
 import io.trino.sql.planner.plan.PlanNodeId;
 import jakarta.annotation.Nullable;
 
@@ -46,53 +57,137 @@ import static java.util.Objects.requireNonNull;
  * operation, which recursively pulls from its source, eventually reaching
  * the source operation that batches input Pages.
  */
-public class GpuOperator
+public abstract class GpuOperator
         implements Operator
 {
-    public static class Factory
+    private abstract static class BaseFactory
             implements OperatorFactory
     {
-        private final int operatorId;
-        private final PlanNodeId planNodeId;
-        private final List<Type> inputTypes;
-        private final List<GpuOperation.Factory> operations;
-        private final List<Type> outputTypes;
-        private boolean closed;
+        protected final int operatorId;
+        protected final PlanNodeId planNodeId;
+        protected final Supplier<GpuOperatorSource> sourceFactory;
+        protected final List<GpuOperation.Factory> operations;
+        protected final List<Type> outputTypes;
 
-        public Factory(int operatorId, PlanNodeId planNodeId, List<Type> inputTypes, List<GpuOperation.Factory> operations, List<Type> outputTypes)
+        protected boolean closed;
+
+        private BaseFactory(
+                int operatorId,
+                PlanNodeId planNodeId,
+                Supplier<GpuOperatorSource> sourceFactory,
+                List<GpuOperation.Factory> operations,
+                List<Type> outputTypes)
         {
             this.operatorId = operatorId;
             this.planNodeId = requireNonNull(planNodeId, "planNodeId is null");
-            this.inputTypes = ImmutableList.copyOf(requireNonNull(inputTypes, "inputTypes is null"));
+            this.sourceFactory = requireNonNull(sourceFactory, "sourceFactory is null");
             this.operations = ImmutableList.copyOf(requireNonNull(operations, "operations is null"));
             this.outputTypes = ImmutableList.copyOf(requireNonNull(outputTypes, "outputTypes is null"));
-        }
-
-        @Override
-        public Operator createOperator(DriverContext driverContext)
-        {
-            checkState(!closed, "Already closed");
-            BufferPages sourceOperation = new BufferPages();
-            GpuOperation operation = sourceOperation;
-            operation = new CopyToDevice(
-                    operation,
-                    inputTypes,
-                    // TODO (https://starburstdata.atlassian.net/browse/ENG-9808) copy to device only necessary columns
-                    IntStream.range(0, inputTypes.size()).boxed().collect(toImmutableSet()));
-            for (GpuOperation.Factory factory : this.operations) {
-                operation = factory.create(operation);
-            }
-            operation = new CopyToBlocks(operation, outputTypes);
-            return new GpuOperator(
-                    driverContext.addOperatorContext(operatorId, planNodeId, GpuOperator.class.getSimpleName()),
-                    operation,
-                    sourceOperation);
         }
 
         @Override
         public void noMoreOperators()
         {
             closed = true;
+        }
+    }
+
+    public static class SourceFactory
+            extends BaseFactory
+            implements SourceOperatorFactory
+    {
+        public SourceFactory(
+                int operatorId,
+                PlanNodeId planNodeId,
+                PageSourceProvider pageSourceProvider,
+                Session session,
+                TableHandle table,
+                Optional<ConnectorTableCredentials> tableCredentials,
+                List<ColumnHandle> columns,
+                List<Type> columnTypes)
+        {
+            super(
+                    operatorId,
+                    planNodeId,
+                    () -> {
+                        GpuTableScan tableScan = new GpuTableScan(
+                                pageSourceProvider,
+                                session,
+                                table,
+                                tableCredentials,
+                                columns);
+                        return new GpuOperatorSource(tableScan, tableScan);
+                    },
+                    ImmutableList.of(),
+                    columnTypes);
+        }
+
+        @Override
+        public PlanNodeId getSourceId()
+        {
+            return planNodeId;
+        }
+
+        @Override
+        public SourceOperator createOperator(DriverContext driverContext)
+        {
+            checkState(!closed, "Already closed");
+            GpuOperatorSource operatorSource = sourceFactory.get();
+            GpuSourceOperation source = operatorSource.sourceOperation();
+            GpuOperation head = operatorSource.sourceOutput();
+            for (GpuOperation.Factory factory : this.operations) {
+                head = factory.create(head);
+            }
+            head = new CopyToBlocks(head, outputTypes);
+            OperatorContext operatorContext1 = driverContext.addOperatorContext(operatorId, planNodeId, GpuOperator.class.getSimpleName());
+            return new GpuSourceOperator(planNodeId, operatorContext1, head, source);
+        }
+    }
+
+    public static class Factory
+            extends BaseFactory
+    {
+        public Factory(int operatorId, PlanNodeId planNodeId, List<Type> inputTypes, List<GpuOperation.Factory> operations, List<Type> outputTypes)
+        {
+            this(
+                    operatorId,
+                    planNodeId,
+                    () -> {
+                        BufferPages sourceOperation = new BufferPages();
+                        CopyToDevice copyToDevice = new CopyToDevice(
+                                sourceOperation,
+                                inputTypes,
+                                // TODO (https://starburstdata.atlassian.net/browse/ENG-9808) copy to device only necessary columns
+                                IntStream.range(0, inputTypes.size()).boxed().collect(toImmutableSet()));
+                        return new GpuOperatorSource(sourceOperation, copyToDevice);
+                    },
+                    operations,
+                    outputTypes);
+        }
+
+        private Factory(
+                int operatorId,
+                PlanNodeId planNodeId,
+                Supplier<GpuOperatorSource> sourceFactory,
+                List<GpuOperation.Factory> operations,
+                List<Type> outputTypes)
+        {
+            super(operatorId, planNodeId, sourceFactory, operations, outputTypes);
+        }
+
+        @Override
+        public Operator createOperator(DriverContext driverContext)
+        {
+            checkState(!closed, "Already closed");
+            GpuOperatorSource operatorSource = sourceFactory.get();
+            GpuSourceOperation source = operatorSource.sourceOperation();
+            GpuOperation head = operatorSource.sourceOutput();
+            for (GpuOperation.Factory factory : this.operations) {
+                head = factory.create(head);
+            }
+            head = new CopyToBlocks(head, outputTypes);
+            OperatorContext operatorContext1 = driverContext.addOperatorContext(operatorId, planNodeId, GpuOperator.class.getSimpleName());
+            return new GpuIntermediateOperator(operatorContext1, head, source);
         }
 
         @Override
@@ -101,15 +196,23 @@ public class GpuOperator
             return new Factory(
                     operatorId,
                     planNodeId,
-                    inputTypes,
+                    sourceFactory, // TODO duplicate?
                     operations, // TODO duplicate?
                     outputTypes);
         }
     }
 
+    private record GpuOperatorSource(@Borrow GpuSourceOperation sourceOperation, @Own GpuOperation sourceOutput)
+    {
+        GpuOperatorSource
+        {
+            requireNonNull(sourceOperation, "sourceOperation is null");
+            requireNonNull(sourceOutput, "sourceOutput is null");
+        }
+    }
+
     private final OperatorContext operatorContext;
-    private final GpuOperation topOperation;
-    private final GpuSourceOperation sourceOperation;
+    private final @Own GpuOperation topOperation;
 
     private boolean finished;
     private ListenableFuture<Void> blocked = NOT_BLOCKED;
@@ -117,12 +220,10 @@ public class GpuOperator
 
     public GpuOperator(
             OperatorContext operatorContext,
-            GpuOperation topOperation,
-            GpuSourceOperation sourceOperation)
+            @Move GpuOperation topOperation)
     {
         this.operatorContext = requireNonNull(operatorContext, "operatorContext is null");
         this.topOperation = requireNonNull(topOperation, "topOperation is null");
-        this.sourceOperation = requireNonNull(sourceOperation, "sourceOperation is null");
     }
 
     @Override
@@ -134,13 +235,19 @@ public class GpuOperator
     @Override
     public boolean needsInput()
     {
-        return !finished && sourceOperation.needsInput();
+        throw new UnsupportedOperationException("Unsupported in " + getClass());
     }
 
     @Override
     public void addInput(Page page)
     {
-        sourceOperation.addInput(page);
+        throw new UnsupportedOperationException("Unsupported in " + getClass());
+    }
+
+    @Override
+    public void finish()
+    {
+        throw new UnsupportedOperationException("Unsupported in " + getClass());
     }
 
     @Override
@@ -184,12 +291,6 @@ public class GpuOperator
     }
 
     @Override
-    public void finish()
-    {
-        sourceOperation.noMoreInput();
-    }
-
-    @Override
     public boolean isFinished()
     {
         return finished;
@@ -199,7 +300,71 @@ public class GpuOperator
     public void close()
     {
         topOperation.close();
-        // should not be needed
-        sourceOperation.close();
+    }
+
+    static class GpuSourceOperator
+            extends GpuOperator
+            implements SourceOperator
+    {
+        private final PlanNodeId planNodeId;
+        private final GpuSourceOperation sourceOperation;
+        private boolean splitSet;
+
+        public GpuSourceOperator(PlanNodeId planNodeId, OperatorContext operatorContext, GpuOperation topOperation, GpuSourceOperation sourceOperation)
+        {
+            super(operatorContext, topOperation);
+            this.planNodeId = requireNonNull(planNodeId, "planNodeId is null");
+            this.sourceOperation = requireNonNull(sourceOperation, "sourceOperation is null");
+        }
+
+        @Override
+        public PlanNodeId getSourceId()
+        {
+            return planNodeId;
+        }
+
+        @Override
+        public void addSplit(Split split)
+        {
+            checkState(!splitSet, "split already set, table scan source operators are expected to get exactly one split");
+            splitSet = true;
+            sourceOperation.setSplit(split);
+        }
+
+        @Override
+        public void noMoreSplits()
+        {
+            checkState(splitSet, "split not set yet");
+        }
+    }
+
+    static class GpuIntermediateOperator
+            extends GpuOperator
+    {
+        private final GpuSourceOperation sourceOperation;
+
+        public GpuIntermediateOperator(OperatorContext operatorContext, @Move GpuOperation topOperation, @Borrow GpuSourceOperation sourceOperation)
+        {
+            super(operatorContext, topOperation);
+            this.sourceOperation = requireNonNull(sourceOperation, "sourceOperation is null");
+        }
+
+        @Override
+        public boolean needsInput()
+        {
+            return !isFinished() && sourceOperation.needsInput();
+        }
+
+        @Override
+        public void addInput(Page page)
+        {
+            sourceOperation.addInput(page);
+        }
+
+        @Override
+        public void finish()
+        {
+            sourceOperation.noMoreInput();
+        }
     }
 }

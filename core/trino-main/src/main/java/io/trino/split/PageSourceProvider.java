@@ -20,6 +20,7 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.predicate.TupleDomain;
 
 import java.util.List;
@@ -27,6 +28,17 @@ import java.util.Optional;
 
 public interface PageSourceProvider
 {
+    default ConnectorGpuPageSource createGpuPageSource(
+            Session session,
+            Split split,
+            TableHandle table,
+            Optional<ConnectorTableCredentials> tableCredentials,
+            List<ColumnHandle> columns,
+            DynamicFilter dynamicFilter)
+    {
+        throw new UnsupportedOperationException("Creating GPU page source is not supported for " + getClass());
+    }
+
     ConnectorPageSource createPageSource(
             Session session,
             Split split,

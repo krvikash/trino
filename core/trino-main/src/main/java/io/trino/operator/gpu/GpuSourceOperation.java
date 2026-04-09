@@ -13,6 +13,7 @@
  */
 package io.trino.operator.gpu;
 
+import io.trino.metadata.Split;
 import io.trino.spi.Page;
 
 /**
@@ -21,6 +22,8 @@ import io.trino.spi.Page;
 public interface GpuSourceOperation
         extends GpuOperation
 {
+    void setSplit(Split split);
+
     /**
      * Check if this source can accept more input.
      *

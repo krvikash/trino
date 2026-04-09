@@ -15,5 +15,10 @@ package io.trino.spi.connector;
 
 public interface ConnectorPageSourceProviderFactory
 {
+    default boolean supportsConnectorGpuPageSource(ConnectorTableHandle connectorTableHandle)
+    {
+        return false;
+    }
+
     ConnectorPageSourceProvider createPageSourceProvider();
 }

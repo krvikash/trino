@@ -19,6 +19,7 @@ import io.trino.operator.Operator;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.RuntimeCloseable;
 import io.trino.spi.gpu.borrow.Move;
+import io.trino.spi.gpu.borrow.Own;
 
 import static java.util.Objects.requireNonNull;
 
@@ -87,7 +88,7 @@ public interface GpuOperation
     /**
      * Operation produced data in the form of a GpuPage.
      */
-    record Data(GpuPage page)
+    record Data(@Own GpuPage page)
             implements Result
     {
         public Data

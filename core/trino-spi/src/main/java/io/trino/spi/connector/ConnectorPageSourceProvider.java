@@ -14,6 +14,7 @@
 package io.trino.spi.connector;
 
 import io.trino.spi.TrinoException;
+import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.predicate.TupleDomain;
 
 import java.util.List;
@@ -23,6 +24,20 @@ import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 
 public interface ConnectorPageSourceProvider
 {
+    // TODO the idea for this returning Optional is so that we do not need supportsConnectorGpuPageSource() and also so that the GPU vs CPU execution path is determined once we see the split.
+    //  We could perhaps use plan alternatives for this, but really in their current shape.
+    default Optional<ConnectorGpuPageSource> createGpuPageSource(
+            ConnectorTransactionHandle transaction,
+            ConnectorSession session,
+            ConnectorSplit split,
+            ConnectorTableHandle table,
+            Optional<ConnectorTableCredentials> tableCredentials,
+            List<ColumnHandle> columns,
+            DynamicFilter dynamicFilter)
+    {
+        return Optional.empty();
+    }
+
     default ConnectorPageSource createPageSource(
             ConnectorTransactionHandle transaction,
             ConnectorSession session,

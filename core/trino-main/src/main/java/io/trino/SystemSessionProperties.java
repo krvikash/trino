@@ -243,6 +243,7 @@ public final class SystemSessionProperties
     public static final String CLOSE_IDLE_WRITERS_TRIGGER_DURATION = "close_idle_writers_trigger_duration";
     public static final String COLUMNAR_FILTER_EVALUATION_ENABLED = "columnar_filter_evaluation_enabled";
     public static final String GPU_ACCELERATION_ENABLED = "gpu_acceleration_enabled";
+    public static final String GPU_TABLE_SCAN_ENABLED = "gpu_table_scan_enabled";
     public static final String DEBUG_OUTPUT_ENABLED = "debug_output_enabled";
     public static final String SPOOLING_ENABLED = "spooling_enabled";
     public static final String SPOOLING_UNSUPPORTED_WARNING = "spooling_unsupported_warning";
@@ -1244,6 +1245,11 @@ public final class SystemSessionProperties
                         GPU_ACCELERATION_ENABLED,
                         "Enable GPU-accelerated query execution",
                         featuresConfig.isGpuAccelerationEnabled(),
+                        true /* TODO (https://starburstdata.atlassian.net/browse/ENG-9839) officialize config toggles */),
+                booleanProperty(
+                        GPU_TABLE_SCAN_ENABLED,
+                        "Enable GPU-based table scan execution",
+                        featuresConfig.isGpuTableScanEnabled(),
                         true /* TODO (https://starburstdata.atlassian.net/browse/ENG-9839) officialize config toggles */),
                 booleanProperty(
                         REUSE_COMMON_SUBQUERIES,
@@ -2355,6 +2361,11 @@ public final class SystemSessionProperties
     public static boolean isGpuAccelerationEnabled(Session session)
     {
         return session.getSystemProperty(GPU_ACCELERATION_ENABLED, Boolean.class);
+    }
+
+    public static boolean isGpuTableScanEnabled(Session session)
+    {
+        return session.getSystemProperty(GPU_TABLE_SCAN_ENABLED, Boolean.class);
     }
 
     public static boolean isDebugOutputEnabled(Session session)

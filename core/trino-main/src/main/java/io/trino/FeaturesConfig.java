@@ -128,6 +128,7 @@ public class FeaturesConfig
     private int maxGroupingSets = 2048;
 
     private boolean gpuAccelerationEnabled;
+    private boolean gpuTableScanEnabled;
 
     private boolean legacyCatalogRoles;
     private boolean incrementalHashArrayLoadFactorEnabled = true;
@@ -503,6 +504,20 @@ public class FeaturesConfig
     public FeaturesConfig setGpuAccelerationEnabled(boolean gpuAccelerationEnabled)
     {
         this.gpuAccelerationEnabled = gpuAccelerationEnabled;
+        return this;
+    }
+
+    public boolean isGpuTableScanEnabled()
+    {
+        return gpuTableScanEnabled;
+    }
+
+    @Config("gpu-acceleration.table-scan-enabled")
+    @ConfigDescription("Enable GPU-based table scan execution")
+    @ConfigHidden // TODO (https://starburstdata.atlassian.net/browse/ENG-9839) officialize config toggles
+    public FeaturesConfig setGpuTableScanEnabled(boolean gpuTableScanEnabled)
+    {
+        this.gpuTableScanEnabled = gpuTableScanEnabled;
         return this;
     }
 
