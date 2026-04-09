@@ -2563,7 +2563,7 @@ public class LocalExecutionPlanner
                         columnTypes.build());
                 return new PhysicalOperation(operatorFactory, makeLayout(node));
             }
-            OperatorFactory operatorFactory = new TableScanOperatorFactory(context.getNextOperatorId(), planNodeId, node.getId(), pageSourceManager, node.getTable(), tableCredentials, columns.build(), columnTypes.build(), InternalDynamicFilter.EMPTY);
+            OperatorFactory operatorFactory = new TableScanOperatorFactory(context.getNextOperatorId(), planNodeId, node.getId(), pageSourceManager, node.getTable(), tableCredentials, columns.build(), columnTypes.build());
             return new PhysicalOperation(operatorFactory, makeLayout(node));
         }
 

@@ -599,8 +599,7 @@ public class TestOrcPageSourceMemoryTracking
                     TEST_TABLE_HANDLE,
                     Optional.empty(),
                     columns.stream().map(ColumnHandle.class::cast).collect(toImmutableList()),
-                    types,
-                    InternalDynamicFilter.EMPTY);
+                    types);
             SourceOperator operator = sourceOperatorFactory.createOperator(driverContext);
             operator.addSplit(new Split(TEST_CATALOG_HANDLE, TestingSplit.createLocalSplit()));
             return operator;

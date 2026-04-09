@@ -18,7 +18,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import io.trino.cache.CacheDriverContext;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.metadata.Split;
 import io.trino.metadata.TableHandle;
@@ -63,7 +62,6 @@ public class TableScanOperator
         private final Optional<ConnectorTableCredentials> tableCredentials;
         private final List<ColumnHandle> columns;
         private final List<Type> columnTypes;
-        private final InternalDynamicFilter dynamicFilter;
         private boolean closed;
 
         public TableScanOperatorFactory(
@@ -74,8 +72,7 @@ public class TableScanOperator
                 TableHandle table,
                 Optional<ConnectorTableCredentials> tableCredentials,
                 List<ColumnHandle> columns,
-                List<Type> columnTypes,
-                InternalDynamicFilter dynamicFilter)
+                List<Type> columnTypes)
         {
             this.operatorId = operatorId;
             this.planNodeId = requireNonNull(planNodeId, "planNodeId is null");
@@ -84,7 +81,6 @@ public class TableScanOperator
             this.tableCredentials = requireNonNull(tableCredentials, "tableCredentials is null");
             this.columns = ImmutableList.copyOf(requireNonNull(columns, "columns is null"));
             this.columnTypes = ImmutableList.copyOf(requireNonNull(columnTypes, "columnTypes is null"));
-            this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");
             this.pageSourceProvider = pageSourceProvider.createPageSourceProvider(table.catalogHandle());
         }
 
@@ -104,8 +100,7 @@ public class TableScanOperator
                     operatorContext,
                     sourceId,
                     TableAwarePageSourceProvider.create(operatorContext, table, tableCredentials, pageSourceProvider),
-                    columns,
-                    CacheDriverContext.getDynamicFilter(operatorContext, dynamicFilter));
+                    columns);
 
             if (isSourcePagesValidationEnabled(operatorContext.getSession())) {
                 return new OutputValidatingSourceOperator(
@@ -127,7 +122,6 @@ public class TableScanOperator
     private final PlanNodeId sourceId;
     private final TableAwarePageSourceProvider pageSourceProvider;
     private final List<ColumnHandle> columns;
-    private final InternalDynamicFilter dynamicFilter;
     private final LocalMemoryContext memoryContext;
     private final SettableFuture<Void> blocked = SettableFuture.create();
 
@@ -149,28 +143,24 @@ public class TableScanOperator
             PageSourceProvider pageSourceProvider,
             TableHandle table,
             Optional<ConnectorTableCredentials> tableCredentials,
-            List<ColumnHandle> columns,
-            InternalDynamicFilter dynamicFilter)
+            List<ColumnHandle> columns)
     {
         this(operatorContext,
                 sourceId,
                 TableAwarePageSourceProvider.create(operatorContext, table, tableCredentials, pageSourceProvider),
-                columns,
-                dynamicFilter);
+                columns);
     }
 
     public TableScanOperator(
             OperatorContext operatorContext,
             PlanNodeId sourceId,
             TableAwarePageSourceProvider pageSourceProvider,
-            Iterable<ColumnHandle> columns,
-            InternalDynamicFilter dynamicFilter)
+            Iterable<ColumnHandle> columns)
     {
         this.operatorContext = requireNonNull(operatorContext, "operatorContext is null");
         this.sourceId = requireNonNull(sourceId, "planNodeId is null");
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
         this.columns = ImmutableList.copyOf(requireNonNull(columns, "columns is null"));
-        this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");
         this.memoryContext = operatorContext.newLocalUserMemoryContext(TableScanOperator.class.getSimpleName());
     }
 
@@ -292,10 +282,7 @@ public class TableScanOperator
             return null;
         }
         if (source == null) {
-            if (!dynamicFilter.getCurrentDynamicFilterTupleDomain().isAll()) {
-                operatorContext.recordDynamicFilterSplitProcessed(1L);
-            }
-            source = pageSourceProvider.createPageSource(operatorContext.getSession(), split, columns, dynamicFilter);
+            source = pageSourceProvider.createPageSource(operatorContext.getSession(), split, columns, InternalDynamicFilter.EMPTY);
         }
 
         SourcePage sourcePage = source.getNextSourcePage();
