@@ -14,10 +14,10 @@
 package io.trino.operator.gpu.expression;
 
 import io.trino.annotation.NotThreadSafe;
-import io.trino.operator.gpu.RuntimeCloseable;
-import io.trino.operator.gpu.borrow.Borrow;
-import io.trino.operator.gpu.borrow.Move;
-import io.trino.operator.gpu.borrow.Own;
+import io.trino.spi.gpu.RuntimeCloseable;
+import io.trino.spi.gpu.borrow.Borrow;
+import io.trino.spi.gpu.borrow.Move;
+import io.trino.spi.gpu.borrow.Own;
 import jakarta.annotation.Nullable;
 
 import static com.google.common.base.Preconditions.checkState;

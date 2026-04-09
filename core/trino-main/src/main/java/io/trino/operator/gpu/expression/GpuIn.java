@@ -17,13 +17,13 @@ import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
 import com.google.common.collect.ImmutableList;
-import io.trino.operator.gpu.Column;
-import io.trino.operator.gpu.GpuTypeConversion.ToColumn;
-import io.trino.operator.gpu.borrow.Borrow;
-import io.trino.operator.gpu.borrow.Move;
-import io.trino.operator.gpu.borrow.Own;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.gpu.Column;
+import io.trino.spi.gpu.GpuTypeConversion.ToColumn;
+import io.trino.spi.gpu.borrow.Borrow;
+import io.trino.spi.gpu.borrow.Move;
+import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.Type;
 
 import java.util.List;

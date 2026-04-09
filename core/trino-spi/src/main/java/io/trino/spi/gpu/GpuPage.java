@@ -11,18 +11,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.operator.gpu;
+package io.trino.spi.gpu;
 
-import io.trino.operator.gpu.Column.Blocks;
-import io.trino.operator.gpu.Column.DeviceMemory;
-import io.trino.operator.gpu.borrow.Borrow;
-import io.trino.operator.gpu.borrow.Own;
+import io.trino.spi.gpu.Column.Blocks;
+import io.trino.spi.gpu.Column.DeviceMemory;
+import io.trino.spi.gpu.borrow.Borrow;
+import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
-import static io.trino.plugin.base.util.Closables.closeAllSuppress;
+import static io.trino.spi.gpu.Preconditions.checkArgument;
+import static io.trino.spi.gpu.Preconditions.checkState;
 import static java.util.Arrays.asList;
 import static java.util.Collections.unmodifiableList;
 
@@ -56,7 +55,18 @@ public final class GpuPage
             this.columns = ownedColumns;
         }
         catch (Throwable e) {
-            closeAllSuppress(e, ownedColumns);
+            for (Column column : ownedColumns) {
+                try {
+                    if (column != null) {
+                        column.close();
+                    }
+                }
+                catch (Throwable closeException) {
+                    if (e != closeException) {
+                        e.addSuppressed(closeException);
+                    }
+                }
+            }
             throw e;
         }
     }

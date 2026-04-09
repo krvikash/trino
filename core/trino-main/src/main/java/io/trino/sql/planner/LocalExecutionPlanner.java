@@ -127,7 +127,6 @@ import io.trino.operator.function.RegularTableFunctionPartition.PassThroughColum
 import io.trino.operator.function.TableFunctionOperator.TableFunctionOperatorFactory;
 import io.trino.operator.gpu.GpuFilter;
 import io.trino.operator.gpu.GpuOperator;
-import io.trino.operator.gpu.GpuTypeConversion;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.index.DynamicTupleFilterFactory;
@@ -202,6 +201,7 @@ import io.trino.spi.function.WindowAccumulator;
 import io.trino.spi.function.WindowFunction;
 import io.trino.spi.function.WindowFunctionSupplier;
 import io.trino.spi.function.table.TableFunctionProcessorProvider;
+import io.trino.spi.gpu.GpuTypeConversion;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.spool.SpoolingManager;

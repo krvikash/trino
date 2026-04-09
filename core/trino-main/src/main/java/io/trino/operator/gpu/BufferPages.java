@@ -13,8 +13,10 @@
  */
 package io.trino.operator.gpu;
 
-import io.trino.operator.gpu.Column.Blocks;
 import io.trino.spi.Page;
+import io.trino.spi.gpu.Column;
+import io.trino.spi.gpu.Column.Blocks;
+import io.trino.spi.gpu.GpuPage;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -11,45 +11,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.operator.gpu.borrow;
+package io.trino.spi.gpu.borrow;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
+import static java.lang.annotation.ElementType.FIELD;
+import static java.lang.annotation.ElementType.LOCAL_VARIABLE;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.ElementType.TYPE_USE;
 import static java.lang.annotation.RetentionPolicy.SOURCE;
 
 /**
- * Indicates that ownership of the annotated element is transferred to the receiver.
- * The receiver becomes responsible for closing/releasing the resource.
+ * Indicates that the annotated element is borrowed and should not be closed by the borrower.
+ * Ownership remains with the caller/lender.
  * <p>
  * Must be used on all method parameters and return values that pass ColumnVector,
- * HostColumnVector, or GpuPage with ownership transfer.
+ * HostColumnVector, or GpuPage by reference without transferring ownership.
  * <p>
  * Example:
  * <pre>
  * {@code
- * // Takes ownership of input, must close it
- * void consume(@Move ColumnVector input) {
- *     try (input) {
- *         // Use input...
- *     } // Closed here
+ * // Borrows input, caller retains ownership
+ * ColumnVector process(@Borrow ColumnVector input) {
+ *     // Do NOT call input.close() here
+ *     return result;
  * }
  *
- * // Transfers ownership to caller, caller must close it
- * @Move ColumnVector createColumn() {
- *     return new ColumnVector(...);
+ * // Returns borrowed reference, caller must not close it
+ * @Borrow ColumnVector getColumn(int index) {
+ *     return columns.get(index);
  * }
  * }
  * </pre>
  *
- * @see Borrow
+ * @see Move
  * @see Own
  */
 @Documented
 @Retention(SOURCE)
-@Target({TYPE_USE, PARAMETER, METHOD})
-public @interface Move {}
+@Target({FIELD, LOCAL_VARIABLE, TYPE_USE, PARAMETER, METHOD})
+public @interface Borrow {}

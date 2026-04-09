@@ -186,6 +186,11 @@
             <scope>runtime</scope>
             <exclusions>
                 <exclusion>
+                    <!-- cudf is provided by trino-spi -->
+                    <groupId>ai.rapids</groupId>
+                    <artifactId>cudf</artifactId>
+                </exclusion>
+                <exclusion>
                     <groupId>org.apache.lucene</groupId>
                     <artifactId>lucene-analysis-common</artifactId>
                 </exclusion>

@@ -21,6 +21,18 @@
 
     <dependencies>
         <dependency>
+            <groupId>ai.rapids</groupId>
+            <artifactId>cudf</artifactId>
+            <exclusions>
+                <exclusion>
+                    <!-- Avoid polluting plugins' dependencies. trino-maven-plugin doesn't recognize trino-spi's transitive dependencies. -->
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
         </dependency>

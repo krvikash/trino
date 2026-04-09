@@ -15,12 +15,14 @@ package io.trino.operator.gpu;
 
 import ai.rapids.cudf.ColumnVector;
 import com.google.common.collect.ImmutableList;
-import io.trino.operator.gpu.Column.Blocks;
-import io.trino.operator.gpu.Column.DeviceMemory;
-import io.trino.operator.gpu.borrow.Borrow;
-import io.trino.operator.gpu.borrow.Move;
-import io.trino.operator.gpu.borrow.Own;
 import io.trino.operator.gpu.expression.CompiledExpression;
+import io.trino.spi.gpu.Column;
+import io.trino.spi.gpu.Column.Blocks;
+import io.trino.spi.gpu.Column.DeviceMemory;
+import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.borrow.Borrow;
+import io.trino.spi.gpu.borrow.Move;
+import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 

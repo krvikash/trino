@@ -23,7 +23,6 @@
         <dependency>
             <groupId>ai.rapids</groupId>
             <artifactId>cudf</artifactId>
-            <version>26.02.0</version>
         </dependency>
 
         <dependency>

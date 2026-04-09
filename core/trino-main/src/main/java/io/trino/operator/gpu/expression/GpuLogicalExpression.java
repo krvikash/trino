@@ -17,9 +17,9 @@ import ai.rapids.cudf.BinaryOp;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import com.google.common.collect.ImmutableList;
-import io.trino.operator.gpu.borrow.Borrow;
-import io.trino.operator.gpu.borrow.Move;
-import io.trino.operator.gpu.borrow.Own;
+import io.trino.spi.gpu.borrow.Borrow;
+import io.trino.spi.gpu.borrow.Move;
+import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 

@@ -11,23 +11,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.operator.gpu.borrow;
+package io.trino.spi.gpu;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
-
-import static java.lang.annotation.ElementType.FIELD;
-import static java.lang.annotation.ElementType.LOCAL_VARIABLE;
-import static java.lang.annotation.RetentionPolicy.SOURCE;
-
-/**
- * Indicates ownership of the annotated element.
- *
- * @see Move
- * @see Borrow
- */
-@Documented
-@Retention(SOURCE)
-@Target({FIELD, LOCAL_VARIABLE})
-public @interface Own {}
+public interface RuntimeCloseable
+        extends AutoCloseable
+{
+    @Override
+    void close();
+}

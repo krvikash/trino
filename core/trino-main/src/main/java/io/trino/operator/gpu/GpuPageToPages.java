@@ -13,9 +13,11 @@
  */
 package io.trino.operator.gpu;
 
-import io.trino.operator.gpu.borrow.Borrow;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
+import io.trino.spi.gpu.Column;
+import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.borrow.Borrow;
 
 import java.util.ArrayDeque;
 import java.util.Deque;

@@ -16,7 +16,9 @@ package io.trino.operator.gpu;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.annotation.NotThreadSafe;
 import io.trino.operator.Operator;
-import io.trino.operator.gpu.borrow.Move;
+import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.RuntimeCloseable;
+import io.trino.spi.gpu.borrow.Move;
 
 import static java.util.Objects.requireNonNull;
 

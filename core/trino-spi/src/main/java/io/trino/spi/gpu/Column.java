@@ -11,21 +11,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.operator.gpu;
+package io.trino.spi.gpu;
 
 import ai.rapids.cudf.ColumnVector;
-import com.google.common.collect.ImmutableList;
-import io.trino.annotation.NotThreadSafe;
-import io.trino.operator.gpu.borrow.Borrow;
-import io.trino.operator.gpu.borrow.Own;
 import io.trino.spi.block.Block;
+import io.trino.spi.gpu.borrow.Borrow;
+import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
+import static io.trino.spi.gpu.Preconditions.checkArgument;
+import static io.trino.spi.gpu.Preconditions.checkState;
 
-@NotThreadSafe
+/**
+ * Not thread-safe.
+ */
 public sealed interface Column
         extends RuntimeCloseable
 {
@@ -40,7 +40,7 @@ public sealed interface Column
         public Blocks(List<Block> blocks)
         {
             this.positionCount = blocks.stream().mapToInt(Block::getPositionCount).sum();
-            this.blocks = ImmutableList.copyOf(blocks);
+            this.blocks = List.copyOf(blocks);
         }
 
         @Override

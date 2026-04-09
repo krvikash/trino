@@ -11,16 +11,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.operator.gpu;
+package io.trino.spi.gpu;
 
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.HostColumnVector;
 import ai.rapids.cudf.Scalar;
 import io.airlift.slice.Slice;
-import io.trino.operator.gpu.Column.Blocks;
-import io.trino.operator.gpu.borrow.Move;
 import io.trino.spi.block.Block;
+import io.trino.spi.gpu.Column.Blocks;
+import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 

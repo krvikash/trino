@@ -15,12 +15,15 @@ package io.trino.operator.gpu;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import io.trino.operator.gpu.Column.Blocks;
-import io.trino.operator.gpu.Column.DeviceMemory;
-import io.trino.operator.gpu.GpuTypeConversion.ToColumn;
-import io.trino.operator.gpu.borrow.Borrow;
-import io.trino.operator.gpu.borrow.Move;
-import io.trino.operator.gpu.borrow.Own;
+import io.trino.spi.gpu.Column;
+import io.trino.spi.gpu.Column.Blocks;
+import io.trino.spi.gpu.Column.DeviceMemory;
+import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.GpuTypeConversion;
+import io.trino.spi.gpu.GpuTypeConversion.ToColumn;
+import io.trino.spi.gpu.borrow.Borrow;
+import io.trino.spi.gpu.borrow.Move;
+import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.Type;
 
 import java.util.List;
