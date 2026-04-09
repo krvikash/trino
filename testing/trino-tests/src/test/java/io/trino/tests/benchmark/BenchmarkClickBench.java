@@ -20,12 +20,14 @@ import io.trino.plugin.hive.HiveQueryRunner;
 import io.trino.sql.query.QueryAssertions;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner.MaterializedResultWithQueryId;
+import one.profiler.AsyncProfiler;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -65,6 +67,9 @@ public final class BenchmarkClickBench
         @Option(names = {"-q", "--query"}, description = "A specific query to run [1-43]")
         Integer query;
 
+        @Option(names = {"-p", "--profile"}, description = "Output directory for async-profiler flamegraphs")
+        Path profileOutputDir;
+
         @Override
         public Void call()
                 throws Exception
@@ -74,17 +79,23 @@ public final class BenchmarkClickBench
                 throw new IllegalStateException("Data location %s does not exist. Run testing/benchmark-data/setup.sh first.".formatted(dataLocation));
             }
 
+            AsyncProfiler profiler = profileOutputDir != null ? AsyncProfiler.getInstance() : null;
+            if (profiler != null) {
+                Files.createDirectories(profileOutputDir);
+                log.info("Profiler output will be written to %s", profileOutputDir.toAbsolutePath());
+            }
+
             try (DistributedQueryRunner runner = setup(executionMode)) {
                 log.info("Running Trino at %s", runner.getCoordinator().getBaseUrl());
                 log.info("Running benchmark %s warmup %s measured runs, reporting average.".formatted(warmup, runs));
                 verifyDataset(runner);
                 if (query != null) {
-                    benchmarkQuery(runner, query);
+                    benchmarkQuery(runner, query, profiler);
                 }
                 else {
                     long totalMillis = 0;
                     for (int queryNumber = 1; queryNumber <= 43; queryNumber++) {
-                        long elapsedTimeMillis = benchmarkQuery(runner, queryNumber);
+                        long elapsedTimeMillis = benchmarkQuery(runner, queryNumber, profiler);
                         totalMillis += elapsedTimeMillis;
                     }
                     System.out.println("All queries: %s".formatted(new Duration(totalMillis, MILLISECONDS)));
@@ -103,7 +114,8 @@ public final class BenchmarkClickBench
         /**
          * Run benchmark query and return average query elapsed time as millis
          */
-        private long benchmarkQuery(DistributedQueryRunner runner, int queryNumber)
+        private long benchmarkQuery(DistributedQueryRunner runner, int queryNumber, AsyncProfiler profiler)
+                throws IOException
         {
             String query = readResource("sql/trino/clickbench/q%02d.sql".formatted(queryNumber))
                     .replace("${database}", "hive")
@@ -115,10 +127,21 @@ public final class BenchmarkClickBench
                 measureQueryTime(runner, query);
             }
 
+            if (profiler != null) {
+                profiler.execute("start,event=cpu");
+            }
+
             List<Long> measurements = newArrayListWithExpectedSize(runs);
             for (int i = 0; i < runs; i++) {
                 measurements.add(measureQueryTime(runner, query));
             }
+
+            if (profiler != null) {
+                Path outputFile = profileOutputDir.resolve("q%02d.html".formatted(queryNumber));
+                profiler.execute("stop,file=%s".formatted(outputFile.toAbsolutePath()));
+                log.info("Profiler output for q%02d written to %s", queryNumber, outputFile);
+            }
+
             long averageMillis = (long) measurements.stream().mapToLong(Long::longValue).average().orElseThrow();
             System.out.println("q%02d: %s ms".formatted(queryNumber, averageMillis));
             return averageMillis;
