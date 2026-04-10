@@ -11,6 +11,7 @@ package io.starburst.server.troubleshooting.configdump;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigSecuritySensitive;
@@ -37,6 +38,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -54,6 +56,31 @@ import static java.util.stream.Collectors.joining;
 @ExtendWith(SoftAssertionsExtension.class)
 public class TestConnectorSensitiveProperties
 {
+    @Test
+    public void testSensitivePropertiesSorted()
+    {
+        // Keeping properties sorted ensures that subsequent updates do not include spurious changes.
+
+        Iterator<String> keySet = SENSITIVE_PROPERTIES_PER_CONNECTOR.keySet().iterator();
+        String previous = keySet.next();
+        while (keySet.hasNext()) {
+            String next = keySet.next();
+            checkState(
+                    previous.compareTo(next) < 0,
+                    "SENSITIVE_PROPERTIES_PER_CONNECTOR key set is not sorted at %s >= %s",
+                    previous, next);
+            previous = next;
+        }
+
+        SENSITIVE_PROPERTIES_PER_CONNECTOR.forEach((connector, properties) -> {
+            if (!Ordering.natural().isStrictlyOrdered(properties)) {
+                throw new IllegalStateException(
+                        "The sensitive properties for the %s connector are not sorted. Consider sorting them with:\n%s".formatted(
+                                connector, buildPropertyDefinitions(ImmutableSet.of(connector), Map.of(connector, properties))));
+            }
+        });
+    }
+
     @Test
     public void testSensitivePropertySetIsComplete(SoftAssertions softly)
             throws IOException
