@@ -15,12 +15,12 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
-import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
 import io.airlift.slice.XxHash64;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
+import io.starburst.stargate.buffer.data.execution.CountedReference.Handle;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.SliceLease;
 
@@ -40,8 +40,6 @@ import static java.util.Objects.requireNonNull;
 // This class is not thread safe
 public class Chunk
 {
-    private static final Logger log = Logger.get(Chunk.class);
-
     private final long bufferNodeId;
     private final String exchangeId;
     private final int partitionId;
@@ -72,8 +70,7 @@ public class Chunk
                 executor,
                 chunkSizeInBytes,
                 chunkSliceSizeInBytes,
-                calculateDataPagesChecksum,
-                this);
+                calculateDataPagesChecksum);
     }
 
     // [test-only] placeholder for chunks
@@ -190,11 +187,9 @@ public class Chunk
         private final int chunkSizeInBytes;
         private final int chunkSliceSizeInBytes;
         private final boolean calculateDataPagesChecksum;
-        private final Chunk chunk;
         @GuardedBy("this")
         private final List<Slice> completedSlices;
-        @GuardedBy("this")
-        private final List<SliceLease> chunkSliceLeases;
+        private final Handle<List<SliceLease>> sliceLeases;
 
         private final XxHash64 hash = new XxHash64();
         private final Slice headerSlice = Slices.allocate(DATA_PAGE_HEADER_SIZE);
@@ -204,18 +199,13 @@ public class Chunk
         private int numDataPages;
         @GuardedBy("this")
         private SliceOutput sliceOutput;
-        @GuardedBy("this")
-        private boolean releaseRequested;
-        @GuardedBy("this")
-        private short referenceCount;
 
         public ChunkData(
                 MemoryAllocator memoryAllocator,
                 ExecutorService executor,
                 int chunkSizeInBytes,
                 int chunkSliceSizeInBytes,
-                boolean calculateDataPagesChecksum,
-                Chunk chunk)
+                boolean calculateDataPagesChecksum)
         {
             checkArgument(chunkSizeInBytes >= chunkSliceSizeInBytes && chunkSizeInBytes % chunkSliceSizeInBytes == 0,
                     "chunkSizeInBytes %s is not a multiple of chunkSliceSizeInBytes %s", chunkSizeInBytes, chunkSliceSizeInBytes);
@@ -224,10 +214,17 @@ public class Chunk
             this.chunkSizeInBytes = chunkSizeInBytes;
             this.chunkSliceSizeInBytes = chunkSliceSizeInBytes;
             this.calculateDataPagesChecksum = calculateDataPagesChecksum;
-            this.chunk = chunk;
             int initialCapacity = this.chunkSizeInBytes / chunkSliceSizeInBytes;
             this.completedSlices = new ArrayList<>(initialCapacity);
-            this.chunkSliceLeases = new ArrayList<>(initialCapacity);
+            this.sliceLeases = CountedReference.create(
+                    () -> new ArrayList<>(initialCapacity),
+                    leases -> {
+                        synchronized (ChunkData.this) {
+                            leases.forEach(SliceLease::release);
+                            leases.clear();
+                            completedSlices.clear();
+                        }
+                    });
         }
 
         public ListenableFuture<Void> write(int taskId, int attemptId, Slice data)
@@ -272,18 +269,7 @@ public class Chunk
 
         public synchronized ChunkDataLease get()
         {
-            if ((++referenceCount % 128) == 0) {
-                log.warn("reference count (%d) for %s is higher then expected", referenceCount, chunk.toString());
-            }
-            Runnable releaseCallback = () -> {
-                synchronized (this) {
-                    referenceCount--;
-                    checkState(referenceCount >= 0, "negative referenceCount %s for chunkData", referenceCount);
-                    if (releaseRequested && referenceCount == 0) {
-                        releaseChunkLeases();
-                    }
-                }
-            };
+            Runnable releaseCallback = sliceLeases.addReference();
 
             if (!calculateDataPagesChecksum) {
                 return new ChunkDataLease(
@@ -306,7 +292,7 @@ public class Chunk
 
         public synchronized int getAllocatedMemory()
         {
-            return completedSlices.size() * chunkSliceSizeInBytes;
+            return sliceLeases.get().size() * chunkSliceSizeInBytes;
         }
 
         public synchronized void close()
@@ -317,20 +303,9 @@ public class Chunk
             }
         }
 
-        public synchronized void release()
+        public void release()
         {
-            if (referenceCount == 0) {
-                releaseChunkLeases();
-            }
-            releaseRequested = true;
-        }
-
-        @GuardedBy("this")
-        private void releaseChunkLeases()
-        {
-            chunkSliceLeases.forEach(SliceLease::release);
-            chunkSliceLeases.clear();
-            completedSlices.clear();
+            sliceLeases.release();
         }
 
         private class ChunkWriteFuture
@@ -434,9 +409,8 @@ public class Chunk
             @GuardedBy("ChunkData.this")
             private ListenableFuture<SliceOutput> createNewSliceOutput()
             {
-                checkState(!releaseRequested, "new Slice allocation after release requested of ChunkData");
                 SliceLease sliceLease = new SliceLease(memoryAllocator, ChunkData.this.chunkSliceSizeInBytes);
-                ChunkData.this.chunkSliceLeases.add(sliceLease);
+                ChunkData.this.sliceLeases.get().add(sliceLease);
                 return Futures.transform(
                         sliceLease.getSliceFuture(),
                         Slice::getOutput,
