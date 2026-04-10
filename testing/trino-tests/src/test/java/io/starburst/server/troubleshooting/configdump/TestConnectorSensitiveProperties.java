@@ -31,16 +31,17 @@ import org.objectweb.asm.Type;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 import java.util.stream.Stream;
@@ -61,7 +62,6 @@ public class TestConnectorSensitiveProperties
     }
 
     public static void testSensitivePropertySetIsComplete(SoftAssertions softly, Map<String, Set<String>> sensitivePropertiesPerConnector, Path pluginsDir)
-            throws IOException
     {
         Map<String, Set<String>> expectedPropertiesPerConnector = findSensitivePropertiesPerConnector(pluginsDir);
 
@@ -88,18 +88,24 @@ public class TestConnectorSensitiveProperties
     }
 
     private static Map<String, Set<String>> findSensitivePropertiesPerConnector(Path pluginsDir)
-            throws IOException
     {
-        Map<String, Set<String>> sensitiveProperties = new HashMap<>();
+        Map<String, Set<String>> sensitiveProperties = new ConcurrentHashMap<>();
         List<Plugin> plugins = PluginLoader.loadPlugins(ImmutableList.of(pluginsDir));
-        for (Plugin plugin : plugins) {
-            for (ConnectorFactory connectorFactory : plugin.getConnectorFactories()) {
-                String connectorName = connectorFactory.getName();
-                Set<Path> classpath = buildClasspath(connectorFactory);
-                Set<String> properties = findSensitiveProperties(classpath);
-                checkState(sensitiveProperties.putIfAbsent(connectorName, properties) == null, "Multiple connectors with the name \"%s\".", connectorName);
-            }
-        }
+        plugins.stream()
+                .parallel()
+                .forEach(plugin -> {
+                    try {
+                        for (ConnectorFactory connectorFactory : plugin.getConnectorFactories()) {
+                            String connectorName = connectorFactory.getName();
+                            Set<Path> classpath = buildClasspath(connectorFactory);
+                            Set<String> properties = findSensitiveProperties(classpath);
+                            checkState(sensitiveProperties.putIfAbsent(connectorName, properties) == null, "Multiple connectors with the name \"%s\".", connectorName);
+                        }
+                    }
+                    catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                });
         return sensitiveProperties;
     }
 
