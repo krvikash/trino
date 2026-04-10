@@ -725,11 +725,10 @@ public class TestSingleStoreConnectorTest
     }
 
     @Test
-    void testJoinsWithBinary()
+    public void testJoinsWithBinary()
     {
-        Session session = Session.builder(getSession())
+        Session session = Session.builder(joinPushdownEnabled(getSession()))
                 .setCatalogSessionProperty("singlestore", "enable_string_pushdown_with_binary", "true")
-                .setCatalogSessionProperty("singlestore", "join_pushdown_enabled", "true")
                 .build();
 
         try (TestTable leftTable = new TestTable(
