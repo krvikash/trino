@@ -167,6 +167,7 @@ public final class BenchmarkClickBench
     {
         HiveQueryRunner.Builder<?> builder = HiveQueryRunner.builder()
                 .setWorkerCount(0) // single-node
+                .addExtraProperty("query.max-memory-per-node", "6GB")
                 .setSkipTimezoneSetup(true);
         switch (executionMode) {
             case CPU -> builder.addExtraProperty("gpu-acceleration.enabled", "false");
