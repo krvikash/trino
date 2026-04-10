@@ -306,6 +306,19 @@
     </dependencies>
 
     <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>io.trino</groupId>
+                    <artifactId>trino-maven-plugin</artifactId>
+                    <configuration>
+                        <!-- TODO (https://starburstdata.atlassian.net/browse/ENG-11536) Remove trino-main dependency and then remove this skip -->
+                        <skipCheckSpiDependencies>true</skipCheckSpiDependencies>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -396,7 +409,6 @@
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
-
         </plugins>
     </build>
 </project>

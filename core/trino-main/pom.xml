@@ -23,6 +23,7 @@
         <dependency>
             <groupId>ai.rapids</groupId>
             <artifactId>cudf</artifactId>
+            <classifier>cuda13</classifier>
         </dependency>
 
         <dependency>

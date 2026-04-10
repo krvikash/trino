@@ -23,6 +23,7 @@
         <dependency>
             <groupId>ai.rapids</groupId>
             <artifactId>cudf</artifactId>
+            <classifier>cuda13</classifier>
             <exclusions>
                 <exclusion>
                     <!-- Avoid polluting plugins' dependencies. trino-maven-plugin doesn't recognize trino-spi's transitive dependencies. -->

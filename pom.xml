@@ -369,6 +369,7 @@
                 <groupId>ai.rapids</groupId>
                 <artifactId>cudf</artifactId>
                 <version>26.02.0</version>
+                <classifier>cuda13</classifier>
             </dependency>
 
             <dependency>
@@ -3289,7 +3290,7 @@
             <plugin>
                 <groupId>io.trino</groupId>
                 <artifactId>trino-maven-plugin</artifactId>
-                <version>17</version>
+                <version>19</version>
                 <extensions>true</extensions>
             </plugin>
 

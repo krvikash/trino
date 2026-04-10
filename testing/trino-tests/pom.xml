@@ -148,6 +148,7 @@
         <dependency>
             <groupId>ai.rapids</groupId>
             <artifactId>cudf</artifactId>
+            <classifier>cuda13</classifier>
             <scope>test</scope>
         </dependency>
 
