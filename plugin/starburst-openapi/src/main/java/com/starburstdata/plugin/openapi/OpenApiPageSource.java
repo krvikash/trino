@@ -20,6 +20,7 @@ import io.airlift.http.client.HttpStatus;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.Response;
 import io.airlift.http.client.ResponseHandler;
+import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.SourcePage;
@@ -30,6 +31,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.starburstdata.plugin.openapi.OpenApiErrorCode.OPENAPI_GENERIC_EXTERNAL_ERROR;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.concurrent.MoreFutures.toCompletableFuture;
 import static java.util.Collections.emptyIterator;
@@ -79,7 +81,12 @@ public class OpenApiPageSource<S>
         public OpenApiResult<S> handleException(Request request, Exception exception)
                 throws RuntimeException
         {
-            throw new RuntimeException(exception);
+            throw new TrinoException(
+                    OPENAPI_GENERIC_EXTERNAL_ERROR,
+                    "Encountered unexpected error (%s) while requesting %s".formatted(
+                            exception.getMessage(),
+                            request.getUri().getPath()),
+                    exception);
         }
 
         @Override
@@ -88,14 +95,19 @@ public class OpenApiPageSource<S>
         {
             int statusCode = response.getStatusCode();
             if (statusCode != HttpStatus.OK.code()) {
-                throw new RuntimeException("Non-200 response status: %s".formatted(statusCode));
+                throw new TrinoException(
+                        OPENAPI_GENERIC_EXTERNAL_ERROR,
+                        "Non-200 response status (%s)".formatted(statusCode));
             }
             final JsonNode root;
             try {
                 root = objectMapper.readTree(response.getInputStream());
             }
             catch (IOException e) {
-                throw new RuntimeException("Failed to read JSON from response", e);
+                throw new TrinoException(
+                        OPENAPI_GENERIC_EXTERNAL_ERROR,
+                        "Failed to read JSON from response",
+                        e);
             }
             return new OpenApiResult<>(
                     decoder.decodeFromRoot(root, columnHandles),
