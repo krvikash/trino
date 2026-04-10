@@ -40,7 +40,7 @@ public final class JaegerTraceImporter
     static void main()
             throws IOException
     {
-        GrpcExporterBuilder grpcExporterBuilder = new GrpcExporterBuilder(OTLP_GRPC_SPAN_EXPORTER, Duration.ofSeconds(10), URI.create("http://localhost:4317"), "/opentelemetry.proto.collector.trace.v1.TraceService/Export");
+        GrpcExporterBuilder grpcExporterBuilder = new GrpcExporterBuilder(OTLP_GRPC_SPAN_EXPORTER, Duration.ofSeconds(10), URI.create("http://localhost:4317"), "opentelemetry.proto.collector.trace.v1.TraceService/Export");
         GrpcExporter exporter = grpcExporterBuilder.build();
         Path tracesDirectory = Path.of(System.getProperty("user.home")).resolve("Downloads/traces");
         Path decompressedDirectory = tracesDirectory.resolve("decompressed");
