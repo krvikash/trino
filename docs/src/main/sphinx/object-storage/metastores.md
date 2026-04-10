@@ -502,8 +502,7 @@ following properties:
     with the server. A `token` or `credential` is required for `OAUTH2`
     security. Example: `AbCdEf123456`
 * - `iceberg.rest-catalog.oauth2.scope`
-  - Scope to be used when communicating with the REST Catalog. Applicable only
-    when using `credential`.
+  - Scope to be used when communicating with the REST Catalog.
 * - `iceberg.rest-catalog.oauth2.server-uri`
   - The endpoint to retrieve access token from OAuth2 Server.
 * - `iceberg.rest-catalog.oauth2.token-refresh-enabled`

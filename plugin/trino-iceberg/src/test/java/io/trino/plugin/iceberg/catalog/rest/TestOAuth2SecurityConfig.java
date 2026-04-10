@@ -59,7 +59,6 @@ public class TestOAuth2SecurityConfig
                 .setTokenRefreshEnabled(false)
                 .setTokenExchangeEnabled(false);
         assertThat(expected.credentialOrTokenPresent()).isTrue();
-        assertThat(expected.scopePresentOnlyWithCredential()).isFalse();
         assertFullMapping(properties, expected);
     }
 }

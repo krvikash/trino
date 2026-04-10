@@ -116,10 +116,4 @@ public class OAuth2SecurityConfig
     {
         return credential != null || token != null;
     }
-
-    @AssertTrue(message = "Scope is applicable only when using credential")
-    public boolean scopePresentOnlyWithCredential()
-    {
-        return !(token != null && scope != null);
-    }
 }
