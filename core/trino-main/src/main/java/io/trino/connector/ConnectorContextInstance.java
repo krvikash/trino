@@ -24,6 +24,7 @@ import io.trino.spi.connector.CatalogVersion;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.MetadataProvider;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
+import io.trino.spi.function.FunctionBundleFactory;
 import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.type.TypeManager;
 
@@ -45,6 +46,7 @@ public class ConnectorContextInstance
     private final ModelConnectionSpecsLoader modelConnectionSpecsLoader;
     private final CatalogVersion catalogVersion;
     private final String nodeEnvironment;
+    private final FunctionBundleFactory functionBundleFactory;
 
     public ConnectorContextInstance(
             OpenTelemetry openTelemetry,
@@ -59,7 +61,8 @@ public class ConnectorContextInstance
             PageIndexerFactory pageIndexerFactory,
             PageStreamFactory pageStreamFactory,
             CatalogVersion catalogVersion,
-            String nodeEnvironment)
+            String nodeEnvironment,
+            FunctionBundleFactory functionBundleFactory)
     {
         this.openTelemetry = requireNonNull(openTelemetry, "openTelemetry is null");
         this.tracer = requireNonNull(tracer, "tracer is null");
@@ -74,6 +77,7 @@ public class ConnectorContextInstance
         this.pageStreamFactory = requireNonNull(pageStreamFactory, "pageStreamFactory is null");
         this.catalogVersion = requireNonNull(catalogVersion, "catalogVersion is null");
         this.nodeEnvironment = requireNonNull(nodeEnvironment, "nodeEnvironment is null");
+        this.functionBundleFactory = requireNonNull(functionBundleFactory, "functionBundleFactory is null");
     }
 
     @Override
@@ -152,5 +156,11 @@ public class ConnectorContextInstance
     public String getNodeEnvironment()
     {
         return nodeEnvironment;
+    }
+
+    @Override
+    public FunctionBundleFactory getFunctionBundleFactory()
+    {
+        return functionBundleFactory;
     }
 }

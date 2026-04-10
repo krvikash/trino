@@ -41,7 +41,8 @@ public class WarpCacheMgrConnectorContextTest
                         ConnectorContext.class.getMethod("getPageSorter"),
                         ConnectorContext.class.getMethod("getPageStreamFactory"),
                         ConnectorContext.class.getMethod("getCatalogVersion"),
-                        ConnectorContext.class.getMethod("getNodeEnvironment")));
+                        ConnectorContext.class.getMethod("getNodeEnvironment"),
+                        ConnectorContext.class.getMethod("getFunctionBundleFactory")));
 
         assertAllMethodsOverridden(
                 WarpContext.class,

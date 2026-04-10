@@ -20,8 +20,10 @@ import io.trino.spi.NodeManager;
 import io.trino.spi.PageIndexerFactory;
 import io.trino.spi.PageSorter;
 import io.trino.spi.PageStreamFactory;
+import io.trino.spi.Unstable;
 import io.trino.spi.VersionEmbedder;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
+import io.trino.spi.function.FunctionBundleFactory;
 import io.trino.spi.security.AiModelAccessControl;
 import io.trino.spi.type.TypeManager;
 
@@ -106,6 +108,12 @@ public interface ConnectorContext
     }
 
     default String getNodeEnvironment()
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Unstable
+    default FunctionBundleFactory getFunctionBundleFactory()
     {
         throw new UnsupportedOperationException();
     }
