@@ -53,7 +53,7 @@ final class TestDatabricksUnityRestCatalog
                 .addIcebergProperty("iceberg.rest-catalog.oauth2.server-uri", "https://%s/oidc/v1/token".formatted(DATABRICKS_HOST))
                 .addIcebergProperty("iceberg.rest-catalog.oauth2.token", DATABRICKS_TOKEN)
                 .addIcebergProperty("iceberg.rest-catalog.oauth2.scope", "all-apis")
-                .addIcebergProperty("fs.native-s3.enabled", "true")
+                .addIcebergProperty("fs.s3.enabled", "true")
                 .addIcebergProperty("s3.region", DATABRICKS_AWS_REGION)
                 .addIcebergProperty("s3.aws-access-key", DATABRICKS_AWS_ACCESS_KEY_ID)
                 .addIcebergProperty("s3.aws-secret-key", DATABRICKS_AWS_SECRET_ACCESS_KEY)

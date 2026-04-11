@@ -42,7 +42,7 @@ abstract class BaseGcsAndUnityMetastoreDeltaConnectorSmokeTest
                 .put("hive.metastore.unity.host", DATABRICKS_HOST)
                 .put("hive.metastore.unity.token", DATABRICKS_TOKEN)
                 .put("hive.metastore.unity.catalog-managed-table-enabled", "true")
-                .put("fs.native-gcs.enabled", "true")
+                .put("fs.gcs.enabled", "true")
                 .putAll(getAdditionalDeltaLakeProperties())
                 .buildOrThrow();
     }

@@ -151,7 +151,7 @@ public class MinioStorage
     {
         return ImmutableMap.<String, String>builder()
                 .put("fs.hadoop.enabled", "false")
-                .put("fs.native-s3.enabled", "true")
+                .put("fs.s3.enabled", "true")
                 .put("s3.aws-access-key", ACCESS_KEY)
                 .put("s3.aws-secret-key", SECRET_KEY)
                 .put("s3.region", REGION)

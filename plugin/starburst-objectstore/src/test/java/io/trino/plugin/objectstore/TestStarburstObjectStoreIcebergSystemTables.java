@@ -59,7 +59,7 @@ public class TestStarburstObjectStoreIcebergSystemTables
                     .put("great-lakes.table-type", TableType.ICEBERG.name())
                     .put("hive.metastore", "file")
                     .put("hive.metastore.catalog.dir", "local://" + dataDir)
-                    .put("fs.native-local.enabled", "true")
+                    .put("fs.local.enabled", "true")
                     .put("iceberg.file-format", "PARQUET")
                     .buildOrThrow());
             queryRunner.execute("CREATE SCHEMA objectstore.tpch");

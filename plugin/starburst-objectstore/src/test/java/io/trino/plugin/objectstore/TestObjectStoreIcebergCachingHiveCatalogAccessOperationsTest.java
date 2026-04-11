@@ -51,7 +51,7 @@ final class TestObjectStoreIcebergCachingHiveCatalogAccessOperationsTest
                 .put("hive.metastore", "file")
                 .put("hive.metastore.catalog.dir", "file://" + dataDir)
                 .put("hive.metastore-cache-ttl", "30m")
-                .put("fs.native-local.enabled", "true")
+                .put("fs.local.enabled", "true")
                 .buildOrThrow());
 
         queryRunner.execute("CREATE SCHEMA " + TEST_SCHEMA);

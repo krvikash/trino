@@ -121,7 +121,7 @@ public final class DeltaLakeQueryRunner
         public Builder addS3Properties(Minio minio, String bucketName)
         {
             addDeltaProperties(ImmutableMap.<String, String>builder()
-                    .put("fs.native-s3.enabled", "true")
+                    .put("fs.s3.enabled", "true")
                     .put("s3.aws-access-key", MINIO_ROOT_USER)
                     .put("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
                     .put("s3.region", MINIO_REGION)
@@ -171,7 +171,7 @@ public final class DeltaLakeQueryRunner
                 }
 
                 if (deltaProperties.keySet().stream().noneMatch(key ->
-                        key.equals("fs.hadoop.enabled") || key.startsWith("fs.native-"))) {
+                        key.matches("fs\\.(azure|gcs|s3|local|hadoop)\\.enabled"))) {
                     deltaProperties.put("fs.hadoop.enabled", "true");
                 }
                 queryRunner.createCatalog(DELTA_CATALOG, CONNECTOR_NAME, deltaProperties);
@@ -311,7 +311,7 @@ public final class DeltaLakeQueryRunner
                     .addDeltaProperty("hive.metastore.unity.catalog-name", unityCatalog)
                     .addDeltaProperty("delta.security", "allow-all")
                     .addDeltaProperty("fs.hadoop.enabled", "false")
-                    .addDeltaProperty("fs.native-s3.enabled", "true")
+                    .addDeltaProperty("fs.s3.enabled", "true")
                     .addDeltaProperty("s3.region", s3Region)
                     .addDeltaProperty("s3.aws-access-key", accessKeyId)
                     .addDeltaProperty("s3.aws-secret-key", secretAccessKey)

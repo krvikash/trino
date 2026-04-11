@@ -75,7 +75,7 @@ public class CloudStorageModule
         configBinder(binder).bindConfig(FileSystemConfig.class);
         FileSystemConfig config = configFactory.build(FileSystemConfig.class);
 
-        logger.info("annotation %s isHadoopEnabled %s isNativeS3Enabled %s", annotation.toString(), config.isHadoopEnabled(), config.isNativeS3Enabled());
+        logger.info("annotation %s isHadoopEnabled %s isS3Enabled %s", annotation.toString(), config.isHadoopEnabled(), config.isS3Enabled());
         Injector injector = Guice.createInjector(
                 new HdfsCloudStorageModule(catalogName, context, configFactory, annotation, config.isHadoopEnabled()),
                 binder1 -> {

@@ -115,7 +115,7 @@ public final class StorageQueryRunner
             queryRunner.installPlugin(new HivePlugin());
             queryRunner.createCatalog("hive", "hive", ImmutableMap.<String, String>builder()
                     .put("hive.metastore.uri", container.getHiveMetastoreEndpoint().toString())
-                    .put("fs.native-s3.enabled", "true")
+                    .put("fs.s3.enabled", "true")
                     .put("s3.aws-access-key", MINIO_ROOT_USER)
                     .put("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
                     .put("s3.region", MINIO_REGION)
@@ -140,7 +140,7 @@ public final class StorageQueryRunner
                                 "id": "minio",
                                 "location": "s3://test-bucket",
                                 "configuration": {
-                                    "fs.native-s3.enabled": "true",
+                                    "fs.s3.enabled": "true",
                                     "s3.endpoint": "%s",
                                     "s3.aws-access-key": "accesskey",
                                     "s3.aws-secret-key": "secretkey",

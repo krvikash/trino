@@ -63,7 +63,7 @@ final class TestObjectStoreIcebergCachingGlueCatalogAccessOperationsTest
                 .put("hive.metastore.glue.default-warehouse-dir", "local://" + dataDir)
                 .put("iceberg.glue.metastore-cache.ttl", "30m")
                 .put("hive.metastore-cache-ttl", "30m")
-                .put("fs.native-local.enabled", "true")
+                .put("fs.local.enabled", "true")
                 .buildOrThrow());
 
         queryRunner.execute("CREATE SCHEMA " + testSchema);

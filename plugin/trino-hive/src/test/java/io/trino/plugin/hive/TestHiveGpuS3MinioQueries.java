@@ -44,7 +44,7 @@ public class TestHiveGpuS3MinioQueries
                 // This is needed to expose potential problems where operators on workers and coordinator do not match.
                 .addExtraProperty("node-scheduler.include-coordinator", "false")
                 .setHiveProperties(ImmutableMap.<String, String>builder()
-                        .put("fs.native-s3.enabled", "true")
+                        .put("fs.s3.enabled", "true")
                         .put("s3.aws-access-key", MINIO_ROOT_USER)
                         .put("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
                         .put("s3.region", MINIO_REGION)

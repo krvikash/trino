@@ -30,7 +30,7 @@ public class TestIcebergOzoneS3GatewayWithNativeS3ConnectorSmokeTest
     {
         return ImmutableMap.<String, String>builder()
                 .put("fs.hadoop.enabled", "false")
-                .put("fs.native-s3.enabled", "true")
+                .put("fs.s3.enabled", "true")
                 .put("s3.aws-access-key", DUMMY_ACCESS_KEY)
                 .put("s3.aws-secret-key", DUMMY_SECRET_KEY)
                 .put("s3.region", DEFAULT_REGION)

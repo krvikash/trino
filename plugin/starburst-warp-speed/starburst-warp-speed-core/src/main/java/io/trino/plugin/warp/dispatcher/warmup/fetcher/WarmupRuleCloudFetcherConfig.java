@@ -25,7 +25,7 @@ public class WarmupRuleCloudFetcherConfig
     public static final String STORE_TYPE = PREFIX + ".store.type";
     public static final String STORE_PATH = PREFIX + ".store.path";
     public static final String HADOOP_ENABLED = PREFIX + ".fs.hadoop.enabled";
-    public static final String NATIVE_S3_ENABLED = PREFIX + ".fs.native-s3.enabled";
+    public static final String NATIVE_S3_ENABLED = PREFIX + ".fs.s3.enabled";
     public static final String REGION = PREFIX + ".s3.region";
     public static final String WARMUP_FETCH_DURATION = PREFIX + ".warmup.fetch.duration";
     public static final String WARMUP_FETCH_DELAY_DURATION = PREFIX + ".warmup.fetch.delay.duration";

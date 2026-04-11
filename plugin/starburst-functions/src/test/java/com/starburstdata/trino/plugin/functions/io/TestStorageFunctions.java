@@ -82,7 +82,7 @@ final class TestStorageFunctions
         queryRunner.installPlugin(new HivePlugin());
         queryRunner.createCatalog("hive", "hive", ImmutableMap.<String, String>builder()
                 .put("hive.metastore.uri", container.getHiveMetastoreEndpoint().toString())
-                .put("fs.native-s3.enabled", "true")
+                .put("fs.s3.enabled", "true")
                 .put("s3.aws-access-key", MINIO_ROOT_USER)
                 .put("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
                 .put("s3.region", MINIO_REGION)
@@ -390,7 +390,7 @@ final class TestStorageFunctions
                             "id": "minio",
                             "location": "s3://test-bucket",
                             "configuration": {
-                                "fs.native-s3.enabled": "true",
+                                "fs.s3.enabled": "true",
                                 "s3.endpoint": "%s",
                                 "s3.aws-access-key": "%s",
                                 "s3.aws-secret-key": "%s",
@@ -402,7 +402,7 @@ final class TestStorageFunctions
                             "id": "duplicate#1",
                             "location": "s3://test-duplicate/default",
                             "configuration": {
-                                "fs.native-s3.enabled": "true",
+                                "fs.s3.enabled": "true",
                                 "s3.region": "us-east-1"
                             }
                         },
@@ -410,7 +410,7 @@ final class TestStorageFunctions
                             "id": "duplicate#2",
                             "location": "s3://test-duplicate/default_prefix",
                             "configuration": {
-                                "fs.native-s3.enabled": "true",
+                                "fs.s3.enabled": "true",
                                 "s3.region": "us-east-1"
                             }
                         }

@@ -39,7 +39,7 @@ public class TestUnloadS3
         return HiveQueryRunner.builder()
                 .setHiveProperties(ImmutableMap.<String, String>builder()
                         .put("fs.hadoop.enabled", "false")
-                        .put("fs.native-s3.enabled", "true")
+                        .put("fs.s3.enabled", "true")
                         .put("s3.region", requireEnv("AWS_REGION"))
                         .put("s3.aws-access-key", requireEnv("AWS_ACCESS_KEY_ID"))
                         .put("s3.aws-secret-key", requireEnv("AWS_SECRET_ACCESS_KEY"))

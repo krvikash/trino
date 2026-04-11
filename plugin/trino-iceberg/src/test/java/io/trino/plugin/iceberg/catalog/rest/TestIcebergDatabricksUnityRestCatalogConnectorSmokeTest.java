@@ -84,7 +84,7 @@ final class TestIcebergDatabricksUnityRestCatalogConnectorSmokeTest
                 .addIcebergProperty("iceberg.rest-catalog.oauth2.token", DATABRICKS_TOKEN)
                 .addIcebergProperty("iceberg.rest-catalog.oauth2.scope", "all-apis")
                 .addIcebergProperty("iceberg.rest-catalog.vended-credentials-enabled", "true")
-                .addIcebergProperty("fs.native-s3.enabled", "true")
+                .addIcebergProperty("fs.s3.enabled", "true")
                 .addIcebergProperty("s3.region", DATABRICKS_AWS_REGION)
                 .setInitialTables(REQUIRED_TPCH_TABLES)
                 .build();

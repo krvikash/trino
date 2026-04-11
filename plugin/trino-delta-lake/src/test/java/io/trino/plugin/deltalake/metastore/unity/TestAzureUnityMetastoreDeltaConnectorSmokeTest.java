@@ -43,7 +43,7 @@ public class TestAzureUnityMetastoreDeltaConnectorSmokeTest
                 .put("hive.metastore.unity.host", DATABRICKS_HOST)
                 .put("hive.metastore.unity.token", DATABRICKS_TOKEN)
                 .put("hive.metastore.unity.catalog-managed-table-enabled", "true")
-                .put("fs.native-azure.enabled", "true")
+                .put("fs.azure.enabled", "true")
                 .put("azure.auth-type", "ACCESS_KEY")
                 .put("azure.access-key", DATABRICKS_AZURE_STORAGE_ACCESS_KEY)
                 .buildOrThrow();

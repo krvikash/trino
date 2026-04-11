@@ -75,7 +75,7 @@ final class TestObjectStoreSchemaDiscovery
         try {
             queryRunner.installPlugin(new ObjectStorePlugin());
             queryRunner.createCatalog("objectstore", STARBURST_OBJECTSTORE, ImmutableMap.<String, String>builder()
-                    .put("fs.native-s3.enabled", "true")
+                    .put("fs.s3.enabled", "true")
                     .put("s3.endpoint", hiveMinioDataLake.getMinio().getMinioAddress())
                     .put("s3.aws-access-key", MINIO_ROOT_USER)
                     .put("s3.aws-secret-key", MINIO_ROOT_PASSWORD)

@@ -254,7 +254,7 @@ public final class HiveQueryRunner
                 Optional<HiveMetastore> metastore = this.metastore.map(factory -> factory.apply(queryRunner));
                 Path dataDir = queryRunner.getCoordinator().getBaseDataDir().resolve("hive_data");
                 if (hiveProperties.buildOrThrow().keySet().stream().noneMatch(key ->
-                        key.equals("fs.hadoop.enabled") || key.startsWith("fs.native-"))) {
+                        key.matches("fs\\.(azure|gcs|s3|local|hadoop)\\.enabled"))) {
                     hiveProperties.put("fs.hadoop.enabled", "true");
                 }
 
@@ -507,7 +507,7 @@ public final class HiveQueryRunner
                     .addHiveProperty("hive.security", "allow-all")
                     .addHiveProperty("hive.non-managed-table-writes-enabled", "true")
                     .addHiveProperty("fs.hadoop.enabled", "false")
-                    .addHiveProperty("fs.native-s3.enabled", "true")
+                    .addHiveProperty("fs.s3.enabled", "true")
                     .addHiveProperty("s3.region", s3Region)
                     .addHiveProperty("s3.aws-access-key", accessKeyId)
                     .addHiveProperty("s3.aws-secret-key", secretAccessKey)

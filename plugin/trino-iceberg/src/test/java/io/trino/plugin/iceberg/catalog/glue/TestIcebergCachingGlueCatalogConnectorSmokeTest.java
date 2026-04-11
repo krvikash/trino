@@ -72,7 +72,7 @@ final class TestIcebergCachingGlueCatalogConnectorSmokeTest
                         ImmutableMap.of(
                                 "iceberg.file-format", format.name(),
                                 "iceberg.catalog.type", "glue",
-                                "fs.native-s3.enabled", "true",
+                                "fs.s3.enabled", "true",
                                 "hive.metastore.glue.default-warehouse-dir", schemaPath(),
                                 "iceberg.register-table-procedure.enabled", "true",
                                 "iceberg.writer-sort-buffer-size", "1MB",

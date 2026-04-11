@@ -52,7 +52,7 @@ final class TestIcebergHiveCatalogExternalWriteTest
                 .put("iceberg.catalog.type", "HIVE_METASTORE")
                 .put("hive.metastore.uri", hive3MinioDataLake.getHiveHadoop().getHiveMetastoreEndpoint().toString())
                 .put("fs.hadoop.enabled", "false")
-                .put("fs.native-s3.enabled", "true")
+                .put("fs.s3.enabled", "true")
                 .put("s3.aws-access-key", MINIO_ROOT_USER)
                 .put("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
                 .put("s3.endpoint", hive3MinioDataLake.getMinio().getMinioAddress())

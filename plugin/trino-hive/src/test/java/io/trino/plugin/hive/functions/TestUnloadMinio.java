@@ -47,7 +47,7 @@ public class TestUnloadMinio
         return HiveQueryRunner.builder()
                 .setHiveProperties(ImmutableMap.<String, String>builder()
                         .put("fs.hadoop.enabled", "false")
-                        .put("fs.native-s3.enabled", "true")
+                        .put("fs.s3.enabled", "true")
                         .put("s3.aws-access-key", MINIO_ROOT_USER)
                         .put("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
                         .put("s3.endpoint", minio.getMinioAddress())

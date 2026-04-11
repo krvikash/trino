@@ -49,7 +49,7 @@ public class TestUnloadGcs
                 .setHiveProperties(ImmutableMap.<String, String>builder()
                         .put("hive.metastore", "file")
                         .put("fs.hadoop.enabled", "false")
-                        .put("fs.native-gcs.enabled", "true")
+                        .put("fs.gcs.enabled", "true")
                         .put("gcs.json-key", gcsJsonKey)
                         .put("hive.security", "allow-all")
                         .buildOrThrow())

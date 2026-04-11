@@ -53,7 +53,7 @@ public class TestStarburstObjectStoreHiveCacheSubqueriesTest
                     .put("great-lakes.table-type", TableType.HIVE.name())
                     .put("hive.metastore", "file")
                     .put("hive.metastore.catalog.dir", "local://" + dataDir)
-                    .put("fs.native-local.enabled", "true")
+                    .put("fs.local.enabled", "true")
                     .buildOrThrow());
             queryRunner.execute("CREATE SCHEMA objectstore.tpch");
         }

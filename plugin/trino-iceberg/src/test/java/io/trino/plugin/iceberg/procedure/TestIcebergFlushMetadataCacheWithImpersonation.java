@@ -53,7 +53,7 @@ final class TestIcebergFlushMetadataCacheWithImpersonation
                         .put("hive.metastore.thrift.impersonation.enabled", "true")
                         .put("hive.metastore-cache-ttl", "1d")
                         .put("hive.user-metastore-cache-ttl", "1d")
-                        .put("fs.native-s3.enabled", "true")
+                        .put("fs.s3.enabled", "true")
                         .put("s3.aws-access-key", MINIO_ROOT_USER)
                         .put("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
                         .put("s3.region", MINIO_REGION)

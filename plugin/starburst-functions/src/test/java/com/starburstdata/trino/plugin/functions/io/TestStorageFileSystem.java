@@ -172,7 +172,7 @@ final class TestStorageFileSystem
                             "id": "s3",
                             "location": "s3://%s",
                             "configuration": {
-                                "fs.native-s3.enabled": "true",
+                                "fs.s3.enabled": "true",
                                 "s3.aws-access-key": "%s",
                                 "s3.aws-secret-key": "%s",
                                 "s3.region": "%s"
@@ -182,7 +182,7 @@ final class TestStorageFileSystem
                             "id": "gcs",
                             "location": "gs://%s",
                             "configuration": {
-                                "fs.native-gcs.enabled": "true",
+                                "fs.gcs.enabled": "true",
                                 "gcs.json-key": %s
                             }
                         },
@@ -190,7 +190,7 @@ final class TestStorageFileSystem
                             "id": "azure",
                             "location": "abfs://%s@%s.dfs.core.windows.net",
                             "configuration": {
-                                "fs.native-azure.enabled": "true",
+                                "fs.azure.enabled": "true",
                                 "azure.auth-type": "ACCESS_KEY",
                                 "azure.access-key": "%s"
                             }
@@ -199,7 +199,7 @@ final class TestStorageFileSystem
                             "id": "local",
                             "location": "local://%10$s",
                             "configuration": {
-                                "fs.native-local.enabled": "true",
+                                "fs.local.enabled": "true",
                                 "local.location": "%10$s"
                             }
                         }

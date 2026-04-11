@@ -60,7 +60,7 @@ public class TestStarburstObjectStoreIcebergGlueCatalogAccessOperations
                     .put("great-lakes.table-type", TableType.ICEBERG.name())
                     .put("hive.metastore", "glue")
                     .put("hive.metastore.glue.default-warehouse-dir", "local://" + dataDir)
-                    .put("fs.native-local.enabled", "true")
+                    .put("fs.local.enabled", "true")
                     .buildOrThrow());
 
             queryRunner.execute("CREATE SCHEMA " + testSchema);

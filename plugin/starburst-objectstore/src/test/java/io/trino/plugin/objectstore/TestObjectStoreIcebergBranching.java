@@ -55,7 +55,7 @@ final class TestObjectStoreIcebergBranching
                     .put("great-lakes.table-type", TableType.ICEBERG.name())
                     .put("hive.metastore", "file")
                     .put("hive.metastore.catalog.dir", "local://" + dataDir)
-                    .put("fs.native-local.enabled", "true")
+                    .put("fs.local.enabled", "true")
                     .buildOrThrow());
             queryRunner.execute("CREATE SCHEMA iceberg.tpch");
             return queryRunner;

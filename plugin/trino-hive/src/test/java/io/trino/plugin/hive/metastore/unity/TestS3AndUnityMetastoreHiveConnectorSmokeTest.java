@@ -83,7 +83,7 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
                 .addHiveProperty("hive.security", "allow-all")
                 .addHiveProperty("hive.non-managed-table-writes-enabled", "true")
                 .addHiveProperty("fs.hadoop.enabled", "false")
-                .addHiveProperty("fs.native-s3.enabled", "true")
+                .addHiveProperty("fs.s3.enabled", "true")
                 .addHiveProperty("s3.region", DATABRICKS_AWS_REGION)
                 .addHiveProperty("s3.aws-access-key", DATABRICKS_AWS_ACCESS_KEY_ID)
                 .addHiveProperty("s3.aws-secret-key", DATABRICKS_AWS_SECRET_ACCESS_KEY)
@@ -303,7 +303,7 @@ class TestS3AndUnityMetastoreHiveConnectorSmokeTest
                 .hasMessageContaining("Table rename is not supported with current metastore configuration");
     }
 
-    @Override // to showcase insert path through a separate table without impacting static region table created for this test 
+    @Override // to showcase insert path through a separate table without impacting static region table created for this test
     @Test
     public void testInsert()
     {

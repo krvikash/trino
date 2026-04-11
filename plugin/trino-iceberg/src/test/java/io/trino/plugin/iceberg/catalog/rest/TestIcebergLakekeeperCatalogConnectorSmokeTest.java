@@ -80,7 +80,7 @@ final class TestIcebergLakekeeperCatalogConnectorSmokeTest
                 .addIcebergProperty("iceberg.rest-catalog.uri", lakekeeperCatalog.restUri() + "/catalog")
                 .addIcebergProperty("iceberg.rest-catalog.warehouse", TestingLakekeeperCatalog.WAREHOUSE)
                 .addIcebergProperty("s3.endpoint", lakekeeperCatalog.externalMinioAddress())
-                .addIcebergProperty("fs.native-s3.enabled", "true")
+                .addIcebergProperty("fs.s3.enabled", "true")
                 .addIcebergProperty("s3.region", "dummy")
                 .addIcebergProperty("s3.path-style-access", "true")
                 .addIcebergProperty("s3.aws-access-key", MINIO_ROOT_USER)
