@@ -16,13 +16,11 @@ package io.trino.sql.gen.columnar;
 import com.google.common.collect.ImmutableMap;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.trino.Session;
-import io.trino.metadata.Metadata;
 import io.trino.operator.project.SelectedPositions;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.SourcePage;
-import io.trino.spi.type.TypeManager;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.gen.PageFunctionCompiler;
 import io.trino.sql.ir.Expression;
@@ -31,7 +29,6 @@ import io.trino.sql.planner.DomainTranslator;
 import io.trino.sql.planner.DynamicFilterTupleDomain;
 import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.planner.Symbol;
-import io.trino.sql.relational.RowExpression;
 import jakarta.annotation.Nullable;
 
 import java.util.List;
@@ -44,13 +41,10 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.trino.sql.gen.columnar.BloomColumnarFilter.createBloomFilterEvaluator;
 import static io.trino.sql.gen.columnar.FilterEvaluator.createColumnarFilterEvaluator;
-import static io.trino.sql.relational.SqlToRowExpressionTranslator.translate;
 import static java.util.Objects.requireNonNull;
 
 public final class DynamicPageFilter
 {
-    private final Metadata metadata;
-    private final TypeManager typeManager;
     private final Session session;
     private final IrExpressionOptimizer irExpressionOptimizer;
     private final DomainTranslator domainTranslator;
@@ -75,8 +69,6 @@ public final class DynamicPageFilter
             Map<Symbol, Integer> sourceLayout,
             double selectivityThreshold)
     {
-        this.metadata = requireNonNull(plannerContext.getMetadata(), "metadata is null");
-        this.typeManager = requireNonNull(plannerContext.getTypeManager(), "typeManager is null");
         this.session = requireNonNull(session, "session is null");
         this.irExpressionOptimizer = plannerContext.getExpressionOptimizer();
         this.domainTranslator = new DomainTranslator(plannerContext.getMetadata());
@@ -133,8 +125,7 @@ public final class DynamicPageFilter
                     Expression expression = domainTranslator.toPredicate(entry.getValue().getDomain().orElseThrow(), symbol.toSymbolReference());
                     // Run the expression derived from TupleDomain through IR optimizer to simplify predicates. E.g. SimplifyContinuousInValues
                     expression = irExpressionOptimizer.process(expression, session, ImmutableMap.of()).orElse(expression);
-                    RowExpression rowExpression = translate(expression, sourceLayout, metadata, typeManager);
-                    return createColumnarFilterEvaluator(false, false, rowExpression, compiler, pageFunctionCompiler, Optional.empty());
+                    return createColumnarFilterEvaluator(false, false, expression, sourceLayout, compiler, pageFunctionCompiler, Optional.empty());
                 })
                 .filter(Optional::isPresent)
                 .map(Optional::get)

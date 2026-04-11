@@ -14,15 +14,8 @@
 package io.trino.sql;
 
 import io.trino.sql.ir.Expression;
-import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.assertions.ExpressionVerifier;
 import io.trino.sql.planner.assertions.SymbolAliases;
-import io.trino.sql.relational.RowExpression;
-import io.trino.sql.relational.SqlToRowExpressionTranslator;
-
-import java.util.Map;
-
-import static io.trino.sql.planner.TestingPlannerContext.PLANNER_CONTEXT;
 
 public final class ExpressionTestUtils
 {
@@ -48,14 +41,5 @@ public final class ExpressionTestUtils
             formatted = message + " ";
         }
         throw new AssertionError(formatted + " expected [" + expected + "] but found [" + actual + "]");
-    }
-
-    public static RowExpression rowExpression(Expression expression, Map<Symbol, Integer> layout)
-    {
-        return SqlToRowExpressionTranslator.translate(
-                expression,
-                layout,
-                PLANNER_CONTEXT.getMetadata(),
-                PLANNER_CONTEXT.getTypeManager());
     }
 }

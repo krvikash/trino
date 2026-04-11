@@ -20,11 +20,13 @@ import io.trino.operator.project.SelectedPositions;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.type.Type;
-import io.trino.sql.relational.Expressions;
-import io.trino.sql.relational.InputReferenceExpression;
-import io.trino.sql.relational.RowExpression;
+import io.trino.sql.ir.DefaultTraversalVisitor;
+import io.trino.sql.ir.Expression;
+import io.trino.sql.ir.Reference;
+import io.trino.sql.planner.Symbol;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 
@@ -41,11 +43,11 @@ class DebugContext
     private final String filterExpression;
     private final boolean isDebugOutputEnabled;
 
-    public DebugContext(List<RowExpression> expressions, String filterExpression, boolean isDebugOutputEnabled)
+    public DebugContext(List<Expression> expressions, Map<Symbol, Integer> layout, String filterExpression, boolean isDebugOutputEnabled)
     {
         this.inputTypes = expressions.stream()
                 .map(expression -> {
-                    List<Type> types = getInputTypes(expression);
+                    List<Type> types = getInputTypes(expression, layout);
                     if (types.size() == 1) {
                         return Optional.of(types.getFirst());
                     }
@@ -53,10 +55,10 @@ class DebugContext
                 })
                 .collect(toImmutableList());
         this.outputTypes = expressions.stream()
-                .map(RowExpression::type)
+                .map(Expression::type)
                 .collect(toImmutableList());
         this.expressions = expressions.stream()
-                .map(RowExpression::toString)
+                .map(Expression::toString)
                 .collect(toImmutableList());
         this.filterExpression = filterExpression;
         this.isDebugOutputEnabled = isDebugOutputEnabled;
@@ -91,14 +93,21 @@ class DebugContext
         }
     }
 
-    private static List<Type> getInputTypes(RowExpression expression)
+    private static List<Type> getInputTypes(Expression expression, Map<Symbol, Integer> layout)
     {
         TreeMap<Integer, Type> channels = new TreeMap<>();
-        for (RowExpression subExpression : Expressions.subExpressions(ImmutableList.of(expression))) {
-            if (subExpression instanceof InputReferenceExpression(int field, Type type)) {
-                channels.computeIfAbsent(field, _ -> type);
+        new DefaultTraversalVisitor<Void>()
+        {
+            @Override
+            protected Void visitReference(Reference node, Void context)
+            {
+                Integer channel = layout.get(Symbol.from(node));
+                if (channel != null) {
+                    channels.computeIfAbsent(channel, _ -> node.type());
+                }
+                return null;
             }
-        }
+        }.process(expression, null);
         return ImmutableList.copyOf(channels.values());
     }
 

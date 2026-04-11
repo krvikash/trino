@@ -26,7 +26,7 @@ import static io.trino.sql.ir.IrUtils.validateType;
 import static java.util.Objects.requireNonNull;
 
 @JsonSerialize
-public record Logical(Operator operator, List<Expression> terms)
+public record Logical(Operator operator, List<Expression> terms, boolean canSplit)
         implements Expression
 {
     public enum Operator
@@ -40,6 +40,11 @@ public record Logical(Operator operator, List<Expression> terms)
                 case OR -> AND;
             };
         }
+    }
+
+    public Logical(Operator operator, List<Expression> terms)
+    {
+        this(operator, terms, true);
     }
 
     public Logical

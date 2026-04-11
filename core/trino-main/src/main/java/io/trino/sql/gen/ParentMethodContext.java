@@ -20,11 +20,11 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-public record ParentMethodContext(RowExpressionGenerationContext rowExpressionContext, List<Variable> contextVariables)
+public record ParentMethodContext(ExpressionGenerationContext expressionContext, List<Variable> contextVariables)
 {
     public ParentMethodContext
     {
-        requireNonNull(rowExpressionContext, "rowExpressionContext is null");
+        requireNonNull(expressionContext, "expressionContext is null");
         contextVariables = ImmutableList.copyOf(contextVariables);
     }
 }

@@ -40,8 +40,6 @@ import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.planner.Symbol;
-import io.trino.sql.relational.RowExpression;
-import io.trino.sql.relational.SqlToRowExpressionTranslator;
 import io.trino.testing.PageConsumerOperator.PageConsumerOutputFactory;
 import io.trino.testing.PlanTester;
 import jakarta.annotation.Nullable;
@@ -765,19 +763,14 @@ public class TestGpuCasts
 
     private List<Page> executeWithCpu(List<Page> inputPages, Expression expression, Map<Symbol, Integer> layout)
     {
-        RowExpression rowExpression = SqlToRowExpressionTranslator.translate(
-                expression,
-                layout,
-                functionResolution.getMetadata(),
-                functionResolution.getPlannerContext().getTypeManager());
-
         PageProcessor compiledProcessor = functionResolution.getExpressionCompiler().compilePageProcessor(
                         false,
                         true,
                         false,
                         Optional.empty(),
                         Optional.empty(),
-                        List.of(rowExpression),
+                        List.of(expression),
+                        layout,
                         Optional.empty(),
                         OptionalInt.empty())
                 .apply(InternalDynamicFilter.EMPTY);

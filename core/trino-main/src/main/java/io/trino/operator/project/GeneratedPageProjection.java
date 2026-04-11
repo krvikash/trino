@@ -20,7 +20,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.PageProjectionWork;
-import io.trino.sql.relational.RowExpression;
+import io.trino.sql.ir.Expression;
 
 import java.lang.invoke.MethodHandle;
 
@@ -31,14 +31,14 @@ import static java.util.Objects.requireNonNull;
 public class GeneratedPageProjection
         implements PageProjection
 {
-    private final RowExpression projection;
+    private final Expression projection;
     private final boolean isDeterministic;
     private final InputChannels inputChannels;
     private final MethodHandle pageProjectionWorkFactory;
 
     private PreSizedBlockBuilder blockBuilder;
 
-    public GeneratedPageProjection(RowExpression projection, boolean isDeterministic, InputChannels inputChannels, MethodHandle pageProjectionWorkFactory)
+    public GeneratedPageProjection(Expression projection, boolean isDeterministic, InputChannels inputChannels, MethodHandle pageProjectionWorkFactory)
     {
         this.projection = requireNonNull(projection, "projection is null");
         this.isDeterministic = isDeterministic;

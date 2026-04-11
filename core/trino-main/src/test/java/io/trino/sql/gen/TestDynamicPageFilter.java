@@ -81,8 +81,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TestDynamicPageFilter
 {
     private static final FunctionManager FUNCTION_MANAGER = createTestingFunctionManager();
-    private static final ColumnarFilterCompiler COMPILER = new ColumnarFilterCompiler(FUNCTION_MANAGER, new CompilerConfig());
-    private static final PageFunctionCompiler PAGE_FUNCTION_COMPILER = new PageFunctionCompiler(FUNCTION_MANAGER, new CompilerConfig());
+    private static final ColumnarFilterCompiler COMPILER = new ColumnarFilterCompiler(FUNCTION_MANAGER, PLANNER_CONTEXT.getMetadata(), new CompilerConfig());
+    private static final PageFunctionCompiler PAGE_FUNCTION_COMPILER = new PageFunctionCompiler(FUNCTION_MANAGER, PLANNER_CONTEXT.getMetadata(), PLANNER_CONTEXT.getTypeManager(), new CompilerConfig());
     private static final Session SESSION = testSessionBuilder().build();
     private static final FullConnectorSession FULL_CONNECTOR_SESSION = new FullConnectorSession(
             testSessionBuilder().build(),

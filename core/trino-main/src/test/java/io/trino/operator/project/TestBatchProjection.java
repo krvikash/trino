@@ -14,6 +14,7 @@
 package io.trino.operator.project;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.slice.Slices;
 import io.trino.FullConnectorSession;
@@ -37,24 +38,28 @@ import io.trino.spi.function.OperatorType;
 import io.trino.spi.function.Signature;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.TypeSignature;
-import io.trino.sql.relational.CallExpression;
-import io.trino.sql.relational.ConstantExpression;
-import io.trino.sql.relational.InputReferenceExpression;
-import io.trino.sql.relational.LambdaDefinitionExpression;
-import io.trino.sql.relational.RowExpression;
-import io.trino.sql.relational.RowExpressionVisitor;
-import io.trino.sql.relational.SpecialForm;
-import io.trino.sql.relational.VariableReferenceExpression;
+import io.trino.sql.gen.columnar.ColumnarFilterCompiler;
+import io.trino.sql.gen.columnar.FilterEvaluator;
+import io.trino.sql.ir.Call;
+import io.trino.sql.ir.Constant;
+import io.trino.sql.ir.Expression;
+import io.trino.sql.ir.ExpressionRewriter;
+import io.trino.sql.ir.ExpressionTreeRewriter;
+import io.trino.sql.ir.Reference;
+import io.trino.sql.planner.Symbol;
 import io.trino.testing.TestingSession;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.lang.invoke.MethodHandle;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -66,9 +71,7 @@ import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
-import static io.trino.sql.relational.Expressions.call;
-import static io.trino.sql.relational.Expressions.constant;
-import static io.trino.sql.relational.Expressions.field;
+import static io.trino.sql.ir.IrExpressions.call;
 import static io.trino.testing.DataProviders.cartesianProduct;
 import static io.trino.testing.DataProviders.toDataProvider;
 import static io.trino.testing.DataProviders.trueFalse;
@@ -82,12 +85,22 @@ final class TestBatchProjection
 {
     private static final Random RANDOM = new Random(5376453765L);
     private static final long CONSTANT = 64992484L;
-    private static final int DOUBLE_CHANNEL = 0;
-    private static final int LONG_CHANNEL_B = 1;
-    private static final int STRING_CHANNEL = 2;
-    private static final int LONG_CHANNEL_A = 3;
-    private static final int LONG_CHANNEL_C = 4;
-    private static final int LONG_CHANNEL_D = 5;
+
+    private static final String COL_DOUBLE = "col_double";
+    private static final String COL_LONG_B = "col_long_b";
+    private static final String COL_STRING = "col_string";
+    private static final String COL_LONG_A = "col_long_a";
+    private static final String COL_LONG_C = "col_long_c";
+    private static final String COL_LONG_D = "col_long_d";
+    private static final Map<Symbol, Integer> LAYOUT = ImmutableMap.<Symbol, Integer>builder()
+            .put(new Symbol(DOUBLE, COL_DOUBLE), 0)
+            .put(new Symbol(BIGINT, COL_LONG_B), 1)
+            .put(new Symbol(VARCHAR, COL_STRING), 2)
+            .put(new Symbol(BIGINT, COL_LONG_A), 3)
+            .put(new Symbol(BIGINT, COL_LONG_C), 4)
+            .put(new Symbol(BIGINT, COL_LONG_D), 5)
+            .buildOrThrow();
+
     private static final FullConnectorSession FULL_CONNECTOR_SESSION = new FullConnectorSession(
             TestingSession.testSessionBuilder().build(),
             ConnectorIdentity.ofUser("test"));
@@ -132,13 +145,20 @@ final class TestBatchProjection
         }
     }
 
+    private static final Reference COL_A = new Reference(BIGINT, COL_LONG_A);
+    private static final Reference COL_B = new Reference(BIGINT, COL_LONG_B);
+    private static final Reference COL_C = new Reference(BIGINT, COL_LONG_C);
+    private static final Reference COL_D = new Reference(BIGINT, COL_LONG_D);
+    private static final Reference COL_DOUBLE_REF = new Reference(DOUBLE, COL_DOUBLE);
+    private static final Reference COL_STRING_REF = new Reference(VARCHAR, COL_STRING);
+
     @ParameterizedTest
     @MethodSource("inputProviders")
     void testBatchFunction(NullsProvider nullsProvider, boolean dictionaryEncoded)
     {
         List<Page> inputPages = createInputPages(nullsProvider, dictionaryEncoded);
         // batch_add(#3, #1)
-        RowExpression batchAdd = call(BATCH_ADD_BIGINT, field(LONG_CHANNEL_A, BIGINT), field(LONG_CHANNEL_B, BIGINT));
+        Expression batchAdd = call(BATCH_ADD_BIGINT, COL_A, COL_B);
         verifyProjection(inputPages, batchAdd);
     }
 
@@ -148,26 +168,26 @@ final class TestBatchProjection
     {
         List<Page> inputPages = createInputPages(nullsProvider, dictionaryEncoded);
         // batch_add(#3, add(#1, #4))
-        RowExpression batchAdd = call(
+        Expression batchAdd = call(
                 BATCH_ADD_BIGINT,
-                field(LONG_CHANNEL_A, BIGINT),
-                call(SCALAR_ADD_BIGINT, field(LONG_CHANNEL_B, BIGINT), field(LONG_CHANNEL_C, BIGINT)));
+                COL_A,
+                call(SCALAR_ADD_BIGINT, COL_B, COL_C));
         verifyProjection(inputPages, batchAdd);
 
         // Common input for inner and outer function
         // batch_add(#1, add(#1, #4))
         batchAdd = call(
                 BATCH_ADD_BIGINT,
-                field(LONG_CHANNEL_B, BIGINT),
-                call(SCALAR_ADD_BIGINT, field(LONG_CHANNEL_B, BIGINT), field(LONG_CHANNEL_C, BIGINT)));
+                COL_B,
+                call(SCALAR_ADD_BIGINT, COL_B, COL_C));
         verifyProjection(inputPages, batchAdd);
 
         // Multiple scalar projection inputs
         // batch_add(add(#1, cast(#0)), add(#1, #4))
         batchAdd = call(
                 BATCH_ADD_BIGINT,
-                call(SCALAR_ADD_BIGINT, field(LONG_CHANNEL_B, BIGINT), call(SCALAR_CAST_DOUBLE, field(DOUBLE_CHANNEL, DOUBLE))),
-                call(SCALAR_ADD_BIGINT, field(LONG_CHANNEL_B, BIGINT), field(LONG_CHANNEL_C, BIGINT)));
+                call(SCALAR_ADD_BIGINT, COL_B, call(SCALAR_CAST_DOUBLE, COL_DOUBLE_REF)),
+                call(SCALAR_ADD_BIGINT, COL_B, COL_C));
         verifyProjection(inputPages, batchAdd);
     }
 
@@ -177,17 +197,17 @@ final class TestBatchProjection
     {
         List<Page> inputPages = createInputPages(nullsProvider, dictionaryEncoded);
         // add(batch_add(#3, #1), #4)
-        RowExpression batchAdd = call(
+        Expression batchAdd = call(
                 SCALAR_ADD_BIGINT,
-                call(BATCH_ADD_BIGINT, field(LONG_CHANNEL_A, BIGINT), field(LONG_CHANNEL_B, BIGINT)),
-                field(LONG_CHANNEL_C, BIGINT));
+                call(BATCH_ADD_BIGINT, COL_A, COL_B),
+                COL_C);
         verifyProjection(inputPages, batchAdd);
 
         // add(batch_add(#3, #1), batch_add(#1, #5))
         batchAdd = call(
                 SCALAR_ADD_BIGINT,
-                call(BATCH_ADD_BIGINT, field(LONG_CHANNEL_A, BIGINT), field(LONG_CHANNEL_B, BIGINT)),
-                call(BATCH_ADD_BIGINT, field(LONG_CHANNEL_B, BIGINT), field(LONG_CHANNEL_D, BIGINT)));
+                call(BATCH_ADD_BIGINT, COL_A, COL_B),
+                call(BATCH_ADD_BIGINT, COL_B, COL_D));
         verifyProjection(inputPages, batchAdd);
     }
 
@@ -199,10 +219,10 @@ final class TestBatchProjection
         // add(
         //   batch_add(#1, cast(#0)),
         //   batch_add(#1, #4))
-        RowExpression batchAdd = call(
+        Expression batchAdd = call(
                 SCALAR_ADD_BIGINT,
-                call(BATCH_ADD_BIGINT, field(LONG_CHANNEL_B, BIGINT), call(SCALAR_CAST_DOUBLE, field(DOUBLE_CHANNEL, DOUBLE))),
-                call(BATCH_ADD_BIGINT, field(LONG_CHANNEL_B, BIGINT), field(LONG_CHANNEL_C, BIGINT)));
+                call(BATCH_ADD_BIGINT, COL_B, call(SCALAR_CAST_DOUBLE, COL_DOUBLE_REF)),
+                call(BATCH_ADD_BIGINT, COL_B, COL_C));
         verifyProjection(inputPages, batchAdd);
 
         // add(
@@ -215,13 +235,13 @@ final class TestBatchProjection
                         SCALAR_ADD_BIGINT,
                         call(
                                 BATCH_ADD_BIGINT,
-                                call(SCALAR_CAST_STRING, field(STRING_CHANNEL, VARCHAR)),
-                                call(SCALAR_CAST_DOUBLE, field(DOUBLE_CHANNEL, DOUBLE))),
+                                call(SCALAR_CAST_STRING, COL_STRING_REF),
+                                call(SCALAR_CAST_DOUBLE, COL_DOUBLE_REF)),
                         call(
                                 BATCH_ADD_BIGINT,
-                                call(SCALAR_ADD_BIGINT, field(LONG_CHANNEL_B, BIGINT), field(LONG_CHANNEL_D, BIGINT)),
-                                field(LONG_CHANNEL_C, BIGINT))),
-                constant(CONSTANT, BIGINT));
+                                call(SCALAR_ADD_BIGINT, COL_B, COL_D),
+                                COL_C)),
+                new Constant(BIGINT, CONSTANT));
         verifyProjection(inputPages, batchAdd);
 
         // add(
@@ -235,10 +255,10 @@ final class TestBatchProjection
                         BATCH_ADD_BIGINT,
                         call(
                                 SCALAR_ADD_BIGINT,
-                                call(BATCH_ADD_BIGINT, field(LONG_CHANNEL_B, BIGINT), field(LONG_CHANNEL_B, BIGINT)),
-                                constant(CONSTANT, BIGINT)),
-                        call(BATCH_ADD_BIGINT, field(LONG_CHANNEL_A, BIGINT), field(LONG_CHANNEL_D, BIGINT))),
-                call(BATCH_ADD_BIGINT, field(LONG_CHANNEL_B, BIGINT), field(LONG_CHANNEL_C, BIGINT)));
+                                call(BATCH_ADD_BIGINT, COL_B, COL_B),
+                                new Constant(BIGINT, CONSTANT)),
+                        call(BATCH_ADD_BIGINT, COL_A, COL_D)),
+                call(BATCH_ADD_BIGINT, COL_B, COL_C));
         verifyProjection(inputPages, batchAdd);
     }
 
@@ -248,18 +268,42 @@ final class TestBatchProjection
     {
         List<Page> inputPages = createInputPages(nullsProvider, false);
         // batch_less_than(constant, col)
-        RowExpression filter = call(
+        Expression filter = call(
                 BATCH_LESS_THAN_BIGINT,
-                constant(CONSTANT, BIGINT),
-                field(LONG_CHANNEL_A, BIGINT));
+                new Constant(BIGINT, CONSTANT),
+                COL_A);
         verifyFilter(inputPages, filter);
 
         // batch_add(colA, colB) < batch_add(colC, colD)
         filter = call(
                 BATCH_LESS_THAN_BIGINT,
-                call(BATCH_ADD_BIGINT, field(LONG_CHANNEL_A, BIGINT), field(LONG_CHANNEL_B, BIGINT)),
-                call(BATCH_ADD_BIGINT, field(LONG_CHANNEL_C, BIGINT), field(LONG_CHANNEL_D, BIGINT)));
+                call(BATCH_ADD_BIGINT, COL_A, COL_B),
+                call(BATCH_ADD_BIGINT, COL_C, COL_D));
         verifyFilter(inputPages, filter);
+    }
+
+    @Test
+    void testColumnarFilterRejectsBatchFunction()
+    {
+        // A top-level filter calling a BATCH function must bypass columnar evaluation so it can be
+        // handled by compilePageFilterWithBatchFunction. createColumnarFilterEvaluator should return
+        // empty without invoking ColumnarFilterCompiler at all.
+        ColumnarFilterCompiler compiler = FUNCTION_RESOLUTION.getColumnarFilterCompiler(100);
+
+        Expression batchFilter = call(BATCH_LESS_THAN_BIGINT, COL_A, new Constant(BIGINT, CONSTANT));
+
+        Optional<Supplier<FilterEvaluator>> evaluator = FilterEvaluator.createColumnarFilterEvaluator(
+                true,
+                false,
+                false,
+                Optional.of(batchFilter),
+                LAYOUT,
+                compiler,
+                FUNCTION_RESOLUTION.getPageFunctionCompiler(),
+                Optional.empty());
+
+        assertThat(evaluator).isEmpty();
+        assertThat(compiler.getFilterCache().getRequestCount()).isZero();
     }
 
     enum NullsProvider
@@ -350,7 +394,7 @@ final class TestBatchProjection
         if (dictionaryEncoded) {
             boolean containsNulls = nullsProvider != NullsProvider.NO_NULLS && nullsProvider != NullsProvider.NO_NULLS_WITH_MAY_HAVE_NULL;
             int nonNullDictionarySize = 20;
-            int dictionarySize = nonNullDictionarySize + (containsNulls ? 1 : 0); // last element in dictionary denotes null
+            int dictionarySize = nonNullDictionarySize + (containsNulls ? 1 : 0);
             long[] dictionaryValues = new long[dictionarySize];
             for (int i = 0; i < nonNullDictionarySize; i++) {
                 dictionaryValues[i] = CONSTANT - 10 + i;
@@ -376,7 +420,7 @@ final class TestBatchProjection
         if (dictionaryEncoded) {
             boolean containsNulls = nullsProvider != NullsProvider.NO_NULLS && nullsProvider != NullsProvider.NO_NULLS_WITH_MAY_HAVE_NULL;
             int nonNullDictionarySize = 200;
-            int dictionarySize = nonNullDictionarySize + (containsNulls ? 1 : 0); // last element in dictionary denotes null
+            int dictionarySize = nonNullDictionarySize + (containsNulls ? 1 : 0);
             long[] dictionaryValues = new long[dictionarySize];
             for (int i = 0; i < nonNullDictionarySize; i++) {
                 dictionaryValues[i] = doubleToLongBits(CONSTANT - 100 + i);
@@ -402,7 +446,7 @@ final class TestBatchProjection
         if (dictionaryEncoded) {
             boolean containsNulls = nullsProvider != NullsProvider.NO_NULLS && nullsProvider != NullsProvider.NO_NULLS_WITH_MAY_HAVE_NULL;
             int nonNullDictionarySize = 20;
-            int dictionarySize = nonNullDictionarySize + (containsNulls ? 1 : 0); // last element in dictionary denotes null
+            int dictionarySize = nonNullDictionarySize + (containsNulls ? 1 : 0);
             VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, dictionarySize, dictionarySize * 10);
             for (int i = 0; i < nonNullDictionarySize; i++) {
                 builder.writeEntry(Slices.utf8Slice(Long.toString(CONSTANT - 10 + i)));
@@ -458,9 +502,9 @@ final class TestBatchProjection
         return DictionaryBlock.create(positionsCount, dictionary, ids);
     }
 
-    private static void verifyProjection(List<Page> inputPages, RowExpression batchProjection)
+    private static void verifyProjection(List<Page> inputPages, Expression batchProjection)
     {
-        RowExpression scalarProjection = rewriteBatchToScalarFunction(batchProjection);
+        Expression scalarProjection = rewriteBatchToScalarFunction(batchProjection);
 
         List<SelectedPositions> allRanges = inputPages.stream()
                 .map(Page::getPositionCount)
@@ -503,7 +547,7 @@ final class TestBatchProjection
         verifyProjectionInternal(inputPages, randomPositionLists, batchProjection, scalarProjection);
     }
 
-    private static void verifyProjectionInternal(List<Page> inputPages, List<SelectedPositions> positions, RowExpression batchProjection, RowExpression scalarProjection)
+    private static void verifyProjectionInternal(List<Page> inputPages, List<SelectedPositions> positions, Expression batchProjection, Expression scalarProjection)
     {
         List<Block> outputBlocksExpected = processProjection(inputPages, positions, scalarProjection);
         List<Block> outputBlocksActual = processProjection(inputPages, positions, batchProjection);
@@ -517,9 +561,9 @@ final class TestBatchProjection
         }
     }
 
-    private static List<Block> processProjection(List<Page> inputPages, List<SelectedPositions> positions, RowExpression projection)
+    private static List<Block> processProjection(List<Page> inputPages, List<SelectedPositions> positions, Expression projection)
     {
-        PageProjection pageProjection = FUNCTION_RESOLUTION.getPageFunctionCompiler().compileProjection(projection, Optional.empty()).get();
+        PageProjection pageProjection = FUNCTION_RESOLUTION.getPageFunctionCompiler().compileProjection(projection, LAYOUT, Optional.empty()).get();
         ImmutableList.Builder<Block> outputBlocksBuilder = ImmutableList.builder();
         for (int i = 0; i < inputPages.size(); i++) {
             Page inputPage = inputPages.get(i);
@@ -569,84 +613,43 @@ final class TestBatchProjection
         return new ByteArrayBlock(length, Optional.of(isNull), result);
     }
 
-    private static RowExpression rewriteBatchToScalarFunction(RowExpression projection)
+    private static Expression rewriteBatchToScalarFunction(Expression projection)
     {
-        Rewriter rewriter = new Rewriter();
-        return projection.accept(rewriter, null);
-    }
-
-    private static class Rewriter
-            implements RowExpressionVisitor<RowExpression, Void>
-    {
-        @Override
-        public RowExpression visitInputReference(InputReferenceExpression reference, Void context)
+        return ExpressionTreeRewriter.rewriteWith(new ExpressionRewriter<Void>()
         {
-            return reference;
-        }
-
-        @Override
-        public RowExpression visitCall(CallExpression call, Void context)
-        {
-            ResolvedFunction function = call.resolvedFunction();
-            if (call.resolvedFunction().functionKind() == BATCH) {
-                if (function.equals(BATCH_ADD_BIGINT)) {
-                    function = SCALAR_ADD_BIGINT;
+            @Override
+            public Expression rewriteCall(Call node, Void context, ExpressionTreeRewriter<Void> treeRewriter)
+            {
+                if (node.function().functionKind() != BATCH) {
+                    return null;
                 }
-                else if (function.equals(BATCH_LESS_THAN_BIGINT)) {
-                    function = SCALAR_LESS_THAN_BIGINT;
+                ResolvedFunction scalar;
+                if (node.function().equals(BATCH_ADD_BIGINT)) {
+                    scalar = SCALAR_ADD_BIGINT;
+                }
+                else if (node.function().equals(BATCH_LESS_THAN_BIGINT)) {
+                    scalar = SCALAR_LESS_THAN_BIGINT;
                 }
                 else {
-                    throw new UnsupportedOperationException("Unsupported batch function: " + function);
+                    throw new UnsupportedOperationException("Unsupported batch function: " + node.function());
                 }
+                return new Call(
+                        scalar,
+                        node.arguments().stream()
+                                .map(arg -> treeRewriter.rewrite(arg, context))
+                                .collect(toImmutableList()));
             }
-            return new CallExpression(
-                    function,
-                    call.arguments().stream()
-                            .map(expression -> expression.accept(this, context))
-                            .collect(toImmutableList()));
-        }
-
-        @Override
-        public RowExpression visitSpecialForm(SpecialForm specialForm, Void context)
-        {
-            return new SpecialForm(
-                    specialForm.form(),
-                    specialForm.type(),
-                    specialForm.arguments().stream()
-                            .map(expression -> expression.accept(this, context))
-                            .collect(toImmutableList()),
-                    specialForm.functionDependencies());
-        }
-
-        @Override
-        public RowExpression visitConstant(ConstantExpression literal, Void context)
-        {
-            return literal;
-        }
-
-        @Override
-        public RowExpression visitLambda(LambdaDefinitionExpression lambda, Void context)
-        {
-            return new LambdaDefinitionExpression(
-                    lambda.arguments(),
-                    lambda.body().accept(this, context));
-        }
-
-        @Override
-        public RowExpression visitVariableReference(VariableReferenceExpression reference, Void context)
-        {
-            return reference;
-        }
+        }, projection);
     }
 
-    private static void verifyFilter(List<Page> inputPages, RowExpression filter)
+    private static void verifyFilter(List<Page> inputPages, Expression filter)
     {
-        PageFilter pageFilter = compilePageFilterWithBatchFunction(filter, Optional.empty(), FUNCTION_RESOLUTION.getPageFunctionCompiler())
+        PageFilter pageFilter = compilePageFilterWithBatchFunction(filter, LAYOUT, Optional.empty(), FUNCTION_RESOLUTION.getPageFunctionCompiler())
                 .orElseThrow(() -> new IllegalArgumentException("Expected filter to contain batch function"))
                 .get();
         List<SelectedPositions> expectedPositions = processFilter(inputPages, pageFilter);
-        RowExpression scalarFilter = rewriteBatchToScalarFunction(filter);
-        pageFilter = FUNCTION_RESOLUTION.getPageFunctionCompiler().compileFilter(scalarFilter, Optional.empty()).get();
+        Expression scalarFilter = rewriteBatchToScalarFunction(filter);
+        pageFilter = FUNCTION_RESOLUTION.getPageFunctionCompiler().compileFilter(scalarFilter, LAYOUT, Optional.empty()).get();
         List<SelectedPositions> actualPositions = processFilter(inputPages, pageFilter);
         assertThat(expectedPositions).hasSize(actualPositions.size());
 

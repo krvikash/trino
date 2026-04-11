@@ -17,9 +17,11 @@ import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SourcePage;
 import io.trino.sql.gen.PageFunctionCompiler;
-import io.trino.sql.relational.RowExpression;
+import io.trino.sql.ir.Expression;
+import io.trino.sql.planner.Symbol;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -60,7 +62,8 @@ public class BatchProjectionUtils
     }
 
     public static Optional<Supplier<PageFilter>> compilePageFilterWithBatchFunction(
-            RowExpression filter,
+            Expression filter,
+            Map<Symbol, Integer> layout,
             Optional<String> classNameSuffix,
             PageFunctionCompiler pageFunctionCompiler)
     {
@@ -71,7 +74,7 @@ public class BatchProjectionUtils
         checkArgument(filter.type().equals(BOOLEAN), "Filter expression %s must be of type BOOLEAN", filter);
         // compileProjection supports batch functions, while compileFilter does not
         // So we compile the filter as a projection and wrap it in a PageFilter
-        Supplier<PageProjection> projection = pageFunctionCompiler.compileProjection(filter, classNameSuffix);
+        Supplier<PageProjection> projection = pageFunctionCompiler.compileProjection(filter, layout, classNameSuffix);
         return Optional.of(() -> new ProjectionPageFilter(projection.get()));
     }
 }

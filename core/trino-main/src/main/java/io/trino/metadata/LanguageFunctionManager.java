@@ -104,8 +104,8 @@ public class LanguageFunctionManager
     private final TypeManager typeManager;
     private final GroupProvider groupProvider;
     private final BlockEncodingSerde blockEncodingSerde;
-    private final int maxMethodComplexity;
     private final LanguageFunctionEngineManager engineManager;
+    private final int maxMethodComplexity;
     private PlannerContext plannerContext;
     private SqlRoutineAnalyzer analyzer;
     private SqlRoutinePlanner planner;
@@ -117,15 +117,15 @@ public class LanguageFunctionManager
             TypeManager typeManager,
             GroupProvider groupProvider,
             BlockEncodingSerde blockEncodingSerde,
-            CompilerConfig compilerConfig,
-            LanguageFunctionEngineManager engineManager)
+            LanguageFunctionEngineManager engineManager,
+            CompilerConfig compilerConfig)
     {
         this.parser = requireNonNull(parser, "parser is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.groupProvider = requireNonNull(groupProvider, "groupProvider is null");
         this.blockEncodingSerde = requireNonNull(blockEncodingSerde, "blockEncodingSerde is null");
-        this.maxMethodComplexity = compilerConfig.getRowExpressionMaxMethodComplexity();
         this.engineManager = requireNonNull(engineManager, "engineManager is null");
+        this.maxMethodComplexity = compilerConfig.getRowExpressionMaxMethodComplexity();
     }
 
     // There is a circular dependency between LanguageFunctionManager and MetadataManager.
@@ -376,7 +376,7 @@ public class LanguageFunctionManager
             }
 
             IrRoutine routine = data.irRoutine().orElseThrow();
-            SpecializedSqlScalarFunction function = new SqlRoutineCompiler(maxMethodComplexity, functionManager).compile(routine);
+            SpecializedSqlScalarFunction function = new SqlRoutineCompiler(functionManager, plannerContext.getMetadata(), typeManager, maxMethodComplexity).compile(routine);
             return Optional.of(function.getScalarFunctionImplementation(invocationConvention));
         }
 
@@ -507,7 +507,7 @@ public class LanguageFunctionManager
                 checkState(identityLoader.isEmpty(), "create should not enforce security");
                 analyzeAndPlan(accessControl);
                 if (!engineFunction) {
-                    new SqlRoutineCompiler(maxMethodComplexity, functionManager).compile(routine);
+                    new SqlRoutineCompiler(functionManager, plannerContext.getMetadata(), typeManager, maxMethodComplexity).compile(routine);
                 }
             }
 

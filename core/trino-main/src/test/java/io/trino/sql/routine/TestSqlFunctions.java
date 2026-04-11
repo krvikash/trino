@@ -643,7 +643,7 @@ class TestSqlFunctions
         // verify routine hash does not fail
         SqlRoutineHash.hash(routine, Hashing.sha256().newHasher(), TESTING_BLOCK_ENCODING_SERDE);
 
-        SqlRoutineCompiler compiler = new SqlRoutineCompiler(new CompilerConfig().getRowExpressionMaxMethodComplexity(), createTestingFunctionManager());
+        SqlRoutineCompiler compiler = new SqlRoutineCompiler(createTestingFunctionManager(), PLANNER_CONTEXT.getMetadata(), PLANNER_CONTEXT.getTypeManager(), new CompilerConfig().getRowExpressionMaxMethodComplexity());
         SpecializedSqlScalarFunction sqlScalarFunction = compiler.compile(routine);
 
         InvocationConvention invocationConvention = new InvocationConvention(

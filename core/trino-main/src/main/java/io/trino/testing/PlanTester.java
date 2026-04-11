@@ -414,14 +414,13 @@ public class PlanTester
                 () -> getPlannerContext().getFunctionManager());
         globalFunctionCatalog.addFunctions(SystemFunctionBundle.create(new FeaturesConfig(), typeOperators, blockTypeOperators, CURRENT_NODE.getNodeVersion()));
         TestingGroupProviderManager groupProvider = new TestingGroupProviderManager();
-        CompilerConfig compilerConfig = new CompilerConfig();
         LanguageFunctionManager languageFunctionManager = new LanguageFunctionManager(
                 sqlParser,
                 typeManager,
                 groupProvider,
                 blockEncodingSerde,
-                compilerConfig,
-                new LanguageFunctionEngineManager());
+                new LanguageFunctionEngineManager(),
+                new CompilerConfig());
         TableFunctionRegistry tableFunctionRegistry = new TableFunctionRegistry(createTableFunctionProvider(catalogManager));
         Metadata metadata = metadataDecorator.apply(new MetadataManager(
                 new AllowAllAccessControl(),
@@ -498,10 +497,10 @@ public class PlanTester
 
         CacheMetadata cacheMetadata = new CacheMetadata(createCacheMetadata(catalogManager));
         this.plannerContext = new PlannerContext(metadata, cacheMetadata, typeOperators, blockEncodingSerde, typeManager, functionManager, languageFunctionManager, tracer);
-        this.pageFunctionCompiler = new PageFunctionCompiler(functionManager, 0);
-        ColumnarFilterCompiler filterCompiler = new ColumnarFilterCompiler(functionManager, 0);
+        this.pageFunctionCompiler = new PageFunctionCompiler(functionManager, metadata, typeManager, 0);
+        ColumnarFilterCompiler filterCompiler = new ColumnarFilterCompiler(functionManager, metadata, 0);
         this.expressionCompiler = new ExpressionCompiler(pageFunctionCompiler, filterCompiler);
-        this.joinFilterFunctionCompiler = new JoinFilterFunctionCompiler(functionManager, compilerConfig);
+        this.joinFilterFunctionCompiler = new JoinFilterFunctionCompiler(functionManager, metadata, typeManager, new CompilerConfig());
 
         this.statementAnalyzerFactory = new StatementAnalyzerFactory(
                 plannerContext,

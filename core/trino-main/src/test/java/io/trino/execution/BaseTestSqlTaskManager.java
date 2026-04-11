@@ -80,6 +80,7 @@ import static io.trino.execution.TaskTestUtils.TABLE_SCAN_NODE_ID;
 import static io.trino.execution.TaskTestUtils.createTestingPlanner;
 import static io.trino.execution.buffer.PagesSerdeUtil.getSerializedPagePositionCount;
 import static io.trino.execution.buffer.PipelinedOutputBuffers.BufferType.PARTITIONED;
+import static io.trino.sql.planner.TestingPlannerContext.PLANNER_CONTEXT;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -329,7 +330,7 @@ public abstract class BaseTestSqlTaskManager
                 new EmbedVersion("testversion"),
                 new NoConnectorServicesProvider(),
                 createTestingPlanner(),
-                new WorkerLanguageFunctionProvider(new CompilerConfig(), new LanguageFunctionEngineManager()),
+                new WorkerLanguageFunctionProvider(new LanguageFunctionEngineManager(), PLANNER_CONTEXT.getMetadata(), PLANNER_CONTEXT.getTypeManager(), new CompilerConfig()),
                 new MockLocationFactory(),
                 taskExecutor,
                 new NodeInfo("test"),

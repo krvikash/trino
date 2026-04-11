@@ -40,7 +40,7 @@ import static io.trino.util.CompilerUtils.makeClassName;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Contains context for generating entire row expression evaluation code that can be split into multiple classes.
+ * Contains context for generating entire expression evaluation code that can be split into multiple classes.
  * When the main class starts to be too large (constant pool size), the new methods are extracted into a new, class (chunk class).
  * The process repeats for chunk classes as well.
  * Each chunk class contains fields needed to support the evaluation:
@@ -51,19 +51,19 @@ import static java.util.Objects.requireNonNull;
  * <p>
  * Sample chunk class:
  * <pre>
- *      public final class RowExpressionEvaluationChunk_4_20250901_132703_80 {
+ *      public final class ExpressionEvaluationChunk_4_20250901_132703_80 {
  *          public boolean __context_0;
  *          public boolean __context_1;
  *          private final PageProjectionWork_20250901_132703_71 __main;
  *          private final Block block_0;
- *          private final RowExpressionEvaluationChunk_5_20250901_132703_82 __rowExpressionChunk_6;
- *          private final RowExpressionEvaluationChunk_6_20250901_132703_84 __rowExpressionChunk_8;
+ *          private final ExpressionEvaluationChunk_5_20250901_132703_82 __expressionChunk_6;
+ *          private final ExpressionEvaluationChunk_6_20250901_132703_84 __expressionChunk_8;
  *
- *          public RowExpressionEvaluationChunk_4_20250901_132703_80(PageProjectionWork_20250901_132703_71 __main) {
+ *          public ExpressionEvaluationChunk_4_20250901_132703_80(PageProjectionWork_20250901_132703_71 __main) {
  *              this.__main = __main;
  *              this.block_0 = __main.block_0;
- *              this.__rowExpressionChunk_6 = new RowExpressionEvaluationChunk_5_20250901_132703_82(this.__main);
- *              this.__rowExpressionChunk_8 = new RowExpressionEvaluationChunk_6_20250901_132703_84(this.__main);
+ *              this.__expressionChunk_6 = new ExpressionEvaluationChunk_5_20250901_132703_82(this.__main);
+ *              this.__expressionChunk_8 = new ExpressionEvaluationChunk_6_20250901_132703_84(this.__main);
  *          }
  *
  *         public long evaluateExpression_1(ConnectorSession session, int position) {
@@ -73,16 +73,16 @@ import static java.util.Objects.requireNonNull;
  *             ...
  *             long var43;
  *             ...
- *             this.__rowExpressionChunk_6.__context_0 = wasNull;
- *             var43 = this.__rowExpressionChunk_6.evaluateExpression_0(session, position);
- *             wasNull = this.__rowExpressionChunk_6.__context_0;
+ *             this.__expressionChunk_6.__context_0 = wasNull;
+ *             var43 = this.__expressionChunk_6.evaluateExpression_0(session, position);
+ *             wasNull = this.__expressionChunk_6.__context_0;
  *             ...
  *             return var43;
  *         }
  *     }
  *  </pre>
  */
-public class RowExpressionGenerationContext
+public class ExpressionGenerationContext
 {
     private final int maxMethodsPerClass;
     private final ClassScope mainClass;
@@ -91,7 +91,7 @@ public class RowExpressionGenerationContext
     private ClassScope currentChunkClass;
     private int nextChunkFieldId;
 
-    public RowExpressionGenerationContext(int maxMethodsPerClass, ClassDefinition mainClass, CachedInstanceBinder cachedInstanceBinder, List<Variable> fieldsCopiedFromMain)
+    public ExpressionGenerationContext(int maxMethodsPerClass, ClassDefinition mainClass, CachedInstanceBinder cachedInstanceBinder, List<Variable> fieldsCopiedFromMain)
     {
         this.maxMethodsPerClass = maxMethodsPerClass;
         this.mainClass = new ClassScope(mainClass, cachedInstanceBinder);
@@ -105,7 +105,7 @@ public class RowExpressionGenerationContext
         if (currentChunkClass.classDefinition().getMethods().size() >= maxMethodsPerClass) {
             ClassDefinition classDefinition = new ClassDefinition(
                     a(PUBLIC, FINAL),
-                    makeClassName("RowExpressionEvaluationChunk_" + chunkClasses.size()),
+                    makeClassName("ExpressionEvaluationChunk_" + chunkClasses.size()),
                     type(Object.class));
             currentChunkClass = new ClassScope(classDefinition, new CachedInstanceBinder(classDefinition, mainClass.cachedInstanceBinder().getCallSiteBinder()));
             chunkClasses.put(classDefinition, new ChunkClass(currentChunkClass));
@@ -115,7 +115,7 @@ public class RowExpressionGenerationContext
 
     public String getChunkField(ClassDefinition sourceClass, ClassDefinition targetClass)
     {
-        return chunkClasses.get(sourceClass).chunkFields.computeIfAbsent(targetClass, _ -> "__rowExpressionChunk_" + nextChunkFieldId++);
+        return chunkClasses.get(sourceClass).chunkFields.computeIfAbsent(targetClass, _ -> "__expressionChunk_" + nextChunkFieldId++);
     }
 
     // defineClasses needs to be called after all classes are generated (after generateChunkClasses),

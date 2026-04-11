@@ -57,8 +57,6 @@ import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.WhenClause;
 import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.planner.Symbol;
-import io.trino.sql.relational.RowExpression;
-import io.trino.sql.relational.SqlToRowExpressionTranslator;
 import io.trino.testing.TestingSession;
 import io.trino.type.LikePattern;
 import org.jetbrains.annotations.Nullable;
@@ -1153,18 +1151,14 @@ public class TestGpuExpressions
 
     private PageProcessor compileCpuExpression(Expression expression, Map<Symbol, Integer> layout)
     {
-        RowExpression rowExpression = SqlToRowExpressionTranslator.translate(
-                expression,
-                layout,
-                functionResolution.getMetadata(),
-                functionResolution.getPlannerContext().getTypeManager());
         return functionResolution.getExpressionCompiler().compilePageProcessor(
                         false,
                         true,
                         false,
                         Optional.empty(),
                         Optional.empty(),
-                        List.of(rowExpression),
+                        List.of(expression),
+                        layout,
                         Optional.empty(),
                         OptionalInt.empty())
                 .apply(InternalDynamicFilter.EMPTY);

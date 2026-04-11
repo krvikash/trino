@@ -22,10 +22,12 @@ import io.trino.sql.gen.columnar.ColumnarFilterCompiler;
 import io.trino.sql.gen.columnar.DynamicPageFilter;
 import io.trino.sql.gen.columnar.FilterEvaluator;
 import io.trino.sql.gen.columnar.PageFilterEvaluator;
+import io.trino.sql.ir.Expression;
 import io.trino.sql.planner.InternalDynamicFilter;
-import io.trino.sql.relational.RowExpression;
+import io.trino.sql.planner.Symbol;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.function.Function;
@@ -52,9 +54,10 @@ public class ExpressionCompiler
             boolean columnarFilterEvaluationEnabled,
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
-            Optional<RowExpression> filter,
+            Optional<Expression> filter,
             Optional<DynamicPageFilter> dynamicPageFilter,
-            List<? extends RowExpression> projections,
+            List<? extends Expression> projections,
+            Map<Symbol, Integer> layout,
             Optional<String> classNameSuffix,
             OptionalInt initialBatchSize)
     {
@@ -64,18 +67,19 @@ public class ExpressionCompiler
                 columnarFilterSubexpressionEvaluationEnabled,
                 isDebugOutputEnabled,
                 filter,
+                layout,
                 columnarFilterCompiler,
                 pageFunctionCompiler,
                 classNameSuffix);
         if (columnarFilterEvaluatorSupplier.isEmpty()) {
             filterFunctionSupplier = filter.map(expression -> {
-                Optional<Supplier<PageFilter>> pageFilter = compilePageFilterWithBatchFunction(expression, classNameSuffix, pageFunctionCompiler);
-                return pageFilter.orElseGet(() -> pageFunctionCompiler.compileFilter(expression, classNameSuffix));
+                Optional<Supplier<PageFilter>> pageFilter = compilePageFilterWithBatchFunction(expression, layout, classNameSuffix, pageFunctionCompiler);
+                return pageFilter.orElseGet(() -> pageFunctionCompiler.compileFilter(expression, layout, classNameSuffix));
             });
         }
 
         List<Supplier<PageProjection>> pageProjectionSuppliers = projections.stream()
-                .map(projection -> pageFunctionCompiler.compileProjection(projection, classNameSuffix))
+                .map(projection -> pageFunctionCompiler.compileProjection(projection, layout, classNameSuffix))
                 .collect(toImmutableList());
 
         Optional<Supplier<PageFilter>> finalFilterFunctionSupplier = filterFunctionSupplier;
@@ -96,16 +100,16 @@ public class ExpressionCompiler
     }
 
     @VisibleForTesting
-    public Supplier<PageProcessor> compilePageProcessor(Optional<RowExpression> filter, List<? extends RowExpression> projections)
+    public Supplier<PageProcessor> compilePageProcessor(Optional<Expression> filter, List<? extends Expression> projections, Map<Symbol, Integer> layout)
     {
-        return () -> compilePageProcessor(true, true, false, filter, Optional.empty(), projections, Optional.empty(), OptionalInt.empty())
+        return () -> compilePageProcessor(true, true, false, filter, Optional.empty(), projections, layout, Optional.empty(), OptionalInt.empty())
                 .apply(InternalDynamicFilter.EMPTY);
     }
 
     @VisibleForTesting
-    public Supplier<PageProcessor> compilePageProcessor(Optional<RowExpression> filter, List<? extends RowExpression> projections, int initialBatchSize)
+    public Supplier<PageProcessor> compilePageProcessor(Optional<Expression> filter, List<? extends Expression> projections, Map<Symbol, Integer> layout, int initialBatchSize)
     {
-        return () -> compilePageProcessor(true, true, false, filter, Optional.empty(), projections, Optional.empty(), OptionalInt.of(initialBatchSize))
+        return () -> compilePageProcessor(true, true, false, filter, Optional.empty(), projections, layout, Optional.empty(), OptionalInt.of(initialBatchSize))
                 .apply(InternalDynamicFilter.EMPTY);
     }
 }

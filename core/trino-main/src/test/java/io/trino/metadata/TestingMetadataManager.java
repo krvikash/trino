@@ -102,7 +102,7 @@ public final class TestingMetadataManager
             if (languageFunctionManager == null) {
                 BlockEncodingSerde blockEncodingSerde = new InternalBlockEncodingSerde(TESTING_BLOCK_ENCODING_MANAGER, typeManager);
                 LanguageFunctionEngineManager engineManager = new LanguageFunctionEngineManager();
-                languageFunctionManager = new LanguageFunctionManager(new SqlParser(), typeManager, _ -> ImmutableSet.of(), blockEncodingSerde, new CompilerConfig(), engineManager);
+                languageFunctionManager = new LanguageFunctionManager(new SqlParser(), typeManager, _ -> ImmutableSet.of(), blockEncodingSerde, engineManager, new CompilerConfig());
             }
 
             TableFunctionRegistry tableFunctionRegistry = new TableFunctionRegistry(_ -> new CatalogTableFunctions(ImmutableList.of()));

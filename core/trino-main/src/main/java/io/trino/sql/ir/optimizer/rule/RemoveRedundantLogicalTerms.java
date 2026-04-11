@@ -46,7 +46,7 @@ public class RemoveRedundantLogicalTerms
     @Override
     public Optional<Expression> apply(Expression expression, Session session, Map<Symbol, Expression> bindings)
     {
-        if (!(expression instanceof Logical(Logical.Operator operator, List<Expression> expressions))) {
+        if (!(expression instanceof Logical(Logical.Operator operator, List<Expression> expressions, boolean canSplit))) {
             return Optional.empty();
         }
 

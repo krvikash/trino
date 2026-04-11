@@ -14,284 +14,123 @@
 package io.trino.operator.project;
 
 import com.google.common.collect.ImmutableList;
-import io.trino.sql.relational.CallExpression;
-import io.trino.sql.relational.ConstantExpression;
-import io.trino.sql.relational.InputReferenceExpression;
-import io.trino.sql.relational.LambdaDefinitionExpression;
-import io.trino.sql.relational.RowExpression;
-import io.trino.sql.relational.RowExpressionVisitor;
-import io.trino.sql.relational.SpecialForm;
-import io.trino.sql.relational.VariableReferenceExpression;
+import com.google.common.collect.ImmutableMap;
+import io.trino.sql.ir.Call;
+import io.trino.sql.ir.DefaultTraversalVisitor;
+import io.trino.sql.ir.Expression;
+import io.trino.sql.ir.ExpressionRewriter;
+import io.trino.sql.ir.ExpressionTreeRewriter;
+import io.trino.sql.ir.Reference;
+import io.trino.sql.planner.Symbol;
 
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.spi.function.FunctionKind.BATCH;
 
 public final class BatchFunctionsRewriter
 {
+    // Use a non-identifier character ('$') so the synthetic namespace can never collide with a user Symbol.
+    public static final String BATCH_OUTPUT_PREFIX = "$batch_output_";
+
     private BatchFunctionsRewriter() {}
 
     /**
-     * Rewrites batch function calls in the given expression to variable references.
-     * The variable reference name is generated as `"batch_output_" + index` where index is the
-     * order of appearance of the batch function call in a pre-order traversal of the expression tree.
-     * Collects the batch function call expressions in a list.
+     * Rewrites batch function calls in the given expression to references named "$batch_output_N".
+     * Collects the original batch function call expressions in a list, in the order they were
+     * encountered (pre-order traversal).
      */
-    public static Result rewriteBatchFunctionsToVariableReferences(RowExpression expression)
+    public static Result rewriteBatchFunctionsToVariableReferences(Expression expression)
     {
-        BatchFunctionToVariableReferenceRewriter visitor = new BatchFunctionToVariableReferenceRewriter();
-        RowExpression rewrittenProjection = expression.accept(visitor, null);
-        return new Result(rewrittenProjection, visitor.getBatchExpressions());
+        List<Expression> batchExpressions = new ArrayList<>();
+        Expression rewritten = ExpressionTreeRewriter.rewriteWith(new ExpressionRewriter<>()
+        {
+            @Override
+            public Expression rewriteCall(Call node, Void context, ExpressionTreeRewriter<Void> treeRewriter)
+            {
+                if (node.function().functionKind() == BATCH) {
+                    batchExpressions.add(node);
+                    return new Reference(node.type(), BATCH_OUTPUT_PREFIX + (batchExpressions.size() - 1));
+                }
+                return null;
+            }
+        }, expression);
+        return new Result(rewritten, ImmutableList.copyOf(batchExpressions));
     }
+
+    public static boolean containsBatchFunction(Expression expression)
+    {
+        AtomicBoolean found = new AtomicBoolean(false);
+        new DefaultTraversalVisitor<AtomicBoolean>()
+        {
+            @Override
+            protected Void visitCall(Call node, AtomicBoolean found)
+            {
+                if (node.function().functionKind() == BATCH) {
+                    found.set(true);
+                    return null;
+                }
+                return super.visitCall(node, found);
+            }
+        }.process(expression, found);
+        return found.get();
+    }
+
+    public record Result(Expression rewrittenExpression, List<Expression> batchExpressions) {}
 
     /**
-     * Rewrites variable references representing batch function outputs to input references.
-     * The input reference channel is calculated as: non-batch-input-channel-count + batch-output-index
-     * where batch-output-index is extracted from the variable name `"batch_output_" + index`.
-     * The non-batch-input-channel-count is calculated by counting distinct input reference channels in the
-     * given expression.
+     * Builds the layout used to compile the rewritten projection produced by
+     * {@link #rewriteBatchFunctionsToVariableReferences(Expression)}.
+     * <p>
+     * The compact layout places the non-batch symbols referenced by the rewritten expression
+     * at positions {@code 0..K-1} (in the order they are encountered in a pre-order traversal), followed by
+     * {@code $batch_output_N} placeholders at positions {@code K..K+M-1}. This matches the
+     * runtime page assembled by {@link ScalarProjectionOverBatchFunctions}, which puts the
+     * non-batch input blocks first and appends the batch outputs.
+     * <p>
+     * The returned {@link Layout#inputChannels()} maps the non-batch symbols back to their channel
+     * positions in the caller's source page using {@code originalLayout}.
      */
-    public static RowExpression rewriteBatchVariableReferencesToInputReferences(RowExpression expression)
+    public static Layout buildBatchOutputLayout(Expression rewrittenExpression, Map<Symbol, Integer> originalLayout, List<Expression> batchExpressions)
     {
-        NonBatchInputReferenceCounter counter = new NonBatchInputReferenceCounter();
-        expression.accept(counter, null);
-        int nonBatchInputChannelsCount = counter.getNonBatchInputChannelsCount();
-        BatchVariableReferenceToInputReferenceRewriter visitor = new BatchVariableReferenceToInputReferenceRewriter(nonBatchInputChannelsCount);
-        return expression.accept(visitor, null);
-    }
-
-    public static boolean containsBatchFunction(RowExpression expression)
-    {
-        RowExpressionVisitor<Boolean, Void> visitor = new RowExpressionVisitor<>()
+        Set<Symbol> nonBatchSymbols = new LinkedHashSet<>();
+        new DefaultTraversalVisitor<Void>()
         {
             @Override
-            public Boolean visitCall(CallExpression call, Void context)
+            protected Void visitReference(Reference node, Void context)
             {
-                if (call.resolvedFunction().functionKind() == BATCH) {
-                    return true;
+                if (node.name().startsWith(BATCH_OUTPUT_PREFIX)) {
+                    return null;
                 }
-                return call.arguments().stream()
-                        .map(arguments -> arguments.accept(this, context))
-                        .anyMatch(result -> result != null && result);
+                Symbol symbol = Symbol.from(node);
+                if (originalLayout.containsKey(symbol)) {
+                    nonBatchSymbols.add(symbol);
+                }
+                return null;
             }
+        }.process(rewrittenExpression, null);
 
-            @Override
-            public Boolean visitSpecialForm(SpecialForm specialForm, Void context)
-            {
-                return specialForm.arguments().stream()
-                        .map(expression -> expression.accept(this, context))
-                        .anyMatch(result -> result != null && result);
-            }
+        int nonBatchSymbolsCount = nonBatchSymbols.size();
+        ImmutableMap.Builder<Symbol, Integer> compactLayoutBuilder = ImmutableMap.builder();
+        int channel = 0;
+        for (Symbol symbol : nonBatchSymbols) {
+            compactLayoutBuilder.put(symbol, channel++);
+        }
+        for (int i = 0; i < batchExpressions.size(); i++) {
+            compactLayoutBuilder.put(new Symbol(batchExpressions.get(i).type(), BATCH_OUTPUT_PREFIX + i), nonBatchSymbolsCount + i);
+        }
 
-            @Override
-            public Boolean visitInputReference(InputReferenceExpression reference, Void context)
-            {
-                return false;
-            }
+        InputChannels inputChannels = new InputChannels(nonBatchSymbols.stream()
+                .map(originalLayout::get)
+                .collect(toImmutableList()));
 
-            @Override
-            public Boolean visitConstant(ConstantExpression literal, Void context)
-            {
-                return false;
-            }
-
-            @Override
-            public Boolean visitLambda(LambdaDefinitionExpression lambda, Void context)
-            {
-                return lambda.body().accept(this, context);
-            }
-
-            @Override
-            public Boolean visitVariableReference(VariableReferenceExpression reference, Void context)
-            {
-                return false;
-            }
-        };
-        return expression.accept(visitor, null);
+        return new Layout(compactLayoutBuilder.buildOrThrow(), inputChannels);
     }
 
-    private static class BatchFunctionToVariableReferenceRewriter
-            implements RowExpressionVisitor<RowExpression, Void>
-    {
-        private final List<RowExpression> batchExpressions = new ArrayList<>();
-
-        @Override
-        public RowExpression visitInputReference(InputReferenceExpression reference, Void context)
-        {
-            return reference;
-        }
-
-        @Override
-        public RowExpression visitCall(CallExpression call, Void context)
-        {
-            if (call.resolvedFunction().functionKind() == BATCH) {
-                batchExpressions.add(call);
-                return new VariableReferenceExpression("batch_output_" + (batchExpressions.size() - 1), call.type());
-            }
-            return new CallExpression(
-                    call.resolvedFunction(),
-                    call.arguments().stream()
-                            .map(expression -> expression.accept(this, context))
-                            .collect(toImmutableList()));
-        }
-
-        @Override
-        public RowExpression visitSpecialForm(SpecialForm specialForm, Void context)
-        {
-            return new SpecialForm(
-                    specialForm.form(),
-                    specialForm.type(),
-                    specialForm.arguments().stream()
-                            .map(expression -> expression.accept(this, context))
-                            .collect(toImmutableList()),
-                    specialForm.functionDependencies());
-        }
-
-        @Override
-        public RowExpression visitConstant(ConstantExpression literal, Void context)
-        {
-            return literal;
-        }
-
-        @Override
-        public RowExpression visitLambda(LambdaDefinitionExpression lambda, Void context)
-        {
-            return new LambdaDefinitionExpression(
-                    lambda.arguments(),
-                    lambda.body().accept(this, context));
-        }
-
-        @Override
-        public RowExpression visitVariableReference(VariableReferenceExpression reference, Void context)
-        {
-            return reference;
-        }
-
-        private List<RowExpression> getBatchExpressions()
-        {
-            return ImmutableList.copyOf(batchExpressions);
-        }
-    }
-
-    private static class NonBatchInputReferenceCounter
-            implements RowExpressionVisitor<Void, Void>
-    {
-        private final Set<Integer> nonBatchInputChannels = new HashSet<>();
-
-        @Override
-        public Void visitInputReference(InputReferenceExpression reference, Void context)
-        {
-            nonBatchInputChannels.add(reference.field());
-            return null;
-        }
-
-        @Override
-        public Void visitCall(CallExpression call, Void context)
-        {
-            call.arguments().forEach(expression -> expression.accept(this, context));
-            return null;
-        }
-
-        @Override
-        public Void visitSpecialForm(SpecialForm specialForm, Void context)
-        {
-            specialForm.arguments().forEach(expression -> expression.accept(this, context));
-            return null;
-        }
-
-        @Override
-        public Void visitConstant(ConstantExpression literal, Void context)
-        {
-            return null;
-        }
-
-        @Override
-        public Void visitLambda(LambdaDefinitionExpression lambda, Void context)
-        {
-            lambda.body().accept(this, context);
-            return null;
-        }
-
-        @Override
-        public Void visitVariableReference(VariableReferenceExpression reference, Void context)
-        {
-            return null;
-        }
-
-        private int getNonBatchInputChannelsCount()
-        {
-            return nonBatchInputChannels.size();
-        }
-    }
-
-    private static class BatchVariableReferenceToInputReferenceRewriter
-            implements RowExpressionVisitor<RowExpression, Void>
-    {
-        private final int nonBatchInputChannelsCount;
-
-        public BatchVariableReferenceToInputReferenceRewriter(int nonBatchInputChannelsCount)
-        {
-            this.nonBatchInputChannelsCount = nonBatchInputChannelsCount;
-        }
-
-        @Override
-        public RowExpression visitInputReference(InputReferenceExpression reference, Void context)
-        {
-            return reference;
-        }
-
-        @Override
-        public RowExpression visitCall(CallExpression call, Void context)
-        {
-            return new CallExpression(
-                    call.resolvedFunction(),
-                    call.arguments().stream()
-                            .map(expression -> expression.accept(this, context))
-                            .collect(toImmutableList()));
-        }
-
-        @Override
-        public RowExpression visitSpecialForm(SpecialForm specialForm, Void context)
-        {
-            return new SpecialForm(
-                    specialForm.form(),
-                    specialForm.type(),
-                    specialForm.arguments().stream()
-                            .map(expression -> expression.accept(this, context))
-                            .collect(toImmutableList()),
-                    specialForm.functionDependencies());
-        }
-
-        @Override
-        public RowExpression visitConstant(ConstantExpression literal, Void context)
-        {
-            return literal;
-        }
-
-        @Override
-        public RowExpression visitLambda(LambdaDefinitionExpression lambda, Void context)
-        {
-            return new LambdaDefinitionExpression(
-                    lambda.arguments(),
-                    lambda.body().accept(this, context));
-        }
-
-        @Override
-        public RowExpression visitVariableReference(VariableReferenceExpression reference, Void context)
-        {
-            String name = reference.name();
-            if (!name.startsWith("batch_output_")) {
-                // Not a batch output variable, return as is
-                return reference;
-            }
-            int index = Integer.parseInt(name.substring(name.lastIndexOf('_') + 1));
-            return new InputReferenceExpression(nonBatchInputChannelsCount + index, reference.type());
-        }
-    }
-
-    public record Result(RowExpression rewrittenExpression, List<RowExpression> batchExpressions) {}
+    public record Layout(Map<Symbol, Integer> compactLayout, InputChannels inputChannels) {}
 }
