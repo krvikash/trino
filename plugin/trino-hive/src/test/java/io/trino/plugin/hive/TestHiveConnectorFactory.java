@@ -17,7 +17,7 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorMetadata;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSplitManager;
 import io.trino.spi.connector.Connector;
-import io.trino.spi.connector.ConnectorPageSourceProvider;
+import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.testing.TestingConnectorContext;
 import org.junit.jupiter.api.Test;
@@ -55,7 +55,10 @@ public class TestHiveConnectorFactory
         ConnectorTransactionHandle transaction = connector.beginTransaction(READ_UNCOMMITTED, true, true);
         assertThat(connector.getMetadata(SESSION, transaction)).isInstanceOf(ClassLoaderSafeConnectorMetadata.class);
         assertThat(connector.getSplitManager()).isInstanceOf(ClassLoaderSafeConnectorSplitManager.class);
-        assertThat(connector.getPageSourceProvider()).isInstanceOf(ConnectorPageSourceProvider.class);
+        assertThatThrownBy(connector::getPageSourceProvider)
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessage("Should not be called when getPageSourceProviderFactory() is implemented");
+        assertThat(connector.getPageSourceProviderFactory()).isInstanceOf(ConnectorPageSourceProviderFactory.class);
         connector.commit(transaction);
     }
 

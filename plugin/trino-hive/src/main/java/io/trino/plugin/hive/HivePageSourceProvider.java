@@ -18,6 +18,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.trino.filesystem.Location;
+import io.trino.filesystem.TrinoFileSystem;
+import io.trino.filesystem.TrinoFileSystemFactory;
+import io.trino.filesystem.TrinoInputFile;
 import io.trino.metastore.HiveType;
 import io.trino.metastore.HiveTypeName;
 import io.trino.metastore.type.TypeInfo;
@@ -26,6 +29,7 @@ import io.trino.plugin.hive.HiveSplit.BucketValidation;
 import io.trino.plugin.hive.acid.AcidTransaction;
 import io.trino.plugin.hive.coercions.CoercionUtils.CoercionContext;
 import io.trino.plugin.hive.coercions.TypeCoercer;
+import io.trino.plugin.hive.parquet.ParquetGpuPageSourceFactory;
 import io.trino.plugin.hive.util.HiveBucketing.BucketingVersion;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
@@ -33,10 +37,13 @@ import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
+import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
+import io.trino.spi.gpu.ConnectorGpuPageSource;
+import io.trino.spi.gpu.EmptyGpuPageSource;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
@@ -44,6 +51,8 @@ import io.trino.spi.predicate.Utils;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 
+import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -65,6 +74,7 @@ import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.PARTITION_KEY;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.REGULAR;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.SYNTHESIZED;
 import static io.trino.plugin.hive.HiveColumnHandle.isRowIdColumnHandle;
+import static io.trino.plugin.hive.HiveErrorCode.HIVE_CANNOT_OPEN_SPLIT;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_UNSUPPORTED_FORMAT;
 import static io.trino.plugin.hive.HivePageSourceProvider.ColumnMapping.toColumnHandles;
 import static io.trino.plugin.hive.HivePageSourceProvider.ColumnMappingKind.PREFILLED;
@@ -93,13 +103,108 @@ public class HivePageSourceProvider
     private final TypeManager typeManager;
     private final int domainCompactionThreshold;
     private final Set<HivePageSourceFactory> pageSourceFactories;
+    private final TrinoFileSystemFactory fileSystemFactory;
 
     @Inject
-    public HivePageSourceProvider(TypeManager typeManager, HiveConfig hiveConfig, Set<HivePageSourceFactory> pageSourceFactories)
+    public HivePageSourceProvider(
+            TypeManager typeManager,
+            HiveConfig hiveConfig,
+            Set<HivePageSourceFactory> pageSourceFactories,
+            TrinoFileSystemFactory fileSystemFactory)
     {
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.domainCompactionThreshold = hiveConfig.getDomainCompactionThreshold();
         this.pageSourceFactories = ImmutableSet.copyOf(requireNonNull(pageSourceFactories, "pageSourceFactories is null"));
+        this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
+    }
+
+    @Override
+    public Optional<ConnectorGpuPageSource> createGpuPageSource(ConnectorTransactionHandle transaction,
+            ConnectorSession session,
+            ConnectorSplit split,
+            ConnectorTableHandle tableHandle,
+            Optional<ConnectorTableCredentials> tableCredentials,
+            List<ColumnHandle> columns,
+            DynamicFilter dynamicFilter)
+    {
+        HiveSplit hiveSplit = (HiveSplit) split;
+
+        TupleDomain<ColumnHandle> effectivePredicate = getUnenforcedPredicate(session, split, tableHandle, dynamicFilter.getCurrentPredicate());
+        if (effectivePredicate.isNone()) {
+            return Optional.of(new EmptyGpuPageSource());
+        }
+
+        // Check if this is a Parquet split
+        if (!isParquetSplit(hiveSplit)) {
+            return Optional.empty();
+        }
+
+        List<HiveColumnHandle> hiveColumns = columns.stream()
+                .map(HiveColumnHandle.class::cast)
+                .collect(toList());
+
+        List<ColumnMapping> columnMappings = ColumnMapping.buildColumnMappings(
+                hiveSplit.getPartitionName(),
+                hiveSplit.getPartitionKeys(),
+                hiveColumns,
+                hiveSplit.getBucketConversion().map(BucketConversion::bucketColumnHandles).orElse(ImmutableList.of()),
+                hiveSplit.getHiveColumnCoercions(),
+                hiveSplit.getPath(),
+                hiveSplit.getTableBucketNumber(),
+                hiveSplit.getEstimatedFileSize(),
+                hiveSplit.getFileModifiedTime());
+
+        // Collect GPU columns
+        List<HiveColumnHandle> gpuColumns = new ArrayList<>();
+        for (ColumnMapping mapping : columnMappings) {
+            ColumnMappingKind kind = mapping.getKind();
+            if (kind == ColumnMappingKind.REGULAR) {
+                gpuColumns.add(mapping.getHiveColumnHandle());
+            }
+        }
+
+        try {
+            return Optional.of(createGpuParquetPageSource(
+                    session,
+                    hiveSplit,
+                    effectivePredicate.transformKeys(HiveColumnHandle.class::cast),
+                    gpuColumns,
+                    columnMappings));
+        }
+        catch (IOException e) {
+            throw new TrinoException(HIVE_CANNOT_OPEN_SPLIT, "Failed to create GPU Parquet page source", e);
+        }
+    }
+
+    private static boolean isParquetSplit(HiveSplit split)
+    {
+        String serializationLibrary = split.getSchema().serializationLibraryName();
+        return serializationLibrary.equals("org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe") ||
+                serializationLibrary.equals("parquet.hive.serde.ParquetHiveSerDe");
+    }
+
+    private ConnectorGpuPageSource createGpuParquetPageSource(
+            ConnectorSession session,
+            HiveSplit split,
+            TupleDomain<HiveColumnHandle> effectivePredicate,
+            List<HiveColumnHandle> gpuColumns,
+            List<ColumnMapping> columnMappings)
+            throws IOException
+    {
+        TrinoFileSystem fileSystem = fileSystemFactory.create(session);
+        TrinoInputFile inputFile = fileSystem.newInputFile(
+                Location.of(split.getPath()),
+                split.getEstimatedFileSize(),
+                Instant.ofEpochMilli(split.getFileModifiedTime()));
+
+        return ParquetGpuPageSourceFactory.createGpuPageSource(
+                inputFile,
+                split.getStart(),
+                split.getLength(),
+                gpuColumns,
+                effectivePredicate,
+                columnMappings,
+                domainCompactionThreshold);
     }
 
     @Override

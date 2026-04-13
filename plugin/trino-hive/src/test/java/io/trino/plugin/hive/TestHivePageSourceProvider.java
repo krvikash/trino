@@ -16,6 +16,7 @@ package io.trino.plugin.hive;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.trino.filesystem.memory.MemoryFileSystemFactory;
 import io.trino.spi.Page;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.block.Block;
@@ -127,7 +128,8 @@ public class TestHivePageSourceProvider
         pageSourceProvider = new HivePageSourceProvider(
                 TESTING_TYPE_MANAGER,
                 config,
-                ImmutableSet.of());
+                ImmutableSet.of(),
+                new MemoryFileSystemFactory());
     }
 
     @Test

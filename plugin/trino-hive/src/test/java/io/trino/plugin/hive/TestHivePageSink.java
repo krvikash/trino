@@ -413,7 +413,8 @@ public class TestHivePageSink
         HivePageSourceProvider provider = new HivePageSourceProvider(
                 TESTING_TYPE_MANAGER,
                 config,
-                getDefaultHivePageSourceFactories(fileSystemFactory, config));
+                getDefaultHivePageSourceFactories(fileSystemFactory, config),
+                fileSystemFactory);
         return provider.createPageSource(transaction, getHiveSession(config), split, table, ImmutableList.copyOf(getColumnHandles()), DynamicFilter.EMPTY);
     }
 

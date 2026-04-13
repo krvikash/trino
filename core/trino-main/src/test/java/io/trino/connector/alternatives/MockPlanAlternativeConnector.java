@@ -101,7 +101,7 @@ public class MockPlanAlternativeConnector
     private ConnectorPageSourceProvider getDelegatePageSourceProvider()
     {
         try {
-            return delegate.getPageSourceProvider();
+            return delegate.getPageSourceProviderFactory().createPageSourceProvider();
         }
         catch (UnsupportedOperationException e) {
             return new RecordPageSourceProvider(delegate.getRecordSetProvider());

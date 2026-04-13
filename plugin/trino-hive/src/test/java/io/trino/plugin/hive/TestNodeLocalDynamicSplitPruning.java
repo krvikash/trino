@@ -156,7 +156,8 @@ class TestNodeLocalDynamicSplitPruning
         HivePageSourceProvider provider = new HivePageSourceProvider(
                 TESTING_TYPE_MANAGER,
                 hiveConfig,
-                getDefaultHivePageSourceFactories(fileSystemFactory, hiveConfig));
+                getDefaultHivePageSourceFactories(fileSystemFactory, hiveConfig),
+                fileSystemFactory);
 
         return provider.createPageSource(
                 transaction,

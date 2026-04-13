@@ -26,8 +26,10 @@ import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
 import io.trino.spi.connector.ConnectorPageSinkProvider;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
+import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
+import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.TableProcedureMetadata;
 import io.trino.spi.function.FunctionProvider;
@@ -142,9 +144,27 @@ public class HiveConnector
     }
 
     @Override
+    public ConnectorPageSourceProviderFactory getPageSourceProviderFactory()
+    {
+        return new ConnectorPageSourceProviderFactory() {
+            @Override
+            public boolean supportsConnectorGpuPageSource(ConnectorTableHandle connectorTableHandle)
+            {
+                return true;
+            }
+
+            @Override
+            public ConnectorPageSourceProvider createPageSourceProvider()
+            {
+                return pageSourceProvider;
+            }
+        };
+    }
+
+    @Override
     public ConnectorPageSourceProvider getPageSourceProvider()
     {
-        return pageSourceProvider;
+        throw new UnsupportedOperationException("Should not be called when getPageSourceProviderFactory() is implemented");
     }
 
     @Override

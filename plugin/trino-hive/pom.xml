@@ -698,7 +698,12 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <excludes>
+                                <!-- gpu profile -->
                                 <exclude>**/TestGpuParquetPageSource.java</exclude>
+                                <exclude>**/TestHiveGpuConnectorSmokeTest.java</exclude>
+                                <exclude>**/TestHiveGpuQueries.java</exclude>
+                                <exclude>**/TestHiveGpuS3MinioQueries.java</exclude>
+                                <!-- end of gpu profile -->
                                 <exclude>**/TestCachedHiveGlueMetastore.java</exclude>
                                 <exclude>**/TestGlueHiveMetastoreQueries.java</exclude>
                                 <exclude>**/TestGlueHiveMetastoreSkipArchive.java</exclude>
@@ -731,6 +736,9 @@
                         <configuration>
                             <includes>
                                 <include>**/TestGpuParquetPageSource.java</include>
+                                <include>**/TestHiveGpuConnectorSmokeTest.java</include>
+                                <include>**/TestHiveGpuQueries.java</include>
+                                <include>**/TestHiveGpuS3MinioQueries.java</include>
                             </includes>
                         </configuration>
                     </plugin>
