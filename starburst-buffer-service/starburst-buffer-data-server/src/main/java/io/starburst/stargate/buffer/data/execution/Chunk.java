@@ -20,7 +20,7 @@ import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
 import io.airlift.slice.XxHash64;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
-import io.starburst.stargate.buffer.data.execution.CountedReference.Handle;
+import io.starburst.stargate.buffer.data.execution.CountedReference.Ref;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.SliceLease;
 
@@ -189,7 +189,7 @@ public class Chunk
         private final boolean calculateDataPagesChecksum;
         @GuardedBy("this")
         private final List<Slice> completedSlices;
-        private final Handle<List<SliceLease>> sliceLeases;
+        private final Ref<List<SliceLease>> sliceLeases;
 
         private final XxHash64 hash = new XxHash64();
         private final Slice headerSlice = Slices.allocate(DATA_PAGE_HEADER_SIZE);
@@ -269,25 +269,35 @@ public class Chunk
 
         public synchronized ChunkDataLease get()
         {
-            Runnable releaseCallback = sliceLeases.addReference();
+            Ref<List<SliceLease>> reference = sliceLeases.addReference();
+            try {
+                if (!calculateDataPagesChecksum) {
+                    return new ChunkDataLease(
+                            completedSlices,
+                            NO_CHECKSUM,
+                            numDataPages,
+                            reference::release);
+                }
 
-            if (!calculateDataPagesChecksum) {
+                long checksum = hash.hash();
+                if (checksum == NO_CHECKSUM) {
+                    checksum++;
+                }
                 return new ChunkDataLease(
                         completedSlices,
-                        NO_CHECKSUM,
+                        checksum,
                         numDataPages,
-                        releaseCallback);
+                        reference::release);
             }
-
-            long checksum = hash.hash();
-            if (checksum == NO_CHECKSUM) {
-                checksum++;
+            catch (Exception e) {
+                try {
+                    reference.release();
+                }
+                catch (Exception ex) {
+                    // ignore exception from release since we're already handling an exception, and we don't want to mask the original exception
+                }
+                throw e;
             }
-            return new ChunkDataLease(
-                    completedSlices,
-                    checksum,
-                    numDataPages,
-                    releaseCallback);
         }
 
         public synchronized int getAllocatedMemory()

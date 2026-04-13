@@ -9,7 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.execution;
 
-import io.starburst.stargate.buffer.data.execution.CountedReference.Handle;
+import io.starburst.stargate.buffer.data.execution.CountedReference.Ref;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -25,9 +25,9 @@ public class TestCountedReference
     public void testOwnerReleaseDestroysResource()
     {
         AtomicInteger destroyCount = new AtomicInteger();
-        Handle<String> handle = CountedReference.create(() -> "resource", _ -> destroyCount.incrementAndGet());
+        Ref<String> ref = CountedReference.create(() -> "resource", _ -> destroyCount.incrementAndGet());
 
-        handle.release();
+        ref.release();
 
         assertThat(destroyCount.get()).isEqualTo(1);
     }
@@ -35,20 +35,20 @@ public class TestCountedReference
     @Test
     public void testGetReturnsValue()
     {
-        Handle<String> handle = CountedReference.create(() -> "resource", _ -> {});
+        Ref<String> ref = CountedReference.create(() -> "resource", _ -> {});
 
-        assertThat(handle.get()).isEqualTo("resource");
-        handle.release();
+        assertThat(ref.get()).isEqualTo("resource");
+        ref.release();
     }
 
     @Test
     public void testGetAfterDestroyThrows()
     {
-        Handle<String> handle = CountedReference.create(() -> "resource", _ -> {});
+        Ref<String> ref = CountedReference.create(() -> "resource", _ -> {});
 
-        handle.release();
+        ref.release();
 
-        assertThatThrownBy(handle::get)
+        assertThatThrownBy(ref::get)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("destroyed");
     }
@@ -57,14 +57,14 @@ public class TestCountedReference
     public void testAddedReferenceDefersDestroy()
     {
         AtomicInteger destroyCount = new AtomicInteger();
-        Handle<String> handle = CountedReference.create(() -> "resource", _ -> destroyCount.incrementAndGet());
+        Ref<String> ref = CountedReference.create(() -> "resource", _ -> destroyCount.incrementAndGet());
 
-        Runnable readerRelease = handle.addReference();
+        Ref<String> readerRef = ref.addReference();
 
-        handle.release();
+        ref.release();
         assertThat(destroyCount.get()).isEqualTo(0);
 
-        readerRelease.run();
+        readerRef.release();
         assertThat(destroyCount.get()).isEqualTo(1);
     }
 
@@ -72,50 +72,50 @@ public class TestCountedReference
     public void testMultipleRefsDestroyOnlyAfterAllReleased()
     {
         AtomicInteger destroyCount = new AtomicInteger();
-        Handle<String> handle = CountedReference.create(() -> "resource", _ -> destroyCount.incrementAndGet());
+        Ref<String> ref = CountedReference.create(() -> "resource", _ -> destroyCount.incrementAndGet());
 
-        // Acquire three extra references beyond the initial handle
-        Runnable release1 = handle.addReference();
-        Runnable release2 = handle.addReference();
-        Runnable release3 = handle.addReference();
+        // Acquire three extra references beyond the initial ref
+        Ref<String> ref1 = ref.addReference();
+        Ref<String> ref2 = ref.addReference();
+        Ref<String> ref3 = ref.addReference();
 
         // Releasing references one by one does not destroy the resource while others are still held
-        handle.release();
+        ref.release();
         assertThat(destroyCount.get()).isEqualTo(0);
 
-        release1.run();
+        ref1.release();
         assertThat(destroyCount.get()).isEqualTo(0);
 
-        release2.run();
+        ref2.release();
         assertThat(destroyCount.get()).isEqualTo(0);
 
         // Resource is destroyed only when the last reference is released
-        release3.run();
+        ref3.release();
         assertThat(destroyCount.get()).isEqualTo(1);
     }
 
     @Test
     public void testAddReferenceAfterDestroyThrows()
     {
-        Handle<String> handle = CountedReference.create(() -> "resource", _ -> {});
+        Ref<String> ref = CountedReference.create(() -> "resource", _ -> {});
 
-        handle.release();
+        ref.release();
 
-        assertThatThrownBy(handle::addReference)
+        assertThatThrownBy(ref::addReference)
                 .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     public void testDoubleReleaseThrows()
     {
-        Handle<String> handle = CountedReference.create(() -> "resource", _ -> {});
+        Ref<String> ref = CountedReference.create(() -> "resource", _ -> {});
 
-        Runnable releaseCallback = handle.addReference();
-        // Release once: count drops from 2 to 1, handle still holds the remaining reference.
+        Ref<String> extraRef = ref.addReference();
+        // Release once: count drops from 2 to 1, ref still holds the remaining reference.
         // This ensures the double-release is caught by the per-callback guard, not by count going negative.
-        releaseCallback.run();
+        extraRef.release();
 
-        assertThatThrownBy(releaseCallback::run)
+        assertThatThrownBy(extraRef::release)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("reference already released");
     }
@@ -123,11 +123,11 @@ public class TestCountedReference
     @Test
     public void testDoubleOwnerReleaseThrows()
     {
-        Handle<String> handle = CountedReference.create(() -> "resource", _ -> {});
+        Ref<String> ref = CountedReference.create(() -> "resource", _ -> {});
 
-        handle.release();
+        ref.release();
 
-        assertThatThrownBy(handle::release)
+        assertThatThrownBy(ref::release)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("reference already released");
     }
@@ -136,10 +136,10 @@ public class TestCountedReference
     public void testReaderReleaseWithoutOwnerDoesNotDestroy()
     {
         AtomicInteger destroyCount = new AtomicInteger();
-        Handle<String> handle = CountedReference.create(() -> "resource", _ -> destroyCount.incrementAndGet());
+        Ref<String> ref = CountedReference.create(() -> "resource", _ -> destroyCount.incrementAndGet());
 
-        Runnable readerRelease = handle.addReference();
-        readerRelease.run();
+        Ref<String> readerRef = ref.addReference();
+        readerRef.release();
 
         assertThat(destroyCount.get()).isEqualTo(0);
     }
@@ -148,11 +148,11 @@ public class TestCountedReference
     public void testDestroyerReceivesValue()
     {
         List<String> destroyed = new ArrayList<>();
-        Handle<String> handle = CountedReference.create(
+        Ref<String> ref = CountedReference.create(
                 () -> "my-resource",
                 destroyed::add);
 
-        handle.release();
+        ref.release();
 
         assertThat(destroyed).containsExactly("my-resource");
     }

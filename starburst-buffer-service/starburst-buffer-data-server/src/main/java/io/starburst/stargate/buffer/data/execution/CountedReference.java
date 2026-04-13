@@ -32,58 +32,51 @@ public class CountedReference<T>
         this.destroyAction = requireNonNull(destroyAction, "destroyAction is null");
     }
 
-    public static <T> Handle<T> create(Supplier<T> valueSupplier, Consumer<T> destroyAction)
+    public static <T> Ref<T> create(Supplier<T> valueSupplier, Consumer<T> destroyAction)
     {
         T value = requireNonNull(valueSupplier, "valueSupplier is null").get();
         CountedReference<T> reference = new CountedReference<>(value, destroyAction);
-        return new Handle<>(reference, reference.createDestroyCallback());
+        return new Ref<>(reference);
     }
 
-    public T get()
+    @ThreadSafe
+    public static final class Ref<T>
     {
-        checkState(referenceCount.get() > 0, "resource has been destroyed");
-        return value;
-    }
+        private final CountedReference<T> countedReference;
+        private final AtomicBoolean released = new AtomicBoolean(false);
 
-    public Runnable addReference()
-    {
-        checkState(referenceCount.get() > 0, "cannot add reference after resource has been destroyed");
-        referenceCount.incrementAndGet();
-        return createDestroyCallback();
-    }
-
-    private Runnable createDestroyCallback()
-    {
-        return new Runnable()
+        private Ref(CountedReference<T> countedReference)
         {
-            private final AtomicBoolean released = new AtomicBoolean(false);
+            this.countedReference = countedReference;
+        }
 
-            @Override
-            public void run()
-            {
-                checkState(released.compareAndSet(false, true), "reference already released");
-                if (referenceCount.decrementAndGet() == 0) {
-                    destroyAction.accept(value);
-                }
-            }
-        };
-    }
-
-    public record Handle<T>(CountedReference<T> countedReference, Runnable destroyCallback)
-    {
         public T get()
         {
-            return countedReference.get();
+            checkState(countedReference.referenceCount.get() > 0, "resource has been destroyed");
+            return countedReference.value;
         }
 
-        public Runnable addReference()
+        /**
+         * Acquires an additional reference. The caller must ensure the reference is still live.
+         * The precondition check is best-effort and not atomic with the increment.
+         */
+        public Ref<T> addReference()
         {
-            return countedReference.addReference();
+            checkState(countedReference.referenceCount.get() > 0, "cannot add reference after resource has been destroyed");
+            countedReference.referenceCount.incrementAndGet();
+            return new Ref<>(countedReference);
         }
 
+        /**
+         * Releases a reference. When the final reference is released, the destroy action will be invoked.
+         * The caller must ensure the reference is still live and handle possible exceptions.
+         */
         public void release()
         {
-            destroyCallback.run();
+            checkState(released.compareAndSet(false, true), "reference already released");
+            if (countedReference.referenceCount.decrementAndGet() == 0) {
+                countedReference.destroyAction.accept(countedReference.value);
+            }
         }
     }
 }
