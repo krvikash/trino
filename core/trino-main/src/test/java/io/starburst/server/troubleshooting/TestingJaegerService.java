@@ -23,6 +23,7 @@ import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 
 import java.io.ByteArrayInputStream;
@@ -53,7 +54,8 @@ public class TestingJaegerService
     {
         jaegerDockerContainer = new GenericContainer<>(DockerImageName.parse("jaegertracing/all-in-one:1.54"))
                 .withExposedPorts(GRPC_PORT, UI_PORT)
-                .withEnv("COLLECTOR_OTLP_ENABLED", "true");
+                .withEnv("COLLECTOR_OTLP_ENABLED", "true")
+                .waitingFor(Wait.forHttp("/").forPort(UI_PORT));
         jaegerHttpClient = new OkHttpClient();
     }
 
