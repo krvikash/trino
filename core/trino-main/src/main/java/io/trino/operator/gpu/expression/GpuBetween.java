@@ -41,18 +41,19 @@ public class GpuBetween
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        @Own ColumnVector greaterOrEqual;
-        @Own ColumnVector lessOrEqual;
-        try (@Own ColumnVector valueResult = value.evaluate(positionCount, inputColumns)) {
-            try (@Own ColumnVector minResult = min.evaluate(positionCount, inputColumns)) {
-                greaterOrEqual = valueResult.binaryOp(BinaryOp.GREATER_EQUAL, minResult, DType.BOOL8);
+        try (@Own CloseOnce<ColumnVector> valueResult = CloseOnce.own(value.evaluate(positionCount, inputColumns))) {
+            try (@Own CloseOnce<ColumnVector> minResult = CloseOnce.own(min.evaluate(positionCount, inputColumns))) {
+                try (@Own ColumnVector greaterOrEqual = valueResult.value().binaryOp(BinaryOp.GREATER_EQUAL, minResult.value(), DType.BOOL8)) {
+                    minResult.close();
+                    try (@Own CloseOnce<ColumnVector> maxResult = CloseOnce.own(max.evaluate(positionCount, inputColumns))) {
+                        try (@Own ColumnVector lessOrEqual = valueResult.value().binaryOp(BinaryOp.LESS_EQUAL, maxResult.value(), DType.BOOL8)) {
+                            valueResult.close();
+                            maxResult.close();
+                            return greaterOrEqual.binaryOp(BinaryOp.NULL_LOGICAL_AND, lessOrEqual, DType.BOOL8);
+                        }
+                    }
+                }
             }
-            try (@Own ColumnVector maxResult = max.evaluate(positionCount, inputColumns)) {
-                lessOrEqual = valueResult.binaryOp(BinaryOp.LESS_EQUAL, maxResult, DType.BOOL8);
-            }
-        }
-        try (greaterOrEqual; lessOrEqual) {
-            return greaterOrEqual.binaryOp(BinaryOp.NULL_LOGICAL_AND, lessOrEqual, DType.BOOL8);
         }
     }
 }
