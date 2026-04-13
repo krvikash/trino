@@ -29,11 +29,11 @@ import java.util.List;
 
 import static io.trino.parquet.ParquetMetadataConverter.convertToLogicalType;
 
-class MessageTypeConverter
+public class MessageTypeConverter
 {
     private MessageTypeConverter() {}
 
-    static List<SchemaElement> toParquetSchema(MessageType schema)
+    public static List<SchemaElement> toParquetSchema(MessageType schema)
     {
         List<SchemaElement> result = new ArrayList<>();
         addToList(result, schema);
