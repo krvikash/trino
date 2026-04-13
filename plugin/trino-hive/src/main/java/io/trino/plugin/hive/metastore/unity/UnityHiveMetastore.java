@@ -14,6 +14,7 @@
 package io.trino.plugin.hive.metastore.unity;
 
 import com.databricks.sdk.core.ApiClient;
+import com.databricks.sdk.core.CredentialsProvider;
 import com.databricks.sdk.core.DatabricksConfig;
 import com.databricks.sdk.core.DatabricksError;
 import com.databricks.sdk.core.DatabricksException;
@@ -98,7 +99,6 @@ import java.util.Set;
 import java.util.StringJoiner;
 import java.util.stream.LongStream;
 
-import static com.databricks.sdk.core.PatCredentialsProvider.PAT;
 import static com.databricks.sdk.service.catalog.DataSourceFormat.DELTA;
 import static com.databricks.sdk.service.catalog.TableType.EXTERNAL;
 import static com.databricks.sdk.service.catalog.TableType.MANAGED;
@@ -159,6 +159,8 @@ public class UnityHiveMetastore
             String host,
             String catalogName,
             Optional<String> token,
+            String authType,
+            Optional<CredentialsProvider> credentialsProvider,
             boolean vendedCredentialsEnabled,
             boolean proxyEnabled,
             Optional<String> proxyHost,
@@ -170,7 +172,9 @@ public class UnityHiveMetastore
     {
         DatabricksConfig databricksConfig = new DatabricksConfig()
                 .setHost(host)
-                .setAuthType(PAT);
+                .setAuthType(authType);
+
+        credentialsProvider.ifPresent(databricksConfig::setCredentialsProvider);
         token.ifPresent(databricksConfig::setToken);
 
         if (proxyEnabled) {
