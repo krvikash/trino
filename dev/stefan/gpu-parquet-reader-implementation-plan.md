@@ -519,6 +519,28 @@ if (filteredRowGroups.isEmpty()) {
 5. Test partition keys (PREFILLED columns)
 6. Test error cases (unsupported types, codecs, column kinds)
 
+### GpuParquetPageSource Test Coverage
+
+**Type Coverage (all supported types):**
+- Integer types: BOOLEAN, TINYINT, SMALLINT, INTEGER, BIGINT
+- Floating point: REAL (32-bit float), DOUBLE (64-bit float)
+- String: VARCHAR
+
+**Compression Coverage (GPU decompression):**
+- UNCOMPRESSED (baseline - no decompression)
+- ZSTD compression (recommended codec)
+- GZIP compression
+- SNAPPY compression
+- Test suite must include files with each compression type to exercise GPU decompression
+
+**Essential Test Scenarios:**
+1. Basic read with REGULAR columns (INTEGER, BIGINT, REAL, DOUBLE, VARCHAR)
+2. Read with PREFILLED columns (partition keys as RLE blocks)
+3. 0-row file handling
+4. Column pruning (request subset of columns)
+5. Multiple row groups
+6. Mixed compression codecs in test suite
+
 ### End-to-End Testing
 1. Create Hive table backed by Parquet on S3
 2. Run query requesting GPU execution
