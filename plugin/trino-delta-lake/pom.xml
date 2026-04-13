@@ -719,8 +719,8 @@
                                 <include>**/TestDeltaLakeGcsConnectorSmokeTest.java</include>
                                 <include>**/TestS3AndUnityMetastoreDeltaConnectorSmokeTest.java</include>
                                 <include>**/TestS3AndUnityMetastoreWithCredentialVendingDeltaConnectorSmokeTest.java</include>
-                                <exclude>**/TestGcsAndUnityMetastoreDeltaConnectorSmokeTest.java</exclude>
-                                <exclude>**/TestGcsAndUnityMetastoreWithCredentialVendingDeltaConnectorSmokeTest.java</exclude>
+                                <include>**/TestGcsAndUnityMetastoreDeltaConnectorSmokeTest.java</include>
+                                <include>**/TestGcsAndUnityMetastoreWithCredentialVendingDeltaConnectorSmokeTest.java</include>
                                 <include>**/TestAzureUnityMetastoreDeltaConnectorSmokeTest.java</include>
                             </includes>
                         </configuration>
