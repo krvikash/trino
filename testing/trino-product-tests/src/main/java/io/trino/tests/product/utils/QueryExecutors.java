@@ -13,6 +13,7 @@
  */
 package io.trino.tests.product.utils;
 
+import com.google.common.base.Throwables;
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
 import io.airlift.log.Logger;
@@ -125,7 +126,10 @@ public final class QueryExecutors
 
         RetryPolicy<QueryResult> databricksRetryPolicy = RetryPolicy.<QueryResult>builder()
                 // Retry on 503 may lead to unexpected test results: https://github.com/trinodb/trino/pull/14392#issuecomment-1264041917
-                .handleIf(throwable -> throwable.getMessage().contains("HTTP Response code: 502") || throwable.getMessage().contains("The current cluster state is Pending") || throwable.getMessage().contains("The current cluster state is Terminated") || throwable.getMessage().contains("504 Gateway Timeout"))
+                .handleIf(throwable -> {
+                    String stackTrace = Throwables.getStackTraceAsString(throwable);
+                    return stackTrace.contains("HTTP Response code: 502") || stackTrace.contains("The current cluster state is Pending") || stackTrace.contains("The current cluster state is Terminated") || stackTrace.contains("504 Gateway Timeout");
+                })
                 .withDelay(Duration.of(30, ChronoUnit.SECONDS))
                 .withMaxRetries(40)
                 .onRetry(event -> log.warn(event.getLastException(), "Query failed on attempt %d, will retry.", event.getAttemptCount()))
