@@ -22,7 +22,7 @@ public class TestBenchmarkClickBenchGpu
             throws Exception
     {
         BenchmarkClickBench.Benchmark benchmark = new BenchmarkClickBench.Benchmark();
-        benchmark.executionMode = BenchmarkClickBench.ExecutionMode.GPU;
+        benchmark.executionMode = BenchmarkClickBench.ExecutionMode.GPU_TS;
         benchmark.warmup = 0;
         benchmark.runs = 1;
         benchmark.call();
