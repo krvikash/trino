@@ -14,6 +14,7 @@
 package com.starburstdata.plugin.openapi;
 
 import com.google.inject.Binder;
+import com.starburstdata.plugin.openapi.authentication.AuthenticatorModule;
 import com.starburstdata.plugin.openapi.conversions.decoder.ColumnWriterFactory;
 import com.starburstdata.plugin.openapi.conversions.decoder.OpenApiDecoderFactory;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
@@ -38,5 +39,7 @@ public class OpenApiModule
 
         binder.bind(OpenApiSpec.class).in(SINGLETON);
         httpClientBinder(binder).bindHttpClient("openapi", ForOpenApi.class);
+
+        install(new AuthenticatorModule());
     }
 }

@@ -73,6 +73,7 @@ public class OpenApiSpec
     @Inject
     public OpenApiSpec(
             OpenApiConfig config,
+            OpenApiAuthenticator authenticator,
             OpenApiDecoderFactory openApiDecoderFactory)
     {
         OpenAPI openApi = parse(config.getSpecLocation());
@@ -96,7 +97,8 @@ public class OpenApiSpec
                 referenceableSchemas,
                 referenceableParameters,
                 CastPolicy.JSON,
-                openApiDecoderFactory);
+                openApiDecoderFactory,
+                authenticator);
         this.tableFunctions = pathMetadata.entrySet().stream()
                 .map(entry -> new OpenApiRequestTableFunction(
                         config.getBaseUri(),
@@ -128,7 +130,8 @@ public class OpenApiSpec
             Map<String, Schema<?>> schemas,
             Map<String, Parameter> parameters,
             CastPolicy castPolicy,
-            OpenApiDecoderFactory openApiDecoderFactory)
+            OpenApiDecoderFactory openApiDecoderFactory,
+            OpenApiAuthenticator authenticator)
     {
         SchemaIrFactory schemaIrFactory = new SchemaIrFactory(castPolicy, schemas);
         ImmutableMap.Builder<String, PathMetadata> pathMetadataBuilder = ImmutableMap.builder();
@@ -194,7 +197,7 @@ public class OpenApiSpec
                             decoder,
                             identifierToParameterHandleBuilder.buildOrThrow(),
                             READ_ONCE_STRATEGY,
-                            OpenApiAuthenticator.NONE));
+                            authenticator));
             }
             catch (Exception e) {
                 exceptionsBuilder.add(new RuntimeException(

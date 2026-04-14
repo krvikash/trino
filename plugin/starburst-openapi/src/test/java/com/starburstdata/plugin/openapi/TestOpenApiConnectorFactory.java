@@ -15,8 +15,10 @@ package com.starburstdata.plugin.openapi;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.CreationException;
 import com.google.inject.spi.Message;
+import io.airlift.bootstrap.ApplicationConfigurationException;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.function.table.ConnectorTableFunction;
@@ -31,13 +33,16 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.starburstdata.plugin.openapi.OpenApiSpec.SCHEMA_NAME;
 import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.assertj.core.api.InstanceOfAssertFactories.set;
 import static org.assertj.core.api.InstanceOfAssertFactories.throwable;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
@@ -207,5 +212,50 @@ final class TestOpenApiConnectorFactory
                         trinoException.getErrorCode().equals(CONFIGURATION_INVALID.toErrorCode()))
                 .findFirst();
         return assertThat(exception).isPresent().get().actual();
+    }
+
+    @Test
+    public void testUnusedSecuritySchemeProperties()
+    {
+        String petstore = requireNonNull(getClass().getClassLoader().getResource("petstore.yaml")).getFile();
+        Set<String> messages = assertThat(getAppConfigException(ImmutableMap.<String, String>builder()
+                .put("openapi.spec-location", petstore)
+                .put("openapi.base-uri", "https://starburst.io")
+                .put("openapi.security-scheme.secret", "MY_SECRET")
+                .put("openapi.security-scheme.in", "HEADER")
+                .put("openapi.security-scheme.name", "X-Api-Key")
+                .put("openapi.security-scheme.token-url", "https://example.org")
+                .put("openapi.security-scheme.client-secret", "secret")
+                .put("openapi.security-scheme.client-id", "client")
+                .put("openapi.security-scheme.scopes", "read,write")
+                .buildOrThrow()))
+                .extracting(ApplicationConfigurationException::getErrors)
+                .asInstanceOf(set(Message.class))
+                .actual()
+                .stream()
+                .map(Message::getMessage)
+                .collect(toImmutableSet());
+
+        Set<String> messagePrefixes = ImmutableSet.<String>builder()
+                .add("Configuration property 'openapi.security-scheme.client-id' was not used.")
+                .add("Configuration property 'openapi.security-scheme.client-secret' was not used.")
+                .add("Configuration property 'openapi.security-scheme.in' was not used.")
+                .add("Configuration property 'openapi.security-scheme.name' was not used.")
+                .add("Configuration property 'openapi.security-scheme.scopes' was not used.")
+                .add("Configuration property 'openapi.security-scheme.secret' was not used.")
+                .add("Configuration property 'openapi.security-scheme.token-url' was not used.")
+                .build();
+        assertThat(messages).hasSize(messagePrefixes.size());
+        assertThat(messagePrefixes).allSatisfy(prefix ->
+                assertThat(messages).anyMatch(message -> message.startsWith(prefix)));
+    }
+
+    private static ApplicationConfigurationException getAppConfigException(Map<String, String> config)
+    {
+        return assertThatThrownBy(() -> new OpenApiConnectorFactory()
+                .create("openapi", config, new TestingConnectorContext())
+                .shutdown())
+                .asInstanceOf(throwable(ApplicationConfigurationException.class))
+                .actual();
     }
 }
