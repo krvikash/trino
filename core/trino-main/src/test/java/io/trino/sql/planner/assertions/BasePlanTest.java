@@ -203,6 +203,7 @@ public class BasePlanTest
         List<PlanOptimizer> optimizers = ImmutableList.of(
                 new UnaliasSymbolReferences(),
                 new IterativeOptimizer(
+                        "TestMinimalPlanCleanup",
                         planTester.getPlannerContext(),
                         new RuleStatsRecorder(),
                         planTester.getStatsCalculator(),

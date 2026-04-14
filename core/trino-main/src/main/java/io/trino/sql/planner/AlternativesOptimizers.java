@@ -57,6 +57,7 @@ public class AlternativesOptimizers
                         .build());
 
         IterativeOptimizer iterativeOptimizer = new IterativeOptimizer(
+                "Alternatives",
                 plannerContext,
                 ruleStats,
                 statsCalculator,
