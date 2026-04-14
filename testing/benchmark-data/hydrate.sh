@@ -43,4 +43,4 @@ fi
 
 cd "${BASH_SOURCE%/*}"
 mkdir -p clickbench/hive/hits/
-aws s3 sync s3://starburst-benchmarks-data/ClickBench/hive/hits/ clickbench/hive/hits/
+aws s3 sync --delete s3://starburst-benchmarks-data/ClickBench/hive/hits_snappy_large_files clickbench/hive/hits/

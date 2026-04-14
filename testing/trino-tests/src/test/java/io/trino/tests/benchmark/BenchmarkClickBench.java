@@ -31,12 +31,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.stream.Stream;
 
 import static com.google.common.collect.Lists.newArrayListWithExpectedSize;
 import static com.google.common.io.Resources.getResource;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.isDirectory;
+import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public final class BenchmarkClickBench
@@ -73,10 +75,7 @@ public final class BenchmarkClickBench
         public Void call()
                 throws Exception
         {
-            Path dataLocation = dataLocation();
-            if (!isDirectory(dataLocation)) {
-                throw new IllegalStateException("Data location %s does not exist. Run testing/benchmark-data/setup.sh first.".formatted(dataLocation));
-            }
+            validateDataLocation();
 
             AsyncProfiler profiler = profileOutputDir != null ? AsyncProfiler.getInstance() : null;
             if (profiler != null) {
@@ -102,6 +101,43 @@ public final class BenchmarkClickBench
             }
 
             return null;
+        }
+
+        private void validateDataLocation()
+                throws Exception
+        {
+            Path dataLocation = dataLocation();
+            if (isDirectory(dataLocation)) {
+                try (Stream<Path> list = Files.list(dataLocation)) {
+                    String expected =
+                            """
+                            1014583318 20260416_150241_00003_a9apw_b591f863-9eda-4061-b7a8-89b18df8476d
+                            1020501479 20260416_150241_00003_a9apw_071794c2-1005-4fd0-8d49-75454c1fa60c
+                            1020647314 20260416_150241_00003_a9apw_6e12a868-fc9a-4e4c-93b1-05e35153d87c
+                            1022069875 20260416_150241_00003_a9apw_7f66273d-04bf-453a-8fcf-837afdcb66aa
+                            1022522724 20260416_150241_00003_a9apw_6540fd1f-95c0-4a45-bf46-33800e131107
+                            1023090425 20260416_150241_00003_a9apw_a59f41e7-be3f-4c81-b07c-61eb737537cc
+                            1023591135 20260416_150241_00003_a9apw_6a775878-68f4-42cf-a004-79f15af5ce59
+                            1023619270 20260416_150241_00003_a9apw_357c2792-a24f-4380-bc71-6e0839828e3a
+                            1023658000 20260416_150241_00003_a9apw_26259fab-d339-462d-a2f9-c94167f7c968
+                            1023930602 20260416_150241_00003_a9apw_6be847fb-971d-4008-99ec-cad9618fcafc
+                            1025297521 20260416_150241_00003_a9apw_f68d55cf-8a2c-4b11-90a1-880a05aa272f
+                            1026335151 20260416_150241_00003_a9apw_97319857-11c5-4940-a6c5-d3df046f72e4
+                            1026887707 20260416_150241_00003_a9apw_9c43df2c-d23f-48e1-ba3e-a7a5654499c4
+                            1027407624 20260416_150241_00003_a9apw_b2a3199f-e96d-4309-9d77-90993a6470fe
+                            1029638300 20260416_150241_00003_a9apw_327b7d9b-92ff-4a8a-80cd-a2f931f6981d
+                            663112786 20260416_150241_00003_a9apw_28d665e2-325b-4bee-ad7c-4840739ffe5c
+                            """;
+                    String listing = list
+                            .map(p -> "%s %s\n".formatted(size(p), p.getFileName()))
+                            .sorted()
+                            .collect(joining(""));
+                    if (listing.equals(expected)) {
+                        return;
+                    }
+                }
+            }
+            throw new IllegalStateException("Data location %s does not exist or is not up to date. Run testing/benchmark-data/hydrate.sh first.".formatted(dataLocation));
         }
 
         private void verifyDataset(DistributedQueryRunner runner)
@@ -329,5 +365,15 @@ public final class BenchmarkClickBench
             }
         }
         throw new RuntimeException("Failed to find repository root from " + workingDirectory);
+    }
+
+    private static long size(Path p)
+    {
+        try {
+            return Files.size(p);
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 }
