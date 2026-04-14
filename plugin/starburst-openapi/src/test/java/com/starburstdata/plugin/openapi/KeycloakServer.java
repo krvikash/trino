@@ -19,6 +19,7 @@ import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import org.testcontainers.utility.MountableFile;
 
 import java.io.Closeable;
+import java.net.URI;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -30,6 +31,7 @@ public class KeycloakServer
     private static final boolean REUSE = requireNonNullElse(System.getenv("TESTCONTAINERS_REUSE_ENABLE"), "false").equals("true");
     private static final int API_PORT = 8080;
     private static final String TOKEN_PATH = "/realms/trino-realm/protocol/openid-connect/token";
+    private static final String INTROSPECTION_PATH = TOKEN_PATH + "/introspect";
     private final GenericContainer<?> dockerContainer;
 
     public KeycloakServer()
@@ -50,9 +52,14 @@ public class KeycloakServer
         ReportLeakedContainers.ignoreContainerId(dockerContainer.getContainerId());
     }
 
-    public String getTokenUrl()
+    public URI getTokenUrl()
     {
-        return format("http://%s:%s%s", dockerContainer.getHost(), dockerContainer.getMappedPort(API_PORT), TOKEN_PATH);
+        return URI.create(format("http://%s:%s%s", dockerContainer.getHost(), dockerContainer.getMappedPort(API_PORT), TOKEN_PATH));
+    }
+
+    public URI getIntrospectionUrl()
+    {
+        return URI.create(format("http://%s:%s%s", dockerContainer.getHost(), dockerContainer.getMappedPort(API_PORT), INTROSPECTION_PATH));
     }
 
     @Override
