@@ -37,7 +37,6 @@ import static com.google.common.io.Resources.getResource;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.isDirectory;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public final class BenchmarkClickBench
@@ -93,12 +92,12 @@ public final class BenchmarkClickBench
                     benchmarkQuery(runner, query, profiler);
                 }
                 else {
-                    long totalMillis = 0;
+                    long sumOfAverages = 0;
                     for (int queryNumber = 1; queryNumber <= 43; queryNumber++) {
-                        long elapsedTimeMillis = benchmarkQuery(runner, queryNumber, profiler);
-                        totalMillis += elapsedTimeMillis;
+                        long averageMillis = benchmarkQuery(runner, queryNumber, profiler);
+                        sumOfAverages += averageMillis;
                     }
-                    System.out.println("All queries: %s".formatted(new Duration(totalMillis, MILLISECONDS)));
+                    System.out.println("ALL_QUERIES: %s ms".formatted(sumOfAverages));
                 }
             }
 
