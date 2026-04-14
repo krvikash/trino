@@ -26,6 +26,7 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Type;
+import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.testing.AbstractTestQueryFramework;
 import org.apache.parquet.format.CompressionCodec;
@@ -334,9 +335,9 @@ public abstract class BaseHiveGpuQueriesTest
                 "FROM tpch.tiny.orders", 15000);
 
         assertThat(query("SELECT count(*) FROM test_gpu_multiple_rows WHERE is_divisible"))
-                .executesWithoutGpu();
+                .executesWithGpu(AggregationNode.class);
         assertThat(query("SELECT count(*) FROM test_gpu_multiple_rows WHERE orderkey < 100"))
-                .executesWithoutGpu();
+                .executesWithGpu(AggregationNode.class);
         assertThat(query("SELECT sum(totalprice) FROM test_gpu_multiple_rows"))
                 .executesWithGpu(TableScanNode.class);
 

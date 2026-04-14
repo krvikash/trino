@@ -154,6 +154,10 @@ public abstract class GpuOperator
                     planNodeId,
                     () -> {
                         BufferPages sourceOperation = new BufferPages();
+                        if (inputTypes.isEmpty()) {
+                            // Skip CopyToDevice when there are no columns (e.g., projection with only COUNT(*))
+                            return new GpuOperatorSource(sourceOperation, sourceOperation);
+                        }
                         CopyToDevice copyToDevice = new CopyToDevice(
                                 sourceOperation,
                                 inputTypes,

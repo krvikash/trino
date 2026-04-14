@@ -16,6 +16,7 @@ package io.trino.tests;
 import io.trino.connector.MockConnectorFactory;
 import io.trino.connector.MockConnectorPlugin;
 import io.trino.plugin.memory.MemoryQueryRunner;
+import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.FilterNode;
 import io.trino.testing.AbstractDistributedEngineOnlyQueries;
 import io.trino.testing.QueryRunner;
@@ -352,5 +353,59 @@ public class TestDistributedGpuEngineOnlyQueries
                 WHERE r IN (ROW(10, 11), ROW(20, NULL))
                 """))
                 .executesWithoutGpu();
+    }
+
+    @Test
+    public void testGpuAggregation()
+    {
+        assertThat(query(
+                """
+                SELECT count(*), count(a), sum(a), min(a), max(a)
+                FROM (SELECT IF(rand()<42, NULLIF(i % 10, 0)) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                """))
+                .executesWithGpu(AggregationNode.class);
+    }
+
+    @Test
+    public void testGpuGroupByAggregation()
+    {
+        assertThat(query(
+                """
+                SELECT b, count(*), sum(a)
+                FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                GROUP BY b
+                """))
+                .executesWithGpu(AggregationNode.class);
+        assertThat(query(
+                """
+                SELECT b, c, count(*), min(a), max(a)
+                FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10) AS b, IF(rand()<42, i % 5) AS c FROM (UNNEST(sequence(0, 100))) t(i))
+                GROUP BY b, c
+                """))
+                .executesWithGpu(AggregationNode.class);
+    }
+
+    @Test
+    public void testGpuAggregationInHaving()
+    {
+        assertThat(query(
+                """
+                SELECT b, sum(a)
+                FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                GROUP BY b
+                HAVING count(*) > 5
+                """))
+                .executesWithGpu(AggregationNode.class);
+    }
+
+    @Test
+    public void testGpuAggregationWithExpression()
+    {
+        assertThat(query(
+                """
+                SELECT sum(a + b), max(a * 2)
+                FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                """))
+                .executesWithGpu(AggregationNode.class);
     }
 }

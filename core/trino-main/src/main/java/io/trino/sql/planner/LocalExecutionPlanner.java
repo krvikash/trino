@@ -127,6 +127,7 @@ import io.trino.operator.function.RegularTableFunctionPartition.PassThroughColum
 import io.trino.operator.function.TableFunctionOperator.TableFunctionOperatorFactory;
 import io.trino.operator.gpu.GpuFilter;
 import io.trino.operator.gpu.GpuOperator;
+import io.trino.operator.gpu.aggregation.GpuAggregationCompiler;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.index.DynamicTupleFilterFactory;
@@ -2130,6 +2131,11 @@ public class LocalExecutionPlanner
         public PhysicalOperation visitAggregation(AggregationNode node, LocalExecutionPlanContext context)
         {
             PhysicalOperation source = node.getSource().accept(this, context);
+
+            Optional<PhysicalOperation> gpuOperation = tryPlanGpuAggregation(node, source, context);
+            if (gpuOperation.isPresent()) {
+                return gpuOperation.get();
+            }
 
             if (node.getGroupingKeys().isEmpty()) {
                 return planGlobalAggregation(node, source, context);
@@ -4324,6 +4330,30 @@ public class LocalExecutionPlanner
                     10_000,
                     Optional.of(maxPartialAggregationMemorySize));
             return new PhysicalOperation(operatorFactory, mappings.buildOrThrow(), source);
+        }
+
+        private Optional<PhysicalOperation> tryPlanGpuAggregation(AggregationNode node, PhysicalOperation source, LocalExecutionPlanContext context)
+        {
+            if (!isGpuAccelerationEnabled(session)) {
+                return Optional.empty();
+            }
+            return GpuAggregationCompiler.compile(node, source.getLayout())
+                    .map(gpuAggregation -> {
+                        ImmutableMap.Builder<Symbol, Integer> outputMappings = ImmutableMap.builder();
+                        int channel = 0;
+                        for (Symbol symbol : node.getOutputSymbols()) {
+                            outputMappings.put(symbol, channel++);
+                        }
+                        return new PhysicalOperation(
+                                new GpuOperator.Factory(
+                                        context.getNextOperatorId(),
+                                        node.getId(),
+                                        source.getTypes(),
+                                        ImmutableList.of(gpuAggregation),
+                                        gpuAggregation.getOutputTypes()),
+                                outputMappings.buildOrThrow(),
+                                source);
+                    });
         }
 
         private OperatorFactory createHashAggregationOperatorFactory(
