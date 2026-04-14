@@ -153,15 +153,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.https.automatic-shared-secret",
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
-                            "http-server.authentication.oauth2.client-secret",
-                            "http-server.authentication.oauth2.refresh-tokens.secret-key",
-                            "internal-communication.https.keystore.key",
-                            "internal-communication.https.truststore.key",
-                            "internal-communication.shared-secret",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password",
-                            "protocol.spooling.shared-secret-key",
-                            "web-ui.shared-secret"))
+                            "ldap.ssl.truststore.password"))
             .put("great_lakes",
                     ImmutableSet.of(
                             "azure.access-key",
