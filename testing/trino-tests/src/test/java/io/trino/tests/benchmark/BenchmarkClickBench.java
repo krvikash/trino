@@ -58,10 +58,10 @@ public final class BenchmarkClickBench
         ExecutionMode executionMode;
 
         @Option(names = {"-w", "--warmup"}, description = "Number of warmup runs for each query")
-        int warmup = 3;
+        int warmup = 5;
 
         @Option(names = {"-r", "--runs"}, description = "Number of benchmark runs for each query")
-        int runs = 5;
+        int runs = 10;
 
         @Option(names = {"-q", "--query"}, description = "A specific query to run [1-43]")
         Integer query;
