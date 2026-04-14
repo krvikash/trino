@@ -16,6 +16,7 @@ package io.trino.plugin.bigquery;
 public enum BigQueryAuthenticationType
 {
     STATIC_CREDENTIALS,
+    TOKEN_PASS_THROUGH, // used in SEP
     DYNAMIC_CONNECTION,
     /**/;
 }
