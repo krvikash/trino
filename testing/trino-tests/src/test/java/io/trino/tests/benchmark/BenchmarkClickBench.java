@@ -159,7 +159,9 @@ public final class BenchmarkClickBench
 
     enum ExecutionMode
     {
-        CPU, GPU,
+        CPU,
+        GPU,
+        GPU_TS,
     }
 
     private static DistributedQueryRunner setup(ExecutionMode executionMode)
@@ -172,6 +174,9 @@ public final class BenchmarkClickBench
         switch (executionMode) {
             case CPU -> builder.addExtraProperty("gpu-acceleration.enabled", "false");
             case GPU -> builder.addExtraProperty("gpu-acceleration.enabled", "true");
+            case GPU_TS -> builder
+                    .addExtraProperty("gpu-acceleration.enabled", "true")
+                    .addExtraProperty("gpu-acceleration.table-scan-enabled", "true");
         }
         DistributedQueryRunner queryRunner = builder.build();
 
