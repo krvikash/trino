@@ -43,24 +43,24 @@ import static java.util.Objects.requireNonNull;
 public class ObjectStorePageSourceProviderFactory
         implements ConnectorPageSourceProviderFactory
 {
-    private final ConnectorPageSourceProvider hivePageSourceProvider;
+    private final ConnectorPageSourceProviderFactory hivePageSourceProviderFactory;
     private final ConnectorPageSourceProviderFactory icebergPageSourceProviderFactory;
-    private final ConnectorPageSourceProvider deltaPageSourceProvider;
-    private final ConnectorPageSourceProvider hudiPageSourceProvider;
+    private final ConnectorPageSourceProviderFactory deltaPageSourceProviderFactory;
+    private final ConnectorPageSourceProviderFactory hudiPageSourceProviderFactory;
     private final ObjectStoreSessionProperties sessionProperties;
 
     @Inject
     public ObjectStorePageSourceProviderFactory(
-            @ForHive ConnectorPageSourceProvider hivePageSourceProvider,
+            @ForHive ConnectorPageSourceProviderFactory hivePageSourceProviderFactory,
             @ForIceberg ConnectorPageSourceProviderFactory icebergPageSourceProviderFactory,
-            @ForDelta ConnectorPageSourceProvider deltaPageSourceProvider,
-            @ForHudi ConnectorPageSourceProvider hudiPageSourceProvider,
+            @ForDelta ConnectorPageSourceProviderFactory deltaPageSourceProviderFactory,
+            @ForHudi ConnectorPageSourceProviderFactory hudiPageSourceProviderFactory,
             ObjectStoreSessionProperties sessionProperties)
     {
+        this.hivePageSourceProviderFactory = requireNonNull(hivePageSourceProviderFactory, "hivePageSourceProviderFactory is null");
         this.icebergPageSourceProviderFactory = requireNonNull(icebergPageSourceProviderFactory, "icebergPageSourceProviderFactory is null");
-        this.hivePageSourceProvider = requireNonNull(hivePageSourceProvider, "hivePageSourceProvider is null");
-        this.deltaPageSourceProvider = requireNonNull(deltaPageSourceProvider, "deltaPageSourceProvider is null");
-        this.hudiPageSourceProvider = requireNonNull(hudiPageSourceProvider, "hudiPageSourceProvider is null");
+        this.deltaPageSourceProviderFactory = requireNonNull(deltaPageSourceProviderFactory, "deltaPageSourceProviderFactory is null");
+        this.hudiPageSourceProviderFactory = requireNonNull(hudiPageSourceProviderFactory, "hudiPageSourceProviderFactory is null");
         this.sessionProperties = requireNonNull(sessionProperties, "sessionProperties is null");
     }
 
@@ -140,10 +140,10 @@ public class ObjectStorePageSourceProviderFactory
         }
 
         return switch (handle) {
-            case HiveTableHandle _ -> new PageSourceProvider(HIVE, hivePageSourceProvider);
+            case HiveTableHandle _ -> new PageSourceProvider(HIVE, hivePageSourceProviderFactory.createPageSourceProvider());
             case IcebergTableHandle _ -> new PageSourceProvider(ICEBERG, icebergPageSourceProviderFactory.createPageSourceProvider());
-            case DeltaLakeTableHandle _ -> new PageSourceProvider(DELTA, deltaPageSourceProvider);
-            case HudiTableHandle _ -> new PageSourceProvider(HUDI, hudiPageSourceProvider);
+            case DeltaLakeTableHandle _ -> new PageSourceProvider(DELTA, deltaPageSourceProviderFactory.createPageSourceProvider());
+            case HudiTableHandle _ -> new PageSourceProvider(HUDI, hudiPageSourceProviderFactory.createPageSourceProvider());
             default -> throw new UnsupportedOperationException("Unsupported table handle " + handle.getClass() + " with split " + split.getClass());
         };
     }
