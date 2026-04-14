@@ -16,10 +16,12 @@ package io.trino.operator.exchange;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.units.DataSize;
+import io.trino.ExceededMemoryLimitException;
 import io.trino.SequencePageBuilder;
 import io.trino.Session;
 import io.trino.block.BlockAssertions;
 import io.trino.connector.CatalogHandle;
+import io.trino.memory.context.LocalMemoryContext;
 import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.OperatorContext;
 import io.trino.operator.PageAssertions;
@@ -83,6 +85,7 @@ import static io.trino.testing.TestingTaskContext.createTaskContext;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
 import static java.util.stream.IntStream.range;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_METHOD;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
@@ -1349,6 +1352,35 @@ public class TestLocalExchange
         sourceA.close();
 
         assertThat(operatorContextA.getOperatorMemoryContext().getUserMemory()).isEqualTo(0);
+    }
+
+    @Test
+    public void testPartitionWithMergeOOM()
+    {
+        LocalExchange exchange = new LocalExchange(
+                functionProvider,
+                testSessionBuilder().build(),
+                2,
+                FIXED_HASH_DISTRIBUTION,
+                BUCKET_COUNT,
+                ImmutableList.of(0),
+                TYPES,
+                POSITIONS_APPENDER_FACTORY,
+                TYPES,
+                LOCAL_EXCHANGE_MAX_BUFFERED_BYTES,
+                HASH_COMPILER,
+                WRITER_SCALING_MIN_DATA_PROCESSED,
+                TOTAL_MEMORY_USED);
+
+        assertThat(exchange.getBufferCount()).isEqualTo(2);
+        assertExchangeTotalBufferedBytes(exchange, 0);
+
+        LocalMemoryContext localMemoryContext = pipelineContext.getPipelineMemoryContext().aggregateUserMemoryContext().newLocalMemoryContext("test");
+        localMemoryContext.setBytes(DataSize.of(256, MEGABYTE).toBytes());
+        assertThatThrownBy(() -> exchange.getNextSource(newOperatorContext())).isInstanceOf(ExceededMemoryLimitException.class);
+        assertThatThrownBy(() -> exchange.getNextSource(newOperatorContext())).isInstanceOf(ExceededMemoryLimitException.class);
+
+        localMemoryContext.close();
     }
 
     @Test

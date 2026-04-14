@@ -230,10 +230,10 @@ public class LocalExchange
     {
         checkState(nextSourceIndex < sources.size(), "All operators already created");
         LocalExchangePageBuffer result = sources.get(nextSourceIndex);
+        nextSourceIndex++;
         if (result instanceof MergingLocalExchangePageBuffer mergingLocalExchangePageBuffer) {
             mergingLocalExchangePageBuffer.init(operatorContext);
         }
-        nextSourceIndex++;
         return result;
     }
 
