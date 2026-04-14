@@ -68,7 +68,7 @@ public class StargateParallelPageSourceProvider
 
         StargateParallelSplit stargateParallelSplit = (StargateParallelSplit) split;
 
-        ResultRows rows = new ResultRowsDecoder(segmentLoader)
+        ResultRows rows = new ResultRowsDecoder(segmentLoader, false)
                 .toRows(stargateParallelSplit.getColumns(), EncodedQueryData
                         .builder(stargateParallelSplit.encoding())
                         .withAttributes(attributes(stargateParallelSplit.metadata()))

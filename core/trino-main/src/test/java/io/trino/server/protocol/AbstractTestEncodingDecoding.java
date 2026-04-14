@@ -20,6 +20,7 @@ import io.airlift.slice.Slices;
 import io.trino.Session;
 import io.trino.client.ClientCapabilities;
 import io.trino.client.Column;
+import io.trino.client.EncodedVariant;
 import io.trino.client.QueryDataDecoder;
 import io.trino.client.Row;
 import io.trino.server.protocol.spooling.QueryDataEncoder;
@@ -50,6 +51,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -124,7 +126,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 @Execution(CONCURRENT)
 public abstract class AbstractTestEncodingDecoding
 {
-    protected abstract QueryDataDecoder createDecoder(List<Column> columns);
+    protected abstract QueryDataDecoder createDecoder(List<Column> columns, boolean supportsVariantBinary);
 
     protected abstract QueryDataEncoder createEncoder(Session session, List<OutputColumn> columns);
 
@@ -138,13 +140,13 @@ public abstract class AbstractTestEncodingDecoding
         return createEncoder(session, columns.build());
     }
 
-    QueryDataDecoder newDecoder(List<TypedColumn> types, boolean supportsVariant)
+    public QueryDataDecoder newDecoder(List<TypedColumn> types, boolean supportsVariant, boolean supportsVariantBinary)
     {
         ImmutableList.Builder<Column> columns = ImmutableList.builderWithExpectedSize(types.size());
         for (TypedColumn typedColumn : types) {
-            columns.add(createColumn(typedColumn.name(), typedColumn.type(), true, true, supportsVariant));
+            columns.add(createColumn(typedColumn.name(), typedColumn.type(), true, true, supportsVariant, supportsVariantBinary));
         }
-        return createDecoder(columns.build());
+        return createDecoder(columns.build(), supportsVariantBinary);
     }
 
     @Test
@@ -690,8 +692,44 @@ public abstract class AbstractTestEncodingDecoding
         Block block = blockBuilder.build();
 
         Page page = page(block);
-        assertThat(roundTrip(columns, page))
+        assertThat(roundTrip(
+                sessionWithoutCapability(ClientCapabilities.VARIANT_BINARY),
+                columns,
+                true,
+                false,
+                page))
                 .isEqualTo(column(null, "{\"a\":1,\"b\":[true,null]}", null));
+    }
+
+    @Test
+    public void testVariantBinarySerialization()
+            throws IOException
+    {
+        List<TypedColumn> columns = ImmutableList.of(typed("col0", VARIANT));
+        BlockBuilder blockBuilder = VARIANT.createBlockBuilder(null, 3);
+        blockBuilder.appendNull();
+        Variant variant = Variant.ofObject(Map.of(
+                utf8Slice("a"), Variant.ofInt(1),
+                utf8Slice("b"), Variant.ofArray(List.of(Variant.ofBoolean(true), Variant.NULL_VALUE))));
+        VARIANT.writeObject(blockBuilder, variant);
+        VARIANT.writeObject(blockBuilder, Variant.NULL_VALUE);
+        Block block = blockBuilder.build();
+
+        Page page = page(block);
+        List<List<Object>> rows = roundTrip(
+                sessionWithCapability(ClientCapabilities.VARIANT_BINARY),
+                columns,
+                false,
+                true,
+                page);
+        assertThat(rows).hasSize(3);
+        assertThat(rows.get(0)).containsExactly((Object) null);
+        assertThat(rows.get(1)).hasSize(1);
+        assertThat(rows.get(1).get(0)).isInstanceOf(EncodedVariant.class);
+        assertEncodedVariant((EncodedVariant) rows.get(1).get(0), variant);
+        assertThat(rows.get(2)).hasSize(1);
+        assertThat(rows.get(2).get(0)).isInstanceOf(EncodedVariant.class);
+        assertEncodedVariant((EncodedVariant) rows.get(2).get(0), Variant.NULL_VALUE);
     }
 
     @Test
@@ -708,8 +746,81 @@ public abstract class AbstractTestEncodingDecoding
         Block block = blockBuilder.build();
 
         Page page = page(block);
-        assertThat(roundTrip(sessionWithoutCapability(ClientCapabilities.VARIANT), columns, false, page))
+        assertThat(roundTrip(sessionWithoutVariantCapabilities(), columns, false, page))
                 .isEqualTo(column(null, "{\"a\":1,\"b\":[true,null]}", "null"));
+    }
+
+    @Test
+    public void testVariantBinarySerializationInRows()
+            throws IOException
+    {
+        RowType rowType = RowType.from(ImmutableList.of(
+                RowType.field("id", BIGINT),
+                RowType.field("payload", VARIANT)));
+        List<TypedColumn> columns = ImmutableList.of(typed("col0", rowType));
+        RowBlockBuilder blockBuilder = rowType.createBlockBuilder(null, 1);
+
+        Variant payload = Variant.ofObject(Map.of(
+                utf8Slice("a"), Variant.ofInt(1),
+                utf8Slice("nested"), Variant.ofArray(List.of(Variant.ofBoolean(true), Variant.NULL_VALUE))));
+        blockBuilder.buildEntry(builders -> {
+            BIGINT.writeLong(builders.get(0), 1);
+            VARIANT.writeObject(builders.get(1), payload);
+        });
+
+        Page page = page(blockBuilder.build());
+        List<List<Object>> rows = roundTrip(
+                sessionWithCapability(ClientCapabilities.VARIANT_BINARY),
+                columns,
+                false,
+                true,
+                page);
+        assertThat(rows).hasSize(1);
+        assertThat(rows.get(0)).hasSize(1);
+        assertThat(rows.get(0).get(0)).isInstanceOf(Row.class);
+        Row row = (Row) rows.get(0).get(0);
+        assertThat(row.getFields()).hasSize(2);
+        assertThat(row.getFields().get(0).getName()).contains("id");
+        assertThat(row.getFields().get(0).getValue()).isEqualTo(1L);
+        assertThat(row.getFields().get(1).getName()).contains("payload");
+        assertThat(row.getFields().get(1).getValue()).isInstanceOf(EncodedVariant.class);
+        assertEncodedVariant((EncodedVariant) row.getFields().get(1).getValue(), payload);
+    }
+
+    @Test
+    public void testVariantBinarySerializationInArrays()
+            throws IOException
+    {
+        ArrayType arrayType = new ArrayType(VARIANT);
+        List<TypedColumn> columns = ImmutableList.of(typed("col0", arrayType));
+        ArrayBlockBuilder blockBuilder = arrayType.createBlockBuilder(null, 1);
+
+        Variant payload = Variant.ofObject(Map.of(
+                utf8Slice("a"), Variant.ofInt(1),
+                utf8Slice("nested"), Variant.ofArray(List.of(Variant.ofBoolean(true), Variant.NULL_VALUE))));
+        blockBuilder.buildEntry(builder -> {
+            VARIANT.writeObject(builder, payload);
+            VARIANT.writeObject(builder, Variant.NULL_VALUE);
+            builder.appendNull();
+        });
+
+        Page page = page(blockBuilder.build());
+        List<List<Object>> rows = roundTrip(
+                sessionWithCapability(ClientCapabilities.VARIANT_BINARY),
+                columns,
+                false,
+                true,
+                page);
+        assertThat(rows).hasSize(1);
+        assertThat(rows.get(0)).hasSize(1);
+        assertThat(rows.get(0).get(0)).isInstanceOf(List.class);
+        List<?> values = (List<?>) rows.get(0).get(0);
+        assertThat(values).hasSize(3);
+        assertThat(values.get(0)).isInstanceOf(EncodedVariant.class);
+        assertEncodedVariant((EncodedVariant) values.get(0), payload);
+        assertThat(values.get(1)).isInstanceOf(EncodedVariant.class);
+        assertEncodedVariant((EncodedVariant) values.get(1), Variant.NULL_VALUE);
+        assertThat(values.get(2)).isNull();
     }
 
     @Test
@@ -730,7 +841,7 @@ public abstract class AbstractTestEncodingDecoding
         });
 
         Page page = page(blockBuilder.build());
-        assertThat(roundTrip(sessionWithoutCapability(ClientCapabilities.VARIANT), columns, false, page))
+        assertThat(roundTrip(sessionWithoutVariantCapabilities(), columns, false, page))
                 .containsExactly(List.of(Row.builderWithExpectedSize(2)
                         .addField("id", 1L)
                         .addField("payload", "{\"a\":1,\"nested\":[true,null]}")
@@ -759,7 +870,7 @@ public abstract class AbstractTestEncodingDecoding
 
         Page page = page(blockBuilder.build());
         assertThat(roundTrip(
-                sessionWithoutCapability(ClientCapabilities.VARIANT),
+                sessionWithoutVariantCapabilities(),
                 columns,
                 false,
                 page).getFirst())
@@ -889,17 +1000,23 @@ public abstract class AbstractTestEncodingDecoding
         QueryDataEncoder encoder = newEncoder(TEST_SESSION, columns);
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         encoder.encodeTo(output, List.of(page));
-        return ImmutableList.copyOf(decodeValues(columns, true, output.toByteArray()));
+        return ImmutableList.copyOf(decodeValues(columns, true, false, output.toByteArray()));
     }
 
     protected List<List<Object>> roundTrip(Session session, List<TypedColumn> columns, boolean supportsVariant, Page page)
+            throws IOException
+    {
+        return roundTrip(session, columns, supportsVariant, false, page);
+    }
+
+    protected List<List<Object>> roundTrip(Session session, List<TypedColumn> columns, boolean supportsVariant, boolean supportsVariantBinary, Page page)
             throws IOException
     {
         QueryDataEncoder encoder = newEncoder(session, columns);
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         encoder.encodeTo(output, List.of(page));
 
-        return ImmutableList.copyOf(decodeValues(columns, supportsVariant, output.toByteArray()));
+        return ImmutableList.copyOf(decodeValues(columns, supportsVariant, supportsVariantBinary, output.toByteArray()));
     }
 
     protected void assertRoundTrip(Type type, Consumer<BlockBuilder> builder, Object... expectedValues)
@@ -914,10 +1031,10 @@ public abstract class AbstractTestEncodingDecoding
                 .containsExactly(array(expectedValues));
     }
 
-    protected List<List<Object>> decodeValues(List<TypedColumn> columns, boolean supportsVariant, byte[] data)
+    protected List<List<Object>> decodeValues(List<TypedColumn> columns, boolean supportsVariant, boolean supportsVariantBinary, byte[] data)
             throws IOException
     {
-        QueryDataDecoder decoder = newDecoder(columns, supportsVariant);
+        QueryDataDecoder decoder = newDecoder(columns, supportsVariant, supportsVariantBinary);
         return ImmutableList.copyOf(decoder.decode(new ByteArrayInputStream(data), null));
     }
 
@@ -944,6 +1061,16 @@ public abstract class AbstractTestEncodingDecoding
                 .build();
     }
 
+    private static Session sessionWithoutVariantCapabilities()
+    {
+        return Session.builder(TEST_SESSION)
+                .setClientCapabilities(TEST_SESSION.getClientCapabilities().stream()
+                        .filter(value -> !value.equals(ClientCapabilities.VARIANT.toString()))
+                        .filter(value -> !value.equals(ClientCapabilities.VARIANT_BINARY.toString()))
+                        .collect(toImmutableSet()))
+                .build();
+    }
+
     private static Session sessionWithCapability(ClientCapabilities capability)
     {
         return Session.builder(TEST_SESSION)
@@ -954,6 +1081,18 @@ public abstract class AbstractTestEncodingDecoding
                         .stream()
                         .collect(toImmutableSet()))
                 .build();
+    }
+
+    private static String toBinaryEnvelopeJson(Variant variant)
+    {
+        return "{\"metadata\":\"" + Base64.getEncoder().encodeToString(variant.metadata().toSlice().getBytes()) +
+                "\",\"value\":\"" + Base64.getEncoder().encodeToString(variant.data().getBytes()) + "\"}";
+    }
+
+    private static void assertEncodedVariant(EncodedVariant actual, Variant expected)
+    {
+        assertThat(actual.getMetadataBytes()).isEqualTo(expected.metadata().toSlice().getBytes());
+        assertThat(actual.getValueBytes()).isEqualTo(expected.data().getBytes());
     }
 
     private static Page page(Block... blocks)

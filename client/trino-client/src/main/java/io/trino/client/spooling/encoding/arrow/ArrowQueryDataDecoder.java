@@ -191,7 +191,7 @@ public class ArrowQueryDataDecoder
             implements QueryDataDecoder.Factory
     {
         @Override
-        public QueryDataDecoder create(List<Column> columns, DataAttributes queryAttributes)
+        public QueryDataDecoder create(List<Column> columns, DataAttributes queryAttributes, boolean supportsVariantBinary)
         {
             return new ArrowQueryDataDecoder(columns);
         }
@@ -229,7 +229,7 @@ public class ArrowQueryDataDecoder
             extends Factory
     {
         @Override
-        public QueryDataDecoder create(List<Column> columns, DataAttributes queryAttributes)
+        public QueryDataDecoder create(List<Column> columns, DataAttributes queryAttributes, boolean supportsVariantBinary)
         {
             return new ZstdArrowQueryDataDecoder(columns);
         }

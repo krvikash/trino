@@ -49,7 +49,7 @@ public class TestArrowEncodingDecoding
     }
 
     @Override
-    protected QueryDataDecoder createDecoder(List<Column> columns)
+    protected QueryDataDecoder createDecoder(List<Column> columns, boolean supportsVariantBinary)
     {
         return new ArrowQueryDataDecoder(columns);
     }
@@ -93,6 +93,33 @@ public class TestArrowEncodingDecoding
     {
         // TODO https://starburstdata.atlassian.net/browse/ENG-9987 Support variant in Trino protocol spooling to Arrow
         assertThatThrownBy(super::testVariantJsonFallbackSerializationInMaps)
+                .hasMessage("Unsupported type: variant");
+    }
+
+    @Test
+    @Override
+    public void testVariantBinarySerialization()
+    {
+        // TODO https://starburstdata.atlassian.net/browse/ENG-9987 Support variant in Trino protocol spooling to Arrow
+        assertThatThrownBy(super::testVariantBinarySerialization)
+                .hasMessage("Unsupported type: variant");
+    }
+
+    @Test
+    @Override
+    public void testVariantBinarySerializationInRows()
+    {
+        // TODO https://starburstdata.atlassian.net/browse/ENG-9987 Support variant in Trino protocol spooling to Arrow
+        assertThatThrownBy(super::testVariantBinarySerializationInRows)
+                .hasMessage("Unsupported type: variant");
+    }
+
+    @Test
+    @Override
+    public void testVariantBinarySerializationInArrays()
+    {
+        // TODO https://starburstdata.atlassian.net/browse/ENG-9987 Support variant in Trino protocol spooling to Arrow
+        assertThatThrownBy(super::testVariantBinarySerializationInArrays)
                 .hasMessage("Unsupported type: variant");
     }
 }

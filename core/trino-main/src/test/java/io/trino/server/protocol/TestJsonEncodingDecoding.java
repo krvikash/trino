@@ -27,7 +27,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.List;
 
-import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.server.protocol.AbstractTestEncodingDecoding.TypedColumn.typed;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -38,15 +37,15 @@ public class TestJsonEncodingDecoding
         extends AbstractTestEncodingDecoding
 {
     @Override
-    protected QueryDataDecoder createDecoder(List<Column> columns)
+    protected QueryDataDecoder createDecoder(List<Column> columns, boolean supportsVariantBinary)
     {
-        return new JsonQueryDataDecoder.Factory().create(columns, DataAttributes.empty());
+        return new JsonQueryDataDecoder.Factory().create(columns, DataAttributes.empty(), supportsVariantBinary);
     }
 
     @Override
     protected QueryDataEncoder createEncoder(Session session, List<OutputColumn> columns)
     {
-        return new JsonQueryDataEncoder.Factory().create(TEST_SESSION, columns);
+        return new JsonQueryDataEncoder.Factory().create(session, columns);
     }
 
     @Test
@@ -76,7 +75,7 @@ public class TestJsonEncodingDecoding
     protected List<List<Object>> parseJson(List<TypedColumn> columns, String json)
             throws IOException
     {
-        QueryDataDecoder decoder = newDecoder(columns, true);
+        QueryDataDecoder decoder = newDecoder(columns, true, true);
         return ImmutableList.copyOf(decoder.decode(new ByteArrayInputStream(json.getBytes(UTF_8)), null));
     }
 }
