@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Streams;
 import com.google.common.util.concurrent.UncheckedExecutionException;
@@ -47,6 +48,7 @@ import io.trino.metastore.Column;
 import io.trino.metastore.HiveMetastore;
 import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.TableInfo;
+import io.trino.metastore.TableInfo.ExtendedRelationType;
 import io.trino.plugin.base.classloader.ClassLoaderSafeSystemTable;
 import io.trino.plugin.base.filter.UtcConstraintExtractor;
 import io.trino.plugin.base.projection.ApplyProjectionUtil;
@@ -309,6 +311,8 @@ import static io.airlift.units.Duration.ZERO;
 import static io.trino.cache.CacheUtils.uncheckedCacheGet;
 import static io.trino.cache.SafeCaches.buildNonEvictableCache;
 import static io.trino.filesystem.Locations.isS3Tables;
+import static io.trino.metastore.TableInfo.ExtendedRelationType.TRINO_MATERIALIZED_VIEW;
+import static io.trino.metastore.TableInfo.ExtendedRelationType.TRINO_VIEW;
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.extractSupportedProjectedColumns;
 import static io.trino.plugin.base.projection.ApplyProjectionUtil.replaceWithNewVariables;
 import static io.trino.plugin.base.util.ExecutorUtil.processWithAdditionalThreads;
@@ -1420,8 +1424,24 @@ public class IcebergMetadata
     {
         return catalog.streamRelationColumns(session, schemaName, relationFilter, tableName -> redirectTable(session, tableName).isPresent())
                 .orElseGet(() -> {
-                    // Catalog does not support streamRelationColumns
-                    return ConnectorMetadata.super.streamRelationColumns(session, schemaName, relationFilter);
+                    Relations relations = getRelations(session, schemaName, relationFilter);
+
+                    Iterator<RelationColumnsMetadata> tableColumnsMetadata = Iterators.transform(
+                            streamTableColumns(session, relations.tables()),
+                            tcm -> tcm.getColumns()
+                                    .map(columns -> RelationColumnsMetadata.forTable(tcm.getTable(), columns))
+                                    .orElseGet(() -> RelationColumnsMetadata.forRedirectedTable(tcm.getTable())));
+
+                    Iterator<RelationColumnsMetadata> viewColumnsMetadata = streamMetadataInParallel(relations.views().keySet(), viewName ->
+                            switch (relations.views().get(viewName)) {
+                                case TRINO_MATERIALIZED_VIEW -> catalog.getMaterializedView(session, viewName).map(materializedViewDef ->
+                                        RelationColumnsMetadata.forMaterializedView(viewName, materializedViewDef.getColumns()));
+                                case TRINO_VIEW -> catalog.getView(session, viewName).map(viewDef ->
+                                        RelationColumnsMetadata.forView(viewName, viewDef.getColumns()));
+                                default -> throw new IllegalStateException("Unexpected relation type: " + relations.views().get(viewName));
+                            });
+
+                    return Iterators.concat(tableColumnsMetadata, viewColumnsMetadata);
                 });
     }
 
@@ -1430,9 +1450,84 @@ public class IcebergMetadata
     {
         return catalog.streamRelationComments(session, schemaName, relationFilter, tableName -> redirectTable(session, tableName).isPresent())
                 .orElseGet(() -> {
-                    // Catalog does not support streamRelationComments
-                    return ConnectorMetadata.super.streamRelationComments(session, schemaName, relationFilter);
+                    Relations relations = getRelations(session, schemaName, relationFilter);
+
+                    Iterator<RelationCommentMetadata> tableComments = streamMetadataInParallel(relations.tables(), tableName -> {
+                        if (redirectTable(session, tableName).isPresent()) {
+                            return Optional.of(RelationCommentMetadata.forRedirectedTable(tableName));
+                        }
+                        try {
+                            Table icebergTable = catalog.loadTable(session, tableName);
+                            return Optional.of(RelationCommentMetadata.forRelation(tableName, getTableComment(icebergTable)));
+                        }
+                        catch (TableNotFoundException | UnknownTableTypeException e) {
+                            return Optional.empty();
+                        }
+                    });
+                    Iterator<RelationCommentMetadata> viewComments = streamMetadataInParallel(relations.views().keySet(), viewName ->
+                            switch (relations.views().get(viewName)) {
+                                case TRINO_MATERIALIZED_VIEW -> catalog.getMaterializedView(session, viewName).map(materializedViewDef ->
+                                        RelationCommentMetadata.forRelation(viewName, materializedViewDef.getComment()));
+                                case TRINO_VIEW -> catalog.getView(session, viewName).map(viewDef ->
+                                        RelationCommentMetadata.forRelation(viewName, viewDef.getComment()));
+                                default -> throw new IllegalStateException("Unexpected relation type: " + relations.views().get(viewName));
+                            });
+
+                    return Iterators.concat(tableComments, viewComments);
                 });
+    }
+
+    private Relations getRelations(
+            ConnectorSession session,
+            Optional<String> schemaName,
+            UnaryOperator<Set<SchemaTableName>> relationFilter)
+    {
+        Map<SchemaTableName, ExtendedRelationType> relationToType = catalog.listTables(session, schemaName)
+                .stream()
+                .collect(toImmutableMap(TableInfo::tableName, TableInfo::extendedRelationType));
+
+        ImmutableSet.Builder<SchemaTableName> tables = ImmutableSet.builder();
+        ImmutableMap.Builder<SchemaTableName, ExtendedRelationType> views = ImmutableMap.builder();
+        for (SchemaTableName relationName : relationFilter.apply(relationToType.keySet())) {
+            switch (relationToType.get(relationName)) {
+                case TRINO_MATERIALIZED_VIEW -> views.put(relationName, TRINO_MATERIALIZED_VIEW);
+                case TRINO_VIEW -> views.put(relationName, TRINO_VIEW);
+                case TABLE -> tables.add(relationName);
+                default -> {}
+            }
+        }
+        return new Relations(tables.build(), views.buildOrThrow());
+    }
+
+    private record Relations(Set<SchemaTableName> tables, Map<SchemaTableName, ExtendedRelationType> views) {}
+
+    private <T> Iterator<T> streamMetadataInParallel(
+            Collection<SchemaTableName> relationNames,
+            Function<SchemaTableName, Optional<T>> metadataFetcher)
+    {
+        return Streams.stream(Iterables.partition(relationNames, GET_METADATA_BATCH_SIZE))
+                .flatMap(batch -> {
+                    List<Callable<Optional<T>>> callables = batch.stream()
+                            .map(name -> (Callable<Optional<T>>) () -> {
+                                try {
+                                    return metadataFetcher.apply(name);
+                                }
+                                catch (RuntimeException e) {
+                                    log.warn(e, "Failed to access %s while streaming relation metadata", name);
+                                    return Optional.empty();
+                                }
+                            })
+                            .collect(toImmutableList());
+                    try {
+                        return processWithAdditionalThreads(callables, metadataFetchingExecutor)
+                                .stream()
+                                .flatMap(Optional::stream);
+                    }
+                    catch (ExecutionException e) {
+                        throw new RuntimeException(e.getCause());
+                    }
+                })
+                .iterator();
     }
 
     @Override
@@ -5260,7 +5355,7 @@ public class IcebergMetadata
     public List<SchemaTableName> listMaterializedViews(ConnectorSession session, Optional<String> schemaName)
     {
         return catalog.listTables(session, schemaName).stream()
-                .filter(info -> info.extendedRelationType() == TableInfo.ExtendedRelationType.TRINO_MATERIALIZED_VIEW)
+                .filter(info -> info.extendedRelationType() == TRINO_MATERIALIZED_VIEW)
                 .map(TableInfo::tableName)
                 .toList();
     }
