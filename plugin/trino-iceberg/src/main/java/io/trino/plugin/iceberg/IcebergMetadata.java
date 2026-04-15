@@ -27,7 +27,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Streams;
 import com.google.common.util.concurrent.UncheckedExecutionException;
@@ -1342,17 +1341,22 @@ public class IcebergMetadata
     public Iterator<TableColumnsMetadata> streamTableColumns(ConnectorSession session, SchemaTablePrefix prefix)
     {
         requireNonNull(prefix, "prefix is null");
-        List<SchemaTableName> schemaTableNames;
+        Set<SchemaTableName> schemaTableNames;
         if (prefix.getTable().isEmpty()) {
             schemaTableNames = catalog.listTables(session, prefix.getSchema()).stream()
                     .map(TableInfo::tableName)
-                    .collect(toImmutableList());
+                    .collect(toImmutableSet());
         }
         else {
-            schemaTableNames = ImmutableList.of(prefix.toSchemaTableName());
+            schemaTableNames = ImmutableSet.of(prefix.toSchemaTableName());
         }
 
-        return Lists.partition(schemaTableNames, GET_METADATA_BATCH_SIZE).stream()
+        return streamTableColumns(session, schemaTableNames);
+    }
+
+    private Iterator<TableColumnsMetadata> streamTableColumns(ConnectorSession session, Set<SchemaTableName> schemaTableNames)
+    {
+        return Streams.stream(Iterables.partition(schemaTableNames, GET_METADATA_BATCH_SIZE))
                 .map(tableBatch -> {
                     ImmutableList.Builder<TableColumnsMetadata> tableMetadatas = ImmutableList.builderWithExpectedSize(tableBatch.size());
                     Set<SchemaTableName> remainingTables = new HashSet<>(tableBatch.size());
@@ -1388,7 +1392,7 @@ public class IcebergMetadata
                                 }
                                 catch (RuntimeException e) {
                                     // Table can be being removed and this may cause all sorts of exceptions. Log, because we're catching broadly.
-                                    log.warn(e, "Failed to access metadata of table %s during streaming table columns for %s", tableName, prefix);
+                                    log.warn(e, "Failed to access metadata of table %s during streaming table columns", tableName);
                                     return Optional.empty();
                                 }
                             })
