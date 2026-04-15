@@ -13,18 +13,61 @@
  */
 package io.trino.tests.benchmark;
 
-import org.junit.jupiter.api.Test;
+import io.trino.testing.DistributedQueryRunner;
+import io.trino.testing.MaterializedResult;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.stream.IntStream;
+
+import static io.trino.tests.benchmark.BenchmarkClickBench.ExecutionMode.CPU;
+import static io.trino.tests.benchmark.BenchmarkClickBench.ExecutionMode.GPU_TS;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+
+@TestInstance(PER_CLASS) // Sequential execution (PER_CLASS) to avoid GPU memory pressure from concurrent queries
 public class TestBenchmarkClickBench
 {
-    @Test
-    public void test()
+    private DistributedQueryRunner cpuRunner;
+    private DistributedQueryRunner gpuRunner;
+
+    @BeforeAll
+    public void setup()
             throws Exception
     {
-        BenchmarkClickBench.Benchmark benchmark = new BenchmarkClickBench.Benchmark();
-        benchmark.executionMode = BenchmarkClickBench.ExecutionMode.CPU;
-        benchmark.warmup = 0;
-        benchmark.runs = 1;
-        benchmark.call();
+        cpuRunner = BenchmarkClickBench.setup(CPU, false);
+        gpuRunner = BenchmarkClickBench.setup(GPU_TS, false);
+    }
+
+    @AfterAll
+    public void teardown()
+    {
+        if (cpuRunner != null) {
+            cpuRunner.close();
+        }
+        if (gpuRunner != null) {
+            gpuRunner.close();
+        }
+    }
+
+    @ParameterizedTest(name = "q{0}")
+    @MethodSource("queryNumbers")
+    public void testGpuMatchesCpu(int queryNumber)
+    {
+        String query = BenchmarkClickBench.readQuery(queryNumber);
+
+        MaterializedResult cpuResult = cpuRunner.execute(cpuRunner.getDefaultSession(), query);
+        MaterializedResult gpuResult = gpuRunner.execute(gpuRunner.getDefaultSession(), query);
+
+        assertThat(gpuResult.getMaterializedRows())
+                .isEqualTo(cpuResult.getMaterializedRows());
+    }
+
+    static IntStream queryNumbers()
+    {
+        return IntStream.rangeClosed(1, 43);
     }
 }

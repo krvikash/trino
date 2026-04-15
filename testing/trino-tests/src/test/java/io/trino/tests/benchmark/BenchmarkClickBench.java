@@ -155,11 +155,7 @@ public final class BenchmarkClickBench
         private long benchmarkQuery(DistributedQueryRunner runner, int queryNumber, AsyncProfiler profiler)
                 throws IOException
         {
-            String query = readResource("sql/trino/clickbench/q%02d.sql".formatted(queryNumber))
-                    .replace("${database}", "hive")
-                    .replace("${schema}", "clickbench")
-                    .trim()
-                    .replaceFirst(";$", "");
+            String query = readQuery(queryNumber);
 
             for (int i = 0; i < warmup; i++) {
                 measureQueryTime(runner, query);
@@ -203,7 +199,7 @@ public final class BenchmarkClickBench
         GPU_TS,
     }
 
-    private static DistributedQueryRunner setup(ExecutionMode executionMode, boolean bind8080)
+    static DistributedQueryRunner setup(ExecutionMode executionMode, boolean bind8080)
             throws Exception
     {
         HiveQueryRunner.Builder<?> builder = HiveQueryRunner.builder()
@@ -346,10 +342,14 @@ public final class BenchmarkClickBench
         return queryRunner;
     }
 
-    private static String readResource(String resourceName)
+    static String readQuery(int queryNumber)
     {
         try {
-            return Resources.toString(getResource(resourceName), UTF_8);
+            return Resources.toString(getResource("sql/trino/clickbench/q%02d.sql".formatted(queryNumber)), UTF_8)
+                    .replace("${database}", "hive")
+                    .replace("${schema}", "clickbench")
+                    .trim()
+                    .replaceFirst(";$", "");
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
