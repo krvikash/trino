@@ -40,7 +40,6 @@ import static java.lang.String.format;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 import static java.util.UUID.randomUUID;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 public class ViewMaterializationCache
 {
@@ -57,7 +56,7 @@ public class ViewMaterializationCache
     {
         this.destinationTableCache = buildNonEvictableCache(
                 CacheBuilder.newBuilder()
-                        .expireAfterWrite(config.getViewsCacheTtl().toMillis(), MILLISECONDS)
+                        .expireAfterWrite(config.getViewsCacheTtl().toJavaTime())
                         .maximumSize(1000));
         this.identityCacheMapping = requireNonNull(identityCacheMapping, "identityCacheMapping is null");
         this.bigQueryProjectInfoProvider = requireNonNull(bigQueryProjectInfoProvider, "bigQueryProjectInfoProvider is null");
