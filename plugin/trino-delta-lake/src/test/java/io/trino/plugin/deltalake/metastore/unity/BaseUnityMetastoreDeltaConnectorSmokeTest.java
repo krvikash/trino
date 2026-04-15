@@ -297,6 +297,21 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     }
 
     @Test
+    void testFieldNameWithHyphen()
+    {
+        String tableName = "test_field_name_with_hyphen" + randomNameSuffix();
+        String unityTableName = "%s.%s.%s".formatted(getDatabricksUnityCatalogName(), SCHEMA_NAME, tableName);
+        onDatabricks().execute("CREATE TABLE " + unityTableName + " USING delta AS SELECT named_struct('a-hyphen', 123) x");
+        try {
+            assertThat(query("SELECT * FROM " + tableName))
+                    .matches("SELECT ROW(123 AS \"a-hyphen\")");
+        }
+        finally {
+            onDatabricks().execute("DROP TABLE " + unityTableName);
+        }
+    }
+
+    @Test
     void testShowTablesWithoutTableScanRedirection()
     {
         assertThat(computeActual("SHOW TABLES").getOnlyColumnAsSet())

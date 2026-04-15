@@ -105,6 +105,7 @@ import static com.databricks.sdk.service.catalog.TableType.MANAGED;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.hive.thrift.metastore.hive_metastoreConstants.META_TABLE_LOCATION;
+import static io.trino.metastore.HiveType.HIVE_STRING;
 import static io.trino.metastore.TableInfo.ExtendedRelationType.TABLE;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_METASTORE_ERROR;
 import static io.trino.plugin.hive.HiveStorageFormat.AVRO;
@@ -775,29 +776,16 @@ public class UnityHiveMetastore
             throw new TrinoException(NOT_SUPPORTED, "Only DELTA table format supports managed table type: " + dataSourceFormat);
         }
 
-        requireNonNull(tableInfo.getColumns(), "columns is null");
-        List<Column> dataColumns = tableInfo.getColumns().stream()
-                .filter(column -> column.getPartitionIndex() == null)
-                .map(column -> new Column(column.getName(), getHiveTypeFromUnity(column.getTypeText()), Optional.ofNullable(column.getComment()), ImmutableMap.of()))
-                .toList();
-
-        List<Column> partitionColumns = tableInfo.getColumns().stream()
-                .filter(column -> column.getPartitionIndex() != null)
-                .sorted(Comparator.comparing(ColumnInfo::getPartitionIndex))
-                .map(column -> new Column(column.getName(), getHiveTypeFromUnity(column.getTypeText()), Optional.ofNullable(column.getComment()), ImmutableMap.of()))
-                .toList();
-
         TableType type = SUPPORTED_TABLE_TYPES_MAPPING.get(tableType);
         Table.Builder tableBuilder = Table.builder()
                 .setDatabaseName(tableInfo.getSchemaName())
                 .setTableName(tableInfo.getName())
-                .setDataColumns(dataColumns)
-                .setPartitionColumns(partitionColumns)
                 .setTableType(type.name())
                 .setOwner(Optional.ofNullable(tableInfo.getOwner()))
                 .setParameter(META_TABLE_LOCATION, tableInfo.getStorageLocation());
 
         if (dataSourceFormat == DataSourceFormat.DELTA) {
+            tableBuilder.setDataColumns(ImmutableList.of(new Column("dummy", HIVE_STRING, Optional.empty(), ImmutableMap.of())));
             tableBuilder.withStorage(storage -> storage
                     .setStorageFormat(getStorageFormat(dataSourceFormat))
                     .setLocation(tableInfo.getStorageLocation())
@@ -807,6 +795,22 @@ public class UnityHiveMetastore
             tableBuilder.setParameter(UNITY_CATALOG_TABLE_ID, tableInfo.getTableId());
         }
         else {
+            requireNonNull(tableInfo.getColumns(), "columns is null");
+            List<Column> dataColumns = tableInfo.getColumns().stream()
+                    .filter(column -> column.getPartitionIndex() == null)
+                    .map(column -> new Column(column.getName(), getHiveTypeFromUnity(column.getTypeText()), Optional.ofNullable(column.getComment()), ImmutableMap.of()))
+                    .toList();
+
+            List<Column> partitionColumns = tableInfo.getColumns().stream()
+                    .filter(column -> column.getPartitionIndex() != null)
+                    .sorted(Comparator.comparing(ColumnInfo::getPartitionIndex))
+                    .map(column -> new Column(column.getName(), getHiveTypeFromUnity(column.getTypeText()), Optional.ofNullable(column.getComment()), ImmutableMap.of()))
+                    .toList();
+
+            tableBuilder
+                    .setDataColumns(dataColumns)
+                    .setPartitionColumns(partitionColumns);
+
             tableBuilder.withStorage(storage -> storage
                     .setStorageFormat(getStorageFormat(dataSourceFormat))
                     .setLocation(tableInfo.getStorageLocation()));
