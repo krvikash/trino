@@ -9,7 +9,9 @@
  */
 package io.starburst.server.troubleshooting.tracing;
 
+import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpStatus;
@@ -40,6 +42,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
 import static com.google.common.net.MediaType.JSON_UTF_8;
+import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
 import static io.airlift.http.client.Request.Builder.prepareDelete;
 import static io.airlift.http.client.Request.Builder.prepareGet;
@@ -71,7 +74,7 @@ public class RemoteTroubleshootingTraceClient
 
     public void remove(QueryId queryId)
     {
-        callOnOtherNodesAndWait(node -> remove(queryId, node));
+        callOnOtherNodesAsync(node -> remove(queryId, node));
     }
 
     public Map<Node, DownloadResult> download(QueryId queryId, Set<String> processingNodesForQuery)
@@ -94,10 +97,10 @@ public class RemoteTroubleshootingTraceClient
 
     public void retain(QueryId queryId, Set<String> processingNodesForQuery)
     {
-        callOnOtherNodesAndWait(node -> remove(queryId, node), node -> !processingNodesForQuery.contains(node.getNodeIdentifier()));
+        callOnOtherNodesAsync(node -> remove(queryId, node), node -> !processingNodesForQuery.contains(node.getNodeIdentifier()));
     }
 
-    private Future<Void> start(QueryId queryId, InternalNode node)
+    private ListenableFuture<Void> start(QueryId queryId, InternalNode node)
     {
         log.info("start node: %s, queryId: %s", node, queryId);
         Request request = preparePost()
@@ -111,7 +114,7 @@ public class RemoteTroubleshootingTraceClient
         return httpClient.executeAsync(request, checkResponseStatusCode());
     }
 
-    private Future<Void> remove(QueryId queryId, InternalNode node)
+    private ListenableFuture<Void> remove(QueryId queryId, InternalNode node)
     {
         log.info("remove node: %s, queryId: %s", node, queryId);
         Request request = prepareDelete()
@@ -138,19 +141,38 @@ public class RemoteTroubleshootingTraceClient
         return httpClient.executeAsync(request, new InputStreamResponseHandler());
     }
 
-    private void callOnOtherNodesAndWait(Function<InternalNode, Future<Void>> call)
+    private void callOnOtherNodesAndWait(Function<InternalNode, ListenableFuture<Void>> call)
     {
-        callOnOtherNodesAndWait(call, node -> true);
-    }
-
-    private void callOnOtherNodesAndWait(Function<InternalNode, Future<Void>> call, Predicate<InternalNode> nodePredicate)
-    {
-        List<Future<Void>> futures = getNodes()
-                .filter(nodePredicate)
+        List<ListenableFuture<Void>> futures = getNodes()
                 .map(call)
                 .collect(toImmutableList());
         // Wait for all to finish. Throw if any request fails
         futures.forEach(Futures::getUnchecked);
+    }
+
+    private void callOnOtherNodesAsync(Function<InternalNode, ListenableFuture<Void>> call)
+    {
+        callOnOtherNodesAsync(call, node -> true);
+    }
+
+    private void callOnOtherNodesAsync(Function<InternalNode, ListenableFuture<Void>> call, Predicate<InternalNode> nodePredicate)
+    {
+        getNodes()
+                .filter(nodePredicate)
+                .forEach(node -> Futures.addCallback(
+                        call.apply(node),
+                        new FutureCallback<>()
+                        {
+                            @Override
+                            public void onSuccess(Void result) {}
+
+                            @Override
+                            public void onFailure(Throwable throwable)
+                            {
+                                log.warn(throwable, "Async call to %s failed", node);
+                            }
+                        },
+                        directExecutor()));
     }
 
     private Stream<InternalNode> getNodes()
