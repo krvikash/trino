@@ -101,16 +101,6 @@ public sealed interface FilterEvaluator
         return Optional.empty();
     }
 
-    /**
-     * Convenience overload: equivalent to invoking the full factory with
-     * sub-expression evaluation and debug output disabled (and consequently
-     * never dereferencing the PageFunctionCompiler or class-name suffix).
-     */
-    static Optional<Supplier<FilterEvaluator>> createColumnarFilterEvaluator(Expression expression, Map<Symbol, Integer> layout, ColumnarFilterCompiler compiler)
-    {
-        return createColumnarFilterEvaluator(false, false, expression, layout, compiler, null, Optional.empty());
-    }
-
     static Optional<Supplier<FilterEvaluator>> createColumnarFilterEvaluator(
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,

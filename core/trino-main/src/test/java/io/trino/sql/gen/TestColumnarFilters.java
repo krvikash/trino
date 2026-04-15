@@ -23,9 +23,11 @@ import io.trino.metadata.InternalFunctionBundle;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.operator.DriverYieldSignal;
+import io.trino.operator.TestingSourcePage;
 import io.trino.operator.WorkProcessor;
 import io.trino.operator.project.PageProcessor;
 import io.trino.operator.project.PageProcessorMetrics;
+import io.trino.operator.project.SelectedPositions;
 import io.trino.spi.Page;
 import io.trino.spi.block.ArrayBlockBuilder;
 import io.trino.spi.block.Block;
@@ -47,6 +49,7 @@ import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.StandardTypes;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.columnar.ColumnarFilterCompiler;
+import io.trino.sql.gen.columnar.FilterEvaluator;
 import io.trino.sql.ir.Between;
 import io.trino.sql.ir.Coalesce;
 import io.trino.sql.ir.Comparison;
@@ -75,6 +78,7 @@ import java.util.Random;
 import java.util.stream.Stream;
 
 import static io.trino.block.BlockAssertions.assertBlockEquals;
+import static io.trino.block.BlockAssertions.createLongSequenceBlock;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.spi.function.OperatorType.ADD;
 import static io.trino.spi.function.OperatorType.EQUAL;
@@ -493,6 +497,59 @@ public class TestColumnarFilters
                         call(customIsDistinctFromIntegers, new Reference(INTEGER, COL_INT_B), new Constant(INTEGER, CONSTANT))));
         assertThatColumnarFilterEvaluationIsSupported(andFilter);
         verifyFilter(inputPages, andFilter);
+    }
+
+    @Test
+    public void testAndLazyColumnLoading()
+    {
+        // AND(false_constant, col_b = constant) — col_b should never be loaded
+        // because the first conjunct eliminates all rows
+        String colA = "$col_0";
+        String colB = "$col_1";
+        Map<Symbol, Integer> layout = ImmutableMap.of(
+                new Symbol(BIGINT, colA), 0,
+                new Symbol(BIGINT, colB), 1);
+
+        Expression andFilter = new Logical(Logical.Operator.AND, ImmutableList.of(
+                new Constant(BOOLEAN, false),
+                call(FUNCTION_RESOLUTION.resolveOperator(EQUAL, ImmutableList.of(BIGINT, BIGINT)),
+                        new Reference(BIGINT, colB), new Constant(BIGINT, CONSTANT))));
+
+        TestingSourcePage testingPage = new TestingSourcePage(100,
+                createLongSequenceBlock(0, 100),
+                createLongSequenceBlock(0, 100));
+        FilterEvaluator filterEvaluator = createColumnarFilterEvaluator(true, false, andFilter, layout, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty()).orElseThrow().get();
+        filterEvaluator.evaluate(FULL_CONNECTOR_SESSION, SelectedPositions.positionsRange(0, 100), testingPage);
+
+        // col_b (channel 1) should not have been loaded because the first conjunct returned no positions
+        assertThat(testingPage.wasLoaded(1)).isFalse();
+    }
+
+    @Test
+    public void testOrLazyColumnLoading()
+    {
+        // OR(col_a = col_a, col_b = constant) — col_b should never be loaded
+        // because the first conjunct selects all rows (every non-null value equals itself)
+        String colA = "$col_0";
+        String colB = "$col_1";
+        Map<Symbol, Integer> layout = ImmutableMap.of(
+                new Symbol(BIGINT, colA), 0,
+                new Symbol(BIGINT, colB), 1);
+
+        Expression orFilter = new Logical(Logical.Operator.OR, ImmutableList.of(
+                call(FUNCTION_RESOLUTION.resolveOperator(EQUAL, ImmutableList.of(BIGINT, BIGINT)),
+                        new Reference(BIGINT, colA), new Reference(BIGINT, colA)),
+                call(FUNCTION_RESOLUTION.resolveOperator(EQUAL, ImmutableList.of(BIGINT, BIGINT)),
+                        new Reference(BIGINT, colB), new Constant(BIGINT, CONSTANT))));
+
+        TestingSourcePage testingPage = new TestingSourcePage(100,
+                createLongSequenceBlock(0, 100),
+                createLongSequenceBlock(0, 100));
+        FilterEvaluator filterEvaluator = createColumnarFilterEvaluator(true, false, orFilter, layout, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty()).orElseThrow().get();
+        filterEvaluator.evaluate(FULL_CONNECTOR_SESSION, SelectedPositions.positionsRange(0, 100), testingPage);
+
+        // col_b (channel 1) should not have been loaded because the first conjunct selected all rows
+        assertThat(testingPage.wasLoaded(1)).isFalse();
     }
 
     @ParameterizedTest
