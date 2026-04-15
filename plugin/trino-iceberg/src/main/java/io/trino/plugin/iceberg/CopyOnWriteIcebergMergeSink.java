@@ -37,7 +37,6 @@ import org.apache.iceberg.Schema;
 import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.io.LocationProvider;
 import org.apache.iceberg.mapping.NameMappingParser;
-import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.util.DeleteFileSet;
 
@@ -114,10 +113,7 @@ public class CopyOnWriteIcebergMergeSink
 
         fileDeletions.forEach((dataFilePath, deletion) -> {
             PartitionSpec partitionSpec = partitionsSpecs.get(deletion.partitionSpecId());
-            Type[] partitionColumnTypes = partitionSpec.fields().stream()
-                    .map(field -> field.transform().getResultType(schema.findType(field.sourceId())))
-                    .toArray(Type[]::new);
-            PartitionData partitionData = PartitionData.fromJson(deletion.partitionDataJson(), partitionColumnTypes);
+            PartitionData partitionData = PartitionData.fromJson(deletion.partitionDataJson(), partitionSpec);
 
             Location dataFile = Location.of(dataFilePath.toStringUtf8());
             String fileName = fileFormat.toIceberg().addExtension(session.getQueryId() + "-" + randomUUID());

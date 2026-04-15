@@ -28,7 +28,6 @@ import org.apache.iceberg.PartitionSpecParser;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.io.LocationProvider;
-import org.apache.iceberg.types.Type;
 import org.apache.iceberg.util.DeleteFileSet;
 
 import java.util.ArrayList;
@@ -116,7 +115,9 @@ public class IcebergMergeSink
         else if (formatVersion == 3) {
             fileDeletions.forEach((dataFilePath, deletion) -> deletion.rowsToDelete().build().ifPresent(deletionVector -> {
                 PartitionSpec partitionSpec = partitionsSpecs.get(deletion.partitionSpecId());
-                Optional<PartitionData> partitionData = createPartitionData(partitionSpec, deletion.partitionDataJson());
+                Optional<PartitionData> partitionData = partitionSpec.isPartitioned()
+                        ? Optional.of(PartitionData.fromJson(deletion.partitionDataJson(), partitionSpec))
+                        : Optional.empty();
                 CommitTaskData task = new CommitTaskData(
                         "", // path of the v2 delete file
                         fileFormat,
@@ -141,10 +142,13 @@ public class IcebergMergeSink
 
     private PositionDeleteWriter createPositionDeleteWriter(String dataFilePath, PartitionSpec partitionSpec, String partitionDataJson)
     {
+        Optional<PartitionData> partitionData = partitionSpec.isPartitioned()
+                ? Optional.of(PartitionData.fromJson(partitionDataJson, partitionSpec))
+                : Optional.empty();
         return new PositionDeleteWriter(
                 dataFilePath,
                 partitionSpec,
-                createPartitionData(partitionSpec, partitionDataJson),
+                partitionData,
                 locationProvider,
                 fileWriterFactory,
                 fileSystem,
@@ -166,17 +170,5 @@ public class IcebergMergeSink
             closeAllSuppress(t, writer::abort);
             throw t;
         }
-    }
-
-    private Optional<PartitionData> createPartitionData(PartitionSpec partitionSpec, String partitionDataAsJson)
-    {
-        if (!partitionSpec.isPartitioned()) {
-            return Optional.empty();
-        }
-
-        Type[] columnTypes = partitionSpec.fields().stream()
-                .map(field -> field.transform().getResultType(schema.findType(field.sourceId())))
-                .toArray(Type[]::new);
-        return Optional.of(PartitionData.fromJson(partitionDataAsJson, columnTypes));
     }
 }
