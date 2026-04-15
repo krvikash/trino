@@ -174,7 +174,7 @@ public class SingleStoreClient
     // Singlestore driver returns width of timestamp types instead of precision.
     // 19 characters are used for zero-precision timestamps while others
     // require 19 + precision + 1 characters with the additional character for decimal separator
-    private static final int ZERO_PRECISION_TIMESTAMP_COLUMN_SIZE = 19;
+    static final int ZERO_PRECISION_TIMESTAMP_COLUMN_SIZE = 19;
     // Singlestore driver returns width of time types instead of precision, same as the above timestamp type.
     // 10 characters are used for zero-precision time
     private static final int ZERO_PRECISION_TIME_COLUMN_SIZE = 10;
