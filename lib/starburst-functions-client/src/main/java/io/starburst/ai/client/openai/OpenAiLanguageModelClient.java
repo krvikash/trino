@@ -24,12 +24,16 @@ import com.openai.models.chat.completions.ChatCompletionAssistantMessageParam;
 import com.openai.models.chat.completions.ChatCompletionChunk;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import com.openai.models.chat.completions.ChatCompletionMessage;
+import com.openai.models.chat.completions.ChatCompletionStreamOptions;
 import com.openai.models.chat.completions.ChatCompletionTool;
 import com.openai.models.completions.CompletionUsage;
-import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.LlmMessage;
+import io.starburst.ai.client.ModelBackend;
+import io.starburst.ai.client.ModelType;
 import io.starburst.ai.client.PromptDao;
+import io.starburst.ai.client.TokenUsage;
+import io.starburst.ai.client.TokenUsageContext;
+import io.starburst.ai.client.TokenUsageListener;
 import io.starburst.ai.client.ToolDefinition;
 import io.starburst.ai.client.ToolUseResponse;
 import io.trino.spi.TrinoException;
@@ -40,12 +44,6 @@ import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_OPENAI_RESPONSE_SERVICE_TIER;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_OPENAI_RESPONSE_SYSTEM_FINGERPRINT;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_RESPONSE_ID;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_RESPONSE_MODEL;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_USAGE_INPUT_TOKENS;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_USAGE_OUTPUT_TOKENS;
 import static io.starburst.ai.client.AiClientErrorCode.AI_CLIENT_ERROR;
 import static java.util.Objects.requireNonNull;
 
@@ -57,12 +55,14 @@ public class OpenAiLanguageModelClient
     private final Optional<Float> topP;
     private final boolean useDeveloperForSystemRole;
     private final String modelName;
+    private final Optional<String> endpoint;
     private final boolean isGeminiEndpoint;
     private final OpenAIClient client;
     private final ObjectMapper objectMapper;
 
     public OpenAiLanguageModelClient(
             String modelName,
+            Optional<String> endpoint,
             Optional<Float> temperature,
             Optional<Integer> maxTokens,
             Optional<Float> topP,
@@ -71,26 +71,27 @@ public class OpenAiLanguageModelClient
             ObjectMapper objectMapper,
             Executor executor,
             int batchParallelism,
-            Tracer tracer,
             boolean isGeminiEndpoint,
             OpenAIClient client,
-            boolean isToolStreamingSupported)
+            boolean isToolStreamingSupported,
+            TokenUsageListener tokenUsageListener)
     {
-        super(modelName, promptDao, executor, batchParallelism, tracer, isToolStreamingSupported, true);
+        super(promptDao, executor, batchParallelism, isToolStreamingSupported, tokenUsageListener);
         this.temperature = requireNonNull(temperature, "temperature is null");
         this.maxTokens = requireNonNull(maxTokens, "maxTokens is null");
         this.topP = requireNonNull(topP, "topP is null");
         this.useDeveloperForSystemRole = useDeveloperForSystemRole;
         this.modelName = requireNonNull(modelName, "modelName is null");
+        this.endpoint = requireNonNull(endpoint, "endpoint is null");
         this.isGeminiEndpoint = isGeminiEndpoint;
         this.client = requireNonNull(client, "client is null");
         this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
     }
 
     @Override
-    protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> llmMessages)
+    protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> llmMessages, TokenUsageContext context)
     {
-        ChatCompletion response = execute(() -> client.chat().completions().create(buildChatCompletionCreateParams(systemPrompts, llmMessages).build()));
+        ChatCompletion response = execute(() -> client.chat().completions().create(buildChatCompletionCreateParams(systemPrompts, llmMessages).build()), context);
         ChatCompletionMessage message = response.choices().stream()
                 .map(ChatCompletion.Choice::message)
                 .findFirst()
@@ -107,12 +108,13 @@ public class OpenAiLanguageModelClient
     protected ToolUseResponse generateCompletionWithTools(
             List<String> systemPrompts,
             List<LlmMessage> messages,
-            List<ToolDefinition<?>> tools)
+            List<ToolDefinition<?>> tools,
+            TokenUsageContext context)
     {
         ChatCompletionCreateParams.Builder builder = buildChatCompletionCreateParams(systemPrompts, messages);
         tools.forEach(tool -> builder.addTool(toOpenAiTool(tool)));
 
-        ChatCompletion response = execute(() -> client.chat().completions().create(builder.build()));
+        ChatCompletion response = execute(() -> client.chat().completions().create(builder.build()), context);
 
         return parseToolResponse(response);
     }
@@ -122,6 +124,7 @@ public class OpenAiLanguageModelClient
     {
         ChatCompletionCreateParams.Builder builder = buildChatCompletionCreateParams(systemPrompts, messages);
         tools.forEach(tool -> builder.addTool(toOpenAiTool(tool)));
+        builder.streamOptions(ChatCompletionStreamOptions.builder().includeUsage(true).build());
         return stream(builder.build(), output, isCancelled);
     }
 
@@ -179,17 +182,23 @@ public class OpenAiLanguageModelClient
     }
 
     @Override
-    protected void recordUsage(Span span, ChatCompletion chatCompletion)
+    protected Optional<TokenUsage> extractTokenUsage(ChatCompletion response)
     {
-        span.setAttribute(GEN_AI_RESPONSE_ID, chatCompletion.id());
-        span.setAttribute(GEN_AI_RESPONSE_MODEL, chatCompletion.model());
-        span.setAttribute(GEN_AI_OPENAI_RESPONSE_SERVICE_TIER, chatCompletion.serviceTier()
-                .map(ChatCompletion.ServiceTier::value)
-                .map(ChatCompletion.ServiceTier.Value::name)
-                .orElse(""));
-        span.setAttribute(GEN_AI_OPENAI_RESPONSE_SYSTEM_FINGERPRINT, chatCompletion.systemFingerprint().orElse(""));
-        span.setAttribute(GEN_AI_USAGE_INPUT_TOKENS, chatCompletion.usage().map(CompletionUsage::promptTokens).orElse(0L));
-        span.setAttribute(GEN_AI_USAGE_OUTPUT_TOKENS, chatCompletion.usage().map(CompletionUsage::completionTokens).orElse(0L));
+        return response.usage()
+                .map(u -> new TokenUsage(
+                        u.promptTokens(),
+                        u.completionTokens(),
+                        u.promptTokensDetails()
+                                .flatMap(CompletionUsage.PromptTokensDetails::cachedTokens)
+                                .orElse(0L),
+                        0L,
+                        u.completionTokensDetails()
+                                .flatMap(CompletionUsage.CompletionTokensDetails::reasoningTokens)
+                                .orElse(0L),
+                        modelName,
+                        endpoint,
+                        ModelType.LANGUAGE,
+                        ModelBackend.OPENAI));
     }
 
     private static ChatCompletionTool toOpenAiTool(ToolDefinition<?> toolDef)

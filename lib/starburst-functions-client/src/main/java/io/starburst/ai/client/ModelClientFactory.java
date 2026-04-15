@@ -9,14 +9,13 @@
  */
 package io.starburst.ai.client;
 
-import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.model.ConnectionInfo;
 import io.starburst.ai.model.EmbeddingModelConnectionSpec;
 import io.starburst.ai.model.LanguageModelConnectionSpec;
 
 public interface ModelClientFactory<T extends ConnectionInfo>
 {
-    LanguageModelClient createLanguageModelClient(LanguageModelConnectionSpec spec, T connectionInfo, PromptDao promptDao, Tracer tracer);
+    LanguageModelClient createLanguageModelClient(LanguageModelConnectionSpec spec, T connectionInfo, PromptDao promptDao, TokenUsageListener tokenUsageListener);
 
     EmbeddingModelClient createEmbeddingClient(EmbeddingModelConnectionSpec spec, T connectionInfo);
 }

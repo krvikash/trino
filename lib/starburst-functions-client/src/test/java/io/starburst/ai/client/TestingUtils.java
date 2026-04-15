@@ -13,8 +13,6 @@ import com.google.common.collect.ImmutableMap;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.configuration.secrets.env.EnvironmentVariableSecretProvider;
 import io.airlift.json.ObjectMapperProvider;
-import io.airlift.tracing.Tracing;
-import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.bedrock.AwsBedrockClientFactory;
 import io.starburst.ai.client.bedrock.AwsEmbeddingCodec;
 import io.starburst.ai.client.bedrock.CohereEmbedMultilingualV3Codec;
@@ -36,6 +34,9 @@ import static java.util.concurrent.Executors.newCachedThreadPool;
 public final class TestingUtils
 {
     private TestingUtils() {}
+
+    public record TestOperationId(String value)
+            implements OperationId {}
 
     public static final String LANGUAGE_MODEL_PROVIDERS = """
             {
@@ -228,19 +229,19 @@ public final class TestingUtils
 
     public static ModelClientProvider staticModelClientProvider(String modelSpecJson, ScheduledExecutorService reloadingExecutor, ExecutorService llmExecutor)
     {
-        return staticModelClientProvider(modelSpecJson, reloadingExecutor, llmExecutor, Tracing.noopTracer());
+        return staticModelClientProvider(modelSpecJson, reloadingExecutor, llmExecutor, TokenUsageListener.NOOP);
     }
 
-    public static ModelClientProvider staticModelClientProvider(String modelSpecJson, ScheduledExecutorService reloadingExecutor, ExecutorService llmExecutor, Tracer tracer)
+    public static ModelClientProvider staticModelClientProvider(String modelSpecJson, ScheduledExecutorService reloadingExecutor, ExecutorService llmExecutor, TokenUsageListener tokenUsageListener)
     {
         File modelsFile = createModelConnectionSpecsFile(modelSpecJson);
-        return createModelClientProvider(modelsFile, false, reloadingExecutor, llmExecutor, tracer);
+        return createModelClientProvider(modelsFile, false, reloadingExecutor, llmExecutor, tokenUsageListener);
     }
 
     public static ReloadingModelClientProvider reloadingModelClientProvider(File modelsFile, ScheduledExecutorService reloadingExecutor, ExecutorService llmExecutor)
     {
         ReloadingModelClientProvider reloadingModelClientProvider =
-                createModelClientProvider(modelsFile, true, reloadingExecutor, llmExecutor, Tracing.noopTracer());
+                createModelClientProvider(modelsFile, true, reloadingExecutor, llmExecutor, TokenUsageListener.NOOP);
         reloadingModelClientProvider.start();
         return reloadingModelClientProvider;
     }
@@ -250,7 +251,7 @@ public final class TestingUtils
             boolean clientCacheRefreshEnabled,
             ScheduledExecutorService reloadingExecutor,
             ExecutorService llmExecutor,
-            Tracer tracer)
+            TokenUsageListener tokenUsageListener)
     {
         AiFileStorageConfig config = new AiFileStorageConfig().setModelConnectionSpecsFile(modelsFile.getAbsolutePath());
         FileBackedModelConnectionSpecsLoader modelSpecsLoader = new FileBackedModelConnectionSpecsLoader(config);
@@ -266,7 +267,6 @@ public final class TestingUtils
         AwsBedrockClientFactory bedrockClientFactory = new AwsBedrockClientFactory(awsEmbeddingCodecFactories, secretsResolver, aiClientConfig, llmExecutor);
         OpenAiClientFactory openAiClientFactory = new OpenAiClientFactory(secretsResolver, aiClientConfig, llmExecutor, new ObjectMapperProvider().get());
         return new ReloadingModelClientProvider(
-                tracer,
                 promptDao,
                 modelSpecsLoader,
                 bedrockClientFactory,
@@ -274,7 +274,8 @@ public final class TestingUtils
                 new AiClientConfig()
                         .setClientCacheRefreshEnabled(clientCacheRefreshEnabled),
                 secretsResolver,
-                reloadingExecutor);
+                reloadingExecutor,
+                tokenUsageListener);
     }
 
     public static File createModelConnectionSpecsFile(String content)

@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.bootstrap.ClosingBinder.closingBinder;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.configuration.ConfigBinder.configBinder;
@@ -51,6 +52,7 @@ public class AiClientModule
         binder.bind(AwsBedrockClientFactory.class).in(Scopes.SINGLETON);
         binder.bind(OpenAiClientFactory.class).in(Scopes.SINGLETON);
         binder.bind(PromptDao.class).to(StaticPromptDao.class).in(Scopes.SINGLETON);
+        newOptionalBinder(binder, TokenUsageListener.class).setDefault().toInstance(TokenUsageListener.NOOP);
         binder.bind(ReloadingModelClientProvider.class).in(Scopes.SINGLETON);
         newExporter(binder).export(ReloadingModelClientProvider.class).withGeneratedName();
         binder.bind(ModelClientProviderWithDao.class).to(ReloadingModelClientProvider.class).in(Scopes.SINGLETON);

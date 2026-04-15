@@ -27,15 +27,13 @@ public interface LanguageModelClient
 
     List<String> fixGrammarBatch(List<String> texts);
 
-    String generate(String prompt);
+    String generate(String prompt, TokenUsageContext context);
 
-    String generate(String systemPrompt, String prompt);
+    String generate(String systemPrompt, String prompt, TokenUsageContext context);
 
-    // this method is used in SEP
-    String generate(List<LlmMessage> messages);
+    String generate(List<LlmMessage> messages, TokenUsageContext context);
 
-    // this method is used in SEP
-    String generate(String systemPrompt, List<LlmMessage> messages);
+    String generate(String systemPrompt, List<LlmMessage> messages, TokenUsageContext context);
 
     /**
      * Generates a response with tool use support.
@@ -44,9 +42,10 @@ public interface LanguageModelClient
      * @param systemPrompt System instructions for the LLM
      * @param messages Conversation history
      * @param tools Available tools the LLM can use
+     * @param context Caller-defined context for token usage reporting
      * @return Response containing text and/or tool calls
      */
-    ToolUseResponse generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools);
+    ToolUseResponse generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools, TokenUsageContext context);
 
     /**
      * Generates a response with tool use support.
@@ -57,9 +56,10 @@ public interface LanguageModelClient
      * @param tools Available tools the LLM can use
      * @param output Consumer that receives incremental text chunks as they are streamed from the LLM
      * @param isCancelled Supplier that returns true when the stream should be cancelled early
+     * @param context Caller-defined context for token usage reporting
      * @return Response containing text and/or tool calls
      */
-    ToolUseResponse generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled);
+    ToolUseResponse generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled, TokenUsageContext context);
 
     String mask(String text, List<String> labels);
 

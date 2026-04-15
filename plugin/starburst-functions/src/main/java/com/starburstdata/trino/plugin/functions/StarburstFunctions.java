@@ -18,6 +18,7 @@ import com.starburstdata.trino.plugin.functions.ai.embedding.GenerateEmbeddingsT
 import io.airlift.json.JsonCodec;
 import io.airlift.slice.Slice;
 import io.starburst.ai.client.ModelClientProvider;
+import io.starburst.ai.client.TokenUsageContext;
 import io.trino.plugin.base.classloader.ClassLoaderSafeTableFunctionProcessorProvider;
 import io.trino.plugin.hive.HiveFileWriterFactory;
 import io.trino.plugin.hive.HiveWriterStats;
@@ -446,7 +447,7 @@ public class StarburstFunctions
         if (prompt.length() == 0) {
             return null;
         }
-        return utf8Slice(clientProvider.languageModelClient(modelId).generate(prompt.toStringUtf8()));
+        return utf8Slice(clientProvider.languageModelClient(modelId).generate(prompt.toStringUtf8(), TokenUsageContext.EMPTY));
     }
 
     public Slice promptSystem(ConnectorSession session, Slice systemPrompt, Slice prompt, Slice modelId)
@@ -456,7 +457,7 @@ public class StarburstFunctions
         if (prompt.length() == 0) {
             return null;
         }
-        return utf8Slice(clientProvider.languageModelClient(modelId).generate(prompt.toStringUtf8(), systemPrompt.toStringUtf8()));
+        return utf8Slice(clientProvider.languageModelClient(modelId).generate(prompt.toStringUtf8(), systemPrompt.toStringUtf8(), TokenUsageContext.EMPTY));
     }
 
     public Slice mask(ConnectorSession session, Slice text, Block labels, Slice modelId)

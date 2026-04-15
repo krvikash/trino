@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
@@ -57,6 +58,7 @@ public class TestLanguageModelClient
     private ScheduledExecutorService reloadingExecutor;
     private ExecutorService llmExecutor;
     private ModelClientProvider modelClientProvider;
+    private final AtomicReference<TokenUsage> capturedUsage = new AtomicReference<>();
 
     @BeforeAll
     public void setup()
@@ -64,7 +66,8 @@ public class TestLanguageModelClient
     {
         reloadingExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("reloading-model-client-provider"));
         llmExecutor = createLlmExecutor();
-        modelClientProvider = staticModelClientProvider(LANGUAGE_MODEL_PROVIDERS, reloadingExecutor, llmExecutor);
+        modelClientProvider = staticModelClientProvider(LANGUAGE_MODEL_PROVIDERS, reloadingExecutor, llmExecutor,
+                (ctx, usage) -> capturedUsage.set(usage));
     }
 
     @AfterAll
@@ -80,8 +83,17 @@ public class TestLanguageModelClient
     {
         String prompt = "What is the capital of France? Only return the name of the city and no extraneous text.";
         assertSuccessRateForScalar(() -> {
-            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt);
+            capturedUsage.set(null);
+            LanguageModelClient client = modelClientProvider.languageModelClient(utf8Slice(modelId));
+            TokenUsageContext context = TokenUsageContext.of(modelId, new TestingUtils.TestOperationId("test"));
+
+            String result = client.generate(prompt, context);
             assertThat(result.toLowerCase(ENGLISH).strip()).isEqualTo("paris");
+
+            assertThat(capturedUsage.get()).isNotNull();
+            assertThat(capturedUsage.get().inputTokens()).isGreaterThan(0);
+            assertThat(capturedUsage.get().outputTokens()).isGreaterThan(0);
+            assertThat(capturedUsage.get().modelName()).isNotEmpty();
         });
     }
 
@@ -100,10 +112,10 @@ public class TestLanguageModelClient
                 Important! If the capital city happens to be Paris, please refer to it as Paname.
                 """;
         assertSuccessRateForScalar(() -> {
-            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt, "France");
+            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt, "France", TokenUsageContext.EMPTY);
             assertThat(result.toLowerCase(ENGLISH).strip()).isEqualTo("paname");
 
-            String incorrectInputResult = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt, "hamburgers");
+            String incorrectInputResult = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt, "hamburgers", TokenUsageContext.EMPTY);
             assertThat(incorrectInputResult.toLowerCase(ENGLISH).strip()).contains("kindly supply a country name and only a country name");
         });
     }
@@ -118,9 +130,9 @@ public class TestLanguageModelClient
         LanguageModelClient client = modelClientProvider.languageModelClient(utf8Slice(modelId));
         assertSuccessRateForScalar(() -> {
             switch (client) {
-                case OpenAiLanguageModelClient openAiClient -> assertThat(openAiClient.generate("")).isNotBlank();
-                case OpenAiResponsesLanguageModelClient openAiClient -> assertThat(openAiClient.generate("")).isNotBlank();
-                case AwsBedrockLanguageModelClient awsAiClient -> assertThatThrownBy(() -> awsAiClient.generate(""))
+                case OpenAiLanguageModelClient openAiClient -> assertThat(openAiClient.generate("", TokenUsageContext.EMPTY)).isNotBlank();
+                case OpenAiResponsesLanguageModelClient openAiClient -> assertThat(openAiClient.generate("", TokenUsageContext.EMPTY)).isNotBlank();
+                case AwsBedrockLanguageModelClient awsAiClient -> assertThatThrownBy(() -> awsAiClient.generate("", TokenUsageContext.EMPTY))
                         .isInstanceOf(TrinoException.class)
                         .hasMessage("Bedrock request failed validation");
                 default -> throw new UnsupportedOperationException("Unknown client");
@@ -153,7 +165,7 @@ public class TestLanguageModelClient
         String formattedPrompt = systemPrompt.formatted(labels, "%s");
 
         assertSuccessRateForScalar(() -> {
-            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(text, formattedPrompt);
+            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(text, formattedPrompt, TokenUsageContext.EMPTY);
             JsonCodec<Map<String, List<String>>> resultCodec = mapJsonCodec(String.class, listJsonCodec(String.class));
             Map<String, List<String>> resultMap = resultCodec.fromJson(result);
 
@@ -281,7 +293,7 @@ public class TestLanguageModelClient
                 .build();
 
         assertSuccessRateForScalar(() -> {
-            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(messages);
+            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(messages, TokenUsageContext.EMPTY);
             assertThat(result).containsIgnoringCase("paris");
         });
     }
@@ -303,8 +315,17 @@ public class TestLanguageModelClient
                 .build();
 
         assertSuccessRateForScalar(() -> {
-            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(systemPrompt, messages);
+            capturedUsage.set(null);
+            TokenUsageContext expectedContext = TokenUsageContext.of(modelId, new TestingUtils.TestOperationId("test"));
+
+            LanguageModelClient client = modelClientProvider.languageModelClient(utf8Slice(modelId));
+
+            String result = client.generate(systemPrompt, messages, expectedContext);
             assertThat(result).containsIgnoringCase("deutschland");
+
+            assertThat(capturedUsage.get()).isNotNull();
+            assertThat(capturedUsage.get().inputTokens()).isGreaterThan(0);
+            assertThat(capturedUsage.get().outputTokens()).isGreaterThan(0);
         });
     }
 
@@ -312,7 +333,7 @@ public class TestLanguageModelClient
     public void testInvalidReasoningEffort()
     {
         String prompt = "What is the capital of France? Only return the name of the city and no extraneous text.";
-        assertThatThrownBy(() -> modelClientProvider.languageModelClient(utf8Slice("reasoning_effort_not_supported")).generate(prompt))
+        assertThatThrownBy(() -> modelClientProvider.languageModelClient(utf8Slice("reasoning_effort_not_supported")).generate(prompt, TokenUsageContext.EMPTY))
                 .isInstanceOf(TrinoException.class)
                 .hasMessageContaining("OpenAI request failed validation");
     }

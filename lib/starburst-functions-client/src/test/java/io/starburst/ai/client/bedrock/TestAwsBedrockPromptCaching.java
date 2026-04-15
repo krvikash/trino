@@ -10,21 +10,19 @@
 package io.starburst.ai.client.bedrock;
 
 import com.google.common.collect.ImmutableList;
-import io.airlift.log.Logger;
-import io.opentelemetry.sdk.OpenTelemetrySdk;
-import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
-import io.opentelemetry.sdk.trace.SdkTracerProvider;
-import io.opentelemetry.sdk.trace.data.SpanData;
-import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
 import io.starburst.ai.client.LanguageModelClient;
 import io.starburst.ai.client.LlmMessage;
 import io.starburst.ai.client.ModelClientProvider;
+import io.starburst.ai.client.TestingUtils;
+import io.starburst.ai.client.TokenUsage;
+import io.starburst.ai.client.TokenUsageContext;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -36,8 +34,6 @@ import static io.starburst.ai.client.MessageRole.USER;
 import static io.starburst.ai.client.TestingUtils.LANGUAGE_MODEL_PROVIDERS;
 import static io.starburst.ai.client.TestingUtils.createLlmExecutor;
 import static io.starburst.ai.client.TestingUtils.staticModelClientProvider;
-import static io.starburst.ai.client.bedrock.AwsBedrockLanguageModelClient.GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS;
-import static io.starburst.ai.client.bedrock.AwsBedrockLanguageModelClient.GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -45,7 +41,6 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 @TestInstance(PER_CLASS)
 public class TestAwsBedrockPromptCaching
 {
-    private static final Logger log = Logger.get(TestAwsBedrockPromptCaching.class);
     // A long system prompt that exceeds MIN_CACHE_POINT_CHARS (5000) to trigger cache point insertion.
     // The content is meaningful so as not to confuse the model, but the main purpose is length.
     // This prompt must exceed 1024 tokens to properly test Bedrock's prompt caching behavior.
@@ -175,26 +170,18 @@ public class TestAwsBedrockPromptCaching
             a hybrid architecture.
             """;
 
-    private InMemorySpanExporter spanExporter;
     private ModelClientProvider modelClientProvider;
     private ScheduledExecutorService reloadingExecutor;
     private ExecutorService llmExecutor;
+    private final List<TokenUsage> capturedUsages = new ArrayList<>();
 
     @BeforeAll
     public void setup()
             throws IOException
     {
-        spanExporter = InMemorySpanExporter.create();
-        SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
-                .addSpanProcessor(SimpleSpanProcessor.create(spanExporter))
-                .build();
-        OpenTelemetrySdk sdk = OpenTelemetrySdk.builder()
-                .setTracerProvider(tracerProvider)
-                .build();
-
         reloadingExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("reloading-model-client-provider"));
         llmExecutor = createLlmExecutor();
-        modelClientProvider = staticModelClientProvider(LANGUAGE_MODEL_PROVIDERS, reloadingExecutor, llmExecutor, sdk.getTracer("test-prompt-caching"));
+        modelClientProvider = staticModelClientProvider(LANGUAGE_MODEL_PROVIDERS, reloadingExecutor, llmExecutor, (ctx, usage) -> capturedUsages.add(usage));
     }
 
     @AfterAll
@@ -207,50 +194,44 @@ public class TestAwsBedrockPromptCaching
     @Test
     public void testPromptPrefixIsCachedOnSecondCall()
     {
+        capturedUsages.clear();
         LanguageModelClient client = modelClientProvider.languageModelClient(utf8Slice("sonnet45"));
+        TokenUsageContext context = TokenUsageContext.of("sonnet45", new TestingUtils.TestOperationId("test-caching"));
 
         // Format the system prompt with a unique timestamp and random seed to prevent cache reuse from previous runs
         String systemPrompt = LONG_SYSTEM_PROMPT.formatted(System.currentTimeMillis(), (long) (Math.random() * Long.MAX_VALUE));
 
         // First call: populates the cache. Bedrock writes the system prompt prefix to its cache.
         String msg1 = "Show me query 70 of TPCDS, explain what it does and how it could be optimized";
-        String response1 = client.generate(systemPrompt, ImmutableList.of(new LlmMessage(USER, msg1)));
-        List<SpanData> spansAfterFirstCall = spanExporter.getFinishedSpanItems();
-        assertThat(spansAfterFirstCall).hasSize(1);
-        long firstCallCacheWrite = spansAfterFirstCall.getFirst().getAttributes().get(GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS);
-        log.info("First message: cache point written at %s tokens", firstCallCacheWrite);
-        assertThat(firstCallCacheWrite)
-                .as("First call should write the system prompt prefix to the Bedrock cache")
-                .isGreaterThan(0);
-
-        spanExporter.reset();
+        String response1 = client.generate(systemPrompt, ImmutableList.of(new LlmMessage(USER, msg1)), context);
+        assertThat(capturedUsages).hasSize(1);
+        assertThat(capturedUsages.getFirst().cacheCreationInputTokens()).isGreaterThan(0);
+        assertThat(capturedUsages.getFirst().cacheReadInputTokens()).isEqualTo(0);
+        assertThat(capturedUsages.getFirst().inputTokens()).isGreaterThan(0);
+        assertThat(capturedUsages.getFirst().outputTokens()).isGreaterThan(0);
 
         // Second call: same system prompt → Bedrock uses the cache for the system prompt.
         String msg2 = "Explain how table functions work.";
         String response2 = client.generate(
                 systemPrompt,
-                ImmutableList.of(new LlmMessage(USER, msg1), new LlmMessage(ASSISTANT, response1), new LlmMessage(USER, msg2)));
-        List<SpanData> spansAfterSecondCall = spanExporter.getFinishedSpanItems();
-        assertThat(spansAfterSecondCall).hasSize(1);
-        long secondCallCacheRead = spansAfterSecondCall.getFirst().getAttributes().get(GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS);
-        log.info("Second message: read %s cached tokens, cached %s more tokens", secondCallCacheRead, spansAfterSecondCall.getFirst().getAttributes().get(GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS));
-        assertThat(secondCallCacheRead)
-                .as("Second call with the same system prompt should read tokens from the Bedrock cache")
-                .isEqualTo(firstCallCacheWrite);
-
-        spanExporter.reset();
+                ImmutableList.of(new LlmMessage(USER, msg1), new LlmMessage(ASSISTANT, response1), new LlmMessage(USER, msg2)),
+                context);
+        assertThat(capturedUsages).hasSize(2);
+        assertThat(capturedUsages.get(1).cacheCreationInputTokens()).isGreaterThan(0);
+        assertThat(capturedUsages.get(1).cacheReadInputTokens()).isEqualTo(capturedUsages.getFirst().cacheCreationInputTokens());
+        assertThat(capturedUsages.get(1).inputTokens()).isGreaterThan(0);
+        assertThat(capturedUsages.get(1).outputTokens()).isGreaterThan(0);
 
         // Third call: Bedrock uses the cache for the system prompt + previous message.
         String msg3 = "Explain how window functions work.";
         client.generate(
                 systemPrompt,
-                ImmutableList.of(new LlmMessage(USER, msg1), new LlmMessage(ASSISTANT, response1), new LlmMessage(USER, msg2), new LlmMessage(ASSISTANT, response2), new LlmMessage(USER, msg3)));
-        List<SpanData> spansAfterThirdCall = spanExporter.getFinishedSpanItems();
-        assertThat(spansAfterThirdCall).hasSize(1);
-        long thirdCallCacheRead = spansAfterThirdCall.getFirst().getAttributes().get(GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS);
-        log.info("Third message: read %s cached tokens", thirdCallCacheRead);
-        assertThat(thirdCallCacheRead)
-                .as("Third call should have hit the second cache point")
-                .isGreaterThan(secondCallCacheRead);
+                ImmutableList.of(new LlmMessage(USER, msg1), new LlmMessage(ASSISTANT, response1), new LlmMessage(USER, msg2), new LlmMessage(ASSISTANT, response2), new LlmMessage(USER, msg3)),
+                context);
+        assertThat(capturedUsages).hasSize(3);
+        assertThat(capturedUsages.get(2).cacheCreationInputTokens()).isGreaterThan(0);
+        assertThat(capturedUsages.get(2).cacheReadInputTokens()).isGreaterThan(capturedUsages.get(1).cacheCreationInputTokens());
+        assertThat(capturedUsages.get(2).inputTokens()).isGreaterThan(0);
+        assertThat(capturedUsages.get(2).outputTokens()).isGreaterThan(0);
     }
 }

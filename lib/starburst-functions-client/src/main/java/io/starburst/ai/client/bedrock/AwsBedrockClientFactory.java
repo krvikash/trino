@@ -13,13 +13,13 @@ import com.google.inject.Inject;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
-import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.AiClientConfig;
 import io.starburst.ai.client.EmbeddingModelClient;
 import io.starburst.ai.client.ForAiClient;
 import io.starburst.ai.client.LanguageModelClient;
 import io.starburst.ai.client.ModelClientFactory;
 import io.starburst.ai.client.PromptDao;
+import io.starburst.ai.client.TokenUsageListener;
 import io.starburst.ai.model.EmbeddingModelConnectionSpec;
 import io.starburst.ai.model.LanguageModelConnectionSpec;
 import io.trino.spi.TrinoException;
@@ -85,7 +85,7 @@ public class AwsBedrockClientFactory
     }
 
     @Override
-    public LanguageModelClient createLanguageModelClient(LanguageModelConnectionSpec spec, AwsBedrockConnectionInfo connectionInfo, PromptDao promptDao, Tracer tracer)
+    public LanguageModelClient createLanguageModelClient(LanguageModelConnectionSpec spec, AwsBedrockConnectionInfo connectionInfo, PromptDao promptDao, TokenUsageListener tokenUsageListener)
     {
         requireNonNull(spec, "spec is null");
         requireNonNull(connectionInfo, "connectionInfo is null");
@@ -94,17 +94,18 @@ public class AwsBedrockClientFactory
         boolean isPromptCachingSupported = PROMPT_CACHING_SUPPORTED.name().equals(spec.traits().get(PROMPT_CACHING_SUPPORT));
         return new AwsBedrockLanguageModelClient(
                 spec.modelName(),
+                connectionInfo.endpoint(),
                 spec.maxTokens(),
                 spec.temperature(),
                 spec.topP(),
                 promptDao,
                 executor,
                 batchParallelism,
-                tracer,
                 createBedrockClient(connectionInfo),
                 createBedrockAsyncClient(connectionInfo),
                 isStreamingToolCallSupported,
-                isPromptCachingSupported);
+                isPromptCachingSupported,
+                tokenUsageListener);
     }
 
     @Override

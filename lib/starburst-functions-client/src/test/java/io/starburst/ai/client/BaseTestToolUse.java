@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.slice.Slices.utf8Slice;
@@ -45,6 +46,8 @@ public abstract class BaseTestToolUse
     private ExecutorService llmExecutor;
     private ModelClientProvider modelClientProvider;
     private static final Logger log = Logger.get(BaseTestToolUse.class);
+    private final AtomicReference<TokenUsage> capturedUsage = new AtomicReference<>();
+    private final AtomicReference<TokenUsageContext> capturedContext = new AtomicReference<>();
 
     @BeforeAll
     public void setup()
@@ -53,7 +56,11 @@ public abstract class BaseTestToolUse
         reloadingExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("reloading-model-client-provider"));
         llmExecutor = createLlmExecutor();
 
-        modelClientProvider = staticModelClientProvider(getLanguageModelProviders(), reloadingExecutor, llmExecutor);
+        modelClientProvider = staticModelClientProvider(getLanguageModelProviders(), reloadingExecutor, llmExecutor,
+                (ctx, usage) -> {
+                    capturedContext.set(ctx);
+                    capturedUsage.set(usage);
+                });
     }
 
     protected abstract String getLanguageModelProviders();
@@ -204,15 +211,27 @@ public abstract class BaseTestToolUse
             List<ToolDefinition<?>> tools)
     {
         StringBuilder streamedTokens = new StringBuilder();
-        ToolUseResponse response = modelClientProvider
-                .languageModelClient(utf8Slice(modelId))
-                .generateWithTools(
-                        systemPrompt,
-                        messages,
-                        tools,
-                        streamedTokens::append,
-                        () -> false);
+        capturedUsage.set(null);
+        capturedContext.set(null);
+        TokenUsageContext expectedContext = TokenUsageContext.of(modelId, new TestingUtils.TestOperationId("test"));
+
+        LanguageModelClient client = modelClientProvider.languageModelClient(utf8Slice(modelId));
+
+        ToolUseResponse response = client.generateWithTools(
+                systemPrompt,
+                messages,
+                tools,
+                streamedTokens::append,
+                () -> false,
+                expectedContext);
         assertThat(streamedTokens.toString()).isEqualTo(response.textResponse());
+
+        assertThat(capturedUsage.get()).isNotNull();
+        assertThat(capturedUsage.get().inputTokens()).isGreaterThan(0);
+        assertThat(capturedUsage.get().outputTokens()).isGreaterThan(0);
+        assertThat(capturedUsage.get().modelName()).isNotEmpty();
+        assertThat(capturedContext.get()).isEqualTo(expectedContext);
+
         return response;
     }
 

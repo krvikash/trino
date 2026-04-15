@@ -17,7 +17,6 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.airlift.stats.CounterStat;
-import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.bedrock.AwsBedrockClientFactory;
 import io.starburst.ai.client.openai.OpenAiClientFactory;
 import io.starburst.ai.model.EmbeddingModelConnectionSpec;
@@ -48,11 +47,11 @@ public class ReloadingModelClientProvider
     private static final Logger LOG = Logger.get(ReloadingModelClientProvider.class);
     private static final State EMPTY_STATE = new State(new ModelConnectionSpecs(ImmutableList.of()), ImmutableMap.of(), ImmutableMap.of(), ImmutableMap.of());
 
-    private final Tracer tracer;
     private final PromptDao defaultPromptDao;
     private final ModelConnectionSpecsLoader modelSpecsLoader;
     private final AwsBedrockClientFactory awsBedrockClientFactory;
     private final OpenAiClientFactory openAiClientFactory;
+    private final TokenUsageListener tokenUsageListener;
 
     private final ScheduledExecutorService reloadingExecutor;
     private final AtomicBoolean started = new AtomicBoolean();
@@ -82,20 +81,20 @@ public class ReloadingModelClientProvider
 
     @Inject
     public ReloadingModelClientProvider(
-            Tracer tracer,
             PromptDao defaultPromptDao,
             ModelConnectionSpecsLoader modelSpecsLoader,
             AwsBedrockClientFactory awsBedrockClientFactory,
             OpenAiClientFactory openAiClientFactory,
             AiClientConfig config,
             SecretsResolver secretsResolver,
-            @ForAiClient ScheduledExecutorService reloadingExecutor)
+            @ForAiClient ScheduledExecutorService reloadingExecutor,
+            TokenUsageListener tokenUsageListener)
     {
-        this.tracer = requireNonNull(tracer, "tracer is null");
         this.defaultPromptDao = requireNonNull(defaultPromptDao, "defaultPromptDao is null");
         this.modelSpecsLoader = requireNonNull(modelSpecsLoader, "modelSpecsLoader is null");
         this.awsBedrockClientFactory = requireNonNull(awsBedrockClientFactory, "awsBedrockClientFactory is null");
         this.openAiClientFactory = requireNonNull(openAiClientFactory, "openAiClientFactory is null");
+        this.tokenUsageListener = requireNonNull(tokenUsageListener, "tokenUsageListener is null");
         this.clientTtlMillis = config.getClientCacheTtl().toMillis();
         this.clientCacheRefreshIntervalMillis = config.getClientCacheRefreshInterval().toMillis();
         this.clientCacheRefreshEnabled = config.isClientCacheRefreshEnabled();
@@ -302,9 +301,9 @@ public class ReloadingModelClientProvider
             PromptDao promptDao = new PromptDaoWithOverrides(defaultPromptDao, modelConnectionSpec.prompts());
             return switch (modelConnectionSpec.connectionInfo()) {
                 case OpenAiConnectionInfo openAiConnectionInfo ->
-                        openAiClientFactory.createLanguageModelClient(modelConnectionSpec, openAiConnectionInfo, promptDao, tracer);
+                        openAiClientFactory.createLanguageModelClient(modelConnectionSpec, openAiConnectionInfo, promptDao, tokenUsageListener);
                 case AwsBedrockConnectionInfo awsBedrockConnectionInfo ->
-                        awsBedrockClientFactory.createLanguageModelClient(modelConnectionSpec, awsBedrockConnectionInfo, promptDao, tracer);
+                        awsBedrockClientFactory.createLanguageModelClient(modelConnectionSpec, awsBedrockConnectionInfo, promptDao, tokenUsageListener);
             };
         }
 

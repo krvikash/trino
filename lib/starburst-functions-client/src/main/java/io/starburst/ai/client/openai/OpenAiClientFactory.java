@@ -20,13 +20,13 @@ import com.openai.models.ReasoningEffort;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
-import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.AiClientConfig;
 import io.starburst.ai.client.EmbeddingModelClient;
 import io.starburst.ai.client.ForAiClient;
 import io.starburst.ai.client.LanguageModelClient;
 import io.starburst.ai.client.ModelClientFactory;
 import io.starburst.ai.client.PromptDao;
+import io.starburst.ai.client.TokenUsageListener;
 import io.starburst.ai.model.EmbeddingModelConnectionSpec;
 import io.starburst.ai.model.LanguageModelConnectionSpec;
 import io.trino.spi.TrinoException;
@@ -75,7 +75,7 @@ public class OpenAiClientFactory
     }
 
     @Override
-    public LanguageModelClient createLanguageModelClient(LanguageModelConnectionSpec spec, OpenAiConnectionInfo connectionInfo, PromptDao promptDao, Tracer tracer)
+    public LanguageModelClient createLanguageModelClient(LanguageModelConnectionSpec spec, OpenAiConnectionInfo connectionInfo, PromptDao promptDao, TokenUsageListener tokenUsageListener)
     {
         requireNonNull(spec, "spec is null");
         requireNonNull(connectionInfo, "connectionInfo is null");
@@ -95,6 +95,7 @@ public class OpenAiClientFactory
         if (spec.useResponsesApi()) {
             return new OpenAiResponsesLanguageModelClient(
                     modelName,
+                    connectionInfo.endpoint(),
                     spec.temperature(),
                     spec.maxTokens(),
                     spec.topP(),
@@ -103,13 +104,14 @@ public class OpenAiClientFactory
                     objectMapper,
                     executor,
                     batchParallelism,
-                    tracer,
                     openAiClient,
                     isStreamingToolCallSupported,
-                    spec.reasoningEffort().map(Enum::name).map(ReasoningEffort::of));
+                    spec.reasoningEffort().map(Enum::name).map(ReasoningEffort::of),
+                    tokenUsageListener);
         }
         return new OpenAiLanguageModelClient(
                 modelName,
+                connectionInfo.endpoint(),
                 spec.temperature(),
                 spec.maxTokens(),
                 spec.topP(),
@@ -118,10 +120,10 @@ public class OpenAiClientFactory
                 objectMapper,
                 executor,
                 batchParallelism,
-                tracer,
                 isGeminiEndpoint,
                 openAiClient,
-                isStreamingToolCallSupported);
+                isStreamingToolCallSupported,
+                tokenUsageListener);
     }
 
     @Override

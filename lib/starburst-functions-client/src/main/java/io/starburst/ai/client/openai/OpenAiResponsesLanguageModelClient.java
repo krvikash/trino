@@ -16,6 +16,7 @@ import com.google.common.collect.ImmutableList;
 import com.openai.client.OpenAIClient;
 import com.openai.core.JsonValue;
 import com.openai.core.http.StreamResponse;
+import com.openai.errors.OpenAIInvalidDataException;
 import com.openai.models.Reasoning;
 import com.openai.models.ReasoningEffort;
 import com.openai.models.responses.EasyInputMessage;
@@ -29,11 +30,14 @@ import com.openai.models.responses.ResponseOutputMessage;
 import com.openai.models.responses.ResponseOutputRefusal;
 import com.openai.models.responses.ResponseOutputText;
 import com.openai.models.responses.ResponseStreamEvent;
-import com.openai.models.responses.ResponseUsage;
-import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.Tracer;
+import io.airlift.log.Logger;
 import io.starburst.ai.client.LlmMessage;
+import io.starburst.ai.client.ModelBackend;
+import io.starburst.ai.client.ModelType;
 import io.starburst.ai.client.PromptDao;
+import io.starburst.ai.client.TokenUsage;
+import io.starburst.ai.client.TokenUsageContext;
+import io.starburst.ai.client.TokenUsageListener;
 import io.starburst.ai.client.ToolDefinition;
 import io.starburst.ai.client.ToolUseResponse;
 import io.trino.spi.TrinoException;
@@ -42,32 +46,32 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
+import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_OPENAI_RESPONSE_SERVICE_TIER;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_RESPONSE_ID;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_RESPONSE_MODEL;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_USAGE_INPUT_TOKENS;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_USAGE_OUTPUT_TOKENS;
 import static io.starburst.ai.client.AiClientErrorCode.AI_CLIENT_ERROR;
 import static java.util.Objects.requireNonNull;
 
 public class OpenAiResponsesLanguageModelClient
         extends AbstractOpenAiClient<Response>
 {
+    private static final Logger log = Logger.get(OpenAiResponsesLanguageModelClient.class);
+
     private final Optional<Float> temperature;
     private final Optional<Integer> maxTokens;
     private final Optional<Float> topP;
     private final boolean useDeveloperForSystemRole;
     private final String modelName;
+    private final Optional<String> endpoint;
     private final OpenAIClient client;
     private final Optional<ReasoningEffort> reasoningEffort;
     private final ObjectMapper objectMapper;
 
     public OpenAiResponsesLanguageModelClient(
             String modelName,
+            Optional<String> endpoint,
             Optional<Float> temperature,
             Optional<Integer> maxTokens,
             Optional<Float> topP,
@@ -76,26 +80,27 @@ public class OpenAiResponsesLanguageModelClient
             ObjectMapper objectMapper,
             Executor executor,
             int batchParallelism,
-            Tracer tracer,
             OpenAIClient client,
             boolean isToolStreamingSupported,
-            Optional<ReasoningEffort> reasoningEffort)
+            Optional<ReasoningEffort> reasoningEffort,
+            TokenUsageListener tokenUsageListener)
     {
-        super(modelName, promptDao, executor, batchParallelism, tracer, isToolStreamingSupported, false);
+        super(promptDao, executor, batchParallelism, isToolStreamingSupported, tokenUsageListener);
         this.temperature = requireNonNull(temperature, "temperature is null");
         this.maxTokens = requireNonNull(maxTokens, "maxTokens is null");
         this.topP = requireNonNull(topP, "topP is null");
         this.useDeveloperForSystemRole = useDeveloperForSystemRole;
         this.modelName = requireNonNull(modelName, "modelName is null");
+        this.endpoint = requireNonNull(endpoint, "endpoint is null");
         this.client = requireNonNull(client, "client is null");
         this.reasoningEffort = requireNonNull(reasoningEffort, "reasoningEffort is null");
         this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
     }
 
     @Override
-    protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> llmMessages)
+    protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> llmMessages, TokenUsageContext context)
     {
-        Response response = execute(() -> client.responses().create(buildResponseCreateParams(systemPrompts, llmMessages).build()));
+        Response response = execute(() -> client.responses().create(buildResponseCreateParams(systemPrompts, llmMessages).build()), context);
 
         List<ResponseOutputMessage.Content> contents = response.output().stream()
                 .flatMap(item -> item.message().stream())
@@ -113,12 +118,13 @@ public class OpenAiResponsesLanguageModelClient
     protected ToolUseResponse generateCompletionWithTools(
             List<String> systemPrompts,
             List<LlmMessage> messages,
-            List<ToolDefinition<?>> tools)
+            List<ToolDefinition<?>> tools,
+            TokenUsageContext context)
     {
         ResponseCreateParams.Builder builder = buildResponseCreateParams(systemPrompts, messages);
         tools.forEach(tool -> builder.addTool(toOpenAiTool(tool)));
 
-        Response response = execute(() -> client.responses().create(builder.build()));
+        Response response = execute(() -> client.responses().create(builder.build()), context);
 
         return parseToolResponse(response);
     }
@@ -186,19 +192,6 @@ public class OpenAiResponsesLanguageModelClient
         return builder;
     }
 
-    @Override
-    protected void recordUsage(Span span, Response response)
-    {
-        span.setAttribute(GEN_AI_RESPONSE_ID, response.id());
-        span.setAttribute(GEN_AI_RESPONSE_MODEL, response.model().toString());
-        span.setAttribute(GEN_AI_OPENAI_RESPONSE_SERVICE_TIER, response.serviceTier()
-                .map(Response.ServiceTier::value)
-                .map(Response.ServiceTier.Value::name)
-                .orElse(""));
-        span.setAttribute(GEN_AI_USAGE_INPUT_TOKENS, response.usage().map(ResponseUsage::inputTokens).orElse(0L));
-        span.setAttribute(GEN_AI_USAGE_OUTPUT_TOKENS, response.usage().map(ResponseUsage::outputTokens).orElse(0L));
-    }
-
     private static FunctionTool toOpenAiTool(ToolDefinition<?> toolDef)
     {
         try {
@@ -221,6 +214,33 @@ public class OpenAiResponsesLanguageModelClient
         }
         catch (Exception e) {
             throw new TrinoException(AI_CLIENT_ERROR, "Failed to convert tool definition to OpenAI tool call format", e);
+        }
+    }
+
+    @Override
+    protected Optional<TokenUsage> extractTokenUsage(Response response)
+    {
+        return response.usage()
+                .map(u -> new TokenUsage(
+                        u.inputTokens(),
+                        u.outputTokens(),
+                        safeTokenCount(() -> u.inputTokensDetails().cachedTokens()),
+                        0L,
+                        safeTokenCount(() -> u.outputTokensDetails().reasoningTokens()),
+                        modelName,
+                        endpoint,
+                        ModelType.LANGUAGE,
+                        ModelBackend.OPENAI));
+    }
+
+    private static long safeTokenCount(LongSupplier supplier)
+    {
+        try {
+            return supplier.getAsLong();
+        }
+        catch (OpenAIInvalidDataException e) {
+            log.warn(e, "Failed to read token count from response details, defaulting to 0");
+            return 0L;
         }
     }
 

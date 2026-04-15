@@ -43,6 +43,7 @@ public abstract class AbstractLanguageModelClient
     private static final int MAX_BATCH_TEXT_LENGTH = 64_000;
 
     private final Executor executor;
+    private final TokenUsageListener tokenUsageListener;
     protected final PromptDao promptDao;
     protected final List<String> topLevelSystemPrompts;
     protected final ModelWithFixedPrompt analyzeSentimentModelAndPrompt;
@@ -58,8 +59,9 @@ public abstract class AbstractLanguageModelClient
     protected final ModelWithFixedPrompt summarizeModelAndPrompt;
     protected final ModelWithFixedPrompt summarizeModelAndPromptBatch;
 
-    protected AbstractLanguageModelClient(PromptDao promptDao, Executor executor, int batchParallelism)
+    protected AbstractLanguageModelClient(PromptDao promptDao, Executor executor, int batchParallelism, TokenUsageListener tokenUsageListener)
     {
+        this.tokenUsageListener = requireNonNull(tokenUsageListener, "tokenUsageListener is null");
         this.promptDao = requireNonNull(promptDao, "promptDao is null");
         this.topLevelSystemPrompts = promptDao.systemPrompts();
         this.analyzeSentimentModelAndPrompt = create("analyzeSentiment", topLevelSystemPrompts, promptDao.analyzeSentimentPrompt(), promptDao.analyzeSentimentSystemPrompt());
@@ -75,6 +77,11 @@ public abstract class AbstractLanguageModelClient
         this.summarizeModelAndPrompt = create("summarize", topLevelSystemPrompts, promptDao.summarizePrompt(), promptDao.summarizeSystemPrompt());
         this.summarizeModelAndPromptBatch = create("summarizeBatch", topLevelSystemPrompts, promptDao.summarizePromptBatch(), promptDao.summarizeSystemPrompt());
         this.executor = new BoundedExecutor(requireNonNull(executor, "executor is null"), batchParallelism);
+    }
+
+    protected void reportTokenUsage(TokenUsageContext context, TokenUsage usage)
+    {
+        tokenUsageListener.onTokenUsage(context, usage);
     }
 
     @Override
@@ -117,52 +124,53 @@ public abstract class AbstractLanguageModelClient
     }
 
     @Override
-    public String generate(String prompt)
+    public String generate(String prompt, TokenUsageContext context)
     {
-        return completion(prompt, Optional.empty());
+        return completion(prompt, Optional.empty(), context);
     }
 
     @Override
-    public String generate(String systemPrompt, String prompt)
+    public String generate(String systemPrompt, String prompt, TokenUsageContext context)
     {
-        return completion(prompt, Optional.of(systemPrompt));
+        return completion(prompt, Optional.of(systemPrompt), context);
     }
 
     @Override
-    public String generate(List<LlmMessage> messages)
+    public String generate(List<LlmMessage> messages, TokenUsageContext context)
     {
-        return generateCompletion(topLevelSystemPrompts, messages);
+        return generateCompletion(topLevelSystemPrompts, messages, context);
     }
 
     @Override
-    public String generate(String systemPrompt, List<LlmMessage> messages)
+    public String generate(String systemPrompt, List<LlmMessage> messages, TokenUsageContext context)
     {
         return generateCompletion(
                 ImmutableList.<String>builder()
                         .addAll(topLevelSystemPrompts)
                         .add(systemPrompt)
                         .build(),
-                messages);
+                messages,
+                context);
     }
 
     @Override
-    public ToolUseResponse generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools)
+    public ToolUseResponse generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools, TokenUsageContext context)
     {
         List<String> systemPrompts = ImmutableList.<String>builder()
                 .addAll(topLevelSystemPrompts)
                 .add(systemPrompt)
                 .build();
-        return generateCompletionWithTools(systemPrompts, messages, tools);
+        return generateCompletionWithTools(systemPrompts, messages, tools, context);
     }
 
     @Override
-    public ToolUseResponse generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled)
+    public ToolUseResponse generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled, TokenUsageContext context)
     {
         List<String> systemPrompts = ImmutableList.<String>builder()
                 .addAll(topLevelSystemPrompts)
                 .add(systemPrompt)
                 .build();
-        return generateCompletionWithTools(systemPrompts, messages, tools, output, isCancelled);
+        return generateCompletionWithTools(systemPrompts, messages, tools, output, isCancelled, context);
     }
 
     @Override
@@ -204,7 +212,7 @@ public abstract class AbstractLanguageModelClient
                 input -> fixedCompletion(summarizeModelAndPromptBatch, summarizeModelAndPromptBatch.prompt().formatted(input)));
     }
 
-    private String completion(String prompt, Optional<String> system)
+    private String completion(String prompt, Optional<String> system, TokenUsageContext context)
     {
         List<String> systemPrompts;
         if (system.isPresent()) {
@@ -216,17 +224,12 @@ public abstract class AbstractLanguageModelClient
         else {
             systemPrompts = topLevelSystemPrompts;
         }
-        return generateCompletion(systemPrompts, prompt);
+        return generateCompletion(systemPrompts, prompt, context);
     }
 
     private String fixedCompletion(ModelWithFixedPrompt modelAndPrompt, String userPrompt)
     {
-        return completion(modelAndPrompt.systemPrompts(), userPrompt);
-    }
-
-    private String completion(List<String> systemPrompts, String userPrompt)
-    {
-        return generateCompletion(systemPrompts, userPrompt);
+        return generateCompletion(modelAndPrompt.systemPrompts(), userPrompt, TokenUsageContext.EMPTY);
     }
 
     private static String formatLabelsAndText(String template, List<String> labels, String text)
@@ -234,21 +237,23 @@ public abstract class AbstractLanguageModelClient
         return template.formatted(LIST_CODEC.toJson(labels), text);
     }
 
-    protected abstract String generateCompletion(List<String> systemPrompts, String prompt);
+    protected abstract String generateCompletion(List<String> systemPrompts, String prompt, TokenUsageContext context);
 
-    protected abstract String generateCompletion(List<String> systemPrompts, List<LlmMessage> llmMessages);
+    protected abstract String generateCompletion(List<String> systemPrompts, List<LlmMessage> llmMessages, TokenUsageContext context);
 
     protected abstract ToolUseResponse generateCompletionWithTools(
             List<String> systemPrompts,
             List<LlmMessage> messages,
-            List<ToolDefinition<?>> tools);
+            List<ToolDefinition<?>> tools,
+            TokenUsageContext context);
 
     protected abstract ToolUseResponse generateCompletionWithTools(
             List<String> systemPrompts,
             List<LlmMessage> messages,
             List<ToolDefinition<?>> tools,
             Consumer<String> output,
-            Supplier<Boolean> isCancelled);
+            Supplier<Boolean> isCancelled,
+            TokenUsageContext context);
 
     protected record ModelWithFixedPrompt(String name, List<String> systemPrompts, String prompt) {}
 

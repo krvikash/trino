@@ -17,13 +17,14 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.json.ObjectMapperProvider;
 import io.airlift.log.Logger;
-import io.opentelemetry.api.common.AttributeKey;
-import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.SpanKind;
-import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.AbstractLanguageModelClient;
 import io.starburst.ai.client.LlmMessage;
+import io.starburst.ai.client.ModelBackend;
+import io.starburst.ai.client.ModelType;
 import io.starburst.ai.client.PromptDao;
+import io.starburst.ai.client.TokenUsage;
+import io.starburst.ai.client.TokenUsageContext;
+import io.starburst.ai.client.TokenUsageListener;
 import io.starburst.ai.client.ToolDefinition;
 import io.starburst.ai.client.ToolUseResponse;
 import io.trino.spi.TrinoException;
@@ -74,19 +75,10 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.opentelemetry.api.common.AttributeKey.longKey;
-import static io.opentelemetry.api.trace.StatusCode.ERROR;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_OPERATION_NAME;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_REQUEST_MODEL;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_RESPONSE_MODEL;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_SYSTEM;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_USAGE_INPUT_TOKENS;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_USAGE_OUTPUT_TOKENS;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GenAiOperationNameIncubatingValues.CHAT;
-import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GenAiSystemIncubatingValues.AWS_BEDROCK;
 import static io.starburst.ai.client.AiClientErrorCode.AI_CLIENT_ERROR;
 import static io.starburst.ai.client.AiClientErrorCode.INVALID_MODEL_CONFIGURATION;
 import static io.starburst.ai.client.MessageRole.USER;
@@ -96,8 +88,6 @@ import static java.util.Objects.requireNonNull;
 public class AwsBedrockLanguageModelClient
         extends AbstractLanguageModelClient
 {
-    static final AttributeKey<Long> GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS = longKey("gen_ai.usage.cache_creation.input_tokens");
-    static final AttributeKey<Long> GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS = longKey("gen_ai.usage.cache_read.input_tokens");
     private static final Set<StopReason> ERROR_STOP_REASONS = ImmutableSet.of(
             StopReason.UNKNOWN_TO_SDK_VERSION,
             StopReason.GUARDRAIL_INTERVENED,
@@ -113,8 +103,8 @@ public class AwsBedrockLanguageModelClient
     private final Optional<Integer> maxTokens;
     private final Optional<Float> temperature;
     private final Optional<Float> topP;
-    private final Tracer tracer;
     private final String modelName;
+    private final Optional<String> endpoint;
     private final BedrockRuntimeClient client;
     private final BedrockRuntimeAsyncClient asyncClient;
     private final boolean isToolStreamingSupported;
@@ -122,24 +112,25 @@ public class AwsBedrockLanguageModelClient
 
     public AwsBedrockLanguageModelClient(
             String modelName,
+            Optional<String> endpoint,
             Optional<Integer> maxTokens,
             Optional<Float> temperature,
             Optional<Float> topP,
             PromptDao promptDao,
             Executor executor,
             int batchParallelism,
-            Tracer tracer,
             BedrockRuntimeClient client,
             BedrockRuntimeAsyncClient asyncClient,
             boolean isToolStreamingSupported,
-            boolean isPromptCachingSupported)
+            boolean isPromptCachingSupported,
+            TokenUsageListener tokenUsageListener)
     {
-        super(promptDao, executor, batchParallelism);
+        super(promptDao, executor, batchParallelism, tokenUsageListener);
         this.maxTokens = requireNonNull(maxTokens, "maxTokens is null");
         this.temperature = requireNonNull(temperature, "temperature is null");
         this.topP = requireNonNull(topP, "topP is null");
-        this.tracer = requireNonNull(tracer, "tracer is null");
         this.modelName = requireNonNull(modelName, "modelName is null");
+        this.endpoint = requireNonNull(endpoint, "endpoint is null");
         this.client = requireNonNull(client, "client is null");
         this.asyncClient = requireNonNull(asyncClient, "asyncClient is null");
         this.isToolStreamingSupported = isToolStreamingSupported;
@@ -147,26 +138,26 @@ public class AwsBedrockLanguageModelClient
     }
 
     @Override
-    protected String generateCompletion(List<String> systemPrompts, String prompt)
+    protected String generateCompletion(List<String> systemPrompts, String prompt, TokenUsageContext context)
     {
-        return generateCompletion(systemPrompts, ImmutableList.of(new LlmMessage(USER, prompt)));
+        return generateCompletion(systemPrompts, ImmutableList.of(new LlmMessage(USER, prompt)), context);
     }
 
     @Override
-    protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> messages)
+    protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> messages, TokenUsageContext context)
     {
         List<SystemContentBlock> systemContentBlocks = systemPrompts.stream()
                 .map(SystemContentBlock::fromText)
                 .collect(toImmutableList());
 
         ConverseResponse response = getConverseResponse(
-                CHAT + " " + modelName,
                 modelName,
                 () -> client.converse(request -> initializeConverseRequestBuilder(request,
                         systemContentBlocks,
                         modelName,
                         messages,
-                        ImmutableList.of())));
+                        ImmutableList.of())),
+                context);
 
         List<ContentBlock> contentBlocks = response.output().message().content();
         if (response.stopReason() != null && (ERROR_STOP_REASONS.contains(response.stopReason()) || response.stopReason() == StopReason.TOOL_USE)) {
@@ -184,7 +175,8 @@ public class AwsBedrockLanguageModelClient
     protected ToolUseResponse generateCompletionWithTools(
             List<String> systemPrompts,
             List<LlmMessage> messages,
-            List<ToolDefinition<?>> tools)
+            List<ToolDefinition<?>> tools,
+            TokenUsageContext context)
     {
         List<SystemContentBlock> systemContentBlocks = systemPrompts.stream()
                 .map(SystemContentBlock::fromText)
@@ -195,13 +187,13 @@ public class AwsBedrockLanguageModelClient
                 .collect(toImmutableList());
 
         ConverseResponse response = getConverseResponse(
-                CHAT + " " + modelName + " (with tools)",
                 modelName,
                 () -> client.converse(request -> initializeConverseRequestBuilder(request,
                         systemContentBlocks,
                         modelName,
                         messages,
-                        bedrockTools)));
+                        bedrockTools)),
+                context);
         if (response.stopReason() != null && ERROR_STOP_REASONS.contains(response.stopReason())) {
             throw new TrinoException(AI_CLIENT_ERROR, "AI model refused to generate response: " + response.stopReasonAsString());
         }
@@ -216,10 +208,11 @@ public class AwsBedrockLanguageModelClient
             List<LlmMessage> messages,
             List<ToolDefinition<?>> tools,
             Consumer<String> output,
-            Supplier<Boolean> isCancelled)
+            Supplier<Boolean> isCancelled,
+            TokenUsageContext context)
     {
         if (!isToolStreamingSupported) {
-            ToolUseResponse response = generateCompletionWithTools(systemPrompts, messages, tools);
+            ToolUseResponse response = generateCompletionWithTools(systemPrompts, messages, tools, context);
             output.accept(response.textResponse());
             return response;
         }
@@ -232,10 +225,10 @@ public class AwsBedrockLanguageModelClient
                 .collect(toImmutableList());
 
         ConverseResponse response = getConverseResponse(
-                CHAT + " " + modelName + " (with tools)",
                 modelName,
                 () -> {
                     ConverseResponse.Builder builder = ConverseResponse.builder();
+
                     Message.Builder messageBuilder = Message.builder()
                             .role(ConversationRole.ASSISTANT);
                     StreamResponseVisitor visitor = new StreamResponseVisitor(output, builder, isCancelled);
@@ -272,7 +265,8 @@ public class AwsBedrockLanguageModelClient
                     return builder
                             .output(v -> v.message(messageBuilder.content(contentBlocks).build()))
                             .build();
-                });
+                },
+                context);
         if (response.stopReason() != null && ERROR_STOP_REASONS.contains(response.stopReason())) {
             throw new TrinoException(AI_CLIENT_ERROR, "AI model refused to generate response: " + response.stopReasonAsString());
         }
@@ -282,35 +276,32 @@ public class AwsBedrockLanguageModelClient
     }
 
     private ConverseResponse getConverseResponse(
-            String spanName,
             String modelName,
-            Supplier<ConverseResponse> getBedrockResponse)
+            Supplier<ConverseResponse> getBedrockResponse,
+            TokenUsageContext context)
     {
-        Span span = tracer.spanBuilder(spanName)
-                .setAttribute(GEN_AI_OPERATION_NAME, CHAT)
-                .setAttribute(GEN_AI_SYSTEM, AWS_BEDROCK)
-                .setAttribute(GEN_AI_REQUEST_MODEL, modelName)
-                .setSpanKind(SpanKind.CLIENT)
-                .startSpan();
-
-        try (var _ = span.makeCurrent()) {
+        try {
             ConverseResponse response = getBedrockResponse.get();
-            span.setAttribute(GEN_AI_RESPONSE_MODEL, modelName);
-            span.setAttribute(GEN_AI_USAGE_INPUT_TOKENS, Optional.ofNullable(response.usage().inputTokens()).orElse(0));
-            span.setAttribute(GEN_AI_USAGE_OUTPUT_TOKENS, Optional.ofNullable(response.usage().outputTokens()).orElse(0));
-            span.setAttribute(GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS, Optional.ofNullable(response.usage().cacheWriteInputTokens()).orElse(0));
-            span.setAttribute(GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS, Optional.ofNullable(response.usage().cacheReadInputTokens()).orElse(0));
-
+            reportTokenUsage(context, new TokenUsage(
+                    usageField(response, usage -> usage.inputTokens()),
+                    usageField(response, usage -> usage.outputTokens()),
+                    usageField(response, usage -> usage.cacheReadInputTokens()),
+                    usageField(response, usage -> usage.cacheWriteInputTokens()),
+                    0L,
+                    modelName,
+                    endpoint,
+                    ModelType.LANGUAGE,
+                    ModelBackend.AWS_BEDROCK));
             return response;
         }
         catch (RuntimeException e) {
-            span.setStatus(ERROR, e.getMessage());
-            span.recordException(e);
             throw toTrinoException(e);
         }
-        finally {
-            span.end();
-        }
+    }
+
+    private static int usageField(ConverseResponse response, Function<software.amazon.awssdk.services.bedrockruntime.model.TokenUsage, Integer> extractor)
+    {
+        return Optional.ofNullable(response.usage()).flatMap(usage -> Optional.ofNullable(extractor.apply(usage))).orElse(0);
     }
 
     private static TrinoException toTrinoException(RuntimeException ex)
