@@ -30,13 +30,10 @@ import com.openai.models.responses.ResponseOutputRefusal;
 import com.openai.models.responses.ResponseOutputText;
 import com.openai.models.responses.ResponseStreamEvent;
 import com.openai.models.responses.ResponseUsage;
-import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.LlmMessage;
-import io.starburst.ai.client.ModelResponse;
 import io.starburst.ai.client.PromptDao;
-import io.starburst.ai.client.TokenUsage;
 import io.starburst.ai.client.ToolDefinition;
 import io.starburst.ai.client.ToolUseResponse;
 import io.trino.spi.TrinoException;
@@ -49,7 +46,6 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.opentelemetry.api.common.AttributeKey.longKey;
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_OPENAI_RESPONSE_SERVICE_TIER;
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_RESPONSE_ID;
 import static io.opentelemetry.semconv.incubating.GenAiIncubatingAttributes.GEN_AI_RESPONSE_MODEL;
@@ -61,9 +57,6 @@ import static java.util.Objects.requireNonNull;
 public class OpenAiResponsesLanguageModelClient
         extends AbstractOpenAiClient<Response>
 {
-    static final AttributeKey<Long> GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS = longKey("gen_ai.usage.cache_read.input_tokens");
-    static final AttributeKey<Long> GEN_AI_USAGE_REASONING_OUTPUT_TOKENS = longKey("gen_ai.usage.reasoning.output_tokens");
-
     private final Optional<Float> temperature;
     private final Optional<Integer> maxTokens;
     private final Optional<Float> topP;
@@ -102,12 +95,6 @@ public class OpenAiResponsesLanguageModelClient
     @Override
     protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> llmMessages)
     {
-        return generateCompletionWithUsage(systemPrompts, llmMessages).response();
-    }
-
-    @Override
-    protected ModelResponse<String> generateCompletionWithUsage(List<String> systemPrompts, List<LlmMessage> llmMessages)
-    {
         Response response = execute(() -> client.responses().create(buildResponseCreateParams(systemPrompts, llmMessages).build()));
 
         List<ResponseOutputMessage.Content> contents = response.output().stream()
@@ -116,15 +103,14 @@ public class OpenAiResponsesLanguageModelClient
                 .collect(toImmutableList());
         throwOnRefusals(contents);
 
-        String text = contents.stream()
+        return contents.stream()
                 .flatMap(content -> content.outputText().stream())
                 .map(ResponseOutputText::text)
                 .collect(Collectors.joining());
-        return new ModelResponse<>(text, getTokenUsage(response));
     }
 
     @Override
-    protected ModelResponse<ToolUseResponse> generateCompletionWithTools(
+    protected ToolUseResponse generateCompletionWithTools(
             List<String> systemPrompts,
             List<LlmMessage> messages,
             List<ToolDefinition<?>> tools)
@@ -211,14 +197,6 @@ public class OpenAiResponsesLanguageModelClient
                 .orElse(""));
         span.setAttribute(GEN_AI_USAGE_INPUT_TOKENS, response.usage().map(ResponseUsage::inputTokens).orElse(0L));
         span.setAttribute(GEN_AI_USAGE_OUTPUT_TOKENS, response.usage().map(ResponseUsage::outputTokens).orElse(0L));
-        span.setAttribute(GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS, response.usage()
-                .map(ResponseUsage::inputTokensDetails)
-                .map(ResponseUsage.InputTokensDetails::cachedTokens)
-                .orElse(0L));
-        span.setAttribute(GEN_AI_USAGE_REASONING_OUTPUT_TOKENS, response.usage()
-                .map(ResponseUsage::outputTokensDetails)
-                .map(ResponseUsage.OutputTokensDetails::reasoningTokens)
-                .orElse(0L));
     }
 
     private static FunctionTool toOpenAiTool(ToolDefinition<?> toolDef)
@@ -247,7 +225,7 @@ public class OpenAiResponsesLanguageModelClient
     }
 
     @Override
-    protected ModelResponse<ToolUseResponse> parseToolResponse(Response response)
+    protected ToolUseResponse parseToolResponse(Response response)
     {
         StringBuilder message = new StringBuilder();
         ImmutableList.Builder<ToolUseResponse.ToolCall> toolCallBuilder = ImmutableList.builder();
@@ -275,18 +253,7 @@ public class OpenAiResponsesLanguageModelClient
                         .forEach(message::append);
             }
         });
-        return new ModelResponse<>(new ToolUseResponse(message.toString(), toolCallBuilder.build()), getTokenUsage(response));
-    }
-
-    private Optional<TokenUsage> getTokenUsage(Response response)
-    {
-        return response.usage()
-                .map(u -> new TokenUsage(
-                        u.inputTokens(),
-                        u.outputTokens(),
-                        u.inputTokensDetails().cachedTokens(),
-                        0, // OpenAI does not report cache creation tokens
-                        modelName));
+        return new ToolUseResponse(message.toString(), toolCallBuilder.build());
     }
 
     private void throwOnRefusals(List<ResponseOutputMessage.Content> contents)

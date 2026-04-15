@@ -27,15 +27,15 @@ public interface LanguageModelClient
 
     List<String> fixGrammarBatch(List<String> texts);
 
-    ModelResponse<String> generate(String prompt);
+    String generate(String prompt);
 
-    ModelResponse<String> generate(String systemPrompt, String prompt);
-
-    // this method is used in SEP
-    ModelResponse<String> generate(List<LlmMessage> messages);
+    String generate(String systemPrompt, String prompt);
 
     // this method is used in SEP
-    ModelResponse<String> generate(String systemPrompt, List<LlmMessage> messages);
+    String generate(List<LlmMessage> messages);
+
+    // this method is used in SEP
+    String generate(String systemPrompt, List<LlmMessage> messages);
 
     /**
      * Generates a response with tool use support.
@@ -46,7 +46,7 @@ public interface LanguageModelClient
      * @param tools Available tools the LLM can use
      * @return Response containing text and/or tool calls
      */
-    ModelResponse<ToolUseResponse> generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools);
+    ToolUseResponse generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools);
 
     /**
      * Generates a response with tool use support.
@@ -59,7 +59,7 @@ public interface LanguageModelClient
      * @param isCancelled Supplier that returns true when the stream should be cancelled early
      * @return Response containing text and/or tool calls
      */
-    ModelResponse<ToolUseResponse> generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled);
+    ToolUseResponse generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled);
 
     String mask(String text, List<String> labels);
 

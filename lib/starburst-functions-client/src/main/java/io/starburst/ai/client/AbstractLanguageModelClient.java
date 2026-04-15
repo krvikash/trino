@@ -117,32 +117,27 @@ public abstract class AbstractLanguageModelClient
     }
 
     @Override
-    public ModelResponse<String> generate(String prompt)
+    public String generate(String prompt)
     {
-        return generateCompletionWithUsage(topLevelSystemPrompts, ImmutableList.of(new LlmMessage(MessageRole.USER, prompt)));
+        return completion(prompt, Optional.empty());
     }
 
     @Override
-    public ModelResponse<String> generate(String systemPrompt, String prompt)
+    public String generate(String systemPrompt, String prompt)
     {
-        return generateCompletionWithUsage(
-                ImmutableList.<String>builder()
-                        .addAll(topLevelSystemPrompts)
-                        .add(systemPrompt)
-                        .build(),
-                ImmutableList.of(new LlmMessage(MessageRole.USER, prompt)));
+        return completion(prompt, Optional.of(systemPrompt));
     }
 
     @Override
-    public ModelResponse<String> generate(List<LlmMessage> messages)
+    public String generate(List<LlmMessage> messages)
     {
-        return generateCompletionWithUsage(topLevelSystemPrompts, messages);
+        return generateCompletion(topLevelSystemPrompts, messages);
     }
 
     @Override
-    public ModelResponse<String> generate(String systemPrompt, List<LlmMessage> messages)
+    public String generate(String systemPrompt, List<LlmMessage> messages)
     {
-        return generateCompletionWithUsage(
+        return generateCompletion(
                 ImmutableList.<String>builder()
                         .addAll(topLevelSystemPrompts)
                         .add(systemPrompt)
@@ -151,7 +146,7 @@ public abstract class AbstractLanguageModelClient
     }
 
     @Override
-    public ModelResponse<ToolUseResponse> generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools)
+    public ToolUseResponse generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools)
     {
         List<String> systemPrompts = ImmutableList.<String>builder()
                 .addAll(topLevelSystemPrompts)
@@ -161,7 +156,7 @@ public abstract class AbstractLanguageModelClient
     }
 
     @Override
-    public ModelResponse<ToolUseResponse> generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled)
+    public ToolUseResponse generateWithTools(String systemPrompt, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled)
     {
         List<String> systemPrompts = ImmutableList.<String>builder()
                 .addAll(topLevelSystemPrompts)
@@ -243,14 +238,12 @@ public abstract class AbstractLanguageModelClient
 
     protected abstract String generateCompletion(List<String> systemPrompts, List<LlmMessage> llmMessages);
 
-    protected abstract ModelResponse<String> generateCompletionWithUsage(List<String> systemPrompts, List<LlmMessage> llmMessages);
-
-    protected abstract ModelResponse<ToolUseResponse> generateCompletionWithTools(
+    protected abstract ToolUseResponse generateCompletionWithTools(
             List<String> systemPrompts,
             List<LlmMessage> messages,
             List<ToolDefinition<?>> tools);
 
-    protected abstract ModelResponse<ToolUseResponse> generateCompletionWithTools(
+    protected abstract ToolUseResponse generateCompletionWithTools(
             List<String> systemPrompts,
             List<LlmMessage> messages,
             List<ToolDefinition<?>> tools,

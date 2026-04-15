@@ -23,9 +23,7 @@ import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.AbstractLanguageModelClient;
 import io.starburst.ai.client.LlmMessage;
-import io.starburst.ai.client.ModelResponse;
 import io.starburst.ai.client.PromptDao;
-import io.starburst.ai.client.TokenUsage;
 import io.starburst.ai.client.ToolDefinition;
 import io.starburst.ai.client.ToolUseResponse;
 import io.trino.spi.TrinoException;
@@ -157,12 +155,6 @@ public class AwsBedrockLanguageModelClient
     @Override
     protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> messages)
     {
-        return generateCompletionWithUsage(systemPrompts, messages).response();
-    }
-
-    @Override
-    protected ModelResponse<String> generateCompletionWithUsage(List<String> systemPrompts, List<LlmMessage> messages)
-    {
         List<SystemContentBlock> systemContentBlocks = systemPrompts.stream()
                 .map(SystemContentBlock::fromText)
                 .collect(toImmutableList());
@@ -181,15 +173,15 @@ public class AwsBedrockLanguageModelClient
             throw new TrinoException(AI_CLIENT_ERROR, "AI model refused to generate response: " + response.stopReasonAsString());
         }
         if (contentBlocks == null || contentBlocks.isEmpty() || response.output().message().content().getFirst().text() == null) {
-            return new ModelResponse<>("", Optional.empty());
+            return "";
         }
 
         log.debug("Bedrock token usage: %s", response.usage());
-        return new ModelResponse<>(response.output().message().content().getFirst().text(), getTokenUsage(response));
+        return response.output().message().content().getFirst().text();
     }
 
     @Override
-    protected ModelResponse<ToolUseResponse> generateCompletionWithTools(
+    protected ToolUseResponse generateCompletionWithTools(
             List<String> systemPrompts,
             List<LlmMessage> messages,
             List<ToolDefinition<?>> tools)
@@ -219,7 +211,7 @@ public class AwsBedrockLanguageModelClient
     }
 
     @Override
-    protected ModelResponse<ToolUseResponse> generateCompletionWithTools(
+    protected ToolUseResponse generateCompletionWithTools(
             List<String> systemPrompts,
             List<LlmMessage> messages,
             List<ToolDefinition<?>> tools,
@@ -227,9 +219,9 @@ public class AwsBedrockLanguageModelClient
             Supplier<Boolean> isCancelled)
     {
         if (!isToolStreamingSupported) {
-            ModelResponse<ToolUseResponse> modelResponse = generateCompletionWithTools(systemPrompts, messages, tools);
-            output.accept(modelResponse.response().textResponse());
-            return modelResponse;
+            ToolUseResponse response = generateCompletionWithTools(systemPrompts, messages, tools);
+            output.accept(response.textResponse());
+            return response;
         }
         List<SystemContentBlock> systemContentBlocks = systemPrompts.stream()
                 .map(SystemContentBlock::fromText)
@@ -308,6 +300,7 @@ public class AwsBedrockLanguageModelClient
             span.setAttribute(GEN_AI_USAGE_OUTPUT_TOKENS, Optional.ofNullable(response.usage().outputTokens()).orElse(0));
             span.setAttribute(GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS, Optional.ofNullable(response.usage().cacheWriteInputTokens()).orElse(0));
             span.setAttribute(GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS, Optional.ofNullable(response.usage().cacheReadInputTokens()).orElse(0));
+
             return response;
         }
         catch (RuntimeException e) {
@@ -540,7 +533,7 @@ public class AwsBedrockLanguageModelClient
         }
     }
 
-    private ModelResponse<ToolUseResponse> parseBedrockToolResponse(ConverseResponse response)
+    private static ToolUseResponse parseBedrockToolResponse(ConverseResponse response)
     {
         StringBuilder textResponse = new StringBuilder();
         ImmutableList.Builder<ToolUseResponse.ToolCall> toolCallBuilder = ImmutableList.builder();
@@ -563,20 +556,8 @@ public class AwsBedrockLanguageModelClient
                 }
             }
         }
-        return new ModelResponse<>(new ToolUseResponse(textResponse.toString(), toolCallBuilder.build()), getTokenUsage(response));
-    }
 
-    private Optional<TokenUsage> getTokenUsage(ConverseResponse response)
-    {
-        return response.usage() != null
-                ? Optional.of(
-                        new TokenUsage(
-                                Optional.ofNullable(response.usage().inputTokens()).orElse(0).longValue(),
-                                Optional.ofNullable(response.usage().outputTokens()).orElse(0).longValue(),
-                                Optional.ofNullable(response.usage().cacheReadInputTokens()).orElse(0).longValue(),
-                                Optional.ofNullable(response.usage().cacheWriteInputTokens()).orElse(0).longValue(),
-                                modelName))
-                : Optional.empty();
+        return new ToolUseResponse(textResponse.toString(), toolCallBuilder.build());
     }
 
     private static JsonNode documentToJsonNode(Document document)

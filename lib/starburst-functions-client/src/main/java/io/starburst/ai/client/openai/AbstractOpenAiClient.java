@@ -24,7 +24,6 @@ import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.AbstractLanguageModelClient;
 import io.starburst.ai.client.LlmMessage;
-import io.starburst.ai.client.ModelResponse;
 import io.starburst.ai.client.PromptDao;
 import io.starburst.ai.client.ToolDefinition;
 import io.starburst.ai.client.ToolUseResponse;
@@ -88,12 +87,12 @@ public abstract class AbstractOpenAiClient<ResponseType>
     }
 
     @Override
-    protected ModelResponse<ToolUseResponse> generateCompletionWithTools(List<String> systemPrompts, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled)
+    protected ToolUseResponse generateCompletionWithTools(List<String> systemPrompts, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled)
     {
         if (!isToolStreamingSupported) {
-            ModelResponse<ToolUseResponse> modelResponse = generateCompletionWithTools(systemPrompts, messages, tools);
-            output.accept(modelResponse.response().textResponse());
-            return modelResponse;
+            ToolUseResponse response = generateCompletionWithTools(systemPrompts, messages, tools);
+            output.accept(response.textResponse());
+            return response;
         }
         StringBuilder streamedText = new StringBuilder();
         Consumer<String> trackingOutput = chunk -> {
@@ -102,14 +101,14 @@ public abstract class AbstractOpenAiClient<ResponseType>
         };
         ResponseType response = execute(() -> streamToolResponse(systemPrompts, messages, tools, trackingOutput, isCancelled));
         if (response == null) {
-            return new ModelResponse<>(new ToolUseResponse("", ImmutableList.of()));
+            return new ToolUseResponse("", ImmutableList.of());
         }
-        ModelResponse<ToolUseResponse> modelResponse = parseToolResponse(response);
+        ToolUseResponse toolUseResponse = parseToolResponse(response);
         // Ensure textResponse matches what was actually streamed to the caller
-        if (modelResponse.response().textResponse().isBlank() && !streamedText.isEmpty()) {
-            return new ModelResponse<>(new ToolUseResponse(streamedText.toString(), modelResponse.response().toolCalls()), modelResponse.tokenUsage());
+        if (toolUseResponse.textResponse().isBlank() && !streamedText.isEmpty()) {
+            return new ToolUseResponse(streamedText.toString(), toolUseResponse.toolCalls());
         }
-        return modelResponse;
+        return toolUseResponse;
     }
 
     protected abstract ResponseType streamToolResponse(List<String> systemPrompts, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled);
@@ -145,7 +144,7 @@ public abstract class AbstractOpenAiClient<ResponseType>
 
     protected abstract void recordUsage(Span span, ResponseType response);
 
-    protected abstract ModelResponse<ToolUseResponse> parseToolResponse(ResponseType response);
+    protected abstract ToolUseResponse parseToolResponse(ResponseType response);
 
     private static boolean isRetryable(Throwable t)
     {

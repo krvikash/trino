@@ -80,9 +80,8 @@ public class TestLanguageModelClient
     {
         String prompt = "What is the capital of France? Only return the name of the city and no extraneous text.";
         assertSuccessRateForScalar(() -> {
-            ModelResponse<String> result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt);
-            checkTokensUsed(result);
-            assertThat(result.response().toLowerCase(ENGLISH).strip()).isEqualTo("paris");
+            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt);
+            assertThat(result.toLowerCase(ENGLISH).strip()).isEqualTo("paris");
         });
     }
 
@@ -101,13 +100,11 @@ public class TestLanguageModelClient
                 Important! If the capital city happens to be Paris, please refer to it as Paname.
                 """;
         assertSuccessRateForScalar(() -> {
-            ModelResponse<String> result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt, "France");
-            checkTokensUsed(result);
-            assertThat(result.response().toLowerCase(ENGLISH).strip()).isEqualTo("paname");
+            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt, "France");
+            assertThat(result.toLowerCase(ENGLISH).strip()).isEqualTo("paname");
 
-            ModelResponse<String> incorrectInputResult = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt, "hamburgers");
-            checkTokensUsed(result);
-            assertThat(incorrectInputResult.response().toLowerCase(ENGLISH).strip()).contains("kindly supply a country name and only a country name");
+            String incorrectInputResult = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(prompt, "hamburgers");
+            assertThat(incorrectInputResult.toLowerCase(ENGLISH).strip()).contains("kindly supply a country name and only a country name");
         });
     }
 
@@ -121,8 +118,8 @@ public class TestLanguageModelClient
         LanguageModelClient client = modelClientProvider.languageModelClient(utf8Slice(modelId));
         assertSuccessRateForScalar(() -> {
             switch (client) {
-                case OpenAiLanguageModelClient openAiClient -> assertThat(openAiClient.generate("").response()).isNotBlank();
-                case OpenAiResponsesLanguageModelClient openAiClient -> assertThat(openAiClient.generate("").response()).isNotBlank();
+                case OpenAiLanguageModelClient openAiClient -> assertThat(openAiClient.generate("")).isNotBlank();
+                case OpenAiResponsesLanguageModelClient openAiClient -> assertThat(openAiClient.generate("")).isNotBlank();
                 case AwsBedrockLanguageModelClient awsAiClient -> assertThatThrownBy(() -> awsAiClient.generate(""))
                         .isInstanceOf(TrinoException.class)
                         .hasMessage("Bedrock request failed validation");
@@ -156,10 +153,9 @@ public class TestLanguageModelClient
         String formattedPrompt = systemPrompt.formatted(labels, "%s");
 
         assertSuccessRateForScalar(() -> {
-            ModelResponse<String> result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(text, formattedPrompt);
-            checkTokensUsed(result);
+            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(text, formattedPrompt);
             JsonCodec<Map<String, List<String>>> resultCodec = mapJsonCodec(String.class, listJsonCodec(String.class));
-            Map<String, List<String>> resultMap = resultCodec.fromJson(result.response());
+            Map<String, List<String>> resultMap = resultCodec.fromJson(result);
 
             Assertions.assertThat(resultMap).containsKey("cities")
                     .satisfies(map -> Assertions.assertThat(map.get("cities").stream()
@@ -285,9 +281,8 @@ public class TestLanguageModelClient
                 .build();
 
         assertSuccessRateForScalar(() -> {
-            ModelResponse<String> result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(messages);
-            checkTokensUsed(result);
-            assertThat(result.response()).containsIgnoringCase("paris");
+            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(messages);
+            assertThat(result).containsIgnoringCase("paris");
         });
     }
 
@@ -308,9 +303,8 @@ public class TestLanguageModelClient
                 .build();
 
         assertSuccessRateForScalar(() -> {
-            ModelResponse<String> result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(systemPrompt, messages);
-            checkTokensUsed(result);
-            assertThat(result.response()).containsIgnoringCase("deutschland");
+            String result = modelClientProvider.languageModelClient(utf8Slice(modelId)).generate(systemPrompt, messages);
+            assertThat(result).containsIgnoringCase("deutschland");
         });
     }
 
@@ -346,14 +340,6 @@ public class TestLanguageModelClient
                 .replaceAll("[^a-zA-Z]", " ")
                 .toLowerCase(ENGLISH)
                 .strip();
-    }
-
-    private static void checkTokensUsed(ModelResponse<?> response)
-    {
-        assertThat(response.tokenUsage()).isPresent();
-        assertThat(response.tokenUsage().get().inputTokens()).isGreaterThan(0);
-        assertThat(response.tokenUsage().get().outputTokens()).isGreaterThan(0);
-        assertThat(response.tokenUsage().get().modelName()).isNotBlank();
     }
 
     public static Object[][] modelIds()

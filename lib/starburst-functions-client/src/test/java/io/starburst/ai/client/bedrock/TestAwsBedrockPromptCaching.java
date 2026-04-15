@@ -19,7 +19,6 @@ import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
 import io.starburst.ai.client.LanguageModelClient;
 import io.starburst.ai.client.LlmMessage;
 import io.starburst.ai.client.ModelClientProvider;
-import io.starburst.ai.client.ModelResponse;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -215,10 +214,7 @@ public class TestAwsBedrockPromptCaching
 
         // First call: populates the cache. Bedrock writes the system prompt prefix to its cache.
         String msg1 = "Show me query 70 of TPCDS, explain what it does and how it could be optimized";
-        ModelResponse<String> response1 = client.generate(systemPrompt, ImmutableList.of(new LlmMessage(USER, msg1)));
-        assertThat(response1.tokenUsage()).isPresent();
-        assertThat(response1.tokenUsage().get().cacheReadInputTokens()).isEqualTo(0);
-        assertThat(response1.tokenUsage().get().cacheCreationInputTokens()).isGreaterThan(0);
+        String response1 = client.generate(systemPrompt, ImmutableList.of(new LlmMessage(USER, msg1)));
         List<SpanData> spansAfterFirstCall = spanExporter.getFinishedSpanItems();
         assertThat(spansAfterFirstCall).hasSize(1);
         long firstCallCacheWrite = spansAfterFirstCall.getFirst().getAttributes().get(GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS);
@@ -231,12 +227,9 @@ public class TestAwsBedrockPromptCaching
 
         // Second call: same system prompt → Bedrock uses the cache for the system prompt.
         String msg2 = "Explain how table functions work.";
-        ModelResponse<String> response2 = client.generate(
+        String response2 = client.generate(
                 systemPrompt,
-                ImmutableList.of(new LlmMessage(USER, msg1), new LlmMessage(ASSISTANT, response1.response()), new LlmMessage(USER, msg2)));
-        assertThat(response2.tokenUsage()).isPresent();
-        assertThat(response2.tokenUsage().get().cacheReadInputTokens()).isGreaterThan(0);
-        assertThat(response2.tokenUsage().get().cacheCreationInputTokens()).isGreaterThan(0);
+                ImmutableList.of(new LlmMessage(USER, msg1), new LlmMessage(ASSISTANT, response1), new LlmMessage(USER, msg2)));
         List<SpanData> spansAfterSecondCall = spanExporter.getFinishedSpanItems();
         assertThat(spansAfterSecondCall).hasSize(1);
         long secondCallCacheRead = spansAfterSecondCall.getFirst().getAttributes().get(GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS);
@@ -251,7 +244,7 @@ public class TestAwsBedrockPromptCaching
         String msg3 = "Explain how window functions work.";
         client.generate(
                 systemPrompt,
-                ImmutableList.of(new LlmMessage(USER, msg1), new LlmMessage(ASSISTANT, response1.response()), new LlmMessage(USER, msg2), new LlmMessage(ASSISTANT, response2.response()), new LlmMessage(USER, msg3)));
+                ImmutableList.of(new LlmMessage(USER, msg1), new LlmMessage(ASSISTANT, response1), new LlmMessage(USER, msg2), new LlmMessage(ASSISTANT, response2), new LlmMessage(USER, msg3)));
         List<SpanData> spansAfterThirdCall = spanExporter.getFinishedSpanItems();
         assertThat(spansAfterThirdCall).hasSize(1);
         long thirdCallCacheRead = spansAfterThirdCall.getFirst().getAttributes().get(GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS);
