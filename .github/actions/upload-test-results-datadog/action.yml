@@ -47,12 +47,14 @@ runs:
       if [ "${#FILES[@]}" -eq 0 ]; then
         echo "::warning title=Datadog upload skipped::No JUnit test result files found for ${REPORT_SERVICE_NAME} job_name_identifier."
       else
+        # Remove properties section from all files (can leak secret values: credentials, API keys, passwords)
+        # This matches Cork's S3 upload behavior in .github/workflows/upload-test-results.yml
+        SANITIZED_DIR=$(mktemp -d)
+        trap 'rm -rf "$SANITIZED_DIR"' EXIT
         for file in "${FILES[@]}"; do
-          # Remove properties section which can leak secret values (credentials, API keys, passwords)
-          # This matches Cork's S3 upload behavior in .github/workflows/upload-test-results.yml
-          SANITIZED_FILE=$(mktemp)
-          sed '/<properties/,/<\/properties>/d' "$file" > "$SANITIZED_FILE"
-          datadog-ci junit upload --service "$DD_SERVICE" --tags "$DD_TAGS" "$SANITIZED_FILE"
-          rm -f "$SANITIZED_FILE"
+          base=$(basename "${file%.xml}")
+          sanitized=$(mktemp "$SANITIZED_DIR/${base}-XXXXXX.xml")
+          sed '/<properties/,/<\/properties>/d' "$file" > "$sanitized"
         done
+        datadog-ci junit upload --service "$DD_SERVICE" --tags "$DD_TAGS" "$SANITIZED_DIR"
       fi
