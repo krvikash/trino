@@ -25,8 +25,6 @@ import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.project.PageProcessor;
 import io.trino.spi.Page;
-import io.trino.spi.block.Block;
-import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.function.OperatorType;
@@ -60,6 +58,8 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Streams.stream;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
+import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
+import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DoubleType.DOUBLE;
@@ -475,59 +475,6 @@ public class TestGpuExpressions
                 field(channelB, type));
 
         assertGpuMatchesCpu(inputPages, inputTypes, rowExpression, Set.of(channelA, channelB));
-    }
-
-    private static Block createBigintBlock(int positionsCount, NullsProvider nullsProvider, long minValue, long maxValue)
-    {
-        Random random = new Random(42);
-        Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-        BlockBuilder builder = BIGINT.createBlockBuilder(null, positionsCount);
-        for (int i = 0; i < positionsCount; i++) {
-            if (isNull.isPresent() && isNull.get()[i]) {
-                builder.appendNull();
-            }
-            else {
-                BIGINT.writeLong(builder, random.nextLong(minValue, maxValue));
-            }
-        }
-        return builder.build();
-    }
-
-    private static Block createBlock(Type type, int positionsCount, NullsProvider nullsProvider)
-    {
-        Random random = new Random(42);
-        Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
-        BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
-        for (int i = 0; i < positionsCount; i++) {
-            if (isNull.isPresent() && isNull.get()[i]) {
-                builder.appendNull();
-            }
-            else if (type == BIGINT) {
-                BIGINT.writeLong(builder, random.nextLong(-1000, 1000));
-            }
-            else if (type == INTEGER) {
-                INTEGER.writeLong(builder, random.nextInt(-1000, 1000));
-            }
-            else if (type == SMALLINT) {
-                SMALLINT.writeLong(builder, random.nextInt(-1000, 1000));
-            }
-            else if (type == TINYINT) {
-                TINYINT.writeLong(builder, random.nextInt(-100, 100));
-            }
-            else if (type == DOUBLE) {
-                DOUBLE.writeDouble(builder, random.nextDouble(-1000, 1000));
-            }
-            else if (type == REAL) {
-                REAL.writeLong(builder, Float.floatToIntBits((float) random.nextDouble(-1000, 1000)));
-            }
-            else if (type == VARCHAR) {
-                VARCHAR.writeSlice(builder, Slices.utf8Slice("test" + random.nextInt(100)));
-            }
-            else {
-                throw new UnsupportedOperationException("Unsupported type: " + type);
-            }
-        }
-        return builder.build();
     }
 
     private void testConstant(RowExpression constantExpression)
