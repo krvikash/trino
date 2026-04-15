@@ -66,12 +66,12 @@ public class RemoteTroubleshootingTraceClient
 
     public void start(QueryId queryId)
     {
-        callOnOtherNodes(node -> start(queryId, node));
+        callOnOtherNodesAndWait(node -> start(queryId, node));
     }
 
     public void remove(QueryId queryId)
     {
-        callOnOtherNodes(node -> remove(queryId, node));
+        callOnOtherNodesAndWait(node -> remove(queryId, node));
     }
 
     public Map<Node, DownloadResult> download(QueryId queryId, Set<String> processingNodesForQuery)
@@ -94,7 +94,7 @@ public class RemoteTroubleshootingTraceClient
 
     public void retain(QueryId queryId, Set<String> processingNodesForQuery)
     {
-        callOnOtherNodes(node -> remove(queryId, node), node -> !processingNodesForQuery.contains(node.getNodeIdentifier()));
+        callOnOtherNodesAndWait(node -> remove(queryId, node), node -> !processingNodesForQuery.contains(node.getNodeIdentifier()));
     }
 
     private Future<Void> start(QueryId queryId, InternalNode node)
@@ -138,12 +138,12 @@ public class RemoteTroubleshootingTraceClient
         return httpClient.executeAsync(request, new InputStreamResponseHandler());
     }
 
-    private void callOnOtherNodes(Function<InternalNode, Future<Void>> call)
+    private void callOnOtherNodesAndWait(Function<InternalNode, Future<Void>> call)
     {
-        callOnOtherNodes(call, node -> true);
+        callOnOtherNodesAndWait(call, node -> true);
     }
 
-    private void callOnOtherNodes(Function<InternalNode, Future<Void>> call, Predicate<InternalNode> nodePredicate)
+    private void callOnOtherNodesAndWait(Function<InternalNode, Future<Void>> call, Predicate<InternalNode> nodePredicate)
     {
         List<Future<Void>> futures = getNodes()
                 .filter(nodePredicate)
