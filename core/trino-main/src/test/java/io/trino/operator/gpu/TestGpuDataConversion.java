@@ -25,6 +25,7 @@ import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.GpuTypeConversion;
 import io.trino.spi.gpu.borrow.Own;
+import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
@@ -47,6 +48,7 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
+import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
@@ -79,6 +81,8 @@ public class TestGpuDataConversion
             .add(TIMESTAMP_SECONDS)
             .add(TIMESTAMP_MILLIS)
             .add(TIMESTAMP_MICROS)
+            .add(createDecimalType(9, 2))
+            .add(createDecimalType(18, 6))
             .add(VARCHAR)
             .build();
 
@@ -308,6 +312,58 @@ public class TestGpuDataConversion
         }
     }
 
+    @Test
+    public void testUnsupportedDecimalTypes()
+    {
+        assertThat(GpuTypeConversion.toGpuMapping(createDecimalType(19, 5))).isEmpty();
+        assertThat(GpuTypeConversion.toGpuMapping(createDecimalType(38, 10))).isEmpty();
+    }
+
+    @Test
+    public void testShortDecimalBoundaries()
+    {
+        for (DecimalType type : List.of(
+                createDecimalType(1, 0),
+                createDecimalType(1, 1),
+                createDecimalType(5, 5),
+                createDecimalType(18, 0),
+                createDecimalType(18, 18))) {
+            long maxUnscaled = 1L;
+            for (int i = 0; i < type.getPrecision(); i++) {
+                maxUnscaled *= 10;
+            }
+            maxUnscaled -= 1;
+            long[] values = {-maxUnscaled, -1, 0, 1, maxUnscaled};
+            BlockBuilder builder = type.createBlockBuilder(null, values.length + 1);
+            for (long v : values) {
+                type.writeLong(builder, v);
+            }
+            builder.appendNull();
+
+            List<Page> output = executeRoundTrip(List.of(new Page(builder.build())), List.of(type), Set.of(0));
+            int totalPositions = output.stream().mapToInt(Page::getPositionCount).sum();
+            assertThat(totalPositions).as("type %s", type).isEqualTo(values.length + 1);
+
+            DecimalType finalType = type;
+            long[] finalValues = values;
+            Streams.forEachPair(
+                    positions(output),
+                    IntStream.range(0, values.length + 1).boxed(),
+                    (actualPos, expectedIndex) -> {
+                        Block block = actualPos.page.getBlock(0);
+                        if (expectedIndex == finalValues.length) {
+                            assertThat(block.isNull(actualPos.position))
+                                    .as("type %s null position", finalType)
+                                    .isTrue();
+                            return;
+                        }
+                        assertThat((Long) readNativeValue(finalType, block, actualPos.position))
+                                .as("type %s position %d", finalType, expectedIndex)
+                                .isEqualTo(finalValues[expectedIndex]);
+                    });
+        }
+    }
+
     private List<Page> createInputPages(List<Integer> positionsCounts, NullsProvider nullsProvider, List<Type> types)
     {
         Block[][] pages = new Block[positionsCounts.size()][types.size()];
@@ -353,6 +409,9 @@ public class TestGpuDataConversion
         }
         if (type == TIMESTAMP_SECONDS || type == TIMESTAMP_MILLIS || type == TIMESTAMP_MICROS) {
             return createShortTimestampBlocks(positionsCounts, nullsProvider, (TimestampType) type);
+        }
+        if (type instanceof DecimalType decimalType && decimalType.isShort()) {
+            return createShortDecimalBlocks(positionsCounts, nullsProvider, decimalType);
         }
         if (type == VARCHAR) {
             return createVarcharBlocks(positionsCounts, nullsProvider);
@@ -548,6 +607,32 @@ public class TestGpuDataConversion
                         }
                         else {
                             type.writeLong(builder, (random.nextLong() / finalScale) * finalScale);
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private List<Block> createShortDecimalBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, DecimalType type)
+    {
+        Random random = new Random(42);
+        long bound = 1L;
+        for (int i = 0; i < type.getPrecision(); i++) {
+            bound *= 10;
+        }
+        long finalBound = bound;
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
+                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isNull.isPresent() && isNull.get()[i]) {
+                            builder.appendNull();
+                        }
+                        else {
+                            type.writeLong(builder, random.nextLong(-(finalBound - 1), finalBound));
                         }
                     }
                     return builder.build();

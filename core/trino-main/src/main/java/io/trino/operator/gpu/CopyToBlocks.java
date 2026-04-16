@@ -33,6 +33,7 @@ import io.trino.spi.gpu.RuntimeCloseable;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
+import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
@@ -205,6 +206,9 @@ public class CopyToBlocks
             return new IntColumnCopier(columnVector);
         }
         if (type == BIGINT) {
+            return new LongColumnCopier(columnVector);
+        }
+        if (type instanceof DecimalType decimalType && decimalType.isShort()) {
             return new LongColumnCopier(columnVector);
         }
         if (type instanceof TimestampType timestampType) {

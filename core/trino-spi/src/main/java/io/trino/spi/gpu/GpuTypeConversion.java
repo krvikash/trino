@@ -31,6 +31,7 @@ import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.gpu.Column.Blocks;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
+import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
@@ -145,6 +146,16 @@ public final class GpuTypeConversion
                         blocks -> copyLongBlocksToDevice(blocks, DType.TIMESTAMP_MICROSECONDS)));
                 default -> Optional.empty();
             };
+        }
+
+        if (type instanceof DecimalType decimalType && decimalType.isShort()) {
+            // Trino scale s means unscaled / 10^s; cuDF scale convention is unscaled * 10^scale, so negate
+            int cudfScale = -decimalType.getScale();
+            DType dType = DType.create(DType.DTypeEnum.DECIMAL64, cudfScale);
+            return Optional.of(new GpuTypeMapping(
+                    dType,
+                    value -> value.isPresent() ? Scalar.fromDecimal(cudfScale, (Long) value.get()) : Scalar.fromNull(dType),
+                    blocks -> copyLongBlocksToDevice(blocks, dType)));
         }
 
         if (type instanceof VarcharType) {
