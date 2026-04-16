@@ -51,6 +51,7 @@ import static com.google.common.collect.MoreCollectors.toOptional;
 import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
@@ -199,7 +200,7 @@ public class CopyToBlocks
         if (type == SMALLINT) {
             return new ShortColumnCopier(columnVector);
         }
-        if (type == INTEGER) {
+        if (type == INTEGER || type == DATE) {
             return new IntColumnCopier(columnVector);
         }
         if (type == BIGINT) {

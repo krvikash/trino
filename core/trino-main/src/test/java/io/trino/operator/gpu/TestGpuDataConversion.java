@@ -44,6 +44,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
@@ -66,6 +67,7 @@ public class TestGpuDataConversion
             .add(TINYINT)
             .add(SMALLINT)
             .add(INTEGER)
+            .add(DATE)
             .add(BIGINT)
             .add(REAL)
             .add(DOUBLE)
@@ -314,6 +316,9 @@ public class TestGpuDataConversion
         if (type == INTEGER) {
             return createIntegerBlocks(positionsCounts, nullsProvider);
         }
+        if (type == DATE) {
+            return createDateBlocks(positionsCounts, nullsProvider);
+        }
         if (type == BIGINT) {
             return createBigintBlocks(positionsCounts, nullsProvider);
         }
@@ -406,6 +411,27 @@ public class TestGpuDataConversion
                         }
                         else {
                             INTEGER.writeLong(builder, random.nextInt());
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private List<Block> createDateBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        Random random = new Random(42);
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
+                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    BlockBuilder builder = DATE.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isNull.isPresent() && isNull.get()[i]) {
+                            builder.appendNull();
+                        }
+                        else {
+                            DATE.writeLong(builder, random.nextInt());
                         }
                     }
                     return builder.build();

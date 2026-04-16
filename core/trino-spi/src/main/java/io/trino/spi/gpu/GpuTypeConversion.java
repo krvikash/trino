@@ -41,6 +41,7 @@ import java.util.Optional;
 
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
@@ -94,6 +95,13 @@ public final class GpuTypeConversion
                     DType.INT32,
                     value -> Scalar.fromInt(value.map(v -> ((Long) v).intValue()).orElse(null)),
                     blocks -> copyIntBlocksToDevice(blocks, DType.INT32)));
+        }
+
+        if (type == DATE) {
+            return Optional.of(new GpuTypeMapping(
+                    DType.TIMESTAMP_DAYS,
+                    value -> Scalar.timestampDaysFromInt(value.map(v -> ((Long) v).intValue()).orElse(null)),
+                    blocks -> copyIntBlocksToDevice(blocks, DType.TIMESTAMP_DAYS)));
         }
 
         if (type == BIGINT) {
@@ -622,6 +630,7 @@ public final class GpuTypeConversion
         public GpuTypeMapping
         {
             requireNonNull(dType, "dType is null");
+            requireNonNull(toScalar, "toScalar is null");
             requireNonNull(toColumn, "toColumn is null");
         }
     }
