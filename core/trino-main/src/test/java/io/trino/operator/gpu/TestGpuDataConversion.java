@@ -19,6 +19,8 @@ import io.airlift.slice.Slices;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.DictionaryBlock;
+import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Own;
@@ -129,6 +131,70 @@ public class TestGpuDataConversion
         List<Page> inputPages = createInputPages(positionsCounts, nullsProvider, types);
         List<Page> outputPages = executeRoundTrip(inputPages, types, allChannels(types.size()));
         assertSameData(outputPages, inputPages, types);
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testRlePages(NullsProvider nullsProvider)
+    {
+        List<Integer> positionsCounts = randomInts(0, 10_000).limit(20).toList();
+        List<Type> types = testTypes;
+        List<Page> inputPages = toRlePages(createInputPages(positionsCounts, nullsProvider, types));
+        List<Page> outputPages = executeRoundTrip(inputPages, types, allChannels(types.size()));
+        assertSameData(outputPages, inputPages, types);
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testDictionaryPages(NullsProvider nullsProvider)
+    {
+        List<Integer> positionsCounts = randomInts(0, 10_000).limit(20).toList();
+        List<Type> types = testTypes;
+        List<Page> inputPages = toDictionaryPages(createInputPages(positionsCounts, nullsProvider, types));
+        List<Page> outputPages = executeRoundTrip(inputPages, types, allChannels(types.size()));
+        assertSameData(outputPages, inputPages, types);
+    }
+
+    private static List<Page> toRlePages(List<Page> pages)
+    {
+        return pages.stream()
+                .map(page -> {
+                    Block[] blocks = new Block[page.getChannelCount()];
+                    for (int channel = 0; channel < page.getChannelCount(); channel++) {
+                        Block block = page.getBlock(channel);
+                        blocks[channel] = block.getPositionCount() == 0
+                                ? block
+                                : RunLengthEncodedBlock.create(block.getSingleValueBlock(0), block.getPositionCount());
+                    }
+                    return new Page(page.getPositionCount(), blocks);
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Page> toDictionaryPages(List<Page> pages)
+    {
+        Random random = new Random(42);
+        return pages.stream()
+                .map(page -> {
+                    int positionCount = page.getPositionCount();
+                    Block[] blocks = new Block[page.getChannelCount()];
+                    if (positionCount == 0) {
+                        for (int channel = 0; channel < page.getChannelCount(); channel++) {
+                            blocks[channel] = page.getBlock(channel);
+                        }
+                    }
+                    else {
+                        int[] ids = new int[positionCount];
+                        for (int i = 0; i < positionCount; i++) {
+                            ids[i] = random.nextInt(positionCount);
+                        }
+                        for (int channel = 0; channel < page.getChannelCount(); channel++) {
+                            blocks[channel] = DictionaryBlock.create(positionCount, page.getBlock(channel), ids);
+                        }
+                    }
+                    return new Page(positionCount, blocks);
+                })
+                .collect(toImmutableList());
     }
 
     @Test

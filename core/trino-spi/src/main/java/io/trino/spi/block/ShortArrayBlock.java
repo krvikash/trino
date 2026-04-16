@@ -231,12 +231,12 @@ public final class ShortArrayBlock
         return BlockUtil.getNulls(valueIsNull, arrayOffset, positionCount);
     }
 
-    int getRawValuesOffset()
+    public int getRawValuesOffset()
     {
         return arrayOffset;
     }
 
-    short[] getRawValues()
+    public short[] getRawValues()
     {
         return values;
     }
