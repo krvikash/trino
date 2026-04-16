@@ -622,7 +622,7 @@ public final class DistributedQueryRunner
     public MaterializedResultWithPlan executeWithPlan(Session session, String sql)
     {
         ResultWithQueryId<MaterializedResult> result = executeInternal(session, sql);
-        return new MaterializedResultWithPlan(result.getQueryId(), getCoordinator().getQueryPlan(result.getQueryId()), result.getResult());
+        return new MaterializedResultWithPlan(result.getQueryId(), getCoordinator().getQueryPlan(result.getQueryId()), getCoordinator().getNewIrPlan(result.getQueryId()), result.getResult());
     }
 
     @Override

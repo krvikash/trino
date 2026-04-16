@@ -119,7 +119,7 @@ public final class StandaloneQueryRunner
     {
         TestingDirectTrinoClient.Result result = executeInternal(session, sql);
         MaterializedResult materializedRows = result.result().get();
-        return new MaterializedResultWithPlan(result.queryId(), server.getQueryPlan(result.queryId()), materializedRows);
+        return new MaterializedResultWithPlan(result.queryId(), server.getQueryPlan(result.queryId()), server.getNewIrPlan(result.queryId()), materializedRows);
     }
 
     @Override

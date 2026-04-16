@@ -37,6 +37,7 @@ import io.trino.server.ResultQueryInfo;
 import io.trino.server.protocol.Slug;
 import io.trino.spi.QueryId;
 import io.trino.spi.TrinoException;
+import io.trino.sql.newir.Program;
 import io.trino.sql.planner.Plan;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -53,7 +54,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static io.airlift.concurrent.Threads.threadsNamed;
@@ -274,8 +274,13 @@ public class QueryManager
     public Optional<Plan> getOldIrQueryPlan(QueryId queryId)
     {
         Optional<SqlQueryExecution.EffectivePlan> effectivePlan = queryTracker.getQuery(queryId).getQueryPlan();
-        checkState(effectivePlan.map(SqlQueryExecution.EffectivePlan::isOldIrPlan).orElse(true), "New IR plans are not supported in this context. Please make sure that reuse_common_subqueries is set to false");
-        return effectivePlan.map(SqlQueryExecution.EffectivePlan::getOldIrPlan);
+        return effectivePlan.filter(SqlQueryExecution.EffectivePlan::isOldIrPlan).map(SqlQueryExecution.EffectivePlan::getOldIrPlan);
+    }
+
+    public Optional<Program> getNewIrQueryPlan(QueryId queryId)
+    {
+        Optional<SqlQueryExecution.EffectivePlan> effectivePlan = queryTracker.getQuery(queryId).getQueryPlan();
+        return effectivePlan.filter(SqlQueryExecution.EffectivePlan::isNewIrProgram).map(SqlQueryExecution.EffectivePlan::getNewIrProgram);
     }
 
     public void addFinalQueryInfoListener(QueryId queryId, StateChangeListener<QueryInfo> stateChangeListener)

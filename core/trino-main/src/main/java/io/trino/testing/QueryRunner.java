@@ -30,6 +30,7 @@ import io.trino.split.PageSourceManager;
 import io.trino.split.SplitManager;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.analyzer.QueryExplainer;
+import io.trino.sql.newir.Program;
 import io.trino.sql.planner.NodePartitioningManager;
 import io.trino.sql.planner.Plan;
 import io.trino.transaction.TransactionManager;
@@ -134,7 +135,7 @@ public interface QueryRunner
 
     void loadSpoolingManager(String name, Map<String, String> properties);
 
-    record MaterializedResultWithPlan(QueryId queryId, Optional<Plan> queryPlan, MaterializedResult result) {}
+    record MaterializedResultWithPlan(QueryId queryId, Optional<Plan> queryPlan, Optional<Program> program, MaterializedResult result) {}
 
     record MaterializedResultWithQueryId(QueryId queryId, MaterializedResult result) {}
 }
