@@ -131,6 +131,92 @@ public class TestGpuDataConversion
         assertSameData(outputPages, inputPages, types);
     }
 
+    @Test
+    public void testRealSpecialValues()
+    {
+        float[] values = {
+                Float.NaN,
+                Float.POSITIVE_INFINITY,
+                Float.NEGATIVE_INFINITY,
+                0.0f,
+                -0.0f,
+                Float.MIN_VALUE,
+                Float.MAX_VALUE,
+                -Float.MAX_VALUE,
+                Float.intBitsToFloat(0x7F800001), // non-canonical NaN bit pattern
+        };
+        BlockBuilder builder = REAL.createBlockBuilder(null, values.length + 1);
+        for (float v : values) {
+            REAL.writeFloat(builder, v);
+        }
+        builder.appendNull();
+
+        List<Page> output = executeRoundTrip(List.of(new Page(builder.build())), List.of(REAL), Set.of(0));
+        int totalPositions = output.stream().mapToInt(Page::getPositionCount).sum();
+        assertThat(totalPositions).isEqualTo(values.length + 1);
+
+        Streams.forEachPair(
+                positions(output),
+                IntStream.range(0, values.length + 1).boxed(),
+                (actualPos, expectedIndex) -> {
+                    Block block = actualPos.page.getBlock(0);
+                    if (expectedIndex == values.length) {
+                        assertThat(block.isNull(actualPos.position)).isTrue();
+                        return;
+                    }
+                    long actualBits = (Long) readNativeValue(REAL, block, actualPos.position);
+                    long expectedBits = Float.isNaN(values[expectedIndex])
+                            ? 0x7FC00000L
+                            : Float.floatToIntBits(values[expectedIndex]) & 0xFFFFFFFFL;
+                    assertThat(actualBits & 0xFFFFFFFFL)
+                            .as("REAL position %d", expectedIndex)
+                            .isEqualTo(expectedBits);
+                });
+    }
+
+    @Test
+    public void testDoubleSpecialValues()
+    {
+        double[] values = {
+                Double.NaN,
+                Double.POSITIVE_INFINITY,
+                Double.NEGATIVE_INFINITY,
+                0.0,
+                -0.0,
+                Double.MIN_VALUE,
+                Double.MAX_VALUE,
+                -Double.MAX_VALUE,
+                Double.longBitsToDouble(0x7FF0000000000001L), // non-canonical NaN bit pattern
+        };
+        BlockBuilder builder = DOUBLE.createBlockBuilder(null, values.length + 1);
+        for (double v : values) {
+            DOUBLE.writeDouble(builder, v);
+        }
+        builder.appendNull();
+
+        List<Page> output = executeRoundTrip(List.of(new Page(builder.build())), List.of(DOUBLE), Set.of(0));
+        int totalPositions = output.stream().mapToInt(Page::getPositionCount).sum();
+        assertThat(totalPositions).isEqualTo(values.length + 1);
+
+        Streams.forEachPair(
+                positions(output),
+                IntStream.range(0, values.length + 1).boxed(),
+                (actualPos, expectedIndex) -> {
+                    Block block = actualPos.page.getBlock(0);
+                    if (expectedIndex == values.length) {
+                        assertThat(block.isNull(actualPos.position)).isTrue();
+                        return;
+                    }
+                    long actualBits = Double.doubleToRawLongBits((Double) readNativeValue(DOUBLE, block, actualPos.position));
+                    long expectedBits = Double.isNaN(values[expectedIndex])
+                            ? 0x7FF8000000000000L
+                            : Double.doubleToLongBits(values[expectedIndex]);
+                    assertThat(actualBits)
+                            .as("DOUBLE position %d", expectedIndex)
+                            .isEqualTo(expectedBits);
+                });
+    }
+
     private List<Page> createInputPages(List<Integer> positionsCounts, NullsProvider nullsProvider, List<Type> types)
     {
         Block[][] pages = new Block[positionsCounts.size()][types.size()];

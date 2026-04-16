@@ -15,12 +15,16 @@ package io.trino.operator.gpu;
 
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.HostColumnVector;
+import ai.rapids.cudf.HostMemoryBuffer;
 import com.google.common.collect.ImmutableList;
 import io.trino.plugin.base.util.AutoCloseableCloser;
 import io.trino.spi.Page;
-import io.trino.spi.PageBuilder;
 import io.trino.spi.block.Block;
-import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.ByteArrayBlock;
+import io.trino.spi.block.IntArrayBlock;
+import io.trino.spi.block.LongArrayBlock;
+import io.trino.spi.block.ShortArrayBlock;
+import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.Blocks;
 import io.trino.spi.gpu.Column.DeviceMemory;
@@ -29,16 +33,11 @@ import io.trino.spi.gpu.RuntimeCloseable;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
-import io.trino.spi.type.CharType;
-import io.trino.spi.type.DecimalType;
-import io.trino.spi.type.TimeType;
-import io.trino.spi.type.TimeWithTimeZoneType;
-import io.trino.spi.type.TimestampType;
-import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
-import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
+import jakarta.annotation.Nullable;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -52,29 +51,36 @@ import static com.google.common.collect.MoreCollectors.toOptional;
 import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
-import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
-import static io.trino.spi.type.NumberType.NUMBER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TinyintType.TINYINT;
+import static java.lang.Double.longBitsToDouble;
+import static java.lang.Float.intBitsToFloat;
+import static java.lang.Math.max;
+import static java.lang.Math.min;
 import static java.util.Objects.requireNonNull;
 
 public class CopyToBlocks
         implements GpuOperation
 {
-    private static final int BATCH_SIZE = 16;
+    // The entire GPU Page is materialized to host memory regardless of target page size, so this
+    // does not affect peak memory — only output page granularity. Larger pages amortize allocation
+    // and per-page overhead, so we use 8 MB instead of the PageBuilder default of 1 MB.
+    private static final int MAX_PAGE_SIZE_IN_BYTES = 8 * 1024 * 1024;
+    private static final int INITIAL_BATCH_SIZE = 16;
+    private static final int MAX_POSITIONS_PER_PAGE = 128 * 1024;
+    private static final int CANONICAL_NAN_FLOAT_BITS = Float.floatToIntBits(Float.NaN);
+    private static final long CANONICAL_NAN_DOUBLE_BITS = Double.doubleToLongBits(Double.NaN);
 
     private final GpuOperation source;
     private final List<Type> types;
-    private final int columnCount;
 
     public CopyToBlocks(GpuOperation source, List<Type> types)
     {
         this.source = requireNonNull(source, "source is null");
         this.types = ImmutableList.copyOf(requireNonNull(types, "types is null"));
-        this.columnCount = types.size();
     }
 
     @Override
@@ -96,10 +102,9 @@ public class CopyToBlocks
     private @Move GpuPage processPage(@Borrow GpuPage inputPage)
     {
         try {
-            checkArgument(inputPage.columnCount() == columnCount, "Page has wrong column count");
-            int[] columnIndexToAppenderIndex = new int[inputPage.columnCount()];
-            @Own List<BlockBuilderAppender> appenders = newArrayListWithExpectedSize(inputPage.columnCount());
-            List<Type> copiedTypes = newArrayListWithExpectedSize(inputPage.columnCount());
+            checkArgument(inputPage.columnCount() == types.size(), "Page has wrong column count");
+            int[] columnIndexToCopierIndex = new int[inputPage.columnCount()];
+            @Own List<ColumnCopier> copiers = newArrayListWithExpectedSize(inputPage.columnCount());
             @Own Column[] newColumns = new Column[inputPage.columnCount()];
             try {
                 Optional<List<Integer>> desiredBlockPositions = IntStream.range(0, inputPage.columnCount())
@@ -116,53 +121,47 @@ public class CopyToBlocks
                 // TODO (https://starburstdata.atlassian.net/browse/ENG-9808) if there are any pre-existing blocks, we need to honor their alignment or rewrite them
                 checkState(desiredBlockPositions.isEmpty(), "Pre-existing blocks");
 
+                int positionCount = inputPage.positionCount();
                 for (int columnIndex = 0; columnIndex < inputPage.columnCount(); columnIndex++) {
                     switch (inputPage.column(columnIndex)) {
-                        case Blocks _ -> {
-                            // Nothing to do here
-                        }
+                        case Blocks _ -> {}
                         case DeviceMemory deviceMemory -> {
-                            columnIndexToAppenderIndex[columnIndex] = appenders.size();
+                            columnIndexToCopierIndex[columnIndex] = copiers.size();
                             Type type = types.get(columnIndex);
-                            appenders.add(copyToBlocks(deviceMemory.columnVector(), type));
-                            copiedTypes.add(type);
+                            copiers.add(createColumnCopier(deviceMemory.columnVector(), type));
                         }
                     }
                 }
 
                 List<Page> copiedPages = new ArrayList<>();
-                PageBuilder pageBuilder = new PageBuilder(inputPage.positionCount(), copiedTypes);
+                int targetBatchSize = INITIAL_BATCH_SIZE;
+                int offset = 0;
+                double maxAvgBytesPerPosition = 0;
 
-                // TODO (https://starburstdata.atlassian.net/browse/ENG-9841) the batch size probably should depend on width of the rows
-                int positionOffset = 0;
-                for (int batchNumber = 0; batchNumber < inputPage.positionCount() / BATCH_SIZE; batchNumber++) {
-                    pageBuilder.declarePositions(BATCH_SIZE);
-                    for (int i = 0; i < appenders.size(); i++) {
-                        appenders.get(i).appendBatch(pageBuilder.getBlockBuilder(i), positionOffset);
+                // Growth heuristic mirrors PreSizedPageBuilder: start small, double until
+                // avg observed bytes/position × batchSize approaches MAX_PAGE_SIZE_IN_BYTES.
+                while (offset < positionCount) {
+                    int batchSize = min(targetBatchSize, positionCount - offset);
+
+                    Block[] blocks = new Block[copiers.size()];
+                    for (int i = 0; i < copiers.size(); i++) {
+                        blocks[i] = copiers.get(i).buildBlock(offset, batchSize);
                     }
-                    positionOffset += BATCH_SIZE;
-                    if (pageBuilder.isFull()) {
-                        copiedPages.add(pageBuilder.build());
-                        pageBuilder.reset();
-                    }
+                    Page page = new Page(batchSize, blocks);
+                    copiedPages.add(page);
+
+                    double avg = (double) page.getSizeInBytes() / batchSize;
+                    maxAvgBytesPerPosition = max(maxAvgBytesPerPosition, avg);
+                    long byteBudget = (long) (MAX_PAGE_SIZE_IN_BYTES / maxAvgBytesPerPosition);
+                    targetBatchSize = Math.clamp(Math.min(2L * batchSize, byteBudget), INITIAL_BATCH_SIZE, MAX_POSITIONS_PER_PAGE);
+                    offset += batchSize;
                 }
-                while (positionOffset < inputPage.positionCount()) {
-                    pageBuilder.declarePosition();
-                    for (int i = 0; i < appenders.size(); i++) {
-                        appenders.get(i).append(pageBuilder.getBlockBuilder(i), positionOffset);
-                    }
-                    positionOffset++;
-                }
-                if (!pageBuilder.isEmpty()) {
-                    copiedPages.add(pageBuilder.build());
-                }
-                pageBuilder.reset();
 
                 for (int columnIndex = 0; columnIndex < inputPage.columnCount(); columnIndex++) {
                     newColumns[columnIndex] = switch (inputPage.column(columnIndex)) {
                         case Blocks blocks -> blocks;
                         case DeviceMemory _ -> {
-                            int copiedPagesColumnIndex = columnIndexToAppenderIndex[columnIndex];
+                            int copiedPagesColumnIndex = columnIndexToCopierIndex[columnIndex];
                             yield new Blocks(
                                     copiedPages.stream()
                                             .map(page -> page.getBlock(copiedPagesColumnIndex))
@@ -170,7 +169,7 @@ public class CopyToBlocks
                         }
                     };
                 }
-                return new GpuPage(inputPage.positionCount(), newColumns);
+                return new GpuPage(positionCount, newColumns);
             }
             finally {
                 try (AutoCloseableCloser closer = AutoCloseableCloser.create()) {
@@ -180,7 +179,7 @@ public class CopyToBlocks
                             closer.register(column);
                         }
                     }
-                    appenders.forEach(closer::register);
+                    copiers.forEach(closer::register);
                 }
             }
         }
@@ -192,58 +191,28 @@ public class CopyToBlocks
         }
     }
 
-    private @Move BlockBuilderAppender copyToBlocks(@Borrow ColumnVector columnVector, Type type)
+    private @Move ColumnCopier createColumnCopier(@Borrow ColumnVector columnVector, Type type)
     {
-        if (type == BOOLEAN) {
-            return new BooleanAppender(columnVector);
-        }
-        if (type == TINYINT) {
-            return new TinyintAppender(columnVector);
+        if (type == BOOLEAN || type == TINYINT) {
+            return new ByteColumnCopier(columnVector);
         }
         if (type == SMALLINT) {
-            return new SmallintAppender(columnVector);
+            return new ShortColumnCopier(columnVector);
         }
         if (type == INTEGER) {
-            return new IntegerAppender(columnVector);
+            return new IntColumnCopier(columnVector);
         }
         if (type == BIGINT) {
-            return new BigintAppender(columnVector);
+            return new LongColumnCopier(columnVector);
         }
         if (type == REAL) {
-            return new RealAppender(columnVector);
+            return new RealColumnCopier(columnVector);
         }
         if (type == DOUBLE) {
-            return new DoubleAppender(columnVector);
+            return new DoubleColumnCopier(columnVector);
         }
-        if (type instanceof DecimalType) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
-        }
-        if (type == NUMBER) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
-        }
-        if (type instanceof CharType) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
-        }
-        if (type instanceof VarcharType varcharType) {
-            return new VarcharAppender(columnVector, varcharType);
-        }
-        if (type instanceof VarbinaryType) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
-        }
-        if (type == DATE) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
-        }
-        if (type instanceof TimeType) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
-        }
-        if (type instanceof TimeWithTimeZoneType) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
-        }
-        if (type instanceof TimestampType) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
-        }
-        if (type instanceof TimestampWithTimeZoneType) {
-            throw new UnsupportedOperationException("Unsupported type: " + type);
+        if (type instanceof VarcharType) {
+            return new VarcharColumnCopier(columnVector);
         }
         throw new UnsupportedOperationException("Unsupported type: " + type);
     }
@@ -254,292 +223,48 @@ public class CopyToBlocks
         source.close();
     }
 
-    private static class BooleanAppender
-            implements BlockBuilderAppender
+    /**
+     * Unpack an Arrow-style least-significant-bit-first validity bitmask (bit 0 of each byte
+     * corresponds to the first row within that byte) covering positions
+     * {@code [position, position + count)} into a per-row {@code boolean[]}
+     * where {@code true} means null, matching Trino block nulls convention.
+     */
+    private static Optional<boolean[]> validityToNulls(@Nullable @Borrow HostMemoryBuffer validityBuf, int position, int count)
     {
-        private final @Own HostColumnVector hostColumnVector;
-
-        public BooleanAppender(ColumnVector columnVector)
-        {
-            // TODO (https://starburstdata.atlassian.net/browse/ENG-9841) use ColumnVector.copyToHostAsync(stream) to get parallel transfers for all columns being copied
-            hostColumnVector = columnVector.copyToHost();
+        if (validityBuf == null) {
+            return Optional.empty();
         }
+        int startByte = position >> 3;
+        int endByte = (position + count - 1) >> 3;
+        int byteCount = endByte - startByte + 1;
+        byte[] validityBytes = new byte[byteCount];
+        validityBuf.getBytes(validityBytes, 0, startByte, byteCount);
 
-        @Override
-        public void appendBatch(BlockBuilder blockBuilder, int positionOffset)
-        {
-            for (int i = 0; i < BATCH_SIZE; i++) {
-                append(blockBuilder, positionOffset + i);
-            }
+        boolean[] valueIsNull = new boolean[count];
+        for (int i = 0; i < count; i++) {
+            int bitIndex = position + i;
+            valueIsNull[i] = (validityBytes[(bitIndex >> 3) - startByte] & (1 << (bitIndex & 7))) == 0;
         }
-
-        @Override
-        public void append(BlockBuilder blockBuilder, int position)
-        {
-            if (hostColumnVector.isNull(position)) {
-                blockBuilder.appendNull();
-            }
-            else {
-                BOOLEAN.writeBoolean(blockBuilder, hostColumnVector.getBoolean(position));
-            }
-        }
-
-        @Override
-        public void close()
-        {
-            hostColumnVector.close();
-        }
+        return Optional.of(valueIsNull);
     }
 
-    private static class TinyintAppender
-            implements BlockBuilderAppender
+    private static class ByteColumnCopier
+            implements ColumnCopier
     {
         private final @Own HostColumnVector hostColumnVector;
 
-        public TinyintAppender(ColumnVector columnVector)
-        {
-            hostColumnVector = columnVector.copyToHost();
-        }
-
-        @Override
-        public void appendBatch(BlockBuilder blockBuilder, int positionOffset)
-        {
-            for (int i = 0; i < BATCH_SIZE; i++) {
-                append(blockBuilder, positionOffset + i);
-            }
-        }
-
-        @Override
-        public void append(BlockBuilder blockBuilder, int position)
-        {
-            if (hostColumnVector.isNull(position)) {
-                blockBuilder.appendNull();
-            }
-            else {
-                TINYINT.writeLong(blockBuilder, hostColumnVector.getByte(position));
-            }
-        }
-
-        @Override
-        public void close()
-        {
-            hostColumnVector.close();
-        }
-    }
-
-    private static class SmallintAppender
-            implements BlockBuilderAppender
-    {
-        private final @Own HostColumnVector hostColumnVector;
-
-        public SmallintAppender(ColumnVector columnVector)
-        {
-            hostColumnVector = columnVector.copyToHost();
-        }
-
-        @Override
-        public void appendBatch(BlockBuilder blockBuilder, int positionOffset)
-        {
-            for (int i = 0; i < BATCH_SIZE; i++) {
-                append(blockBuilder, positionOffset + i);
-            }
-        }
-
-        @Override
-        public void append(BlockBuilder blockBuilder, int position)
-        {
-            if (hostColumnVector.isNull(position)) {
-                blockBuilder.appendNull();
-            }
-            else {
-                SMALLINT.writeLong(blockBuilder, hostColumnVector.getShort(position));
-            }
-        }
-
-        @Override
-        public void close()
-        {
-            hostColumnVector.close();
-        }
-    }
-
-    private static class IntegerAppender
-            implements BlockBuilderAppender
-    {
-        private final @Own HostColumnVector hostColumnVector;
-
-        public IntegerAppender(ColumnVector columnVector)
-        {
-            hostColumnVector = columnVector.copyToHost();
-        }
-
-        @Override
-        public void appendBatch(BlockBuilder blockBuilder, int positionOffset)
-        {
-            for (int i = 0; i < BATCH_SIZE; i++) {
-                append(blockBuilder, positionOffset + i);
-            }
-        }
-
-        @Override
-        public void append(BlockBuilder blockBuilder, int position)
-        {
-            if (hostColumnVector.isNull(position)) {
-                blockBuilder.appendNull();
-            }
-            else {
-                INTEGER.writeLong(blockBuilder, hostColumnVector.getInt(position));
-            }
-        }
-
-        @Override
-        public void close()
-        {
-            hostColumnVector.close();
-        }
-    }
-
-    private static class BigintAppender
-            implements BlockBuilderAppender
-    {
-        private final @Own HostColumnVector hostColumnVector;
-
-        public BigintAppender(ColumnVector columnVector)
-        {
-            hostColumnVector = columnVector.copyToHost();
-        }
-
-        @Override
-        public void appendBatch(BlockBuilder blockBuilder, int positionOffset)
-        {
-            for (int i = 0; i < BATCH_SIZE; i++) {
-                append(blockBuilder, positionOffset + i);
-            }
-        }
-
-        @Override
-        public void append(BlockBuilder blockBuilder, int position)
-        {
-            if (hostColumnVector.isNull(position)) {
-                blockBuilder.appendNull();
-            }
-            else {
-                BIGINT.writeLong(blockBuilder, hostColumnVector.getLong(position));
-            }
-        }
-
-        @Override
-        public void close()
-        {
-            hostColumnVector.close();
-        }
-    }
-
-    private static class RealAppender
-            implements BlockBuilderAppender
-    {
-        private final @Own HostColumnVector hostColumnVector;
-
-        public RealAppender(ColumnVector columnVector)
-        {
-            hostColumnVector = columnVector.copyToHost();
-        }
-
-        @Override
-        public void appendBatch(BlockBuilder blockBuilder, int positionOffset)
-        {
-            for (int i = 0; i < BATCH_SIZE; i++) {
-                append(blockBuilder, positionOffset + i);
-            }
-        }
-
-        @Override
-        public void append(BlockBuilder blockBuilder, int position)
-        {
-            if (hostColumnVector.isNull(position)) {
-                blockBuilder.appendNull();
-            }
-            else {
-                REAL.writeFloat(blockBuilder, hostColumnVector.getFloat(position));
-            }
-        }
-
-        @Override
-        public void close()
-        {
-            hostColumnVector.close();
-        }
-    }
-
-    private static class DoubleAppender
-            implements BlockBuilderAppender
-    {
-        private final @Own HostColumnVector hostColumnVector;
-
-        public DoubleAppender(ColumnVector columnVector)
-        {
-            hostColumnVector = columnVector.copyToHost();
-        }
-
-        @Override
-        public void appendBatch(BlockBuilder blockBuilder, int positionOffset)
-        {
-            for (int i = 0; i < BATCH_SIZE; i++) {
-                append(blockBuilder, positionOffset + i);
-            }
-        }
-
-        @Override
-        public void append(BlockBuilder blockBuilder, int position)
-        {
-            if (hostColumnVector.isNull(position)) {
-                blockBuilder.appendNull();
-            }
-            else {
-                DOUBLE.writeDouble(blockBuilder, hostColumnVector.getDouble(position));
-            }
-        }
-
-        @Override
-        public void close()
-        {
-            hostColumnVector.close();
-        }
-    }
-
-    private static class VarcharAppender
-            implements BlockBuilderAppender
-    {
-        private final @Own HostColumnVector hostColumnVector;
-        private final VarcharType varcharType;
-
-        public VarcharAppender(ColumnVector columnVector, VarcharType varcharType)
+        public ByteColumnCopier(ColumnVector columnVector)
         {
             // TODO (https://starburstdata.atlassian.net/browse/ENG-9841) use ColumnVector.copyToHostAsync(stream) to get parallel transfers for all columns being copied
             this.hostColumnVector = columnVector.copyToHost();
-            this.varcharType = requireNonNull(varcharType, "varcharType is null");
         }
 
         @Override
-        public void appendBatch(BlockBuilder blockBuilder, int positionOffset)
+        public Block buildBlock(int position, int count)
         {
-            for (int i = 0; i < BATCH_SIZE; i++) {
-                append(blockBuilder, positionOffset + i);
-            }
-        }
-
-        @Override
-        public void append(BlockBuilder blockBuilder, int position)
-        {
-            if (hostColumnVector.isNull(position)) {
-                blockBuilder.appendNull();
-            }
-            else {
-                // TODO (https://starburstdata.atlassian.net/browse/ENG-9841) avoid intermediate byte[]
-                //  See how getUTF8 is implemented. We could maybe hostColumnVector.getData().getBytes(...) directly into a pre-resized builder byte[] array
-                byte[] utf8 = hostColumnVector.getUTF8(position);
-                varcharType.writeSlice(blockBuilder, wrappedBuffer(utf8));
-            }
+            byte[] values = new byte[count];
+            hostColumnVector.getData().getBytes(values, 0, position, count);
+            return new ByteArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
         }
 
         @Override
@@ -549,17 +274,189 @@ public class CopyToBlocks
         }
     }
 
-    private interface BlockBuilderAppender
+    private static class ShortColumnCopier
+            implements ColumnCopier
+    {
+        private final @Own HostColumnVector hostColumnVector;
+
+        public ShortColumnCopier(ColumnVector columnVector)
+        {
+            this.hostColumnVector = columnVector.copyToHost();
+        }
+
+        @Override
+        public Block buildBlock(int position, int count)
+        {
+            short[] values = new short[count];
+            ByteBuffer byteBuffer = hostColumnVector.getData().asByteBuffer((long) position * Short.BYTES, count * Short.BYTES);
+            byteBuffer.asShortBuffer().get(values);
+            return new ShortArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
+        }
+
+        @Override
+        public void close()
+        {
+            hostColumnVector.close();
+        }
+    }
+
+    private static class IntColumnCopier
+            implements ColumnCopier
+    {
+        private final @Own HostColumnVector hostColumnVector;
+
+        public IntColumnCopier(ColumnVector columnVector)
+        {
+            this.hostColumnVector = columnVector.copyToHost();
+        }
+
+        @Override
+        public Block buildBlock(int position, int count)
+        {
+            int[] values = new int[count];
+            hostColumnVector.getData().getInts(values, 0, (long) position * Integer.BYTES, count);
+            return new IntArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
+        }
+
+        @Override
+        public void close()
+        {
+            hostColumnVector.close();
+        }
+    }
+
+    private static class LongColumnCopier
+            implements ColumnCopier
+    {
+        private final @Own HostColumnVector hostColumnVector;
+
+        public LongColumnCopier(ColumnVector columnVector)
+        {
+            this.hostColumnVector = columnVector.copyToHost();
+        }
+
+        @Override
+        public Block buildBlock(int position, int count)
+        {
+            long[] values = new long[count];
+            hostColumnVector.getData().getLongs(values, 0, (long) position * Long.BYTES, count);
+            return new LongArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
+        }
+
+        @Override
+        public void close()
+        {
+            hostColumnVector.close();
+        }
+    }
+
+    private static class RealColumnCopier
+            implements ColumnCopier
+    {
+        private final @Own HostColumnVector hostColumnVector;
+
+        public RealColumnCopier(ColumnVector columnVector)
+        {
+            this.hostColumnVector = columnVector.copyToHost();
+        }
+
+        @Override
+        public Block buildBlock(int position, int count)
+        {
+            int[] values = new int[count];
+            hostColumnVector.getData().getInts(values, 0, (long) position * Float.BYTES, count);
+            // cuDF preserves raw NaN bits; Trino expects the canonical NaN
+            for (int i = 0; i < count; i++) {
+                if (Float.isNaN(intBitsToFloat(values[i]))) {
+                    values[i] = CANONICAL_NAN_FLOAT_BITS;
+                }
+            }
+            return new IntArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
+        }
+
+        @Override
+        public void close()
+        {
+            hostColumnVector.close();
+        }
+    }
+
+    private static class DoubleColumnCopier
+            implements ColumnCopier
+    {
+        private final @Own HostColumnVector hostColumnVector;
+
+        public DoubleColumnCopier(ColumnVector columnVector)
+        {
+            this.hostColumnVector = columnVector.copyToHost();
+        }
+
+        @Override
+        public Block buildBlock(int position, int count)
+        {
+            long[] values = new long[count];
+            hostColumnVector.getData().getLongs(values, 0, (long) position * Double.BYTES, count);
+            // cuDF preserves raw NaN bits; Trino expects the canonical NaN
+            for (int i = 0; i < count; i++) {
+                if (Double.isNaN(longBitsToDouble(values[i]))) {
+                    values[i] = CANONICAL_NAN_DOUBLE_BITS;
+                }
+            }
+            return new LongArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
+        }
+
+        @Override
+        public void close()
+        {
+            hostColumnVector.close();
+        }
+    }
+
+    private static class VarcharColumnCopier
+            implements ColumnCopier
+    {
+        private final @Own HostColumnVector hostColumnVector;
+
+        public VarcharColumnCopier(ColumnVector columnVector)
+        {
+            // TODO (https://starburstdata.atlassian.net/browse/ENG-9841) use ColumnVector.copyToHostAsync(stream) to get parallel transfers for all columns being copied
+            this.hostColumnVector = columnVector.copyToHost();
+        }
+
+        @Override
+        public Block buildBlock(int position, int count)
+        {
+            int[] offsets = new int[count + 1];
+            hostColumnVector.getOffsets().getInts(offsets, 0, (long) position * Integer.BYTES, count + 1);
+            int dataStart = offsets[0];
+            offsets[0] = 0;
+            for (int i = 1; i <= count; i++) {
+                offsets[i] -= dataStart;
+            }
+            int dataLength = offsets[count];
+
+            byte[] bytes = new byte[dataLength];
+            if (dataLength > 0) {
+                hostColumnVector.getData().getBytes(bytes, 0, dataStart, dataLength);
+            }
+
+            return new VariableWidthBlock(
+                    count,
+                    wrappedBuffer(bytes),
+                    offsets,
+                    validityToNulls(hostColumnVector.getValidity(), position, count));
+        }
+
+        @Override
+        public void close()
+        {
+            hostColumnVector.close();
+        }
+    }
+
+    private interface ColumnCopier
             extends RuntimeCloseable
     {
-        /**
-         * Append {@link #BATCH_SIZE} entries
-         */
-        void appendBatch(BlockBuilder blockBuilder, int positionOffset);
-
-        /**
-         * Append one entry.
-         */
-        void append(BlockBuilder blockBuilder, int position);
+        Block buildBlock(int position, int count);
     }
 }
