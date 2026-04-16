@@ -33,6 +33,15 @@ public class BufferNodeStateManager
         state = targetState;
     }
 
+    public synchronized boolean tryTransitionState(BufferNodeState targetState)
+    {
+        if (!targetState.canTransitionFrom(state)) {
+            return false;
+        }
+        transitionState(targetState);
+        return true;
+    }
+
     public synchronized BufferNodeState getState()
     {
         return state;
