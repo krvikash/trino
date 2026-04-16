@@ -107,14 +107,13 @@ public class DiscoveryBroadcast
             try {
                 discoverApi.updateBufferNode(nodeInfo);
                 Boolean previousRegistrationState = discoveryRegistrationState.getAndSet(true);
-                if (previousRegistrationState == null) {
+                if (previousRegistrationState == null && stateManager.tryTransitionState(ACTIVE)) {
                     // Only first registering to discovery server marks Data Server as ACTIVE
-                    stateManager.transitionState(ACTIVE);
                     // update the state in discovery server immediately
                     discoverApi.updateBufferNode(bufferNodeInfoSupplier.get());
                 }
                 if (previousRegistrationState == null || !previousRegistrationState) {
-                    log.info("Marking registered");
+                    log.info("Marking registered (current state: %s)", stateManager.getState());
                 }
                 lastSuccessfulBroadcast.set(Instant.now());
             }
@@ -123,7 +122,7 @@ public class DiscoveryBroadcast
                 if (lastSuccessfulBroadcast.get().plusMillis(broadcastFailureInactivityThreshold.toMillis()).isAfter(Instant.now())) {
                     Boolean previousRegistrationState = discoveryRegistrationState.getAndSet(false);
                     if (previousRegistrationState != null && previousRegistrationState) {
-                        log.warn("Marking unregistered");
+                        log.warn("Marking unregistered (current state: %s)", stateManager.getState());
                     }
                 }
             }

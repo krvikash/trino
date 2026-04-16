@@ -114,6 +114,16 @@ class TestDiscoveryBroadcast
         assertThat(discoveryApi.getUpdateCount()).isEqualTo(1);
         discoveryApi.resetUpdateCount();
 
+        // Verify lastSuccessfulBroadcast was properly set:
+        // a failure within the threshold must mark the node unregistered
+        discoveryApi.failNextUpdates(1);
+        broadcast.broadcast();
+        assertThat(broadcast.isRegistered()).isFalse();
+
+        broadcast.broadcast();
+        assertThat(broadcast.isRegistered()).isTrue();
+        discoveryApi.resetUpdateCount();
+
         // DRAINED: node keeps reporting to discovery
         lifecycleStateManager.transitionState(BufferNodeState.DRAINED);
         broadcast.broadcast();
