@@ -78,7 +78,9 @@ class TestBufferExchangeConfig
                 .setDataClientAddDataPagesCircuitBreakerFailureThreshold(100)
                 .setDataClientAddDataPagesCircuitBreakerSuccessThreshold(5)
                 .setDataClientAddDataPagesCircuitBreakerDelay(succinctDuration(5.0, SECONDS))
-                .setUseVirtualThreadsUri(false));
+                .setUseVirtualThreadsUri(false)
+                .setUseOldRateLimiting(false)
+                .setMaxConcurrentAddDataPagesPerNode(16));
     }
 
     @Test
@@ -126,6 +128,8 @@ class TestBufferExchangeConfig
                 .put("exchange.buffer-data.add-data-pages-circuit-breaker-success-threshold", "6")
                 .put("exchange.buffer-data.add-data-pages-circuit-breaker-delay", "31s")
                 .put("exchange.buffer-data.use-virtual-threads-uri", "true")
+                .put("exchange.buffer-data.use-old-rate-limiting", "true")
+                .put("exchange.buffer-data.max-concurrent-add-data-pages-per-node", "32")
                 .buildOrThrow();
 
         BufferExchangeConfig expected = new BufferExchangeConfig()
@@ -168,7 +172,9 @@ class TestBufferExchangeConfig
                 .setDataClientAddDataPagesCircuitBreakerFailureThreshold(11)
                 .setDataClientAddDataPagesCircuitBreakerSuccessThreshold(6)
                 .setDataClientAddDataPagesCircuitBreakerDelay(succinctDuration(31, SECONDS))
-                .setUseVirtualThreadsUri(true);
+                .setUseVirtualThreadsUri(true)
+                .setUseOldRateLimiting(true)
+                .setMaxConcurrentAddDataPagesPerNode(32);
 
         assertFullMapping(properties, expected, ImmutableSet.of("exchange.use-embedded-buffer-service"));
     }
@@ -218,6 +224,8 @@ class TestBufferExchangeConfig
                 .put("exchange.buffer-data.add-data-pages-circuit-breaker-success-threshold", "6")
                 .put("exchange.buffer-data.add-data-pages-circuit-breaker-delay", "31s")
                 .put("exchange.buffer-data.use-virtual-threads-uri", "true")
+                .put("exchange.buffer-data.use-old-rate-limiting", "true")
+                .put("exchange.buffer-data.max-concurrent-add-data-pages-per-node", "32")
                 .buildOrThrow();
 
         BufferExchangeConfig expected = new BufferExchangeConfig()
@@ -260,7 +268,9 @@ class TestBufferExchangeConfig
                 .setDataClientAddDataPagesCircuitBreakerFailureThreshold(11)
                 .setDataClientAddDataPagesCircuitBreakerSuccessThreshold(6)
                 .setDataClientAddDataPagesCircuitBreakerDelay(succinctDuration(31, SECONDS))
-                .setUseVirtualThreadsUri(true);
+                .setUseVirtualThreadsUri(true)
+                .setUseOldRateLimiting(true)
+                .setMaxConcurrentAddDataPagesPerNode(32);
 
         assertFullMapping(properties, expected, ImmutableSet.of("exchange.buffer-discovery.uri"));
     }

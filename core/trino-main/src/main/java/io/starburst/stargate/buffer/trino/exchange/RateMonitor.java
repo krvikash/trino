@@ -48,7 +48,10 @@ public class RateMonitor
     /**
      * @param bufferNodeId target buffer node that we want to register to send an addDataPages request to
      * @return delay in milliseconds before we actually do the request
+     *
+     * @deprecated used by old rate limiting mechanism
      */
+    @Deprecated
     public long registerExecutionSchedule(long bufferNodeId)
     {
         Optional<RateLimitInfo> rateLimitInfo = rateLimitInfos.getOrDefault(bufferNodeId, Optional.empty());
@@ -81,6 +84,24 @@ public class RateMonitor
             executionSchedule.add(expectedExecutionTimestamp);
             return expectedExecutionTimestamp - now;
         }
+    }
+
+    /**
+     * Returns the current rate limit interval in milliseconds for the given buffer node,
+     * based on the latest rate limit info. Does not modify any internal state.
+     *
+     * @return interval in milliseconds between requests, or 0 if no rate limiting is needed
+     */
+    public long getCurrentIntervalMillis(long bufferNodeId)
+    {
+        Optional<RateLimitInfo> rateLimitInfo = rateLimitInfos.getOrDefault(bufferNodeId, Optional.empty());
+        if (rateLimitInfo.isEmpty()) {
+            return 0;
+        }
+
+        long expectedTotalTimeInMillis = (long) (1000 / rateLimitInfo.get().rateLimit());
+        long averageProcessTimeInMillis = rateLimitInfo.get().averageProcessTimeInMillis();
+        return min(max(expectedTotalTimeInMillis - averageProcessTimeInMillis, 0), MAX_INTERVAL_IN_MILLIS);
     }
 
     /**

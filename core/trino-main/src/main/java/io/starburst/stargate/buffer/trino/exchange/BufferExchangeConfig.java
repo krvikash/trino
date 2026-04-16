@@ -75,6 +75,8 @@ public class BufferExchangeConfig
     private int dataClientAddDataPagesCircuitBreakerSuccessThreshold = 5;
     private Duration dataClientAddDataPagesCircuitBreakerDelay = succinctDuration(5.0, SECONDS);
     private boolean useVirtualThreadsUri;
+    private boolean useOldRateLimiting;
+    private int maxConcurrentAddDataPagesPerNode = 16;
 
     public URI getDiscoveryServiceUri()
     {
@@ -602,6 +604,33 @@ public class BufferExchangeConfig
     public BufferExchangeConfig setUseVirtualThreadsUri(boolean useVirtualThreadsUri)
     {
         this.useVirtualThreadsUri = useVirtualThreadsUri;
+        return this;
+    }
+
+    public boolean isUseOldRateLimiting()
+    {
+        return useOldRateLimiting;
+    }
+
+    @Config("exchange.buffer-data.use-old-rate-limiting")
+    @ConfigDescription("Use old rate limiting mechanism for addDataPages requests")
+    public BufferExchangeConfig setUseOldRateLimiting(boolean useOldRateLimiting)
+    {
+        this.useOldRateLimiting = useOldRateLimiting;
+        return this;
+    }
+
+    @Min(1)
+    public int getMaxConcurrentAddDataPagesPerNode()
+    {
+        return maxConcurrentAddDataPagesPerNode;
+    }
+
+    @Config("exchange.buffer-data.max-concurrent-add-data-pages-per-node")
+    @ConfigDescription("Maximum number of concurrent addDataPages requests per buffer node")
+    public BufferExchangeConfig setMaxConcurrentAddDataPagesPerNode(int maxConcurrentAddDataPagesPerNode)
+    {
+        this.maxConcurrentAddDataPagesPerNode = maxConcurrentAddDataPagesPerNode;
         return this;
     }
 }

@@ -13,6 +13,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ListMultimap;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.FutureCallback;
@@ -47,6 +48,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -55,15 +57,24 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import static com.google.common.base.MoreObjects.toStringHelper;
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
 import static io.airlift.units.Duration.succinctDuration;
@@ -78,7 +89,8 @@ public class DataApiFacade
     private static final boolean ENABLE_LOG_RATE_LIMITING = true;
     private static final RateLimitingLogger rateLimitingLogger = new RateLimitingLogger(log, ENABLE_LOG_RATE_LIMITING);
 
-    private static final Duration CLEANUP_DELAY = succinctDuration(5, TimeUnit.MINUTES);
+    private static final Duration CLEANUP_DELAY = succinctDuration(5, TimeUnit.SECONDS);
+    private static final Duration PROCESS_PENDING_REQUESTS_INTERVAL = succinctDuration(10, TimeUnit.SECONDS);
 
     private final BufferNodeDiscoveryManager discoveryManager;
     private final ApiFactory apiFactory;
@@ -92,6 +104,12 @@ public class DataApiFacade
     private final ListeningScheduledExecutorService listeningScheduledExecutor;
     private final RateMonitor rateMonitor;
     private final Closer destroyCloser = Closer.create();
+    private final boolean useOldRateLimit;
+    private final Stopwatch stopwatch = Stopwatch.createStarted();
+
+    private final int maxConcurrentAddDataPagesPerNode;
+    private final AddDataPagesStatsUpdater addDataPagesStatsUpdater;
+    private final Map<Long, AddDataPagesProcessingState> addDataPagesProcessingStates = new ConcurrentHashMap<>();
 
     record RetryExecutorConfig(
             int maxRetries,
@@ -133,6 +151,8 @@ public class DataApiFacade
                         config.getDataClientAddDataPagesCircuitBreakerFailureThreshold(),
                         config.getDataClientAddDataPagesCircuitBreakerSuccessThreshold(),
                         config.getDataClientAddDataPagesCircuitBreakerDelay()),
+                config.isUseOldRateLimiting(),
+                config.getMaxConcurrentAddDataPagesPerNode(),
                 executor);
     }
 
@@ -143,6 +163,8 @@ public class DataApiFacade
             DataApiFacadeStats stats,
             RetryExecutorConfig defaultRetryExecutorConfig,
             RetryExecutorConfig addDataPagesRetryExecutorConfig,
+            boolean useOldRateLimit,
+            int maxConcurrentAddDataPagesPerNode,
             ScheduledExecutorService executor)
     {
         this.discoveryManager = requireNonNull(discoveryManager, "discoveryManager is null");
@@ -150,15 +172,19 @@ public class DataApiFacade
         this.stats = requireNonNull(stats, "stats is null");
         this.defaultRetryExecutorConfig = requireNonNull(defaultRetryExecutorConfig, "defaultRetryExecutorConfig is null");
         this.addDataPagesRetryExecutorConfig = requireNonNull(addDataPagesRetryExecutorConfig, "addDataPagesRetryExecutorConfig is null");
+        this.useOldRateLimit = useOldRateLimit;
+        this.maxConcurrentAddDataPagesPerNode = maxConcurrentAddDataPagesPerNode;
         this.executor = requireNonNull(executor, "executor is null");
         this.listeningScheduledExecutor = listeningDecorator(executor);
         this.rateMonitor = new RateMonitor(Ticker.systemTicker());
+        this.addDataPagesStatsUpdater = new AddDataPagesStatsUpdater(stats.getAddDataPagesOperationStats());
     }
 
     @PostConstruct
-    private void init()
+    @VisibleForTesting
+    void init()
     {
-        ScheduledFuture<?> future = this.executor.scheduleWithFixedDelay(() -> {
+        ScheduledFuture<?> cleanupFuture = this.executor.scheduleWithFixedDelay(() -> {
             try {
                 cleanUp();
             }
@@ -167,11 +193,50 @@ public class DataApiFacade
                 log.error(e, "Unexpected error caught in cleanUp");
             }
         }, CLEANUP_DELAY.toMillis(), CLEANUP_DELAY.toMillis(), MILLISECONDS);
-        destroyCloser.register(() -> future.cancel(true));
+        destroyCloser.register(() -> cleanupFuture.cancel(true));
+
+        ScheduledFuture<?> processPendingFuture = this.executor.scheduleWithFixedDelay(() -> {
+            try {
+                scheduleProcessAddDataPages();
+            }
+            catch (Exception e) {
+                log.error(e, "Unexpected error caught in processPendingAddDataPagesRequests");
+            }
+        }, PROCESS_PENDING_REQUESTS_INTERVAL.toMillis(), PROCESS_PENDING_REQUESTS_INTERVAL.toMillis(), MILLISECONDS);
+        destroyCloser.register(() -> processPendingFuture.cancel(true));
+
+        destroyCloser.register(() -> {
+            while (true) {
+                ImmutableSet.copyOf(addDataPagesProcessingStates.keySet()).forEach(this::drainAddDataPagesState);
+                Set<Long> remainingStates = addDataPagesProcessingStates.keySet();
+                if (remainingStates.isEmpty()) {
+                    return;
+                }
+                List<Future<?>> processFutures = new ArrayList<>();
+                addDataPagesProcessingStates.forEach((bufferNodeId, state) -> {
+                    System.out.println(state);
+
+                    processFutures.add(scheduleProcessAddDataPages(bufferNodeId, state));
+                });
+                // wait for all process tasks to finish before another try; ignore exceptions
+                processFutures.forEach(future -> {
+                    try {
+                        future.get();
+                    }
+                    catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    catch (ExecutionException e) {
+                        // ignore
+                    }
+                });
+            }
+        });
     }
 
     @PreDestroy
-    private void destroy()
+    @VisibleForTesting
+    void destroy()
     {
         try {
             destroyCloser.close();
@@ -181,7 +246,8 @@ public class DataApiFacade
         }
     }
 
-    private void cleanUp()
+    @VisibleForTesting
+    void cleanUp()
     {
         BufferNodeDiscoveryManager.BufferNodesState bufferNodes = discoveryManager.getBufferNodes();
 
@@ -208,7 +274,57 @@ public class DataApiFacade
         log.debug("cleaning up stale add data pages retry executors for buffer nodes %s", staleAddDataPagesRetryExecutors);
         staleAddDataPagesRetryExecutors.forEach(addDataPagesRetryExecutors::remove);
 
+        Set<Long> staleAddDataPagesProcessingStates = addDataPagesProcessingStates.keySet().stream()
+                .filter(isBufferNodeStale)
+                .collect(toImmutableSet());
+        log.debug("cleaning up stale add data pages processing states for buffer nodes %s", staleAddDataPagesProcessingStates);
+        staleAddDataPagesProcessingStates.forEach(this::drainAddDataPagesState);
+
         rateMonitor.cleanUp(isBufferNodeStale);
+    }
+
+    private void drainAddDataPagesState(long bufferNodeId)
+    {
+        AddDataPagesProcessingState drainingState = addDataPagesProcessingStates.compute(bufferNodeId, (ignored, state) -> {
+            if (state == null) {
+                return null;
+            }
+
+            // mark for draining
+            state.draining.set(true);
+
+            // if already drained delete
+            if (state.backoffRequests.isEmpty() && state.activeRequests.isEmpty() && state.inFlightRequests.get() == 0) {
+                return null;
+            }
+            return state;
+        });
+
+        if (drainingState != null) {
+            checkState(drainingState.draining.get(), "Expected draining to be true");
+            scheduleProcessAddDataPages(bufferNodeId, drainingState);
+        }
+    }
+
+    private static void completeWithDrainedException(PendingAddDataPagesRequest request)
+    {
+        ErrorCode errorCode = (request.tryCount.get() > 0 && request.requestPossiblyDelivered.get())
+                ? ErrorCode.DRAINING_ON_RETRY
+                : ErrorCode.DRAINED;
+        request.resultFuture.setException(new DataApiException(errorCode, "Buffer node is no longer available"));
+    }
+
+    // Safety net to unstick pending requests that might have been missed due to race conditions
+    // in the callback-driven processing of tryHandlePendingAddDataPages
+    private void scheduleProcessAddDataPages()
+    {
+        for (Map.Entry<Long, AddDataPagesProcessingState> entry : addDataPagesProcessingStates.entrySet()) {
+            // Remove completed requests that are stuck in the middle of the queue where
+            // doHandlePendingAddDataPages (which only peeks/polls from the head) won't reach them.
+            // ConcurrentLinkedQueue.removeIf is safe for concurrent access.
+            entry.getValue().activeRequests.removeIf(request -> request.resultFuture.isDone());
+            scheduleProcessAddDataPages(entry.getKey(), entry.getValue());
+        }
     }
 
     @VisibleForTesting
@@ -315,6 +431,15 @@ public class DataApiFacade
 
     public ListenableFuture<AddDataPagesResponse> addDataPages(long bufferNodeId, String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
     {
+        if (useOldRateLimit) {
+            return addDataPagesOldRateLimit(bufferNodeId, exchangeId, taskId, attemptId, dataPagesId, dataPagesByPartition);
+        }
+        return addDataPagesNewRateLimit(bufferNodeId, exchangeId, taskId, attemptId, dataPagesId, dataPagesByPartition);
+    }
+
+    @Deprecated
+    private ListenableFuture<AddDataPagesResponse> addDataPagesOldRateLimit(long bufferNodeId, String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
+    {
         AtomicLong triesCount = new AtomicLong();
         AtomicBoolean requestPossiblyDelivered = new AtomicBoolean(false);
         Stopwatch stopwatch = Stopwatch.createStarted();
@@ -373,6 +498,213 @@ public class DataApiFacade
                 runWithRetry(bufferNodeId, this::getAddDataPagesRetryExecutor, call),
                 _ -> new AddDataPagesResponse(triesCount.intValue() - 1, stopwatch.elapsed(MILLISECONDS), successRequestStopwatch.elapsed(MILLISECONDS), totalRequestDelay.get()),
                 directExecutor());
+    }
+
+    private ListenableFuture<AddDataPagesResponse> addDataPagesNewRateLimit(long bufferNodeId, String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition)
+    {
+        SettableFuture<AddDataPagesResponse> resultFuture = SettableFuture.create();
+        PendingAddDataPagesRequest request = new PendingAddDataPagesRequest(bufferNodeId, exchangeId, taskId, attemptId, dataPagesId, dataPagesByPartition, resultFuture);
+
+        enqueueAddDataPagesRequest(bufferNodeId, request)
+                .ifPresent(state -> scheduleProcessAddDataPages(bufferNodeId, state));
+        return resultFuture;
+    }
+
+    private Optional<AddDataPagesProcessingState> enqueueAddDataPagesRequest(long bufferNodeId, PendingAddDataPagesRequest request)
+    {
+        if (request.resultFuture.isDone()) {
+            return Optional.empty();
+        }
+        AtomicBoolean rejected = new AtomicBoolean();
+        AddDataPagesProcessingState state = addDataPagesProcessingStates.compute(bufferNodeId, (ignored, existing) -> {
+            if (existing != null && existing.draining.get()) {
+                rejected.set(true);
+                return existing;
+            }
+            AddDataPagesProcessingState processingState = (existing != null) ? existing : new AddDataPagesProcessingState();
+            request.enqueueTimeMillis.set(stopwatch.elapsed(MILLISECONDS));
+            processingState.activeRequests.add(request);
+            return processingState;
+        });
+        if (rejected.get()) {
+            completeWithDrainedException(request);
+            return Optional.empty();
+        }
+        return Optional.of(state);
+    }
+
+    private void tryProcessRequests(long bufferNodeId, AddDataPagesProcessingState state)
+    {
+        while (state.requestsProcessingRequested.get()) {
+            if (!state.requestsBeingProcessed.compareAndSet(false, true)) {
+                return;
+            }
+            state.requestsProcessingRequested.set(false);
+            try {
+                if (state.draining.get()) {
+                    doDrainAddDataPages(state);
+                }
+                else {
+                    doHandlePendingAddDataPages(bufferNodeId, state);
+                }
+            }
+            finally {
+                state.requestsBeingProcessed.set(false);
+            }
+        }
+    }
+
+    private void doHandlePendingAddDataPages(long bufferNodeId, AddDataPagesProcessingState state)
+    {
+        PendingAddDataPagesRequest pendingRequest;
+        while ((pendingRequest = state.activeRequests.poll()) != null) {
+            // drop completed requests
+            if (pendingRequest.resultFuture.isDone()) {
+                continue;
+            }
+
+            // bail out if too many requests
+            if (state.inFlightRequests.get() >= maxConcurrentAddDataPagesPerNode) {
+                state.activeRequests.addFirst(pendingRequest);
+                return;
+            }
+
+            long nowMillis = stopwatch.elapsed(MILLISECONDS);
+            long currentRequestIntervalMillis = rateMonitor.getCurrentIntervalMillis(bufferNodeId);
+            long timeToWait = currentRequestIntervalMillis - (nowMillis - state.lastRequestStartedMillis.get());
+            if (timeToWait > 0) {
+                // put the request back at the head
+                state.activeRequests.addFirst(pendingRequest);
+                executor.schedule(() -> {
+                    if (!state.requestsProcessingRequested.compareAndSet(false, true)) {
+                        return;
+                    }
+                    tryProcessRequests(bufferNodeId, state);
+                }, timeToWait, MILLISECONDS);
+                return;
+            }
+
+            initiateAddDataPagesRequest(pendingRequest, state);
+        }
+    }
+
+    private void doDrainAddDataPages(AddDataPagesProcessingState state)
+    {
+        state.backoffRequests.forEach(DataApiFacade::completeWithDrainedException);
+        state.activeRequests.forEach(DataApiFacade::completeWithDrainedException);
+        state.backoffRequests.clear();
+        state.activeRequests.clear();
+    }
+
+    private void initiateAddDataPagesRequest(PendingAddDataPagesRequest pendingRequest, AddDataPagesProcessingState state)
+    {
+        state.inFlightRequests.incrementAndGet();
+        state.lastRequestStartedMillis.set(stopwatch.elapsed(MILLISECONDS));
+
+        Stopwatch currentRequestStopwatch = Stopwatch.createStarted();
+        boolean retry = pendingRequest.tryCount.get() > 0;
+        long now = stopwatch.elapsed(MILLISECONDS);
+        if (!retry) {
+            pendingRequest.firstRequestTimeMillis.set(now);
+        }
+        pendingRequest.cumulativeDelayMillis.addAndGet(now - pendingRequest.enqueueTimeMillis.get());
+
+        ListenableFuture<Optional<RateLimitInfo>> requestFuture;
+        requestFuture = internalAddDataPages(
+                pendingRequest.bufferNodeId,
+                pendingRequest.exchangeId,
+                pendingRequest.taskId,
+                pendingRequest.attemptId,
+                pendingRequest.dataPagesId,
+                pendingRequest.dataPagesByPartition);
+
+        Futures.addCallback(requestFuture, new FutureCallback<>()
+        {
+            @Override
+            public void onSuccess(Optional<RateLimitInfo> rateLimitInfo)
+            {
+                state.inFlightRequests.decrementAndGet();
+                addDataPagesStatsUpdater.onSuccess(currentRequestStopwatch.elapsed().toNanos());
+                pendingRequest.resultFuture.set(new AddDataPagesResponse(
+                        pendingRequest.tryCount.get(),
+                        stopwatch.elapsed(MILLISECONDS) - pendingRequest.firstRequestTimeMillis.get(),
+                        currentRequestStopwatch.elapsed(MILLISECONDS),
+                        pendingRequest.cumulativeDelayMillis.get()));
+
+                rateMonitor.updateRateLimitInfo(pendingRequest.bufferNodeId, rateLimitInfo);
+                scheduleProcessAddDataPages(pendingRequest.bufferNodeId, state);
+            }
+
+            @Override
+            public void onFailure(Throwable failure)
+            {
+                long requestTimeNanos = currentRequestStopwatch.elapsed().toNanos();
+                state.inFlightRequests.decrementAndGet();
+                if (pendingRequest.tryCount.get() + 1 > addDataPagesRetryExecutorConfig.maxRetries()) {
+                    addDataPagesStatsUpdater.onFailure(failure, requestTimeNanos);
+                    pendingRequest.resultFuture.setException(failure);
+                    scheduleProcessAddDataPages(pendingRequest.bufferNodeId, state);
+                    return;
+                }
+
+                if ((failure instanceof DataApiException dataApiException)) {
+                    rateMonitor.updateRateLimitInfo(pendingRequest.bufferNodeId, dataApiException.getRateLimitInfo());
+                    if (retry && pendingRequest.requestPossiblyDelivered.get() && (dataApiException.getErrorCode() == ErrorCode.DRAINING || dataApiException.getErrorCode() == ErrorCode.DRAINED)) {
+                        // If we are retrying we need to ensure that we do not propagate DRAINING error to user. We do not know if previous request
+                        // was recorded by server or not. If we handle DRAINING, and send data to another buffer service node we may end up with
+                        // duplicated data.
+                        addDataPagesStatsUpdater.onFailure(failure, requestTimeNanos);
+                        pendingRequest.resultFuture.setException(new DataApiException(ErrorCode.DRAINING_ON_RETRY, "Received %s error code on retry".formatted(dataApiException.getErrorCode()), failure));
+                        scheduleProcessAddDataPages(pendingRequest.bufferNodeId, state);
+                        return;
+                    }
+                }
+                addDataPagesStatsUpdater.onRetry(failure, requestTimeNanos);
+                pendingRequest.requestPossiblyDelivered.compareAndSet(false, requestMayHaveAlreadyBeenDelivered(failure));
+                int retryNumber = pendingRequest.tryCount.incrementAndGet();
+
+                long backoffMillis = computeBackoffMillis(retryNumber);
+                state.backoffRequests.add(pendingRequest);
+                // requeue after backoff; route through the compute-based primitive so the re-enqueue is
+                // serialized with cleanUp on the same bucket. If cleanUp completed the request with a
+                // DRAINED error, enqueueAddDataPagesRequest returns Optional.empty() and nothing is resurrected.
+                executor.schedule(() -> {
+                    enqueueAddDataPagesRequest(pendingRequest.bufferNodeId, pendingRequest)
+                            .ifPresent(current -> scheduleProcessAddDataPages(pendingRequest.bufferNodeId, current));
+                    state.backoffRequests.remove(pendingRequest);
+                }, backoffMillis, MILLISECONDS);
+                scheduleProcessAddDataPages(pendingRequest.bufferNodeId, state);
+            }
+        }, directExecutor());
+    }
+
+    private void finalizeResultFuture(PendingAddDataPagesRequest request, Consumer<SettableFuture<AddDataPagesResponse>> resultFutureConsumer)
+    {
+        resultFutureConsumer.accept(request.resultFuture);
+    }
+
+    private long computeBackoffMillis(int retryNumber)
+    {
+        long initialMillis = addDataPagesRetryExecutorConfig.backoffInitial().toMillis();
+        long maxMillis = addDataPagesRetryExecutorConfig.backoffMax().toMillis();
+        double factor = addDataPagesRetryExecutorConfig.backoffFactor();
+        double jitter = addDataPagesRetryExecutorConfig.backoffJitter();
+
+        long backoff = (long) (initialMillis * Math.pow(factor, retryNumber - 1));
+        backoff = Math.min(backoff, maxMillis);
+        if (jitter > 0) {
+            backoff = (long) (backoff * (1.0 + ThreadLocalRandom.current().nextDouble(-jitter, jitter)));
+            backoff = Math.max(backoff, 0);
+        }
+        return backoff;
+    }
+
+    private Future<?> scheduleProcessAddDataPages(long bufferNodeId, AddDataPagesProcessingState state)
+    {
+        if (!state.requestsProcessingRequested.compareAndSet(false, true)) {
+            return immediateVoidFuture();
+        }
+        return executor.submit(() -> tryProcessRequests(bufferNodeId, state));
     }
 
     /**
@@ -675,10 +1007,86 @@ public class DataApiFacade
         }
 
         @Override
-            public void onSuccess(long requestTimeNanos)
+        public void onSuccess(long requestTimeNanos)
         {
             stats.getSuccessOperationCount().update(1);
             stats.getSuccessfulRequestTime().addNanos(requestTimeNanos);
+        }
+    }
+
+    private static final class PendingAddDataPagesRequest
+    {
+        public final long bufferNodeId;
+        public final String exchangeId;
+        public final int taskId;
+        public final int attemptId;
+        public final long dataPagesId;
+        public final ListMultimap<Integer, Slice> dataPagesByPartition;
+        public final AtomicLong enqueueTimeMillis;
+        public final AtomicLong firstRequestTimeMillis;
+        public final AtomicInteger tryCount;
+        public final AtomicLong cumulativeDelayMillis;
+        public final AtomicBoolean requestPossiblyDelivered;
+        public final SettableFuture<AddDataPagesResponse> resultFuture;
+
+        public PendingAddDataPagesRequest(long bufferNodeId, String exchangeId, int taskId, int attemptId, long dataPagesId, ListMultimap<Integer, Slice> dataPagesByPartition, SettableFuture<AddDataPagesResponse> resultFuture)
+        {
+            this.bufferNodeId = bufferNodeId;
+            this.exchangeId = exchangeId;
+            this.taskId = taskId;
+            this.attemptId = attemptId;
+            this.dataPagesId = dataPagesId;
+            this.dataPagesByPartition = dataPagesByPartition;
+            this.enqueueTimeMillis = new AtomicLong();
+            this.firstRequestTimeMillis = new AtomicLong();
+            this.tryCount = new AtomicInteger();
+            this.cumulativeDelayMillis = new AtomicLong();
+            this.requestPossiblyDelivered = new AtomicBoolean();
+            this.resultFuture = resultFuture;
+        }
+
+        @Override
+        public String toString()
+        {
+            return toStringHelper(this)
+                    .add("bufferNodeId", bufferNodeId)
+                    .add("exchangeId", exchangeId)
+                    .add("taskId", taskId)
+                    .add("attemptId", attemptId)
+                    .add("dataPagesId", dataPagesId)
+                    .add("dataPagesByPartition", dataPagesByPartition)
+                    .add("enqueueTimeMillis", enqueueTimeMillis)
+                    .add("firstRequestTimeMillis", firstRequestTimeMillis)
+                    .add("tryCount", tryCount)
+                    .add("cumulativeDelayMillis", cumulativeDelayMillis)
+                    .add("requestPossiblyDelivered", requestPossiblyDelivered)
+                    .add("resultFuture", resultFuture)
+                    .toString();
+        }
+    }
+
+    private static final class AddDataPagesProcessingState
+    {
+        public final ConcurrentLinkedDeque<PendingAddDataPagesRequest> activeRequests = new ConcurrentLinkedDeque<>();
+        public final Set<PendingAddDataPagesRequest> backoffRequests = ConcurrentHashMap.newKeySet();
+        public final AtomicInteger inFlightRequests = new AtomicInteger();
+        public final AtomicBoolean requestsProcessingRequested = new AtomicBoolean();
+        public final AtomicBoolean requestsBeingProcessed = new AtomicBoolean();
+        public final AtomicLong lastRequestStartedMillis = new AtomicLong();
+        public final AtomicBoolean draining = new AtomicBoolean();
+
+        @Override
+        public String toString()
+        {
+            return toStringHelper(this)
+                    .add("activeRequests", activeRequests)
+                    .add("backoffRequests", backoffRequests)
+                    .add("inFlightRequests", inFlightRequests)
+                    .add("requestsProcessingRequested", requestsProcessingRequested)
+                    .add("requestsBeingProcessed", requestsBeingProcessed)
+                    .add("lastRequestStartedMillis", lastRequestStartedMillis)
+                    .add("draining", draining)
+                    .toString();
         }
     }
 }
