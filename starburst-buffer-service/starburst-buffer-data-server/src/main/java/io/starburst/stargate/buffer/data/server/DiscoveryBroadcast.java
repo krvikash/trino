@@ -23,6 +23,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
@@ -38,7 +39,7 @@ public class DiscoveryBroadcast
     private final long bufferNodeId;
     private final DiscoveryApi discoverApi;
     private final BufferNodeStateManager stateManager;
-    private final BufferNodeInfoService bufferNodeInfoService;
+    private final Supplier<BufferNodeInfo> bufferNodeInfoSupplier;
 
     private final ScheduledExecutorService executor = newSingleThreadScheduledExecutor(daemonThreadsNamed("discovery-broadcast-%s"));
     private final AtomicReference<Boolean> discoveryRegistrationState = new AtomicReference<>(null);
@@ -55,10 +56,25 @@ public class DiscoveryBroadcast
             BufferNodeInfoService bufferNodeInfoService,
             DataServerConfig config)
     {
+        this(
+                bufferNodeId,
+                discoveryApi,
+                stateManager,
+                requireNonNull(bufferNodeInfoService, "bufferNodeInfoService is null")::getNodeInfo,
+                config);
+    }
+
+    DiscoveryBroadcast(
+            BufferNodeId bufferNodeId,
+            DiscoveryApi discoveryApi,
+            BufferNodeStateManager stateManager,
+            Supplier<BufferNodeInfo> bufferNodeInfoSupplier,
+            DataServerConfig config)
+    {
         this.bufferNodeId = bufferNodeId.getLongValue();
         this.discoverApi = requireNonNull(discoveryApi, "discoveryApi is null");
         this.stateManager = requireNonNull(stateManager, "stateManager is null");
-        this.bufferNodeInfoService = requireNonNull(bufferNodeInfoService, "bufferNodeInfoService is null");
+        this.bufferNodeInfoSupplier = requireNonNull(bufferNodeInfoSupplier, "bufferNodeInfoSupplier is null");
         this.broadcastInterval = config.getBroadcastInterval();
         this.broadcastFailureInactivityThreshold = config.getBroadcastFailureInactivityThreshold();
     }
@@ -86,7 +102,7 @@ public class DiscoveryBroadcast
 
     public void broadcast()
     {
-        BufferNodeInfo nodeInfo = bufferNodeInfoService.getNodeInfo();
+        BufferNodeInfo nodeInfo = bufferNodeInfoSupplier.get();
         if (nodeInfo.state() != STARTING) {
             try {
                 discoverApi.updateBufferNode(nodeInfo);
@@ -95,7 +111,7 @@ public class DiscoveryBroadcast
                     // Only first registering to discovery server marks Data Server as ACTIVE
                     stateManager.transitionState(ACTIVE);
                     // update the state in discovery server immediately
-                    discoverApi.updateBufferNode(bufferNodeInfoService.getNodeInfo());
+                    discoverApi.updateBufferNode(bufferNodeInfoSupplier.get());
                 }
                 if (previousRegistrationState == null || !previousRegistrationState) {
                     log.info("Marking registered");
