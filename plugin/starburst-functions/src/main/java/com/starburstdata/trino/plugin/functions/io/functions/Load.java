@@ -85,6 +85,7 @@ import static io.trino.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
 import static io.trino.spi.StandardErrorCode.NOT_FOUND;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.function.table.ReturnTypeSpecification.GenericTable.GENERIC_TABLE;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.util.Locale.ENGLISH;
@@ -103,6 +104,8 @@ public class Load
     private static final String FIELD_SEPARATOR_ARGUMENT_NAME = "FIELD_SEPARATOR";
     private static final String QUOTE_CHAR_ARGUMENT_NAME = "QUOTE_CHAR";
     private static final String ESCAPE_CHAR_ARGUMENT_NAME = "ESCAPE_CHAR";
+    private static final String MULTILINE_ARGUMENT_NAME = "MULTILINE";
+    private static final String LINE_SEPARATOR_ARGUMENT_NAME = "LINE_SEPARATOR";
 
     // Make timeout configurable in the future if needed
     private static final Integer SCHEMA_DISCOVERY_TIMEOUT_SECONDS = 30;
@@ -166,6 +169,16 @@ public class Load
                                     .type(VARCHAR)
                                     .defaultValue(null)
                                     .build())
+                            .add(ScalarArgumentSpecification.builder()
+                                    .name(MULTILINE_ARGUMENT_NAME)
+                                    .type(BOOLEAN)
+                                    .defaultValue(false)
+                                    .build())
+                            .add(ScalarArgumentSpecification.builder()
+                                    .name(LINE_SEPARATOR_ARGUMENT_NAME)
+                                    .type(VARCHAR)
+                                    .defaultValue(null)
+                                    .build())
                             .build(),
                     GENERIC_TABLE);
         }
@@ -182,12 +195,18 @@ public class Load
             DescriptorArgument descriptorArgument = (DescriptorArgument) arguments.get(DESCRIPTOR_ARGUMENT_NAME);
             ScalarArgument headerArgument = (ScalarArgument) arguments.get(SKIP_HEADER_ARGUMENT_NAME);
             ScalarArgument fieldSeparatorArgument = (ScalarArgument) arguments.get(FIELD_SEPARATOR_ARGUMENT_NAME);
+            ScalarArgument lineSeparatorArgument = (ScalarArgument) arguments.get(LINE_SEPARATOR_ARGUMENT_NAME);
             ScalarArgument quoteCharArgument = (ScalarArgument) arguments.get(QUOTE_CHAR_ARGUMENT_NAME);
             ScalarArgument escapeArgument = (ScalarArgument) arguments.get(ESCAPE_CHAR_ARGUMENT_NAME);
+            ScalarArgument multilineArgument = (ScalarArgument) arguments.get(MULTILINE_ARGUMENT_NAME);
+
             OptionalInt skipHeader = headerArgument.getNullableValue().isNull() ? OptionalInt.empty() : OptionalInt.of(((Number) headerArgument.getValue()).intValue());
             Optional<Character> fieldSeparator = getSingleCharacter(FIELD_SEPARATOR_ARGUMENT_NAME, fieldSeparatorArgument);
+            Optional<Character> lineSeparator = getSingleCharacter(LINE_SEPARATOR_ARGUMENT_NAME, lineSeparatorArgument);
             Optional<Character> quote = getSingleCharacter(QUOTE_CHAR_ARGUMENT_NAME, quoteCharArgument);
             Optional<Character> escape = getSingleCharacter(ESCAPE_CHAR_ARGUMENT_NAME, escapeArgument);
+            boolean multiline = (boolean) multilineArgument.getValue();
+
             checkFunctionArgument(
                     formatArgument.getNullableValue().isNull() == descriptorArgument.getDescriptor().isEmpty(),
                     "%s and %s arguments must be both specified or both omitted",
@@ -206,12 +225,21 @@ public class Load
 
             LoadTableHandle tableHandle;
             if (formatArgument.getNullableValue().isNull()) {
-                tableHandle = withSchemaDiscovery(fileSystem, location, skipHeader, fieldSeparator, quote, escape);
+                tableHandle = withSchemaDiscovery(fileSystem, location, skipHeader, fieldSeparator, lineSeparator, quote, escape, multiline);
             }
             else {
-                tableHandle = withDescriptor(location, isDirectory, ((Slice) formatArgument.getValue()).toStringUtf8(), descriptorArgument.getDescriptor().orElseThrow().getFields(), skipHeader, fieldSeparator, quote, escape);
+                tableHandle = withDescriptor(
+                        location,
+                        isDirectory,
+                        ((Slice) formatArgument.getValue()).toStringUtf8(),
+                        descriptorArgument.getDescriptor().orElseThrow().getFields(),
+                        skipHeader,
+                        fieldSeparator,
+                        lineSeparator,
+                        quote,
+                        escape,
+                        multiline);
             }
-
             Descriptor returnedType = new Descriptor(tableHandle.columns.stream()
                     .map(column -> new Descriptor.Field(column.getName(), Optional.of(column.getType())))
                     .collect(toImmutableList()));
@@ -229,14 +257,17 @@ public class Load
                 String location,
                 OptionalInt skipHeader,
                 Optional<Character> fieldSeparator,
+                Optional<Character> lineSeparator,
                 Optional<Character> quote,
-                Optional<Character> escape)
+                Optional<Character> escape,
+                boolean multiline)
         {
             SchemaDiscoveryController controller = createSchemaDiscoveryController(fileSystem);
             ImmutableMap.Builder<String, String> options = ImmutableMap.builder();
             fieldSeparator.ifPresent(value -> options.put(CsvOptions.DELIMITER, String.valueOf(value)));
             quote.ifPresent(value -> options.put(CsvOptions.QUOTE, String.valueOf(value)));
             escape.ifPresent(value -> options.put(CsvOptions.ESCAPE, String.valueOf(value)));
+            lineSeparator.ifPresent(value -> options.put(CsvOptions.LINE_SEPARATOR, String.valueOf(value)));
             ListenableFuture<DiscoveredSchema> guess = controller.guess(new GuessRequest(URI.create(location), options.buildOrThrow()));
 
             DiscoveredSchema discoveredSchema;
@@ -261,7 +292,7 @@ public class Load
                     .collect(toImmutableList());
 
             HiveStorageFormat format = HiveStorageFormat.valueOf(SchemaDiscoveryMappings.tableFormat(discoveredTable));
-            return new LoadTableHandle(location, true, format, columns, skipHeader, fieldSeparator, quote, escape);
+            return new LoadTableHandle(location, true, format, columns, skipHeader, fieldSeparator, lineSeparator, quote, escape, multiline);
         }
 
         private HiveColumnHandle toHiveColumn(TableFormat format, Column column, int index)
@@ -283,13 +314,15 @@ public class Load
                 List<Descriptor.Field> fields,
                 OptionalInt skipHeader,
                 Optional<Character> fieldSeparator,
+                Optional<Character> lineSeparator,
                 Optional<Character> quote,
-                Optional<Character> escape)
+                Optional<Character> escape,
+                boolean multiline)
         {
             HiveStorageFormat format = Enums.getIfPresent(HiveStorageFormat.class, formatValue.toUpperCase(ENGLISH)).toJavaUtil()
                     .orElseThrow(() -> new TrinoException(NOT_SUPPORTED, formatValue + " format isn't supported"));
             List<HiveColumnHandle> columnHandles = IntStream.range(0, fields.size()).mapToObj(i -> toHiveColumn(fields.get(i), i)).collect(toImmutableList());
-            return new LoadTableHandle(location, isDirectory, format, columnHandles, skipHeader, fieldSeparator, quote, escape);
+            return new LoadTableHandle(location, isDirectory, format, columnHandles, skipHeader, fieldSeparator, lineSeparator, quote, escape, multiline);
         }
 
         private static HiveColumnHandle toHiveColumn(Descriptor.Field field, int index)
@@ -352,8 +385,10 @@ public class Load
             List<HiveColumnHandle> columns,
             OptionalInt skipHeader,
             Optional<Character> fieldSeparator,
+            Optional<Character> lineSeparator,
             Optional<Character> quote,
-            Optional<Character> escape)
+            Optional<Character> escape,
+            boolean multiline)
             implements ConnectorTableHandle
     {
         public LoadTableHandle
@@ -363,6 +398,7 @@ public class Load
             columns = ImmutableList.copyOf(columns);
             requireNonNull(skipHeader, "skipHeader is null");
             requireNonNull(fieldSeparator, "fieldSeparator is null");
+            requireNonNull(lineSeparator, "lineSeparator is null");
             requireNonNull(quote, "quote is null");
             requireNonNull(escape, "escape is null");
 
@@ -373,11 +409,18 @@ public class Load
             if (fieldSeparator.isPresent()) {
                 checkFunctionArgument(format == CSV, "Cannot specify field separator for storage format: %s", format);
             }
+            if (lineSeparator.isPresent()) {
+                checkFunctionArgument(format == CSV, "Cannot specify line separator for storage format: %s", format);
+            }
             if (quote.isPresent()) {
                 checkFunctionArgument(format == CSV, "Cannot specify quote for storage format: %s", format);
             }
             if (escape.isPresent()) {
                 checkFunctionArgument(format == CSV, "Cannot specify escape for storage format: %s", format);
+            }
+            if (multiline) {
+                checkFunctionArgument(format == CSV, "Cannot specify multiline for storage format: %s", format);
+                checkFunctionArgument(lineSeparator.isEmpty(), "Cannot specify both multiline and line separator");
             }
         }
     }

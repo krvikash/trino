@@ -14,6 +14,7 @@
 package io.trino.hive.formats.line.text;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.hive.formats.compression.CompressionKind;
 import io.trino.hive.formats.line.LineBuffer;
@@ -130,10 +131,10 @@ public class TestLineReader
                 compress.write(inputData);
             }
             inputData = out.toByteArray();
-            lineReader = TextLineReader.createCompressedReader(new ByteArrayInputStream(inputData), () -> 0, bufferSize, CompressionKind.GZIP.createCodec());
+            lineReader = TextLineReader.createCompressedReader(new ByteArrayInputStream(inputData), () -> 0, bufferSize, CompressionKind.GZIP.createCodec(), ImmutableMap.of());
         }
         else {
-            lineReader = TextLineReader.createUncompressedReader(new ByteArrayInputStream(inputData), () -> 0, bufferSize);
+            lineReader = TextLineReader.createUncompressedReader(new ByteArrayInputStream(inputData), () -> 0, bufferSize, ImmutableMap.of());
         }
 
         assertThat(lineReader.getRetainedSize()).isEqualTo(LINE_READER_INSTANCE_SIZE + sizeOfByteArray(bufferSize));
@@ -184,7 +185,7 @@ public class TestLineReader
         int lineIndex = 0;
 
         // read up to the first split
-        TextLineReader lineReader = TextLineReader.createUncompressedReader(new ByteArrayInputStream(testData.inputData()), () -> 0, bufferSize, 0, splitPosition);
+        TextLineReader lineReader = TextLineReader.createUncompressedReader(new ByteArrayInputStream(testData.inputData()), () -> 0, bufferSize, 0, splitPosition, ImmutableMap.of());
         assertThat(lineReader.getCurrentPosition()).isEqualTo(bom ? 3 : 0);
         while (lineReader.readLine(lineBuffer)) {
             ExpectedLine expectedLine = testData.expectedLines().get(lineIndex++);
@@ -195,7 +196,7 @@ public class TestLineReader
         assertThat(lineBuffer.isEmpty()).isTrue();
         assertThat(lineReader.isClosed()).isTrue();
 
-        lineReader = TextLineReader.createUncompressedReader(new ByteArrayInputStream(testData.inputData()), () -> 0, bufferSize, splitPosition, testData.inputData().length - splitPosition);
+        lineReader = TextLineReader.createUncompressedReader(new ByteArrayInputStream(testData.inputData()), () -> 0, bufferSize, splitPosition, testData.inputData().length - splitPosition, ImmutableMap.of());
         assertThat(lineReader.getCurrentPosition()).isEqualTo(testData.expectedLines().get(lineIndex - 1).endExclusive());
         while (lineReader.readLine(lineBuffer)) {
             ExpectedLine expectedLine = testData.expectedLines().get(lineIndex++);
@@ -215,7 +216,7 @@ public class TestLineReader
         for (int skipLines : SKIP_SIZES) {
             skipLines = min(skipLines, lines.size());
 
-            TextLineReader lineReader = TextLineReader.createUncompressedReader(new ByteArrayInputStream(testData.inputData()), () -> 0, bufferSize);
+            TextLineReader lineReader = TextLineReader.createUncompressedReader(new ByteArrayInputStream(testData.inputData()), () -> 0, bufferSize, ImmutableMap.of());
             assertThat(lineReader.getRetainedSize()).isEqualTo(LINE_READER_INSTANCE_SIZE + sizeOfByteArray(bufferSize));
             lineReader.skipLines(skipLines);
             for (String line : lines.subList(skipLines, lines.size())) {

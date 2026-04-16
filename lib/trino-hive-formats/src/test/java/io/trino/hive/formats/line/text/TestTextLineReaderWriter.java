@@ -13,6 +13,7 @@
  */
 package io.trino.hive.formats.line.text;
 
+import com.google.common.collect.ImmutableMap;
 import io.airlift.slice.Slices;
 import io.trino.hive.formats.compression.CompressionKind;
 import io.trino.hive.formats.line.AbstractTestLineReaderWriter;
@@ -105,7 +106,7 @@ public class TestTextLineReaderWriter
         if (compressionKind.isPresent()) {
             inputStream = compressionKind.get().createCodec().createStreamDecompressor(inputStream);
         }
-        return TextLineReader.createUncompressedReader(inputStream, () -> 0, 1024);
+        return TextLineReader.createUncompressedReader(inputStream, () -> 0, 1024, ImmutableMap.of());
     }
 
     private static void writeNew(File outputFile, List<String> values, Optional<CompressionKind> compressionKind)

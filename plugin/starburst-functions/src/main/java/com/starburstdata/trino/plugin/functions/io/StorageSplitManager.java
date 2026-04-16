@@ -43,6 +43,8 @@ import java.io.IOException;
 import java.util.Optional;
 import java.util.OptionalInt;
 
+import static io.trino.hive.formats.line.csv.CsvConstants.LINE_SEPARATOR_KEY;
+import static io.trino.hive.formats.line.csv.CsvConstants.MULTILINE_KEY;
 import static io.trino.metastore.HivePartition.UNPARTITIONED_ID;
 import static io.trino.plugin.hive.HiveMetadata.CSV_ESCAPE_KEY;
 import static io.trino.plugin.hive.HiveMetadata.CSV_QUOTE_KEY;
@@ -92,9 +94,11 @@ public class StorageSplitManager
                     .put(SERIALIZATION_LIB, format.getSerde())
                     .put(FILE_INPUT_FORMAT, format.getInputFormat())
                     .put(LIST_COLUMNS, columns)
-                    .put(LIST_COLUMN_TYPES, listColumnTypes);
+                    .put(LIST_COLUMN_TYPES, listColumnTypes)
+                    .put(MULTILINE_KEY, Boolean.toString(loadTableHandle.multiline()));
             loadTableHandle.skipHeader().ifPresent(number -> schemaBuilder.put(SKIP_HEADER_COUNT_KEY, Integer.toString(number)));
             loadTableHandle.fieldSeparator().ifPresent(separator -> schemaBuilder.put(CSV_SEPARATOR_KEY, String.valueOf(separator)));
+            loadTableHandle.lineSeparator().ifPresent(separator -> schemaBuilder.put(LINE_SEPARATOR_KEY, String.valueOf(separator)));
             loadTableHandle.quote().ifPresent(quote -> schemaBuilder.put(CSV_QUOTE_KEY, String.valueOf(quote)));
             loadTableHandle.escape().ifPresent(escape -> schemaBuilder.put(CSV_ESCAPE_KEY, String.valueOf(escape)));
             InternalHiveSplitFactory internalSplitFactory = new InternalHiveSplitFactory(

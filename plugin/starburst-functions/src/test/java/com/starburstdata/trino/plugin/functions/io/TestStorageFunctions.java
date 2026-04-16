@@ -183,6 +183,61 @@ final class TestStorageFunctions
     }
 
     @Test
+    void testMultiLineCsv()
+            throws Exception
+    {
+        Location location = Location.of("s3://%s/multiline-csv/multiline.csv".formatted("test-bucket"));
+        byte[] bytes = Resources.toByteArray(Resources.getResource("multiline.csv"));
+        fileSystem.newOutputFile(location).createExclusive(bytes);
+
+        assertThat(query("SELECT * FROM TABLE(load(" +
+                "location => 's3://test-bucket/multiline-csv/'," +
+                "format => 'CSV'," +
+                "columns => DESCRIPTOR(id VARCHAR, name VARCHAR, comments VARCHAR, city VARCHAR)," +
+                "skip_header => 1, " +
+                "multiline => true))")).skippingTypesCheck()
+                .matches("VALUES" +
+                        "(NULL, NULL, NULL, NULL)," +
+                        "('1', 'Name1', 'This is line 1\r\nThis is line 2\r\nThis is line 3', 'Delhi')," +
+                        "('2', 'Name2', 'First line\r\nSecond line', '')," +
+                        "('3', '', '', 'Mumbai')," +
+                        "('4', 'Name4', 'Address verification pending\r\nNeed approval from manager\r\nWaiting for response', 'Bangalore')," +
+                        "('5', 'Name5', 'Row contains special characters: @#$%^&\r\nAnother line with numbers 12345', 'Chennai')," +
+                        "('6', 'Name6', '', '')," +
+                        "('7', 'Name7', 'Single line comment', 'Hyderabad')," +
+                        "('8', 'Name8', 'Multiline test data\r\nFor spark csv read\r\nWith quoted values', 'Pune')");
+    }
+
+    @Test
+    void testMultiLineCsvWithSameQuoteAndEscape()
+            throws Exception
+    {
+        Location location = Location.of("s3://%s/multiline-same-quote-escape-csv/test.csv".formatted("test-bucket"));
+        String data =
+                """
+                id,name,comments,city
+                1,Name1,"This is line ""1
+                This is line ""2
+                This is line ""3",Delhi
+                2,Name2,"First line
+                Second line",""";
+        byte[] bytes = data.getBytes(UTF_8);
+        fileSystem.newOutputFile(location).createExclusive(bytes);
+
+        assertThat(query("SELECT * FROM TABLE(load(" +
+                "location => 's3://test-bucket/multiline-same-quote-escape-csv/'," +
+                "format => 'CSV'," +
+                "columns => DESCRIPTOR(id VARCHAR, name VARCHAR, comments VARCHAR, city VARCHAR)," +
+                "skip_header => 1, " +
+                "quote_char => '\"', " +
+                "escape_char => '\"', " +
+                "multiline => true))")).skippingTypesCheck()
+                .matches("VALUES" +
+                        "('1', 'Name1', 'This is line \"1\nThis is line \"2\nThis is line \"3', 'Delhi')," +
+                        "('2', 'Name2', 'First line\nSecond line', '')");
+    }
+
+    @Test
     void testJsonWithSchemaDiscovery()
             throws Exception
     {
@@ -336,6 +391,16 @@ final class TestStorageFunctions
                 "FIELD_SEPARATOR must be a single character string, but was: ',,'");
 
         assertQueryFails(
+                "SELECT * FROM TABLE(load(location=>'s3://dummy/test', format=>'PARQUET', columns=>DESCRIPTOR(\"id\" INT), line_separator=>','))",
+                "Cannot specify line separator for storage format: PARQUET");
+        assertQueryFails(
+                "SELECT * FROM TABLE(load(location=>'s3://dummy', line_separator=>''))",
+                "LINE_SEPARATOR must be a single character string, but was: ''");
+        assertQueryFails(
+                "SELECT * FROM TABLE(load(location=>'s3://dummy', line_separator=>',,'))",
+                "LINE_SEPARATOR must be a single character string, but was: ',,'");
+
+        assertQueryFails(
                 "SELECT * FROM TABLE(load(location=>'s3://dummy/test', format=>'PARQUET', columns=>DESCRIPTOR(\"id\" INT), quote_char=>','))",
                 "Cannot specify quote for storage format: PARQUET");
         assertQueryFails(
@@ -354,6 +419,13 @@ final class TestStorageFunctions
         assertQueryFails(
                 "SELECT * FROM TABLE(load(location=>'s3://dummy', escape_char=>',,'))",
                 "ESCAPE_CHAR must be a single character string, but was: ',,'");
+
+        assertQueryFails(
+                "SELECT * FROM TABLE(load(location=>'s3://dummy/test', format=>'PARQUET', columns=>DESCRIPTOR(\"id\" INT), multiline=>true))",
+                "Cannot specify multiline for storage format: PARQUET");
+        assertQueryFails(
+                "SELECT * FROM TABLE(load(location=>'s3://dummy/test', format=>'CSV', columns=>DESCRIPTOR(\"id\" INT), multiline=>true, line_separator=>','))",
+                "Cannot specify both multiline and line separator");
     }
 
     @Test
@@ -368,6 +440,28 @@ final class TestStorageFunctions
     void testInvalidConfiguration()
     {
         assertQueryFails("SELECT * FROM TABLE(load(location=>'s3://test-duplicate/default_prefix/'))", ".* Invalid configuration: expected one element.*");
+    }
+
+    @Test
+    void testLoadWithLineSeparator()
+            throws Exception
+    {
+        Location location = Location.of("s3://test-bucket/line_separator_test/line_separator_test.csv");
+        byte[] bytes = Resources.toByteArray(Resources.getResource("line_separator.csv"));
+        fileSystem.newOutputFile(location).createExclusive(bytes);
+
+        assertThat(query("SELECT * FROM TABLE(load(" +
+                "location => 's3://test-bucket/line_separator_test/'," +
+                "format => 'CSV'," +
+                "skip_header => 1," +
+                "columns => DESCRIPTOR(id VARCHAR, name VARCHAR, department VARCHAR, city VARCHAR, salary VARCHAR, join_date VARCHAR)," +
+                "line_separator =>'~'))")).skippingTypesCheck()
+                .matches("VALUES " +
+                        "('1', 'Name1', 'Engineering', 'Bangalore', '95000', '2021-03-15')," +
+                        "('2', 'Name2', 'Data Analytics', 'Mumbai', '87000', '2020-07-22')," +
+                        "('3', 'Name3', 'DevOps', 'Hyderabad', '102000', '2019-11-01')," +
+                        "('4', 'Name4', 'Product Management', 'Pune', '115000', '2022-01-10')," +
+                        "('5', 'Name5', 'Solutions Architecture', 'Delhi', '130000', '2018-05-30')");
     }
 
     @Test

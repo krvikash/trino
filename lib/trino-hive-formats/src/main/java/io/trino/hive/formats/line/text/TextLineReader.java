@@ -21,13 +21,17 @@ import io.trino.hive.formats.line.LineReader;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.function.LongSupplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.base.Verify.verify;
 import static io.airlift.slice.SizeOf.instanceSize;
 import static io.airlift.slice.SizeOf.sizeOf;
+import static io.trino.hive.formats.line.csv.CsvConstants.LINE_SEPARATOR_KEY;
 import static java.lang.Math.addExact;
 import static java.util.Objects.requireNonNull;
 
@@ -42,6 +46,7 @@ public final class TextLineReader
     private final LongSupplier rawInputPositionSupplier;
     private final long initialRawInputPosition;
     private final LongSupplier inputStreamRetainedSize;
+    private final Optional<Byte> lineSeparator;
 
     private boolean firstRecord = true;
     private int bufferStart;
@@ -50,30 +55,30 @@ public final class TextLineReader
     private boolean closed;
     private long readTimeNanos;
 
-    public static TextLineReader createCompressedReader(InputStream in, LongSupplier inputStreamRetainedSize, int bufferSize, Codec codec)
+    public static TextLineReader createCompressedReader(InputStream in, LongSupplier inputStreamRetainedSize, int bufferSize, Codec codec, Map<String, String> schema)
             throws IOException
     {
         CountingInputStream countingInputStream = new CountingInputStream(in);
         LongSupplier rawInputPositionSupplier = countingInputStream::getCount;
         in = codec.createStreamDecompressor(countingInputStream);
-        return new TextLineReader(in, inputStreamRetainedSize, bufferSize, 0, OptionalLong.empty(), rawInputPositionSupplier);
+        return new TextLineReader(in, inputStreamRetainedSize, bufferSize, 0, OptionalLong.empty(), rawInputPositionSupplier, schema);
     }
 
-    public static TextLineReader createUncompressedReader(InputStream in, LongSupplier inputStreamRetainedSize, int bufferSize)
+    public static TextLineReader createUncompressedReader(InputStream in, LongSupplier inputStreamRetainedSize, int bufferSize, Map<String, String> schema)
             throws IOException
     {
-        return createUncompressedReader(in, inputStreamRetainedSize, bufferSize, 0, Long.MAX_VALUE);
+        return createUncompressedReader(in, inputStreamRetainedSize, bufferSize, 0, Long.MAX_VALUE, schema);
     }
 
-    public static TextLineReader createUncompressedReader(InputStream in, LongSupplier inputStreamRetainedSize, int bufferSize, long splitStart, long splitLength)
+    public static TextLineReader createUncompressedReader(InputStream in, LongSupplier inputStreamRetainedSize, int bufferSize, long splitStart, long splitLength, Map<String, String> schema)
             throws IOException
     {
         CountingInputStream countingInputStream = new CountingInputStream(in);
         LongSupplier rawInputPositionSupplier = countingInputStream::getCount;
-        return new TextLineReader(countingInputStream, inputStreamRetainedSize, bufferSize, splitStart, OptionalLong.of(splitLength), rawInputPositionSupplier);
+        return new TextLineReader(countingInputStream, inputStreamRetainedSize, bufferSize, splitStart, OptionalLong.of(splitLength), rawInputPositionSupplier, schema);
     }
 
-    private TextLineReader(InputStream in, LongSupplier inputStreamRetainedSize, int bufferSize, long splitStart, OptionalLong splitLength, LongSupplier rawInputPositionSupplier)
+    private TextLineReader(InputStream in, LongSupplier inputStreamRetainedSize, int bufferSize, long splitStart, OptionalLong splitLength, LongSupplier rawInputPositionSupplier, Map<String, String> schema)
             throws IOException
     {
         requireNonNull(in, "in is null");
@@ -82,6 +87,7 @@ public final class TextLineReader
         checkArgument(splitStart >= 0, "splitStart is negative");
         checkArgument(splitLength.orElse(1) > 0, "splitLength must be at least one byte");
         requireNonNull(rawInputPositionSupplier, "rawInputPositionSupplier is null");
+        requireNonNull(schema, "schema is null");
 
         this.in = in;
         this.inputStreamRetainedSize = requireNonNull(inputStreamRetainedSize, "inputStreamRetainedSize is null");
@@ -90,6 +96,7 @@ public final class TextLineReader
         this.rawInputPositionSupplier = rawInputPositionSupplier;
         // the initial skip is not included in the physical read size
         this.initialRawInputPosition = splitStart;
+        lineSeparator = lineSeparator(schema);
 
         // If reading splitStart of file, skipping UTF-8 BOM, otherwise seek to splitStart position, and skip the remaining line
         if (splitStart == 0) {
@@ -242,9 +249,21 @@ public final class TextLineReader
         return false;
     }
 
-    private static boolean isEndOfLineCharacter(byte currentByte)
+    private boolean isEndOfLineCharacter(byte currentByte)
     {
+        if (lineSeparator.isPresent()) {
+            return currentByte == lineSeparator.get();
+        }
         return currentByte == '\n' || currentByte == '\r';
+    }
+
+    private static Optional<Byte> lineSeparator(Map<String, String> schema)
+    {
+        String value = schema.get(LINE_SEPARATOR_KEY);
+        if (isNullOrEmpty(value)) {
+            return Optional.empty();
+        }
+        return Optional.of((byte) value.charAt(0));
     }
 
     private void seekPastLineTerminator()
@@ -252,22 +271,31 @@ public final class TextLineReader
     {
         verify(isEndOfLineCharacter(buffer[bufferPosition]), "Stream is not at a line terminator");
 
-        // skip carriage return if present
-        if (buffer[bufferPosition] == '\r') {
-            bufferPosition++;
-
-            // fill buffer if necessary
-            if (bufferPosition >= bufferEnd) {
-                fillBuffer();
-                if (closed) {
-                    return;
-                }
+        if (lineSeparator.isPresent()) {
+            if (buffer[bufferPosition] == lineSeparator.get()) {
+                bufferPosition++;
             }
         }
+        else {
+            // Default handling for \r\n line terminators
+            // skip carriage return if present
+            if (buffer[bufferPosition] == '\r') {
+                bufferPosition++;
 
-        // skip newline if present
-        if (buffer[bufferPosition] == '\n') {
-            bufferPosition++;
+                // fill buffer if necessary
+                if (bufferPosition >= bufferEnd) {
+                    fillBuffer();
+                    if (closed) {
+                        bufferStart = bufferPosition;
+                        return;
+                    }
+                }
+            }
+
+            // skip newline if present
+            if (buffer[bufferPosition] == '\n') {
+                bufferPosition++;
+            }
         }
         bufferStart = bufferPosition;
     }

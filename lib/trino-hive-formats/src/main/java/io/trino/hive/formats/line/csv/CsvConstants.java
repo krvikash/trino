@@ -24,11 +24,13 @@ public final class CsvConstants
 {
     static final Set<String> HIVE_SERDE_CLASS_NAMES = ImmutableSet.of(OPENCSV_SERDE_CLASS);
     static final String SEPARATOR_KEY = "separatorChar";
-    static final String QUOTE_KEY = "quoteChar";
-    static final String ESCAPE_KEY = "escapeChar";
+    public static final String QUOTE_KEY = "quoteChar";
+    public static final String ESCAPE_KEY = "escapeChar";
+    public static final String MULTILINE_KEY = "multiline";
+    public static final String LINE_SEPARATOR_KEY = "lineSeparator";
     static final byte DEFAULT_SEPARATOR = ',';
-    static final byte DEFAULT_QUOTE = '\"';
-    static final byte DESERIALIZER_DEFAULT_ESCAPE = '\\';
+    public static final byte DEFAULT_QUOTE = '\"';
+    public static final byte DESERIALIZER_DEFAULT_ESCAPE = '\\';
     // NOTE: serializer and deserializer use different escape characters which can result in data
     // that does not roundtrip when quote character is set but escape it not set.
     static final byte SERIALIZER_DEFAULT_ESCAPE = '\"';
@@ -45,7 +47,7 @@ public final class CsvConstants
         return value.charAt(0);
     }
 
-    static byte getByteProperty(Map<String, String> schema, String key, byte defaultValue)
+    public static byte getByteProperty(Map<String, String> schema, String key, byte defaultValue)
     {
         char c = getCharProperty(schema, key, defaultValue);
         // Trino restrict special characters to ASCII

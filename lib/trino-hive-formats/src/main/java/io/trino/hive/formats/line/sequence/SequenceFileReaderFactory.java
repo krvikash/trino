@@ -23,6 +23,7 @@ import io.trino.hive.formats.line.LineReader;
 import io.trino.hive.formats.line.LineReaderFactory;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -59,7 +60,8 @@ public class SequenceFileReaderFactory
             long length,
             int headerCount,
             int footerCount,
-            boolean rangeReadsEnabled)
+            boolean rangeReadsEnabled,
+            Map<String, String> schema)
             throws IOException
     {
         LineReader lineReader = new SequenceFileReader(inputFile, start, length);

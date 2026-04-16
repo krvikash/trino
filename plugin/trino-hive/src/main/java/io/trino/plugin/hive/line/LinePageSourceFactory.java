@@ -151,7 +151,7 @@ public abstract class LinePageSourceFactory
                 return new EmptyPageSource();
             }
 
-            LineReader lineReader = lineReaderFactory.createLineReader(inputFile, start, length, headerCount, footerCount, rangeReadsEnabled);
+            LineReader lineReader = lineReaderFactory.createLineReader(inputFile, start, length, headerCount, footerCount, rangeReadsEnabled, schema.serdeProperties());
             // Split may be empty after discovering the real file size and skipping headers
             if (lineReader.isClosed()) {
                 return new EmptyPageSource();

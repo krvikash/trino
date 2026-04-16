@@ -13,11 +13,13 @@
  */
 package io.trino.hive.formats.line;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoInputFile;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Set;
 
 public interface LineReaderFactory
@@ -26,13 +28,33 @@ public interface LineReaderFactory
 
     LineBuffer createLineBuffer();
 
-    LineReader createLineReader(
+    default LineReader createLineReader(
             TrinoInputFile inputFile,
             long start,
             long length,
             int headerCount,
             int footerCount,
             boolean rangeReadsEnabled)
+            throws IOException
+    {
+        return createLineReader(
+                inputFile,
+                start,
+                length,
+                headerCount,
+                footerCount,
+                rangeReadsEnabled,
+                ImmutableMap.of());
+    }
+
+    LineReader createLineReader(
+            TrinoInputFile inputFile,
+            long start,
+            long length,
+            int headerCount,
+            int footerCount,
+            boolean rangeReadsEnabled,
+            Map<String, String> schema)
             throws IOException;
 
     TrinoInputFile newInputFile(

@@ -1,0 +1,18 @@
+id,name,comments,city
+
+1,Name1,"This is line 1
+This is line 2
+This is line 3",Delhi
+2,Name2,"First line
+Second line",
+3,,"",Mumbai
+4,Name4,"Address verification pending
+Need approval from manager
+Waiting for response",Bangalore
+5,Name5,"Row contains special characters: @#$%^&
+Another line with numbers 12345",Chennai
+6,Name6,,""
+7,Name7,"Single line comment",Hyderabad
+8,Name8,"Multiline test data
+For spark csv read
+With quoted values",Pune

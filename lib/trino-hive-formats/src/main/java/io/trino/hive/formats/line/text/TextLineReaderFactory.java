@@ -29,6 +29,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.LongSupplier;
@@ -36,6 +37,7 @@ import java.util.function.LongSupplier;
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.hive.formats.HiveClassNames.SYMLINK_TEXT_INPUT_FORMAT_CLASS;
 import static io.trino.hive.formats.HiveClassNames.TEXT_INPUT_FORMAT_CLASS;
+import static io.trino.hive.formats.line.csv.CsvConstants.MULTILINE_KEY;
 
 public class TextLineReaderFactory
         implements LineReaderFactory
@@ -70,7 +72,8 @@ public class TextLineReaderFactory
             long length,
             int headerCount,
             int footerCount,
-            boolean rangeReadsEnabled)
+            boolean rangeReadsEnabled,
+            Map<String, String> schema)
             throws IOException
     {
         InputStream inputStream;
@@ -91,13 +94,18 @@ public class TextLineReaderFactory
         try {
             Optional<Codec> codec = CompressionKind.forFile(inputFile.location().fileName())
                     .map(CompressionKind::createCodec);
+            boolean multilineEnabled = Boolean.parseBoolean(schema.getOrDefault(MULTILINE_KEY, "false"));
             LineReader lineReader;
             if (codec.isPresent()) {
                 checkArgument(start == 0, "Compressed files are not splittable");
-                lineReader = TextLineReader.createCompressedReader(inputStream, inputStreamRetainedSize, fileBufferSize, codec.get());
+                lineReader = multilineEnabled
+                        ? TextMultilineReader.createCompressedReader(inputStream, inputStreamRetainedSize, fileBufferSize, codec.get(), schema)
+                        : TextLineReader.createCompressedReader(inputStream, inputStreamRetainedSize, fileBufferSize, codec.get(), schema);
             }
             else {
-                lineReader = TextLineReader.createUncompressedReader(inputStream, inputStreamRetainedSize, fileBufferSize, start, length);
+                lineReader = multilineEnabled
+                        ? TextMultilineReader.createUncompressedReader(inputStream, inputStreamRetainedSize, fileBufferSize, start, length, schema)
+                        : TextLineReader.createUncompressedReader(inputStream, inputStreamRetainedSize, fileBufferSize, start, length, schema);
             }
 
             if (headerCount > 0) {
