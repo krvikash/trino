@@ -23,7 +23,9 @@ import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.GpuTypeConversion;
 import io.trino.spi.gpu.borrow.Own;
+import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import org.junit.jupiter.api.Test;
@@ -49,6 +51,9 @@ import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
+import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
+import static io.trino.spi.type.TimestampType.TIMESTAMP_SECONDS;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -71,6 +76,9 @@ public class TestGpuDataConversion
             .add(BIGINT)
             .add(REAL)
             .add(DOUBLE)
+            .add(TIMESTAMP_SECONDS)
+            .add(TIMESTAMP_MILLIS)
+            .add(TIMESTAMP_MICROS)
             .add(VARCHAR)
             .build();
 
@@ -285,6 +293,21 @@ public class TestGpuDataConversion
                 });
     }
 
+    @Test
+    public void testUnsupportedTimestampPrecisions()
+    {
+        for (int precision : List.of(1, 2, 4, 5)) {
+            assertThat(GpuTypeConversion.toGpuMapping(TimestampType.createTimestampType(precision)))
+                    .as("short timestamp precision %d", precision)
+                    .isEmpty();
+        }
+        for (int precision : List.of(7, 9, 12)) {
+            assertThat(GpuTypeConversion.toGpuMapping(TimestampType.createTimestampType(precision)))
+                    .as("long timestamp precision %d", precision)
+                    .isEmpty();
+        }
+    }
+
     private List<Page> createInputPages(List<Integer> positionsCounts, NullsProvider nullsProvider, List<Type> types)
     {
         Block[][] pages = new Block[positionsCounts.size()][types.size()];
@@ -327,6 +350,9 @@ public class TestGpuDataConversion
         }
         if (type == DOUBLE) {
             return createDoubleBlocks(positionsCounts, nullsProvider);
+        }
+        if (type == TIMESTAMP_SECONDS || type == TIMESTAMP_MILLIS || type == TIMESTAMP_MICROS) {
+            return createShortTimestampBlocks(positionsCounts, nullsProvider, (TimestampType) type);
         }
         if (type == VARCHAR) {
             return createVarcharBlocks(positionsCounts, nullsProvider);
@@ -495,6 +521,33 @@ public class TestGpuDataConversion
                         }
                         else {
                             DOUBLE.writeDouble(builder, random.nextDouble() * 1000 - 500); // -500 to 500
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private List<Block> createShortTimestampBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, TimestampType type)
+    {
+        Random random = new Random(42);
+        // Stored value is epochMicros; for precision p < 6, digits beyond p must be 0
+        long scale = 1L;
+        for (int i = type.getPrecision(); i < TimestampType.MAX_SHORT_PRECISION; i++) {
+            scale *= 10;
+        }
+        long finalScale = scale;
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<boolean[]> isNull = nullsProvider.getNulls(positionsCount);
+                    assertThat(isNull.isEmpty() || isNull.get().length == positionsCount).isTrue();
+                    BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isNull.isPresent() && isNull.get()[i]) {
+                            builder.appendNull();
+                        }
+                        else {
+                            type.writeLong(builder, (random.nextLong() / finalScale) * finalScale);
                         }
                     }
                     return builder.build();

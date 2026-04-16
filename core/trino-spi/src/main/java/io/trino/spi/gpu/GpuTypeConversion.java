@@ -31,6 +31,7 @@ import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.gpu.Column.Blocks;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
+import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import jakarta.annotation.Nullable;
@@ -125,6 +126,25 @@ public final class GpuTypeConversion
                     value -> Scalar.fromDouble((Double) value.orElse(null)),
                     // LongArrayBlock stores doubleToLongBits — same bit pattern as IEEE 754 double, so direct copy works
                     blocks -> copyLongBlocksToDevice(blocks, DType.FLOAT64)));
+        }
+
+        if (type instanceof TimestampType timestampType) {
+            // ShortTimestampType always stores epochMicros; rescale to match the cuDF DType
+            return switch (timestampType.getPrecision()) {
+                case 0 -> Optional.of(new GpuTypeMapping(
+                        DType.TIMESTAMP_SECONDS,
+                        value -> Scalar.timestampFromLong(DType.TIMESTAMP_SECONDS, value.map(v -> (Long) v / 1_000_000L).orElse(null)),
+                        blocks -> copyRescaledLongBlocksToDevice(blocks, DType.TIMESTAMP_SECONDS, 1_000_000L)));
+                case 3 -> Optional.of(new GpuTypeMapping(
+                        DType.TIMESTAMP_MILLISECONDS,
+                        value -> Scalar.timestampFromLong(DType.TIMESTAMP_MILLISECONDS, value.map(v -> (Long) v / 1_000L).orElse(null)),
+                        blocks -> copyRescaledLongBlocksToDevice(blocks, DType.TIMESTAMP_MILLISECONDS, 1_000L)));
+                case 6 -> Optional.of(new GpuTypeMapping(
+                        DType.TIMESTAMP_MICROSECONDS,
+                        value -> Scalar.timestampFromLong(DType.TIMESTAMP_MICROSECONDS, (Long) value.orElse(null)),
+                        blocks -> copyLongBlocksToDevice(blocks, DType.TIMESTAMP_MICROSECONDS)));
+                default -> Optional.empty();
+            };
         }
 
         if (type instanceof VarcharType) {
@@ -347,6 +367,69 @@ public final class GpuTypeConversion
                     case LongArrayBlock longBlock -> data.setLongs(destByteOffset, longBlock.getRawValues(), longBlock.getRawValuesOffset(), count);
                     default -> throw new IllegalArgumentException("Unexpected block type: " + block.getClass().getSimpleName());
                 }
+                destByteOffset += (long) count * Long.BYTES;
+            }
+
+            ValidityResult validityResult = buildValidity(blocks, totalPositions);
+            validity = validityResult.buffer();
+            long nullCount = validityResult.nullCount();
+
+            try (HostColumnVector hcv = new HostColumnVector(dType, totalPositions, Optional.of(nullCount), data, validity, null, List.of())) {
+                data = null;
+                validity = null;
+                return hcv.copyToDevice();
+            }
+        }
+        finally {
+            if (data != null) {
+                data.close();
+            }
+            if (validity != null) {
+                validity.close();
+            }
+        }
+    }
+
+    private static @Move ColumnVector copyRescaledLongBlocksToDevice(Blocks blocks, DType dType, long divisor)
+    {
+        int totalPositions = blocks.positionCount();
+        if (totalPositions == 0) {
+            try (HostColumnVector.Builder builder = HostColumnVector.builder(dType, 0)) {
+                return builder.buildAndPutOnDevice();
+            }
+        }
+
+        HostMemoryBuffer data = null;
+        HostMemoryBuffer validity = null;
+        try {
+            data = HostMemoryBuffer.allocate((long) totalPositions * Long.BYTES);
+            long destByteOffset = 0;
+            for (Block block : blocks.blocks()) {
+                int count = block.getPositionCount();
+                long[] temp = new long[count];
+                switch (block) {
+                    case RunLengthEncodedBlock rle -> {
+                        LongArrayBlock value = (LongArrayBlock) rle.getValue();
+                        Arrays.fill(temp, value.getRawValues()[value.getRawValuesOffset()] / divisor);
+                    }
+                    case DictionaryBlock dictionary -> {
+                        LongArrayBlock valueBlock = (LongArrayBlock) dictionary.getUnderlyingValueBlock();
+                        long[] rawValues = valueBlock.getRawValues();
+                        int rawOffset = valueBlock.getRawValuesOffset();
+                        for (int i = 0; i < count; i++) {
+                            temp[i] = rawValues[rawOffset + dictionary.getUnderlyingValuePosition(i)] / divisor;
+                        }
+                    }
+                    case LongArrayBlock longBlock -> {
+                        long[] rawValues = longBlock.getRawValues();
+                        int rawOffset = longBlock.getRawValuesOffset();
+                        for (int i = 0; i < count; i++) {
+                            temp[i] = rawValues[rawOffset + i] / divisor;
+                        }
+                    }
+                    default -> throw new IllegalArgumentException("Unexpected block type: " + block.getClass().getSimpleName());
+                }
+                data.setLongs(destByteOffset, temp, 0, count);
                 destByteOffset += (long) count * Long.BYTES;
             }
 

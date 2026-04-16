@@ -33,6 +33,7 @@ import io.trino.spi.gpu.RuntimeCloseable;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
+import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import jakarta.annotation.Nullable;
@@ -206,6 +207,14 @@ public class CopyToBlocks
         if (type == BIGINT) {
             return new LongColumnCopier(columnVector);
         }
+        if (type instanceof TimestampType timestampType) {
+            return switch (timestampType.getPrecision()) {
+                case 0 -> new RescaledLongColumnCopier(columnVector, 1_000_000L);
+                case 3 -> new RescaledLongColumnCopier(columnVector, 1_000L);
+                case 6 -> new LongColumnCopier(columnVector);
+                default -> throw new UnsupportedOperationException("Unsupported type: " + type);
+            };
+        }
         if (type == REAL) {
             return new RealColumnCopier(columnVector);
         }
@@ -341,6 +350,36 @@ public class CopyToBlocks
         {
             long[] values = new long[count];
             hostColumnVector.getData().getLongs(values, 0, (long) position * Long.BYTES, count);
+            return new LongArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
+        }
+
+        @Override
+        public void close()
+        {
+            hostColumnVector.close();
+        }
+    }
+
+    private static class RescaledLongColumnCopier
+            implements ColumnCopier
+    {
+        private final @Own HostColumnVector hostColumnVector;
+        private final long multiplier;
+
+        public RescaledLongColumnCopier(ColumnVector columnVector, long multiplier)
+        {
+            this.hostColumnVector = columnVector.copyToHost();
+            this.multiplier = multiplier;
+        }
+
+        @Override
+        public Block buildBlock(int position, int count)
+        {
+            long[] values = new long[count];
+            hostColumnVector.getData().getLongs(values, 0, (long) position * Long.BYTES, count);
+            for (int i = 0; i < count; i++) {
+                values[i] = Math.multiplyExact(values[i], multiplier);
+            }
             return new LongArrayBlock(count, validityToNulls(hostColumnVector.getValidity(), position, count), values);
         }
 
