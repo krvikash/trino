@@ -29,7 +29,6 @@ import io.trino.spi.function.table.ReturnTypeSpecification.DescribedTable;
 import io.trino.spi.function.table.ScalarArgument;
 import io.trino.spi.function.table.ScalarArgumentSpecification;
 import io.trino.spi.function.table.TableFunctionAnalysis;
-import jakarta.ws.rs.core.UriBuilder;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -40,6 +39,7 @@ import java.util.Optional;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.net.UrlEscapers.urlFormParameterEscaper;
+import static com.google.common.net.UrlEscapers.urlPathSegmentEscaper;
 import static com.starburstdata.plugin.openapi.OpenApiSpec.SCHEMA_NAME;
 import static io.trino.spi.StandardErrorCode.FUNCTION_IMPLEMENTATION_ERROR;
 import static io.trino.spi.StandardErrorCode.MISSING_ARGUMENT;
@@ -51,7 +51,7 @@ class OpenApiRequestTableFunction
         extends AbstractConnectorTableFunction
 {
     private final String path;
-    private final UriBuilder pathTemplateBuilder;
+    private final String uriTemplate;
     private final Map<String, OpenApiParameterHandle> identifierToParameterHandle;
 
     public OpenApiRequestTableFunction(
@@ -83,8 +83,7 @@ class OpenApiRequestTableFunction
         this.identifierToParameterHandle = requireNonNull(
                 identifierToParameterHandle,
                 "identifierToParameterHandle is null");
-        this.pathTemplateBuilder = UriBuilder.fromUri(
-                stripTrailingSlash(baseUri.toString()).concat(path));
+        this.uriTemplate = stripTrailingSlash(baseUri.toString()).concat(path);
     }
 
     private static String stripTrailingSlash(String path)
@@ -157,8 +156,24 @@ class OpenApiRequestTableFunction
                 }
             }
         });
-        URI resolvedTemplate = pathTemplateBuilder.buildFromMap(pathParameterToValueBuilder.buildOrThrow());
-        return uriWithQueryParameters(resolvedTemplate, queryParameterValuesBuilder.build());
+        Map<String, String> pathParameterToValue = pathParameterToValueBuilder.buildOrThrow();
+        String mutableUriTemplate = uriTemplate;
+        for (Map.Entry<String, String> entry : pathParameterToValue.entrySet()) {
+            mutableUriTemplate = mutableUriTemplate.replace(
+                    "{%s}".formatted(entry.getKey()),
+                    urlPathSegmentEscaper().escape(entry.getValue()));
+        }
+        URI uriWithPathParameters;
+        try {
+            uriWithPathParameters = new URI(mutableUriTemplate);
+        }
+        catch (URISyntaxException e) {
+            throw new TrinoException(
+                    FUNCTION_IMPLEMENTATION_ERROR,
+                    "Unexpected error creating URI from path parameter values (%s)".formatted(e.getMessage()),
+                    e);
+        }
+        return uriWithQueryParameters(uriWithPathParameters, queryParameterValuesBuilder.build());
     }
 
     private static URI uriWithQueryParameters(URI uri, Multimap<String, String> queryParameters)

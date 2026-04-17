@@ -250,6 +250,12 @@
         </artifact>
     </artifactSet>
 
+    <artifactSet to="plugin/starburst-openapi">
+        <artifact id="${project.groupId}:starburst-openapi:zip:${project.version}">
+            <unpack />
+        </artifact>
+    </artifactSet>
+
     <artifactSet to="plugin/opensearch">
         <artifact id="${project.groupId}:trino-opensearch:zip:${project.version}">
             <unpack />

@@ -23,7 +23,6 @@ import io.airlift.http.client.Response;
 import io.airlift.http.client.ResponseHandler;
 import io.airlift.http.client.StaticBodyGenerator;
 import io.trino.spi.TrinoException;
-import jakarta.ws.rs.core.MediaType;
 
 import java.io.IOException;
 import java.net.URI;
@@ -39,7 +38,6 @@ import static com.starburstdata.plugin.openapi.OpenApiErrorCode.OPENAPI_UNSUPPOR
 import static io.airlift.http.client.HeaderNames.ACCEPT;
 import static io.airlift.http.client.HeaderNames.AUTHORIZATION;
 import static io.airlift.http.client.HeaderNames.CONTENT_TYPE;
-import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 import static java.lang.String.join;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Locale.ENGLISH;
@@ -118,8 +116,8 @@ public class Oauth2Authenticator
                 .setUri(tokenUrl)
                 .setBodyGenerator(bodyGenerator)
                 .setHeader(AUTHORIZATION, authorizationValue)
-                .setHeader(CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED)
-                .setHeader(ACCEPT, APPLICATION_JSON)
+                .setHeader(CONTENT_TYPE, "application/x-www-form-urlencoded")
+                .setHeader(ACCEPT, "application/json")
                 .build();
     }
 
