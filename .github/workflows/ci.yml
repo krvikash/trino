@@ -524,7 +524,7 @@ jobs:
           fi
       - name: Slack notify failed tests to Connectors team
         if: always() && (steps.tests-bq.outcome == 'failure' || steps.tests-bq-smoke.outcome == 'failure') && steps.should_notify.outputs.result == 'true'
-        uses: archive/github-actions-slack@c643e5093620d65506466f2c9b317d5d29a5e517 # v2.10.1
+        uses: archive/github-actions-slack@433fef9978d3adae73168bfc9c5a7ce722780231 # v3.1.0
         with:
           slack-bot-user-oauth-access-token: ${{ secrets.SLACK_TOKEN }}
           slack-channel: C09HT9ETS73 # team-connectors-notify channel ID
@@ -603,7 +603,7 @@ jobs:
         id: should_notify
       - name: Slack notify failed tests to Connectors team
         if: always() && steps.tests.outcome == 'failure' && steps.should_notify.outputs.result == 'true'
-        uses: archive/github-actions-slack@c643e5093620d65506466f2c9b317d5d29a5e517 # v2.10.1
+        uses: archive/github-actions-slack@433fef9978d3adae73168bfc9c5a7ce722780231 # v3.1.0
         with:
           slack-bot-user-oauth-access-token: ${{ secrets.SLACK_TOKEN }}
           slack-channel: C09HT9ETS73 # team-connectors-notify channel ID
@@ -716,7 +716,7 @@ jobs:
         id: should_notify
       - name: Slack notify failed tests to Connectors team
         if: always() && steps.tests.outcome == 'failure' && steps.should_notify.outputs.result == 'true'
-        uses: archive/github-actions-slack@c643e5093620d65506466f2c9b317d5d29a5e517 # v2.10.1
+        uses: archive/github-actions-slack@433fef9978d3adae73168bfc9c5a7ce722780231 # v3.1.0
         with:
           slack-bot-user-oauth-access-token: ${{ secrets.SLACK_TOKEN }}
           slack-channel: C09HT9ETS73 # galaxy-data-management-notify channel ID
@@ -828,7 +828,7 @@ jobs:
         id: should_notify
       - name: Slack notify failed tests to Connectors team
         if: always() && steps.tests.outcome == 'failure' && steps.should_notify.outputs.result == 'true'
-        uses: archive/github-actions-slack@c643e5093620d65506466f2c9b317d5d29a5e517 # v2.10.1
+        uses: archive/github-actions-slack@433fef9978d3adae73168bfc9c5a7ce722780231 # v3.1.0
         with:
           slack-bot-user-oauth-access-token: ${{ secrets.SLACK_TOKEN }}
           slack-channel: C09HT9ETS73 # galaxy-data-management-notify channel ID
@@ -920,7 +920,7 @@ jobs:
         id: should_notify
       - name: Slack notify failed tests to Connectors team
         if: always() && steps.tests.outcome == 'failure' && steps.should_notify.outputs.result == 'true'
-        uses: archive/github-actions-slack@c643e5093620d65506466f2c9b317d5d29a5e517 # v2.10.1
+        uses: archive/github-actions-slack@433fef9978d3adae73168bfc9c5a7ce722780231 # v3.1.0
         with:
           slack-bot-user-oauth-access-token: ${{ secrets.SLACK_TOKEN }}
           slack-channel: C09HT9ETS73 # galaxy-data-management-notify channel ID
@@ -1046,7 +1046,7 @@ jobs:
         id: should_notify
       - name: Slack notify failed tests to Connectors team
         if: always() && steps.tests.outcome == 'failure' && steps.should_notify.outputs.result == 'true'
-        uses: archive/github-actions-slack@c643e5093620d65506466f2c9b317d5d29a5e517 # v2.10.1
+        uses: archive/github-actions-slack@433fef9978d3adae73168bfc9c5a7ce722780231 # v3.1.0
         with:
           slack-bot-user-oauth-access-token: ${{ secrets.SLACK_TOKEN }}
           slack-channel: C09HT9ETS73 # galaxy-data-management-notify channel ID
@@ -1142,7 +1142,7 @@ jobs:
         id: should_notify
       - name: Slack notify failed tests to Connectors team
         if: always() && steps.tests.outcome == 'failure' && steps.should_notify.outputs.result == 'true'
-        uses: archive/github-actions-slack@c643e5093620d65506466f2c9b317d5d29a5e517 # v2.10.1
+        uses: archive/github-actions-slack@433fef9978d3adae73168bfc9c5a7ce722780231 # v3.1.0
         with:
           slack-bot-user-oauth-access-token: ${{ secrets.SLACK_TOKEN }}
           slack-channel: C09HT9ETS73 # galaxy-data-management-notify channel ID
@@ -1311,7 +1311,7 @@ jobs:
         id: should_notify
       - name: Slack notify failed tests to Connectors team
         if: always() && (steps.tests-weekly-snowflake-aws.outcome == 'failure' || steps.tests-weekly-snowflake-azure.outcome == 'failure') && steps.should_notify.outputs.result == 'true'
-        uses: archive/github-actions-slack@c643e5093620d65506466f2c9b317d5d29a5e517 # v2.10.1
+        uses: archive/github-actions-slack@433fef9978d3adae73168bfc9c5a7ce722780231 # v3.1.0
         with:
           slack-bot-user-oauth-access-token: ${{ secrets.SLACK_TOKEN }}
           slack-channel: C09HT9ETS73 # galaxy-data-management-notify channel ID
@@ -1418,7 +1418,7 @@ jobs:
         id: should_notify
       - name: Slack notify failed tests to Connectors team
         if: always() && steps.tests-nightly-snowflake-aws.outcome && steps.should_notify.outputs.result == 'true'
-        uses: archive/github-actions-slack@c643e5093620d65506466f2c9b317d5d29a5e517 # v2.10.1
+        uses: archive/github-actions-slack@433fef9978d3adae73168bfc9c5a7ce722780231 # v3.1.0
         with:
           slack-bot-user-oauth-access-token: ${{ secrets.SLACK_TOKEN }}
           slack-channel: C09HT9ETS73 # galaxy-data-management-notify channel ID
