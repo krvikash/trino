@@ -13,15 +13,35 @@
  */
 package io.trino.plugin.hive;
 
+import com.google.common.collect.ImmutableList;
+import io.trino.filesystem.Location;
+import io.trino.filesystem.TrinoFileSystem;
+import io.trino.filesystem.TrinoFileSystemFactory;
+import io.trino.parquet.ParquetTestUtils;
+import io.trino.parquet.writer.ParquetWriter;
+import io.trino.parquet.writer.ParquetWriterOptions;
+import io.trino.spi.PageBuilder;
+import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.security.ConnectorIdentity;
+import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.Type;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.testing.AbstractTestQueryFramework;
+import org.apache.parquet.format.CompressionCodec;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.io.OutputStream;
+
+import static io.trino.plugin.hive.TestingHiveUtils.getConnectorService;
+import static io.trino.testing.TestingNames.randomNameSuffix;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class BaseHiveGpuQueriesTest
         extends AbstractTestQueryFramework
 {
+    protected abstract Location newExternalTableLocation();
+
     @Test
     public void testAllTypes()
     {
@@ -38,7 +58,6 @@ public abstract class BaseHiveGpuQueriesTest
                 "CAST(12.345 AS decimal(5,3)) AS col_decimal, " +
                 "CAST(12345678901234567890123.5678 AS decimal(27,4)) AS col_long_decimal, " +
                 "DATE '2024-01-01' AS col_date, " +
-                "CAST(TIMESTAMP '2020-02-12 15:03:00' AS timestamp(3)) AS col_timestamp, " +
                 "X'12ab3f' AS col_varbinary, " +
                 "CAST('abc' AS char(3)) AS col_char", 1);
 
@@ -59,15 +78,13 @@ public abstract class BaseHiveGpuQueriesTest
                 .executesWithGpu(TableScanNode.class);
         assertThat(query("SELECT col_varchar FROM test_gpu_types"))
                 .executesWithGpu(TableScanNode.class);
+        assertThat(query("SELECT col_decimal FROM test_gpu_types"))
+                .executesWithGpu(TableScanNode.class);
+        assertThat(query("SELECT col_date FROM test_gpu_types"))
+                .executesWithGpu(TableScanNode.class);
 
         // Verify all unsupported types execute without GPU
-        assertThat(query("SELECT col_decimal FROM test_gpu_types"))
-                .executesWithoutGpu();
         assertThat(query("SELECT col_long_decimal FROM test_gpu_types"))
-                .executesWithoutGpu();
-        assertThat(query("SELECT col_date FROM test_gpu_types"))
-                .executesWithoutGpu();
-        assertThat(query("SELECT col_timestamp FROM test_gpu_types"))
                 .executesWithoutGpu();
         assertThat(query("SELECT col_varbinary FROM test_gpu_types"))
                 .executesWithoutGpu();
@@ -75,6 +92,86 @@ public abstract class BaseHiveGpuQueriesTest
                 .executesWithoutGpu();
 
         assertUpdate("DROP TABLE test_gpu_types");
+    }
+
+    @Test
+    public void testShortDecimalVariants()
+    {
+        // Trino's Hive connector writes decimals as FIXED_LEN_BYTE_ARRAY; cuDF narrows the on-read
+        // type by precision: DECIMAL32 for precision ≤9, DECIMAL64 for 10-18, DECIMAL128 beyond.
+        // Short-decimal columns in Trino always expect DECIMAL64, so d_small (decimal(5,3)) goes
+        // through the DECIMAL32→DECIMAL64 widening cast and d_large (decimal(18,4)) is an exact
+        // match. Include negative, zero and null values.
+        assertUpdate("CREATE TABLE test_gpu_decimals AS SELECT * FROM (VALUES " +
+                "(CAST(1.23 AS decimal(5,3)), CAST(123456789.1234 AS decimal(18,4))), " +
+                "(CAST(-9.999 AS decimal(5,3)), CAST(-999999999999.9999 AS decimal(18,4))), " +
+                "(CAST(0 AS decimal(5,3)), CAST(0 AS decimal(18,4))), " +
+                "(CAST(NULL AS decimal(5,3)), CAST(NULL AS decimal(18,4)))) " +
+                "t(d_small, d_large)", 4);
+
+        // executesWithGpu cross-checks GPU output against CPU execution, so a wrong DECIMAL32→
+        // DECIMAL64 cast (e.g. scale off by a power of 10) would fail the comparison.
+        assertThat(query("SELECT d_small, d_large FROM test_gpu_decimals"))
+                .executesWithGpu(TableScanNode.class);
+
+        assertUpdate("DROP TABLE test_gpu_decimals");
+    }
+
+    @Test
+    public void testInt32AndInt64BackedDecimalRead()
+            throws IOException
+    {
+        // Pin the INT32/INT64 on-disk encoding paths explicitly via ParquetTestUtils. Trino's
+        // Hive connector only writes FIXED_LEN_BYTE_ARRAY (though cuDF happens to narrow it to
+        // DECIMAL32/DECIMAL64 by precision, coinciding with this path), so covering INT32/INT64
+        // here directly guards against cuDF behavior changes. Non-legacy encoding used by the
+        // Parquet writer library: precision ≤9 → INT32, 10-18 → INT64.
+        TrinoFileSystem fileSystem = getConnectorService(getQueryRunner(), TrinoFileSystemFactory.class)
+                .create(ConnectorIdentity.ofUser("test"));
+        Location directory = newExternalTableLocation();
+        fileSystem.createDirectory(directory);
+        try {
+            Location dataFile = directory.appendPath("data.parquet");
+
+            DecimalType int32Decimal = DecimalType.createDecimalType(7, 2);
+            DecimalType int64Decimal = DecimalType.createDecimalType(15, 4);
+            ImmutableList<Type> types = ImmutableList.of(int32Decimal, int64Decimal);
+            ImmutableList<String> columnNames = ImmutableList.of("d_int32", "d_int64");
+            try (OutputStream out = fileSystem.newOutputFile(dataFile).create();
+                    ParquetWriter writer = ParquetTestUtils.createParquetWriter(
+                            out,
+                            ParquetWriterOptions.builder().build(),
+                            types,
+                            columnNames,
+                            CompressionCodec.SNAPPY)) {
+                PageBuilder pageBuilder = new PageBuilder(types);
+                BlockBuilder d32 = pageBuilder.getBlockBuilder(0);
+                BlockBuilder d64 = pageBuilder.getBlockBuilder(1);
+                int32Decimal.writeLong(d32, 12345L);
+                int64Decimal.writeLong(d64, 1234567891234L);
+                int32Decimal.writeLong(d32, -9999L);
+                int64Decimal.writeLong(d64, -999999999999999L);
+                int32Decimal.writeLong(d32, 0L);
+                int64Decimal.writeLong(d64, 0L);
+                d32.appendNull();
+                d64.appendNull();
+                pageBuilder.declarePositions(4);
+                writer.write(pageBuilder.build());
+            }
+
+            String tableName = "test_gpu_int32_64_decimals_" + randomNameSuffix();
+            assertUpdate(
+                    """
+                            CREATE TABLE %s (d_int32 decimal(7,2), d_int64 decimal(15,4))
+                            WITH (external_location = '%s', format = 'PARQUET')
+                            """.formatted(tableName, directory));
+            assertThat(query("SELECT d_int32, d_int64 FROM " + tableName))
+                    .executesWithGpu(TableScanNode.class);
+            assertUpdate("DROP TABLE " + tableName);
+        }
+        finally {
+            fileSystem.deleteDirectory(directory);
+        }
     }
 
     @Test

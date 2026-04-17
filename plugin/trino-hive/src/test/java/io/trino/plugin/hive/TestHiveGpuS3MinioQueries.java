@@ -14,9 +14,11 @@
 package io.trino.plugin.hive;
 
 import com.google.common.collect.ImmutableMap;
+import io.trino.filesystem.Location;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.containers.Minio;
 
+import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.containers.Minio.MINIO_REGION;
 import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
 import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
@@ -50,5 +52,11 @@ public class TestHiveGpuS3MinioQueries
                         .put("hive.storage-format", "PARQUET")
                         .buildOrThrow())
                 .build();
+    }
+
+    @Override
+    protected Location newExternalTableLocation()
+    {
+        return Location.of("s3://%s/gpu_test_%s".formatted(BUCKET, randomNameSuffix()));
     }
 }

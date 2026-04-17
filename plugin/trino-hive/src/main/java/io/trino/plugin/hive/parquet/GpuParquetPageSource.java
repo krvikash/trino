@@ -27,6 +27,7 @@ import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.Type;
@@ -120,10 +121,6 @@ public class GpuParquetPageSource
 
             // Read from fabricated buffer using cuDF
             try (Table table = Table.readParquet(options, hostBuffer)) {
-                // Validate column types match expectations
-                validateColumnTypes(table);
-
-                // Convert to GpuPage
                 return convertToGpuPage(table);
             }
         }
@@ -166,7 +163,7 @@ public class GpuParquetPageSource
         }
     }
 
-    private void validateColumnTypes(Table table)
+    private @Move GpuPage convertToGpuPage(@Borrow Table table)
     {
         if (table.getNumberOfColumns() != gpuColumns.size()) {
             throw new TrinoException(
@@ -174,29 +171,6 @@ public class GpuParquetPageSource
                     format("Expected %d columns from cuDF but got %d", gpuColumns.size(), table.getNumberOfColumns()));
         }
 
-        for (int i = 0; i < gpuColumns.size(); i++) {
-            HiveColumnHandle column = gpuColumns.get(i);
-            ColumnVector cudfColumn = table.getColumn(i);
-            Type trinoType = column.getType();
-
-            DType expectedDType = toDType(trinoType)
-                    .orElseThrow(() -> new TrinoException(
-                            HIVE_UNSUPPORTED_FORMAT,
-                            format("Unsupported type for GPU: %s", trinoType)));
-
-            if (!cudfColumn.getType().equals(expectedDType)) {
-                throw new TrinoException(
-                        HIVE_UNSUPPORTED_FORMAT,
-                        format("Column %s type mismatch: expected %s but got %s",
-                                column.getBaseColumnName(),
-                                expectedDType,
-                                cudfColumn.getType()));
-            }
-        }
-    }
-
-    private GpuPage convertToGpuPage(Table table)
-    {
         try (AutoCloseableCloser closer = AutoCloseableCloser.create()) {
             Column[] columns = new Column[columnMappings.size()];
             int gpuColumnIndex = 0;
@@ -207,9 +181,16 @@ public class GpuParquetPageSource
 
                 columns[i] = closer.register(switch (mapping.getKind()) {
                     case REGULAR -> {
-                        // GPU column: increment refcount before storing in DeviceMemory
-                        ColumnVector cudfCol = table.getColumn(gpuColumnIndex++);
-                        yield new Column.DeviceMemory(cudfCol.incRefCount());
+                        int index = gpuColumnIndex++;
+                        HiveColumnHandle gpuColumn = gpuColumns.get(index);
+                        @Borrow ColumnVector cudfCol = table.getColumn(index);
+                        Type trinoType = gpuColumn.getType();
+                        DType expectedDType = toDType(trinoType)
+                                .orElseThrow(() -> new TrinoException(
+                                        HIVE_UNSUPPORTED_FORMAT,
+                                        format("Unsupported type for GPU: %s", trinoType)));
+                        @Own ColumnVector evolved = evolveColumn(gpuColumn.getBaseColumnName(), cudfCol, expectedDType);
+                        yield new Column.DeviceMemory(evolved);
                     }
 
                     case PREFILLED -> {
@@ -234,6 +215,47 @@ public class GpuParquetPageSource
             Throwables.throwIfUnchecked(e);
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * Evolve a cuDF column to the expected DType, applying a cast when the Parquet physical type
+     * differs from the Trino logical type.
+     * <ul>
+     *   <li>Timestamp family (any unit → any unit): handles INT96/INT64 MILLIS read as MICROS
+     *       (due to withTimeUnit) being downcast to the precision Trino expects.</li>
+     *   <li>Decimal family (DECIMAL32/64/128 → DECIMAL64): Hive writes FIXED_LEN_BYTE_ARRAY
+     *       (read by cuDF as DECIMAL128); external writers may use INT32/INT64-backed decimals.</li>
+     *   <li>Integer widening (INT8/INT16/INT32 → INT16/INT32/INT64): covers schema evolution
+     *       where a column was widened after the table was written.</li>
+     *   <li>Integer → decimal: INT32/INT64-backed Parquet decimals where cuDF returns a plain
+     *       integer type rather than a decimal type.</li>
+     * </ul>
+     */
+    private static @Move ColumnVector evolveColumn(String columnName, @Borrow ColumnVector cudfCol, DType expectedDType)
+    {
+        DType actualDType = cudfCol.getType();
+        if (actualDType.equals(expectedDType)) {
+            return cudfCol.incRefCount();
+        }
+        if (actualDType.isTimestampType() && expectedDType.isTimestampType()) {
+            return cudfCol.castTo(expectedDType);
+        }
+        if (actualDType.isDecimalType() && expectedDType.isDecimalType()) {
+            return cudfCol.castTo(expectedDType);
+        }
+        if (isIntegerType(actualDType) && (isIntegerType(expectedDType) || expectedDType.isDecimalType())
+                && expectedDType.getSizeInBytes() >= actualDType.getSizeInBytes()) {
+            return cudfCol.castTo(expectedDType);
+        }
+        throw new TrinoException(
+                HIVE_UNSUPPORTED_FORMAT,
+                format("Column %s: cannot evolve cuDF type %s to expected type %s",
+                        columnName, actualDType, expectedDType));
+    }
+
+    private static boolean isIntegerType(DType dtype)
+    {
+        return dtype == DType.INT8 || dtype == DType.INT16 || dtype == DType.INT32 || dtype == DType.INT64;
     }
 
     @Override
