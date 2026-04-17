@@ -21,7 +21,7 @@ import java.util.Arrays;
 import static io.airlift.slice.Slices.EMPTY_SLICE;
 import static io.trino.spi.block.BlockUtil.calculateNewArraySize;
 import static io.trino.spi.block.PageBuilderStatus.DEFAULT_MAX_PAGE_SIZE_IN_BYTES;
-import static io.trino.spi.block.PreSizedBlockBuilder.checkArgument;
+import static io.trino.spi.block.Preconditions.checkArgument;
 import static java.lang.Math.min;
 
 public class VariableWidthPreSizedBlockBuilder

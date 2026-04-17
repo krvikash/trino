@@ -13,7 +13,7 @@
  */
 package io.trino.spi.block;
 
-import static io.trino.spi.block.PreSizedBlockBuilder.checkArgument;
+import static io.trino.spi.block.Preconditions.checkArgument;
 
 public class LongArrayPreSizedBlockBuilder
         implements PreSizedBlockBuilder

@@ -14,7 +14,7 @@
 package io.trino.spi.block;
 
 import static io.trino.spi.block.Fixed12Block.encodeFixed12;
-import static io.trino.spi.block.PreSizedBlockBuilder.checkArgument;
+import static io.trino.spi.block.Preconditions.checkArgument;
 
 public class Fixed12PreSizedBlockBuilder
         implements PreSizedBlockBuilder

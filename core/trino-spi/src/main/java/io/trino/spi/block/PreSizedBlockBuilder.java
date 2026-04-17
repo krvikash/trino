@@ -13,10 +13,6 @@
  */
 package io.trino.spi.block;
 
-import com.google.errorprone.annotations.FormatMethod;
-
-import static java.lang.String.format;
-
 public interface PreSizedBlockBuilder
 {
     void appendNull();
@@ -32,12 +28,4 @@ public interface PreSizedBlockBuilder
      * Creates a new block builder of the same type based on the current usage statistics of this block builder.
      */
     PreSizedBlockBuilder newBlockBuilderLike(int expectedEntries);
-
-    @FormatMethod
-    static void checkArgument(boolean condition, String message, Object... messageArgs)
-    {
-        if (!condition) {
-            throw new IllegalArgumentException(format(message, messageArgs));
-        }
-    }
 }
