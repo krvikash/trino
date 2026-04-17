@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.stream.Stream;
@@ -65,8 +66,8 @@ public final class BenchmarkClickBench
         @Option(names = {"-r", "--runs"}, description = "Number of benchmark runs for each query")
         int runs = 10;
 
-        @Option(names = {"-q", "--query"}, description = "A specific query to run [1-43]")
-        Integer query;
+        @Option(names = {"-q", "--query"}, description = "A specific query to run [1-43] (can be repeated)")
+        List<Integer> queries = new ArrayList<>();
 
         @Option(names = {"-p", "--profile"}, description = "Output directory for async-profiler flamegraphs")
         Path profileOutputDir;
@@ -87,8 +88,10 @@ public final class BenchmarkClickBench
                 log.info("Running Trino at %s", runner.getCoordinator().getBaseUrl());
                 log.info("Running benchmark %s warmup %s measured runs, reporting average.".formatted(warmup, runs));
                 verifyDataset(runner);
-                if (query != null) {
-                    benchmarkQuery(runner, query, profiler);
+                if (!queries.isEmpty()) {
+                    for (int query : queries) {
+                        benchmarkQuery(runner, query, profiler);
+                    }
                 }
                 else {
                     long sumOfAverages = 0;
