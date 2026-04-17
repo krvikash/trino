@@ -84,7 +84,7 @@ public final class BenchmarkClickBench
                 log.info("Profiler output will be written to %s", profileOutputDir.toAbsolutePath());
             }
 
-            try (DistributedQueryRunner runner = setup(executionMode)) {
+            try (DistributedQueryRunner runner = setup(executionMode, false)) {
                 log.info("Running Trino at %s", runner.getCoordinator().getBaseUrl());
                 log.info("Running benchmark %s warmup %s measured runs, reporting average.".formatted(warmup, runs));
                 verifyDataset(runner);
@@ -203,7 +203,7 @@ public final class BenchmarkClickBench
         GPU_TS,
     }
 
-    private static DistributedQueryRunner setup(ExecutionMode executionMode)
+    private static DistributedQueryRunner setup(ExecutionMode executionMode, boolean bind8080)
             throws Exception
     {
         HiveQueryRunner.Builder<?> builder = HiveQueryRunner.builder()
@@ -216,6 +216,9 @@ public final class BenchmarkClickBench
             case GPU_TS -> builder
                     .addExtraProperty("gpu-acceleration.enabled", "true")
                     .addExtraProperty("gpu-acceleration.table-scan-enabled", "true");
+        }
+        if (bind8080) {
+            builder.addCoordinatorProperty("http-server.http.port", "8080");
         }
         DistributedQueryRunner queryRunner = builder.build();
 
@@ -377,6 +380,28 @@ public final class BenchmarkClickBench
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
+        }
+    }
+
+    public static class CpuRunner
+    {
+        static void main()
+                throws Exception
+        {
+            DistributedQueryRunner queryRunner = setup(ExecutionMode.CPU, true);
+            log.info("======== SERVER STARTED ========");
+            log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
+        }
+    }
+
+    public static class GpuRunner
+    {
+        static void main()
+                throws Exception
+        {
+            DistributedQueryRunner queryRunner = setup(ExecutionMode.GPU, true);
+            log.info("======== SERVER STARTED ========");
+            log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
         }
     }
 }
