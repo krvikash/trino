@@ -19,6 +19,7 @@ import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.plugin.iceberg.BaseIcebergSystemTables;
 import io.trino.plugin.iceberg.IcebergConnector;
 import io.trino.plugin.iceberg.IcebergPlugin;
+import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.testing.DistributedQueryRunner;
 
 import java.nio.file.Path;
@@ -53,6 +54,8 @@ public class TestStarburstObjectStoreIcebergSystemTables
             Path dataDir = queryRunner.getCoordinator().getBaseDataDir().resolve("iceberg");
             verify(dataDir.toFile().mkdirs());
 
+            queryRunner.installPlugin(new TpchPlugin());
+            queryRunner.createCatalog("tpch", "tpch", ImmutableMap.of());
             queryRunner.installPlugin(new IcebergPlugin());
             queryRunner.installPlugin(new ObjectStorePlugin());
             queryRunner.createCatalog("objectstore", STARBURST_OBJECTSTORE, ImmutableMap.<String, String>builder()
