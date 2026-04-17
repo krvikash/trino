@@ -28,7 +28,7 @@ import static java.util.Objects.requireNonNull;
 public class OpenApiConnectorFactory
         implements ConnectorFactory
 {
-    public static final String CONNECTOR_NAME = "openapi";
+    public static final String CONNECTOR_NAME = "starburst_openapi";
 
     @Override
     public String getName()

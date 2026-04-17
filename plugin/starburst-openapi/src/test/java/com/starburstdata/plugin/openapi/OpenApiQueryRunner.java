@@ -76,7 +76,7 @@ public final class OpenApiQueryRunner
                     "connectorProperties must include spec-location and base-uri");
             try {
                 queryRunner.installPlugin(new OpenApiPlugin());
-                queryRunner.createCatalog("openapi", "openapi", connectorProperties);
+                queryRunner.createCatalog("openapi", "starburst_openapi", connectorProperties);
 
                 return queryRunner;
             }
