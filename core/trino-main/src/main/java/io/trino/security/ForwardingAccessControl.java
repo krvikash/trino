@@ -267,21 +267,21 @@ public abstract class ForwardingAccessControl
     }
 
     @Override
-    public void checkCanInsertIntoTable(SecurityContext context, QualifiedObjectName tableName)
+    public void checkCanInsertIntoTable(SecurityContext context, QualifiedObjectName tableName, Optional<String> branch)
     {
-        delegate().checkCanInsertIntoTable(context, tableName);
+        delegate().checkCanInsertIntoTable(context, tableName, branch);
     }
 
     @Override
-    public void checkCanDeleteFromTable(SecurityContext context, QualifiedObjectName tableName)
+    public void checkCanDeleteFromTable(SecurityContext context, QualifiedObjectName tableName, Optional<String> branch)
     {
-        delegate().checkCanDeleteFromTable(context, tableName);
+        delegate().checkCanDeleteFromTable(context, tableName, branch);
     }
 
     @Override
-    public void checkCanUpdateTableColumns(SecurityContext context, QualifiedObjectName tableName, Set<String> updatedColumnNames)
+    public void checkCanUpdateTableColumns(SecurityContext context, QualifiedObjectName tableName, Optional<String> branch, Set<String> updatedColumnNames)
     {
-        delegate().checkCanUpdateTableColumns(context, tableName, updatedColumnNames);
+        delegate().checkCanUpdateTableColumns(context, tableName, branch, updatedColumnNames);
     }
 
     @Override
@@ -309,9 +309,9 @@ public abstract class ForwardingAccessControl
     }
 
     @Override
-    public void checkCanCreateViewWithSelectFromColumns(SecurityContext context, QualifiedObjectName tableName, Set<String> columnNames)
+    public void checkCanCreateViewWithSelectFromColumns(SecurityContext context, QualifiedObjectName tableName, Optional<String> branch, Set<String> columnNames)
     {
-        delegate().checkCanCreateViewWithSelectFromColumns(context, tableName, columnNames);
+        delegate().checkCanCreateViewWithSelectFromColumns(context, tableName, branch, columnNames);
     }
 
     @Override
@@ -429,9 +429,9 @@ public abstract class ForwardingAccessControl
     }
 
     @Override
-    public void checkCanSelectFromColumns(SecurityContext context, QualifiedObjectName tableName, Set<String> columnNames)
+    public void checkCanSelectFromColumns(SecurityContext context, QualifiedObjectName tableName, Optional<String> branch, Set<String> columnNames)
     {
-        delegate().checkCanSelectFromColumns(context, tableName, columnNames);
+        delegate().checkCanSelectFromColumns(context, tableName, branch, columnNames);
     }
 
     @Override
