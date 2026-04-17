@@ -56,7 +56,6 @@ import io.trino.plugin.hive.parquet.ParquetPageSource;
 import io.trino.plugin.iceberg.IcebergParquetColumnIOConverter.FieldContext;
 import io.trino.plugin.iceberg.delete.DeleteFile;
 import io.trino.plugin.iceberg.delete.DeleteManager;
-import io.trino.plugin.iceberg.delete.DeletePageSourceProvider;
 import io.trino.plugin.iceberg.delete.DeletionVector;
 import io.trino.plugin.iceberg.delete.RowPredicate;
 import io.trino.plugin.iceberg.fileio.ForwardingFileIoFactory;
@@ -444,17 +443,6 @@ public class IcebergPageSourceProvider
             pageSource = transformerBuilder.build(pageSource);
         }
         return pageSource;
-    }
-
-    protected DeletePageSourceProvider deletePageSourceProvider(ConnectorSession session, TrinoFileSystem fileSystem, int formatVersion)
-    {
-        return (deleteFile, deleteColumns, tupleDomain) -> openDeleteFile(
-                session,
-                fileSystem,
-                deleteFile,
-                deleteColumns,
-                tupleDomain,
-                formatVersion);
     }
 
     @Override

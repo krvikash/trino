@@ -43,8 +43,6 @@ public interface UpdateSnapshot
 
     void addDeletes(DeleteFile deletes);
 
-    void removeDeletes(DeleteFile deletes);
-
     void addRows(Optional<DataFile> dataFile, Optional<DataFile> rewrittenDataFile);
 
     void scanManifestsWith(ExecutorService executorService);

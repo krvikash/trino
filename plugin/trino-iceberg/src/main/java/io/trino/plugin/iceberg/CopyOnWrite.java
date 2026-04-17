@@ -63,12 +63,6 @@ public class CopyOnWrite
     public void validateDataFilesExist(Iterable<? extends CharSequence> referencedFiles) {}
 
     @Override
-    public void removeDeletes(DeleteFile deletes)
-    {
-        throw new UnsupportedOperationException("CoW doesn't support removeDeletes");
-    }
-
-    @Override
     public void addDeletes(DeleteFile deletes)
     {
         throw new UnsupportedOperationException("CoW doesn't support addDeletes");

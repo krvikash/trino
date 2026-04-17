@@ -66,12 +66,6 @@ public class MergeOnRead
     }
 
     @Override
-    public void removeDeletes(DeleteFile deletes)
-    {
-        rowDelta.removeDeletes(deletes);
-    }
-
-    @Override
     public void addDeletes(DeleteFile deletes)
     {
         rowDelta.addDeletes(deletes);
