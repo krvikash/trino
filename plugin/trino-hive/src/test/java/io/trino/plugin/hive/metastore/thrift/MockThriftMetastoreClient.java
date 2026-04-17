@@ -227,6 +227,17 @@ public class MockThriftMetastoreClient
     }
 
     @Override
+    public List<Table> getTablesByNames(String databaseName, List<String> tableNames)
+            throws TException
+    {
+        if (!tableNames.contains(TEST_TABLE) || !databaseName.equals(TEST_DATABASE)) {
+            return ImmutableList.of();
+        }
+
+        return ImmutableList.of(getTable(databaseName, TEST_TABLE));
+    }
+
+    @Override
     public List<FieldSchema> getFields(String databaseName, String tableName)
     {
         return ImmutableList.of(new FieldSchema("key", "string", null));

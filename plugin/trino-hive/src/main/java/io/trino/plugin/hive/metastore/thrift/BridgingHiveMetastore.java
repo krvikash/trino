@@ -15,7 +15,9 @@ package io.trino.plugin.hive.metastore.thrift;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import io.trino.hive.thrift.metastore.FieldSchema;
+import io.trino.hive.thrift.metastore.TableMeta;
 import io.trino.metastore.AcidOperation;
 import io.trino.metastore.AcidTransactionOwner;
 import io.trino.metastore.Database;
@@ -79,6 +81,8 @@ import static java.util.function.UnaryOperator.identity;
 public class BridgingHiveMetastore
         implements HiveMetastore
 {
+    private static final int BATCH_SIZE = 1000;
+
     private final ThriftMetastore delegate;
 
     public BridgingHiveMetastore(ThriftMetastore delegate)
@@ -164,7 +168,24 @@ public class BridgingHiveMetastore
     @Override
     public Optional<Iterator<Table>> streamTables(ConnectorSession session, String databaseName)
     {
-        return Optional.empty();
+        List<String> tableNames = delegate.getTables(databaseName).stream()
+                .map(TableMeta::getTableName)
+                .collect(toImmutableList());
+        if (tableNames.isEmpty()) {
+            return Optional.of(ImmutableList.<Table>of().iterator());
+        }
+
+        return Optional.of(Lists.partition(tableNames, BATCH_SIZE).stream()
+                .flatMap(batch -> delegate.getTablesByNames(databaseName, batch).stream())
+                .map(table -> {
+                    if (isAvroTableWithSchemaSet(table)) {
+                        return fromMetastoreApiTable(table, delegate.getFields(databaseName, table.getTableName()).orElseThrow());
+                    }
+                    if (isCsvTable(table)) {
+                        return fromMetastoreApiTable(table, csvSchemaFields(table.getSd().getCols()));
+                    }
+                    return fromMetastoreApiTable(table);
+                }).iterator());
     }
 
     @Override

@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.hive.metastore.thrift;
 
+import com.google.common.collect.ImmutableList;
 import io.trino.metastore.Database;
 import io.trino.metastore.HiveMetastore;
 import io.trino.metastore.SchemaAlreadyExistsException;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -48,6 +50,7 @@ final class TestBridgingHiveMetastore
         extends AbstractTestHiveMetastore
 {
     private final AutoCloseableCloser closer = AutoCloseableCloser.create();
+    private final ThriftMetastore thriftMetastore;
     private final HiveMetastore metastore;
 
     TestBridgingHiveMetastore()
@@ -69,10 +72,11 @@ final class TestBridgingHiveMetastore
             return result;
         });
 
-        metastore = new BridgingHiveMetastore(testingThriftHiveMetastoreBuilder()
+        thriftMetastore = testingThriftHiveMetastoreBuilder()
                 .metastoreClient(hiveHadoop.getHiveMetastoreEndpoint(), metastoreClientAdapterProvider)
                 .thriftMetastoreConfig(new ThriftMetastoreConfig().setDeleteFilesOnDrop(true))
-                .build(closer::register));
+                .build(closer::register);
+        metastore = new BridgingHiveMetastore(thriftMetastore);
     }
 
     @AfterAll
@@ -162,5 +166,45 @@ final class TestBridgingHiveMetastore
         assertThat(getMetastore().getTable(databaseName, tableName)).isEmpty();
 
         getMetastore().dropDatabase(databaseName, false);
+    }
+
+    @Test
+    public void testGetTablesByNamesSkipsMissingTables()
+    {
+        String databaseName = "test_database_" + randomNameSuffix();
+        Database.Builder database = Database.builder()
+                .setDatabaseName(databaseName)
+                .setOwnerName(Optional.empty())
+                .setOwnerType(Optional.empty());
+        getMetastore().createDatabase(database.build());
+
+        String tableName = "test_table_" + randomNameSuffix();
+        Table.Builder table = Table.builder()
+                .setDatabaseName(databaseName)
+                .setTableName(tableName)
+                .setTableType(EXTERNAL_TABLE.name())
+                .setOwner(Optional.empty());
+        table.getStorageBuilder()
+                .setStorageFormat(PARQUET.toStorageFormat());
+        getMetastore().createTable(table.build(), NO_PRIVILEGES);
+
+        List<io.trino.hive.thrift.metastore.Table> tables = thriftMetastore.getTablesByNames(
+                databaseName,
+                ImmutableList.of(tableName, "missing_table_" + randomNameSuffix()));
+        assertThat(tables)
+                .extracting(io.trino.hive.thrift.metastore.Table::getTableName)
+                .containsExactly(tableName);
+
+        getMetastore().dropTable(databaseName, tableName, false);
+        getMetastore().dropDatabase(databaseName, false);
+    }
+
+    @Test
+    public void testGetTablesByNamesReturnsEmptyForMissingDatabase()
+    {
+        List<io.trino.hive.thrift.metastore.Table> tables = thriftMetastore.getTablesByNames(
+                "missing_database_" + randomNameSuffix(),
+                ImmutableList.of("any_table_" + randomNameSuffix()));
+        assertThat(tables).isEmpty();
     }
 }

@@ -316,6 +316,30 @@ public final class ThriftHiveMetastore
     }
 
     @Override
+    public List<Table> getTablesByNames(String databaseName, List<String> tableNames)
+    {
+        try {
+            return retry()
+                    .stopOn(NoSuchObjectException.class)
+                    .stopOnIllegalExceptions()
+                    .run("getTablesByNames", () -> {
+                        try (ThriftMetastoreClient client = createMetastoreClient()) {
+                            return client.getTablesByNames(databaseName, tableNames);
+                        }
+                    });
+        }
+        catch (UnknownDBException e) {
+            return ImmutableList.of();
+        }
+        catch (TException e) {
+            throw new TrinoException(HIVE_METASTORE_ERROR, e);
+        }
+        catch (Exception e) {
+            throw propagate(e);
+        }
+    }
+
+    @Override
     public Map<String, HiveColumnStatistics> getTableColumnStatistics(String databaseName, String tableName, Set<String> columnNames)
     {
         try {

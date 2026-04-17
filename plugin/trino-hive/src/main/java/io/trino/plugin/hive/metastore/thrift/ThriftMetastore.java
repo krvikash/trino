@@ -84,6 +84,8 @@ public sealed interface ThriftMetastore
 
     Optional<Table> getTable(String databaseName, String tableName);
 
+    List<Table> getTablesByNames(String databaseName, List<String> tableNames);
+
     Map<String, HiveColumnStatistics> getTableColumnStatistics(String databaseName, String tableName, Set<String> columnNames);
 
     Map<String, Map<String, HiveColumnStatistics>> getPartitionColumnStatistics(String databaseName, String tableName, Set<String> partitionNames, Set<String> columnNames);

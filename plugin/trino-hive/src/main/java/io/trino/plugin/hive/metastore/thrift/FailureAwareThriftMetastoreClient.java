@@ -150,6 +150,13 @@ public class FailureAwareThriftMetastoreClient
     }
 
     @Override
+    public List<Table> getTablesByNames(String databaseName, List<String> tableNames)
+            throws TException
+    {
+        return runWithHandle(() -> delegate.getTablesByNames(databaseName, tableNames));
+    }
+
+    @Override
     public List<FieldSchema> getFields(String databaseName, String tableName)
             throws TException
     {

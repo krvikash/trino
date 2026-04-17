@@ -78,6 +78,9 @@ public interface ThriftMetastoreClient
     Table getTable(String databaseName, String tableName)
             throws TException;
 
+    List<Table> getTablesByNames(String databaseName, List<String> tableNames)
+            throws TException;
+
     List<FieldSchema> getFields(String databaseName, String tableName)
             throws TException;
 

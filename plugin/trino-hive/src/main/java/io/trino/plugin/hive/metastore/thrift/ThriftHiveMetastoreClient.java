@@ -37,6 +37,7 @@ import io.trino.hive.thrift.metastore.Function;
 import io.trino.hive.thrift.metastore.GetRoleGrantsForPrincipalRequest;
 import io.trino.hive.thrift.metastore.GetRoleGrantsForPrincipalResponse;
 import io.trino.hive.thrift.metastore.GetTableRequest;
+import io.trino.hive.thrift.metastore.GetTablesRequest;
 import io.trino.hive.thrift.metastore.GetValidWriteIdsRequest;
 import io.trino.hive.thrift.metastore.GrantRevokePrivilegeRequest;
 import io.trino.hive.thrift.metastore.GrantRevokeRoleRequest;
@@ -90,6 +91,7 @@ import static com.google.common.base.Verify.verify;
 import static com.google.common.base.Verify.verifyNotNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.reflect.Reflection.newProxy;
+import static io.trino.hive.thrift.metastore.ClientCapability.INSERT_ONLY_TABLES;
 import static io.trino.hive.thrift.metastore.GrantRevokeType.GRANT;
 import static io.trino.hive.thrift.metastore.GrantRevokeType.REVOKE;
 import static io.trino.hive.thrift.metastore.hive_metastoreConstants.HIVE_FILTER_FIELD_PARAMS;
@@ -124,6 +126,7 @@ public class ThriftHiveMetastoreClient
     private final MetastoreSupportsDateStatistics metastoreSupportsDateStatistics;
     private final boolean metastoreSupportsTableMeta;
     private final AtomicInteger chosenGetTableAlternative;
+    private final AtomicInteger chosenGetTablesByNamesAlternative;
     private final AtomicInteger chosenTableParamAlternative;
     private final AtomicInteger chosenAlterTransactionalTableAlternative;
     private final AtomicInteger chosenAlterPartitionsAlternative;
@@ -136,6 +139,7 @@ public class ThriftHiveMetastoreClient
             MetastoreSupportsDateStatistics metastoreSupportsDateStatistics,
             boolean metastoreSupportsTableMeta,
             AtomicInteger chosenGetTableAlternative,
+            AtomicInteger chosenGetTablesByNamesAlternative,
             AtomicInteger chosenTableParamAlternative,
             AtomicInteger chosenAlterTransactionalTableAlternative,
             AtomicInteger chosenAlterPartitionsAlternative)
@@ -146,6 +150,7 @@ public class ThriftHiveMetastoreClient
         this.metastoreSupportsDateStatistics = requireNonNull(metastoreSupportsDateStatistics, "metastoreSupportsDateStatistics is null");
         this.metastoreSupportsTableMeta = metastoreSupportsTableMeta;
         this.chosenGetTableAlternative = requireNonNull(chosenGetTableAlternative, "chosenGetTableAlternative is null");
+        this.chosenGetTablesByNamesAlternative = requireNonNull(chosenGetTablesByNamesAlternative, "chosenGetTablesByNamesAlternative is null");
         this.chosenTableParamAlternative = requireNonNull(chosenTableParamAlternative, "chosenTableParamAlternative is null");
         this.chosenAlterTransactionalTableAlternative = requireNonNull(chosenAlterTransactionalTableAlternative, "chosenAlterTransactionalTableAlternative is null");
         this.chosenAlterPartitionsAlternative = requireNonNull(chosenAlterPartitionsAlternative, "chosenAlterPartitionsAlternative is null");
@@ -315,6 +320,23 @@ public class ThriftHiveMetastoreClient
                     return client.getTableReq(request).getTable();
                 },
                 () -> client.getTable(prependCatalogToDbName(catalogName, databaseName), tableName));
+    }
+
+    @Override
+    public List<Table> getTablesByNames(String databaseName, List<String> tableNames)
+            throws TException
+    {
+        return alternativeCall(
+                ThriftHiveMetastoreClient::defaultIsValidExceptionalResponse,
+                chosenGetTablesByNamesAlternative,
+                () -> {
+                    GetTablesRequest request = new GetTablesRequest(databaseName);
+                    request.setTblNames(tableNames);
+                    request.setCapabilities(new ClientCapabilities(ImmutableList.of(INSERT_ONLY_TABLES)));
+                    catalogName.ifPresent(request::setCatName);
+                    return client.getTableObjectsByNameReq(request).getTables();
+                },
+                () -> client.getTableObjectsByName(prependCatalogToDbName(catalogName, databaseName), tableNames));
     }
 
     @Override

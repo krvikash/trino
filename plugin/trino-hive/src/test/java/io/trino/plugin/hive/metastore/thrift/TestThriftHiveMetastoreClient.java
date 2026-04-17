@@ -51,6 +51,7 @@ public class TestThriftHiveMetastoreClient
                 new AtomicInteger(),
                 new AtomicInteger(),
                 new AtomicInteger(),
+                new AtomicInteger(),
                 new AtomicInteger());
         assertThat(connectionCount.get()).isEqualTo(1);
 
