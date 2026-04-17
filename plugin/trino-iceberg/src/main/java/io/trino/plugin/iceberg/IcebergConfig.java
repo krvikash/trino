@@ -56,6 +56,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
         "iceberg.experimental.extended-statistics.enabled",
         "iceberg.extended-statistics.enabled",
         "iceberg.unsafe-sorting-properties-enabled",
+        "iceberg.file-based-conflict-detection",
 })
 public class IcebergConfig
 {
@@ -119,7 +120,6 @@ public class IcebergConfig
     private boolean objectStoreLayoutEnabled;
     private int metadataParallelism = 8;
     private boolean bucketExecutionEnabled = true;
-    private boolean fileBasedConflictDetectionEnabled = true;
     private String timeZone = "UTC";
     private VariantMapping legacyVariantTypeMapping = VariantMapping.VARIANT;
 
@@ -752,19 +752,6 @@ public class IcebergConfig
     public IcebergConfig setBucketExecutionEnabled(boolean bucketExecutionEnabled)
     {
         this.bucketExecutionEnabled = bucketExecutionEnabled;
-        return this;
-    }
-
-    public boolean isFileBasedConflictDetectionEnabled()
-    {
-        return fileBasedConflictDetectionEnabled;
-    }
-
-    @Config("iceberg.file-based-conflict-detection")
-    @ConfigDescription("Enable file-based conflict detection: take partition information from the actual written files as a source for the conflict detection system")
-    public IcebergConfig setFileBasedConflictDetectionEnabled(boolean fileBasedConflictDetectionEnabled)
-    {
-        this.fileBasedConflictDetectionEnabled = fileBasedConflictDetectionEnabled;
         return this;
     }
 

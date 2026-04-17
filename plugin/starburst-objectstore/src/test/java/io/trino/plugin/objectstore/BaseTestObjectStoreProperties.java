@@ -89,7 +89,6 @@ public abstract class BaseTestObjectStoreProperties
                         ('objectstore.expire_snapshots_min_retention', '7.00d', 'varchar'),
                         ('objectstore.extended_statistics_collect_on_write', 'true', 'boolean'),
                         ('objectstore.extended_statistics_enabled', 'true', 'boolean'),
-                        ('objectstore.file_based_conflict_detection_enabled', 'true', 'boolean'),
                         ('objectstore.force_local_scheduling', 'false', 'boolean'),
                         ('objectstore.hive_storage_format', 'ORC', 'varchar'),
                         ('objectstore.hive_views_legacy_translation', 'false', 'boolean'),
