@@ -27,7 +27,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.MoreCollectors.onlyElement;
 import static java.lang.Math.addExact;
 
-class BufferPages
+public class BufferPages
         implements GpuSourceOperation
 {
     private static final int TARGET_ROW_COUNT = 100_000;

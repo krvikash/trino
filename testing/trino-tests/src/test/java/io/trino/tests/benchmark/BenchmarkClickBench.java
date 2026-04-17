@@ -356,7 +356,7 @@ public final class BenchmarkClickBench
         }
     }
 
-    private static Path dataLocation()
+    static Path dataLocation()
     {
         return findRepositoryRoot().resolve("testing/benchmark-data/clickbench/hive/hits");
     }
@@ -364,7 +364,6 @@ public final class BenchmarkClickBench
     private static Path findRepositoryRoot()
     {
         Path workingDirectory = Path.of("").toAbsolutePath();
-        log.info("Current working directory: %s", workingDirectory);
         for (Path path = workingDirectory; path != null; path = path.getParent()) {
             if (isDirectory(path.resolve(".git"))) {
                 return path;

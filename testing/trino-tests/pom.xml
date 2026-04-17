@@ -105,6 +105,12 @@
 
         <dependency>
             <groupId>io.airlift</groupId>
+            <artifactId>slice</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.airlift</groupId>
             <artifactId>tracing</artifactId>
             <scope>runtime</scope>
         </dependency>
@@ -137,6 +143,12 @@
             <groupId>jakarta.ws.rs</groupId>
             <artifactId>jakarta.ws.rs-api</artifactId>
             <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>ai.rapids</groupId>
+            <artifactId>cudf</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <dependency>
@@ -227,6 +239,12 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>trino-filesystem</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-geospatial</artifactId>
             <scope>test</scope>
         </dependency>
@@ -311,6 +329,12 @@
         <dependency>
             <groupId>io.trino</groupId>
             <artifactId>trino-metastore</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-parquet</artifactId>
             <scope>test</scope>
         </dependency>
 
