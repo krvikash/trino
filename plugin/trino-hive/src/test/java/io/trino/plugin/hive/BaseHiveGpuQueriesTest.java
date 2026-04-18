@@ -14,6 +14,7 @@
 package io.trino.plugin.hive;
 
 import com.google.common.collect.ImmutableList;
+import io.trino.Session;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoFileSystemFactory;
@@ -32,8 +33,11 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 import static io.trino.plugin.hive.TestingHiveUtils.getConnectorService;
+import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -58,6 +62,7 @@ public abstract class BaseHiveGpuQueriesTest
                 "CAST(12.345 AS decimal(5,3)) AS col_decimal, " +
                 "CAST(12345678901234567890123.5678 AS decimal(27,4)) AS col_long_decimal, " +
                 "DATE '2024-01-01' AS col_date, " +
+                "CAST(TIMESTAMP '2020-02-12 15:03:00' AS timestamp(3)) AS col_timestamp, " +
                 "X'12ab3f' AS col_varbinary, " +
                 "CAST('abc' AS char(3)) AS col_char", 1);
 
@@ -81,6 +86,8 @@ public abstract class BaseHiveGpuQueriesTest
         assertThat(query("SELECT col_decimal FROM test_gpu_types"))
                 .executesWithGpu(TableScanNode.class);
         assertThat(query("SELECT col_date FROM test_gpu_types"))
+                .executesWithGpu(TableScanNode.class);
+        assertThat(query("SELECT col_timestamp FROM test_gpu_types"))
                 .executesWithGpu(TableScanNode.class);
 
         // Verify all unsupported types execute without GPU
@@ -172,6 +179,130 @@ public abstract class BaseHiveGpuQueriesTest
         finally {
             fileSystem.deleteDirectory(directory);
         }
+    }
+
+    @Test
+    public void testInt96TimestampEdgeCases()
+    {
+        // Trino's Hive writer stores timestamps as INT96. Verify the GPU reader handles the full
+        // representable range, including years that would wrap under cuDF's old int64-nanos path.
+        assertUpdate("CREATE TABLE test_gpu_int96_ts AS SELECT * FROM (VALUES " +
+                "(CAST(TIMESTAMP '1970-01-01 00:00:00.000' AS timestamp(3))), " +
+                "(CAST(TIMESTAMP '2024-06-15 12:34:56.789' AS timestamp(3))), " +
+                "(CAST(TIMESTAMP '1500-03-01 00:00:00.000' AS timestamp(3))), " +
+                "(CAST(TIMESTAMP '9999-12-31 23:59:59.999' AS timestamp(3))), " +
+                "(CAST(NULL AS timestamp(3)))) " +
+                "t(ts)", 5);
+        assertThat(query("SELECT ts FROM test_gpu_int96_ts"))
+                .executesWithGpu(TableScanNode.class);
+        assertUpdate("DROP TABLE test_gpu_int96_ts");
+    }
+
+    @Test
+    public void testInt64BackedTimestampRead()
+            throws IOException
+    {
+        // Trino's Hive writer always emits INT96 timestamps, so INT64-backed timestamps can only
+        // be exercised via externally-written files. cuDF's withTimeUnit(MICROS) forces all reads
+        // to TIMESTAMP_MICROSECONDS regardless of on-disk format. Reading at precision 3 exercises
+        // the evolveColumn MICROS→MILLIS cast; reading at precision 6 is the exact-match path.
+        // Without the cast, precision-3 values would be off by a factor of 1000.
+        TrinoFileSystem fileSystem = getConnectorService(getQueryRunner(), TrinoFileSystemFactory.class)
+                .create(ConnectorIdentity.ofUser("test"));
+        Location directory = newExternalTableLocation();
+        fileSystem.createDirectory(directory);
+        try {
+            Location dataFile = directory.appendPath("data.parquet");
+
+            ImmutableList<Type> types = ImmutableList.of(TIMESTAMP_MILLIS);
+            ImmutableList<String> columnNames = ImmutableList.of("ts");
+            try (OutputStream out = fileSystem.newOutputFile(dataFile).create();
+                    ParquetWriter writer = ParquetTestUtils.createParquetWriter(
+                            out,
+                            ParquetWriterOptions.builder().build(),
+                            types,
+                            columnNames,
+                            CompressionCodec.SNAPPY)) {
+                PageBuilder pageBuilder = new PageBuilder(types);
+                BlockBuilder builder = pageBuilder.getBlockBuilder(0);
+                // Include values outside the INT96→int64-nanos wrap range (~1677..2262) to exercise
+                // the INT64 timestamp reader's wider range.
+                TIMESTAMP_MILLIS.writeLong(builder, epochMicros(1970, 1, 1, 0, 0, 0, 0));
+                TIMESTAMP_MILLIS.writeLong(builder, epochMicros(2024, 1, 1, 0, 0, 0, 0));
+                TIMESTAMP_MILLIS.writeLong(builder, epochMicros(1500, 6, 15, 12, 0, 0, 0));
+                TIMESTAMP_MILLIS.writeLong(builder, epochMicros(2500, 12, 31, 23, 59, 59, 999));
+                builder.appendNull();
+                pageBuilder.declarePositions(5);
+                writer.write(pageBuilder.build());
+            }
+
+            // The Hive connector rejects CREATE TABLE when the column precision differs from the
+            // session's hive.timestamp_precision, so each read runs under a matching session.
+            readAndAssertTimestamps(HiveTimestampPrecision.MILLISECONDS, directory);
+            readAndAssertTimestamps(HiveTimestampPrecision.MICROSECONDS, directory);
+        }
+        finally {
+            fileSystem.deleteDirectory(directory);
+        }
+    }
+
+    private void readAndAssertTimestamps(HiveTimestampPrecision precision, Location directory)
+    {
+        String catalog = getSession().getCatalog().orElseThrow();
+        Session session = Session.builder(getSession())
+                .setCatalogSessionProperty(catalog, "timestamp_precision", precision.name())
+                .build();
+        String tableName = "test_gpu_int64_ts_" + precision.getPrecision() + "_" + randomNameSuffix();
+        assertUpdate(session,
+                """
+                        CREATE TABLE %s (ts timestamp(%s))
+                        WITH (external_location = '%s', format = 'PARQUET')
+                        """.formatted(tableName, precision.getPrecision(), directory));
+        assertThat(query(session, "SELECT ts FROM " + tableName))
+                .executesWithGpu(TableScanNode.class);
+        assertUpdate(session, "DROP TABLE " + tableName);
+    }
+
+    private static long epochMicros(int year, int month, int day, int hour, int minute, int second, int millis)
+    {
+        return LocalDateTime.of(year, month, day, hour, minute, second)
+                .toEpochSecond(ZoneOffset.UTC) * 1_000_000L + millis * 1_000L;
+    }
+
+    @Test
+    public void testDateEdgeValues()
+    {
+        assertUpdate("CREATE TABLE test_gpu_temporal AS SELECT * FROM (VALUES " +
+                "(DATE '1970-01-01'), " +
+                "(DATE '2024-02-29'), " +
+                "(DATE '9999-12-31'), " +
+                "(DATE '1900-06-15'), " +
+                "(CAST(NULL AS date))) " +
+                "t(d)", 5);
+
+        assertThat(query("SELECT d FROM test_gpu_temporal"))
+                .executesWithGpu(TableScanNode.class);
+
+        assertUpdate("DROP TABLE test_gpu_temporal");
+    }
+
+    @Test
+    public void testMultipleRowsWithInterleavedNulls()
+    {
+        assertUpdate("CREATE TABLE test_gpu_interleaved_nulls AS SELECT * FROM (VALUES " +
+                "(true, CAST(1 AS tinyint), CAST(10 AS smallint), 100, CAST(1000 AS bigint), " +
+                "REAL '1.5', DOUBLE '2.5', 'a', CAST(1.23 AS decimal(5,3)), DATE '2024-01-01', CAST(TIMESTAMP '2024-01-01 00:00:00' AS timestamp(3))), " +
+                "(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL), " +
+                "(false, CAST(-1 AS tinyint), CAST(-10 AS smallint), -100, CAST(-1000 AS bigint), " +
+                "REAL '-1.5', DOUBLE '-2.5', '', CAST(-9.999 AS decimal(5,3)), DATE '1970-01-01', CAST(TIMESTAMP '1970-01-01 00:00:00' AS timestamp(3))), " +
+                "(NULL, CAST(2 AS tinyint), NULL, 200, NULL, REAL '3.5', NULL, 'c', NULL, " +
+                "DATE '2025-06-15', NULL)) " +
+                "t(c_bool, c_tiny, c_small, c_int, c_big, c_real, c_double, c_varchar, c_decimal, c_date, c_timestamp)", 4);
+
+        assertThat(query("SELECT * FROM test_gpu_interleaved_nulls"))
+                .executesWithGpu(TableScanNode.class);
+
+        assertUpdate("DROP TABLE test_gpu_interleaved_nulls");
     }
 
     @Test

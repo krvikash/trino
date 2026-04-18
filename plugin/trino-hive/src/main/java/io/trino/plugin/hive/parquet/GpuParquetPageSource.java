@@ -106,8 +106,12 @@ public class GpuParquetPageSource
             return createGpuPageFromPrefilledColumns(toIntExact(fabricatedParquet.rowCount()));
         }
 
-        // Build cuDF ParquetOptions with only the GPU columns
-        ParquetOptions.Builder optionsBuilder = ParquetOptions.builder();
+        // Force timestamp columns (including INT96) to be read at microsecond precision. cuDF's default
+        // decodes INT96 as int64 nanoseconds and silently wraps values outside ~1677..2262; with
+        // TIMESTAMP_MICROSECONDS the reader produces valid micros across the full INT96 range. All
+        // Trino short-timestamp precisions fit in microseconds, so no precision is lost.
+        ParquetOptions.Builder optionsBuilder = ParquetOptions.builder()
+                .withTimeUnit(DType.TIMESTAMP_MICROSECONDS);
         for (HiveColumnHandle col : gpuColumns) {
             optionsBuilder.includeColumn(col.getBaseColumnName());
         }

@@ -51,6 +51,7 @@ public class TestHiveGpuQueries
                 .addExtraProperty("gpu-acceleration.table-scan-enabled", "true")
                 .setInitialTables(ImmutableList.of(NATION, REGION, ORDERS))
                 .addHiveProperty("hive.storage-format", "PARQUET")
+                .addHiveProperty("hive.parquet.time-zone", "UTC")
                 .build();
     }
 

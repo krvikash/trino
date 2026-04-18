@@ -63,7 +63,12 @@ public final class ParquetGpuPageSourceFactory
             AggregatedMemoryContext memoryContext = newSimpleAggregatedMemoryContext();
             FileFormatDataSourceStats stats = new FileFormatDataSourceStats();
             ParquetReaderOptions options = ParquetReaderOptions.builder().build();
-            DateTimeZone timeZone = DateTimeZone.getDefault();
+            // Hardcoded UTC: cuDF reads timestamps as raw UTC without applying hive.parquet.time-zone.
+            // Using the configured zone for predicate pruning here would be inconsistent with the data
+            // actually read (pruning on a shifted interpretation, reading raw). The upstream UTC guard
+            // in HivePageSourceProvider ensures this factory is only called when parquetDateTimeZone
+            // is already UTC; pinning it here as well documents the invariant at the predicate site.
+            DateTimeZone timeZone = DateTimeZone.UTC;
 
             ParquetDataSource dataSource = createDataSource(
                     inputFile,

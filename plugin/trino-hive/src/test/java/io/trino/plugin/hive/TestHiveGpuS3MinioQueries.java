@@ -50,6 +50,7 @@ public class TestHiveGpuS3MinioQueries
                         .put("hive.metastore", "file")
                         .put("hive.metastore.catalog.dir", "s3://%s/catalog".formatted(BUCKET))
                         .put("hive.storage-format", "PARQUET")
+                        .put("hive.parquet.time-zone", "UTC")
                         .buildOrThrow())
                 .build();
     }

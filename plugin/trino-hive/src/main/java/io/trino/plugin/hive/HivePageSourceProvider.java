@@ -48,8 +48,13 @@ import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.predicate.Utils;
+import io.trino.spi.type.ArrayType;
+import io.trino.spi.type.MapType;
+import io.trino.spi.type.RowType;
+import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
+import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -104,6 +109,7 @@ public class HivePageSourceProvider
     private final int domainCompactionThreshold;
     private final Set<HivePageSourceFactory> pageSourceFactories;
     private final TrinoFileSystemFactory fileSystemFactory;
+    private final DateTimeZone parquetDateTimeZone;
 
     @Inject
     public HivePageSourceProvider(
@@ -116,6 +122,7 @@ public class HivePageSourceProvider
         this.domainCompactionThreshold = hiveConfig.getDomainCompactionThreshold();
         this.pageSourceFactories = ImmutableSet.copyOf(requireNonNull(pageSourceFactories, "pageSourceFactories is null"));
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
+        this.parquetDateTimeZone = hiveConfig.getParquetDateTimeZone();
     }
 
     @Override
@@ -154,13 +161,20 @@ public class HivePageSourceProvider
                 hiveSplit.getEstimatedFileSize(),
                 hiveSplit.getFileModifiedTime());
 
-        // Collect GPU columns
+        // Collect GPU columns (REGULAR = columns actually read from the Parquet file by cuDF)
         List<HiveColumnHandle> gpuColumns = new ArrayList<>();
         for (ColumnMapping mapping : columnMappings) {
             ColumnMappingKind kind = mapping.getKind();
             if (kind == ColumnMappingKind.REGULAR) {
                 gpuColumns.add(mapping.getHiveColumnHandle());
             }
+        }
+
+        // cuDF reads INT96 timestamps as raw UTC; the CPU Hive reader adjusts by hive.parquet.time-zone.
+        boolean hasTimestampGpuColumns = gpuColumns.stream()
+                .anyMatch(col -> containsTimestampType(col.getType()));
+        if (hasTimestampGpuColumns && !parquetDateTimeZone.equals(DateTimeZone.UTC)) {
+            return Optional.empty();
         }
 
         try {
@@ -181,6 +195,20 @@ public class HivePageSourceProvider
         String serializationLibrary = split.getSchema().serializationLibraryName();
         return serializationLibrary.equals("org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe") ||
                 serializationLibrary.equals("parquet.hive.serde.ParquetHiveSerDe");
+    }
+
+    private static boolean containsTimestampType(Type type)
+    {
+        if (type instanceof ArrayType arrayType) {
+            return containsTimestampType(arrayType.getElementType());
+        }
+        if (type instanceof MapType mapType) {
+            return containsTimestampType(mapType.getKeyType()) || containsTimestampType(mapType.getValueType());
+        }
+        if (type instanceof RowType rowType) {
+            return rowType.getFields().stream().anyMatch(field -> containsTimestampType(field.getType()));
+        }
+        return type instanceof TimestampType;
     }
 
     private ConnectorGpuPageSource createGpuParquetPageSource(
