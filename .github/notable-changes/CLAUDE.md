@@ -69,6 +69,16 @@ Every Cork PR falls into one of two categories (see "Fork Admission" section in 
 4. Code refactoring without behavioral changes
 5. Dependency version updates (unless CVE-related)
 
+## Release Branch Backports
+
+PRs targeting a `release-**` branch are **backports**. The default classification for backports is **notable**. The bar for classifying a backport as not-notable is higher than for master PRs — only exclude if the change is demonstrably customer-invisible, such as:
+
+- Test-only changes (new tests, fixes to flaky tests, test utility tweaks)
+- CI / GitHub Actions / build-script changes with no runtime impact
+- Pure refactors with zero behavioral impact (no API, config, or execution changes)
+
+When in doubt, classify as notable. Anything worth the effort of a backport almost always matters for a customer who upgrades to that patch version.
+
 ## Tier 2 Tags for Cork
 
 Use these specific tags when relevant:
