@@ -182,6 +182,11 @@ public final class GlueMetastoreModule
         ApacheHttpClient.Builder httpClient = ApacheHttpClient.builder()
                 .maxConnections(config.getMaxGlueConnections());
 
+        config.getConnectionTtl().ifPresent(ttl -> httpClient.connectionTimeToLive(ttl.toJavaTime()));
+        config.getConnectionMaxIdleTime().ifPresent(time -> httpClient.connectionMaxIdleTime(time.toJavaTime()));
+        config.getSocketConnectTimeout().ifPresent(timeout -> httpClient.connectionTimeout(timeout.toJavaTime()));
+        config.getSocketTimeout().ifPresent(timeout -> httpClient.socketTimeout(timeout.toJavaTime()));
+
         if (config.getGlueEndpointUrl().isPresent()) {
             checkArgument(config.getGlueRegion().isPresent(), "Glue region must be set when Glue endpoint URL is set");
             glue.region(Region.of(config.getGlueRegion().get()));

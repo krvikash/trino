@@ -14,6 +14,7 @@
 package io.trino.plugin.hive.metastore.glue;
 
 import com.google.common.collect.ImmutableMap;
+import io.airlift.units.Duration;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
@@ -22,6 +23,8 @@ import java.util.Map;
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
+import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 class TestGlueHiveMetastoreConfig
 {
@@ -46,7 +49,11 @@ class TestGlueHiveMetastoreConfig
                 .setPartitionSegments(5)
                 .setThreads(40)
                 .setAssumeCanonicalPartitionKeys(false)
-                .setSkipArchive(false));
+                .setSkipArchive(false)
+                .setConnectionTtl(null)
+                .setConnectionMaxIdleTime(null)
+                .setSocketConnectTimeout(null)
+                .setSocketTimeout(null));
     }
 
     @Test
@@ -71,6 +78,10 @@ class TestGlueHiveMetastoreConfig
                 .put("hive.metastore.glue.threads", "77")
                 .put("hive.metastore.glue.assume-canonical-partition-keys", "true")
                 .put("hive.metastore.glue.skip-archive", "true")
+                .put("hive.metastore.glue.connection-ttl", "1m")
+                .put("hive.metastore.glue.connection-max-idle-time", "2m")
+                .put("hive.metastore.glue.socket-connect-timeout", "10s")
+                .put("hive.metastore.glue.socket-timeout", "30s")
                 .buildOrThrow();
 
         GlueHiveMetastoreConfig expected = new GlueHiveMetastoreConfig()
@@ -91,7 +102,11 @@ class TestGlueHiveMetastoreConfig
                 .setPartitionSegments(10)
                 .setThreads(77)
                 .setAssumeCanonicalPartitionKeys(true)
-                .setSkipArchive(true);
+                .setSkipArchive(true)
+                .setConnectionTtl(new Duration(1, MINUTES))
+                .setConnectionMaxIdleTime(new Duration(2, MINUTES))
+                .setSocketConnectTimeout(new Duration(10, SECONDS))
+                .setSocketTimeout(new Duration(30, SECONDS));
 
         assertFullMapping(properties, expected);
     }

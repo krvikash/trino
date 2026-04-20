@@ -17,6 +17,7 @@ import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigSecuritySensitive;
 import io.airlift.configuration.DefunctConfig;
+import io.airlift.units.Duration;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 
@@ -51,6 +52,10 @@ public class GlueHiveMetastoreConfig
     private int threads = 40;
     private boolean assumeCanonicalPartitionKeys;
     private boolean skipArchive;
+    private Duration connectionTtl;
+    private Duration connectionMaxIdleTime;
+    private Duration socketConnectTimeout;
+    private Duration socketTimeout;
 
     public Optional<String> getGlueRegion()
     {
@@ -290,6 +295,58 @@ public class GlueHiveMetastoreConfig
     public GlueHiveMetastoreConfig setSkipArchive(boolean skipArchive)
     {
         this.skipArchive = skipArchive;
+        return this;
+    }
+
+    public Optional<Duration> getConnectionTtl()
+    {
+        return Optional.ofNullable(connectionTtl);
+    }
+
+    @Config("hive.metastore.glue.connection-ttl")
+    @ConfigDescription("Maximum time allowed for connections to be reused before being replaced in the connection pool")
+    public GlueHiveMetastoreConfig setConnectionTtl(Duration connectionTtl)
+    {
+        this.connectionTtl = connectionTtl;
+        return this;
+    }
+
+    public Optional<Duration> getConnectionMaxIdleTime()
+    {
+        return Optional.ofNullable(connectionMaxIdleTime);
+    }
+
+    @Config("hive.metastore.glue.connection-max-idle-time")
+    @ConfigDescription("Maximum time allowed for connections to remain idle in the connection pool before being closed")
+    public GlueHiveMetastoreConfig setConnectionMaxIdleTime(Duration connectionMaxIdleTime)
+    {
+        this.connectionMaxIdleTime = connectionMaxIdleTime;
+        return this;
+    }
+
+    public Optional<Duration> getSocketConnectTimeout()
+    {
+        return Optional.ofNullable(socketConnectTimeout);
+    }
+
+    @Config("hive.metastore.glue.socket-connect-timeout")
+    @ConfigDescription("Maximum time allowed for socket connect to complete before timing out")
+    public GlueHiveMetastoreConfig setSocketConnectTimeout(Duration socketConnectTimeout)
+    {
+        this.socketConnectTimeout = socketConnectTimeout;
+        return this;
+    }
+
+    public Optional<Duration> getSocketTimeout()
+    {
+        return Optional.ofNullable(socketTimeout);
+    }
+
+    @Config("hive.metastore.glue.socket-timeout")
+    @ConfigDescription("Maximum time allowed for socket reads/writes before timing out")
+    public GlueHiveMetastoreConfig setSocketTimeout(Duration socketTimeout)
+    {
+        this.socketTimeout = socketTimeout;
         return this;
     }
 }
