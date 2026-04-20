@@ -130,6 +130,7 @@ public class HiveProxiedConnectorTransformer
                 originalSplit.getSchema(),
                 originalSplit.getPartitionKeys(),
                 originalSplit.getAddresses(),
+                originalSplit.getAffinityKey(),
                 originalSplit.getReadBucketNumber(),
                 originalSplit.getTableBucketNumber(),
                 originalSplit.isForceLocalScheduling(),

@@ -405,6 +405,7 @@ public class TestHivePageSink
                 new Schema(config.getHiveStorageFormat().getSerde(), false, splitProperties),
                 ImmutableList.of(),
                 ImmutableList.of(),
+                Optional.empty(),
                 OptionalInt.empty(),
                 OptionalInt.empty(),
                 false,

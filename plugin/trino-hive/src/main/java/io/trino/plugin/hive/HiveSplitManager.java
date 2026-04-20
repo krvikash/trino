@@ -25,7 +25,7 @@ import io.airlift.json.JsonCodec;
 import io.airlift.stats.CounterStat;
 import io.airlift.units.DataSize;
 import io.trino.filesystem.TrinoFileSystemFactory;
-import io.trino.filesystem.cache.CachingHostAddressProvider;
+import io.trino.filesystem.cache.SplitAffinityProvider;
 import io.trino.metastore.Column;
 import io.trino.metastore.HiveBucketProperty;
 import io.trino.metastore.HivePartition;
@@ -128,7 +128,7 @@ public class HiveSplitManager
     private final CounterStat highMemorySplitSourceCounter;
     private final TypeManager typeManager;
     private final JsonCodec<HiveCacheSplitId> splitIdCodec;
-    private final CachingHostAddressProvider cachingHostAddressProvider;
+    private final SplitAffinityProvider splitAffinityProvider;
     private final int maxPartitionsPerScan;
 
     @Inject
@@ -141,7 +141,7 @@ public class HiveSplitManager
             VersionEmbedder versionEmbedder,
             TypeManager typeManager,
             JsonCodec<HiveCacheSplitId> splitIdCodec,
-            CachingHostAddressProvider cachingHostAddressProvider)
+            SplitAffinityProvider splitAffinityProvider)
     {
         this(
                 transactionManager,
@@ -159,7 +159,7 @@ public class HiveSplitManager
                 hiveConfig.getRecursiveDirWalkerEnabled(),
                 typeManager,
                 splitIdCodec,
-                cachingHostAddressProvider,
+                splitAffinityProvider,
                 hiveConfig.getMaxPartitionsPerScan());
     }
 
@@ -179,7 +179,7 @@ public class HiveSplitManager
             boolean recursiveDfsWalkerEnabled,
             TypeManager typeManager,
             JsonCodec<HiveCacheSplitId> splitIdCodec,
-            CachingHostAddressProvider cachingHostAddressProvider,
+            SplitAffinityProvider splitAffinityProvider,
             int maxPartitionsPerScan)
     {
         this.transactionManager = requireNonNull(transactionManager, "transactionManager is null");
@@ -198,7 +198,7 @@ public class HiveSplitManager
         this.recursiveDfsWalkerEnabled = recursiveDfsWalkerEnabled;
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.splitIdCodec = requireNonNull(splitIdCodec, "splitIdCodec is null");
-        this.cachingHostAddressProvider = requireNonNull(cachingHostAddressProvider, "cachingHostAddressProvider is null");
+        this.splitAffinityProvider = requireNonNull(splitAffinityProvider, "splitAffinityProvider is null");
         this.maxPartitionsPerScan = maxPartitionsPerScan;
     }
 
@@ -301,7 +301,7 @@ public class HiveSplitManager
                 hiveSplitLoader,
                 executor,
                 highMemorySplitSourceCounter,
-                cachingHostAddressProvider,
+                splitAffinityProvider,
                 hiveTable.isRecordScannedFiles());
         hiveSplitLoader.start(splitSource);
 
@@ -331,6 +331,7 @@ public class HiveSplitManager
                 hiveSplit.getPartitionKeys(),
                 // addresses can be ignored
                 ImmutableList.of(),
+                Optional.empty(),
                 hiveSplit.getReadBucketNumber(),
                 hiveSplit.getTableBucketNumber(),
                 // force local scheduling can be skipped

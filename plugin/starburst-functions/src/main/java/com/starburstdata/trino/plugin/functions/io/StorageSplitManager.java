@@ -20,7 +20,6 @@ import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.TrinoInputFile;
-import io.trino.filesystem.cache.DefaultCachingHostAddressProvider;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.plugin.hive.HiveConfig;
 import io.trino.plugin.hive.HiveSplit;
@@ -150,7 +149,8 @@ public class StorageSplitManager
                 internalSplit.getFileModifiedTime(),
                 internalSplit.getSchema(),
                 internalSplit.getPartitionKeys(),
-                new DefaultCachingHostAddressProvider().getHosts(internalSplit.getPath(), internalSplit.currentBlock().addresses()),
+                internalSplit.currentBlock().addresses(),
+                Optional.empty(),
                 internalSplit.getReadBucketNumber(),
                 internalSplit.getTableBucketNumber(),
                 internalSplit.isForceLocalScheduling(),

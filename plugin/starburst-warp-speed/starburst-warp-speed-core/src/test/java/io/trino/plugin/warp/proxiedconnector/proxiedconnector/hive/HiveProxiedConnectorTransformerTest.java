@@ -81,6 +81,7 @@ public class HiveProxiedConnectorTransformerTest
                 List.of(new HivePartitionKey("name1", "key1"),
                         new HivePartitionKey("name2", "key2")),
                 List.of(HostAddress.fromString("http://host:8080")),
+                Optional.empty(),
                 OptionalInt.empty(),
                 OptionalInt.empty(),
                 true,
