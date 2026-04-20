@@ -342,7 +342,7 @@ public class SqlStandardAccessControl
     {
         // TODO: Implement column level access control
         if (!checkTablePermission(context, tableName, SELECT, false)) {
-            denySelectTable(tableName.toString());
+            denySelectTable(tableName.toString(), branch);
         }
     }
 
@@ -357,7 +357,7 @@ public class SqlStandardAccessControl
     public void checkCanInsertIntoTable(ConnectorSecurityContext context, SchemaTableName tableName, Optional<String> branch)
     {
         if (!checkTablePermission(context, tableName, INSERT, false)) {
-            denyInsertTable(tableName.toString());
+            denyInsertTable(tableName.toString(), branch);
         }
     }
 
@@ -372,7 +372,7 @@ public class SqlStandardAccessControl
     public void checkCanDeleteFromTable(ConnectorSecurityContext context, SchemaTableName tableName, Optional<String> branch)
     {
         if (!checkTablePermission(context, tableName, DELETE, false)) {
-            denyDeleteTable(tableName.toString());
+            denyDeleteTable(tableName.toString(), branch);
         }
     }
 
@@ -395,7 +395,7 @@ public class SqlStandardAccessControl
     public void checkCanUpdateTableColumns(ConnectorSecurityContext context, SchemaTableName tableName, Optional<String> branch, Set<String> updatedColumns)
     {
         if (!checkTablePermission(context, tableName, UPDATE, false)) {
-            denyUpdateTableColumns(tableName.toString(), updatedColumns);
+            denyUpdateTableColumns(tableName.toString(), branch, updatedColumns);
         }
     }
 
@@ -445,7 +445,7 @@ public class SqlStandardAccessControl
 
         // TODO implement column level access control
         if (!checkTablePermission(context, tableName, SELECT, true)) {
-            denyCreateViewWithSelect(tableName.toString(), context.getIdentity());
+            denyCreateViewWithSelect(tableName.toString(), branch, context.getIdentity());
         }
     }
 
