@@ -118,6 +118,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Throwables.getRootCause;
@@ -225,6 +226,8 @@ public class SnowflakeClient
             .put(VARBINARY, WriteMapping.sliceMapping("varbinary", varbinaryWriteFunction()))
             .put(DateType.DATE, WriteMapping.longMapping("date", dateWriteFunctionUsingString()))
             .buildOrThrow();
+
+    private static final Predicate<String> IS_SNOWFLAKE_SHARED_DATABASE = "SNOWFLAKE"::equalsIgnoreCase;
 
     private final ConnectorExpressionRewriter<ParameterizedExpression> connectorExpressionRewriter;
     private final ProjectFunctionRewriter<JdbcExpression, ParameterizedExpression> projectFunctionRewriter;
@@ -396,6 +399,16 @@ public class SnowflakeClient
         }
         Optional<DatabaseSchemaName> databaseSchema = remoteSchemaName.map(DatabaseSchemaName::parseDatabaseSchemaName);
 
+        if (databaseSchema.isPresent() && remoteTableName.isPresent() && IS_SNOWFLAKE_SHARED_DATABASE.test(databaseSchema.get().getDatabaseName())) {
+            // Snowflake JDBC driver uses SHOW OBJECTS when tableTypes includes both TABLE and VIEW,
+            // which returns empty results for view-only schemas in the SNOWFLAKE shared database.
+            // Make separate calls for each table type so the driver uses SHOW TABLES / SHOW VIEWS
+            // individually instead of SHOW OBJECTS. This change should be reverted once
+            // https://github.com/snowflakedb/snowflake-jdbc/issues/2587 is fixed.
+            // TODO https://starburstdata.atlassian.net/browse/ENG-12148
+            return getSnowflakeSystemDatabaseTables(connection, databaseSchema.get(), remoteTableName.get());
+        }
+
         DatabaseMetaData metadata = connection.getMetaData();
 
         return metadata.getTables(
@@ -403,6 +416,30 @@ public class SnowflakeClient
                 escapeObjectNameForMetadataQuery(databaseSchema.map(DatabaseSchemaName::getSchemaName), metadata.getSearchStringEscape()).orElse(null),
                 escapeObjectNameForMetadataQuery(remoteTableName, metadata.getSearchStringEscape()).orElse(null),
                 getTableTypes().map(types -> types.toArray(String[]::new)).orElse(null));
+    }
+
+    private ResultSet getSnowflakeSystemDatabaseTables(Connection connection, DatabaseSchemaName databaseSchema, String remoteTableName)
+            throws SQLException
+    {
+        DatabaseMetaData metadata = connection.getMetaData();
+        String catalog = databaseSchema.getDatabaseName();
+        String schema = escapeObjectNameForMetadataQuery(Optional.of(databaseSchema.getSchemaName()), metadata.getSearchStringEscape()).orElseThrow();
+        String table = escapeObjectNameForMetadataQuery(remoteTableName, metadata.getSearchStringEscape());
+
+        ResultSet views = metadata.getTables(catalog, schema, table, new String[] {"VIEW"});
+        try {
+            ResultSet tables = metadata.getTables(catalog, schema, table, new String[] {"TABLE"});
+            return new SequentialResultSet(views, tables);
+        }
+        catch (Exception e) {
+            try {
+                views.close();
+            }
+            catch (Exception closeException) {
+                e.addSuppressed(closeException);
+            }
+            throw new TrinoException(JDBC_ERROR, e);
+        }
     }
 
     @Override
