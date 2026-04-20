@@ -769,7 +769,7 @@ public class TableWriterNode
             this.handle = requireNonNull(handle, "handle is null");
             this.mergeHandle = requireNonNull(mergeHandle, "mergeHandle is null");
             this.schemaTableName = requireNonNull(schemaTableName, "schemaTableName is null");
-            this.mergeParadigmAndTypes = requireNonNull(mergeParadigmAndTypes, "mergeElements is null");
+            this.mergeParadigmAndTypes = requireNonNull(mergeParadigmAndTypes, "mergeParadigmAndTypes is null");
             this.multipleWritersPerPartitionSupported = multipleWritersPerPartitionSupported;
             this.maxWriterTasks = requireNonNull(maxWriterTasks, "maxWriterTasks is null");
             this.writerScalingOptions = requireNonNull(writerScalingOptions, "writerScalingOptions is null");
