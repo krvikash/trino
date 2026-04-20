@@ -775,6 +775,57 @@ public class TestSingleStoreConnectorTest
     }
 
     @Test
+    public void testDateTimestampSimplePredicatePushdown()
+    {
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.date_related_simple_predicate_pushdown",
+                """
+                (
+                c_date date,
+                c_datetime datetime,
+                c_datetime_6 datetime(6),
+                c_timestamp timestamp,
+                c_timestamp_6 timestamp(6)
+                )
+                """,
+                List.of(
+                        "null, null, null, null, null",
+                        "'2022-01-01', '2023-01-01', '2022-01-01 10:00:00', '2023-01-01 10:00:00', '2022-01-01 10:00:00.000001'",
+                        "'2023-01-01', '2024-01-01', '2023-01-01 10:00:00', '2024-01-01 10:00:00', '2023-01-01 10:00:00.000001'",
+                        "'2024-01-01', '2025-01-01', '2024-01-01 10:00:00', '2025-01-01 10:00:00', '2024-01-01 10:00:00.000001'"
+                ))) {
+            for (String operator : List.of("=", "<>", "<", "<=", ">", ">=", "IS NOT DISTINCT FROM")) {
+                assertThat(query("SELECT c_date FROM %s WHERE c_date %s DATE '2023-01-01'".formatted(table.getName(), operator))).isFullyPushedDown();
+
+                assertThat(query("SELECT c_datetime FROM %s WHERE c_datetime %s TIMESTAMP '2023-01-01 10:00:00'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_datetime FROM %s WHERE c_datetime %s TIMESTAMP '2023-01-01 10:00:00 UTC'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_datetime FROM %s WHERE c_datetime %s TIMESTAMP '2023-01-01 11:00:00 +01:00'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_datetime FROM %s WHERE c_datetime %s TIMESTAMP '2023-01-01 10:00:00Z'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_datetime FROM %s WHERE c_datetime %s TIMESTAMP '2023-01-01 11:00:00 Europe/Warsaw'".formatted(table.getName(), operator))).isFullyPushedDown();
+
+                assertThat(query("SELECT c_datetime_6 FROM %s WHERE c_datetime_6 %s TIMESTAMP '2023-01-01 10:00:00.000001'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_datetime_6 FROM %s WHERE c_datetime_6 %s TIMESTAMP '2023-01-01 10:00:00.000001 UTC'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_datetime_6 FROM %s WHERE c_datetime_6 %s TIMESTAMP '2023-01-01 11:00:00.000001 +01:00'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_datetime_6 FROM %s WHERE c_datetime_6 %s TIMESTAMP '2023-01-01 10:00:00.000001Z'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_datetime_6 FROM %s WHERE c_datetime_6 %s TIMESTAMP '2023-01-01 11:00:00.000001 Europe/Warsaw'".formatted(table.getName(), operator))).isFullyPushedDown();
+
+                assertThat(query("SELECT c_timestamp FROM %s WHERE c_timestamp %s TIMESTAMP '2023-01-01 10:00:00'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp FROM %s WHERE c_timestamp %s TIMESTAMP '2023-01-01 10:00:00 UTC'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp FROM %s WHERE c_timestamp %s TIMESTAMP '2023-01-01 11:00:00 +01:00'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp FROM %s WHERE c_timestamp %s TIMESTAMP '2023-01-01 10:00:00Z'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp FROM %s WHERE c_timestamp %s TIMESTAMP '2023-01-01 11:00:00 Europe/Warsaw'".formatted(table.getName(), operator))).isFullyPushedDown();
+
+                assertThat(query("SELECT c_timestamp_6 FROM %s WHERE c_timestamp_6 %s TIMESTAMP '2023-01-01 10:00:00.000001'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp_6 FROM %s WHERE c_timestamp_6 %s TIMESTAMP '2023-01-01 10:00:00.000001 UTC'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp_6 FROM %s WHERE c_timestamp_6 %s TIMESTAMP '2023-01-01 11:00:00.000001 +01:00'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp_6 FROM %s WHERE c_timestamp_6 %s TIMESTAMP '2023-01-01 10:00:00.000001Z'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp_6 FROM %s WHERE c_timestamp_6 %s TIMESTAMP '2023-01-01 11:00:00.000001 Europe/Warsaw'".formatted(table.getName(), operator))).isFullyPushedDown();
+            }
+        }
+    }
+
+    @Test
     @Override
     public void testCountDistinctWithStringTypes()
     {
