@@ -63,7 +63,7 @@ public class VendorTestModels
                   "models": [
                      {
                         "id": "%s",
-                        "modelName": "gemini-2.0-flash",
+                        "modelName": "gemini-2.5-flash",
                         "kind": "GENERATE",
                         "temperature": 0.0,
                         "connectionInfo": {
@@ -74,7 +74,7 @@ public class VendorTestModels
                     },
                     {
                         "id": "%s",
-                        "modelName": "gemini-2.0-flash",
+                        "modelName": "gemini-2.5-flash",
                         "kind": "GENERATE",
                         "temperature": 0.0,
                         "connectionInfo": {
