@@ -192,6 +192,7 @@ public class TestDeltaPageSourceProvider
                 Optional.empty(),
                 0,
                 Optional.empty(),
+                Optional.empty(),
                 SplitWeight.standard(),
                 statisticsPredicate.transformKeys(DeltaLakeColumnHandle.class::cast),
                 partitioningKeys);

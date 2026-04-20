@@ -18,7 +18,7 @@ import com.google.inject.Inject;
 import io.airlift.json.JsonCodec;
 import io.airlift.units.DataSize;
 import io.trino.filesystem.Location;
-import io.trino.filesystem.cache.CachingHostAddressProvider;
+import io.trino.filesystem.cache.SplitAffinityProvider;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSplitSource;
 import io.trino.plugin.deltalake.functions.tablechanges.TableChangesSplitSource;
 import io.trino.plugin.deltalake.functions.tablechanges.TableChangesTableFunctionHandle;
@@ -59,7 +59,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static io.trino.filesystem.cache.CachingHostAddressProvider.getSplitKey;
 import static io.trino.plugin.deltalake.DeltaLakeAnalyzeProperties.AnalyzeMode.FULL_REFRESH;
 import static io.trino.plugin.deltalake.DeltaLakeMetadata.createStatisticsPredicate;
 import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.getDynamicFilteringWaitTimeout;
@@ -90,7 +89,7 @@ public class DeltaLakeSplitManager
     private final DeltaLakeFileSystemFactory fileSystemFactory;
     private final JsonCodec<DeltaLakeCacheSplitId> splitIdCodec;
     private final DeltaLakeTransactionManager deltaLakeTransactionManager;
-    private final CachingHostAddressProvider cachingHostAddressProvider;
+    private final SplitAffinityProvider splitAffinityProvider;
 
     @Inject
     public DeltaLakeSplitManager(
@@ -101,7 +100,7 @@ public class DeltaLakeSplitManager
             DeltaLakeFileSystemFactory fileSystemFactory,
             JsonCodec<DeltaLakeCacheSplitId> splitIdCodec,
             DeltaLakeTransactionManager deltaLakeTransactionManager,
-            CachingHostAddressProvider cachingHostAddressProvider)
+            SplitAffinityProvider splitAffinityProvider)
     {
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.transactionLogAccess = requireNonNull(transactionLogAccess, "transactionLogAccess is null");
@@ -112,7 +111,7 @@ public class DeltaLakeSplitManager
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.splitIdCodec = requireNonNull(splitIdCodec, "splitIdCodec is null");
         this.deltaLakeTransactionManager = requireNonNull(deltaLakeTransactionManager, "deltaLakeTransactionManager is null");
-        this.cachingHostAddressProvider = requireNonNull(cachingHostAddressProvider, "cacheHostAddressProvider is null");
+        this.splitAffinityProvider = requireNonNull(splitAffinityProvider, "splitAffinityProvider is null");
     }
 
     @Override
@@ -345,7 +344,7 @@ public class DeltaLakeSplitManager
                     addFileEntry.getStats().flatMap(DeltaLakeFileStatistics::getNumRecords),
                     addFileEntry.getModificationTime(),
                     addFileEntry.getDeletionVector(),
-                    cachingHostAddressProvider.getHosts(splitPath, ImmutableList.of()),
+                    splitAffinityProvider.getKey(splitPath, 0, fileSize),
                     SplitWeight.standard(),
                     statisticsPredicate,
                     partitionKeys));
@@ -357,6 +356,7 @@ public class DeltaLakeSplitManager
             long maxSplitSize = getMaxSplitSize(session).toBytes();
             long splitSize = Math.min(maxSplitSize, fileSize - currentOffset);
 
+            Optional<String> affinityKey = splitAffinityProvider.getKey(splitPath, currentOffset, splitSize);
             splits.add(new DeltaLakeSplit(
                     splitPath,
                     currentOffset,
@@ -365,7 +365,7 @@ public class DeltaLakeSplitManager
                     Optional.empty(),
                     addFileEntry.getModificationTime(),
                     addFileEntry.getDeletionVector(),
-                    cachingHostAddressProvider.getHosts(getSplitKey(splitPath, currentOffset, splitSize), ImmutableList.of()),
+                    affinityKey,
                     SplitWeight.fromProportion(clamp((double) splitSize / maxSplitSize, minimumAssignedSplitWeight, 1.0)),
                     statisticsPredicate,
                     partitionKeys));

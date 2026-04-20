@@ -56,6 +56,7 @@ public class DeltaLakeProxiedConnectorTransformerTest
                 Optional.empty(),
                 4L,
                 Optional.empty(),
+                Optional.empty(),
                 SplitWeight.fromProportion(5L),
                 TupleDomain.all(),
                 Map.of("part1", Optional.of("part1")));

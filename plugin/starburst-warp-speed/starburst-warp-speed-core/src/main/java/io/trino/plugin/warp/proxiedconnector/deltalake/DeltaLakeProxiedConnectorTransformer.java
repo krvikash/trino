@@ -191,6 +191,7 @@ public class DeltaLakeProxiedConnectorTransformer
                 originSplit.getFileRowCount(),
                 originSplit.getFileModifiedTime(),
                 originSplit.getDeletionVector(),
+                originSplit.getAffinityKey(),
                 originSplit.getSplitWeight(),
                 TupleDomain.all(),
                 originSplit.getPartitionKeys());

@@ -20,7 +20,7 @@ import io.airlift.json.JsonCodec;
 import io.airlift.json.JsonCodecFactory;
 import io.airlift.json.JsonMapperProvider;
 import io.trino.block.BlockJsonSerde;
-import io.trino.filesystem.cache.DefaultCachingHostAddressProvider;
+import io.trino.filesystem.cache.NoopSplitAffinityProvider;
 import io.trino.filesystem.hdfs.HdfsFileSystemFactory;
 import io.trino.hdfs.HdfsConfig;
 import io.trino.hdfs.HdfsConfiguration;
@@ -160,7 +160,7 @@ public class TestDeltaLakeCacheIds
                 deltaLakeFileSystemFactory,
                 createJsonCodec(DeltaLakeCacheSplitId.class),
                 new DeltaLakeTransactionManager(metadataFactory),
-                new DefaultCachingHostAddressProvider());
+                new NoopSplitAffinityProvider());
     }
 
     @AfterAll
@@ -297,6 +297,7 @@ public class TestDeltaLakeCacheIds
                 Optional.of(10L),
                 10,
                 Optional.empty(),
+                Optional.empty(),
                 splitWeight,
                 statisticsPredicate,
                 partitionKeys);
@@ -317,6 +318,7 @@ public class TestDeltaLakeCacheIds
                 rowCount,
                 10,
                 deletionVectorEntry,
+                Optional.empty(),
                 splitWeight,
                 statisticsPredicate,
                 partitionKeys);
@@ -336,6 +338,7 @@ public class TestDeltaLakeCacheIds
                 fileSize,
                 Optional.empty(),
                 fileModifiedTime,
+                Optional.empty(),
                 Optional.empty(),
                 SplitWeight.standard(),
                 TupleDomain.all(),
