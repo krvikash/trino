@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
+import static com.google.common.base.Preconditions.checkArgument;
 import static io.airlift.slice.SizeOf.estimatedSizeOf;
 import static io.airlift.slice.SizeOf.instanceSize;
 import static io.airlift.slice.SizeOf.sizeOf;
@@ -71,6 +72,8 @@ public final class Split
         this.cacheSplitId = requireNonNull(cacheSplitId, "cacheSplitId is null");
         this.addresses = requireNonNull(addresses, "addresses is null");
         this.splitAddressEnforced = splitAddressEnforced;
+        checkArgument(connectorSplit.getAffinityKey().isEmpty() || connectorSplit.isRemotelyAccessible(),
+                "Split with an affinity key must be remotely accessible: %s", connectorSplit);
     }
 
     @JsonProperty
