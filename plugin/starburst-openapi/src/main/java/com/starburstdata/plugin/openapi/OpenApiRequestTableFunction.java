@@ -178,6 +178,9 @@ class OpenApiRequestTableFunction
 
     private static URI uriWithQueryParameters(URI uri, Multimap<String, String> queryParameters)
     {
+        if (queryParameters.isEmpty()) {
+            return uri;
+        }
         StringBuilder uriStringBuilder = new StringBuilder();
         Optional.ofNullable(uri.getScheme())
                 .map(scheme -> scheme + ":")
