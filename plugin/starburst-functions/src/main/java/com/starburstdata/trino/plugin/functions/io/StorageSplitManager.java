@@ -45,6 +45,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 
 import static io.trino.metastore.HivePartition.UNPARTITIONED_ID;
+import static io.trino.plugin.hive.HiveMetadata.SKIP_HEADER_COUNT_KEY;
 import static io.trino.plugin.hive.util.SerdeConstants.LIST_COLUMNS;
 import static io.trino.plugin.hive.util.SerdeConstants.LIST_COLUMN_TYPES;
 import static io.trino.plugin.hive.util.SerdeConstants.SERIALIZATION_LIB;
@@ -85,15 +86,16 @@ public class StorageSplitManager
             }
             String columns = String.join(",", columnNames.build());
             String listColumnTypes = String.join(":", columnTypes.build());
+            ImmutableMap.Builder<String, String> schemaBuilder = ImmutableMap.<String, String>builder()
+                    .put(SERIALIZATION_LIB, format.getSerde())
+                    .put(FILE_INPUT_FORMAT, format.getInputFormat())
+                    .put(LIST_COLUMNS, columns)
+                    .put(LIST_COLUMN_TYPES, listColumnTypes);
+            loadTableHandle.skipHeader().ifPresent(number -> schemaBuilder.put(SKIP_HEADER_COUNT_KEY, Integer.toString(number)));
             InternalHiveSplitFactory internalSplitFactory = new InternalHiveSplitFactory(
                     UNPARTITIONED_ID,
                     format,
-                    ImmutableMap.<String, String>builder()
-                            .put(SERIALIZATION_LIB, format.getSerde())
-                            .put(FILE_INPUT_FORMAT, format.getInputFormat())
-                            .put(LIST_COLUMNS, columns)
-                            .put(LIST_COLUMN_TYPES, listColumnTypes)
-                            .buildOrThrow(),
+                    schemaBuilder.buildOrThrow(),
                     ImmutableList.of(),
                     TupleDomain.all(),
                     Constraint.alwaysTrue(),

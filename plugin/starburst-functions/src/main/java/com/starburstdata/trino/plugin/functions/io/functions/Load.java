@@ -62,6 +62,8 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
@@ -74,12 +76,15 @@ import static io.trino.metastore.type.TypeConstants.STRING_TYPE_NAME;
 import static io.trino.plugin.base.util.Functions.checkFunctionArgument;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.REGULAR;
 import static io.trino.plugin.hive.HiveColumnHandle.createBaseColumn;
+import static io.trino.plugin.hive.HiveStorageFormat.CSV;
+import static io.trino.plugin.hive.HiveStorageFormat.TEXTFILE;
 import static io.trino.plugin.hive.util.HiveTypeTranslator.toHiveType;
 import static io.trino.spi.StandardErrorCode.GENERIC_USER_ERROR;
 import static io.trino.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
 import static io.trino.spi.StandardErrorCode.NOT_FOUND;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.function.table.ReturnTypeSpecification.GenericTable.GENERIC_TABLE;
+import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
@@ -93,6 +98,7 @@ public class Load
     private static final String LOCATION_ARGUMENT_NAME = "LOCATION";
     private static final String FORMAT_ARGUMENT_NAME = "FORMAT";
     private static final String DESCRIPTOR_ARGUMENT_NAME = "COLUMNS";
+    private static final String SKIP_HEADER_ARGUMENT_NAME = "SKIP_HEADER";
 
     // Make timeout configurable in the future if needed
     private static final Integer SCHEMA_DISCOVERY_TIMEOUT_SECONDS = 30;
@@ -137,6 +143,11 @@ public class Load
                                     .name(DESCRIPTOR_ARGUMENT_NAME)
                                     .defaultValue(null)
                                     .build())
+                            .add(ScalarArgumentSpecification.builder()
+                                    .name(SKIP_HEADER_ARGUMENT_NAME)
+                                    .type(INTEGER)
+                                    .defaultValue(null)
+                                    .build())
                             .build(),
                     GENERIC_TABLE);
         }
@@ -151,6 +162,8 @@ public class Load
             ScalarArgument locationArgument = (ScalarArgument) arguments.get(LOCATION_ARGUMENT_NAME);
             ScalarArgument formatArgument = (ScalarArgument) arguments.get(FORMAT_ARGUMENT_NAME);
             DescriptorArgument descriptorArgument = (DescriptorArgument) arguments.get(DESCRIPTOR_ARGUMENT_NAME);
+            ScalarArgument headerArgument = (ScalarArgument) arguments.get(SKIP_HEADER_ARGUMENT_NAME);
+            OptionalInt skipHeader = headerArgument.getNullableValue().isNull() ? OptionalInt.empty() : OptionalInt.of(((Number) headerArgument.getValue()).intValue());
             checkFunctionArgument(
                     formatArgument.getNullableValue().isNull() == descriptorArgument.getDescriptor().isEmpty(),
                     "%s and %s arguments must be both specified or both omitted", FORMAT_ARGUMENT_NAME, DESCRIPTOR_ARGUMENT_NAME);
@@ -167,10 +180,10 @@ public class Load
 
             LoadTableHandle tableHandle;
             if (formatArgument.getNullableValue().isNull()) {
-                tableHandle = withSchemaDiscovery(fileSystem, location);
+                tableHandle = withSchemaDiscovery(fileSystem, location, skipHeader);
             }
             else {
-                tableHandle = withDescriptor(location, isDirectory, ((Slice) formatArgument.getValue()).toStringUtf8(), descriptorArgument.getDescriptor().orElseThrow().getFields());
+                tableHandle = withDescriptor(location, isDirectory, ((Slice) formatArgument.getValue()).toStringUtf8(), descriptorArgument.getDescriptor().orElseThrow().getFields(), skipHeader);
             }
 
             Descriptor returnedType = new Descriptor(tableHandle.columns.stream()
@@ -185,7 +198,7 @@ public class Load
                     .build();
         }
 
-        private LoadTableHandle withSchemaDiscovery(TrinoFileSystem fileSystem, String location)
+        private LoadTableHandle withSchemaDiscovery(TrinoFileSystem fileSystem, String location, OptionalInt skipHeader)
         {
             SchemaDiscoveryController controller = createSchemaDiscoveryController(fileSystem);
             ListenableFuture<DiscoveredSchema> guess = controller.guess(new GuessRequest(URI.create(location), ImmutableMap.of()));
@@ -212,7 +225,7 @@ public class Load
                     .collect(toImmutableList());
 
             HiveStorageFormat format = HiveStorageFormat.valueOf(SchemaDiscoveryMappings.tableFormat(discoveredTable));
-            return new LoadTableHandle(location, true, format, columns);
+            return new LoadTableHandle(location, true, format, columns, skipHeader);
         }
 
         private HiveColumnHandle toHiveColumn(TableFormat format, Column column, int index)
@@ -227,12 +240,12 @@ public class Load
                     Optional.empty());
         }
 
-        private static LoadTableHandle withDescriptor(String location, boolean isDirectory, String formatValue, List<Descriptor.Field> fields)
+        private static LoadTableHandle withDescriptor(String location, boolean isDirectory, String formatValue, List<Descriptor.Field> fields, OptionalInt skipHeader)
         {
             HiveStorageFormat format = Enums.getIfPresent(HiveStorageFormat.class, formatValue.toUpperCase(ENGLISH)).toJavaUtil()
                     .orElseThrow(() -> new TrinoException(NOT_SUPPORTED, formatValue + " format isn't supported"));
             List<HiveColumnHandle> columnHandles = IntStream.range(0, fields.size()).mapToObj(i -> toHiveColumn(fields.get(i), i)).collect(toImmutableList());
-            return new LoadTableHandle(location, isDirectory, format, columnHandles);
+            return new LoadTableHandle(location, isDirectory, format, columnHandles, skipHeader);
         }
 
         private static HiveColumnHandle toHiveColumn(Descriptor.Field field, int index)
@@ -277,7 +290,7 @@ public class Load
         }
     }
 
-    public record LoadTableHandle(String location, boolean isDirectory, HiveStorageFormat format, List<HiveColumnHandle> columns)
+    public record LoadTableHandle(String location, boolean isDirectory, HiveStorageFormat format, List<HiveColumnHandle> columns, OptionalInt skipHeader)
             implements ConnectorTableHandle
     {
         public LoadTableHandle
@@ -285,6 +298,12 @@ public class Load
             requireNonNull(location, "location is null");
             requireNonNull(format, "format is null");
             columns = ImmutableList.copyOf(columns);
+            requireNonNull(skipHeader, "skipHeader is null");
+
+            if (skipHeader.isPresent()) {
+                checkFunctionArgument(skipHeader.getAsInt() >= 0, "%s must be >= 0", SKIP_HEADER_ARGUMENT_NAME);
+                checkFunctionArgument(Set.of(TEXTFILE, CSV).contains(format), "Cannot specify header for storage format: %s", format);
+            }
         }
     }
 }

@@ -236,6 +236,62 @@ final class TestStorageFunctions
     }
 
     @Test
+    void testLoadCsvWithSkipHeader()
+            throws Exception
+    {
+        Location location = Location.of("s3://test-bucket/csv_with_header");
+        fileSystem.createDirectory(location);
+        fileSystem.newOutputFile(location.appendPath("test.csv")).createExclusive("\"id\",\"name\"\n\"1\",\"alice\"\n\"2\",\"bob\"".getBytes(UTF_8));
+
+        // Load without schema discovery
+        assertThat(query("SELECT * FROM TABLE(load('s3://test-bucket/csv_with_header/', 'CSV', DESCRIPTOR(\"id\" VARCHAR, \"name\" VARCHAR), 1))"))
+                .matches("VALUES (VARCHAR '1', VARCHAR 'alice'), ('2', 'bob')");
+        assertThat(query("SELECT * FROM TABLE(load('s3://test-bucket/csv_with_header/', 'CSV', DESCRIPTOR(\"id\" VARCHAR, \"name\" VARCHAR), 0))"))
+                .matches("VALUES (VARCHAR 'id', VARCHAR 'name'), ('1', 'alice'), ('2', 'bob')");
+
+        // Load with schema discovery
+        assertThat(query("SELECT * FROM TABLE(load(location=>'s3://test-bucket/csv_with_header/', skip_header=>1))"))
+                .matches("VALUES (VARCHAR '1', VARCHAR 'alice'), ('2', 'bob')");
+        assertThat(query("SELECT * FROM TABLE(load(location=>'s3://test-bucket/csv_with_header/', skip_header=>0))"))
+                .matches("VALUES (VARCHAR 'id', VARCHAR 'name'), ('1', 'alice'), ('2', 'bob')");
+    }
+
+    @Test
+    void testLoadTextfileWithSkipHeader()
+            throws Exception
+    {
+        Location location = Location.of("s3://test-bucket/textfile_with_header");
+        fileSystem.createDirectory(location);
+        fileSystem.newOutputFile(location.appendPath("test.txt")).createExclusive("id\u0001name\n1\u0001alice\n2\u0001bob".getBytes(UTF_8));
+
+        // Load without schema discovery
+        assertThat(query("SELECT * FROM TABLE(load('s3://test-bucket/textfile_with_header/', 'TEXTFILE', DESCRIPTOR(\"id\" VARCHAR, \"name\" VARCHAR), 1))"))
+                .matches("VALUES (VARCHAR '1', VARCHAR 'alice'), ('2', 'bob')");
+        assertThat(query("SELECT * FROM TABLE(load('s3://test-bucket/textfile_with_header/', 'TEXTFILE', DESCRIPTOR(\"id\" VARCHAR, \"name\" VARCHAR), 0))"))
+                .matches("VALUES (VARCHAR 'id', VARCHAR 'name'), ('1', 'alice'), ('2', 'bob')");
+
+        // Load with schema discovery
+        assertThat(query("SELECT * FROM TABLE(load(location=>'s3://test-bucket/textfile_with_header/', skip_header=>1))"))
+                .matches("VALUES (VARCHAR '1', VARCHAR 'alice'), ('2', 'bob')");
+        assertThat(query("SELECT * FROM TABLE(load(location=>'s3://test-bucket/textfile_with_header/', skip_header=>0))"))
+                .matches("VALUES (VARCHAR 'id', VARCHAR 'name'), ('1', 'alice'), ('2', 'bob')");
+    }
+
+    @Test
+    void testInvalidSkipHeaderForFormat()
+    {
+        assertQueryFails(
+                "SELECT * FROM TABLE(load('s3://test-bucket/parquet/', 'PARQUET', DESCRIPTOR(\"id\" INT), 1))",
+                "Cannot specify header for storage format: PARQUET");
+        assertQueryFails(
+                "SELECT * FROM TABLE(load('s3://test-bucket/orc/', 'ORC', DESCRIPTOR(\"id\" INT), 0))",
+                "Cannot specify header for storage format: ORC");
+        assertQueryFails(
+                "SELECT * FROM TABLE(load('s3://test-bucket/orc/', 'CSV', DESCRIPTOR(\"id\" INT), -1))",
+                "SKIP_HEADER must be >= 0");
+    }
+
+    @Test
     void testLoadAvroCaseSensitivity()
             throws Exception
     {
