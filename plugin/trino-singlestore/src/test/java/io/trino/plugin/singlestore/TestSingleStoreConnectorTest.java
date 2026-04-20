@@ -19,6 +19,7 @@ import io.trino.Session;
 import io.trino.plugin.jdbc.BaseJdbcConnectorTest;
 import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.plugin.jdbc.JdbcTableHandle;
+import io.trino.plugin.jdbc.JoinOperator;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
@@ -43,6 +44,7 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.MoreCollectors.onlyElement;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.SystemSessionProperties.DISTINCT_AGGREGATIONS_STRATEGY;
+import static io.trino.plugin.jdbc.JoinOperator.RIGHT_JOIN;
 import static io.trino.spi.connector.ConnectorMetadata.MODIFYING_ROWS_MESSAGE;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
@@ -826,6 +828,100 @@ public class TestSingleStoreConnectorTest
     }
 
     @Test
+    public void testDateTimestampComplexPredicatePushdown()
+    {
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.date_related_complex_predicate_pushdown",
+                """
+                (
+                c_date date,
+                c_other_date date,
+                c_datetime datetime,
+                c_other_datetime datetime,
+                c_datetime_6 datetime(6),
+                c_other_datetime_6 datetime(6),
+                c_timestamp timestamp,
+                c_other_timestamp timestamp,
+                c_timestamp_6 timestamp(6),
+                c_other_timestamp_6 timestamp(6)
+                )
+                """,
+                List.of(
+                        "null, null, null, null, null, null, null, null, null, null",
+                        "'2022-01-01', '2023-01-01', '2022-01-01 10:00:00', '2023-01-01 10:00:00', '2022-01-01 10:00:00.000001', '2023-01-01 10:00:00.000001', '2022-01-01 10:00:00', '2023-01-01 10:00:00', '2022-01-01 10:00:00.000001', '2023-01-01 10:00:00.000001'",
+                        "'2023-01-01', '2024-01-01', '2023-01-01 10:00:00', '2024-01-01 10:00:00', '2023-01-01 10:00:00.000001', '2024-01-01 10:00:00.000001', '2023-01-01 10:00:00', '2024-01-01 10:00:00', '2023-01-01 10:00:00.000001', '2024-01-01 10:00:00.000001'",
+                        "'2024-01-01', '2025-01-01', '2024-01-01 10:00:00', '2025-01-01 10:00:00', '2024-01-01 10:00:00.000001', '2025-01-01 10:00:00.000001', '2024-01-01 10:00:00', '2025-01-01 10:00:00', '2024-01-01 10:00:00.000001', '2025-01-01 10:00:00.000001'"
+                ))) {
+            for (String operator : List.of("=", "<>", "<", "<=", ">", ">=", "IS NOT DISTINCT FROM")) {
+                assertThat(query("SELECT c_date FROM %s WHERE c_date %s DATE '2023-01-01' OR c_other_date = DATE '2024-01-01'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_date FROM %s WHERE c_date %s c_other_date OR c_datetime = c_other_datetime".formatted(table.getName(), operator))).isFullyPushedDown();
+
+                assertThat(query("SELECT c_datetime FROM %s WHERE c_datetime %s c_other_datetime OR c_date = c_other_date".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_datetime FROM %s WHERE c_datetime %s TIMESTAMP '2023-01-01 10:00:00' OR c_other_datetime = TIMESTAMP '2024-01-01 10:00:00'".formatted(table.getName(), operator))).isFullyPushedDown();
+                // below predicates are pushdown without having constant rewrite rules for timestamp with timezones type
+                // because UnwrapCastInComparison rule makes literals with timezones to be cast to literals without timezones + casts for literals are done on trino level
+                assertThat(query("SELECT c_datetime FROM %s WHERE c_datetime %s TIMESTAMP '2023-01-01 10:00:00 UTC' OR c_other_datetime = TIMESTAMP '2024-01-01 10:00:00'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_datetime FROM %s WHERE c_datetime %s TIMESTAMP '2023-01-01 11:00:00 +01:00' OR c_other_datetime = TIMESTAMP '2024-01-01 10:00:00'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_datetime FROM %s WHERE c_datetime %s TIMESTAMP '2023-01-01 10:00:00Z' OR c_other_datetime = TIMESTAMP '2024-01-01 10:00:00'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_datetime FROM %s WHERE c_datetime %s TIMESTAMP '2023-01-01 11:00:00 Europe/Warsaw' OR c_other_datetime = TIMESTAMP '2024-01-01 10:00:00'".formatted(table.getName(), operator))).isFullyPushedDown();
+
+                assertThat(query("SELECT c_datetime_6 FROM %s WHERE c_datetime_6 %s c_other_datetime_6 OR c_date = c_other_date".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_datetime_6 FROM %s WHERE c_datetime_6 %s TIMESTAMP '2023-01-01 10:00:00.000001' OR c_other_datetime_6 = TIMESTAMP '2024-01-01 10:00:00.000001'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_datetime_6 FROM %s WHERE c_datetime_6 %s TIMESTAMP '2023-01-01 10:00:00.000001 UTC' OR c_other_datetime_6 = TIMESTAMP '2024-01-01 10:00:00.000001'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_datetime_6 FROM %s WHERE c_datetime_6 %s TIMESTAMP '2023-01-01 11:00:00.000001 +01:00' OR c_other_datetime_6 = TIMESTAMP '2024-01-01 10:00:00.000001'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_datetime_6 FROM %s WHERE c_datetime_6 %s TIMESTAMP '2023-01-01 10:00:00.000001Z' OR c_other_datetime_6 = TIMESTAMP '2024-01-01 10:00:00.000001'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_datetime_6 FROM %s WHERE c_datetime_6 %s TIMESTAMP '2023-01-01 11:00:00.000001 Europe/Warsaw' OR c_other_datetime_6 = TIMESTAMP '2024-01-01 10:00:00.000001'".formatted(table.getName(), operator))).isFullyPushedDown();
+
+                assertThat(query("SELECT c_timestamp FROM %s WHERE c_timestamp %s c_other_timestamp OR c_date = c_other_date".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp FROM %s WHERE c_timestamp %s TIMESTAMP '2023-01-01 10:00:00' OR c_other_timestamp = TIMESTAMP '2024-01-01 10:00:00'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp FROM %s WHERE c_timestamp %s TIMESTAMP '2023-01-01 10:00:00 UTC' OR c_other_timestamp = TIMESTAMP '2024-01-01 10:00:00'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp FROM %s WHERE c_timestamp %s TIMESTAMP '2023-01-01 11:00:00 +01:00' OR c_other_timestamp = TIMESTAMP '2024-01-01 10:00:00'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp FROM %s WHERE c_timestamp %s TIMESTAMP '2023-01-01 10:00:00Z' OR c_other_timestamp = TIMESTAMP '2024-01-01 10:00:00'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp FROM %s WHERE c_timestamp %s TIMESTAMP '2023-01-01 11:00:00 Europe/Warsaw' OR c_other_timestamp = TIMESTAMP '2024-01-01 10:00:00'".formatted(table.getName(), operator))).isFullyPushedDown();
+
+                assertThat(query("SELECT c_timestamp_6 FROM %s WHERE c_timestamp_6 %s c_other_timestamp_6 OR c_date = c_other_date".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp_6 FROM %s WHERE c_timestamp_6 %s TIMESTAMP '2023-01-01 10:00:00.000001' OR c_other_timestamp_6 = TIMESTAMP '2024-01-01 10:00:00.000001'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp_6 FROM %s WHERE c_timestamp_6 %s TIMESTAMP '2023-01-01 10:00:00.000001 UTC' OR c_other_timestamp_6 = TIMESTAMP '2024-01-01 10:00:00.000001'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp_6 FROM %s WHERE c_timestamp_6 %s TIMESTAMP '2023-01-01 11:00:00.000001 +01:00' OR c_other_timestamp_6 = TIMESTAMP '2024-01-01 10:00:00.000001'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp_6 FROM %s WHERE c_timestamp_6 %s TIMESTAMP '2023-01-01 10:00:00.000001Z' OR c_other_timestamp_6 = TIMESTAMP '2024-01-01 10:00:00.000001'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp_6 FROM %s WHERE c_timestamp_6 %s TIMESTAMP '2023-01-01 11:00:00.000001 Europe/Warsaw' OR c_other_timestamp_6 = TIMESTAMP '2024-01-01 10:00:00.000001'".formatted(table.getName(), operator))).isFullyPushedDown();
+
+                // literals on edges and outside of ranges supported "officially" by SingleStore - see comment in io.trino.plugin.singlestore.RewriteDateTimestampConstant
+                assertThat(query("SELECT c_date FROM %s WHERE c_date %s DATE '-0001-01-01' OR c_other_date = DATE '1000-01-01'".formatted(table.getName(), operator))).isNotFullyPushedDown(FilterNode.class);
+                assertThat(query("SELECT c_date FROM %s WHERE c_date %s DATE '999-01-01' OR c_other_date = DATE '1000-01-01'".formatted(table.getName(), operator))).isNotFullyPushedDown(FilterNode.class);
+                assertThat(query("SELECT c_date FROM %s WHERE c_date %s DATE '1000-01-01' OR c_other_date = DATE '1000-01-01'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_date FROM %s WHERE c_date %s DATE '9999-12-31' OR c_other_date = DATE '1000-01-01'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_date FROM %s WHERE c_date %s DATE '10000-01-01' OR c_other_date = DATE '1000-01-01'".formatted(table.getName(), operator))).isNotFullyPushedDown(FilterNode.class);
+
+                assertThat(query("SELECT c_datetime FROM %s WHERE c_datetime %s TIMESTAMP '-0001-01-01 23:59:59' OR c_other_datetime = TIMESTAMP '1000-01-01 00:00:00'".formatted(table.getName(), operator))).isNotFullyPushedDown(FilterNode.class);
+                assertThat(query("SELECT c_datetime FROM %s WHERE c_datetime %s TIMESTAMP '0999-12-31 23:59:59' OR c_other_datetime = TIMESTAMP '1000-01-01 00:00:00'".formatted(table.getName(), operator))).isNotFullyPushedDown(FilterNode.class);
+                assertThat(query("SELECT c_datetime FROM %s WHERE c_datetime %s TIMESTAMP '1000-01-01 00:00:00' OR c_other_datetime = TIMESTAMP '1000-01-01 00:00:00'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_datetime FROM %s WHERE c_datetime %s TIMESTAMP '9999-12-31 23:59:59' OR c_other_datetime = TIMESTAMP '1000-01-01 00:00:00'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_datetime FROM %s WHERE c_datetime %s TIMESTAMP '10000-01-01 00:00:00' OR c_other_datetime = TIMESTAMP '1000-01-01 00:00:00'".formatted(table.getName(), operator))).isNotFullyPushedDown(FilterNode.class);
+
+                assertThat(query("SELECT c_datetime_6 FROM %s WHERE c_datetime_6 %s TIMESTAMP '-0001-01-01 23:59:59.999999' OR c_other_datetime_6 = TIMESTAMP '1000-01-01 00:00:00.000000'".formatted(table.getName(), operator))).isNotFullyPushedDown(FilterNode.class);
+                assertThat(query("SELECT c_datetime_6 FROM %s WHERE c_datetime_6 %s TIMESTAMP '0999-12-31 23:59:59.999999' OR c_other_datetime_6 = TIMESTAMP '1000-01-01 00:00:00.000000'".formatted(table.getName(), operator))).isNotFullyPushedDown(FilterNode.class);
+                assertThat(query("SELECT c_datetime_6 FROM %s WHERE c_datetime_6 %s TIMESTAMP '1000-01-01 00:00:00.000000' OR c_other_datetime_6 = TIMESTAMP '1000-01-01 00:00:00.000000'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_datetime_6 FROM %s WHERE c_datetime_6 %s TIMESTAMP '9999-12-31 23:59:59.999999' OR c_other_datetime_6 = TIMESTAMP '1000-01-01 00:00:00.000000'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_datetime_6 FROM %s WHERE c_datetime_6 %s TIMESTAMP '10000-01-01 00:00:00.000000' OR c_other_datetime_6 = TIMESTAMP '1000-01-01 00:00:00.000000'".formatted(table.getName(), operator))).isNotFullyPushedDown(FilterNode.class);
+
+                assertThat(query("SELECT c_timestamp FROM %s WHERE c_timestamp %s TIMESTAMP '-0001-01-01 23:59:59' OR c_other_timestamp = TIMESTAMP '2023-01-01 10:00:00'".formatted(table.getName(), operator))).isNotFullyPushedDown(FilterNode.class);
+                assertThat(query("SELECT c_timestamp FROM %s WHERE c_timestamp %s TIMESTAMP '0999-12-31 23:59:59' OR c_other_timestamp = TIMESTAMP '2023-01-01 10:00:00'".formatted(table.getName(), operator))).isNotFullyPushedDown(FilterNode.class);
+                assertThat(query("SELECT c_timestamp FROM %s WHERE c_timestamp %s TIMESTAMP '1000-01-01 00:00:00' OR c_other_timestamp = TIMESTAMP '1000-01-01 00:00:00.000000'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp FROM %s WHERE c_timestamp %s TIMESTAMP '9999-12-31 23:59:59' OR c_other_timestamp = TIMESTAMP '1000-01-01 00:00:00.000000'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp FROM %s WHERE c_timestamp %s TIMESTAMP '10000-01-01 00:00:00' OR c_other_timestamp = TIMESTAMP '2023-01-01 10:00:00'".formatted(table.getName(), operator))).isNotFullyPushedDown(FilterNode.class);
+
+                assertThat(query("SELECT c_timestamp_6 FROM %s WHERE c_timestamp_6 %s TIMESTAMP '-0001-01-01 23:59:59.999999' OR c_other_timestamp_6 = TIMESTAMP '2023-01-01 10:00:00.000001'".formatted(table.getName(), operator))).isNotFullyPushedDown(FilterNode.class);
+                assertThat(query("SELECT c_timestamp_6 FROM %s WHERE c_timestamp_6 %s TIMESTAMP '0999-12-31 23:59:59.999999' OR c_other_timestamp_6 = TIMESTAMP '2023-01-01 10:00:00.000001'".formatted(table.getName(), operator))).isNotFullyPushedDown(FilterNode.class);
+                assertThat(query("SELECT c_timestamp_6 FROM %s WHERE c_timestamp_6 %s TIMESTAMP '1000-01-01 00:00:00.000000' OR c_other_timestamp_6 = TIMESTAMP '1000-01-01 00:00:00.000000'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp_6 FROM %s WHERE c_timestamp_6 %s TIMESTAMP '9999-12-31 23:59:59.999999' OR c_other_timestamp_6 = TIMESTAMP '1000-01-01 00:00:00.000000'".formatted(table.getName(), operator))).isFullyPushedDown();
+                assertThat(query("SELECT c_timestamp_6 FROM %s WHERE c_timestamp_6 %s TIMESTAMP '10000-01-01 00:00:00.000000' OR c_other_timestamp_6 = TIMESTAMP '2023-01-01 10:00:00.000001'".formatted(table.getName(), operator))).isNotFullyPushedDown(FilterNode.class);
+            }
+        }
+    }
+
+    @Test
     @Override
     public void testCountDistinctWithStringTypes()
     {
@@ -1143,6 +1239,15 @@ public class TestSingleStoreConnectorTest
                 .isFullyPushedDown()
                 .skippingTypesCheck()
                 .matches("VALUES (BIGINT '5', BIGINT '19')"); // char is padded with spaces so 'a' and 'a ' are same
+    }
+
+    @Override
+    protected boolean expectDateLiteralJoinPushdown(JoinOperator joinOperator)
+    {
+        // In SingleStore connector we added Date constants rewrite for predicates.
+        // It makes `SELECT n.name FROM nation n %s orders o ON DATE '2025-03-19' = o.orderdate` from BaseJdbcConnectorTest.testJoinPushdown to be pushdown for RIGHT join.
+        // Other join types after reordering/optimizations are treated as cross join and are not pushdown by PushJoinIntoTableScan rule.
+        return joinOperator == RIGHT_JOIN;
     }
 
     private static Session sessionWithDistinctAggregationsStrategy(Session session, String strategyValue)

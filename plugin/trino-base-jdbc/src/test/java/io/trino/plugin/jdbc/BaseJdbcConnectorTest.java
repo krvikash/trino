@@ -1190,7 +1190,10 @@ public abstract class BaseJdbcConnectorTest
                 assertThat(query(session, format("SELECT r.name, n.name FROM nation n %s region r ON n.nationkey = r.regionkey", joinOperator))).isFullyPushedDown();
 
                 // filter join condition (effectively empty)
-                assertThat(query(session, format("SELECT n.name FROM nation n %s orders o ON DATE '2025-03-19' = o.orderdate", joinOperator))).joinIsNotFullyPushedDown();
+                assertJoinConditionallyPushedDown(
+                        session,
+                        format("SELECT n.name FROM nation n %s orders o ON DATE '2025-03-19' = o.orderdate", joinOperator),
+                        expectDateLiteralJoinPushdown(joinOperator));
 
                 // no projection on the probe side, only filter
                 assertJoinConditionallyPushedDown(session, format("SELECT n.name FROM nation n %s orders o ON n.regionkey = 1", joinOperator),
@@ -1362,6 +1365,11 @@ public abstract class BaseJdbcConnectorTest
             e.addSuppressed(new Exception("Query: " + query));
             throw e;
         }
+    }
+
+    protected boolean expectDateLiteralJoinPushdown(JoinOperator joinOperator)
+    {
+        return false;
     }
 
     protected boolean expectJoinPushdown(String operator)

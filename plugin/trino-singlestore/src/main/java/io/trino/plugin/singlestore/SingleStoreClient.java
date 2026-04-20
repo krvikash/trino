@@ -240,6 +240,7 @@ public class SingleStoreClient
         this.connectorExpressionRewriter = JdbcConnectorExpressionRewriterBuilder.newBuilder()
                 .addStandardRules(this::quoted)
                 .add(new RewriteCharConstant())
+                .add(new RewriteDateTimestampConstant())
                 .add(new BinaryRewriteStringComparison())
                 .add(new BinaryRewriteLike())
                 // No "real" on the list; pushdown on REAL is disabled also in toColumnMapping
@@ -251,6 +252,14 @@ public class SingleStoreClient
                 .map("$less_than_or_equal(left: numeric_type, right: numeric_type)").to("left <= right")
                 .map("$greater_than(left: numeric_type, right: numeric_type)").to("left > right")
                 .map("$greater_than_or_equal(left: numeric_type, right: numeric_type)").to("left >= right")
+                .withTypeClass("date_timestamp_type", ImmutableSet.of("date", "timestamp"))
+                .map("$equal(left: date_timestamp_type, right: date_timestamp_type)").to("left = right")
+                .map("$not_equal(left: date_timestamp_type, right: date_timestamp_type)").to("left <> right")
+                .map("$identical(left: date_timestamp_type, right: date_timestamp_type)").to("left <=> right")
+                .map("$less_than(left: date_timestamp_type, right: date_timestamp_type)").to("left < right")
+                .map("$less_than_or_equal(left: date_timestamp_type, right: date_timestamp_type)").to("left <= right")
+                .map("$greater_than(left: date_timestamp_type, right: date_timestamp_type)").to("left > right")
+                .map("$greater_than_or_equal(left: date_timestamp_type, right: date_timestamp_type)").to("left >= right")
                 .map("$not(value: boolean)").to("NOT value")
                 .build();
 
