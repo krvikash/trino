@@ -109,7 +109,8 @@ public class HudiProxiedConnectorTransformer
                 originalSplit.fileModifiedTime(),
                 TupleDomain.all(),
                 originalSplit.partitionKeys(),
-                originalSplit.getSplitWeight());
+                originalSplit.getSplitWeight(),
+                originalSplit.getAffinityKey());
     }
 
     @Override

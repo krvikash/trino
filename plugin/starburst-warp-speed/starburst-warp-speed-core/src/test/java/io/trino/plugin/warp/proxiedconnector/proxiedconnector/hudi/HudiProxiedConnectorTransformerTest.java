@@ -75,7 +75,8 @@ public class HudiProxiedConnectorTransformerTest
                 TupleDomain.all(),
                 List.of(new HivePartitionKey("name1", "key1"),
                         new HivePartitionKey("name2", "key2")),
-                SplitWeight.fromProportion(1L));
+                SplitWeight.fromProportion(1L),
+                Optional.empty());
 
         DispatcherTableHandle dispatcherTableHandle = new DispatcherTableHandle(
                 "schemaName",
