@@ -17,7 +17,6 @@ import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.Table;
 import com.google.common.collect.ImmutableList;
 import io.trino.operator.gpu.GpuOperation;
-import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
@@ -163,31 +162,6 @@ public abstract class GpuAggregation
      * @return the result page, or empty if there's no output (e.g., GROUP BY with no input rows)
      */
     protected abstract Optional<@Move GpuPage> computeAggregation();
-
-    protected static @Move Table concatenateAndClear(@Move List<Table> tables)
-    {
-        if (tables.size() == 1) {
-            @Own Table table = tables.getFirst();
-            tables.clear();
-            return table;
-        }
-        try {
-            return Table.concatenate(tables.toArray(Table[]::new));
-        }
-        finally {
-            tables.forEach(Table::close);
-            tables.clear();
-        }
-    }
-
-    protected static void closeColumns(@Own Column[] outputColumns)
-    {
-        for (Column column : outputColumns) {
-            if (column != null) {
-                column.close();
-            }
-        }
-    }
 
     @Override
     public void close()
