@@ -39,6 +39,7 @@ import org.apache.parquet.schema.PrimitiveType;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.OptionalInt;
 
 import static io.trino.parquet.ParquetMetadataConverter.fromParquetStatistics;
 import static io.trino.parquet.ParquetValidationUtils.validateParquet;
@@ -148,7 +149,7 @@ public final class MetadataReader
             }
         }
 
-        ParquetMetadata parquetMetadata = new ParquetMetadata(fileMetaData, dataSource.getId(), decryptionContext);
+        ParquetMetadata parquetMetadata = new ParquetMetadata(fileMetaData, dataSource.getId(), OptionalInt.of(completeFooterSize), decryptionContext);
         validateFileMetadata(dataSource.getId(), parquetMetadata.getFileMetaData(), parquetWriteValidation);
         return parquetMetadata;
     }

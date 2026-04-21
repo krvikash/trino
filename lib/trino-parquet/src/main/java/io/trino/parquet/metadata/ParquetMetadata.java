@@ -52,6 +52,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
@@ -73,9 +74,10 @@ public class ParquetMetadata
     private final FileMetaData parquetMetadata;
     private final ParquetDataSourceId dataSourceId;
     private final FileMetadata fileMetadata;
+    private final OptionalInt completeFooterSize;
     private final Optional<FileDecryptionContext> decryptionContext;
 
-    public ParquetMetadata(FileMetaData parquetMetadata, ParquetDataSourceId dataSourceId, Optional<FileDecryptionContext> decryptionContext)
+    public ParquetMetadata(FileMetaData parquetMetadata, ParquetDataSourceId dataSourceId, OptionalInt completeFooterSize, Optional<FileDecryptionContext> decryptionContext)
             throws ParquetCorruptionException
     {
         this.fileMetadata = new FileMetadata(
@@ -84,12 +86,18 @@ public class ParquetMetadata
                 parquetMetadata.getCreated_by());
         this.parquetMetadata = parquetMetadata;
         this.dataSourceId = requireNonNull(dataSourceId, "dataSourceId is null");
+        this.completeFooterSize = requireNonNull(completeFooterSize, "completeFooterSize is null");
         this.decryptionContext = requireNonNull(decryptionContext, "decryptionContext is null");
     }
 
     public FileMetadata getFileMetaData()
     {
         return fileMetadata;
+    }
+
+    public OptionalInt getCompleteFooterSize()
+    {
+        return completeFooterSize;
     }
 
     public Optional<FileDecryptionContext> getDecryptionContext()

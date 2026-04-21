@@ -348,7 +348,8 @@ public class ParquetFileFabricator
             }
         }
 
-        size += 10000 + (rowGroups.size() * 500L);
+        size += parquetMetadata.getCompleteFooterSize()
+                .orElseThrow(() -> new IllegalStateException("Complete original footer size unknown"));
         size += FOOTER_LENGTH_SIZE;
         size += PARQUET_MAGIC_LENGTH;
 
