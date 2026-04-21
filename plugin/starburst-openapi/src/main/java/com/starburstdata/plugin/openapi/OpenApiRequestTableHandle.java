@@ -9,14 +9,11 @@
  */
 package com.starburstdata.plugin.openapi;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.spi.connector.ConnectorTableHandle;
 
 import java.net.URI;
 
-public record OpenApiRequestTableHandle(
-        @JsonProperty("path") String path,
-        @JsonProperty("uri") URI uri)
+public record OpenApiRequestTableHandle(String path, URI uri)
         implements ConnectorTableHandle
 {
 }
