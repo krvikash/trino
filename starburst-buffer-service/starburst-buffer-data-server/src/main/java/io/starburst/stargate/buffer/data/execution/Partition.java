@@ -195,12 +195,12 @@ public class Partition
             // chunk already spooled
             Optional<SpooledChunk> spooledChunk = spooledChunksByExchange.getSpooledChunk(exchangeId, chunkId);
             if (spooledChunk.isPresent()) {
-                return ChunkDataResult.of(spooledChunk.get());
+                return new SpooledChunkResult(spooledChunk.get());
             }
             throw new DataServerException(CHUNK_NOT_FOUND,
                     "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(bufferNodeId, exchangeId, chunkId));
         }
-        return ChunkDataResult.of(chunkDataLease);
+        return new ChunkContentResult(chunkDataLease);
     }
 
     public synchronized ListenableFuture<Void> finish()

@@ -1086,27 +1086,25 @@ public class TestChunkManager
 
     private void verifySpooledChunkDataResult(ChunkDataResult chunkDataResult, DataPage... values)
     {
-        assertThat(chunkDataResult.chunkDataLease()).isEmpty();
-        assertThat(chunkDataResult.spooledChunk()).isPresent();
-        List<DataPage> dataPages = getFutureValue(spooledChunkReader.getDataPages(chunkDataResult.spooledChunk().get()));
+        assertThat(chunkDataResult).isInstanceOf(SpooledChunkResult.class);
+        List<DataPage> dataPages = getFutureValue(spooledChunkReader.getDataPages(((SpooledChunkResult) chunkDataResult).spooledChunk()));
         assertThat(dataPages).containsExactlyInAnyOrder(values);
     }
 
     private void verifyInMemoryChunkDataResult(ChunkDataResult chunkDataResult, DataPage... values)
     {
-        assertThat(chunkDataResult.chunkDataLease()).isPresent();
-        verifyChunkData(chunkDataResult.chunkDataLease().get(), values);
+        assertThat(chunkDataResult).isInstanceOf(ChunkContentResult.class);
+        verifyChunkData(((ChunkContentResult) chunkDataResult).lease(), values);
     }
 
     private void verifyChunkDataResult(ChunkDataResult chunkDataResult, DataPage... values)
     {
-        if (chunkDataResult.chunkDataLease().isPresent()) {
-            verifyChunkData(chunkDataResult.chunkDataLease().get(), values);
-        }
-        else {
-            assertThat(chunkDataResult.spooledChunk()).isPresent();
-            List<DataPage> dataPages = getFutureValue(spooledChunkReader.getDataPages(chunkDataResult.spooledChunk().get()));
-            assertThat(dataPages).containsExactlyInAnyOrder(values);
+        switch (chunkDataResult) {
+            case ChunkContentResult(ChunkDataLease lease) -> verifyChunkData(lease, values);
+            case SpooledChunkResult(SpooledChunk spooledChunk) -> {
+                List<DataPage> dataPages = getFutureValue(spooledChunkReader.getDataPages(spooledChunk));
+                assertThat(dataPages).containsExactlyInAnyOrder(values);
+            }
         }
     }
 
@@ -1210,10 +1208,11 @@ public class TestChunkManager
     protected void assertDrainedChunkDataResult(ChunkManager chunkManager, long drainedBufferNodeId)
     {
         ChunkDataResult chunkDataResult = chunkManager.getChunkData(drainedBufferNodeId, EXCHANGE_0, 0, 0L);
-        assertThat(chunkDataResult.spooledChunk()).isPresent();
-        assertThat(chunkDataResult.spooledChunk().get().length()).isEqualTo(52);
-        assertThat(chunkDataResult.spooledChunk().get().location()).startsWith("s3://" + minioStorage.getBucketName());
-        assertThat(chunkDataResult.spooledChunk().get().location()).contains("exchange-0." + drainedBufferNodeId);
+        assertThat(chunkDataResult).isInstanceOf(SpooledChunkResult.class);
+        SpooledChunk spooledChunk = ((SpooledChunkResult) chunkDataResult).spooledChunk();
+        assertThat(spooledChunk.length()).isEqualTo(52);
+        assertThat(spooledChunk.location()).startsWith("s3://" + minioStorage.getBucketName());
+        assertThat(spooledChunk.location()).contains("exchange-0." + drainedBufferNodeId);
     }
 
     private static BufferNodeExchangeMetrics emptyMetrics()

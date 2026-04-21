@@ -355,7 +355,7 @@ public class ChunkManager
             Map<Long, SpooledChunk> spooledChunkMap = drainedSpooledChunkMap.getUnchecked(bufferNodeId);
             SpooledChunk spooledChunk = spooledChunkMap.get(chunkId);
             if (spooledChunk != null) {
-                return ChunkDataResult.of(spooledChunk);
+                return new SpooledChunkResult(spooledChunk);
             }
             throw new DataServerException(CHUNK_NOT_FOUND, "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(bufferNodeId, exchangeId, chunkId));
         }

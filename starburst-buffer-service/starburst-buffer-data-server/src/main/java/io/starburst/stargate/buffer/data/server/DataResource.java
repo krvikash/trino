@@ -30,9 +30,11 @@ import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.AddDataPagesResult;
+import io.starburst.stargate.buffer.data.execution.ChunkContentResult;
 import io.starburst.stargate.buffer.data.execution.ChunkDataResult;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.execution.MemoryChunkDataLease;
+import io.starburst.stargate.buffer.data.execution.SpooledChunkResult;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.SliceLease;
 import io.starburst.stargate.buffer.data.server.AddDataPagesInProgressTracker.InProgressLatch;
@@ -603,19 +605,18 @@ public class DataResource
             return;
         }
 
-        if (chunkDataResult.chunkDataLease().isEmpty()) {
-            verify(chunkDataResult.spooledChunk().isPresent(), "Either chunkDataLease or spooledChunk should be present");
-            SpooledChunk spooledChunk = chunkDataResult.spooledChunk().get();
-
-            asyncResponse.resume(Response.status(Status.NOT_FOUND)
-                    .header(SPOOLING_FILE_LOCATION_HEADER.toString(), spooledChunk.location())
-                    .header(SPOOLED_CHUNK_OFFSET_HEADER.toString(), String.valueOf(spooledChunk.offset()))
-                    .header(SPOOLED_CHUNK_LENGTH_HEADER.toString(), String.valueOf(spooledChunk.length()))
-                    .build());
-            return;
+        final MemoryChunkDataLease chunkDataLease;
+        switch (chunkDataResult) {
+            case SpooledChunkResult(SpooledChunk spooledChunk) -> {
+                asyncResponse.resume(Response.status(Status.NOT_FOUND)
+                        .header(SPOOLING_FILE_LOCATION_HEADER.toString(), spooledChunk.location())
+                        .header(SPOOLED_CHUNK_OFFSET_HEADER.toString(), String.valueOf(spooledChunk.offset()))
+                        .header(SPOOLED_CHUNK_LENGTH_HEADER.toString(), String.valueOf(spooledChunk.length()))
+                        .build());
+                return;
+            }
+            case ChunkContentResult(MemoryChunkDataLease lease) -> chunkDataLease = lease;
         }
-
-        MemoryChunkDataLease chunkDataLease = (MemoryChunkDataLease) chunkDataResult.chunkDataLease().get();
         ArrayDeque<Slice> sliceQueue;
         AsyncContext context;
         try {

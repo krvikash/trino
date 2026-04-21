@@ -9,30 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.execution;
 
-import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
-
-import java.util.Optional;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static java.util.Objects.requireNonNull;
-
-public record ChunkDataResult(
-        Optional<ChunkDataLease> chunkDataLease,
-        Optional<SpooledChunk> spooledChunk)
+public sealed interface ChunkDataResult
+        permits ChunkContentResult, SpooledChunkResult
 {
-    public ChunkDataResult {
-        requireNonNull(chunkDataLease, "chunkDataLease is null");
-        requireNonNull(spooledChunk, "spooledChunk is null");
-        checkArgument(chunkDataLease.isPresent() ^ spooledChunk.isPresent(), "Either chunkDataLease or spooledChunk should be present");
-    }
-
-    public static ChunkDataResult of(ChunkDataLease chunkDataLease)
-    {
-        return new ChunkDataResult(Optional.of(chunkDataLease), Optional.empty());
-    }
-
-    public static ChunkDataResult of(SpooledChunk spooledChunk)
-    {
-        return new ChunkDataResult(Optional.empty(), Optional.of(spooledChunk));
-    }
 }
