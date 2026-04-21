@@ -35,7 +35,7 @@ import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static java.util.Objects.requireNonNull;
 
-// Note on thread-safety: only release(), getChunkData(), getAllocatedMemory() and chunkDataInMemory()
+// Note on thread-safety: only release(), getChunkData(), getReclaimableHeapBytes() and chunkDataInMemory()
 // may be concurrently called after Chunk is closed
 // This class is not thread safe
 public class Chunk
@@ -141,13 +141,13 @@ public class Chunk
         return chunkData != null;
     }
 
-    public synchronized int getAllocatedMemory()
+    public synchronized int getReclaimableHeapBytes()
     {
-        checkState(closed, "getAllocatedMemory() called on an open check");
+        checkState(closed, "getReclaimableHeapBytes() called on an open check");
         if (chunkData == null) {
             return 0;
         }
-        return chunkData.getAllocatedMemory();
+        return chunkData.getReclaimableHeapBytes();
     }
 
     public ChunkHandle getHandle()
@@ -300,7 +300,7 @@ public class Chunk
             }
         }
 
-        public synchronized int getAllocatedMemory()
+        public synchronized int getReclaimableHeapBytes()
         {
             return sliceLeases.get().size() * chunkSliceSizeInBytes;
         }
