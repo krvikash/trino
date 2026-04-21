@@ -14,6 +14,7 @@
 package io.trino.plugin.hive.parquet;
 
 import com.google.common.collect.ImmutableList;
+import io.airlift.units.DataSize;
 import io.trino.filesystem.TrinoInputFile;
 import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.parquet.ParquetDataSource;
@@ -38,6 +39,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 
+import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.parquet.ParquetTypeUtils.getDescriptors;
 import static io.trino.parquet.predicate.PredicateUtils.buildPredicate;
@@ -62,7 +64,12 @@ public final class ParquetGpuPageSourceFactory
         try {
             AggregatedMemoryContext memoryContext = newSimpleAggregatedMemoryContext();
             FileFormatDataSourceStats stats = new FileFormatDataSourceStats();
-            ParquetReaderOptions options = ParquetReaderOptions.builder().build();
+            ParquetReaderOptions options = ParquetReaderOptions.builder()
+                    // Raise the size of the max read because we are reading everything up front into an in-memory byte array
+                    // The default for CPU is tailored for lazy materialization and early cut-off of page source
+                    .withMaxBufferSize(DataSize.of(32, MEGABYTE))
+                    .withInitialBufferSize(DataSize.of(32, MEGABYTE))
+                    .build();
             // Hardcoded UTC: cuDF reads timestamps as raw UTC without applying hive.parquet.time-zone.
             // Using the configured zone for predicate pruning here would be inconsistent with the data
             // actually read (pruning on a shifted interpretation, reading raw). The upstream UTC guard
