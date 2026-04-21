@@ -14,11 +14,14 @@
 package io.trino.plugin.clickhouse;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
+import io.trino.spi.type.RowType;
 import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.UuidType;
 import io.trino.testing.AbstractTestQueryFramework;
+import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingSession;
 import io.trino.testing.datatype.CreateAndInsertDataSetup;
 import io.trino.testing.datatype.CreateAndTrinoInsertDataSetup;
@@ -53,6 +56,8 @@ import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
+import static io.trino.spi.type.RowType.field;
+import static io.trino.spi.type.RowType.rowType;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_SECONDS;
@@ -61,10 +66,13 @@ import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
+import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.type.IpAddressType.IPADDRESS;
 import static java.lang.String.format;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 @TestInstance(PER_CLASS)
@@ -920,6 +928,8 @@ public abstract class BaseClickHouseTypeMapping
     {
         SqlDataTypeTest dateTests = SqlDataTypeTest.create()
                 .addRoundTrip("date", format("DATE '%s'", date), DATE, format("DATE '%s'", date));
+        SqlDataTypeTest tupleDateTests = SqlDataTypeTest.create()
+                .addRoundTrip("Tuple(value Date)", format("('%s')", date), rowType(field("value", DATE)), format("cast(row(DATE '%s') as row(value date))", date));
 
         for (ZoneId timeZoneId : timezones()) {
             Session session = Session.builder(getSession())
@@ -931,6 +941,8 @@ public abstract class BaseClickHouseTypeMapping
                     .execute(getQueryRunner(), session, trinoCreateAsSelect("test_date"))
                     .execute(getQueryRunner(), session, trinoCreateAndInsert(session, "test_date"))
                     .execute(getQueryRunner(), session, trinoCreateAndInsert("test_date"));
+            tupleDateTests
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_tuple_date_minmax"));
         }
     }
 
@@ -947,6 +959,8 @@ public abstract class BaseClickHouseTypeMapping
                 .addRoundTrip("date32", format("DATE '%s'", date), DATE, format("DATE '%s'", date));
         SqlDataTypeTest trinoCreateTests = SqlDataTypeTest.create()
                 .addRoundTrip("date", format("DATE '%s'", date), DATE, format("DATE '%s'", date));
+        SqlDataTypeTest tupleDate32Tests = SqlDataTypeTest.create()
+                .addRoundTrip("Tuple(value Date32)", format("('%s')", date), rowType(field("value", DATE)), format("cast(row(DATE '%s') as row(value date))", date));
 
         for (ZoneId timeZoneId : timezones()) {
             Session session = Session.builder(getSession())
@@ -959,6 +973,8 @@ public abstract class BaseClickHouseTypeMapping
                     .execute(getQueryRunner(), session, trinoCreateAndInsert("test_date32"));
             clickHouseCreateTests
                     .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_date32"));
+            tupleDate32Tests
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_tuple_date32_minmax"));
         }
     }
 
@@ -1072,6 +1088,8 @@ public abstract class BaseClickHouseTypeMapping
                 .addRoundTrip("timestamp", format("'%s'", timestamp), createTimestampType(0), format("TIMESTAMP '%s'", timestamp));
         SqlDataTypeTest dateTests3 = SqlDataTypeTest.create()
                 .addRoundTrip("datetime", format("'%s'", timestamp), createTimestampType(0), format("TIMESTAMP '%s'", timestamp));
+        SqlDataTypeTest tupleDateTimeTests = SqlDataTypeTest.create()
+                .addRoundTrip("Tuple(value DateTime)", format("('%s')", timestamp), rowType(field("value", createTimestampType(0))), format("cast(row(TIMESTAMP '%s') as row(value timestamp(0)))", timestamp));
 
         for (ZoneId timeZoneId : timezones()) {
             Session session = Session.builder(getSession())
@@ -1084,6 +1102,7 @@ public abstract class BaseClickHouseTypeMapping
                     .execute(getQueryRunner(), session, trinoCreateAndInsert("test_timestamp"));
             dateTests2.execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_timestamp"));
             dateTests3.execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_datetime"));
+            tupleDateTimeTests.execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_tuple_datetime_minmax"));
         }
     }
 
@@ -1103,6 +1122,9 @@ public abstract class BaseClickHouseTypeMapping
                 // In ClickHouse, timestamp(p) with p > 0 is mapped to DateTime64, If p = 0 (or no precision is specified), it is mapped to DateTime.
                 .addRoundTrip("timestamp(%s)".formatted(precision), format("'%s'", timestamp), createTimestampType(precision), format("TIMESTAMP '%s'", timestamp))
                 .addRoundTrip("datetime64(%s)".formatted(precision), format("'%s'", timestamp), createTimestampType(precision), format("TIMESTAMP '%s'", timestamp));
+        SqlDataTypeTest tupleDateTime64Tests = SqlDataTypeTest.create()
+                .addRoundTrip(format("Tuple(value DateTime64(%d))", precision), format("('%s')", timestamp),
+                        rowType(field("value", createTimestampType(precision))), format("cast(row(TIMESTAMP '%s') as row(value timestamp(%d)))", timestamp, precision));
 
         for (ZoneId timeZoneId : timezones()) {
             Session session = Session.builder(getSession())
@@ -1114,6 +1136,7 @@ public abstract class BaseClickHouseTypeMapping
                     .execute(getQueryRunner(), session, trinoCreateAndInsert(session, "test_timestamp"))
                     .execute(getQueryRunner(), session, trinoCreateAndInsert("test_timestamp"));
             clickHouseCreateTests.execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_timestamp"));
+            tupleDateTime64Tests.execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_tuple_datetime64_minmax"));
         }
     }
 
@@ -1455,6 +1478,762 @@ public abstract class BaseClickHouseTypeMapping
                 .addRoundTrip("Nullable(IPv4)", "NULL", IPADDRESS, "CAST(NULL AS IPADDRESS)")
                 .addRoundTrip("Nullable(IPv6)", "NULL", IPADDRESS, "CAST(NULL AS IPADDRESS)")
                 .execute(getQueryRunner(), clickhouseCreateAndTrinoInsert("tpch.test_ip"));
+    }
+
+    @Test
+    public void testTuple()
+    {
+        SqlDataTypeTest.create()
+                .addRoundTrip("Tuple(value Bool)", "(true)", rowType(field("value", BOOLEAN)), "cast(row(true) as row(value boolean))")
+                .addRoundTrip("Tuple(value Int8)", "(-128)", rowType(field("value", TINYINT)), "cast(row(-128) as row(value tinyint))")
+                .addRoundTrip("Tuple(value Int16)", "(-32768)", rowType(field("value", SMALLINT)), "cast(row(-32768) as row(value smallint))")
+                .addRoundTrip("Tuple(value Int32)", "(30)", rowType(field("value", INTEGER)), "cast(row(30) as row(value integer))")
+                .addRoundTrip("Tuple(value Int64)", "(9223372036854775807)", rowType(field("value", BIGINT)), "cast(row(9223372036854775807) as row(value bigint))")
+                .addRoundTrip("Tuple(value UInt8)", "(255)", rowType(field("value", SMALLINT)), "cast(row(SMALLINT '255') as row(value smallint))")
+                .addRoundTrip("Tuple(value UInt16)", "(65535)", rowType(field("value", INTEGER)), "cast(row(65535) as row(value integer))")
+                .addRoundTrip("Tuple(value UInt32)", "(4294967295)", rowType(field("value", BIGINT)), "cast(row(BIGINT '4294967295') as row(value bigint))")
+                .addRoundTrip("Tuple(value UInt64)", "(18446744073709551615)", rowType(field("value", createDecimalType(20))), "cast(row(CAST('18446744073709551615' AS decimal(20, 0))) as row(value decimal(20, 0)))")
+                .addRoundTrip("Tuple(value Float32)", "(3.14)", rowType(field("value", REAL)), "cast(row(REAL '3.14') as row(value real))")
+                .addRoundTrip("Tuple(value real)", "(12.5)", rowType(field("value", REAL)), "cast(row(REAL '12.5') as row(value real))")
+                .addRoundTrip("Tuple(value real)", "(nan)", rowType(field("value", REAL)), "cast(row(CAST(nan() AS REAL)) as row(value real))")
+                .addRoundTrip("Tuple(value real)", "(-inf)", rowType(field("value", REAL)), "cast(row(CAST(-infinity() AS REAL)) as row(value real))")
+                .addRoundTrip("Tuple(value real)", "(+inf)", rowType(field("value", REAL)), "cast(row(CAST(infinity() AS REAL)) as row(value real))")
+                .addRoundTrip("Tuple(value Float64)", "(2.718)", rowType(field("value", DOUBLE)), "cast(row(DOUBLE '2.718') as row(value double))")
+                .addRoundTrip("Tuple(value double)", "(3.1415926835)", rowType(field("value", DOUBLE)), "cast(row(DOUBLE '3.1415926835') as row(value double))")
+                .addRoundTrip("Tuple(value double)", "(1.79769E308)", rowType(field("value", DOUBLE)), "cast(row(DOUBLE '1.79769E308') as row(value double))")
+                // https://github.com/ClickHouse/ClickHouse/issues/60146
+                // .addRoundTrip("Tuple(value double)", "(2.225E-307)", rowType(field("value", DOUBLE)), "cast(row(DOUBLE '2.225E-307') as row(value double))")
+                .addRoundTrip("Tuple(value double)", "(nan)", rowType(field("value", DOUBLE)), "cast(row(CAST(nan() AS DOUBLE)) as row(value double))")
+                .addRoundTrip("Tuple(value double)", "(-inf)", rowType(field("value", DOUBLE)), "cast(row(CAST(-infinity() AS DOUBLE)) as row(value double))")
+                .addRoundTrip("Tuple(value double)", "(+inf)", rowType(field("value", DOUBLE)), "cast(row(CAST(infinity() AS DOUBLE)) as row(value double))")
+                .addRoundTrip("Tuple(value Decimal(10, 2))", "(123.45)", rowType(field("value", createDecimalType(10, 2))), "cast(row(CAST('123.45' AS decimal(10, 2))) as row(value decimal(10, 2)))")
+                .addRoundTrip("Tuple(value FixedString(8))", "('Alice')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('Alice\0\0\0')) as row(value varbinary))")
+                .addRoundTrip("Tuple(value String)", "('Alice')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('Alice')) as row(value varbinary))")
+                .addRoundTrip("Tuple(value LowCardinality(FixedString(8)))", "('Alice')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('Alice\0\0\0')) as row(value varbinary))")
+                .addRoundTrip("Tuple(value LowCardinality(String))", "('Alice')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('Alice')) as row(value varbinary))")
+                .addRoundTrip("Tuple(value Date)", "('2024-01-15')", rowType(field("value", DATE)), "cast(row(DATE '2024-01-15') as row(value date))")
+                .addRoundTrip("Tuple(value Date32)", "('2024-01-15')", rowType(field("value", DATE)), "cast(row(DATE '2024-01-15') as row(value date))")
+                .addRoundTrip("Tuple(value DateTime)", "('2024-01-15 12:30:45')", rowType(field("value", createTimestampType(0))), "cast(row(TIMESTAMP '2024-01-15 12:30:45') as row(value timestamp(0)))")
+                .addRoundTrip("Tuple(value DateTime32)", "('2024-01-15 12:30:45')", rowType(field("value", createTimestampType(0))), "cast(row(TIMESTAMP '2024-01-15 12:30:45') as row(value timestamp(0)))")
+                .addRoundTrip("Tuple(value DateTime64(3))", "('2024-01-15 12:30:45.123')", rowType(field("value", createTimestampType(3))), "cast(row(TIMESTAMP '2024-01-15 12:30:45.123') as row(value timestamp(3)))")
+                .addRoundTrip("Tuple(value DateTime('UTC'))", "('2024-01-15 12:30:45')", rowType(field("value", TIMESTAMP_TZ_SECONDS)), "cast(row(TIMESTAMP '2024-01-15 12:30:45 UTC') as row(value timestamp(0) with time zone))")
+                .addRoundTrip("Tuple(value DateTime64(3, 'UTC'))", "('2024-01-15 12:30:45.123')", rowType(field("value", createTimestampWithTimeZoneType(3))), "cast(row(TIMESTAMP '2024-01-15 12:30:45.123 UTC') as row(value timestamp(3) with time zone))")
+                .addRoundTrip("Tuple(value Enum8('active' = 1, 'inactive' = 2))", "('active')", rowType(field("value", createUnboundedVarcharType())), "cast(row(VARCHAR 'active') as row(value varchar))")
+                .addRoundTrip("Tuple(value Enum16('low' = 1, 'high' = 2))", "('low')", rowType(field("value", createUnboundedVarcharType())), "cast(row(VARCHAR 'low') as row(value varchar))")
+                .addRoundTrip("Tuple(value UUID)", "('114514ea-0601-1981-1142-e9b55b0abd6d')", rowType(field("value", UuidType.UUID)), "cast(row(UUID '114514ea-0601-1981-1142-e9b55b0abd6d') as row(value uuid))")
+                .addRoundTrip("Tuple(value IPv4)", "('192.168.1.1')", rowType(field("value", IPADDRESS)), "cast(row(IPADDRESS '192.168.1.1') as row(value ipaddress))")
+                .addRoundTrip("Tuple(value IPv6)", "('2001:db8::1')", rowType(field("value", IPADDRESS)), "cast(row(IPADDRESS '2001:db8::1') as row(value ipaddress))")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_tuple"));
+
+        SqlDataTypeTest.create()
+                .addRoundTrip("Tuple(value FixedString(8))", "('Alice')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR 'Alice\0\0\0') as row(value varchar))")
+                .addRoundTrip("Tuple(value String)", "('Alice')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR 'Alice') as row(value varchar))")
+                .addRoundTrip("Tuple(value LowCardinality(FixedString(8)))", "('Alice')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR 'Alice\0\0\0') as row(value varchar))")
+                .addRoundTrip("Tuple(value LowCardinality(String))", "('Alice')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR 'Alice') as row(value varchar))")
+                .execute(getQueryRunner(), mapStringAsVarcharSession(), clickhouseCreateAndInsert("tpch.test_tuple"));
+    }
+
+    @Test
+    public void testTupleTrinoVarbinary()
+    {
+        // ClickHouse JDBC TupleDeserializer converts String/FixedString element bytes to Java Strings
+        // (with U+FFFD replacement for invalid UTF-8) before returning the Tuple object. Non-UTF-8
+        // bytes are therefore unrecoverable without SQL-level rewriting (e.g. tupleElement projections),
+        // so only valid-UTF-8 content is tested here.
+        SqlDataTypeTest.create()
+                .addRoundTrip("Tuple(value String)", "('')", rowType(field("value", VARBINARY)), "cast(row(X'') as row(value varbinary))")
+                .addRoundTrip("Tuple(value String)", "('\\x68\\x65\\x6C\\x6C\\x6F')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('hello')) as row(value varbinary))")
+                .addRoundTrip("Tuple(value String)", "('\\x50\\x69\\xC4\\x99\\x6B\\x6E\\x61\\x20\\xC5\\x82\\xC4\\x85\\x6B\\x61\\x20\\x77\\x20\\xE6\\x9D\\xB1\\xE4\\xBA\\xAC\\xE9\\x83\\xBD')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('Piękna łąka w 東京都')) as row(value varbinary))")
+                .addRoundTrip("Tuple(value String)", "('\\x42\\x61\\x67\\x20\\x66\\x75\\x6C\\x6C\\x20\\x6F\\x66\\x20\\xF0\\x9F\\x92\\xB0')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('Bag full of 💰')) as row(value varbinary))")
+                .addRoundTrip("Tuple(value String)", "('\\x00\\x00\\x00\\x00\\x00\\x00')", rowType(field("value", VARBINARY)), "cast(row(X'000000000000') as row(value varbinary))")
+                .addRoundTrip("Tuple(value FixedString(10))", "('c12345678b')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('c12345678b')) as row(value varbinary))")
+                .addRoundTrip("Tuple(value FixedString(10))", "('c123')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('c123\0\0\0\0\0\0')) as row(value varbinary))")
+                .addRoundTrip("Tuple(value FixedString(10))", "('\\x00\\x00\\x00\\x00\\x00\\x00')", rowType(field("value", VARBINARY)), "cast(row(X'00000000000000000000') as row(value varbinary))")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_tuple_varbinary"));
+    }
+
+    @Test
+    public void testTupleTrinoVarchar()
+    {
+        SqlDataTypeTest.create()
+                .addRoundTrip("Tuple(value String)", "('Piękna łąka w 東京都')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR 'Piękna łąka w 東京都') as row(value varchar))")
+                .addRoundTrip("Tuple(value String)", "('text_a')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR 'text_a') as row(value varchar))")
+                .addRoundTrip("Tuple(value String)", "('text_b')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR 'text_b') as row(value varchar))")
+                .addRoundTrip("Tuple(value String)", "('攻殻機動隊')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR '攻殻機動隊') as row(value varchar))")
+                .addRoundTrip("Tuple(value String)", "('😂')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR '😂') as row(value varchar))")
+                .addRoundTrip("Tuple(value String)", "('Ну, погоди!')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR 'Ну, погоди!') as row(value varchar))")
+                .addRoundTrip("Tuple(value FixedString(8))", "('Alice')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR 'Alice\0\0\0') as row(value varchar))")
+                .addRoundTrip("Tuple(value FixedString(10))", "('c123')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR 'c123\0\0\0\0\0\0') as row(value varchar))")
+                .execute(getQueryRunner(), mapStringAsVarcharSession(), clickhouseCreateAndInsert("tpch.test_tuple_varchar"));
+    }
+
+    @Test
+    public void testTupleClickHouseString()
+    {
+        SqlDataTypeTest.create()
+                // plain
+                .addRoundTrip("Tuple(value String)", "('Piękna łąka w 東京都')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('Piękna łąka w 東京都')) as row(value varbinary))")
+                .addRoundTrip("Tuple(value String)", "('text_a')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('text_a')) as row(value varbinary))")
+                .addRoundTrip("Tuple(value String)", "('攻殻機動隊')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('攻殻機動隊')) as row(value varbinary))")
+                .addRoundTrip("Tuple(value String)", "('😂')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('😂')) as row(value varbinary))")
+                // low-cardinality
+                .addRoundTrip("Tuple(value LowCardinality(String))", "('text_a')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('text_a')) as row(value varbinary))")
+                .addRoundTrip("Tuple(value LowCardinality(String))", "('攻殻機動隊')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('攻殻機動隊')) as row(value varbinary))")
+                .addRoundTrip("Tuple(value LowCardinality(String))", "('😂')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('😂')) as row(value varbinary))")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_tuple_string"));
+
+        SqlDataTypeTest.create()
+                // plain
+                .addRoundTrip("Tuple(value String)", "('Piękna łąka w 東京都')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR 'Piękna łąka w 東京都') as row(value varchar))")
+                .addRoundTrip("Tuple(value String)", "('text_a')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR 'text_a') as row(value varchar))")
+                .addRoundTrip("Tuple(value String)", "('攻殻機動隊')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR '攻殻機動隊') as row(value varchar))")
+                .addRoundTrip("Tuple(value String)", "('😂')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR '😂') as row(value varchar))")
+                // low-cardinality
+                .addRoundTrip("Tuple(value LowCardinality(String))", "('text_a')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR 'text_a') as row(value varchar))")
+                .addRoundTrip("Tuple(value LowCardinality(String))", "('攻殻機動隊')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR '攻殻機動隊') as row(value varchar))")
+                .addRoundTrip("Tuple(value LowCardinality(String))", "('😂')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR '😂') as row(value varchar))")
+                .execute(getQueryRunner(), mapStringAsVarcharSession(), clickhouseCreateAndInsert("tpch.test_tuple_string"));
+    }
+
+    @Test
+    public void testTupleVarbinaryNonUtf8()
+    {
+        // The ClickHouse JDBC TupleDeserializer converts String/FixedString bytes to Java Strings,
+        // replacing invalid UTF-8 sequences with U+FFFD (Unicode replacement character, EF BF BD)
+        // before this code sees the values. These tests verify the substituted bytes are returned.
+
+        // stray continuation byte \x80 → U+FFFD (efbfbd)
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_tuple_non_utf8",
+                "(col Tuple(value String)) ENGINE=Log")) {
+            onRemoteDatabase().execute("INSERT INTO " + table.getName() + " VALUES (('\\x80'))");
+            assertThat(query("SELECT col.value FROM clickhouse." + table.getName()))
+                    .matches("VALUES (X'efbfbd')");
+        }
+        // always-invalid byte \xFF → U+FFFD (efbfbd)
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_tuple_non_utf8",
+                "(col Tuple(value String)) ENGINE=Log")) {
+            onRemoteDatabase().execute("INSERT INTO " + table.getName() + " VALUES (('\\xFF'))");
+            assertThat(query("SELECT col.value FROM clickhouse." + table.getName()))
+                    .matches("VALUES (X'efbfbd')");
+        }
+        // overlong null encoding \xC0\x80 → two U+FFFD, one per byte (efbfbdefbfbd)
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_tuple_non_utf8",
+                "(col Tuple(value String)) ENGINE=Log")) {
+            onRemoteDatabase().execute("INSERT INTO " + table.getName() + " VALUES (('\\xC0\\x80'))");
+            assertThat(query("SELECT col.value FROM clickhouse." + table.getName()))
+                    .matches("VALUES (X'efbfbdefbfbd')");
+        }
+        // mixed valid+invalid: \xF9\x36\x7A\xA7 → efbfbd 36 7a efbfbd
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_tuple_non_utf8",
+                "(col Tuple(value String)) ENGINE=Log")) {
+            onRemoteDatabase().execute("INSERT INTO " + table.getName() + " VALUES (('\\xF9\\x36\\x7A\\xA7'))");
+            assertThat(query("SELECT col.value FROM clickhouse." + table.getName()))
+                    .matches("VALUES (X'efbfbd367aefbfbd')");
+        }
+        // FixedString(4) with non-UTF-8 bytes \xF9\x36\x7A\xA7 → efbfbd 36 7a efbfbd
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_tuple_non_utf8",
+                "(col Tuple(value FixedString(4))) ENGINE=Log")) {
+            onRemoteDatabase().execute("INSERT INTO " + table.getName() + " VALUES (('\\xF9\\x36\\x7A\\xA7'))");
+            assertThat(query("SELECT col.value FROM clickhouse." + table.getName()))
+                    .matches("VALUES (X'efbfbd367aefbfbd')");
+        }
+        // MergeTree with partition key
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_tuple_non_utf8",
+                "(id Int32, col Tuple(value String)) ENGINE=MergeTree PARTITION BY id ORDER BY id")) {
+            onRemoteDatabase().execute("INSERT INTO " + table.getName() + " VALUES (1, ('\\xF9\\x36\\x7A\\xA7'))");
+            assertThat(query("SELECT col.value FROM clickhouse." + table.getName()))
+                    .matches("VALUES (X'efbfbd367aefbfbd')");
+        }
+    }
+
+    @Test
+    public void testTupleClickHouseChar()
+    {
+        // ClickHouse char is String, which is arbitrary bytes (no fixed-width padding)
+        SqlDataTypeTest.create()
+                // plain
+                .addRoundTrip("Tuple(value char(10))", "('text_a')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('text_a')) as row(value varbinary))")
+                .addRoundTrip("Tuple(value char(255))", "('text_b')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('text_b')) as row(value varbinary))")
+                .addRoundTrip("Tuple(value char(5))", "('攻殻機動隊')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('攻殻機動隊')) as row(value varbinary))")
+                .addRoundTrip("Tuple(value char(1))", "('😂')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('😂')) as row(value varbinary))")
+                .addRoundTrip("Tuple(value char(77))", "('Ну, погоди!')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('Ну, погоди!')) as row(value varbinary))")
+                // low-cardinality
+                .addRoundTrip("Tuple(value LowCardinality(char(10)))", "('text_a')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('text_a')) as row(value varbinary))")
+                .addRoundTrip("Tuple(value LowCardinality(char(5)))", "('攻殻機動隊')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('攻殻機動隊')) as row(value varbinary))")
+                .addRoundTrip("Tuple(value LowCardinality(char(1)))", "('😂')", rowType(field("value", VARBINARY)), "cast(row(to_utf8('😂')) as row(value varbinary))")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_tuple_char"));
+
+        SqlDataTypeTest.create()
+                // plain
+                .addRoundTrip("Tuple(value char(10))", "('text_a')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR 'text_a') as row(value varchar))")
+                .addRoundTrip("Tuple(value char(255))", "('text_b')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR 'text_b') as row(value varchar))")
+                .addRoundTrip("Tuple(value char(5))", "('攻殻機動隊')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR '攻殻機動隊') as row(value varchar))")
+                .addRoundTrip("Tuple(value char(1))", "('😂')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR '😂') as row(value varchar))")
+                .addRoundTrip("Tuple(value char(77))", "('Ну, погоди!')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR 'Ну, погоди!') as row(value varchar))")
+                // low-cardinality
+                .addRoundTrip("Tuple(value LowCardinality(char(10)))", "('text_a')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR 'text_a') as row(value varchar))")
+                .addRoundTrip("Tuple(value LowCardinality(char(5)))", "('攻殻機動隊')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR '攻殻機動隊') as row(value varchar))")
+                .addRoundTrip("Tuple(value LowCardinality(char(1)))", "('😂')", rowType(field("value", VARCHAR)), "cast(row(VARCHAR '😂') as row(value varchar))")
+                .execute(getQueryRunner(), mapStringAsVarcharSession(), clickhouseCreateAndInsert("tpch.test_tuple_char"));
+    }
+
+    @Test
+    public void testTupleTrinoVarbinaryWithPartitionKey()
+    {
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_tuple_varbinary_part",
+                "(col Tuple(str String, num Int32, flt Float64)) ENGINE=MergeTree PARTITION BY tupleElement(col, 'num') ORDER BY tupleElement(col, 'num')")) {
+            onRemoteDatabase().execute("INSERT INTO " + table.getName() + " VALUES " +
+                    "(('hello', 1, 3.14)), " +
+                    "(('\\xE4\\xB8\\x9C\\xE4\\xBA\\xAC\\xE9\\x83\\xBD', 2, 0.0))");
+            assertThat(query("SELECT col.str, col.num, col.flt FROM clickhouse." + table.getName() + " ORDER BY col.num"))
+                    .matches("VALUES (X'68656c6c6f', 1, 3.14E0), (X'e4b89ce4baace983bd', 2, 0.0E0)");
+        }
+        // whole Tuple as partition key
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_tuple_varbinary_part",
+                "(col Tuple(num Int32, flt Float64)) ENGINE=MergeTree PARTITION BY col ORDER BY col")) {
+            onRemoteDatabase().execute("INSERT INTO " + table.getName() + " VALUES " +
+                    "((1, 3.14)), " +
+                    "((2, 0.0))");
+            assertThat(query("SELECT col.num, col.flt FROM clickhouse." + table.getName() + " ORDER BY col.num"))
+                    .matches("VALUES (1, 3.14E0), (2, 0.0E0)");
+        }
+    }
+
+    @Test
+    public void testTupleMultiColumn()
+    {
+        SqlDataTypeTest.create()
+                .addRoundTrip(
+                        "Tuple(bool_val Bool, int_val Int32, bigint_val Int64, float_val Float32, double_val Float64, string_val String, date_val Date)",
+                        "(true, 42, 1000000, 3.14, 2.718, 'test', '2024-01-15')",
+                        rowType(
+                                field("bool_val", BOOLEAN),
+                                field("int_val", INTEGER),
+                                field("bigint_val", BIGINT),
+                                field("float_val", REAL),
+                                field("double_val", DOUBLE),
+                                field("string_val", VARBINARY),
+                                field("date_val", DATE)),
+                        "cast(ROW(true, 42, 1000000, REAL '3.14', DOUBLE '2.718', to_utf8(VARCHAR 'test'), DATE '2024-01-15') as row(bool_val boolean, int_val integer, bigint_val bigint, float_val real, double_val double, string_val varbinary, date_val date))")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_tuple_multi"));
+
+        SqlDataTypeTest.create()
+                .addRoundTrip(
+                        "Tuple(bool_val Bool, int_val Int32, bigint_val Int64, float_val Float32, double_val Float64, string_val String, date_val Date)",
+                        "(true, 42, 1000000, 3.14, 2.718, 'test', '2024-01-15')",
+                        rowType(
+                                field("bool_val", BOOLEAN),
+                                field("int_val", INTEGER),
+                                field("bigint_val", BIGINT),
+                                field("float_val", REAL),
+                                field("double_val", DOUBLE),
+                                field("string_val", VARCHAR),
+                                field("date_val", DATE)),
+                        "cast(ROW(true, 42, 1000000, REAL '3.14', DOUBLE '2.718', VARCHAR 'test', DATE '2024-01-15') as row(bool_val boolean, int_val integer, bigint_val bigint, float_val real, double_val double, string_val varchar, date_val date))")
+                .execute(getQueryRunner(), mapStringAsVarcharSession(), clickhouseCreateAndInsert("tpch.test_tuple_multi"));
+    }
+
+    @Test
+    public void testTupleWithDateTypes()
+    {
+        for (ZoneId sessionZone : timezones()) {
+            Session session = Session.builder(getSession())
+                    .setTimeZoneKey(TimeZoneKey.getTimeZoneKey(sessionZone.getId()))
+                    .build();
+
+            SqlDataTypeTest.create()
+                    .addRoundTrip("Tuple(value Date)", "('1970-02-03')", rowType(field("value", DATE)), "cast(row(DATE '1970-02-03') as row(value date))")
+                    .addRoundTrip("Tuple(value Date)", "('2017-07-01')", rowType(field("value", DATE)), "cast(row(DATE '2017-07-01') as row(value date))") // summer on northern hemisphere (possible DST)
+                    .addRoundTrip("Tuple(value Date)", "('2017-01-01')", rowType(field("value", DATE)), "cast(row(DATE '2017-01-01') as row(value date))") // winter on northern hemisphere (possible DST on southern hemisphere)
+                    .addRoundTrip("Tuple(value Date)", "('1970-01-01')", rowType(field("value", DATE)), "cast(row(DATE '1970-01-01') as row(value date))")
+                    .addRoundTrip("Tuple(value Date)", "('1983-04-01')", rowType(field("value", DATE)), "cast(row(DATE '1983-04-01') as row(value date))")
+                    .addRoundTrip("Tuple(value Date)", "('1983-10-01')", rowType(field("value", DATE)), "cast(row(DATE '1983-10-01') as row(value date))")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_tuple_date"));
+
+            SqlDataTypeTest.create()
+                    .addRoundTrip("Tuple(value Date32)", "('1970-02-03')", rowType(field("value", DATE)), "cast(row(DATE '1970-02-03') as row(value date))")
+                    .addRoundTrip("Tuple(value Date32)", "('2017-07-01')", rowType(field("value", DATE)), "cast(row(DATE '2017-07-01') as row(value date))") // summer on northern hemisphere (possible DST)
+                    .addRoundTrip("Tuple(value Date32)", "('2017-01-01')", rowType(field("value", DATE)), "cast(row(DATE '2017-01-01') as row(value date))") // winter on northern hemisphere (possible DST on southern hemisphere)
+                    .addRoundTrip("Tuple(value Date32)", "('1970-01-01')", rowType(field("value", DATE)), "cast(row(DATE '1970-01-01') as row(value date))")
+                    .addRoundTrip("Tuple(value Date32)", "('1983-04-01')", rowType(field("value", DATE)), "cast(row(DATE '1983-04-01') as row(value date))")
+                    .addRoundTrip("Tuple(value Date32)", "('1983-10-01')", rowType(field("value", DATE)), "cast(row(DATE '1983-10-01') as row(value date))")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_tuple_date32"));
+        }
+    }
+
+    @Test
+    public void testTupleWithTimestampTypes()
+    {
+        for (ZoneId sessionZone : timezones()) {
+            Session session = Session.builder(getSession())
+                    .setTimeZoneKey(TimeZoneKey.getTimeZoneKey(sessionZone.getId()))
+                    .build();
+
+            tupleTimestampTest("timestamp")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_tuple_timestamp"));
+            tupleTimestampTest("datetime")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_tuple_datetime"));
+            tupleTimestampTest("DateTime64(0)")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_tuple_datetime64_0"));
+
+            SqlDataTypeTest.create()
+                    .addRoundTrip("Tuple(value DateTime64(0))", "('2024-01-01 12:34:56')", rowType(field("value", createTimestampType(0))), "cast(row(TIMESTAMP '2024-01-01 12:34:56') as row(value timestamp(0)))")
+                    .addRoundTrip("Tuple(value DateTime64(1))", "('2024-01-01 12:34:56.1')", rowType(field("value", createTimestampType(1))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.1') as row(value timestamp(1)))")
+                    .addRoundTrip("Tuple(value DateTime64(2))", "('2024-01-01 12:34:56.12')", rowType(field("value", createTimestampType(2))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.12') as row(value timestamp(2)))")
+                    .addRoundTrip("Tuple(value DateTime64(3))", "('2024-01-01 12:34:56.123')", rowType(field("value", createTimestampType(3))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.123') as row(value timestamp(3)))")
+                    .addRoundTrip("Tuple(value DateTime64(4))", "('2024-01-01 12:34:56.1234')", rowType(field("value", createTimestampType(4))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.1234') as row(value timestamp(4)))")
+                    .addRoundTrip("Tuple(value DateTime64(5))", "('2024-01-01 12:34:56.12345')", rowType(field("value", createTimestampType(5))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.12345') as row(value timestamp(5)))")
+                    .addRoundTrip("Tuple(value DateTime64(6))", "('2024-01-01 12:34:56.123456')", rowType(field("value", createTimestampType(6))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.123456') as row(value timestamp(6)))")
+                    .addRoundTrip("Tuple(value DateTime64(7))", "('2024-01-01 12:34:56.1234567')", rowType(field("value", createTimestampType(7))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.1234567') as row(value timestamp(7)))")
+                    .addRoundTrip("Tuple(value DateTime64(8))", "('2024-01-01 12:34:56.12345678')", rowType(field("value", createTimestampType(8))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.12345678') as row(value timestamp(8)))")
+                    .addRoundTrip("Tuple(value DateTime64(9))", "('2024-01-01 12:34:56.123456789')", rowType(field("value", createTimestampType(9))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.123456789') as row(value timestamp(9)))")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_tuple_datetime64"));
+        }
+    }
+
+    private SqlDataTypeTest tupleTimestampTest(String inputType)
+    {
+        String tupleType = format("Tuple(value %s)", inputType);
+        RowType expectedType = rowType(field("value", createTimestampType(0)));
+        return SqlDataTypeTest.create()
+                .addRoundTrip(tupleType, "('1986-01-01 00:13:07')", expectedType, "cast(row(TIMESTAMP '1986-01-01 00:13:07') as row(value timestamp(0)))") // time gap in Kathmandu
+                .addRoundTrip(tupleType, "('2018-03-25 03:17:17')", expectedType, "cast(row(TIMESTAMP '2018-03-25 03:17:17') as row(value timestamp(0)))") // time gap in Vilnius
+                .addRoundTrip(tupleType, "('2018-10-28 01:33:17')", expectedType, "cast(row(TIMESTAMP '2018-10-28 01:33:17') as row(value timestamp(0)))") // time doubled in JVM zone
+                .addRoundTrip(tupleType, "('2018-10-28 03:33:33')", expectedType, "cast(row(TIMESTAMP '2018-10-28 03:33:33') as row(value timestamp(0)))"); // time doubled in Vilnius
+    }
+
+    @Test
+    public void testTupleWithTimestampWithTimeZoneTypes()
+    {
+        for (ZoneId sessionZone : timezones()) {
+            Session session = Session.builder(getSession())
+                    .setTimeZoneKey(TimeZoneKey.getTimeZoneKey(sessionZone.getId()))
+                    .build();
+
+            tupleTimestampWithTimeZoneTest("DateTime('UTC')", "UTC")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_tuple_datetime_tz"));
+
+            SqlDataTypeTest.create()
+                    .addRoundTrip("Tuple(value DateTime64(0, 'UTC'))", "('2024-01-01 12:34:56')", rowType(field("value", createTimestampWithTimeZoneType(0))), "cast(row(TIMESTAMP '2024-01-01 12:34:56 UTC') as row(value timestamp(0) with time zone))")
+                    .addRoundTrip("Tuple(value DateTime64(1, 'UTC'))", "('2024-01-01 12:34:56.1')", rowType(field("value", createTimestampWithTimeZoneType(1))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.1 UTC') as row(value timestamp(1) with time zone))")
+                    .addRoundTrip("Tuple(value DateTime64(2, 'UTC'))", "('2024-01-01 12:34:56.12')", rowType(field("value", createTimestampWithTimeZoneType(2))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.12 UTC') as row(value timestamp(2) with time zone))")
+                    .addRoundTrip("Tuple(value DateTime64(3, 'UTC'))", "('2024-01-01 12:34:56.123')", rowType(field("value", createTimestampWithTimeZoneType(3))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.123 UTC') as row(value timestamp(3) with time zone))")
+                    .addRoundTrip("Tuple(value DateTime64(4, 'UTC'))", "('2024-01-01 12:34:56.1234')", rowType(field("value", createTimestampWithTimeZoneType(4))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.1234 UTC') as row(value timestamp(4) with time zone))")
+                    .addRoundTrip("Tuple(value DateTime64(5, 'UTC'))", "('2024-01-01 12:34:56.12345')", rowType(field("value", createTimestampWithTimeZoneType(5))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.12345 UTC') as row(value timestamp(5) with time zone))")
+                    .addRoundTrip("Tuple(value DateTime64(6, 'UTC'))", "('2024-01-01 12:34:56.123456')", rowType(field("value", createTimestampWithTimeZoneType(6))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.123456 UTC') as row(value timestamp(6) with time zone))")
+                    .addRoundTrip("Tuple(value DateTime64(7, 'UTC'))", "('2024-01-01 12:34:56.1234567')", rowType(field("value", createTimestampWithTimeZoneType(7))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.1234567 UTC') as row(value timestamp(7) with time zone))")
+                    .addRoundTrip("Tuple(value DateTime64(8, 'UTC'))", "('2024-01-01 12:34:56.12345678')", rowType(field("value", createTimestampWithTimeZoneType(8))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.12345678 UTC') as row(value timestamp(8) with time zone))")
+                    .addRoundTrip("Tuple(value DateTime64(9, 'UTC'))", "('2024-01-01 12:34:56.123456789')", rowType(field("value", createTimestampWithTimeZoneType(9))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.123456789 UTC') as row(value timestamp(9) with time zone))")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_tuple_datetime64_tz"));
+        }
+    }
+
+    @Test
+    public void testTupleWithTimestampNamedTimezone()
+    {
+        // Asia/Kolkata has had a constant offset of +05:30 since 1945 with no DST.
+        // The ClickHouse JDBC driver returns OffsetDateTime with fixed offset (+05:30) for named
+        // timezone columns, both at the top level and inside Tuple elements.
+        for (ZoneId sessionZone : timezones()) {
+            Session session = Session.builder(getSession())
+                    .setTimeZoneKey(TimeZoneKey.getTimeZoneKey(sessionZone.getId()))
+                    .build();
+
+            tupleTimestampWithTimeZoneTest("DateTime('Asia/Kolkata')", "+05:30")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_tuple_datetime_named_tz"));
+
+            SqlDataTypeTest.create()
+                    .addRoundTrip("Tuple(value DateTime64(0, 'Asia/Kolkata'))", "('2024-01-01 12:34:56')", rowType(field("value", createTimestampWithTimeZoneType(0))), "cast(row(TIMESTAMP '2024-01-01 12:34:56 +05:30') as row(value timestamp(0) with time zone))")
+                    .addRoundTrip("Tuple(value DateTime64(1, 'Asia/Kolkata'))", "('2024-01-01 12:34:56.1')", rowType(field("value", createTimestampWithTimeZoneType(1))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.1 +05:30') as row(value timestamp(1) with time zone))")
+                    .addRoundTrip("Tuple(value DateTime64(2, 'Asia/Kolkata'))", "('2024-01-01 12:34:56.12')", rowType(field("value", createTimestampWithTimeZoneType(2))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.12 +05:30') as row(value timestamp(2) with time zone))")
+                    .addRoundTrip("Tuple(value DateTime64(3, 'Asia/Kolkata'))", "('2024-01-01 12:34:56.123')", rowType(field("value", createTimestampWithTimeZoneType(3))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.123 +05:30') as row(value timestamp(3) with time zone))")
+                    .addRoundTrip("Tuple(value DateTime64(4, 'Asia/Kolkata'))", "('2024-01-01 12:34:56.1234')", rowType(field("value", createTimestampWithTimeZoneType(4))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.1234 +05:30') as row(value timestamp(4) with time zone))")
+                    .addRoundTrip("Tuple(value DateTime64(5, 'Asia/Kolkata'))", "('2024-01-01 12:34:56.12345')", rowType(field("value", createTimestampWithTimeZoneType(5))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.12345 +05:30') as row(value timestamp(5) with time zone))")
+                    .addRoundTrip("Tuple(value DateTime64(6, 'Asia/Kolkata'))", "('2024-01-01 12:34:56.123456')", rowType(field("value", createTimestampWithTimeZoneType(6))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.123456 +05:30') as row(value timestamp(6) with time zone))")
+                    .addRoundTrip("Tuple(value DateTime64(7, 'Asia/Kolkata'))", "('2024-01-01 12:34:56.1234567')", rowType(field("value", createTimestampWithTimeZoneType(7))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.1234567 +05:30') as row(value timestamp(7) with time zone))")
+                    .addRoundTrip("Tuple(value DateTime64(8, 'Asia/Kolkata'))", "('2024-01-01 12:34:56.12345678')", rowType(field("value", createTimestampWithTimeZoneType(8))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.12345678 +05:30') as row(value timestamp(8) with time zone))")
+                    .addRoundTrip("Tuple(value DateTime64(9, 'Asia/Kolkata'))", "('2024-01-01 12:34:56.123456789')", rowType(field("value", createTimestampWithTimeZoneType(9))), "cast(row(TIMESTAMP '2024-01-01 12:34:56.123456789 +05:30') as row(value timestamp(9) with time zone))")
+                    .execute(getQueryRunner(), session, clickhouseCreateAndInsert("tpch.test_tuple_datetime64_named_tz"));
+        }
+    }
+
+    private SqlDataTypeTest tupleTimestampWithTimeZoneTest(String inputType, String expectedZoneId)
+    {
+        String tupleType = format("Tuple(value %s)", inputType);
+        RowType expectedType = rowType(field("value", TIMESTAMP_TZ_SECONDS));
+        return SqlDataTypeTest.create()
+                .addRoundTrip(tupleType, "('1986-01-01 00:13:07')", expectedType, "cast(row(TIMESTAMP '1986-01-01 00:13:07 %s') as row(value timestamp(0) with time zone))".formatted(expectedZoneId)) // time gap in Kathmandu
+                .addRoundTrip(tupleType, "('2018-03-25 03:17:17')", expectedType, "cast(row(TIMESTAMP '2018-03-25 03:17:17 %s') as row(value timestamp(0) with time zone))".formatted(expectedZoneId)) // time gap in Vilnius
+                .addRoundTrip(tupleType, "('2018-10-28 01:33:17')", expectedType, "cast(row(TIMESTAMP '2018-10-28 01:33:17 %s') as row(value timestamp(0) with time zone))".formatted(expectedZoneId)) // time doubled in JVM zone
+                .addRoundTrip(tupleType, "('2018-10-28 03:33:33')", expectedType, "cast(row(TIMESTAMP '2018-10-28 03:33:33 %s') as row(value timestamp(0) with time zone))".formatted(expectedZoneId)); // time doubled in Vilnius
+    }
+
+    @Test
+    public void testTupleWithDecimal()
+    {
+        SqlDataTypeTest.create()
+                .addRoundTrip(
+                        "Tuple(id Int32, name String, balance Decimal(10, 2))",
+                        "(1, 'Alice', toDecimal64(10000.50, 2))",
+                        rowType(
+                                field("id", INTEGER),
+                                field("name", createUnboundedVarcharType()),
+                                field("balance", createDecimalType(10, 2))),
+                        "CAST(ROW(1, VARCHAR 'Alice', DECIMAL '10000.50') AS ROW(id integer, name varchar, balance decimal(10,2)))")
+                .addRoundTrip(
+                        "Tuple(id Int32, name String, balance Decimal(10, 2))",
+                        "(2, 'Bob', toDecimal64(0.00, 2))",
+                        rowType(
+                                field("id", INTEGER),
+                                field("name", createUnboundedVarcharType()),
+                                field("balance", createDecimalType(10, 2))),
+                        "CAST(ROW(2, VARCHAR 'Bob', DECIMAL '0.00') AS ROW(id integer, name varchar, balance decimal(10,2)))")
+                // value with trailing zeros: JDBC driver may return BigDecimal with lower scale than column scale
+                .addRoundTrip(
+                        "Tuple(id Int32, name String, balance Decimal(10, 2))",
+                        "(3, 'Carol', toDecimal64(1.00, 2))",
+                        rowType(
+                                field("id", INTEGER),
+                                field("name", createUnboundedVarcharType()),
+                                field("balance", createDecimalType(10, 2))),
+                        "CAST(ROW(3, VARCHAR 'Carol', DECIMAL '1.00') AS ROW(id integer, name varchar, balance decimal(10,2)))")
+                .execute(getQueryRunner(), mapStringAsVarcharSession(), clickhouseCreateAndInsert("tpch.test_tuple_decimal"));
+
+        // long decimal (p > 18): Decimal(19,2) maps to Decimal128 internally; JDBC driver returns BigDecimal
+        SqlDataTypeTest.create()
+                .addRoundTrip(
+                        "Tuple(value Decimal(19, 2))",
+                        "(12345678901234567.89)",
+                        rowType(field("value", createDecimalType(19, 2))),
+                        "CAST(ROW(DECIMAL '12345678901234567.89') AS ROW(value decimal(19, 2)))")
+                // trailing zeros with long decimal: JDBC driver may return BigDecimal with lower scale
+                .addRoundTrip(
+                        "Tuple(value Decimal(19, 2))",
+                        "(1.00)",
+                        rowType(field("value", createDecimalType(19, 2))),
+                        "CAST(ROW(DECIMAL '1.00') AS ROW(value decimal(19, 2)))")
+                .execute(getQueryRunner(), mapStringAsVarcharSession(), clickhouseCreateAndInsert("tpch.test_tuple_long_decimal"));
+
+        // Decimal128(6) = Decimal(38, 6): JDBC driver returns BigDecimal
+        SqlDataTypeTest.create()
+                .addRoundTrip(
+                        "Tuple(value Decimal128(6))",
+                        "(12345678901234567890123456789012.123456)",
+                        rowType(field("value", createDecimalType(38, 6))),
+                        "CAST(ROW(DECIMAL '12345678901234567890123456789012.123456') AS ROW(value decimal(38, 6)))")
+                .execute(getQueryRunner(), mapStringAsVarcharSession(), clickhouseCreateAndInsert("tpch.test_tuple_decimal128"));
+    }
+
+    @Test
+    public void testNestedTuple()
+    {
+        SqlDataTypeTest.create()
+                .addRoundTrip(
+                        "Tuple(id Int32, person Tuple(name String, age Int32))",
+                        "(1, ('Alice', 30))",
+                        rowType(
+                                field("id", INTEGER),
+                                field("person", rowType(field("name", createUnboundedVarcharType()), field("age", INTEGER)))),
+                        "CAST(ROW(1, CAST(ROW(VARCHAR 'Alice', 30) AS ROW(name varchar, age integer))) AS ROW(id integer, person ROW(name varchar, age integer)))")
+                .addRoundTrip(
+                        "Tuple(id Int32, person Tuple(name String, age Int32))",
+                        "(2, ('Bob', 25))",
+                        rowType(
+                                field("id", INTEGER),
+                                field("person", rowType(field("name", createUnboundedVarcharType()), field("age", INTEGER)))),
+                        "CAST(ROW(2, CAST(ROW(VARCHAR 'Bob', 25) AS ROW(name varchar, age integer))) AS ROW(id integer, person ROW(name varchar, age integer)))")
+                .execute(getQueryRunner(), mapStringAsVarcharSession(), clickhouseCreateAndInsert("tpch.test_nested_tuple"));
+    }
+
+    @Test
+    public void testNestedTupleWithMixedTypes()
+    {
+        SqlDataTypeTest.create()
+                .addRoundTrip(
+                        "Tuple(order_id Int32, customer Tuple(name String, vip Bool), amount Float64, order_date Date)",
+                        "(1001, ('Edward', true), 249.99, '2024-02-14')",
+                        rowType(
+                                field("order_id", INTEGER),
+                                field("customer", rowType(
+                                        field("name", createUnboundedVarcharType()),
+                                        field("vip", BOOLEAN))),
+                                field("amount", DOUBLE),
+                                field("order_date", DATE)),
+                        "CAST(ROW(1001, CAST(ROW(VARCHAR 'Edward', true) AS ROW(name varchar, vip boolean)), DOUBLE '249.99', DATE '2024-02-14') AS ROW(order_id integer, customer ROW(name varchar, vip boolean), amount double, order_date date))")
+                .addRoundTrip(
+                        "Tuple(order_id Int32, customer Tuple(name String, vip Bool), amount Float64, order_date Date)",
+                        "(1002, ('Fiona', false), 99.50, '2024-02-15')",
+                        rowType(
+                                field("order_id", INTEGER),
+                                field("customer", rowType(
+                                        field("name", createUnboundedVarcharType()),
+                                        field("vip", BOOLEAN))),
+                                field("amount", DOUBLE),
+                                field("order_date", DATE)),
+                        "CAST(ROW(1002, CAST(ROW(VARCHAR 'Fiona', false) AS ROW(name varchar, vip boolean)), DOUBLE '99.50', DATE '2024-02-15') AS ROW(order_id integer, customer ROW(name varchar, vip boolean), amount double, order_date date))")
+                .execute(getQueryRunner(), mapStringAsVarcharSession(), clickhouseCreateAndInsert("tpch.test_nested_tuple_mixed_types"));
+    }
+
+    @Test
+    public void testTupleWithNullableElements()
+    {
+        // Tuple(Nullable(T)) — the element can be null; the tuple itself is not nullable.
+        // Non-null inputs verified via SqlDataTypeTest (= comparison works when ROW fields are non-null).
+
+        // non-null values only
+
+        // Single nullable element
+        SqlDataTypeTest.create()
+                .addRoundTrip("Tuple(value Nullable(Int32))", "(42)", rowType(field("value", INTEGER)), "cast(row(42) as row(value integer))")
+                .addRoundTrip("Tuple(value Nullable(Int64))", "(9223372036854775807)", rowType(field("value", BIGINT)), "cast(row(9223372036854775807) as row(value bigint))")
+                .addRoundTrip("Tuple(value Nullable(Float64))", "(2.718)", rowType(field("value", DOUBLE)), "cast(row(DOUBLE '2.718') as row(value double))")
+                .addRoundTrip("Tuple(value Nullable(Date))", "('2024-01-15')", rowType(field("value", DATE)), "cast(row(DATE '2024-01-15') as row(value date))")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_tuple_nullable"));
+        // Mixed nullable / non-nullable elements
+        SqlDataTypeTest.create()
+                .addRoundTrip(
+                        "Tuple(id Int32, name Nullable(String), score Nullable(Float64))",
+                        "(1, 'Alice', 9.5)",
+                        rowType(field("id", INTEGER), field("name", VARCHAR), field("score", DOUBLE)),
+                        "CAST(ROW(1, VARCHAR 'Alice', DOUBLE '9.5') AS ROW(id integer, name varchar, score double))")
+                .execute(getQueryRunner(), mapStringAsVarcharSession(), clickhouseCreateAndInsert("tpch.test_tuple_nullable_mixed"));
+        // Nested tuple with nullable elements
+        SqlDataTypeTest.create()
+                .addRoundTrip(
+                        "Tuple(id Int32, info Tuple(name Nullable(String), age Nullable(Int32)))",
+                        "(1, ('Alice', 30))",
+                        rowType(field("id", INTEGER), field("info", rowType(field("name", VARCHAR), field("age", INTEGER)))),
+                        "CAST(ROW(1, CAST(ROW(VARCHAR 'Alice', 30) AS ROW(name varchar, age integer))) AS ROW(id integer, info ROW(name varchar, age integer)))")
+                .execute(getQueryRunner(), mapStringAsVarcharSession(), clickhouseCreateAndInsert("tpch.test_tuple_nullable_nested"));
+
+        // null values only
+
+        // Single nullable element
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_tuple_nullable_null",
+                "(c1 Tuple(value Nullable(Int32)), c2 Tuple(value Nullable(Int64)), c3 Tuple(value Nullable(Float64)), c4 Tuple(value Nullable(Date))) ENGINE=Log",
+                List.of("(null), (null), (null), (null)"))) {
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("SELECT CAST(ROW(CAST(NULL AS integer)) AS ROW(value integer))," +
+                            " CAST(ROW(CAST(NULL AS bigint)) AS ROW(value bigint))," +
+                            " CAST(ROW(CAST(NULL AS double)) AS ROW(value double))," +
+                            " CAST(ROW(CAST(NULL AS date)) AS ROW(value date))");
+            assertQuery("SELECT c1.value, c2.value, c3.value, c4.value FROM " + table.getName(),
+                    "VALUES (CAST(NULL AS integer), CAST(NULL AS bigint), CAST(NULL AS double), CAST(NULL AS date))");
+            assertQuery("SELECT c1.value, c2.value, c3.value, c4.value FROM " + table.getName()
+                            + " WHERE c1.value IS NULL AND c2.value IS NULL AND c3.value IS NULL AND c4.value IS NULL",
+                    "VALUES (CAST(NULL AS integer), CAST(NULL AS bigint), CAST(NULL AS double), CAST(NULL AS date))");
+        }
+
+        // Mixed nullable / non-nullable elements
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_tuple_nullable_mixed_null",
+                "(c1 Tuple(id Int32, name Nullable(String), score Nullable(Float64))) ENGINE=Log",
+                List.of("(2, null, null)"))) {
+            assertThat(query(mapStringAsVarcharSession(), "SELECT * FROM " + table.getName()))
+                    .matches("SELECT CAST(ROW(2, CAST(NULL AS varchar), CAST(NULL AS double)) AS ROW(id integer, name varchar, score double))");
+            assertQuery(mapStringAsVarcharSession(), "SELECT c1.id, c1.name, c1.score FROM " + table.getName(),
+                    "VALUES (2, CAST(NULL AS varchar), CAST(NULL AS double))");
+            assertQuery(mapStringAsVarcharSession(), "SELECT c1.id, c1.name, c1.score FROM " + table.getName()
+                            + " WHERE c1.name IS NULL AND c1.score IS NULL",
+                    "VALUES (2, CAST(NULL AS varchar), CAST(NULL AS double))");
+        }
+
+        // Nested tuple with nullable elements
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_tuple_nullable_nested_null",
+                "(c1 Tuple(id Int32, info Tuple(name Nullable(String), age Nullable(Int32)))) ENGINE=Log",
+                List.of("(2, (null, null))"))) {
+            assertThat(query(mapStringAsVarcharSession(), "SELECT * FROM " + table.getName()))
+                    .matches("SELECT CAST(ROW(2, CAST(ROW(CAST(NULL AS varchar), CAST(NULL AS integer)) AS ROW(name varchar, age integer))) AS ROW(id integer, info ROW(name varchar, age integer)))");
+            assertQuery(mapStringAsVarcharSession(), "SELECT c1.id, c1.info.name, c1.info.age FROM " + table.getName(),
+                    "VALUES (2, CAST(NULL AS varchar), CAST(NULL AS integer))");
+            assertQuery(mapStringAsVarcharSession(), "SELECT c1.id, c1.info.name, c1.info.age FROM " + table.getName()
+                            + " WHERE c1.info.name IS NULL AND c1.info.age IS NULL",
+                    "VALUES (2, CAST(NULL AS varchar), CAST(NULL AS integer))");
+        }
+    }
+
+    @Test
+    public void testNullableTupleExperimental()
+    {
+        // Nullable(Tuple(...)) is an experimental ClickHouse feature requiring SET allow_experimental_nullable_tuple_type = 1.
+        // The entire tuple can be NULL; its elements are NOT nullable.
+        // This test is skipped for ClickHouse versions that do not support the setting.
+        String tableName = "tpch.test_nullable_tuple_exp_" + randomNameSuffix();
+        createTableWithExperimentalNullableTupleType(tableName, "(id Int32, data Nullable(Tuple(name String, score Int64)))");
+        try {
+            clickhouseServer.execute("INSERT INTO " + tableName + " VALUES (1, ('hello', 42)), (2, NULL)");
+
+            assertThat(query(
+                    mapStringAsVarcharSession(), "SELECT data FROM " + tableName + " ORDER BY id"))
+                    .matches("SELECT CAST(ROW(VARCHAR 'hello', BIGINT '42') AS ROW(name varchar, score bigint)) " +
+                            "UNION ALL SELECT CAST(NULL AS ROW(name varchar, score bigint))");
+
+            assertQuery(
+                    mapStringAsVarcharSession(),
+                    "SELECT id FROM " + tableName + " WHERE data IS NOT NULL",
+                    "VALUES 1");
+            assertQuery(
+                    mapStringAsVarcharSession(),
+                    "SELECT id FROM " + tableName + " WHERE data IS NULL",
+                    "VALUES 2");
+
+            assertQuery(
+                    mapStringAsVarcharSession(),
+                    "SELECT data.name, data.score FROM " + tableName + " WHERE id = 1",
+                    "VALUES ('hello', 42)");
+            assertQuery(
+                    mapStringAsVarcharSession(),
+                    "SELECT data.name, data.score FROM " + tableName + " WHERE id = 2",
+                    "VALUES (CAST(NULL AS varchar), CAST(NULL AS bigint))");
+
+            assertQuery(
+                    mapStringAsVarcharSession(),
+                    "SELECT id FROM " + tableName + " WHERE data.name IS NOT NULL",
+                    "VALUES 1");
+            assertQuery(
+                    mapStringAsVarcharSession(),
+                    "SELECT id FROM " + tableName + " WHERE data.score IS NULL",
+                    "VALUES 2");
+        }
+        finally {
+            clickhouseServer.execute("DROP TABLE IF EXISTS " + tableName);
+        }
+    }
+
+    @Test
+    public void testTupleWithNullableNestedTupleElement()
+    {
+        // Tuple(Nullable(Tuple(...))) — an outer tuple whose element is a nullable inner tuple.
+        // Requires allow_experimental_nullable_tuple_type = 1.
+        String tableName = "tpch.test_tuple_nullable_nested_" + randomNameSuffix();
+        createTableWithExperimentalNullableTupleType(tableName, "(id Int32, data Tuple(nested Nullable(Tuple(value String))))");
+        try {
+            clickhouseServer.execute("INSERT INTO " + tableName + " VALUES (1, (('hello'))), (2, (NULL))");
+
+            assertThat(query(mapStringAsVarcharSession(), "SELECT data FROM " + tableName + " ORDER BY id"))
+                    .matches("SELECT CAST(ROW(CAST(ROW(VARCHAR 'hello') AS ROW(value varchar))) AS ROW(nested ROW(value varchar))) " +
+                            "UNION ALL SELECT CAST(ROW(CAST(ROW(CAST(NULL AS varchar)) AS ROW(value varchar))) AS ROW(nested ROW(value varchar)))");
+
+            assertQuery(
+                    mapStringAsVarcharSession(),
+                    "SELECT data.nested.value FROM " + tableName + " ORDER BY id",
+                    "VALUES 'hello', NULL");
+        }
+        finally {
+            clickhouseServer.execute("DROP TABLE IF EXISTS " + tableName);
+        }
+    }
+
+    private void createTableWithExperimentalNullableTupleType(String tableName, String definition)
+    {
+        try {
+            clickhouseServer.executeWithSettings(
+                    ImmutableMap.of("allow_experimental_nullable_tuple_type", "1"),
+                    ImmutableList.of("CREATE TABLE %s %s ENGINE=Log".formatted(tableName, definition)));
+        }
+        catch (RuntimeException e) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            String message = cause.getMessage();
+            if (message == null || (!message.contains("allow_experimental_nullable_tuple_type") && !message.contains("Unknown setting"))) {
+                throw e;
+            }
+            assumeTrue(false, "allow_experimental_nullable_tuple_type not supported in this ClickHouse version: " + message);
+        }
+    }
+
+    @Test
+    public void testUnnamedTuple()
+    {
+        SqlDataTypeTest.create()
+                .addRoundTrip("Tuple(Int32, String)", "(42, 'hello')", rowType(field(INTEGER), field(VARBINARY)), "cast(ROW(42, to_utf8(VARCHAR 'hello')) as row(integer, varbinary))")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_unnamed_tuple"));
+
+        SqlDataTypeTest.create()
+                .addRoundTrip("Tuple(Int32, String)", "(42, 'hello')", rowType(field(INTEGER), field(VARCHAR)), "cast(ROW(42, VARCHAR 'hello') as row(integer, varchar))")
+                .execute(getQueryRunner(), mapStringAsVarcharSession(), clickhouseCreateAndInsert("tpch.test_unnamed_tuple"));
+    }
+
+    @Test
+    public void testTupleWithUnsupportedElement()
+    {
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_tuple_unsupported",
+                "(id Int32," +
+                        " array_string_col Tuple(name String, tags Array(String))," +
+                        " array_int_col Tuple(name String, ids Array(Int32))," +
+                        " map_string_col Tuple(name String, attrs Map(String, String))," +
+                        " map_int_col Tuple(name String, scores Map(String, Int32))," +
+                        " point_col Tuple(name String, location Point)," +
+                        " ring_col Tuple(name String, ring Ring)," +
+                        " nested_col Tuple(info Tuple(name String, tags Array(String)))," +
+                        " mixed_nested_col Tuple(id Int32, sub Tuple(name String, tags Array(String)))) ENGINE=Log")) {
+            assertQueryFails("SELECT array_string_col FROM " + testTable.getName(), ".*Column 'array_string_col' cannot be resolved.*");
+            assertQueryFails("SELECT array_int_col FROM " + testTable.getName(), ".*Column 'array_int_col' cannot be resolved.*");
+            assertQueryFails("SELECT map_string_col FROM " + testTable.getName(), ".*Column 'map_string_col' cannot be resolved.*");
+            assertQueryFails("SELECT map_int_col FROM " + testTable.getName(), ".*Column 'map_int_col' cannot be resolved.*");
+            assertQueryFails("SELECT point_col FROM " + testTable.getName(), ".*Column 'point_col' cannot be resolved.*");
+            assertQueryFails("SELECT ring_col FROM " + testTable.getName(), ".*Column 'ring_col' cannot be resolved.*");
+            assertQueryFails("SELECT nested_col FROM " + testTable.getName(), ".*Column 'nested_col' cannot be resolved.*");
+            assertQueryFails("SELECT mixed_nested_col FROM " + testTable.getName(), ".*Column 'mixed_nested_col' cannot be resolved.*");
+        }
+    }
+
+    @Test
+    public void testTupleWithUnsupportedElementConvertToVarchar()
+    {
+        Session convertToVarchar = Session.builder(getSession())
+                .setCatalogSessionProperty("clickhouse", UNSUPPORTED_TYPE_HANDLING, CONVERT_TO_VARCHAR.name())
+                .build();
+        SqlDataTypeTest.create()
+                .addRoundTrip("Tuple(name String, tags Array(String))", "('Alice', ['a', 'b'])", VARCHAR, "varchar '[Alice, [[97], [98]]]'")
+                .addRoundTrip("Tuple(name String, ids Array(Int32))", "('Alice', [1, 2, 3])", VARCHAR, "varchar '[Alice, [1, 2, 3]]'")
+                .addRoundTrip("Tuple(name String, attrs Map(String, String))", "('Alice', {'key': 'val'})", VARCHAR, "varchar '[Alice, {key=val}]'")
+                .addRoundTrip("Tuple(name String, scores Map(String, Int32))", "('Alice', {'score': 100})", VARCHAR, "varchar '[Alice, {score=100}]'")
+                .addRoundTrip("Tuple(name String, location Point)", "('Alice', (10.0, 20.0))", VARCHAR, "varchar '[Alice, [10.0, 20.0]]'")
+                .addRoundTrip("Tuple(name String, ring Ring)", "('Alice', [(1.0, 2.0), (3.0, 4.0)])", VARCHAR, "varchar '[Alice, [[1.0, 2.0], [3.0, 4.0]]]'")
+                // Nested Tuple whose sub-elements are unsupported: the outer Tuple should also fall back to varchar
+                .addRoundTrip("Tuple(id Int32, sub Tuple(name String, attrs Map(String, String)))", "(1, ('Alice', {'key': 'val'}))", VARCHAR, "varchar '[1, [Alice, {key=val}]]'")
+                .execute(getQueryRunner(), convertToVarchar, clickhouseCreateAndInsert("tpch.test_tuple_unsupported_varchar"));
+    }
+
+    @Test
+    public void testTupleWithElementTypeForcedToVarchar()
+            throws Exception
+    {
+        // jdbc-types-mapped-to-varchar forces an element type to VARCHAR, but JDBC returns the raw
+        // Java object (e.g. Integer) inside a Tuple. The whole Tuple column is mapped to VARCHAR.
+        try (QueryRunner queryRunner = ClickHouseQueryRunner.builder(clickhouseServer)
+                .addConnectorProperty("jdbc-types-mapped-to-varchar", "Int32")
+                .build()) {
+            try (TestTable table = new TestTable(clickhouseServer::execute, "tpch.test_tuple_forced_varchar",
+                    "(col Tuple(value Int32)) ENGINE=Log")) {
+                clickhouseServer.execute("INSERT INTO " + table.getName() + " VALUES ((42))");
+                assertThat(queryRunner.execute(getSession(), "SELECT col FROM clickhouse." + table.getName()).getOnlyValue())
+                        .isEqualTo("[42]");
+            }
+        }
     }
 
     @Test

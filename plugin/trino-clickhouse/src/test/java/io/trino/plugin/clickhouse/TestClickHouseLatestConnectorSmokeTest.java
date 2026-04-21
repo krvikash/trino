@@ -20,13 +20,22 @@ import static io.trino.plugin.clickhouse.TestingClickHouseServer.CLICKHOUSE_LATE
 public class TestClickHouseLatestConnectorSmokeTest
         extends BaseClickHouseConnectorSmokeTest
 {
+    private TestingClickHouseServer clickHouseServer;
+
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        return ClickHouseQueryRunner.builder(closeAfterClass(new TestingClickHouseServer(CLICKHOUSE_LATEST_IMAGE)))
+        clickHouseServer = closeAfterClass(new TestingClickHouseServer(CLICKHOUSE_LATEST_IMAGE));
+        return ClickHouseQueryRunner.builder(clickHouseServer)
                 .addConnectorProperty("clickhouse.map-string-as-varchar", "true") // To handle string types in TPCH tables as varchar instead of varbinary
                 .setInitialTables(REQUIRED_TPCH_TABLES)
                 .build();
+    }
+
+    @Override
+    protected TestingClickHouseServer getClickHouseServer()
+    {
+        return clickHouseServer;
     }
 }

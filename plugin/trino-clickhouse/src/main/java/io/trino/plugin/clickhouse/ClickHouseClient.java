@@ -16,6 +16,7 @@ package io.trino.plugin.clickhouse;
 import com.clickhouse.client.ClickHouseVersionUtils;
 import com.clickhouse.data.ClickHouseColumn;
 import com.clickhouse.data.ClickHouseDataType;
+import com.clickhouse.jdbc.JdbcTypeMapping;
 import com.google.common.base.Enums;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
@@ -68,6 +69,9 @@ import io.trino.plugin.jdbc.expression.JdbcConnectorExpressionRewriterBuilder;
 import io.trino.plugin.jdbc.expression.ParameterizedExpression;
 import io.trino.plugin.jdbc.logging.RemoteQueryModifier;
 import io.trino.spi.TrinoException;
+import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.RowValueBuilder;
+import io.trino.spi.block.SqlRow;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ColumnMetadata;
@@ -82,6 +86,7 @@ import io.trino.spi.type.Decimals;
 import io.trino.spi.type.Int128;
 import io.trino.spi.type.LongTimestamp;
 import io.trino.spi.type.LongTimestampWithTimeZone;
+import io.trino.spi.type.RowType;
 import io.trino.spi.type.StandardTypes;
 import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.TimestampType;
@@ -97,6 +102,7 @@ import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.MathContext;
+import java.math.RoundingMode;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.sql.Connection;
@@ -109,6 +115,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -121,6 +128,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
+import static com.clickhouse.data.ClickHouseDataType.Tuple;
 import static com.clickhouse.data.ClickHouseUtils.escape;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.emptyToNull;
@@ -134,6 +142,8 @@ import static io.trino.plugin.clickhouse.ClickHouseTableProperties.ORDER_BY_PROP
 import static io.trino.plugin.clickhouse.ClickHouseTableProperties.PARTITION_BY_PROPERTY;
 import static io.trino.plugin.clickhouse.ClickHouseTableProperties.PRIMARY_KEY_PROPERTY;
 import static io.trino.plugin.clickhouse.ClickHouseTableProperties.SAMPLE_BY_PROPERTY;
+import static io.trino.plugin.clickhouse.ClickHouseTypeUtils.toObjectArray;
+import static io.trino.plugin.clickhouse.ClickHouseTypeUtils.writeScalarElement;
 import static io.trino.plugin.clickhouse.TrinoToClickHouseWriteChecker.DATE32;
 import static io.trino.plugin.clickhouse.TrinoToClickHouseWriteChecker.DATETIME;
 import static io.trino.plugin.clickhouse.TrinoToClickHouseWriteChecker.UINT16;
@@ -224,7 +234,7 @@ public class ClickHouseClient
     public static final int CLICKHOUSE_MAX_SUPPORTED_TIMESTAMP_PRECISION = 9;
     private static final Splitter TABLE_PROPERTY_SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
-    private static final DecimalType UINT64_TYPE = createDecimalType(20, 0);
+    public static final DecimalType UINT64_TYPE = createDecimalType(20, 0);
 
     // An empty character means that the table doesn't have a comment in ClickHouse
     private static final String NO_COMMENT = "";
@@ -710,6 +720,14 @@ public class ClickHouseClient
                 return Optional.of(varbinaryColumnMapping());
             case UUID:
                 return Optional.of(uuidColumnMapping());
+            case Tuple:
+                Optional<ColumnMapping> columnMapping = tupleToTrinoType(session, connection, column);
+                if (columnMapping.isPresent()) {
+                    return columnMapping;
+                }
+                // fall through: tupleToTrinoType returns empty when the tuple contains unsupported
+                // element types (e.g. Array, Map). Let the default path handle it via CONVERT_TO_VARCHAR
+                // or mark the column as unsupported.
             default:
                 // no-op
         }
@@ -1150,6 +1168,129 @@ public class ClickHouseClient
     private static SliceWriteFunction uuidWriteFunction()
     {
         return (statement, index, value) -> statement.setObject(index, trinoUuidToJavaUuid(value), Types.OTHER);
+    }
+
+    private Optional<ColumnMapping> tupleToTrinoType(ConnectorSession session, Connection connection, ClickHouseColumn column)
+    {
+        try {
+            List<ClickHouseColumn> tupleElements = column.getNestedColumns();
+            if (tupleElements == null || tupleElements.isEmpty()) {
+                return Optional.empty();
+            }
+
+            List<RowType.Field> fields = new ArrayList<>();
+            JdbcTypeMapping jdbcTypeMapping = JdbcTypeMapping.getDefaultMapping();
+
+            for (ClickHouseColumn element : tupleElements) {
+                int sqlType = jdbcTypeMapping.toSqlType(element, connection.getTypeMap());
+                // When CONVERT_TO_VARCHAR is set, unsupported element types must not fall through to
+                // varchar: the JDBC driver returns raw Java objects inside a Tuple, not strings.
+                // Return empty so the whole Tuple column falls back to top-level handling instead.
+                if (getUnsupportedTypeHandling(session) == CONVERT_TO_VARCHAR && !isSupportedTupleElementType(element.getDataType(), sqlType)) {
+                    return Optional.empty();
+                }
+
+                JdbcTypeHandle elementTypeHandle = new JdbcTypeHandle(
+                        sqlType,
+                        Optional.of(jdbcTypeMapping.toNativeType(element)),
+                        Optional.of(element.getPrecision()),
+                        Optional.of(element.getScale()),
+                        Optional.empty(),
+                        Optional.empty());
+
+                // jdbc-types-mapped-to-varchar forces the element to VARCHAR, but JDBC returns the raw
+                // Java object (e.g. Integer) inside a Tuple — not a String. Map the whole Tuple to VARCHAR.
+                Optional<ColumnMapping> forcedMappingToVarchar = getForcedMappingToVarchar(elementTypeHandle);
+                if (forcedMappingToVarchar.isPresent()) {
+                    return forcedMappingToVarchar;
+                }
+
+                Optional<ColumnMapping> elementMapping = toColumnMapping(session, connection, elementTypeHandle);
+                if (elementMapping.isEmpty()) {
+                    return Optional.empty();
+                }
+                // A nested Tuple whose own elements are unsupported falls back to VARCHAR when
+                // CONVERT_TO_VARCHAR is set. The JDBC driver returns Object[] for it, not a string,
+                // so that VARCHAR mapping would fail at read time. Return empty so the whole outer
+                // Tuple falls through to top-level handling instead.
+                if (element.getDataType() == Tuple && !(elementMapping.get().getType() instanceof RowType)) {
+                    return Optional.empty();
+                }
+
+                Optional<String> elementName = element.getColumnName().isBlank() ? Optional.empty() : Optional.of(element.getColumnName());
+                ColumnMapping mapping = elementMapping.get();
+                fields.add(new RowType.Field(elementName, mapping.getType()));
+            }
+
+            RowType trinoRowType = RowType.from(fields);
+
+            return Optional.of(ColumnMapping.objectMapping(
+                    trinoRowType,
+                    tupleReadFunction(trinoRowType, getDecimalRoundingMode(session)),
+                    tupleWriteFunction(),
+                    DISABLE_PUSHDOWN));
+        }
+        catch (SQLException e) {
+            throw new TrinoException(JDBC_ERROR, "Failed to map Tuple column '%s' to Trino type: %s".formatted(column.getColumnName(), e.getMessage()), e);
+        }
+    }
+
+    // Supported types mirror the two switch blocks in toColumnMapping.
+    private static boolean isSupportedTupleElementType(ClickHouseDataType dataType, int jdbcType)
+    {
+        boolean supportedClickHouseType = switch (dataType) {
+            case Bool, UInt8, UInt16, UInt32, UInt64, IPv4, IPv6, Enum8, Enum16, FixedString, String, UUID, Tuple -> true;
+            default -> false;
+        };
+        boolean supportedJdbcType = switch (jdbcType) {
+            case Types.TINYINT, Types.SMALLINT, Types.INTEGER, Types.BIGINT, Types.FLOAT, Types.REAL,
+                 Types.DOUBLE, Types.DECIMAL, Types.DATE, Types.TIMESTAMP, Types.TIMESTAMP_WITH_TIMEZONE -> true;
+            default -> false;
+        };
+        return supportedClickHouseType || supportedJdbcType;
+    }
+
+    private static ObjectReadFunction tupleReadFunction(RowType rowType, RoundingMode roundingMode)
+    {
+        return ObjectReadFunction.of(SqlRow.class, (resultSet, columnIndex) -> {
+            Object tupleObject = resultSet.getObject(columnIndex);
+            Object[] tupleValues = toObjectArray(tupleObject);
+            return buildSqlRow(rowType, tupleValues, roundingMode);
+        });
+    }
+
+    private static SqlRow buildSqlRow(RowType rowType, Object[] tupleValues, RoundingMode roundingMode)
+    {
+        return RowValueBuilder.buildRowValue(rowType, fieldBuilders -> {
+            List<RowType.Field> fields = rowType.getFields();
+            for (int fieldIndex = 0; fieldIndex < fields.size(); fieldIndex++) {
+                // For scalar Nullable(T) elements, the JDBC driver includes null in the list.
+                // For Nullable(Tuple(...)) elements, the JDBC driver omits the entry entirely
+                // when the value is SQL NULL, making the list shorter than the schema.
+                Object value = (fieldIndex < tupleValues.length) ? tupleValues[fieldIndex] : null;
+                Type fieldType = fields.get(fieldIndex).getType();
+                BlockBuilder fieldBuilder = fieldBuilders.get(fieldIndex);
+
+                if (value == null) {
+                    fieldBuilder.appendNull();
+                }
+                else if (fieldType instanceof RowType nestedRowType) {
+                    Object[] nestedTupleValues = toObjectArray(value);
+                    SqlRow nestedSqlRow = buildSqlRow(nestedRowType, nestedTupleValues, roundingMode);
+                    fieldType.writeObject(fieldBuilder, nestedSqlRow);
+                }
+                else {
+                    writeScalarElement(fieldBuilder, fieldType, value, roundingMode);
+                }
+            }
+        });
+    }
+
+    private static ObjectWriteFunction tupleWriteFunction()
+    {
+        return ObjectWriteFunction.of(SqlRow.class, (_, _, _) -> {
+            throw new TrinoException(NOT_SUPPORTED, "Writing to ClickHouse Tuple columns is not supported");
+        });
     }
 
     public static boolean supportsPushdown(Variable variable, RewriteContext<ParameterizedExpression> context)

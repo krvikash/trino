@@ -254,6 +254,12 @@ to the following table:
 * - `UUID`
   - `UUID`
   -
+* - `Tuple([name1] T1, [name2] T2, ...)`
+  - `ROW([name1] T1, [name2] T2, ...)`
+  - Read-only. Field names are optional; unnamed Tuples such as `Tuple(Int32,
+    String)` map to anonymous ROW fields. Only element types listed in this
+    table are supported, including nested `Tuple`. Writing to Tuple columns is
+    not supported.
 :::
 
 No other types are supported.

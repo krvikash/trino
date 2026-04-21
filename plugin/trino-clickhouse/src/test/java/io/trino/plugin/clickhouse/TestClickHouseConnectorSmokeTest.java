@@ -18,7 +18,7 @@ import io.trino.testing.QueryRunner;
 public class TestClickHouseConnectorSmokeTest
         extends BaseClickHouseConnectorSmokeTest
 {
-    protected TestingClickHouseServer clickHouseServer;
+    private TestingClickHouseServer clickHouseServer;
 
     @Override
     protected QueryRunner createQueryRunner()
@@ -29,5 +29,11 @@ public class TestClickHouseConnectorSmokeTest
                 .addConnectorProperty("clickhouse.map-string-as-varchar", "true") // To handle string types in TPCH tables as varchar instead of varbinary
                 .setInitialTables(REQUIRED_TPCH_TABLES)
                 .build();
+    }
+
+    @Override
+    protected TestingClickHouseServer getClickHouseServer()
+    {
+        return clickHouseServer;
     }
 }

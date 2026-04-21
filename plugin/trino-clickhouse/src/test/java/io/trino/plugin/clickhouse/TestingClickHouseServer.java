@@ -20,6 +20,9 @@ import java.io.Closeable;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 
 import static org.testcontainers.utility.MountableFile.forClasspathResource;
 
@@ -75,6 +78,24 @@ public class TestingClickHouseServer
         }
         catch (Exception e) {
             throw new RuntimeException("Failed to execute statement: " + sql, e);
+        }
+    }
+
+    public void executeWithSettings(Map<String, String> sessionSettings, List<String> statements)
+    {
+        // clickhouse-java uses "clickhouse_setting_<name>" prefix to forward server settings
+        Properties properties = new Properties();
+        properties.setProperty("user", getUsername());
+        properties.setProperty("password", getPassword());
+        sessionSettings.forEach((key, value) -> properties.setProperty("clickhouse_setting_" + key, value));
+        try (Connection connection = DriverManager.getConnection(getJdbcUrl(), properties);
+                Statement statement = connection.createStatement()) {
+            for (String sql : statements) {
+                statement.execute(sql);
+            }
+        }
+        catch (Exception e) {
+            throw new RuntimeException("Failed to execute statements with settings %s: %s".formatted(sessionSettings, statements), e);
         }
     }
 

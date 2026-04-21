@@ -1939,6 +1939,144 @@ public class TestClickHouseConnectorTest
         assertQueryFails("CALL system.execute('invalid')", "(?s)Failed to execute query.*");
     }
 
+    @Test
+    public void testReadTupleType()
+    {
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_read_tuple",
+                "(id Int32, data Tuple(name String, age Int32, active Bool)) ENGINE=Log")) {
+            onRemoteDatabase().execute("INSERT INTO " + testTable.getName() + " VALUES (1, ('Alice', 30, true)), (2, ('Bob', 25, false))");
+
+            assertThat(query("SELECT * FROM " + testTable.getName()))
+                    .matches("VALUES " +
+                            "(1, CAST(ROW('Alice', 30, true) AS ROW(name varchar, age integer, active boolean))), " +
+                            "(2, CAST(ROW('Bob', 25, false) AS ROW(name varchar, age integer, active boolean)))");
+
+            assertThat(query("SELECT data.name FROM " + testTable.getName() + " WHERE data.age > 26"))
+                    .matches("VALUES VARCHAR 'Alice'");
+        }
+    }
+
+    @Test
+    public void testReadNestedTupleType()
+    {
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_read_nested_tuple",
+                "(id Int32, info Tuple(person Tuple(name String, age Int32), score Float64)) ENGINE=Log")) {
+            onRemoteDatabase().execute("INSERT INTO " + testTable.getName() + " VALUES (1, (('Alice', 30), 95.5))");
+
+            assertThat(query("SELECT * FROM " + testTable.getName()))
+                    .matches("VALUES (1, CAST(ROW(CAST(ROW('Alice', 30) AS ROW(name varchar, age integer)), DOUBLE '95.5') AS ROW(person ROW(name varchar, age integer), score double)))");
+
+            assertThat(query("SELECT info.person.name, info.score FROM " + testTable.getName()))
+                    .matches("VALUES (VARCHAR 'Alice', DOUBLE '95.5')");
+        }
+    }
+
+    @Test
+    public void testShowCreateTupleColumn()
+    {
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_describe_tuple",
+                "(id Int32, data Tuple(name String, value Int64)) ENGINE=Log")) {
+            assertThat(computeScalar("SHOW CREATE TABLE " + testTable.getName()))
+                    .isEqualTo(format(
+                            """
+                                    CREATE TABLE clickhouse.%s (
+                                       id integer NOT NULL,
+                                       data ROW(name varchar, value bigint) NOT NULL
+                                    )
+                                    WITH (
+                                       engine = 'LOG'
+                                    )\
+                                    """,
+                            testTable.getName()));
+        }
+    }
+
+    @Test
+    public void testShowCreateTupleUnsupportedColumn()
+    {
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_describe_tuple",
+                "(id Int32, data Tuple(name String, attrs Map(String, String))) ENGINE=Log")) {
+            assertThat(computeScalar("SHOW CREATE TABLE " + testTable.getName()))
+                    .isEqualTo(format(
+                            """
+                                    CREATE TABLE clickhouse.%s (
+                                       id integer NOT NULL
+                                    )
+                                    WITH (
+                                       engine = 'LOG'
+                                    )\
+                                    """,
+                            testTable.getName()));
+
+            Session convertToVarchar = Session.builder(getSession())
+                    .setCatalogSessionProperty("clickhouse", UNSUPPORTED_TYPE_HANDLING, CONVERT_TO_VARCHAR.name())
+                    .build();
+            assertThat(computeScalar(convertToVarchar, "SHOW CREATE TABLE " + testTable.getName()))
+                    .isEqualTo(format(
+                            """
+                                    CREATE TABLE clickhouse.%s (
+                                       id integer NOT NULL,
+                                       data varchar NOT NULL
+                                    )
+                                    WITH (
+                                       engine = 'LOG'
+                                    )\
+                                    """,
+                            testTable.getName()));
+        }
+    }
+
+    @Test
+    public void testTupleWithArrayElement()
+    {
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_tuple_with_array",
+                "(id Int32, data Tuple(name String, tags Array(String))) ENGINE=Log")) {
+            onRemoteDatabase().execute("INSERT INTO " + testTable.getName() + " VALUES (1, ('Alice', ['a', 'b']))");
+
+            assertThat(query("SELECT * FROM " + testTable.getName()))
+                    .matches("VALUES 1");
+        }
+    }
+
+    @Test
+    public void testTupleWithMapElement()
+    {
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_tuple_with_map",
+                "(id Int32, data Tuple(name String, attrs Map(String, String))) ENGINE=Log")) {
+            onRemoteDatabase().execute("INSERT INTO " + testTable.getName() + " VALUES (1, ('Alice', {'k': 'v'}))");
+
+            assertThat(query("SELECT * FROM " + testTable.getName()))
+                    .matches("VALUES 1");
+        }
+    }
+
+    @Test
+    public void testWriteTupleColumnUnsupported()
+    {
+        try (TestTable testTable = new TestTable(
+                onRemoteDatabase(),
+                "tpch.test_write_tuple",
+                "(id Int32, data Tuple(name String, age Int32)) ENGINE=Log")) {
+            onRemoteDatabase().execute("INSERT INTO " + testTable.getName() + " VALUES (1, ('Alice', 30))");
+
+            assertQueryFails(
+                    "INSERT INTO " + testTable.getName() + " SELECT id, data FROM " + testTable.getName(),
+                    "Writing to ClickHouse Tuple columns is not supported");
+        }
+    }
+
     @Override
     protected OptionalInt maxTableNameLength()
     {

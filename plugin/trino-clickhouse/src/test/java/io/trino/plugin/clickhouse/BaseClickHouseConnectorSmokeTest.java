@@ -15,6 +15,7 @@ package io.trino.plugin.clickhouse;
 
 import io.trino.plugin.jdbc.BaseJdbcConnectorSmokeTest;
 import io.trino.testing.TestingConnectorBehavior;
+import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,6 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class BaseClickHouseConnectorSmokeTest
         extends BaseJdbcConnectorSmokeTest
 {
+    protected abstract TestingClickHouseServer getClickHouseServer();
+
     @Override
     protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
     {
@@ -49,5 +52,23 @@ public abstract class BaseClickHouseConnectorSmokeTest
                         "WITH (\n" +
                         "   engine = 'LOG'\n" +
                         ")");
+    }
+
+    @Test
+    public void testReadTupleColumn()
+    {
+        try (TestTable testTable = new TestTable(
+                getClickHouseServer()::execute,
+                "tpch.test_tuple_smoke",
+                "(id Int32, data Tuple(name String, score Int32)) ENGINE=Log")) {
+            getClickHouseServer().execute("INSERT INTO " + testTable.getName() + " VALUES (1, ('Alice', 95)), (2, ('Bob', 80))");
+            assertThat(query("SELECT * FROM " + testTable.getName() + " ORDER BY id"))
+                    .matches("VALUES " +
+                            "(1, CAST(ROW(VARCHAR 'Alice', 95) AS ROW(name varchar, score integer))), " +
+                            "(2, CAST(ROW(VARCHAR 'Bob', 80) AS ROW(name varchar, score integer)))");
+
+            assertThat(query("SELECT data.name, data.score FROM " + testTable.getName() + " ORDER BY id"))
+                    .matches("VALUES (VARCHAR 'Alice', 95), (VARCHAR 'Bob', 80)");
+        }
     }
 }
