@@ -31,6 +31,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.DATA_PAGE_HEADER_SIZE;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
+import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.finalizeChecksum;
 import static java.util.Objects.requireNonNull;
 
 public final class MemoryChunkData
@@ -138,10 +139,7 @@ public final class MemoryChunkData
                         reference::release);
             }
 
-            long checksum = hash.hash();
-            if (checksum == NO_CHECKSUM) {
-                checksum++;
-            }
+            long checksum = finalizeChecksum(hash);
             return new MemoryChunkDataLease(
                     completedSlices,
                     checksum,

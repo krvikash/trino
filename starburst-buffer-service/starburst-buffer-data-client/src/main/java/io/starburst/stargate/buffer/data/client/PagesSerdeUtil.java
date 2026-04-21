@@ -36,18 +36,23 @@ public final class PagesSerdeUtil
      */
     public static final long NO_CHECKSUM = 0x0123456789abcdefL;
 
-    public static long calculateChecksum(List<DataPage> dataPages)
+    public static long finalizeChecksum(XxHash64 hash)
     {
-        XxHash64 hash = new XxHash64();
-        for (DataPage dataPage : dataPages) {
-            hash.update(dataPage.data());
-        }
         long checksum = hash.hash();
         // Since NO_CHECKSUM is assigned a special meaning, it is not a valid checksum.
         if (checksum == NO_CHECKSUM) {
             return checksum + 1;
         }
         return checksum;
+    }
+
+    public static long calculateChecksum(List<DataPage> dataPages)
+    {
+        XxHash64 hash = new XxHash64();
+        for (DataPage dataPage : dataPages) {
+            hash.update(dataPage.data());
+        }
+        return finalizeChecksum(hash);
     }
 
     public static Iterator<DataPage> readSerializedPages(InputStream inputStream)
