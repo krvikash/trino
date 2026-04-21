@@ -29,6 +29,7 @@ import io.starburst.stargate.buffer.data.execution.AddDataPagesResult;
 import io.starburst.stargate.buffer.data.execution.ChunkContentResult;
 import io.starburst.stargate.buffer.data.execution.ChunkDataResult;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
+import io.starburst.stargate.buffer.data.execution.DiskChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.MemoryChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.SpooledChunkResult;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
@@ -432,6 +433,11 @@ public class BlockingDataResource
                         .build();
             }
             case ChunkContentResult(MemoryChunkDataLease lease) -> chunkDataLease = lease;
+            case ChunkContentResult(DiskChunkDataLease lease) -> {
+                // TODO zero-copy streaming via FileChannel.transferTo to the response's WritableByteChannel
+                lease.release();
+                return errorResponse(new UnsupportedOperationException("disk chunk streaming not implemented"));
+            }
         }
         ArrayDeque<Slice> sliceQueue;
         try {

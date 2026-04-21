@@ -31,6 +31,7 @@ public final class ChunkTestHelper
     {
         List<Slice> chunkSlices = switch (chunkData) {
             case MemoryChunkDataLease memoryLease -> memoryLease.getChunkSlices();
+            case DiskChunkDataLease ignored -> throw new UnsupportedOperationException("disk chunk lease not supported in test helper");
         };
         long checksum = chunkData.getChecksum();
         int numDataPages = chunkData.getNumDataPages();

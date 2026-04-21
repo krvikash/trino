@@ -29,6 +29,7 @@ import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
+import io.starburst.stargate.buffer.data.execution.DiskChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.MemoryChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.SpoolingDirectoryConfig;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
@@ -131,6 +132,7 @@ public class AzureBlobSpoolingStorage
 
                 MemoryChunkDataLease memoryLease = switch (chunkDataLease) {
                     case MemoryChunkDataLease lease -> lease;
+                    case DiskChunkDataLease ignored -> throw new UnsupportedOperationException("disk chunk lease not supported for spooling");
                 };
                 SliceOutput sliceOutput = Slices.allocate(CHUNK_FILE_HEADER_SIZE).getOutput();
                 sliceOutput.writeLong(memoryLease.getChecksum());

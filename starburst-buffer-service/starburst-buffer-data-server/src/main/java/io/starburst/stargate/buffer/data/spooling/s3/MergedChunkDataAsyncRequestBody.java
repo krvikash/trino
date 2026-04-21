@@ -18,6 +18,7 @@ import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
+import io.starburst.stargate.buffer.data.execution.DiskChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.MemoryChunkDataLease;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -117,6 +118,7 @@ public class MergedChunkDataAsyncRequestBody
                                 ChunkDataLease rawLease = entry.getValue();
                                 MemoryChunkDataLease chunkDataLease = switch (rawLease) {
                                     case MemoryChunkDataLease lease -> lease;
+                                    case DiskChunkDataLease ignored -> throw new UnsupportedOperationException("disk chunk lease not supported for spooling");
                                 };
                                 int localSliceOffset = sliceOffset.get();
                                 if (localSliceOffset == 0) {

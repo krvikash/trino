@@ -10,7 +10,7 @@
 package io.starburst.stargate.buffer.data.execution;
 
 public sealed interface ChunkDataLease
-        permits MemoryChunkDataLease
+        permits MemoryChunkDataLease, DiskChunkDataLease
 {
     int CHUNK_SLICES_METADATA_SIZE = Long.BYTES + Integer.BYTES;
 

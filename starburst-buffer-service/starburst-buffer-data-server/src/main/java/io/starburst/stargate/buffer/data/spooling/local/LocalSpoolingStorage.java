@@ -20,6 +20,7 @@ import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
+import io.starburst.stargate.buffer.data.execution.DiskChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.MemoryChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.SpoolingDirectoryConfig;
 import io.starburst.stargate.buffer.data.spooling.MergedFileNameGenerator;
@@ -91,6 +92,7 @@ public class LocalSpoolingStorage
                 sliceOutput.writeInt(chunkDataLease.getNumDataPages());
                 switch (chunkDataLease) {
                     case MemoryChunkDataLease memoryLease -> memoryLease.getChunkSlices().forEach(sliceOutput::writeBytes);
+                    case DiskChunkDataLease ignored -> throw new UnsupportedOperationException("disk chunk lease not supported for spooling");
                 }
             }
         }
