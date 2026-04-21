@@ -28,8 +28,6 @@ import io.trino.operator.gpu.aggregation.GpuSum;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
-import io.trino.spi.gpu.GpuPage;
-import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import org.junit.jupiter.api.Test;
@@ -49,6 +47,7 @@ import static io.trino.block.BlockAssertions.getOnlyValue;
 import static io.trino.operator.aggregation.AggregationTestUtils.assertAggregation;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
+import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.spi.gpu.GpuTypeConversion.toDType;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -605,18 +604,12 @@ final class TestGpuAggregationOperator
     {
         ImmutableList.Builder<Type> outputTypesBuilder = ImmutableList.builder();
         ImmutableList.Builder<Type> groupByTypesBuilder = ImmutableList.builder();
-        ImmutableSet.Builder<Integer> deviceChannelsBuilder = ImmutableSet.builder();
         ImmutableSet.Builder<Integer> groupByChannelsBuilder = ImmutableSet.builder();
 
         if (groupByType.isPresent()) {
             outputTypesBuilder.add(groupByType.get());
             groupByTypesBuilder.add(groupByType.get());
-            deviceChannelsBuilder.add(GROUP_VALUE_CHANNEL);
-            deviceChannelsBuilder.add(GROUP_KEY_CHANNEL);
             groupByChannelsBuilder.add(GROUP_KEY_CHANNEL);
-        }
-        else {
-            deviceChannelsBuilder.add(0);
         }
         aggregates.forEach(agg -> outputTypesBuilder.add(agg.outputType()));
 
@@ -624,42 +617,13 @@ final class TestGpuAggregationOperator
                 .mapToInt(Integer::intValue)
                 .toArray();
 
-        BufferPages bufferPages = new BufferPages();
-        CopyToDevice copyToDevice = new CopyToDevice(bufferPages, inputTypes, deviceChannelsBuilder.build());
-        GpuAggregation.Factory factory = new GpuAggregation.Factory(aggregates, groupByChannels, groupByTypesBuilder.build(), inputRaw);
-        GpuOperation aggregation = factory.create(copyToDevice);
-        CopyToBlocks copyToBlocks = new CopyToBlocks(aggregation, outputTypesBuilder.build());
-        GpuPageToPages gpuPageToPages = new GpuPageToPages();
-
-        boolean inputConsumed = inputPage.getPositionCount() == 0;
-        ImmutableList.Builder<Page> outputPages = ImmutableList.builder();
-
-        while (true) {
-            if (inputConsumed) {
-                bufferPages.noMoreInput();
-            }
-            else if (bufferPages.needsInput()) {
-                bufferPages.addInput(inputPage);
-                inputConsumed = true;
-            }
-
-            gpuPageToPages.drain().forEachOrdered(outputPages::add);
-
-            @Own GpuOperation.Result result = copyToBlocks.execute();
-            switch (result) {
-                case GpuOperation.Blocked _ -> throw new UnsupportedOperationException("Blocked not supported");
-                case GpuOperation.Data(GpuPage gpuPage) -> {
-                    try (gpuPage) {
-                        gpuPageToPages.add(gpuPage);
-                    }
-                }
-                case GpuOperation.Yielded() -> {}
-                case GpuOperation.Finished() -> {
-                    checkState(gpuPageToPages.poll().isEmpty());
-                    aggregation.close();
-                    return outputPages.build();
-                }
-            }
-        }
+        return executeGpuOperation(
+                List.of(inputPage),
+                inputTypes,
+                outputTypesBuilder.build(),
+                copyToDevice -> {
+                    GpuAggregation.Factory factory = new GpuAggregation.Factory(aggregates, groupByChannels, groupByTypesBuilder.build(), inputRaw);
+                    return factory.create(copyToDevice);
+                });
     }
 }

@@ -13,15 +13,26 @@
  */
 package io.trino.operator.gpu;
 
+import com.google.common.collect.ImmutableList;
 import io.airlift.slice.Slices;
+import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 
+import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.IntStream;
 
+import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DoubleType.DOUBLE;
@@ -105,6 +116,63 @@ public final class GpuTestUtils
         }
         else {
             throw new UnsupportedOperationException("Unsupported type: " + type);
+        }
+    }
+
+    public static List<Page> executeGpuOperation(
+            List<Page> inputPages,
+            List<Type> inputTypes,
+            List<Type> outputTypes,
+            Function<CopyToDevice, GpuOperation> operationFactory)
+    {
+        Set<Integer> deviceChannels = IntStream.range(0, inputTypes.size())
+                .boxed()
+                .collect(toImmutableSet());
+        return executeGpuOperation(inputPages, inputTypes, outputTypes, operationFactory, deviceChannels);
+    }
+
+    public static List<Page> executeGpuOperation(
+            List<Page> inputPages,
+            List<Type> inputTypes,
+            List<Type> outputTypes,
+            Function<CopyToDevice, GpuOperation> operationFactory,
+            Set<Integer> deviceChannels)
+    {
+        Iterator<Page> input = inputPages.iterator();
+
+        BufferPages bufferPages = new BufferPages();
+        CopyToDevice copyToDevice = new CopyToDevice(bufferPages, inputTypes, deviceChannels);
+        GpuOperation operation = operationFactory.apply(copyToDevice);
+        CopyToBlocks copyToBlocks = new CopyToBlocks(operation, outputTypes);
+        GpuPageToPages gpuPageToPages = new GpuPageToPages();
+
+        ImmutableList.Builder<Page> outputPages = ImmutableList.builder();
+        while (true) {
+            if (!input.hasNext()) {
+                bufferPages.noMoreInput();
+            }
+            else if (bufferPages.needsInput()) {
+                bufferPages.addInput(input.next());
+            }
+
+            gpuPageToPages.drain().forEachOrdered(outputPages::add);
+
+            @Own GpuOperation.Result result = copyToBlocks.execute();
+            switch (result) {
+                case GpuOperation.Blocked _ -> throw new UnsupportedOperationException("Unsupported blocked future, what shall I do?");
+                case GpuOperation.Data(GpuPage gpuPage) -> {
+                    try (gpuPage) {
+                        gpuPageToPages.add(gpuPage);
+                    }
+                }
+                case GpuOperation.Yielded() -> {
+                    // continue
+                }
+                case GpuOperation.Finished() -> {
+                    checkState(gpuPageToPages.poll().isEmpty(), "gpuPageToPages should be drained at this point");
+                    return outputPages.build();
+                }
+            }
         }
     }
 }

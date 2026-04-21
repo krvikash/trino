@@ -22,9 +22,7 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.VariableWidthBlockBuilder;
-import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.GpuTypeConversion;
-import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
@@ -45,6 +43,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
@@ -667,44 +666,12 @@ public class TestGpuDataConversion
      */
     private List<Page> executeRoundTrip(List<Page> inputPages, List<Type> types, Set<Integer> channelsToTransfer)
     {
-        Iterator<Page> input = inputPages.iterator();
-
-        BufferPages bufferPages = new BufferPages();
-        CopyToDevice copyToDevice = new CopyToDevice(bufferPages, types, channelsToTransfer);
-        CopyToBlocks copyToBlocks = new CopyToBlocks(copyToDevice, types);
-        GpuPageToPages gpuPageToPages = new GpuPageToPages();
-
-        ImmutableList.Builder<Page> outputPages = ImmutableList.builder();
-        while (true) {
-            // Feed input pages
-            if (!input.hasNext()) {
-                bufferPages.noMoreInput();
-            }
-            else if (bufferPages.needsInput()) {
-                bufferPages.addInput(input.next());
-            }
-
-            // Drain any completed pages
-            gpuPageToPages.drain().forEachOrdered(outputPages::add);
-
-            // Execute the pipeline
-            @Own GpuOperation.Result result = copyToBlocks.execute();
-            switch (result) {
-                case GpuOperation.Blocked _ -> throw new UnsupportedOperationException("Blocked future not supported in test");
-                case GpuOperation.Data(GpuPage gpuPage) -> {
-                    try (gpuPage) {
-                        gpuPageToPages.add(gpuPage);
-                    }
-                }
-                case GpuOperation.Yielded() -> {
-                    // Continue loop
-                }
-                case GpuOperation.Finished() -> {
-                    checkState(gpuPageToPages.poll().isEmpty(), "gpuPageToPages should be drained");
-                    return outputPages.build();
-                }
-            }
-        }
+        return executeGpuOperation(
+                inputPages,
+                types,
+                types,
+                copyToDevice -> copyToDevice,
+                channelsToTransfer);
     }
 
     /**

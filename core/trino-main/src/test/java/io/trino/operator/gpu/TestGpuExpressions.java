@@ -28,8 +28,6 @@ import io.trino.spi.Page;
 import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.function.OperatorType;
-import io.trino.spi.gpu.GpuPage;
-import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
@@ -54,12 +52,12 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Streams.stream;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
+import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DoubleType.DOUBLE;
@@ -488,7 +486,7 @@ public class TestGpuExpressions
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + constantExpression));
         assertThat(gpuExpression.inputChannels().getInputChannels()).isEmpty();
 
-        List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, constantExpression, gpuExpression, Set.of(0));
+        List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, constantExpression, gpuExpression);
         List<Page> cpuResults = executeWithCpu(inputPages, constantExpression);
         assertSameData(gpuResults, cpuResults, List.of(constantExpression.type()));
     }
@@ -501,52 +499,18 @@ public class TestGpuExpressions
         assertThat(gpuExpression.inputChannels().getInputChannels())
                 .containsExactlyInAnyOrderElementsOf(expectedInputChannels);
 
-        List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, rowExpression, gpuExpression, expectedInputChannels);
+        List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, rowExpression, gpuExpression);
         List<Page> cpuResults = executeWithCpu(inputPages, rowExpression);
         assertSameData(gpuResults, cpuResults, List.of(rowExpression.type()));
     }
 
-    private List<Page> executeWithGpu(List<Page> inputPages, List<Type> inputTypes, RowExpression rowExpression, CompiledExpression gpuExpression, Set<Integer> deviceChannels)
+    private List<Page> executeWithGpu(List<Page> inputPages, List<Type> inputTypes, RowExpression rowExpression, CompiledExpression gpuExpression)
     {
-        Iterator<Page> input = inputPages.iterator();
-
-        BufferPages bufferPages = new BufferPages();
-        CopyToDevice copyToDevice = new CopyToDevice(
-                bufferPages,
+        return executeGpuOperation(
+                inputPages,
                 inputTypes,
-                deviceChannels);
-        GpuProject gpuFilter = new GpuProject(copyToDevice, List.of(new GpuProject.Projection.Gpu(gpuExpression)));
-        CopyToBlocks copyToBlocks = new CopyToBlocks(gpuFilter, List.of(rowExpression.type()));
-        GpuPageToPages gpuPageToPages = new GpuPageToPages();
-
-        ImmutableList.Builder<Page> outputPages = ImmutableList.builder();
-        while (true) {
-            if (!input.hasNext()) {
-                bufferPages.noMoreInput();
-            }
-            else if (bufferPages.needsInput()) {
-                bufferPages.addInput(input.next());
-            }
-
-            gpuPageToPages.drain().forEachOrdered(outputPages::add);
-
-            @Own GpuOperation.Result result = copyToBlocks.execute();
-            switch (result) {
-                case GpuOperation.Blocked _ -> throw new UnsupportedOperationException("Unsupported blocked future, what shall I do?");
-                case GpuOperation.Data(GpuPage gpuPage) -> {
-                    try (gpuPage) {
-                        gpuPageToPages.add(gpuPage);
-                    }
-                }
-                case GpuOperation.Yielded() -> {
-                    // continue
-                }
-                case GpuOperation.Finished() -> {
-                    checkState(gpuPageToPages.poll().isEmpty(), "gpuPageToPages should be drained at this point");
-                    return outputPages.build();
-                }
-            }
-        }
+                List.of(rowExpression.type()),
+                copyToDevice -> new GpuProject(copyToDevice, List.of(new GpuProject.Projection.Gpu(gpuExpression))));
     }
 
     private List<Page> executeWithCpu(List<Page> inputPages, RowExpression expression)
