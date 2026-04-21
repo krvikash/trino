@@ -15,11 +15,9 @@ package io.trino.plugin.hive.parquet;
 
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
-import ai.rapids.cudf.HostMemoryBuffer;
 import ai.rapids.cudf.ParquetOptions;
 import ai.rapids.cudf.Table;
 import com.google.common.base.Throwables;
-import io.airlift.slice.Slice;
 import io.trino.plugin.base.util.AutoCloseableCloser;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.spi.TrinoException;
@@ -96,6 +94,7 @@ public class GpuParquetPageSource
             return new Data(page);
         }
         finally {
+            fabricatedParquet.close();
             fabricatedParquet = null;
         }
     }
@@ -118,16 +117,11 @@ public class GpuParquetPageSource
         }
         ParquetOptions options = optionsBuilder.build();
 
-        Slice data = fabricatedParquet.data().orElseThrow(() -> new IllegalStateException("No fabricated Parquet data available"));
+        @Borrow BufferAndLength data = fabricatedParquet.data().orElseThrow(() -> new IllegalStateException("No fabricated Parquet data available"));
 
-        // Allocate host buffer and copy byte array data
-        try (HostMemoryBuffer hostBuffer = HostMemoryBuffer.allocate(data.length())) {
-            hostBuffer.setBytes(0, data.byteArray(), data.byteArrayOffset(), data.length());
-
-            // Read from fabricated buffer using cuDF
-            try (Table table = Table.readParquet(options, hostBuffer)) {
-                return convertToGpuPage(table);
-            }
+        // Read from fabricated buffer using cuDF
+        try (Table table = Table.readParquet(options, data.buffer(), 0, data.length())) {
+            return convertToGpuPage(table);
         }
     }
 
@@ -266,7 +260,10 @@ public class GpuParquetPageSource
     @Override
     public void close()
     {
-        fabricatedParquet = null;
+        if (fabricatedParquet != null) {
+            fabricatedParquet.close();
+            fabricatedParquet = null;
+        }
         fabricator.close();
     }
 }

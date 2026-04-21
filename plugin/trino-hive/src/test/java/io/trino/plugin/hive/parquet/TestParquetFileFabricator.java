@@ -38,6 +38,8 @@ import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.connector.SourcePage;
+import io.trino.spi.gpu.borrow.Borrow;
+import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
@@ -60,6 +62,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.trino.parquet.ParquetTypeUtils.getDescriptors;
 import static io.trino.parquet.predicate.PredicateUtils.buildPredicate;
 import static io.trino.plugin.hive.HiveColumnHandle.ColumnType.REGULAR;
@@ -68,6 +71,7 @@ import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.VarcharType.VARCHAR;
+import static java.lang.Math.toIntExact;
 import static org.apache.parquet.format.CompressionCodec.SNAPPY;
 import static org.apache.parquet.format.CompressionCodec.UNCOMPRESSED;
 import static org.apache.parquet.format.CompressionCodec.ZSTD;
@@ -105,32 +109,33 @@ public class TestParquetFileFabricator
                 createColumn("col1", 0, BIGINT),
                 createColumn("col3", 2, VARCHAR));
 
-        FabricatedParquet fabricated = fabricateFile(parquetFile, requestedColumns);
-        assertThat(fabricated.rowCount()).isEqualTo(1000);
+        try (FabricatedParquet fabricated = fabricateFile(parquetFile, requestedColumns)) {
+            assertThat(fabricated.rowCount()).isEqualTo(1000);
 
-        // Verify fabricated file is valid and contains only requested columns
-        ParquetDataSource dataSource = createDataSource(fabricated.data().orElseThrow());
-        ParquetMetadata metadata = MetadataReader.readFooter(dataSource);
-        MessageType schema = metadata.getFileMetaData().getSchema();
+            // Verify fabricated file is valid and contains only requested columns
+            ParquetDataSource dataSource = createDataSource(fabricated.data().orElseThrow());
+            ParquetMetadata metadata = MetadataReader.readFooter(dataSource);
+            MessageType schema = metadata.getFileMetaData().getSchema();
 
-        assertThat(schema.getFields()).hasSize(2);
-        assertThat(schema.getFieldIndex("col1")).isEqualTo(0);
-        assertThat(schema.getFieldIndex("col3")).isEqualTo(1);
+            assertThat(schema.getFields()).hasSize(2);
+            assertThat(schema.getFieldIndex("col1")).isEqualTo(0);
+            assertThat(schema.getFieldIndex("col3")).isEqualTo(1);
 
-        // Verify we can read the data
-        ParquetReader reader = ParquetTestUtils.createParquetReader(
-                dataSource,
-                metadata,
-                List.of(BIGINT, VARCHAR),
-                List.of("col1", "col3"));
+            // Verify we can read the data
+            ParquetReader reader = ParquetTestUtils.createParquetReader(
+                    dataSource,
+                    metadata,
+                    List.of(BIGINT, VARCHAR),
+                    List.of("col1", "col3"));
 
-        int rowCount = 0;
-        SourcePage page = reader.nextPage();
-        while (page != null) {
-            rowCount += page.getPositionCount();
-            page = reader.nextPage();
+            int rowCount = 0;
+            SourcePage page = reader.nextPage();
+            while (page != null) {
+                rowCount += page.getPositionCount();
+                page = reader.nextPage();
+            }
+            assertThat(rowCount).isEqualTo(1000);
         }
-        assertThat(rowCount).isEqualTo(1000);
     }
 
     @Test
@@ -153,17 +158,18 @@ public class TestParquetFileFabricator
                 createColumn("a", 0, BIGINT),
                 createColumn("b", 1, INTEGER));
 
-        FabricatedParquet fabricated = fabricateFile(parquetFile, requestedColumns);
-        assertThat(fabricated.rowCount()).isEqualTo(500);
+        try (FabricatedParquet fabricated = fabricateFile(parquetFile, requestedColumns)) {
+            assertThat(fabricated.rowCount()).isEqualTo(500);
 
-        // Verify all columns present
-        ParquetDataSource dataSource = createDataSource(fabricated.data().orElseThrow());
-        ParquetMetadata metadata = MetadataReader.readFooter(dataSource);
-        MessageType schema = metadata.getFileMetaData().getSchema();
+            // Verify all columns present
+            ParquetDataSource dataSource = createDataSource(fabricated.data().orElseThrow());
+            ParquetMetadata metadata = MetadataReader.readFooter(dataSource);
+            MessageType schema = metadata.getFileMetaData().getSchema();
 
-        assertThat(schema.getFields()).hasSize(2);
-        assertThat(schema.containsField("a")).isTrue();
-        assertThat(schema.containsField("b")).isTrue();
+            assertThat(schema.getFields()).hasSize(2);
+            assertThat(schema.containsField("a")).isTrue();
+            assertThat(schema.containsField("b")).isTrue();
+        }
     }
 
     @Test
@@ -184,7 +190,7 @@ public class TestParquetFileFabricator
         // Request with a split range that doesn't overlap any row groups
         List<HiveColumnHandle> requestedColumns = List.of(createColumn("col1", 0, BIGINT));
 
-        TrinoInputFile inputFile = new MemoryInputFile(Location.of("memory:///test.parquet"), Slices.wrappedBuffer(parquetFile.getBytes()));
+        TrinoInputFile inputFile = new MemoryInputFile(Location.of("memory:///test.parquet"), wrappedBuffer(parquetFile.getBytes()));
         ParquetDataSource originalDataSource = closer.register(new TrinoParquetDataSource(inputFile, ParquetReaderOptions.builder().build(), new FileFormatDataSourceStats()));
         ParquetMetadata originalMetadata = MetadataReader.readFooter(originalDataSource);
         ParquetFileFabricator fabricator = closer.register(new ParquetFileFabricator(
@@ -201,9 +207,10 @@ public class TestParquetFileFabricator
                 ParquetReaderOptions.builder().build(),
                 originalMetadata));
 
-        FabricatedParquet fabricated = fabricator.fabricate();
-        assertThat(fabricated.rowCount()).isEqualTo(0);
-        assertThat(fabricated.data()).isEmpty();
+        try (FabricatedParquet fabricated = fabricator.fabricate()) {
+            assertThat(fabricated.rowCount()).isEqualTo(0);
+            assertThat(fabricated.data()).isEmpty();
+        }
     }
 
     @Test
@@ -226,10 +233,10 @@ public class TestParquetFileFabricator
                 createColumn("col1", 0, BIGINT),
                 createColumn("col2", 1, VARCHAR));
 
-        FabricatedParquet fabricated = fabricateFile(parquetFile, requestedColumns);
-
-        assertThat(fabricated.rowCount()).isEqualTo(0);
-        assertThat(fabricated.data()).isEmpty();
+        try (FabricatedParquet fabricated = fabricateFile(parquetFile, requestedColumns)) {
+            assertThat(fabricated.rowCount()).isEqualTo(0);
+            assertThat(fabricated.data()).isEmpty();
+        }
     }
 
     @Test
@@ -254,18 +261,19 @@ public class TestParquetFileFabricator
                 createColumn("x", 0, BIGINT),
                 createColumn("y", 1, INTEGER));
 
-        FabricatedParquet fabricated = fabricateFile(parquetFile, requestedColumns);
-        assertThat(fabricated.rowCount()).isEqualTo(1000);
+        try (FabricatedParquet fabricated = fabricateFile(parquetFile, requestedColumns)) {
+            assertThat(fabricated.rowCount()).isEqualTo(1000);
 
-        // Verify compression is preserved
-        ParquetDataSource dataSource = createDataSource(fabricated.data().orElseThrow());
-        ParquetMetadata metadata = MetadataReader.readFooter(dataSource);
+            // Verify compression is preserved
+            ParquetDataSource dataSource = createDataSource(fabricated.data().orElseThrow());
+            ParquetMetadata metadata = MetadataReader.readFooter(dataSource);
 
-        metadata.getBlocks().forEach(block -> {
-            block.columns().forEach(column -> {
-                assertThat(column.getCodec().name()).isEqualTo(compression.name());
+            metadata.getBlocks().forEach(block -> {
+                block.columns().forEach(column -> {
+                    assertThat(column.getCodec().name()).isEqualTo(compression.name());
+                });
             });
-        });
+        }
     }
 
     @Test
@@ -288,30 +296,30 @@ public class TestParquetFileFabricator
                 createColumn("int_col", 1, INTEGER),
                 createColumn("varchar_col", 2, VARCHAR));
 
-        FabricatedParquet fabricated = fabricateFile(parquetFile, requestedColumns);
+        try (FabricatedParquet fabricated = fabricateFile(parquetFile, requestedColumns)) {
+            // Verify all types preserved
+            ParquetDataSource dataSource = createDataSource(fabricated.data().orElseThrow());
+            ParquetMetadata metadata = MetadataReader.readFooter(dataSource);
+            MessageType schema = metadata.getFileMetaData().getSchema();
 
-        // Verify all types preserved
-        ParquetDataSource dataSource = createDataSource(fabricated.data().orElseThrow());
-        ParquetMetadata metadata = MetadataReader.readFooter(dataSource);
-        MessageType schema = metadata.getFileMetaData().getSchema();
+            assertThat(schema.getFields()).hasSize(3);
 
-        assertThat(schema.getFields()).hasSize(3);
+            // Read and verify data
+            ParquetReader reader = ParquetTestUtils.createParquetReader(
+                    dataSource,
+                    metadata,
+                    types,
+                    columnNames);
 
-        // Read and verify data
-        ParquetReader reader = ParquetTestUtils.createParquetReader(
-                dataSource,
-                metadata,
-                types,
-                columnNames);
-
-        int rowCount = 0;
-        SourcePage page = reader.nextPage();
-        while (page != null) {
-            rowCount += page.getPositionCount();
-            page = reader.nextPage();
+            int rowCount = 0;
+            SourcePage page = reader.nextPage();
+            while (page != null) {
+                rowCount += page.getPositionCount();
+                page = reader.nextPage();
+            }
+            assertThat(fabricated.rowCount()).isEqualTo(200);
+            assertThat(rowCount).isEqualTo(200);
         }
-        assertThat(fabricated.rowCount()).isEqualTo(200);
-        assertThat(rowCount).isEqualTo(200);
     }
 
     @Test
@@ -333,43 +341,43 @@ public class TestParquetFileFabricator
                 createColumn("id", 0, BIGINT),
                 createColumn("name", 1, VARCHAR));
 
-        FabricatedParquet fabricated = fabricateFile(parquetFile, requestedColumns);
+        try (FabricatedParquet fabricated = fabricateFile(parquetFile, requestedColumns)) {
+            // Write to file and verify Trino can read it
+            Path outputPath = tempDir.resolve("fabricated.parquet");
+            Files.write(outputPath, getBytes(fabricated.data().orElseThrow()));
 
-        // Write to file and verify Trino can read it
-        Path outputPath = tempDir.resolve("fabricated.parquet");
-        Files.write(outputPath, fabricated.data().orElseThrow().getBytes());
+            // Read using Trino's ParquetReader
+            TrinoInputFile inputFile = new MemoryInputFile(
+                    Location.of("memory:///fabricated.parquet"),
+                    wrappedBuffer(getBytes(fabricated.data().orElseThrow())));
+            ParquetDataSource dataSource = closer.register(new TrinoParquetDataSource(
+                    inputFile,
+                    ParquetReaderOptions.builder().build(),
+                    new FileFormatDataSourceStats()));
 
-        // Read using Trino's ParquetReader
-        TrinoInputFile inputFile = new MemoryInputFile(
-                Location.of("memory:///fabricated.parquet"),
-                fabricated.data().orElseThrow());
-        ParquetDataSource dataSource = closer.register(new TrinoParquetDataSource(
-                inputFile,
-                ParquetReaderOptions.builder().build(),
-                new FileFormatDataSourceStats()));
+            ParquetMetadata metadata = MetadataReader.readFooter(dataSource);
+            ParquetReader reader = ParquetTestUtils.createParquetReader(
+                    dataSource,
+                    metadata,
+                    types,
+                    columnNames);
 
-        ParquetMetadata metadata = MetadataReader.readFooter(dataSource);
-        ParquetReader reader = ParquetTestUtils.createParquetReader(
-                dataSource,
-                metadata,
-                types,
-                columnNames);
-
-        // Should be able to read all data without errors
-        int rowCount = 0;
-        SourcePage page = reader.nextPage();
-        while (page != null) {
-            rowCount += page.getPositionCount();
-            page = reader.nextPage();
+            // Should be able to read all data without errors
+            int rowCount = 0;
+            SourcePage page = reader.nextPage();
+            while (page != null) {
+                rowCount += page.getPositionCount();
+                page = reader.nextPage();
+            }
+            assertThat(fabricated.rowCount()).isEqualTo(500);
+            assertThat(rowCount).isEqualTo(500);
         }
-        assertThat(fabricated.rowCount()).isEqualTo(500);
-        assertThat(rowCount).isEqualTo(500);
     }
 
-    private FabricatedParquet fabricateFile(Slice parquetFile, List<HiveColumnHandle> columns)
+    private @Move FabricatedParquet fabricateFile(Slice parquetFile, List<HiveColumnHandle> columns)
             throws IOException
     {
-        TrinoInputFile inputFile = new MemoryInputFile(Location.of("memory:///test.parquet"), Slices.wrappedBuffer(parquetFile.getBytes()));
+        TrinoInputFile inputFile = new MemoryInputFile(Location.of("memory:///test.parquet"), wrappedBuffer(parquetFile.getBytes()));
         ParquetDataSource dataSource = closer.register(new TrinoParquetDataSource(inputFile, ParquetReaderOptions.builder().build(), new FileFormatDataSourceStats()));
 
         ParquetMetadata metadata = MetadataReader.readFooter(dataSource);
@@ -416,7 +424,7 @@ public class TestParquetFileFabricator
                     writer.write(page);
                 }
             }
-            return Slices.wrappedBuffer(outputStream.toByteArray());
+            return wrappedBuffer(outputStream.toByteArray());
         }
     }
 
@@ -465,38 +473,38 @@ public class TestParquetFileFabricator
                 ParquetReaderOptions.builder().build(),
                 metadata));
 
-        FabricatedParquet fabricated = fabricator.fabricate();
+        try (FabricatedParquet fabricated = fabricator.fabricate()) {
+            // Verify fabricated file has only requested columns
+            ParquetDataSource fabricatedDataSource = createDataSource(fabricated.data().orElseThrow());
+            ParquetMetadata fabricatedMetadata = MetadataReader.readFooter(fabricatedDataSource);
+            MessageType fabricatedSchema = fabricatedMetadata.getFileMetaData().getSchema();
 
-        // Verify fabricated file has only requested columns
-        ParquetDataSource fabricatedDataSource = createDataSource(fabricated.data().orElseThrow());
-        ParquetMetadata fabricatedMetadata = MetadataReader.readFooter(fabricatedDataSource);
-        MessageType fabricatedSchema = fabricatedMetadata.getFileMetaData().getSchema();
+            assertThat(fabricatedSchema.getFields()).hasSize(requestedColumns.size());
 
-        assertThat(fabricatedSchema.getFields()).hasSize(requestedColumns.size());
+            // Verify data is readable by Trino reader
+            List<Type> types = new ArrayList<>();
+            List<String> columnNames = new ArrayList<>();
+            for (HiveColumnHandle column : requestedColumns) {
+                types.add(column.getType());
+                columnNames.add(column.getBaseColumnName());
+            }
 
-        // Verify data is readable by Trino reader
-        List<Type> types = new ArrayList<>();
-        List<String> columnNames = new ArrayList<>();
-        for (HiveColumnHandle column : requestedColumns) {
-            types.add(column.getType());
-            columnNames.add(column.getBaseColumnName());
+            ParquetReader reader = ParquetTestUtils.createParquetReader(
+                    fabricatedDataSource,
+                    fabricatedMetadata,
+                    types,
+                    columnNames);
+
+            int rowCount = 0;
+            SourcePage page = reader.nextPage();
+            while (page != null) {
+                rowCount += page.getPositionCount();
+                page = reader.nextPage();
+            }
+
+            // Verify we read some data
+            assertThat(rowCount).isGreaterThan(0);
         }
-
-        ParquetReader reader = ParquetTestUtils.createParquetReader(
-                fabricatedDataSource,
-                fabricatedMetadata,
-                types,
-                columnNames);
-
-        int rowCount = 0;
-        SourcePage page = reader.nextPage();
-        while (page != null) {
-            rowCount += page.getPositionCount();
-            page = reader.nextPage();
-        }
-
-        // Verify we read some data
-        assertThat(rowCount).isGreaterThan(0);
     }
 
     @Test
@@ -517,7 +525,7 @@ public class TestParquetFileFabricator
                 columnNames,
                 pages);
 
-        TrinoInputFile inputFile = new MemoryInputFile(Location.of("memory:///test.parquet"), Slices.wrappedBuffer(parquetFile.getBytes()));
+        TrinoInputFile inputFile = new MemoryInputFile(Location.of("memory:///test.parquet"), wrappedBuffer(parquetFile.getBytes()));
         ParquetDataSource dataSource = closer.register(new TrinoParquetDataSource(inputFile, ParquetReaderOptions.builder().build(), new FileFormatDataSourceStats()));
 
         ParquetMetadata metadata = MetadataReader.readFooter(dataSource);
@@ -567,21 +575,21 @@ public class TestParquetFileFabricator
                 ParquetReaderOptions.builder().build(),
                 metadata));
 
-        FabricatedParquet fabricated = fabricator.fabricate();
+        try (FabricatedParquet fabricated = fabricator.fabricate()) {
+            // Verify fabricated file has only selected row group(s)
+            ParquetDataSource fabricatedDataSource = createDataSource(fabricated.data().orElseThrow());
+            ParquetMetadata fabricatedMetadata = MetadataReader.readFooter(fabricatedDataSource);
 
-        // Verify fabricated file has only selected row group(s)
-        ParquetDataSource fabricatedDataSource = createDataSource(fabricated.data().orElseThrow());
-        ParquetMetadata fabricatedMetadata = MetadataReader.readFooter(fabricatedDataSource);
+            assertThat(fabricatedMetadata.getBlocks().size()).isLessThan(rowGroups.size());
 
-        assertThat(fabricatedMetadata.getBlocks().size()).isLessThan(rowGroups.size());
+            // Verify row count reflects filtering
+            long expectedRows = middleRowGroup.rowCount();
+            long actualRows = fabricatedMetadata.getBlocks().stream()
+                    .mapToLong(BlockMetadata::rowCount)
+                    .sum();
 
-        // Verify row count reflects filtering
-        long expectedRows = middleRowGroup.rowCount();
-        long actualRows = fabricatedMetadata.getBlocks().stream()
-                .mapToLong(BlockMetadata::rowCount)
-                .sum();
-
-        assertThat(actualRows).isLessThanOrEqualTo(expectedRows * 2); // Allow some tolerance
+            assertThat(actualRows).isLessThanOrEqualTo(expectedRows * 2); // Allow some tolerance}
+        }
     }
 
     @Test
@@ -609,7 +617,7 @@ public class TestParquetFileFabricator
                 columnNames,
                 pages);
 
-        TrinoInputFile inputFile = new MemoryInputFile(Location.of("memory:///test.parquet"), Slices.wrappedBuffer(parquetFile.getBytes()));
+        TrinoInputFile inputFile = new MemoryInputFile(Location.of("memory:///test.parquet"), wrappedBuffer(parquetFile.getBytes()));
         ParquetDataSource dataSource = closer.register(new TrinoParquetDataSource(inputFile, ParquetReaderOptions.builder().build(), new FileFormatDataSourceStats()));
 
         ParquetMetadata metadata = MetadataReader.readFooter(dataSource);
@@ -648,22 +656,22 @@ public class TestParquetFileFabricator
                 ParquetReaderOptions.builder().build(),
                 metadata));
 
-        FabricatedParquet fabricated = fabricator.fabricate();
+        try (FabricatedParquet fabricated = fabricator.fabricate()) {
+            // Verify fabricated file excludes filtered row groups
+            ParquetDataSource fabricatedDataSource = createDataSource(fabricated.data().orElseThrow());
+            ParquetMetadata fabricatedMetadata = MetadataReader.readFooter(fabricatedDataSource);
 
-        // Verify fabricated file excludes filtered row groups
-        ParquetDataSource fabricatedDataSource = createDataSource(fabricated.data().orElseThrow());
-        ParquetMetadata fabricatedMetadata = MetadataReader.readFooter(fabricatedDataSource);
+            // Should have fewer row groups than original
+            assertThat(fabricatedMetadata.getBlocks().size()).isLessThan(metadata.getBlocks().size());
 
-        // Should have fewer row groups than original
-        assertThat(fabricatedMetadata.getBlocks().size()).isLessThan(metadata.getBlocks().size());
+            // Verify row count reflects filtering (should be approximately 2000, not 3000)
+            long rowCount = fabricatedMetadata.getBlocks().stream()
+                    .mapToLong(BlockMetadata::rowCount)
+                    .sum();
 
-        // Verify row count reflects filtering (should be approximately 2000, not 3000)
-        long rowCount = fabricatedMetadata.getBlocks().stream()
-                .mapToLong(BlockMetadata::rowCount)
-                .sum();
-
-        assertThat(rowCount).isLessThan(3000);
-        assertThat(rowCount).isGreaterThanOrEqualTo(1000);
+            assertThat(rowCount).isLessThan(3000);
+            assertThat(rowCount).isGreaterThanOrEqualTo(1000);
+        }
     }
 
     @Test
@@ -686,33 +694,35 @@ public class TestParquetFileFabricator
                 createColumn("cola", 0, BIGINT),
                 createColumn("COLB", 1, VARCHAR));
 
-        FabricatedParquet fabricated = fabricateFile(parquetFile, requestedColumns);
-        assertThat(fabricated.rowCount()).isEqualTo(100);
+        try (FabricatedParquet fabricated = fabricateFile(parquetFile, requestedColumns)) {
+            assertThat(fabricated.rowCount()).isEqualTo(100);
 
-        // Verify matching worked and data is correct
-        ParquetDataSource dataSource = createDataSource(fabricated.data().orElseThrow());
-        ParquetMetadata metadata = MetadataReader.readFooter(dataSource);
-        MessageType schema = metadata.getFileMetaData().getSchema();
+            // Verify matching worked and data is correct
+            ParquetDataSource dataSource = createDataSource(fabricated.data().orElseThrow());
 
-        assertThat(schema.getFields()).hasSize(2);
-        // Verify columns are present (ParquetTestUtils writes lowercase column names)
-        assertThat(schema.containsField("cola")).isTrue();
-        assertThat(schema.containsField("colb")).isTrue();
+            ParquetMetadata metadata = MetadataReader.readFooter(dataSource);
+            MessageType schema = metadata.getFileMetaData().getSchema();
 
-        // Verify data is readable
-        ParquetReader reader = ParquetTestUtils.createParquetReader(
-                dataSource,
-                metadata,
-                types,
-                columnNames);
+            assertThat(schema.getFields()).hasSize(2);
+            // Verify columns are present (ParquetTestUtils writes lowercase column names)
+            assertThat(schema.containsField("cola")).isTrue();
+            assertThat(schema.containsField("colb")).isTrue();
 
-        int rowCount = 0;
-        SourcePage page = reader.nextPage();
-        while (page != null) {
-            rowCount += page.getPositionCount();
-            page = reader.nextPage();
+            // Verify data is readable
+            ParquetReader reader = ParquetTestUtils.createParquetReader(
+                    dataSource,
+                    metadata,
+                    types,
+                    columnNames);
+
+            int rowCount = 0;
+            SourcePage page = reader.nextPage();
+            while (page != null) {
+                rowCount += page.getPositionCount();
+                page = reader.nextPage();
+            }
+            assertThat(rowCount).isEqualTo(100);
         }
-        assertThat(rowCount).isEqualTo(100);
     }
 
     @Test
@@ -743,28 +753,28 @@ public class TestParquetFileFabricator
                 createColumn("b", 1, INTEGER),
                 createColumn("c", 2, VARCHAR));
 
-        FabricatedParquet fabricated = fabricateFile(parquetFile, requestedColumns);
+        try (FabricatedParquet fabricated = fabricateFile(parquetFile, requestedColumns)) {
+            // Verify fabricated file maintains all row groups
+            ParquetDataSource originalDataSource = createDataSource(wrappedBuffer(parquetFile.getBytes()));
+            ParquetMetadata originalMetadata = MetadataReader.readFooter(originalDataSource);
 
-        // Verify fabricated file maintains all row groups
-        ParquetDataSource originalDataSource = createDataSource(Slices.wrappedBuffer(parquetFile.getBytes()));
-        ParquetMetadata originalMetadata = MetadataReader.readFooter(originalDataSource);
+            ParquetDataSource fabricatedDataSource = createDataSource(fabricated.data().orElseThrow());
+            ParquetMetadata fabricatedMetadata = MetadataReader.readFooter(fabricatedDataSource);
 
-        ParquetDataSource fabricatedDataSource = createDataSource(fabricated.data().orElseThrow());
-        ParquetMetadata fabricatedMetadata = MetadataReader.readFooter(fabricatedDataSource);
+            // Verify we have multiple row groups
+            assertThat(fabricatedMetadata.getBlocks().size()).isGreaterThanOrEqualTo(3);
 
-        // Verify we have multiple row groups
-        assertThat(fabricatedMetadata.getBlocks().size()).isGreaterThanOrEqualTo(3);
+            // Verify row counts per row group match or are close
+            long originalRowCount = originalMetadata.getBlocks().stream()
+                    .mapToLong(BlockMetadata::rowCount)
+                    .sum();
+            long fabricatedRowCount = fabricatedMetadata.getBlocks().stream()
+                    .mapToLong(BlockMetadata::rowCount)
+                    .sum();
 
-        // Verify row counts per row group match or are close
-        long originalRowCount = originalMetadata.getBlocks().stream()
-                .mapToLong(BlockMetadata::rowCount)
-                .sum();
-        long fabricatedRowCount = fabricatedMetadata.getBlocks().stream()
-                .mapToLong(BlockMetadata::rowCount)
-                .sum();
-
-        assertThat(fabricated.rowCount()).isEqualTo(originalRowCount);
-        assertThat(fabricatedRowCount).isEqualTo(originalRowCount);
+            assertThat(fabricated.rowCount()).isEqualTo(originalRowCount);
+            assertThat(fabricatedRowCount).isEqualTo(originalRowCount);
+        }
     }
 
     private static List<Page> createTestPages(List<Type> types, int rowCount)
@@ -824,11 +834,24 @@ public class TestParquetFileFabricator
         return new Page(blocks.toArray(new Block[0]));
     }
 
+    private ParquetDataSource createDataSource(@Borrow BufferAndLength data)
+            throws IOException
+    {
+        return createDataSource(wrappedBuffer(getBytes(data)));
+    }
+
     private ParquetDataSource createDataSource(Slice data)
             throws IOException
     {
         TrinoInputFile inputFile = new MemoryInputFile(Location.of("memory:///fabricated.parquet"), data);
         return closer.register(new TrinoParquetDataSource(inputFile, ParquetReaderOptions.builder().build(), new FileFormatDataSourceStats()));
+    }
+
+    private static byte[] getBytes(@Borrow BufferAndLength data)
+    {
+        byte[] bytes = new byte[toIntExact(data.length())];
+        data.buffer().getBytes(bytes, 0, 0, data.length());
+        return bytes;
     }
 
     private static HiveColumnHandle createColumn(String name, int hiveColumnIndex, Type type)
