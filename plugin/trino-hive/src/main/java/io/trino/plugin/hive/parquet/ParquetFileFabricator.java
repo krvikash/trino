@@ -16,6 +16,8 @@ package io.trino.plugin.hive.parquet;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
+import io.airlift.slice.DynamicSliceOutput;
+import io.airlift.slice.Slice;
 import io.trino.parquet.DiskRange;
 import io.trino.parquet.ParquetDataSource;
 import io.trino.parquet.ParquetReaderOptions;
@@ -44,8 +46,8 @@ import org.apache.parquet.hadoop.metadata.ColumnPath;
 import org.apache.parquet.schema.MessageType;
 import org.joda.time.DateTimeZone;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -76,7 +78,7 @@ public class ParquetFileFabricator
      * Result of Parquet fabrication containing both the fabricated file bytes
      * and the total row count (after filtering).
      */
-    public record FabricatedParquet(Optional<byte[]> data, long rowCount)
+    public record FabricatedParquet(Optional<Slice> data, long rowCount)
     {
         public FabricatedParquet
         {
@@ -206,7 +208,8 @@ public class ParquetFileFabricator
             throws IOException
     {
         int estimatedSize = toIntExact(calculateFabricatedFileSize(rowGroups, clippedSchema));
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(estimatedSize);
+        // TODO we could write directly into HostMemoryBuffer, but there is no API to read from InputStream directly into HostMemoryBuffer
+        DynamicSliceOutput outputStream = new DynamicSliceOutput(estimatedSize);
 
         outputStream.write(PARQUET_MAGIC);
         long currentOffset = PARQUET_MAGIC_LENGTH;
@@ -229,9 +232,8 @@ public class ParquetFileFabricator
                 long chunkOffset = column.getStartingPos();
                 long chunkSize = column.getTotalSize();
 
-                byte[] chunkData = chunkStreams.get(chunkIndex++).readNBytes(toIntExact(chunkSize));
-                verify(chunkData.length == toIntExact(chunkSize), "Expected %s bytes but read %s", chunkSize, chunkData.length);
-                outputStream.write(chunkData);
+                ChunkedInputStream nextChunk = chunkStreams.get(chunkIndex++);
+                outputStream.writeBytes(nextChunk, toIntExact(chunkSize));
 
                 long offsetAdjustment = currentOffset - chunkOffset;
 
@@ -303,11 +305,11 @@ public class ParquetFileFabricator
 
         outputStream.write(PARQUET_MAGIC);
 
-        return new FabricatedParquet(Optional.of(outputStream.toByteArray()), totalRowCount);
+        return new FabricatedParquet(Optional.of(outputStream.slice()), totalRowCount);
     }
 
     private void writeFooter(
-            ByteArrayOutputStream outputStream,
+            OutputStream outputStream,
             List<RowGroup> rowGroups,
             MessageType schema,
             FileMetadata originalFileMetadata)

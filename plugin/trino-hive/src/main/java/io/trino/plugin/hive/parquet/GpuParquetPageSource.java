@@ -19,6 +19,7 @@ import ai.rapids.cudf.HostMemoryBuffer;
 import ai.rapids.cudf.ParquetOptions;
 import ai.rapids.cudf.Table;
 import com.google.common.base.Throwables;
+import io.airlift.slice.Slice;
 import io.trino.plugin.base.util.AutoCloseableCloser;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.spi.TrinoException;
@@ -117,11 +118,11 @@ public class GpuParquetPageSource
         }
         ParquetOptions options = optionsBuilder.build();
 
-        byte[] data = fabricatedParquet.data().orElseThrow(() -> new IllegalStateException("No fabricated Parquet data available"));
+        Slice data = fabricatedParquet.data().orElseThrow(() -> new IllegalStateException("No fabricated Parquet data available"));
 
         // Allocate host buffer and copy byte array data
-        try (HostMemoryBuffer hostBuffer = HostMemoryBuffer.allocate(data.length)) {
-            hostBuffer.setBytes(0, data, 0, data.length);
+        try (HostMemoryBuffer hostBuffer = HostMemoryBuffer.allocate(data.length())) {
+            hostBuffer.setBytes(0, data.byteArray(), data.byteArrayOffset(), data.length());
 
             // Read from fabricated buffer using cuDF
             try (Table table = Table.readParquet(options, hostBuffer)) {

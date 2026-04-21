@@ -337,12 +337,12 @@ public class TestParquetFileFabricator
 
         // Write to file and verify Trino can read it
         Path outputPath = tempDir.resolve("fabricated.parquet");
-        Files.write(outputPath, fabricated.data().orElseThrow());
+        Files.write(outputPath, fabricated.data().orElseThrow().getBytes());
 
         // Read using Trino's ParquetReader
         TrinoInputFile inputFile = new MemoryInputFile(
                 Location.of("memory:///fabricated.parquet"),
-                Slices.wrappedBuffer(fabricated.data().orElseThrow()));
+                fabricated.data().orElseThrow());
         ParquetDataSource dataSource = closer.register(new TrinoParquetDataSource(
                 inputFile,
                 ParquetReaderOptions.builder().build(),
@@ -746,7 +746,7 @@ public class TestParquetFileFabricator
         FabricatedParquet fabricated = fabricateFile(parquetFile, requestedColumns);
 
         // Verify fabricated file maintains all row groups
-        ParquetDataSource originalDataSource = createDataSource(parquetFile.getBytes());
+        ParquetDataSource originalDataSource = createDataSource(Slices.wrappedBuffer(parquetFile.getBytes()));
         ParquetMetadata originalMetadata = MetadataReader.readFooter(originalDataSource);
 
         ParquetDataSource fabricatedDataSource = createDataSource(fabricated.data().orElseThrow());
@@ -824,10 +824,10 @@ public class TestParquetFileFabricator
         return new Page(blocks.toArray(new Block[0]));
     }
 
-    private ParquetDataSource createDataSource(byte[] data)
+    private ParquetDataSource createDataSource(Slice data)
             throws IOException
     {
-        TrinoInputFile inputFile = new MemoryInputFile(Location.of("memory:///fabricated.parquet"), Slices.wrappedBuffer(data));
+        TrinoInputFile inputFile = new MemoryInputFile(Location.of("memory:///fabricated.parquet"), data);
         return closer.register(new TrinoParquetDataSource(inputFile, ParquetReaderOptions.builder().build(), new FileFormatDataSourceStats()));
     }
 
