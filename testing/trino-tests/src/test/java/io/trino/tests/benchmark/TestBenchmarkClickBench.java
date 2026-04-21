@@ -14,7 +14,6 @@
 package io.trino.tests.benchmark;
 
 import io.trino.testing.DistributedQueryRunner;
-import io.trino.testing.MaterializedResult;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.TestInstance;
@@ -34,25 +33,25 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 @Execution(SAME_THREAD) // Sequential execution to avoid memory pressure from concurrent queries, some queries are memory intensive
 public class TestBenchmarkClickBench
 {
-    private DistributedQueryRunner cpuRunner;
     private DistributedQueryRunner gpuRunner;
+    private DistributedQueryRunner cpuRunner;
 
     @BeforeAll
     public void setup()
             throws Exception
     {
-        cpuRunner = BenchmarkClickBench.setup(CPU, false);
         gpuRunner = BenchmarkClickBench.setup(GPU_TS, false);
+        cpuRunner = BenchmarkClickBench.setup(CPU, false);
     }
 
     @AfterAll
     public void teardown()
     {
-        if (cpuRunner != null) {
-            cpuRunner.close();
-        }
         if (gpuRunner != null) {
             gpuRunner.close();
+        }
+        if (cpuRunner != null) {
+            cpuRunner.close();
         }
     }
 
@@ -61,12 +60,8 @@ public class TestBenchmarkClickBench
     public void testGpuMatchesCpu(int queryNumber)
     {
         String query = BenchmarkClickBench.readQuery(queryNumber);
-
-        MaterializedResult cpuResult = cpuRunner.execute(cpuRunner.getDefaultSession(), query);
-        MaterializedResult gpuResult = gpuRunner.execute(gpuRunner.getDefaultSession(), query);
-
-        assertThat(gpuResult.getMaterializedRows())
-                .isEqualTo(cpuResult.getMaterializedRows());
+        assertThat(gpuRunner.execute(gpuRunner.getDefaultSession(), query).getMaterializedRows())
+                .isEqualTo(cpuRunner.execute(cpuRunner.getDefaultSession(), query).getMaterializedRows());
     }
 
     static IntStream queryNumbers()
