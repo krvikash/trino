@@ -10,7 +10,6 @@ from and write to HTTP APIs given an OpenAPI specification.
 |--------------------------------------|----------------------------------------------------------------------------------------------------------|
 | openapi.spec-location                | URL or filename containing the OpenAPI specification, either JSON or YAML                                |
 | openapi.base-uri                     | Base URL for the API, often includes API version                                                         |
-| openapi.max-requests-per-second      | Maximum HTTP requests per second executed from a single Trino node                                       |
 
 The connector is using the Airlift HTTP client, which can be configured with
 [additional

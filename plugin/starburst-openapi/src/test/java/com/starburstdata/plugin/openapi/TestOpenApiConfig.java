@@ -29,8 +29,7 @@ final class TestOpenApiConfig
     {
         assertRecordedDefaults(recordDefaults(OpenApiConfig.class)
                 .setSpecLocation(null)
-                .setBaseUri(null)
-                .setMaxRequestsPerSecond(Double.MAX_VALUE));
+                .setBaseUri(null));
     }
 
     @Test

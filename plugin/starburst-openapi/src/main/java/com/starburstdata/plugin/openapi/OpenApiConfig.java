@@ -15,16 +15,16 @@ package com.starburstdata.plugin.openapi;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.configuration.DefunctConfig;
 import jakarta.validation.constraints.NotNull;
 
 import java.net.URI;
 
+@DefunctConfig("openapi.max-requests-per-second")
 public class OpenApiConfig
 {
     private String specLocation;
     private URI baseUri;
-
-    private double maxRequestsPerSecond = Double.MAX_VALUE;
 
     @NotNull
     public String getSpecLocation()
@@ -51,18 +51,6 @@ public class OpenApiConfig
     public OpenApiConfig setBaseUri(URI baseUri)
     {
         this.baseUri = baseUri;
-        return this;
-    }
-
-    public double getMaxRequestsPerSecond()
-    {
-        return maxRequestsPerSecond;
-    }
-
-    @Config("openapi.max-requests-per-second")
-    public OpenApiConfig setMaxRequestsPerSecond(double maxRequestsPerSecond)
-    {
-        this.maxRequestsPerSecond = maxRequestsPerSecond;
         return this;
     }
 }
