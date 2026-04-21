@@ -202,28 +202,28 @@ public class IcebergSplitManager
         // ensure cache id generation is revisited whenever handle classes change
         icebergSplit = new IcebergSplit(
                 // database and table names are already part of table id
-                icebergSplit.getPath(),
-                icebergSplit.getStart(),
-                icebergSplit.getLength(),
-                icebergSplit.getFileSize(),
-                icebergSplit.getFileRecordCount(),
-                icebergSplit.getFileFormat(),
-                icebergSplit.getSpecId(),
-                icebergSplit.getSortOrderId(),
-                icebergSplit.getPartitionValues(),
-                icebergSplit.getDeletes(),
+                icebergSplit.path(),
+                icebergSplit.start(),
+                icebergSplit.length(),
+                icebergSplit.fileSize(),
+                icebergSplit.fileRecordCount(),
+                icebergSplit.fileFormat(),
+                icebergSplit.specId(),
+                icebergSplit.sortOrderId(),
+                icebergSplit.partitionValues(),
+                icebergSplit.deletes(),
                 // weight does not impact split rows
                 SplitWeight.standard(),
-                icebergSplit.getFileStatisticsDomain(),
-                icebergSplit.getAffinityKey(),
-                icebergSplit.getDataSequenceNumber(),
-                icebergSplit.getFileFirstRowId());
+                icebergSplit.fileStatisticsDomain(),
+                icebergSplit.affinityKey(),
+                icebergSplit.dataSequenceNumber(),
+                icebergSplit.fileFirstRowId());
 
         return Optional.of(new CacheSplitId(splitIdCodec.toJson(new IcebergCacheSplitId(
-                icebergSplit.getPath(),
-                icebergSplit.getStart(),
-                icebergSplit.getLength(),
-                icebergSplit.getFileSize(),
-                icebergSplit.getDeletes()))));
+                icebergSplit.path(),
+                icebergSplit.start(),
+                icebergSplit.length(),
+                icebergSplit.fileSize(),
+                icebergSplit.deletes()))));
     }
 }

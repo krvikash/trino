@@ -155,21 +155,21 @@ public class IcebergProxiedConnectorTransformer
     public ConnectorSplit createProxiedConnectorNonFilteredSplit(ConnectorSplit connectorSplit)
     {
         IcebergSplit original = (IcebergSplit) connectorSplit;
-        return new IcebergSplit(original.getPath(),
-                original.getStart(),
-                original.getLength(),
-                original.getFileSize(),
-                original.getFileRecordCount(),
-                original.getFileFormat(),
-                original.getSpecId(),
-                original.getSortOrderId(),
-                original.getPartitionValues(),
-                original.getDeletes(),
+        return new IcebergSplit(original.path(),
+                original.start(),
+                original.length(),
+                original.fileSize(),
+                original.fileRecordCount(),
+                original.fileFormat(),
+                original.specId(),
+                original.sortOrderId(),
+                original.partitionValues(),
+                original.deletes(),
                 original.getSplitWeight(),
                 TupleDomain.all(),
-                original.getAffinityKey(),
-                original.getDataSequenceNumber(),
-                original.getFileFirstRowId());
+                original.affinityKey(),
+                original.dataSequenceNumber(),
+                original.fileFirstRowId());
     }
 
     @Override
@@ -194,7 +194,7 @@ public class IcebergProxiedConnectorTransformer
     private List<PartitionKey> getPartitionKeysMap(IcebergSplit icebergSplit, IcebergTableHandle icebergTableHandle)
     {
         Schema tableSchema = SchemaParser.fromJson(icebergTableHandle.getTableSchemaJson());
-        String partitionSpecJson = icebergTableHandle.getPartitionSpecJsons().get(icebergSplit.getSpecId());
+        String partitionSpecJson = icebergTableHandle.getPartitionSpecJsons().get(icebergSplit.specId());
         PartitionSpec partitionSpec = PartitionSpecParser.fromJson(tableSchema, partitionSpecJson);
         Map<Integer, Pair<String, org.apache.iceberg.types.Type>> columnIdToName = partitionSpec.fields().stream()
                 .filter(partitionField -> partitionField.transform().isIdentity())
@@ -202,7 +202,7 @@ public class IcebergProxiedConnectorTransformer
         org.apache.iceberg.types.Type[] partitionColumnTypes = partitionSpec.fields().stream()
                 .map(field -> field.transform().getResultType(tableSchema.findType(field.sourceId())))
                 .toArray(org.apache.iceberg.types.Type[]::new);
-        PartitionData partitionData = PartitionData.fromBlocks(icebergSplit.getPartitionValues(), partitionColumnTypes, typeManager);
+        PartitionData partitionData = PartitionData.fromBlocks(icebergSplit.partitionValues(), partitionColumnTypes, typeManager);
         Map<Integer, Optional<String>> partitionKeys = IcebergUtil.getPartitionKeys(partitionData, partitionSpec);
 
         List<PartitionKey> result = new ArrayList<>();
@@ -241,7 +241,7 @@ public class IcebergProxiedConnectorTransformer
         IcebergSplit icebergSplit = (IcebergSplit) proxyConnectorSplit;
 
         List<HostAddress> hostAddresses = getHostAddressForSplit(
-                getSplitKey(icebergSplit.getPath(), icebergSplit.getStart(), icebergSplit.getLength()),
+                getSplitKey(icebergSplit.path(), icebergSplit.start(), icebergSplit.length()),
                 connectorSplitNodeDistributor);
 
         List<PartitionKey> partitionKeyMap = getPartitionKeysMap(icebergSplit,
@@ -249,14 +249,14 @@ public class IcebergProxiedConnectorTransformer
 
         String snapshotIdStr = proxiedConnectorConfig.getEnableIcebergSnapshotIdUniqueness() ? String.valueOf(((IcebergTableHandle) dispatcherTableHandle.getProxyConnectorTableHandle()).getSnapshotId().orElse(-1L)) : "";
         String deletedFilesHash = Hashing.sha256()
-                .hashString(icebergSplit.getDeletes().stream().map(DeleteFile::path).sorted().collect(Collectors.joining()), StandardCharsets.UTF_8).toString() + snapshotIdStr;
+                .hashString(icebergSplit.deletes().stream().map(DeleteFile::path).sorted().collect(Collectors.joining()), StandardCharsets.UTF_8).toString() + snapshotIdStr;
 
         return new DispatcherSplit(dispatcherTableHandle.getSchemaName(),
                 dispatcherTableHandle.getTableName(),
-                icebergSplit.getPath(),
-                icebergSplit.getStart(),
-                icebergSplit.getLength(),
-                Objects.hash(icebergSplit.getFileSize(), icebergSplit.getFileRecordCount()), // iceberg split doesn't have modification time. using these 2 parameters as additional uniqueness parameters
+                icebergSplit.path(),
+                icebergSplit.start(),
+                icebergSplit.length(),
+                Objects.hash(icebergSplit.fileSize(), icebergSplit.fileRecordCount()), // iceberg split doesn't have modification time. using these 2 parameters as additional uniqueness parameters
                 hostAddresses,
                 partitionKeyMap,
                 deletedFilesHash,
@@ -276,13 +276,13 @@ public class IcebergProxiedConnectorTransformer
     public Optional<Long> getRowCount(ConnectorSplit connectorSplit)
     {
         IcebergSplit icebergSplit = (IcebergSplit) connectorSplit;
-        return Optional.of(icebergSplit.getFileRecordCount());
+        return Optional.of(icebergSplit.fileRecordCount());
     }
 
     @Override
     public long getDeletedRowsCount(ConnectorSplit connectorSplit)
     {
         IcebergSplit icebergSplit = (IcebergSplit) connectorSplit;
-        return icebergSplit.getDeletes().stream().mapToLong(DeleteFile::recordCount).sum();
+        return icebergSplit.deletes().stream().mapToLong(DeleteFile::recordCount).sum();
     }
 }

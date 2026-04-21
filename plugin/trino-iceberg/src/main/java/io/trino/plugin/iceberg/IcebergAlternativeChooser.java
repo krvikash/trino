@@ -40,7 +40,7 @@ public class IcebergAlternativeChooser
             ConnectorSplit split,
             List<ConnectorTableHandle> alternatives)
     {
-        int splitSortOrderId = ((IcebergSplit) split).getSortOrderId();
+        int splitSortOrderId = ((IcebergSplit) split).sortOrderId();
         if (splitSortOrderId != SortOrder.unsorted().orderId()) {
             for (int i = 1; i < alternatives.size(); i++) {
                 IcebergTableHandle tableHandle = (IcebergTableHandle) alternatives.get(i);
