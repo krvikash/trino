@@ -21,6 +21,12 @@ public class ApiKeyAuthenticatorConfig
     private SecurityScheme.In in;
     private String name;
 
+    @NotNull
+    public String getSecret()
+    {
+        return secret;
+    }
+
     @Config("openapi.security-scheme.secret")
     @ConfigDescription("The API-key secret of an api-key security scheme.")
     @ConfigSecuritySensitive
@@ -31,9 +37,9 @@ public class ApiKeyAuthenticatorConfig
     }
 
     @NotNull
-    public String getSecret()
+    public SecurityScheme.In getIn()
     {
-        return secret;
+        return in;
     }
 
     @Config("openapi.security-scheme.in")
@@ -45,9 +51,9 @@ public class ApiKeyAuthenticatorConfig
     }
 
     @NotNull
-    public SecurityScheme.In getIn()
+    public String getName()
     {
-        return in;
+        return name;
     }
 
     @Config("openapi.security-scheme.name")
@@ -56,11 +62,5 @@ public class ApiKeyAuthenticatorConfig
     {
         this.name = name;
         return this;
-    }
-
-    @NotNull
-    public String getName()
-    {
-        return name;
     }
 }

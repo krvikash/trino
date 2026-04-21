@@ -25,6 +25,12 @@ public class Oauth2AuthenticatorConfig
     private URI tokenUrl;
     private Set<String> scopes;
 
+    @NotNull
+    public String getClientId()
+    {
+        return clientId;
+    }
+
     @Config("openapi.security-scheme.client-id")
     @ConfigDescription("The client-id for a client-credentials flow in an oauth2 security scheme.")
     public Oauth2AuthenticatorConfig setClientId(String clientId)
@@ -33,17 +39,17 @@ public class Oauth2AuthenticatorConfig
         return this;
     }
 
-    @NotNull
-    public String getClientId()
-    {
-        return clientId;
-    }
-
     @SuppressWarnings("unused")
     @AssertTrue(message = "Client-id cannot use : character.")
     public boolean isClientIdValid()
     {
         return clientId == null || !clientId.contains(":");
+    }
+
+    @NotNull
+    public String getClientSecret()
+    {
+        return clientSecret;
     }
 
     @Config("openapi.security-scheme.client-secret")
@@ -56,9 +62,9 @@ public class Oauth2AuthenticatorConfig
     }
 
     @NotNull
-    public String getClientSecret()
+    public URI getTokenUrl()
     {
-        return clientSecret;
+        return tokenUrl;
     }
 
     @Config("openapi.security-scheme.token-url")
@@ -69,10 +75,9 @@ public class Oauth2AuthenticatorConfig
         return this;
     }
 
-    @NotNull
-    public URI getTokenUrl()
+    public Set<String> getScopes()
     {
-        return tokenUrl;
+        return scopes;
     }
 
     @Config("openapi.security-scheme.scopes")
@@ -81,11 +86,6 @@ public class Oauth2AuthenticatorConfig
     {
         this.scopes = scopes;
         return this;
-    }
-
-    public Set<String> getScopes()
-    {
-        return scopes;
     }
 
     @SuppressWarnings("unused")

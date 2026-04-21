@@ -15,15 +15,15 @@ import jakarta.validation.constraints.NotNull;
 
 public class AuthenticatorTypeConfig
 {
-    private AuthenticatorType type = AuthenticatorType.NONE;
-
-    @Config("openapi.security-scheme.type")
-    @ConfigDescription("The type of a configuration-defined security scheme to apply to requests.")
-    public AuthenticatorTypeConfig setType(AuthenticatorType type)
+    public enum AuthenticatorType
     {
-        this.type = type;
-        return this;
+        NONE,
+        APIKEY,
+        OAUTH2,
+        /**/
     }
+
+    private AuthenticatorType type = AuthenticatorType.NONE;
 
     @NotNull
     public AuthenticatorType getType()
@@ -31,11 +31,11 @@ public class AuthenticatorTypeConfig
         return type;
     }
 
-    public enum AuthenticatorType
+    @Config("openapi.security-scheme.type")
+    @ConfigDescription("The type of a configuration-defined security scheme to apply to requests.")
+    public AuthenticatorTypeConfig setType(AuthenticatorType type)
     {
-        NONE,
-        APIKEY,
-        OAUTH2,
-        /**/
+        this.type = type;
+        return this;
     }
 }
