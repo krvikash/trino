@@ -129,6 +129,7 @@ import io.trino.operator.gpu.GpuFilter;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuOperator;
 import io.trino.operator.gpu.GpuProject;
+import io.trino.operator.gpu.GpuTopN;
 import io.trino.operator.gpu.aggregation.GpuAggregationCompiler;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GpuExpressionCompiler;
@@ -1992,6 +1993,11 @@ public class LocalExecutionPlanner
         {
             PhysicalOperation source = node.getSource().accept(this, context);
 
+            Optional<PhysicalOperation> gpuOperation = tryPlanGpuTopN(node, source, context);
+            if (gpuOperation.isPresent()) {
+                return gpuOperation.get();
+            }
+
             List<Symbol> orderBySymbols = node.getOrderingScheme().orderBy();
 
             List<Type> sortTypes = new ArrayList<>();
@@ -2012,6 +2018,35 @@ public class LocalExecutionPlanner
                     orderingCompiler.compilePageWithPositionComparator(sortTypes, sortChannels, sortOrders));
 
             return new PhysicalOperation(operator, source.getLayout(), source);
+        }
+
+        private Optional<PhysicalOperation> tryPlanGpuTopN(TopNNode node, PhysicalOperation source, LocalExecutionPlanContext context)
+        {
+            if (!isGpuAccelerationEnabled(session) || !source.getTypes().stream().allMatch(GpuTypeConversion::isConvertible)) {
+                return Optional.empty();
+            }
+
+            Map<Symbol, Integer> sourceLayout = source.getLayout();
+            List<Symbol> orderBySymbols = node.getOrderingScheme().orderBy();
+
+            int[] sortChannels = new int[orderBySymbols.size()];
+            ImmutableList.Builder<SortOrder> sortOrders = ImmutableList.builder();
+
+            for (int i = 0; i < orderBySymbols.size(); i++) {
+                Symbol symbol = orderBySymbols.get(i);
+                sortChannels[i] = sourceLayout.get(symbol);
+                sortOrders.add(node.getOrderingScheme().ordering(symbol));
+            }
+
+            GpuTopN.Factory gpuTopN = new GpuTopN.Factory((int) node.getCount(), sortChannels, sortOrders.build());
+
+            return Optional.of(addGpuOperation(
+                    gpuTopN,
+                    source.getTypes(),
+                    source,
+                    source.getLayout(),
+                    context,
+                    node.getId()));
         }
 
         @Override
