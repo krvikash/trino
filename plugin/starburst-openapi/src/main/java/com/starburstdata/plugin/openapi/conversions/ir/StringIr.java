@@ -15,7 +15,8 @@ package com.starburstdata.plugin.openapi.conversions.ir;
 public record StringIr(Format format)
         implements LeafIr
 {
-    public enum Format {
+    public enum Format
+    {
         NONE,
         BYTE, // B64 https://spec.openapis.org/registry/format/byte.html
         UUID, // https://spec.openapis.org/registry/format/uuid.html

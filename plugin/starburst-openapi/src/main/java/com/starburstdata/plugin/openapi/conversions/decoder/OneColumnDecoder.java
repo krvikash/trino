@@ -60,7 +60,8 @@ public class OneColumnDecoder
             return singletonIterator(SourcePage.create(expectedRowCount));
         }
         PageBuilder pageBuilder = new PageBuilder(Collections.nCopies(columnHandles.size(), columnWriter.getType()));
-        return new PageByRowIterator(rowSplitter.rowIterator(root), pageBuilder) {
+        return new PageByRowIterator(rowSplitter.rowIterator(root), pageBuilder)
+        {
             @Override
             void writeToPageBuilder(JsonNode row, PageBuilder pageBuilder)
             {

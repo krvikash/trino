@@ -47,7 +47,8 @@ public class TestOpenApiParseOptions
     private static String exfiltrationSpecificationLocation;
 
     @BeforeAll
-    static void setUp() throws Exception
+    static void setUp()
+            throws Exception
     {
         Bootstrap app = new Bootstrap(
                 new TestingNodeModule(),

@@ -11,9 +11,11 @@ package com.starburstdata.plugin.openapi;
 
 import io.trino.spi.connector.ConnectorSplit;
 
-public enum OpenApiRequestSplit implements ConnectorSplit
+public enum OpenApiRequestSplit
+        implements ConnectorSplit
 {
     INSTANCE;
+
     @Override
     public long getRetainedSizeInBytes()
     {

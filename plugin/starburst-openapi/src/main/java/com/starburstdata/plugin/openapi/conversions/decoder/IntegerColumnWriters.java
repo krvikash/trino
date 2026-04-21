@@ -23,7 +23,8 @@ import static io.trino.spi.type.IntegerType.INTEGER;
 
 public final class IntegerColumnWriters
 {
-    public static final ColumnWriter INT32_COLUMN_WRITER = new AbstractColumnWriter(INTEGER, NUMBER) {
+    public static final ColumnWriter INT32_COLUMN_WRITER = new AbstractColumnWriter(INTEGER, NUMBER)
+    {
         @Override
         public String toString()
         {

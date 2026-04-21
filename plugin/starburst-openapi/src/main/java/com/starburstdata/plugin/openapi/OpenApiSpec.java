@@ -193,11 +193,11 @@ public class OpenApiSpec
                 pathMetadataBuilder.put(
                         path,
                         new PathMetadata(
-                            identifier,
-                            decoder,
-                            identifierToParameterHandleBuilder.buildOrThrow(),
-                            READ_ONCE_STRATEGY,
-                            authenticator));
+                                identifier,
+                                decoder,
+                                identifierToParameterHandleBuilder.buildOrThrow(),
+                                READ_ONCE_STRATEGY,
+                                authenticator));
             }
             catch (Exception e) {
                 exceptionsBuilder.add(new RuntimeException(

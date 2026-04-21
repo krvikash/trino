@@ -274,7 +274,7 @@ public class TestOpenApiWithTypesServer
     {
         assertThat(query("SELECT * FROM TABLE(openapi.default.object_map_valid())"))
                 .matches("""
-                    VALUES MAP(CAST(ARRAY['valid', 'also_valid', 'also_also_valid'] AS ARRAY<VARCHAR>), ARRAY[TRUE, FALSE, NULL])""");
+                        VALUES MAP(CAST(ARRAY['valid', 'also_valid', 'also_also_valid'] AS ARRAY<VARCHAR>), ARRAY[TRUE, FALSE, NULL])""");
     }
 
     @Test

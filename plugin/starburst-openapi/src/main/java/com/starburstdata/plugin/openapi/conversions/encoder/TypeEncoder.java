@@ -43,8 +43,7 @@ public interface TypeEncoder
     static TypeEncoder from(SchemaIr schemaIr)
     {
         return switch (schemaIr) {
-            case ArrayIr(LeafIr leafIr) ->
-                    new ListTypeEncoder(LeafTypeEncoder.from(leafIr));
+            case ArrayIr(LeafIr leafIr) -> new ListTypeEncoder(LeafTypeEncoder.from(leafIr));
             case ArrayIr _ -> throw new TrinoException(
                     OPENAPI_UNSUPPORTED_PARAMETER,
                     "Cannot create a parameter from an array of a non-primitive type (supported string/number format or boolean)");

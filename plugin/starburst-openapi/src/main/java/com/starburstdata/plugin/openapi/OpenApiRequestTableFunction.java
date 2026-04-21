@@ -139,10 +139,9 @@ class OpenApiRequestTableFunction
                 case SerializedString(String string) -> {
                     switch (parameterHandle.parameterStyle()) {
                         case ParameterStyle.SIMPLE_PATH -> pathParameterToValueBuilder.put(name, string);
-                        case ParameterStyle.FORM_EXPLODED_QUERY, ParameterStyle.FORM_UNEXPLODED_QUERY ->
-                            queryParameterValuesBuilder.put(
-                                    name,
-                                    urlFormParameterEscaper().escape(string));
+                        case ParameterStyle.FORM_EXPLODED_QUERY, ParameterStyle.FORM_UNEXPLODED_QUERY -> queryParameterValuesBuilder.put(
+                                name,
+                                urlFormParameterEscaper().escape(string));
                     }
                 }
                 case SerializedList(List<String> values) -> {
@@ -151,10 +150,9 @@ class OpenApiRequestTableFunction
                                 "Unexpectedly serializing a non-string value to path parameter '%s'".formatted(name));
                         case ParameterStyle.FORM_EXPLODED_QUERY -> values.forEach(string ->
                                 queryParameterValuesBuilder.put(name, urlFormParameterEscaper().escape(string)));
-                        case ParameterStyle.FORM_UNEXPLODED_QUERY ->
-                                queryParameterValuesBuilder.put(
-                                        name,
-                                        join(",", Lists.transform(values, urlFormParameterEscaper()::escape)));
+                        case ParameterStyle.FORM_UNEXPLODED_QUERY -> queryParameterValuesBuilder.put(
+                                name,
+                                join(",", Lists.transform(values, urlFormParameterEscaper()::escape)));
                     }
                 }
             }

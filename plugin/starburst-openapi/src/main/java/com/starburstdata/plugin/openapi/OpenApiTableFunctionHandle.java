@@ -11,6 +11,7 @@ package com.starburstdata.plugin.openapi;
 
 import io.trino.spi.function.table.ConnectorTableFunctionHandle;
 
-public record OpenApiTableFunctionHandle(OpenApiRequestTableHandle requestHandle) implements ConnectorTableFunctionHandle
+public record OpenApiTableFunctionHandle(OpenApiRequestTableHandle requestHandle)
+        implements ConnectorTableFunctionHandle
 {
 }

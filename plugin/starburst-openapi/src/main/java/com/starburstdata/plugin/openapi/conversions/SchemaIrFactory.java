@@ -64,7 +64,8 @@ public class SchemaIrFactory
         this.referenceableSchemas = requireNonNull(referenceableSchemas, "referenceableSchemas is null");
     }
 
-    public enum CastPolicy {
+    public enum CastPolicy
+    {
         DROP,
         ERROR,
         JSON,
@@ -91,10 +92,10 @@ public class SchemaIrFactory
         // example, deprecated, x-[EXTENSIONS]
 
         List<String> unsupportedBooleanKeywords = Stream.<Optional<String>>of(
-                schema.getAllOf() != null ? Optional.of("allOf") : Optional.empty(),
-                schema.getOneOf() != null ? Optional.of("oneOf") : Optional.empty(),
-                schema.getAnyOf() != null ? Optional.of("anyOf") : Optional.empty(),
-                schema.getNot() != null ? Optional.of("not") : Optional.empty())
+                        schema.getAllOf() != null ? Optional.of("allOf") : Optional.empty(),
+                        schema.getOneOf() != null ? Optional.of("oneOf") : Optional.empty(),
+                        schema.getAnyOf() != null ? Optional.of("anyOf") : Optional.empty(),
+                        schema.getNot() != null ? Optional.of("not") : Optional.empty())
                 .flatMap(Optional::stream)
                 .collect(toImmutableList());
 

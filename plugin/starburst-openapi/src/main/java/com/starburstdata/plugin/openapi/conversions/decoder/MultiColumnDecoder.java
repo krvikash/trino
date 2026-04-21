@@ -101,7 +101,8 @@ public class MultiColumnDecoder
                 columnWriters.stream()
                         .map(ColumnWriter::getType)
                         .collect(toImmutableList()));
-        return new PageByRowIterator(rowSplitter.rowIterator(root), pageBuilder) {
+        return new PageByRowIterator(rowSplitter.rowIterator(root), pageBuilder)
+        {
             @Override
             void writeToPageBuilder(JsonNode row, PageBuilder pageBuilder)
             {
@@ -109,7 +110,7 @@ public class MultiColumnDecoder
                     throw new TrinoException(
                             OPENAPI_UNEXPECTED_RESPONSE_SCHEMA,
                             "Expected JSON OBJECT but was %s".formatted(
-                            row.getNodeType().name()));
+                                    row.getNodeType().name()));
                 }
                 for (int channel = 0; channel < columnHandles.size(); channel++) {
                     BlockBuilder blockBuilder = pageBuilder.getBlockBuilder(channel);

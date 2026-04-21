@@ -178,7 +178,8 @@ public class TestOpenApiWithOAuth2Server
                     .setHeader(AUTHORIZATION, "Basic " + credentials)
                     .setHeader(CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED)
                     .build();
-            return httpClient.execute(request, new ResponseHandler<>() {
+            return httpClient.execute(request, new ResponseHandler<>()
+            {
                 @Override
                 public Boolean handleException(Request request, Exception exception)
                 {
