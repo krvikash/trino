@@ -18,6 +18,8 @@ import ai.rapids.cudf.DType;
 import ai.rapids.cudf.ParquetOptions;
 import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.Table;
+import io.trino.operator.gpu.GpuConfig;
+import io.trino.operator.gpu.GpuConfigurer;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -52,6 +54,8 @@ public class ClickBenchQ06TableScanCudfPure
     {
         System.out.println("WARMUPS = " + WARMUPS);
         System.out.println("MEASURED = " + MEASURED);
+
+        new GpuConfigurer(new GpuConfig()); // apply *our* defaults, they make this run faster
 
         for (int i = 0; i < WARMUPS; i++) {
             run();

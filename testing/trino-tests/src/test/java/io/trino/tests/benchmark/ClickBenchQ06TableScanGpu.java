@@ -22,6 +22,8 @@ import io.trino.filesystem.FileIterator;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.local.LocalFileSystem;
+import io.trino.operator.gpu.GpuConfig;
+import io.trino.operator.gpu.GpuConfigurer;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.plugin.hive.HiveConfig;
 import io.trino.plugin.hive.HivePageSourceProvider;
@@ -69,6 +71,8 @@ public class ClickBenchQ06TableScanGpu
         System.out.println("WARMUPS = " + WARMUPS);
         System.out.println("MEASURED = " + MEASURED);
         System.out.println("SPLIT_SIZE = " + SPLIT_SIZE + " " + DataSize.ofBytes(SPLIT_SIZE).succinct());
+
+        new GpuConfigurer(new GpuConfig()); // apply defaults
 
         for (int i = 0; i < WARMUPS; i++) {
             run();

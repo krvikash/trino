@@ -98,6 +98,8 @@ import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.PagesIndex;
 import io.trino.operator.PagesIndexPageSorter;
 import io.trino.operator.RetryPolicy;
+import io.trino.operator.gpu.GpuConfig;
+import io.trino.operator.gpu.GpuConfigurer;
 import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.index.IndexJoinLookupStats;
 import io.trino.operator.index.IndexManager;
@@ -303,6 +305,10 @@ public class ServerMainModule
         binder.bind(PageFunctionCompiler.class).in(Scopes.SINGLETON);
         newExporter(binder).export(PageFunctionCompiler.class).withGeneratedName();
         binder.bind(GpuExpressionCompiler.class).in(Scopes.SINGLETON);
+        if (buildConfigObject(FeaturesConfig.class).isGpuAccelerationEnabled()) {
+            configBinder(binder).bindConfig(GpuConfig.class);
+            binder.bind(GpuConfigurer.class).asEagerSingleton();
+        }
         binder.bind(ColumnarFilterCompiler.class).in(Scopes.SINGLETON);
         newExporter(binder).export(ColumnarFilterCompiler.class).withGeneratedName();
         NodeSchedulerConfig nodeSchedulerConfig = buildConfigObject(NodeSchedulerConfig.class);

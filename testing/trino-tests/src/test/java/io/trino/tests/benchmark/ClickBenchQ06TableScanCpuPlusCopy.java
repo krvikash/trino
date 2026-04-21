@@ -24,6 +24,8 @@ import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.local.LocalFileSystem;
 import io.trino.operator.gpu.BufferPages;
 import io.trino.operator.gpu.CopyToDevice;
+import io.trino.operator.gpu.GpuConfig;
+import io.trino.operator.gpu.GpuConfigurer;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuOperation.Blocked;
 import io.trino.operator.gpu.GpuOperation.Result;
@@ -78,6 +80,8 @@ public class ClickBenchQ06TableScanCpuPlusCopy
         System.out.println("WARMUPS = " + WARMUPS);
         System.out.println("MEASURED = " + MEASURED);
         System.out.println("SPLIT_SIZE = " + SPLIT_SIZE + " " + DataSize.ofBytes(SPLIT_SIZE).succinct());
+
+        new GpuConfigurer(new GpuConfig()); // apply defaults
 
         for (int i = 0; i < WARMUPS; i++) {
             run();
