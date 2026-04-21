@@ -18,6 +18,7 @@ import io.trino.testing.MaterializedResult;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -27,8 +28,10 @@ import static io.trino.tests.benchmark.BenchmarkClickBench.ExecutionMode.CPU;
 import static io.trino.tests.benchmark.BenchmarkClickBench.ExecutionMode.GPU_TS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
-@TestInstance(PER_CLASS) // Sequential execution (PER_CLASS) to avoid GPU memory pressure from concurrent queries
+@TestInstance(PER_CLASS)
+@Execution(SAME_THREAD) // Sequential execution to avoid memory pressure from concurrent queries, some queries are memory intensive
 public class TestBenchmarkClickBench
 {
     private DistributedQueryRunner cpuRunner;
