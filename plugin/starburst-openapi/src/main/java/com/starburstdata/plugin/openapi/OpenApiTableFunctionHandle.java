@@ -11,7 +11,13 @@ package com.starburstdata.plugin.openapi;
 
 import io.trino.spi.function.table.ConnectorTableFunctionHandle;
 
+import static java.util.Objects.requireNonNull;
+
 public record OpenApiTableFunctionHandle(OpenApiRequestTableHandle requestHandle)
         implements ConnectorTableFunctionHandle
 {
+    public OpenApiTableFunctionHandle
+    {
+        requireNonNull(requestHandle, "requestHandle is null");
+    }
 }

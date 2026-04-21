@@ -13,7 +13,14 @@ import io.trino.spi.connector.ConnectorTableHandle;
 
 import java.net.URI;
 
+import static java.util.Objects.requireNonNull;
+
 public record OpenApiRequestTableHandle(String path, URI uri)
         implements ConnectorTableHandle
 {
+    public OpenApiRequestTableHandle
+    {
+        requireNonNull(path, "path is null");
+        requireNonNull(uri, "uri is null");
+    }
 }
