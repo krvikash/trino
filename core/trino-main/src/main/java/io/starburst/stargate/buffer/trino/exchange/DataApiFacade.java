@@ -32,6 +32,7 @@ import dev.failsafe.RetryPolicy;
 import io.airlift.concurrent.MoreFutures;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
+import io.airlift.stats.DistributionStat;
 import io.airlift.units.Duration;
 import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.BufferNodeInfo;
@@ -46,6 +47,8 @@ import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.client.RateLimitInfo;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import org.weakref.jmx.Managed;
+import org.weakref.jmx.Nested;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -90,6 +93,7 @@ public class DataApiFacade
     private static final RateLimitingLogger rateLimitingLogger = new RateLimitingLogger(log, ENABLE_LOG_RATE_LIMITING);
 
     private static final Duration CLEANUP_DELAY = succinctDuration(5, TimeUnit.SECONDS);
+    private static final Duration STATS_UPDATE_INTERVAL = succinctDuration(5, TimeUnit.SECONDS);
     private static final Duration PROCESS_PENDING_REQUESTS_INTERVAL = succinctDuration(10, TimeUnit.SECONDS);
 
     private final BufferNodeDiscoveryManager discoveryManager;
@@ -110,6 +114,10 @@ public class DataApiFacade
     private final int maxConcurrentAddDataPagesPerNode;
     private final AddDataPagesStatsUpdater addDataPagesStatsUpdater;
     private final Map<Long, AddDataPagesProcessingState> addDataPagesProcessingStates = new ConcurrentHashMap<>();
+
+    private final DistributionStat pendingRequestsPerNodeDistribution = new DistributionStat();
+    private final DistributionStat inFlightRequestsPerNodeDistribution = new DistributionStat();
+    private final DistributionStat backoffRequestsPerNodeDistribution = new DistributionStat();
 
     record RetryExecutorConfig(
             int maxRetries,
@@ -195,6 +203,16 @@ public class DataApiFacade
         }, CLEANUP_DELAY.toMillis(), CLEANUP_DELAY.toMillis(), MILLISECONDS);
         destroyCloser.register(() -> cleanupFuture.cancel(true));
 
+        ScheduledFuture<?> statsFuture = this.executor.scheduleWithFixedDelay(() -> {
+            try {
+                updateDistributionStats();
+            }
+            catch (Exception e) {
+                log.error(e, "Unexpected error caught in updateDistributionStats");
+            }
+        }, STATS_UPDATE_INTERVAL.toMillis(), STATS_UPDATE_INTERVAL.toMillis(), MILLISECONDS);
+        destroyCloser.register(() -> statsFuture.cancel(true));
+
         ScheduledFuture<?> processPendingFuture = this.executor.scheduleWithFixedDelay(() -> {
             try {
                 scheduleProcessAddDataPages();
@@ -244,6 +262,76 @@ public class DataApiFacade
         catch (IOException e) {
             log.error(e, "Unexpected error in destroy");
         }
+    }
+
+    @Managed
+    public int getActiveDataNodeCount()
+    {
+        return (int) addDataPagesProcessingStates.values().stream()
+                .filter(state -> !state.draining.get())
+                .count();
+    }
+
+    @Managed
+    public int getDrainingDataNodeCount()
+    {
+        return (int) addDataPagesProcessingStates.values().stream()
+                .filter(state -> state.draining.get())
+                .count();
+    }
+
+    @Managed
+    public int getTotalPendingRequests()
+    {
+        return addDataPagesProcessingStates.values().stream()
+                .mapToInt(state -> state.activeRequests.size())
+                .sum();
+    }
+
+    @Managed
+    public int getTotalInFlightRequests()
+    {
+        return addDataPagesProcessingStates.values().stream()
+                .mapToInt(state -> state.inFlightRequests.get())
+                .sum();
+    }
+
+    @Managed
+    public int getTotalBackoffRequests()
+    {
+        return addDataPagesProcessingStates.values().stream()
+                .mapToInt(state -> state.backoffRequests.size())
+                .sum();
+    }
+
+    @Managed
+    @Nested
+    public DistributionStat getPendingRequestsPerNodeDistribution()
+    {
+        return pendingRequestsPerNodeDistribution;
+    }
+
+    @Managed
+    @Nested
+    public DistributionStat getInFlightRequestsPerNodeDistribution()
+    {
+        return inFlightRequestsPerNodeDistribution;
+    }
+
+    @Managed
+    @Nested
+    public DistributionStat getBackoffRequestsPerNodeDistribution()
+    {
+        return backoffRequestsPerNodeDistribution;
+    }
+
+    private void updateDistributionStats()
+    {
+        addDataPagesProcessingStates.forEach((_, state) -> {
+            pendingRequestsPerNodeDistribution.add(state.activeRequests.size());
+            inFlightRequestsPerNodeDistribution.add(state.inFlightRequests.get());
+            backoffRequestsPerNodeDistribution.add(state.backoffRequests.size());
+        });
     }
 
     @VisibleForTesting
