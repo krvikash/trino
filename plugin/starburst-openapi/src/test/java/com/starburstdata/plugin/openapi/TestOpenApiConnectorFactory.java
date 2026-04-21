@@ -21,6 +21,9 @@ import com.google.inject.spi.Message;
 import io.airlift.bootstrap.ApplicationConfigurationException;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.Connector;
+import io.trino.spi.connector.ConnectorTableMetadata;
+import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.connector.SystemTable;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.function.table.ReturnTypeSpecification.DescribedTable;
 import io.trino.testing.TestingConnectorContext;
@@ -95,6 +98,17 @@ final class TestOpenApiConnectorFactory
         assertThat(connector.getTableFunctions())
                 .extracting(ConnectorTableFunction::getReturnTypeSpecification)
                 .allMatch(rt -> rt instanceof DescribedTable);
+        connector.shutdown();
+    }
+
+    @Test
+    void testSystemTableRegistered()
+    {
+        Connector connector = createConnector("petstore.yaml");
+        assertThat(connector.getSystemTables())
+                .extracting(SystemTable::getTableMetadata)
+                .extracting(ConnectorTableMetadata::getTable)
+                .containsExactly(new SchemaTableName("system", "table_functions"));
         connector.shutdown();
     }
 

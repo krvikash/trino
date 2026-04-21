@@ -47,6 +47,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.starburstdata.plugin.openapi.OpenApiErrorCode.OPENAPI_AMBIGUOUS_REFERENCE;
 import static com.starburstdata.plugin.openapi.SpecUtil.getGetOperation;
@@ -190,10 +191,14 @@ public class OpenApiSpec
                             argumentName,
                             OpenApiParameterHandle.from(resolvedParameter, parameterSchemaIr));
                 }
+                Optional<String> description = Optional.ofNullable(operation.getSummary())
+                        .filter(summary -> !summary.isEmpty())
+                        .or(() -> Optional.ofNullable(operation.getDescription()));
                 pathMetadataBuilder.put(
                         path,
                         new PathMetadata(
                                 identifier,
+                                description,
                                 decoder,
                                 identifierToParameterHandleBuilder.buildOrThrow(),
                                 READ_ONCE_STRATEGY,
@@ -218,6 +223,7 @@ public class OpenApiSpec
 
     private record PathMetadata(
             String identifier,
+            Optional<String> description,
             OpenApiDecoder decoder,
             Map<String, OpenApiParameterHandle> identifierToParameterHandle,
             OpenApiPaginationStrategy<?> paginationStrategy,
@@ -263,5 +269,26 @@ public class OpenApiSpec
     public Set<ConnectorTableFunction> getTableFunctions()
     {
         return tableFunctions;
+    }
+
+    public record TableFunctionDetail(
+            String functionName,
+            String apiPath,
+            Optional<String> description,
+            Map<String, OpenApiParameterHandle> inputParameters,
+            List<OpenApiColumnHandle> outputColumns)
+    {
+    }
+
+    public List<TableFunctionDetail> getTableFunctionDetails()
+    {
+        return pathMetadata.entrySet().stream()
+                .map(entry -> new TableFunctionDetail(
+                        entry.getValue().identifier(),
+                        entry.getKey(),
+                        entry.getValue().description(),
+                        entry.getValue().identifierToParameterHandle(),
+                        entry.getValue().decoder().getColumnHandles()))
+                .collect(toImmutableList());
     }
 }

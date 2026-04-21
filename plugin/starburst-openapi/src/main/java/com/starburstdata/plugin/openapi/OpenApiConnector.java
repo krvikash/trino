@@ -13,6 +13,7 @@
  */
 package com.starburstdata.plugin.openapi;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.trino.spi.connector.Connector;
@@ -21,6 +22,7 @@ import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.SystemTable;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.transaction.IsolationLevel;
 
@@ -36,6 +38,7 @@ public class OpenApiConnector
     private final OpenApiSpec spec;
     private final OpenApiSplitManager splitManager;
     private final OpenApiPageSourceProvider pageSourceProvider;
+    private final OpenApiTableFunctionsTable tableFunctionsTable;
 
     @Inject
     public OpenApiConnector(
@@ -43,13 +46,15 @@ public class OpenApiConnector
             OpenApiMetadata metadata,
             OpenApiSpec spec,
             OpenApiSplitManager splitManager,
-            OpenApiPageSourceProvider pageSourceProvider)
+            OpenApiPageSourceProvider pageSourceProvider,
+            OpenApiTableFunctionsTable tableFunctionsTable)
     {
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.spec = requireNonNull(spec, "spec is null");
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
+        this.tableFunctionsTable = requireNonNull(tableFunctionsTable, "tableFunctionsTable is null");
     }
 
     @Override
@@ -74,6 +79,12 @@ public class OpenApiConnector
     public ConnectorPageSourceProvider getPageSourceProvider()
     {
         return pageSourceProvider;
+    }
+
+    @Override
+    public Set<SystemTable> getSystemTables()
+    {
+        return ImmutableSet.of(tableFunctionsTable);
     }
 
     @Override
