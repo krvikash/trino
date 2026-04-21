@@ -13,6 +13,7 @@
  */
 package io.trino.tests.benchmark;
 
+import com.google.common.base.Strings;
 import com.google.common.io.Resources;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
@@ -363,6 +364,10 @@ public final class BenchmarkClickBench
 
     private static Path findRepositoryRoot()
     {
+        String rootFromEnv = System.getenv("SB_GIT_REPOSITORY_ROOT");
+        if (!Strings.isNullOrEmpty(rootFromEnv)) {
+            return Path.of(rootFromEnv);
+        }
         Path workingDirectory = Path.of("").toAbsolutePath();
         for (Path path = workingDirectory; path != null; path = path.getParent()) {
             if (isDirectory(path.resolve(".git"))) {
