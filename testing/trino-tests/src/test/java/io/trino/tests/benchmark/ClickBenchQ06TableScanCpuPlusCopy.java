@@ -70,7 +70,7 @@ public class ClickBenchQ06TableScanCpuPlusCopy
     static final int WARMUPS = 10;
     static final int MEASURED = 20;
     static final int SPLIT_SIZE = 64 * 1024 * 1024; // new HiveConfig().getMaxSplitSize()
-//    static final int SPLIT_SIZE = 8 * 64 * 1024 * 1024;
+//    static final int SPLIT_SIZE = 512 * 1024 * 1024; // 2 splits per file
 
     static void main()
             throws Exception
