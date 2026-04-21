@@ -11,7 +11,7 @@ package com.starburstdata.plugin.openapi.conversions;
 
 import com.google.common.collect.ImmutableMap;
 import com.starburstdata.plugin.openapi.OpenApiSpec;
-import com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.SchemaException;
+import com.starburstdata.plugin.openapi.SpecException;
 import com.starburstdata.plugin.openapi.conversions.ir.BooleanIr;
 import com.starburstdata.plugin.openapi.conversions.ir.JsonIr;
 import com.starburstdata.plugin.openapi.conversions.ir.ObjectIr;
@@ -56,14 +56,14 @@ public class TestSchemaIrFactoryWithMisc
 
     @Test
     public void testEmptySchema()
-            throws SchemaException
+            throws SpecException
     {
         assertThat(errorFactory.convert(schemas.get("empty"))).isEqualTo(new JsonIr());
     }
 
     @Test
     public void testEmptySchemaWithIgnoredKeywords()
-            throws SchemaException
+            throws SpecException
     {
         assertThat(errorFactory.convert(schemas.get("emptyWithIgnoredKeywords"))).isEqualTo(new JsonIr());
     }
@@ -78,26 +78,26 @@ public class TestSchemaIrFactoryWithMisc
                 .buildOrThrow()
                 .forEach((var, schema) -> assertThatThrownBy(() ->
                         errorFactory.convert(schema))
-                        .as("%s throws SchemaException", var)
-                        .asInstanceOf(throwable(SchemaException.class))
-                        .as("%s throws SchemaException from ref's IllegalArgumentException", var)
+                        .as("%s throws SpecException", var)
+                        .asInstanceOf(throwable(SpecException.class))
+                        .as("%s throws SpecException from ref's IllegalArgumentException", var)
                         .hasCauseInstanceOf(IllegalArgumentException.class)
-                        .extracting(SchemaException::getPath)
+                        .extracting(SpecException::path)
                         .asInstanceOf(list(String.class))
-                        .as("%s throws SchemaException linking $ref property", var)
+                        .as("%s throws SpecException linking $ref property", var)
                         .containsExactly("$ref"));
     }
 
     @Test
     public void testRecursiveLinkedList()
-            throws SchemaException
+            throws SpecException
     {
         assertThatThrownBy(() -> errorFactory.convert(schemas.get("recursiveLinkedList")))
-                .asInstanceOf(throwable(SchemaIrFactory.SchemaException.class))
+                .asInstanceOf(throwable(SpecException.class))
                 .hasMessageContaining("Cyclic reference detected")
-                .extracting(SchemaIrFactory.SchemaException::getPath)
+                .extracting(SpecException::path)
                 .asInstanceOf(list(String.class))
-                .containsExactly("properties", "\"tail\"", "$ref", "\"recursiveLinkedList\"", "properties", "\"tail\"", "$ref");
+                .containsExactly("properties", "\"tail\"", "$ref", "recursiveLinkedList", "properties", "\"tail\"", "$ref");
 
         assertThat(dropFactory.convert(schemas.get("recursiveLinkedList")))
                 .isEqualTo(new ObjectIr(
@@ -112,7 +112,7 @@ public class TestSchemaIrFactoryWithMisc
 
     @Test
     public void testBooleanSchema()
-            throws SchemaException
+            throws SpecException
     {
         assertThat(errorFactory.convert(schemas.get("booleanSchema"))).isEqualTo(new BooleanIr());
 
@@ -123,7 +123,7 @@ public class TestSchemaIrFactoryWithMisc
     public void testBooleanKeywords()
     {
         assertThatThrownBy(() -> errorFactory.convert(schemas.get("booleanKeywords")))
-                .isInstanceOf(SchemaException.class)
+                .isInstanceOf(SpecException.class)
                 .hasMessageContaining("Schema uses unsupported boolean keywords");
     }
 
@@ -131,9 +131,9 @@ public class TestSchemaIrFactoryWithMisc
     public void testLoneEnum()
     {
         assertThatThrownBy(() -> errorFactory.convert(schemas.get("loneEnum")))
-                .asInstanceOf(throwable(SchemaException.class))
+                .asInstanceOf(throwable(SpecException.class))
                 .hasMessageContaining("Enum keyword without type keyword is unsupported")
-                .extracting(SchemaException::getPath)
+                .extracting(SpecException::path)
                 .asInstanceOf(list(String.class))
                 .containsExactly("enum");
     }

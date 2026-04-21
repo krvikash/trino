@@ -11,7 +11,7 @@ package com.starburstdata.plugin.openapi.conversions;
 
 import com.google.common.collect.ImmutableMap;
 import com.starburstdata.plugin.openapi.OpenApiSpec;
-import com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.SchemaException;
+import com.starburstdata.plugin.openapi.SpecException;
 import com.starburstdata.plugin.openapi.conversions.ir.ArrayIr;
 import com.starburstdata.plugin.openapi.conversions.ir.NumberIr;
 import com.starburstdata.plugin.openapi.conversions.ir.ObjectIr;
@@ -50,7 +50,7 @@ public class TestSchemaIrFactoryWithPetstore
 
     @Test
     public void testPetstoreFindByStatusParameters()
-            throws SchemaException
+            throws SpecException
     {
         Operation getFindByStatus = openApi.getPaths().get("/pet/findByStatus").getGet();
         Parameter statusParameter = getFindByStatus.getParameters().getFirst();
@@ -61,7 +61,7 @@ public class TestSchemaIrFactoryWithPetstore
 
     @Test
     public void testPetstoreFindByStatusResponse()
-            throws SchemaException
+            throws SpecException
     {
         Operation getFindByStatus = openApi.getPaths().get("/pet/findByStatus").getGet();
         Schema<?> okResponseSchema = getFindByStatus.getResponses().get("200").getContent().get(MIME_JSON).getSchema();

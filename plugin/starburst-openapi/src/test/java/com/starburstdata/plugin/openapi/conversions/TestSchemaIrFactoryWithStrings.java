@@ -11,7 +11,7 @@ package com.starburstdata.plugin.openapi.conversions;
 
 import com.google.common.collect.ImmutableMap;
 import com.starburstdata.plugin.openapi.OpenApiSpec;
-import com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.SchemaException;
+import com.starburstdata.plugin.openapi.SpecException;
 import com.starburstdata.plugin.openapi.conversions.ir.JsonIr;
 import com.starburstdata.plugin.openapi.conversions.ir.StringIr;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -56,7 +56,7 @@ public class TestSchemaIrFactoryWithStrings
 
     @Test
     public void testSupportedStringFormats()
-            throws SchemaException
+            throws SpecException
     {
         assertSupportedStringFormat(schemas.get("stringNoFormat"), NONE);
         assertSupportedStringFormat(schemas.get("stringByteFormat"), BYTE);
@@ -68,14 +68,14 @@ public class TestSchemaIrFactoryWithStrings
     private static void assertSupportedStringFormat(
             Schema<?> schema,
             StringIr.Format format)
-            throws SchemaException
+            throws SpecException
     {
         assertThat(ERROR_FACTORY.convert(schema)).isEqualTo(new StringIr(format));
     }
 
     @Test
     public void testUnsupportedStringFormat()
-            throws SchemaException
+            throws SpecException
     {
         ImmutableMap.<String, SchemaIrFactory>builder()
                 .put("ERROR_FACTORY", ERROR_FACTORY)
@@ -83,16 +83,16 @@ public class TestSchemaIrFactoryWithStrings
                 .buildOrThrow()
                 .forEach((factoryName, factory) ->
                         assertThatThrownBy(() -> factory.convert(schemas.get("stringUnknownFormat")))
-                                .as("Expect %s to throw SchemaException with message", factoryName)
-                                .asInstanceOf(throwable(SchemaException.class))
+                                .as("Expect %s to throw SpecException with message", factoryName)
+                                .asInstanceOf(throwable(SpecException.class))
                                 .hasMessageContaining("Unsupported string format")
-                                .extracting(SchemaException::getPath)
+                                .extracting(SpecException::path)
                                 .asInstanceOf(list(String.class))
-                                .as("Expect %s's SchemaException to link to format property")
+                                .as("Expect %s's SpecException to link to format property")
                                 .contains("format"));
 
         assertThat(JSON_FACTORY.convert(schemas.get("stringUnknownFormat")))
-                .as("JSON_POLICY shouldn't throw SchemaException but return JsonIr")
+                .as("JSON_POLICY shouldn't throw SpecException but return JsonIr")
                 .isEqualTo(new JsonIr());
     }
 }

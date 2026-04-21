@@ -11,7 +11,7 @@ package com.starburstdata.plugin.openapi.conversions;
 
 import com.google.common.collect.ImmutableMap;
 import com.starburstdata.plugin.openapi.OpenApiSpec;
-import com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.SchemaException;
+import com.starburstdata.plugin.openapi.SpecException;
 import com.starburstdata.plugin.openapi.conversions.ir.JsonIr;
 import com.starburstdata.plugin.openapi.conversions.ir.NumberIr;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -58,7 +58,7 @@ public class TestSchemaIrFactoryWithNumbers
 
     @Test
     public void testSupportedNumberFormats()
-            throws SchemaException
+            throws SpecException
     {
         assertSupportedNumberFormat(schemas.get("numberNoFormat"), NONE_NUMBER);
         assertSupportedNumberFormat(schemas.get("integerNoFormat"), NONE_INTEGER);
@@ -73,14 +73,14 @@ public class TestSchemaIrFactoryWithNumbers
     private static void assertSupportedNumberFormat(
             Schema<?> schema,
             NumberIr.Format format)
-            throws SchemaException
+            throws SpecException
     {
         assertThat(ERROR_FACTORY.convert(schema)).isEqualTo(new NumberIr(format));
     }
 
     @Test
     public void testUnsupportedNumberFormats()
-            throws SchemaException
+            throws SpecException
     {
         assertOnUnsupportedNumberFormat(schemas.get("integerFloat"));
         assertOnUnsupportedNumberFormat(schemas.get("integerDouble"));
@@ -89,7 +89,7 @@ public class TestSchemaIrFactoryWithNumbers
     }
 
     private static void assertOnUnsupportedNumberFormat(Schema<?> schema)
-            throws SchemaException
+            throws SpecException
     {
         ImmutableMap.<String, SchemaIrFactory>builder()
                 .put("ERROR_FACTORY", ERROR_FACTORY)
@@ -97,16 +97,16 @@ public class TestSchemaIrFactoryWithNumbers
                 .buildOrThrow()
                 .forEach((factoryName, factory) ->
                         assertThatThrownBy(() -> factory.convert(schema))
-                                .as("Expect %s to throw SchemaException with message", factoryName)
-                                .asInstanceOf(throwable(SchemaException.class))
+                                .as("Expect %s to throw SpecException with message", factoryName)
+                                .asInstanceOf(throwable(SpecException.class))
                                 .hasMessageContaining("Unsupported number/integer format")
-                                .extracting(SchemaException::getPath)
+                                .extracting(SpecException::path)
                                 .asInstanceOf(list(String.class))
-                                .as("Expect %s's SchemaException to link to format property")
+                                .as("Expect %s's SpecException to link to format property")
                                 .contains("format"));
 
         assertThat(JSON_FACTORY.convert(schema))
-                .as("JSON_POLICY shouldn't throw SchemaException but return JsonIr")
+                .as("JSON_POLICY shouldn't throw SpecException but return JsonIr")
                 .isEqualTo(new JsonIr());
     }
 }

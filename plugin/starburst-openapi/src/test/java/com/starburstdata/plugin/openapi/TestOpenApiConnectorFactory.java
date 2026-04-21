@@ -146,8 +146,8 @@ final class TestOpenApiConnectorFactory
         assertThat(exceptions)
                 .map(Exception::getMessage)
                 .containsExactlyInAnyOrderElementsOf(ImmutableList.<String>builder()
-                        .add("Failed to transform path /circular (Reference from response forms a cycle)")
-                        .add("Failed to transform path /badref (Reference refers to response 'badref' that doesn't exist)")
+                        .add("paths./circular.get.responses.200.$ref: Reference from response forms a cycle")
+                        .add("paths./badref.get.responses.200.$ref: Reference refers to response 'badref' that doesn't exist")
                         .build());
     }
 
@@ -163,10 +163,10 @@ final class TestOpenApiConnectorFactory
         assertThat(exceptions)
                 .map(Exception::getMessage)
                 .containsExactlyInAnyOrderElementsOf(ImmutableList.<String>builder()
-                        .add("Failed to transform path /circular (Reference from path forms a cycle)")
-                        .add("Failed to transform path /circularSTART (Reference from path forms a cycle)")
-                        .add("Failed to transform path /circularEND (Reference from path forms a cycle)")
-                        .add("Failed to transform path /badref (Reference refers to path 'notreal' that doesn't exist)")
+                        .add("paths./circular.$ref: Reference from path forms a cycle")
+                        .add("paths./circularSTART.$ref: Reference from path forms a cycle")
+                        .add("paths./circularEND.$ref: Reference from path forms a cycle")
+                        .add("paths./badref.$ref: Reference refers to path 'notreal' that doesn't exist")
                         .build());
     }
 
@@ -181,7 +181,7 @@ final class TestOpenApiConnectorFactory
 
         assertThat(exceptions)
                 .map(Exception::getMessage)
-                .containsExactly("Failed to transform path /ambiguousobject (properties: Uses keys that cannot be referenced unambiguously with case-insensitivity: AMBIGUOUS)");
+                .containsExactly("paths./ambiguousobject.get.responses.200.content.application/json.schema.properties: Uses keys that cannot be referenced unambiguously with case-insensitivity: AMBIGUOUS");
     }
 
     @Test
@@ -196,10 +196,10 @@ final class TestOpenApiConnectorFactory
         assertThat(exceptions)
                 .map(Exception::getMessage)
                 .containsExactlyInAnyOrderElementsOf(ImmutableList.<String>builder()
-                        .add("Failed to transform path /badref (Reference refers to parameter 'badref' that doesn't exist)")
-                        .add("Failed to transform path /circularref (Reference from parameter forms a cycle)")
-                        .add("Failed to transform path /badschema (Must create a parameter from a primitive type (supported string/number format or boolean) or array of primitive type)")
-                        .add("Failed to transform path /ambiguous/{param} (Cannot refer to parameter 'param' unambiguously, parameter with identifier 'PARAM' already exists)")
+                        .add("paths./badref.get.parameters[0].$ref: Reference refers to parameter 'badref' that doesn't exist")
+                        .add("paths./circularref.get.parameters[0].$ref: Reference from parameter forms a cycle")
+                        .add("paths./badschema.get.parameters[0]: Must create a parameter from a primitive type (supported string/number format or boolean) or array of primitive type")
+                        .add("paths./ambiguous/{param}.get.parameters[1].name: Cannot refer to parameter 'param' unambiguously, parameter with identifier 'PARAM' already exists")
                         .build());
     }
 

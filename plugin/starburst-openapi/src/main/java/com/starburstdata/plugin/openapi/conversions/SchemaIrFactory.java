@@ -12,6 +12,7 @@ package com.starburstdata.plugin.openapi.conversions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.starburstdata.plugin.openapi.SpecException;
 import com.starburstdata.plugin.openapi.conversions.ir.ArrayIr;
 import com.starburstdata.plugin.openapi.conversions.ir.BooleanIr;
 import com.starburstdata.plugin.openapi.conversions.ir.JsonIr;
@@ -48,7 +49,6 @@ import static com.starburstdata.plugin.openapi.conversions.ir.StringIr.Format.UU
 import static java.lang.Boolean.TRUE;
 import static java.lang.String.format;
 import static java.lang.String.join;
-import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
@@ -74,7 +74,7 @@ public class SchemaIrFactory
     }
 
     public SchemaIr convert(Schema<?> schema)
-            throws SchemaException
+            throws SpecException
     {
         return convert(schema, ImmutableSet.of());
     }
@@ -82,7 +82,7 @@ public class SchemaIrFactory
     private SchemaIr convert(
             Schema<?> schema,
             Set<String> visitedReferences)
-            throws SchemaException
+            throws SpecException
     {
         // https://spec.openapis.org/oas/v3.0.4.html#schema-object
         // Schema is a union of keywords to use to _validate_ JSON objects.
@@ -102,7 +102,7 @@ public class SchemaIrFactory
                 .collect(toImmutableList());
 
         if (!unsupportedBooleanKeywords.isEmpty() && !castPolicy.equals(JSON)) {
-            throw new SchemaException(format(
+            throw new SpecException(format(
                     "Schema uses unsupported boolean keywords [%s]",
                     join(",", unsupportedBooleanKeywords)));
         }
@@ -112,7 +112,7 @@ public class SchemaIrFactory
 
         String ref = schema.get$ref();
         if (ref != null && visitedReferences.contains(ref)) {
-            throw new SchemaException("Cyclic reference detected").fromMember("$ref");
+            throw new SpecException("Cyclic reference detected").fromMember("$ref");
         }
 
         if (ref != null) {
@@ -122,10 +122,10 @@ public class SchemaIrFactory
                 key = extractRefKey(ImmutableList.of("components", "schemas"), ref);
             }
             catch (IllegalArgumentException e) {
-                throw new SchemaException(e.getMessage()).withCause(e).fromMember("$ref");
+                throw new SpecException(e.getMessage()).withCause(e).fromMember("$ref");
             }
             if (!referenceableSchemas.containsKey(key)) {
-                throw new SchemaException("References non-existent schema %s".formatted(key))
+                throw new SpecException("References non-existent schema %s".formatted(key))
                         .withCause(new NoSuchElementException())
                         .fromMember("$ref");
             }
@@ -137,8 +137,8 @@ public class SchemaIrFactory
                                 .add(ref)
                                 .build());
             }
-            catch (SchemaException e) {
-                throw e.fromMember("\"%s\"".formatted(key)).fromMember("$ref");
+            catch (SpecException e) {
+                throw e.fromPath(ImmutableList.of("$ref", key));
             }
         }
 
@@ -156,7 +156,7 @@ public class SchemaIrFactory
         }
 
         if (schema.getEnum() != null && !castPolicy.equals(JSON)) {
-            throw new SchemaException("Enum keyword without type keyword is unsupported")
+            throw new SpecException("Enum keyword without type keyword is unsupported")
                     .fromMember("enum");
         }
         if (schema.getEnum() != null) {
@@ -170,10 +170,10 @@ public class SchemaIrFactory
     private ObjectIr convertObject(
             Schema<?> schema,
             Set<String> visitedReferences)
-            throws SchemaException
+            throws SpecException
     {
         if (schema.getFormat() != null) {
-            throw new SchemaException("Schema uses unsupported combination of object type and format keyword")
+            throw new SpecException("Schema uses unsupported combination of object type and format keyword")
                     .fromMember("format");
         }
 
@@ -196,7 +196,7 @@ public class SchemaIrFactory
                         visitedReferences);
                 additionalPropertiesIr = Optional.of(valueIr);
             }
-            catch (SchemaException e) {
+            catch (SpecException e) {
                 additionalPropertiesIr = switch (castPolicy) {
                     case ERROR -> throw e.fromMember("additionalProperties");
                     case DROP -> Optional.empty();
@@ -220,7 +220,7 @@ public class SchemaIrFactory
     }
 
     private static void validatePropertyKeysUnique(Map<String, Schema<?>> properties)
-            throws SchemaException
+            throws SpecException
     {
         Set<String> mutableLowercaseKeys = new HashSet<>();
         List<String> conflictingProperties = properties.keySet()
@@ -228,7 +228,7 @@ public class SchemaIrFactory
                 .filter(key -> !mutableLowercaseKeys.add(key.toLowerCase(ENGLISH)))
                 .collect(toImmutableList());
         if (!conflictingProperties.isEmpty()) {
-            throw new SchemaException(format(
+            throw new SpecException(format(
                     "Uses keys that cannot be referenced unambiguously with case-insensitivity: %s",
                     join(", ", conflictingProperties)))
                     .fromMember("properties");
@@ -238,7 +238,7 @@ public class SchemaIrFactory
     private Map<String, SchemaIr> convertPropertiesToIr(
             Map<String, Schema<?>> properties,
             Set<String> visitedReferences)
-            throws SchemaException
+            throws SpecException
     {
         ImmutableMap.Builder<String, SchemaIr> keyToIrBuilder = ImmutableMap.builder();
         for (Entry<String, Schema<?>> entry : properties.entrySet()) {
@@ -250,7 +250,7 @@ public class SchemaIrFactory
                         visitedReferences);
                 keyToIrBuilder.put(key, valueIr);
             }
-            catch (SchemaException e) {
+            catch (SpecException e) {
                 switch (castPolicy) {
                     case DROP -> {}
                     case ERROR -> throw e.fromMember("\"%s\"".formatted(key)).fromMember("properties");
@@ -264,17 +264,17 @@ public class SchemaIrFactory
     private ArrayIr convertArray(
             Schema<?> schema,
             Set<String> visitedReferences)
-            throws SchemaException
+            throws SpecException
     {
         if (schema.getFormat() != null) {
-            throw new SchemaException(
+            throw new SpecException(
                     "Schema uses unsupported combination of array type and format keyword")
                     .fromMember("format");
         }
 
         Schema<?> itemSchema = schema.getItems();
         if (itemSchema == null) {
-            throw new SchemaException("Items keyword must be present in array type schema")
+            throw new SpecException("Items keyword must be present in array type schema")
                     .fromMember("items");
         }
 
@@ -284,7 +284,7 @@ public class SchemaIrFactory
                     itemSchema,
                     visitedReferences);
         }
-        catch (SchemaException e) {
+        catch (SpecException e) {
             return switch (castPolicy) {
                 case DROP, ERROR -> throw e.fromMember("items");
                 case JSON -> new ArrayIr(new JsonIr());
@@ -296,7 +296,7 @@ public class SchemaIrFactory
     private SchemaIr convertNumber(
             Schema<?> schema,
             boolean isInteger)
-            throws SchemaException
+            throws SpecException
     {
         // https://spec.openapis.org/oas/v3.0.4.html#data-type-format
         String format = schema.getFormat();
@@ -315,7 +315,7 @@ public class SchemaIrFactory
         }
         if (numberFormat.isEmpty()) {
             return switch (castPolicy) {
-                case DROP, ERROR -> throw new SchemaException(
+                case DROP, ERROR -> throw new SpecException(
                         "Unsupported number/integer format: %s".formatted(format))
                         .fromMember("format");
                 case JSON -> new JsonIr();
@@ -345,7 +345,7 @@ public class SchemaIrFactory
 
     private SchemaIr convertString(
             Schema<?> schema)
-            throws SchemaException
+            throws SpecException
     {
         // https://spec.openapis.org/oas/v3.0.4.html#data-type-format
         return switch (schema.getFormat()) {
@@ -355,67 +355,11 @@ public class SchemaIrFactory
             case "date" -> new StringIr(DATE);
             case "date-time" -> new StringIr(DATE_TIME);
             case String other -> switch (castPolicy) {
-                case DROP, ERROR -> throw new SchemaException(
+                case DROP, ERROR -> throw new SpecException(
                         "Unsupported string format %s".formatted(other))
                         .fromMember("format");
                 case JSON -> new JsonIr();
             };
         };
-    }
-
-    public static class SchemaException
-            extends Exception
-    {
-        private final List<String> path;
-        private final String text;
-
-        private SchemaException(
-                String text,
-                Throwable cause,
-                List<String> path)
-        {
-            super(formatMessage(path, text), cause);
-            this.text = requireNonNull(text, "message was null");
-            this.path = requireNonNull(path, "path was null");
-        }
-
-        SchemaException(String message)
-        {
-            this(message, null, emptyList());
-        }
-
-        public List<String> getPath()
-        {
-            return path;
-        }
-
-        public String getText()
-        {
-            return text;
-        }
-
-        private static String formatMessage(List<String> path, String message)
-        {
-            if (path.isEmpty()) {
-                return message;
-            }
-            return "%s: %s".formatted(join(".", path), message);
-        }
-
-        public SchemaException fromMember(String memberPath)
-        {
-            return new SchemaException(
-                    text,
-                    getCause(),
-                    ImmutableList.<String>builderWithExpectedSize(path.size() + 1)
-                            .add(memberPath)
-                            .addAll(path)
-                            .build());
-        }
-
-        public SchemaException withCause(Throwable cause)
-        {
-            return new SchemaException(text, cause, path);
-        }
     }
 }

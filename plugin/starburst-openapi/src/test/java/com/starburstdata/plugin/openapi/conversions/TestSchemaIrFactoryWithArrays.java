@@ -11,7 +11,7 @@ package com.starburstdata.plugin.openapi.conversions;
 
 import com.google.common.collect.ImmutableMap;
 import com.starburstdata.plugin.openapi.OpenApiSpec;
-import com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.SchemaException;
+import com.starburstdata.plugin.openapi.SpecException;
 import com.starburstdata.plugin.openapi.conversions.ir.ArrayIr;
 import com.starburstdata.plugin.openapi.conversions.ir.BooleanIr;
 import com.starburstdata.plugin.openapi.conversions.ir.JsonIr;
@@ -53,7 +53,7 @@ public class TestSchemaIrFactoryWithArrays
 
     @Test
     public void testTypedArray()
-            throws SchemaException
+            throws SpecException
     {
         assertThat(DROP_FACTORY.convert(schemas.get("typedArray")))
                 .isEqualTo(new ArrayIr(new BooleanIr()));
@@ -61,7 +61,7 @@ public class TestSchemaIrFactoryWithArrays
 
     @Test
     public void testArrayOfError()
-            throws SchemaException
+            throws SpecException
     {
         ImmutableMap.<String, SchemaIrFactory>builder()
                 .put("ERROR_FACTORY", ERROR_FACTORY)
@@ -69,14 +69,14 @@ public class TestSchemaIrFactoryWithArrays
                 .buildOrThrow()
                 .forEach((factoryName, factory) ->
                         assertThatThrownBy(() -> factory.convert(schemas.get("arrayOfError")))
-                                .as("Using %s should throw SchemaException with the following properties", factoryName)
-                                .asInstanceOf(throwable(SchemaException.class))
-                                .extracting(SchemaException::getPath)
+                                .as("Using %s should throw SpecException with the following properties", factoryName)
+                                .asInstanceOf(throwable(SpecException.class))
+                                .extracting(SpecException::path)
                                 .asInstanceOf(list(String.class))
                                 .containsExactly("items", "format"));
 
         assertThat(JSON_FACTORY.convert(schemas.get("arrayOfError")))
-                .as("JSON_FACTORY shouldn't throw SchemaException and cast values to JSON")
+                .as("JSON_FACTORY shouldn't throw SpecException and cast values to JSON")
                 .isEqualTo(new ArrayIr(new JsonIr()));
     }
 }

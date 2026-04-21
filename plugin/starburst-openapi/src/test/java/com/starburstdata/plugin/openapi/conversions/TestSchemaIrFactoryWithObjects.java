@@ -11,7 +11,7 @@ package com.starburstdata.plugin.openapi.conversions;
 
 import com.google.common.collect.ImmutableMap;
 import com.starburstdata.plugin.openapi.OpenApiSpec;
-import com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.SchemaException;
+import com.starburstdata.plugin.openapi.SpecException;
 import com.starburstdata.plugin.openapi.conversions.ir.BooleanIr;
 import com.starburstdata.plugin.openapi.conversions.ir.JsonIr;
 import com.starburstdata.plugin.openapi.conversions.ir.ObjectIr;
@@ -57,16 +57,16 @@ public class TestSchemaIrFactoryWithObjects
     public void testConflictingObjectSchema()
     {
         assertThatThrownBy(() -> JSON_FACTORY.convert(schemas.get("conflictingProperties")))
-                .asInstanceOf(throwable(SchemaException.class))
+                .asInstanceOf(throwable(SpecException.class))
                 .hasMessageMatching("\\Qproperties: Uses keys that cannot be referenced unambiguously with case-insensitivity: conflict\\E(ing|ING)")
-                .extracting(SchemaException::getPath)
+                .extracting(SpecException::path)
                 .asInstanceOf(list(String.class))
                 .containsExactly("properties");
     }
 
     @Test
     public void testObjectIrSchemas()
-            throws SchemaException
+            throws SpecException
     {
         assertThat(ERROR_FACTORY.convert(schemas.get("strictProperties")))
                 .isEqualTo(new ObjectIr(
@@ -87,7 +87,7 @@ public class TestSchemaIrFactoryWithObjects
 
     @Test
     public void testMixedPropertiesAdditionalPropertiesSchemas()
-            throws SchemaException
+            throws SpecException
     {
         assertThat(ERROR_FACTORY.convert(schemas.get("mixedNamedUntypedProperties")))
                 .isEqualTo(new ObjectIr(
@@ -106,7 +106,7 @@ public class TestSchemaIrFactoryWithObjects
 
     @Test
     public void testNoPropertiesSchemas()
-            throws SchemaException
+            throws SpecException
     {
         assertThat(ERROR_FACTORY.convert(schemas.get("justObject")))
                 .isEqualTo(new ObjectIr(ImmutableMap.of(), Optional.of(new JsonIr())));
@@ -120,11 +120,11 @@ public class TestSchemaIrFactoryWithObjects
 
     @Test
     public void testObjectOfErroringProperties()
-            throws SchemaException
+            throws SpecException
     {
         assertThatThrownBy(() -> ERROR_FACTORY.convert(schemas.get("objectOfErroringProperties")))
-                .asInstanceOf(type(SchemaException.class))
-                .extracting(SchemaException::getPath)
+                .asInstanceOf(type(SpecException.class))
+                .extracting(SpecException::path)
                 .asInstanceOf(list(String.class))
                 .containsExactly("additionalProperties", "format");
 
@@ -142,12 +142,12 @@ public class TestSchemaIrFactoryWithObjects
 
     @Test
     public void testMapOfErroringValuesCastPolicy()
-            throws SchemaException
+            throws SpecException
     {
         Schema<?> mapOfErroringValues = schemas.get("mapOfErroringValues");
         assertThatThrownBy(() -> ERROR_FACTORY.convert(mapOfErroringValues))
-                .asInstanceOf(throwable(SchemaException.class))
-                .extracting(SchemaException::getPath)
+                .asInstanceOf(throwable(SpecException.class))
+                .extracting(SpecException::path)
                 .asInstanceOf(list(String.class))
                 .containsExactly("additionalProperties", "format");
         assertThat(DROP_FACTORY.convert(mapOfErroringValues))

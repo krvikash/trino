@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.starburstdata.plugin.openapi.SpecUtil.ParameterIdentifier;
+import com.starburstdata.plugin.openapi.SpecUtil.SuccessfulResponse;
 import com.starburstdata.plugin.openapi.authentication.OpenApiAuthenticator;
 import com.starburstdata.plugin.openapi.conversions.SchemaIrFactory;
 import com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy;
@@ -42,6 +43,7 @@ import io.trino.spi.function.table.ConnectorTableFunction;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -49,11 +51,9 @@ import java.util.Set;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static com.starburstdata.plugin.openapi.OpenApiErrorCode.OPENAPI_AMBIGUOUS_REFERENCE;
 import static com.starburstdata.plugin.openapi.SpecUtil.getGetOperation;
 import static com.starburstdata.plugin.openapi.SpecUtil.getJsonResponseSchema;
 import static com.starburstdata.plugin.openapi.SpecUtil.getParameterSchema;
-import static com.starburstdata.plugin.openapi.SpecUtil.getParameters;
 import static com.starburstdata.plugin.openapi.pagination.OpenApiPaginationStrategy.READ_ONCE_STRATEGY;
 import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
 import static java.lang.String.join;
@@ -147,68 +147,159 @@ public class OpenApiSpec
             }
             String previousPath = identifierToPath.put(identifier, path);
             if (previousPath != null) {
-                exceptionsBuilder.add(new RuntimeException(
+                exceptionsBuilder.add(new SpecException(
                         "Identifier %s maps to multiple API paths [%s, %s]".formatted(
                                 identifier,
                                 previousPath,
                                 path)));
             }
 
+            List<String> pathPrefix = ImmutableList.of("paths", path);
+            List<String> operationPrefix = ImmutableList.of("paths", path, "get");
+
+            final Operation operation;
             try {
                 Optional<Operation> operationOptional = getGetOperation(pathItem, paths);
                 if (operationOptional.isEmpty()) {
                     return;
                 }
-                Operation operation = operationOptional.get();
-                Optional<ApiResponse> response = operationOptional.flatMap(SpecUtil::getSuccessfulResponse);
-                Optional<Schema<?>> schema = response.flatMap(r -> getJsonResponseSchema(r, responses));
-                if (schema.isEmpty()) {
-                    return;
-                }
-                SchemaIr schemaIr = schemaIrFactory.convert(schema.get());
-                OpenApiDecoder decoder = openApiDecoderFactory.createFrom(schemaIr);
+                operation = operationOptional.get();
+            }
+            catch (SpecException e) {
+                exceptionsBuilder.add(e.fromPath(pathPrefix));
+                return;
+            }
 
-                Map<ParameterIdentifier, Parameter> resolvedParameters = getParameters(
-                        pathItem,
-                        operation,
-                        parameters);
-                Set<String> argumentNames = new HashSet<>();
-                ImmutableMap.Builder<String, OpenApiParameterHandle> identifierToParameterHandleBuilder =
-                        ImmutableMap.builder();
-                for (ParameterIdentifier parameterIdentifier : resolvedParameters.keySet()) {
-                    String argumentName = getIdentifier(parameterIdentifier.name()).toUpperCase(ENGLISH);
-                    Parameter resolvedParameter = resolvedParameters.get(parameterIdentifier);
-                    if (!argumentNames.add(argumentName)) {
-                        throw new TrinoException(
-                                OPENAPI_AMBIGUOUS_REFERENCE,
-                                "Cannot refer to parameter '%s' unambiguously, parameter with identifier '%s' already exists".formatted(
-                                        parameterIdentifier.name(),
-                                        argumentName));
-                    }
-                    Schema<?> parameterSchema = getParameterSchema(resolvedParameter);
-                    SchemaIr parameterSchemaIr = schemaIrFactory.convert(parameterSchema);
+            Optional<SuccessfulResponse> successfulResponse = SpecUtil.getSuccessfulResponse(operation);
+            if (successfulResponse.isEmpty()) {
+                return;
+            }
+            List<String> responsePrefix = ImmutableList.<String>builder()
+                    .addAll(operationPrefix)
+                    .add("responses")
+                    .add(successfulResponse.get().code())
+                    .build();
+            List<String> responseSchemaPrefix = ImmutableList.<String>builder()
+                    .addAll(responsePrefix)
+                    .add("content")
+                    .add(MIME_JSON)
+                    .add("schema")
+                    .build();
+
+            final Optional<Schema<?>> schema;
+            try {
+                schema = getJsonResponseSchema(successfulResponse.get().response(), responses);
+            }
+            catch (SpecException e) {
+                exceptionsBuilder.add(e.fromPath(responsePrefix));
+                return;
+            }
+            if (schema.isEmpty()) {
+                return;
+            }
+
+            final OpenApiDecoder decoder;
+            try {
+                SchemaIr schemaIr = schemaIrFactory.convert(schema.get());
+                decoder = openApiDecoderFactory.createFrom(schemaIr);
+            }
+            catch (SpecException e) {
+                exceptionsBuilder.add(e.fromPath(responseSchemaPrefix));
+                return;
+            }
+
+            List<Parameter> rawParameters = ImmutableList.<Parameter>builder()
+                    .addAll(Optional.ofNullable(pathItem.getParameters()).orElse(ImmutableList.of()))
+                    .addAll(Optional.ofNullable(operation.getParameters()).orElse(ImmutableList.of()))
+                    .build();
+            // Operation parameters override Path Item parameters sharing the same (name, in).
+            // https://spec.openapis.org/oas/v3.0.4.html#fixed-fields-7
+            LinkedHashMap<ParameterIdentifier, IndexedParameter> resolvedParametersByIdentifier = new LinkedHashMap<>();
+            boolean parameterFailed = false;
+            for (int i = 0; i < rawParameters.size(); i++) {
+                List<String> parameterPrefix = parameterPrefix(operationPrefix, i);
+                try {
+                    Parameter resolvedParameter = SpecUtil.resolveParameter(rawParameters.get(i), parameters);
+                    resolvedParametersByIdentifier.put(
+                            new ParameterIdentifier(
+                                    resolvedParameter.getName(),
+                                    resolvedParameter.getIn()),
+                            new IndexedParameter(i, resolvedParameter));
+                }
+                catch (SpecException e) {
+                    exceptionsBuilder.add(e.fromPath(parameterPrefix));
+                    parameterFailed = true;
+                }
+            }
+
+            Set<String> argumentNames = new HashSet<>();
+            ImmutableMap.Builder<String, OpenApiParameterHandle> identifierToParameterHandleBuilder =
+                    ImmutableMap.builder();
+            for (IndexedParameter indexed : resolvedParametersByIdentifier.values()) {
+                int i = indexed.index();
+                Parameter resolvedParameter = indexed.parameter();
+                List<String> parameterPrefix = parameterPrefix(operationPrefix, i);
+                String argumentName = getIdentifier(resolvedParameter.getName()).toUpperCase(ENGLISH);
+                if (!argumentNames.add(argumentName)) {
+                    exceptionsBuilder.add(new SpecException(
+                            "Cannot refer to parameter '%s' unambiguously, parameter with identifier '%s' already exists".formatted(
+                                    resolvedParameter.getName(),
+                                    argumentName))
+                            .fromPath(ImmutableList.<String>builder()
+                                    .addAll(parameterPrefix)
+                                    .add("name")
+                                    .build()));
+                    parameterFailed = true;
+                    continue;
+                }
+                final Schema<?> parameterSchema;
+                try {
+                    parameterSchema = getParameterSchema(resolvedParameter);
+                }
+                catch (SpecException e) {
+                    exceptionsBuilder.add(e.fromPath(parameterPrefix));
+                    parameterFailed = true;
+                    continue;
+                }
+                final SchemaIr parameterSchemaIr;
+                try {
+                    parameterSchemaIr = schemaIrFactory.convert(parameterSchema);
+                }
+                catch (SpecException e) {
+                    exceptionsBuilder.add(e.fromPath(ImmutableList.<String>builder()
+                            .addAll(parameterPrefix)
+                            .add("schema")
+                            .build()));
+                    parameterFailed = true;
+                    continue;
+                }
+                try {
                     identifierToParameterHandleBuilder.put(
                             argumentName,
                             OpenApiParameterHandle.from(resolvedParameter, parameterSchemaIr));
                 }
-                Optional<String> description = Optional.ofNullable(operation.getSummary())
-                        .filter(summary -> !summary.isEmpty())
-                        .or(() -> Optional.ofNullable(operation.getDescription()));
-                pathMetadataBuilder.put(
-                        path,
-                        new PathMetadata(
-                                identifier,
-                                description,
-                                decoder,
-                                identifierToParameterHandleBuilder.buildOrThrow(),
-                                READ_ONCE_STRATEGY,
-                                authenticator));
+                catch (TrinoException e) {
+                    exceptionsBuilder.add(new SpecException(e.getMessage())
+                            .withCause(e)
+                            .fromPath(parameterPrefix));
+                    parameterFailed = true;
+                }
             }
-            catch (Exception e) {
-                exceptionsBuilder.add(new RuntimeException(
-                        "Failed to transform path %s (%s)".formatted(path, e.getMessage()),
-                        e));
+            if (parameterFailed) {
+                return;
             }
+            Optional<String> description = Optional.ofNullable(operation.getSummary())
+                    .filter(summary -> !summary.isEmpty())
+                    .or(() -> Optional.ofNullable(operation.getDescription()));
+            pathMetadataBuilder.put(
+                    path,
+                    new PathMetadata(
+                            identifier,
+                            description,
+                            decoder,
+                            identifierToParameterHandleBuilder.buildOrThrow(),
+                            READ_ONCE_STRATEGY,
+                            authenticator));
         });
 
         List<Exception> exceptions = exceptionsBuilder.build();
@@ -229,6 +320,16 @@ public class OpenApiSpec
             OpenApiPaginationStrategy<?> paginationStrategy,
             OpenApiAuthenticator authenticator)
     {
+    }
+
+    private record IndexedParameter(int index, Parameter parameter) {}
+
+    private static List<String> parameterPrefix(List<String> operationPrefix, int index)
+    {
+        return ImmutableList.<String>builder()
+                .addAll(operationPrefix)
+                .add("parameters[%d]".formatted(index))
+                .build();
     }
 
     private static ParseOptions getParseOptions()
