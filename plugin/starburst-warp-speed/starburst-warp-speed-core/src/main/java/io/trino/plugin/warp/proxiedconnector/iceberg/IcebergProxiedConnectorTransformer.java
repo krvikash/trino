@@ -167,6 +167,7 @@ public class IcebergProxiedConnectorTransformer
                 original.getDeletes(),
                 original.getSplitWeight(),
                 TupleDomain.all(),
+                original.getAffinityKey(),
                 original.getDataSequenceNumber(),
                 original.getFileFirstRowId());
     }

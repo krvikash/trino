@@ -21,7 +21,7 @@ import io.airlift.json.JsonCodecFactory;
 import io.airlift.json.JsonMapperProvider;
 import io.airlift.tracing.Tracing;
 import io.trino.block.BlockJsonSerde;
-import io.trino.filesystem.cache.DefaultCachingHostAddressProvider;
+import io.trino.filesystem.cache.NoopSplitAffinityProvider;
 import io.trino.plugin.base.TypeDeserializer;
 import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.hive.metastore.file.FileHiveMetastoreConfig;
@@ -154,7 +154,7 @@ public class TestIcebergCacheIds
                 listeningDecorator(newSingleThreadExecutor()),
                 newSingleThreadScheduledExecutor(),
                 createJsonCodec(IcebergCacheSplitId.class),
-                new DefaultCachingHostAddressProvider());
+                new NoopSplitAffinityProvider());
     }
 
     @AfterAll
@@ -330,6 +330,7 @@ public class TestIcebergCacheIds
                 deletes,
                 SplitWeight.standard(),
                 TupleDomain.all(),
+                Optional.empty(),
                 0L,
                 OptionalLong.empty());
     }

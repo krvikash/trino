@@ -18,7 +18,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.inject.Inject;
 import io.airlift.json.JsonCodec;
 import io.airlift.units.Duration;
-import io.trino.filesystem.cache.CachingHostAddressProvider;
+import io.trino.filesystem.cache.SplitAffinityProvider;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSplitSource;
 import io.trino.plugin.iceberg.functions.tablechanges.TableChangesFunctionHandle;
 import io.trino.plugin.iceberg.functions.tablechanges.TableChangesSplitSource;
@@ -70,7 +70,7 @@ public class IcebergSplitManager
     private final ListeningExecutorService splitSourceExecutor;
     private final ExecutorService icebergPlanningExecutor;
     private final JsonCodec<IcebergCacheSplitId> splitIdCodec;
-    private final CachingHostAddressProvider cachingHostAddressProvider;
+    private final SplitAffinityProvider splitAffinityProvider;
 
     @Inject
     public IcebergSplitManager(
@@ -80,7 +80,7 @@ public class IcebergSplitManager
             @ForIcebergSplitSource ListeningExecutorService splitSourceExecutor,
             @ForIcebergSplitManager ExecutorService icebergPlanningExecutor,
             JsonCodec<IcebergCacheSplitId> splitIdCodec,
-            CachingHostAddressProvider cachingHostAddressProvider)
+            SplitAffinityProvider splitAffinityProvider)
     {
         this.transactionManager = requireNonNull(transactionManager, "transactionManager is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
@@ -88,7 +88,7 @@ public class IcebergSplitManager
         this.splitSourceExecutor = requireNonNull(splitSourceExecutor, "splitSourceExecutor is null");
         this.icebergPlanningExecutor = requireNonNull(icebergPlanningExecutor, "icebergPlanningExecutor is null");
         this.splitIdCodec = requireNonNull(splitIdCodec, "splitIdCodec is null");
-        this.cachingHostAddressProvider = requireNonNull(cachingHostAddressProvider, "cachingHostAddressProvider is null");
+        this.splitAffinityProvider = requireNonNull(splitAffinityProvider, "splitAffinityProvider is null");
     }
 
     @Override
@@ -128,7 +128,7 @@ public class IcebergSplitManager
                 typeManager,
                 table.isRecordScannedFiles(),
                 getMinimumAssignedSplitWeight(session),
-                cachingHostAddressProvider,
+                splitAffinityProvider,
                 metricsReporter,
                 splitSourceExecutor);
 
@@ -215,6 +215,7 @@ public class IcebergSplitManager
                 // weight does not impact split rows
                 SplitWeight.standard(),
                 icebergSplit.getFileStatisticsDomain(),
+                icebergSplit.getAffinityKey(),
                 icebergSplit.getDataSequenceNumber(),
                 icebergSplit.getFileFirstRowId());
 

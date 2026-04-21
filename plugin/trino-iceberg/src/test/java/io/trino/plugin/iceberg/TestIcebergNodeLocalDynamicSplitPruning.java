@@ -152,6 +152,7 @@ public class TestIcebergNodeLocalDynamicSplitPruning
                     ImmutableList.of(),
                     SplitWeight.standard(),
                     TupleDomain.all(),
+                    Optional.empty(),
                     0L,
                     OptionalLong.empty());
 
@@ -219,6 +220,7 @@ public class TestIcebergNodeLocalDynamicSplitPruning
                     ImmutableList.of(),
                     SplitWeight.standard(),
                     TupleDomain.withColumnDomains(ImmutableMap.of(keyColumnHandle, Domain.singleValue(INTEGER, (long) keyColumnValue))),
+                    Optional.empty(),
                     0L,
                     OptionalLong.empty());
 
@@ -334,6 +336,7 @@ public class TestIcebergNodeLocalDynamicSplitPruning
                     ImmutableList.of(),
                     SplitWeight.standard(),
                     TupleDomain.all(),
+                    Optional.empty(),
                     0L,
                     OptionalLong.empty());
 
@@ -493,6 +496,7 @@ public class TestIcebergNodeLocalDynamicSplitPruning
                     ImmutableList.of(),
                     SplitWeight.standard(),
                     TupleDomain.all(),
+                    Optional.empty(),
                     0L,
                     OptionalLong.empty());
 

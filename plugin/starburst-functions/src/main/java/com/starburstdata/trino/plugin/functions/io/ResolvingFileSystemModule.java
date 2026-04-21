@@ -34,9 +34,7 @@ import io.trino.filesystem.azure.AzureAuthOauth;
 import io.trino.filesystem.azure.AzureFileSystemConfig;
 import io.trino.filesystem.azure.AzureFileSystemFactory;
 import io.trino.filesystem.cache.CacheKeyProvider;
-import io.trino.filesystem.cache.CachingHostAddressProvider;
 import io.trino.filesystem.cache.DefaultCacheKeyProvider;
-import io.trino.filesystem.cache.DefaultCachingHostAddressProvider;
 import io.trino.filesystem.cache.TrinoFileSystemCache;
 import io.trino.filesystem.gcs.ApplicationDefaultAuth;
 import io.trino.filesystem.gcs.GcsAccessTokenAuth;
@@ -90,7 +88,6 @@ public class ResolvingFileSystemModule
     protected void setup(Binder binder)
     {
         MapBinder<String, TrinoFileSystemFactory> factories = newMapBinder(binder, String.class, TrinoFileSystemFactory.class);
-        newOptionalBinder(binder, CachingHostAddressProvider.class).setDefault().to(DefaultCachingHostAddressProvider.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, CacheKeyProvider.class).setDefault().to(DefaultCacheKeyProvider.class).in(Scopes.SINGLETON);
 
         newOptionalBinder(binder, TrinoFileSystemCache.class);
