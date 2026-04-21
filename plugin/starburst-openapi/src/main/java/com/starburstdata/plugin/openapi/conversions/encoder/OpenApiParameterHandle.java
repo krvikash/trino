@@ -67,7 +67,7 @@ public record OpenApiParameterHandle(
                 if (styleEnum == FORM && explode) {
                     yield FORM_EXPLODED_QUERY;
                 }
-                else if (styleEnum == FORM) {
+                if (styleEnum == FORM) {
                     yield FORM_UNEXPLODED_QUERY;
                 }
                 throw new TrinoException(

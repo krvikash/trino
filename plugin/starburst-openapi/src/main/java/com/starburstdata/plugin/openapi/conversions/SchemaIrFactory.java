@@ -103,7 +103,7 @@ public class SchemaIrFactory
                     "Schema uses unsupported boolean keywords [%s]",
                     join(",", unsupportedBooleanKeywords)));
         }
-        else if (!unsupportedBooleanKeywords.isEmpty()) {
+        if (!unsupportedBooleanKeywords.isEmpty()) {
             return new JsonIr();
         }
 
@@ -156,7 +156,7 @@ public class SchemaIrFactory
             throw new SchemaException("Enum keyword without type keyword is unsupported")
                     .fromMember("enum");
         }
-        else if (schema.getEnum() != null) {
+        if (schema.getEnum() != null) {
             return new JsonIr();
         }
 
@@ -300,7 +300,7 @@ public class SchemaIrFactory
         if (format == null && isInteger) {
             return new NumberIr(NONE_INTEGER);
         }
-        else if (format == null) {
+        if (format == null) {
             return new NumberIr(NONE_NUMBER);
         }
         final Optional<NumberIr.Format> numberFormat;

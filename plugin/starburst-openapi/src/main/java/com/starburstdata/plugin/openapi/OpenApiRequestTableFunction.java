@@ -116,7 +116,7 @@ class OpenApiRequestTableFunction
                         MISSING_ARGUMENT,
                         "Missing required parameter %s".formatted(identifier));
             }
-            else if (scalarValue != null) {
+            if (scalarValue != null) {
                 SerializedValue serializedValue = parameterHandle.typeEncoder().serialize(scalarValue);
                 parameterValueBuilder.put(parameterHandle, serializedValue);
             }

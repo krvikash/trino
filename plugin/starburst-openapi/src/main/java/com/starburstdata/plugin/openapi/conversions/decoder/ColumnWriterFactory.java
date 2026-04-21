@@ -71,10 +71,10 @@ public class ColumnWriterFactory
         if (objectIr.unknownProperties()) {
             return jsonColumnWriter;
         }
-        else if (objectIr.strictlyNamedProperties()) {
+        if (objectIr.strictlyNamedProperties()) {
             return new RowColumnWriter(Maps.transformValues(objectIr.properties(), this::createFrom));
         }
-        else if (objectIr.strictlyUnnamedProperties()) {
+        if (objectIr.strictlyUnnamedProperties()) {
             return new MapColumnWriter(createFrom(objectIr.additionalProperties().get()), typeOperators);
         }
         // Value is union type of properties and additionalProperties, JSON is safest.

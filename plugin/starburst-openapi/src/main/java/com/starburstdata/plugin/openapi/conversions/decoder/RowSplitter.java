@@ -29,7 +29,7 @@ public record RowSplitter(boolean isRootArray)
                     OpenApiErrorCode.OPENAPI_UNEXPECTED_RESPONSE_SCHEMA,
                     "Expected JSON ARRAY but was %s".formatted(root.getNodeType().name()));
         }
-        else if (isRootArray) {
+        if (isRootArray) {
             return root.size();
         }
         return 1;
