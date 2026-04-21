@@ -26,9 +26,9 @@ import io.starburst.stargate.buffer.data.client.ErrorCode;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
 import io.starburst.stargate.buffer.data.execution.AddDataPagesResult;
-import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.ChunkDataResult;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
+import io.starburst.stargate.buffer.data.execution.MemoryChunkDataLease;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.SliceLease;
 import jakarta.annotation.Nullable;
@@ -431,7 +431,7 @@ public class BlockingDataResource
                     .build();
         }
 
-        ChunkDataLease chunkDataLease = chunkDataResult.chunkDataLease().get();
+        MemoryChunkDataLease chunkDataLease = (MemoryChunkDataLease) chunkDataResult.chunkDataLease().get();
         ArrayDeque<Slice> sliceQueue;
         try {
             int dataSize = chunkDataLease.serializedSizeInBytes() - CHUNK_SLICES_METADATA_SIZE;

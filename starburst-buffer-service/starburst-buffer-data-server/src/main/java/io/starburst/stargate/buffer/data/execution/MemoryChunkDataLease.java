@@ -1,0 +1,71 @@
+/*
+ * Copyright Starburst Data, Inc. All rights reserved.
+ *
+ * THIS IS UNPUBLISHED PROPRIETARY SOURCE CODE OF STARBURST DATA.
+ * The copyright notice above does not evidence any
+ * actual or intended publication of such source code.
+ *
+ * Redistribution of this material is strictly prohibited.
+ */
+package io.starburst.stargate.buffer.data.execution;
+
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
+import io.airlift.slice.Slice;
+
+import java.util.List;
+
+import static com.google.common.base.Preconditions.checkState;
+import static java.util.Objects.requireNonNull;
+
+public final class MemoryChunkDataLease
+        implements ChunkDataLease
+{
+    private ImmutableList<Slice> chunkSlices;
+    private final long checksum;
+    private final int numDataPages;
+    private final Runnable releaseCallback;
+    // TODO[https://github.com/starburstdata/galaxy-trino/issues/2163]  remove after diagnosing
+    private String releaseStackTrace;
+
+    public MemoryChunkDataLease(List<Slice> chunkSlices, long checksum, int numDataPages, Runnable releaseCallback)
+    {
+        this.chunkSlices = ImmutableList.copyOf(requireNonNull(chunkSlices, "chunkSlices is null"));
+        this.checksum = checksum;
+        this.numDataPages = numDataPages;
+        this.releaseCallback = requireNonNull(releaseCallback, "releaseCallback is null");
+    }
+
+    public ImmutableList<Slice> getChunkSlices()
+    {
+        checkState(chunkSlices != null, "already released; previous release: %s", releaseStackTrace);
+        return chunkSlices;
+    }
+
+    @Override
+    public long getChecksum()
+    {
+        return checksum;
+    }
+
+    @Override
+    public int getNumDataPages()
+    {
+        return numDataPages;
+    }
+
+    @Override
+    public int serializedSizeInBytes()
+    {
+        return getChunkSlices().stream().mapToInt(Slice::length).sum() + CHUNK_SLICES_METADATA_SIZE;
+    }
+
+    @Override
+    public void release()
+    {
+        checkState(chunkSlices != null, "already released; previous release: %s", releaseStackTrace);
+        releaseStackTrace = Throwables.getStackTraceAsString(new RuntimeException());
+        chunkSlices = null; // ensure no dangling reference
+        releaseCallback.run();
+    }
+}

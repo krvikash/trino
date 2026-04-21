@@ -18,6 +18,7 @@ import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
+import io.starburst.stargate.buffer.data.execution.MemoryChunkDataLease;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
@@ -113,7 +114,10 @@ public class MergedChunkDataAsyncRequestBody
                             int consumerCallCount = 0;
                             while (!cancelled.get() && consumerCallCount < consumerCallLimit && chunkOffset.get() < chunkDataLeaseList.size()) {
                                 Map.Entry<Chunk, ChunkDataLease> entry = chunkDataLeaseList.get(chunkOffset.get());
-                                ChunkDataLease chunkDataLease = entry.getValue();
+                                ChunkDataLease rawLease = entry.getValue();
+                                MemoryChunkDataLease chunkDataLease = switch (rawLease) {
+                                    case MemoryChunkDataLease lease -> lease;
+                                };
                                 int localSliceOffset = sliceOffset.get();
                                 if (localSliceOffset == 0) {
                                     SliceOutput sliceOutput = Slices.allocate(CHUNK_FILE_HEADER_SIZE).getOutput();

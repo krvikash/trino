@@ -272,7 +272,7 @@ public class Chunk
             Ref<List<SliceLease>> reference = sliceLeases.addReference();
             try {
                 if (!calculateDataPagesChecksum) {
-                    return new ChunkDataLease(
+                    return new MemoryChunkDataLease(
                             completedSlices,
                             NO_CHECKSUM,
                             numDataPages,
@@ -283,7 +283,7 @@ public class Chunk
                 if (checksum == NO_CHECKSUM) {
                     checksum++;
                 }
-                return new ChunkDataLease(
+                return new MemoryChunkDataLease(
                         completedSlices,
                         checksum,
                         numDataPages,

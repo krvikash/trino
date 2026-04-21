@@ -20,6 +20,7 @@ import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
+import io.starburst.stargate.buffer.data.execution.MemoryChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.SpoolingDirectoryConfig;
 import io.starburst.stargate.buffer.data.spooling.MergedFileNameGenerator;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
@@ -88,7 +89,9 @@ public class LocalSpoolingStorage
                 offset += length;
                 sliceOutput.writeLong(chunkDataLease.getChecksum());
                 sliceOutput.writeInt(chunkDataLease.getNumDataPages());
-                chunkDataLease.getChunkSlices().forEach(sliceOutput::writeBytes);
+                switch (chunkDataLease) {
+                    case MemoryChunkDataLease memoryLease -> memoryLease.getChunkSlices().forEach(sliceOutput::writeBytes);
+                }
             }
         }
         catch (IOException e) {

@@ -9,60 +9,16 @@
  */
 package io.starburst.stargate.buffer.data.execution;
 
-import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
-import io.airlift.slice.Slice;
-
-import java.util.List;
-
-import static com.google.common.base.Preconditions.checkState;
-import static java.util.Objects.requireNonNull;
-
-public class ChunkDataLease
+public sealed interface ChunkDataLease
+        permits MemoryChunkDataLease
 {
-    private ImmutableList<Slice> chunkSlices;
-    private final long checksum;
-    private final int numDataPages;
-    private final Runnable releaseCallback;
-    // TODO[https://github.com/starburstdata/galaxy-trino/issues/2163]  remove after diagnosing
-    private String releaseStackTrace;
+    int CHUNK_SLICES_METADATA_SIZE = Long.BYTES + Integer.BYTES;
 
-    public static final int CHUNK_SLICES_METADATA_SIZE = Long.BYTES + Integer.BYTES;
+    long getChecksum();
 
-    public ChunkDataLease(List<Slice> chunkSlices, long checksum, int numDataPages, Runnable releaseCallback)
-    {
-        this.chunkSlices = ImmutableList.copyOf(requireNonNull(chunkSlices, "chunkSlices is null"));
-        this.checksum = checksum;
-        this.numDataPages = numDataPages;
-        this.releaseCallback = requireNonNull(releaseCallback, "releaseCallback is null");
-    }
+    int getNumDataPages();
 
-    public ImmutableList<Slice> getChunkSlices()
-    {
-        checkState(chunkSlices != null, "already released; previous release: %s", releaseStackTrace);
-        return chunkSlices;
-    }
+    int serializedSizeInBytes();
 
-    public long getChecksum()
-    {
-        return checksum;
-    }
-
-    public int getNumDataPages()
-    {
-        return numDataPages;
-    }
-
-    public int serializedSizeInBytes()
-    {
-        return getChunkSlices().stream().mapToInt(Slice::length).sum() + CHUNK_SLICES_METADATA_SIZE;
-    }
-
-    public void release()
-    {
-        checkState(chunkSlices != null, "already released; previous release: %s", releaseStackTrace);
-        releaseStackTrace = Throwables.getStackTraceAsString(new RuntimeException());
-        chunkSlices = null; // ensure no dangling reference
-        releaseCallback.run();
-    }
+    void release();
 }

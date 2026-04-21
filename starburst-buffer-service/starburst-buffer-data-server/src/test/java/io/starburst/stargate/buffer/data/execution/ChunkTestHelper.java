@@ -29,7 +29,9 @@ public final class ChunkTestHelper
 
     public static void verifyChunkData(ChunkDataLease chunkData, DataPage... values)
     {
-        List<Slice> chunkSlices = chunkData.getChunkSlices();
+        List<Slice> chunkSlices = switch (chunkData) {
+            case MemoryChunkDataLease memoryLease -> memoryLease.getChunkSlices();
+        };
         long checksum = chunkData.getChecksum();
         int numDataPages = chunkData.getNumDataPages();
 
@@ -56,7 +58,7 @@ public final class ChunkTestHelper
             sliceOutput.writeInt(dataPage.data().length());
             sliceOutput.writeBytes(dataPage.data());
         }
-        return new ChunkDataLease(
+        return new MemoryChunkDataLease(
                 ImmutableList.of(slice),
                 calculateChecksum(dataPages),
                 dataPages.size(),
@@ -81,7 +83,7 @@ public final class ChunkTestHelper
             sliceBuilder.add(slice);
         }
         List<DataPage> allDataPages = dataPageBuilder.build();
-        return new ChunkDataLease(
+        return new MemoryChunkDataLease(
                 sliceBuilder.build(),
                 calculateChecksum(allDataPages),
                 allDataPages.size(),

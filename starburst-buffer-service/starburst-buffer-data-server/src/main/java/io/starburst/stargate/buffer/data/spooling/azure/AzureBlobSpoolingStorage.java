@@ -29,6 +29,7 @@ import io.airlift.slice.Slices;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
+import io.starburst.stargate.buffer.data.execution.MemoryChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.SpoolingDirectoryConfig;
 import io.starburst.stargate.buffer.data.server.BufferNodeId;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
@@ -128,11 +129,14 @@ public class AzureBlobSpoolingStorage
                 Chunk chunk = entry.getKey();
                 ChunkDataLease chunkDataLease = entry.getValue();
 
+                MemoryChunkDataLease memoryLease = switch (chunkDataLease) {
+                    case MemoryChunkDataLease lease -> lease;
+                };
                 SliceOutput sliceOutput = Slices.allocate(CHUNK_FILE_HEADER_SIZE).getOutput();
-                sliceOutput.writeLong(chunkDataLease.getChecksum());
-                sliceOutput.writeInt(chunkDataLease.getNumDataPages());
+                sliceOutput.writeLong(memoryLease.getChecksum());
+                sliceOutput.writeInt(memoryLease.getNumDataPages());
                 fluxSink.next(ByteBuffer.wrap(sliceOutput.slice().byteArray()));
-                for (Slice chunkSlice : chunkDataLease.getChunkSlices()) {
+                for (Slice chunkSlice : memoryLease.getChunkSlices()) {
                     fluxSink.next(ByteBuffer.wrap(chunkSlice.byteArray(), chunkSlice.byteArrayOffset(), chunkSlice.length()));
                 }
                 int length = chunkDataLease.serializedSizeInBytes();
