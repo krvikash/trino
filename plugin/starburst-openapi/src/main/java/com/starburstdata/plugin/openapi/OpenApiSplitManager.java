@@ -25,10 +25,6 @@ import io.trino.spi.connector.FixedSplitSource;
 public class OpenApiSplitManager
         implements ConnectorSplitManager
 {
-    public OpenApiSplitManager()
-    {
-    }
-
     @Override
     public ConnectorSplitSource getSplits(
             ConnectorTransactionHandle transaction,
