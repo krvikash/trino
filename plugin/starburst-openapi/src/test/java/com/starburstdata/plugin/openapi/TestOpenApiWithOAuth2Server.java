@@ -105,7 +105,7 @@ public class TestOpenApiWithOAuth2Server
     {
         assertQueryFails(
                 "SELECT * FROM TABLE(openapi.default.unauthorized())",
-                "\\QNon-200 response status (401)\\E");
+                ".*Unauthorized \\(status 401\\).*");
     }
 
     @Test
@@ -113,7 +113,7 @@ public class TestOpenApiWithOAuth2Server
     {
         assertQueryFails(
                 "SELECT * FROM TABLE(openapi.default.forbidden())",
-                "\\QNon-200 response status (403)\\E");
+                ".*Forbidden \\(status 403\\).*");
     }
 
     @Path("/")

@@ -71,6 +71,9 @@ public class OpenApiPageSourceProvider
         return Request.builder()
                 .setMethod("GET")
                 .setUri(handle.uri())
+                // Jetty caps redirect chains at 8 by default; exceeding it throws an exception
+                // that surfaces through ReadFromJson.handleException rather than looping forever.
+                .setFollowRedirects(true)
                 .addHeader(HeaderNames.USER_AGENT, "starburst-openapi")
                 .addHeader(HeaderNames.CONTENT_TYPE, JSON_UTF_8.toString())
                 .addHeader(HeaderNames.ACCEPT, JSON_UTF_8.toString())
