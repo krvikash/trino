@@ -316,13 +316,13 @@ public abstract class BaseHiveGpuQueriesTest
                 "CAST(NULL AS varchar) AS col_varchar", 1);
 
         assertThat(query("SELECT col_boolean FROM test_gpu_nulls WHERE col_boolean IS NULL"))
-                .executesWithoutGpu();
+                .executesWithGpu(TableScanNode.class);
         assertThat(query("SELECT col_bigint FROM test_gpu_nulls WHERE col_bigint IS NULL"))
-                .executesWithoutGpu();
+                .executesWithGpu(TableScanNode.class);
         assertThat(query("SELECT col_double FROM test_gpu_nulls WHERE col_double IS NULL"))
-                .executesWithoutGpu();
+                .executesWithGpu(TableScanNode.class);
         assertThat(query("SELECT col_varchar FROM test_gpu_nulls WHERE col_varchar IS NULL"))
-                .executesWithoutGpu();
+                .executesWithGpu(TableScanNode.class);
 
         assertUpdate("DROP TABLE test_gpu_nulls");
     }
@@ -353,9 +353,9 @@ public abstract class BaseHiveGpuQueriesTest
 
         // Read only some columns (tests column pruning)
         assertThat(query("SELECT orderkey FROM test_gpu_pruning WHERE orderkey < 10"))
-                .executesWithoutGpu();
+                .executesWithGpu(TableScanNode.class);
         assertThat(query("SELECT totalprice FROM test_gpu_pruning WHERE orderkey < 10"))
-                .executesWithoutGpu();
+                .executesWithGpu(TableScanNode.class);
 
         assertUpdate("DROP TABLE test_gpu_pruning");
     }

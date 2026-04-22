@@ -36,6 +36,23 @@ import static java.util.Objects.requireNonNull;
 public class GpuProject
         implements GpuOperation
 {
+    public static class Factory
+            implements GpuOperation.Factory
+    {
+        private final List<Projection> projections;
+
+        public Factory(List<Projection> projections)
+        {
+            this.projections = ImmutableList.copyOf(requireNonNull(projections, "projections is null"));
+        }
+
+        @Override
+        public GpuOperation create(GpuOperation source)
+        {
+            return new GpuProject(source, projections);
+        }
+    }
+
     private final GpuOperation source;
     private final List<Projection> projections;
 

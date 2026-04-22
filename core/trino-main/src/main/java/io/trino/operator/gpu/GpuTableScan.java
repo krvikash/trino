@@ -46,6 +46,7 @@ public class GpuTableScan
     private final TableHandle table;
     private final Optional<ConnectorTableCredentials> tableCredentials;
     private final List<ColumnHandle> columns;
+    private final DynamicFilter dynamicFilter;
 
     private @Nullable Split split;
     private final SettableFuture<Void> splitSet = SettableFuture.create();
@@ -56,13 +57,15 @@ public class GpuTableScan
             Session session,
             TableHandle table,
             Optional<ConnectorTableCredentials> tableCredentials,
-            List<ColumnHandle> columns)
+            List<ColumnHandle> columns,
+            DynamicFilter dynamicFilter)
     {
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
         this.session = requireNonNull(session, "session is null");
         this.table = requireNonNull(table, "table is null");
         this.tableCredentials = requireNonNull(tableCredentials, "tableCredentials is null");
         this.columns = ImmutableList.copyOf(requireNonNull(columns, "columns is null"));
+        this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");
     }
 
     @Override
@@ -108,7 +111,7 @@ public class GpuTableScan
                     table,
                     tableCredentials,
                     columns,
-                    DynamicFilter.EMPTY);
+                    dynamicFilter);
         }
 
         @Own ConnectorGpuPageSource.Result result = pageSource.readNext();

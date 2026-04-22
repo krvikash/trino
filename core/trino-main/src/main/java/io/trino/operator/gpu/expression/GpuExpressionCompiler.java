@@ -56,6 +56,19 @@ import static java.util.Objects.requireNonNull;
  */
 public class GpuExpressionCompiler
 {
+    public Optional<List<CompiledExpression>> compileExpressions(List<RowExpression> expressions)
+    {
+        ImmutableList.Builder<CompiledExpression> compiledExpressions = ImmutableList.builderWithExpectedSize(expressions.size());
+        for (RowExpression expression : expressions) {
+            Optional<CompiledExpression> compiled = compileExpression(expression);
+            if (compiled.isEmpty()) {
+                return Optional.empty();
+            }
+            compiledExpressions.add(compiled.get());
+        }
+        return Optional.of(compiledExpressions.build());
+    }
+
     public Optional<CompiledExpression> compileExpression(RowExpression expression)
     {
         // Rewrite field references to use compact, consecutive indexes (0, 1, 2, ...).

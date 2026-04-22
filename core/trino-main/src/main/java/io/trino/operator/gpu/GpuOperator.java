@@ -32,6 +32,7 @@ import io.trino.operator.gpu.GpuOperation.Yielded;
 import io.trino.spi.Page;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorTableCredentials;
+import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
@@ -106,6 +107,7 @@ public abstract class GpuOperator
                 TableHandle table,
                 Optional<ConnectorTableCredentials> tableCredentials,
                 List<ColumnHandle> columns,
+                DynamicFilter dynamicFilter,
                 List<Type> columnTypes)
         {
             this(
@@ -117,7 +119,8 @@ public abstract class GpuOperator
                                 session,
                                 table,
                                 tableCredentials,
-                                columns);
+                                columns,
+                                dynamicFilter);
                         return new GpuOperatorSource(tableScan, tableScan);
                     },
                     ImmutableList.of(),

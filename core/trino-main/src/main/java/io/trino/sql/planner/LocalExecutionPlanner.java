@@ -128,6 +128,7 @@ import io.trino.operator.function.TableFunctionOperator.TableFunctionOperatorFac
 import io.trino.operator.gpu.GpuFilter;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuOperator;
+import io.trino.operator.gpu.GpuProject;
 import io.trino.operator.gpu.aggregation.GpuAggregationCompiler;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GpuExpressionCompiler;
@@ -191,6 +192,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.RecordSet;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.connector.WriterScalingOptions;
@@ -2266,31 +2268,6 @@ public class LocalExecutionPlanner
                     .map(expression -> toRowExpression(expression, sourceLayout))
                     .collect(toImmutableList());
 
-            // TODO (https://starburstdata.atlassian.net/browse/ENG-9852) implement gluing of GPU operations
-            //
-            // TODO (https://starburstdata.atlassian.net/browse/ENG-9808) implement mixed mode data channels CPU Blocks and GPU
-            //  - detect which data channels are already in GPU
-            //  - plan trivial projections on GPU channels as GpuProjectOperation.Projection.PassThrough
-            //  - plan trivial projections on CPU channels as GpuProjectOperation.Projection.PassThrough
-            //    and without triggering materialization on the GPU
-            //  - plan non-trivial projections on
-//            Optional.ofNullable(source)
-//                    .map(PhysicalOperation::getPipelineTail)
-//                    .map(List::getLast) // TODO might this be empty when PhysicalOperation is just alternatives?
-//                    .filter(GpuOperator.Factory.class::isInstance);
-
-            Optional<CompiledExpression> gpuFilter = Optional.empty();
-            if (isGpuAccelerationEnabled(session) &&
-                    columns == null /* no table scan */ &&
-                    translatedFilter.isPresent() &&
-                    // Currently (until https://starburstdata.atlassian.net/browse/ENG-9808), all source types need to be copyable into GPU
-                    source.getTypes().stream().allMatch(GpuTypeConversion::isConvertible)) {
-                gpuFilter = gpuExpressionCompiler.compileExpression(translatedFilter.get());
-                if (gpuFilter.isPresent()) {
-                    translatedFilter = Optional.empty();
-                }
-            }
-
             try {
                 boolean columnarFilterEvaluationEnabled = isColumnarFilterEvaluationEnabled(session);
                 boolean isDebugOutputEnabled = isDebugOutputEnabled(session);
@@ -2314,6 +2291,48 @@ public class LocalExecutionPlanner
                         OptionalInt.empty());
 
                 if (columns != null) {
+                    if (isGpuAccelerationEnabled(session) &&
+                            isGpuTableScanEnabled(session) &&
+                            pageSourceManager.supportsConnectorGpuPageSource(table.catalogHandle(), table.connectorHandle()) &&
+                            // table scan has types supported on the GPU
+                            sourceLayout.keySet().stream().map(Symbol::type).allMatch(GpuTypeConversion::isConvertible) &&
+                            // projection has types supported on the GPU
+                            translatedProjections.stream().map(RowExpression::type).allMatch(GpuTypeConversion::isConvertible)) {
+                        Optional<CompiledExpression> gpuFilter = translatedFilter.flatMap(filter -> gpuExpressionCompiler.compileExpression(filter));
+                        if (translatedFilter.isPresent() == gpuFilter.isPresent()) {
+                            Optional<List<CompiledExpression>> gpuProjections = gpuExpressionCompiler.compileExpressions(translatedProjections);
+                            if (gpuProjections.isPresent()) {
+                                List<Type> scanOutputTypes = sourceNode.getOutputSymbols().stream()
+                                        .map(Symbol::type)
+                                        .collect(toImmutableList());
+                                // TODO (https://starburstdata.atlassian.net/browse/ENG-9785) Support Dynamic Row-Level Filter in GPU-accelerated Table Scan operator? (dynamicPageFilterFactory)
+                                GpuOperator.BaseFactory gpuOperator = new GpuOperator.SourceFactory(
+                                        context.getNextOperatorId(),
+                                        sourceNode.getId(),
+                                        pageSourceManager.createPageSourceProvider(table.catalogHandle()),
+                                        session,
+                                        table,
+                                        tableCredentials,
+                                        columns,
+                                        dynamicFilter,
+                                        scanOutputTypes);
+                                if (gpuFilter.isPresent()) {
+                                    gpuOperator = gpuOperator.withAdditionalOperation(
+                                            new GpuFilter.Factory(gpuFilter.get()),
+                                            scanOutputTypes);
+                                }
+                                gpuOperator = gpuOperator.withAdditionalOperation(
+                                        new GpuProject.Factory(
+                                                gpuProjections.get().stream()
+                                                        .map(GpuProject.Projection.Gpu::new)
+                                                        .collect(toImmutableList())),
+                                        getTypes(projections));
+                                verify(gpuOperator instanceof GpuOperator.SourceFactory);
+                                return new PhysicalOperation(gpuOperator, outputMappings);
+                            }
+                        }
+                    }
+
                     SourceOperatorFactory operatorFactory = new ScanFilterAndProjectOperatorFactory(
                             context.getNextOperatorId(),
                             planNodeId,
@@ -2329,16 +2348,6 @@ public class LocalExecutionPlanner
                             getFilterAndProjectMinOutputPageRowCount(session));
 
                     return new PhysicalOperation(operatorFactory, outputMappings);
-                }
-
-                if (gpuFilter.isPresent()) {
-                    source = addGpuOperation(
-                            new GpuFilter.Factory(gpuFilter.get()),
-                            source.getTypes(),
-                            source,
-                            outputMappings,
-                            context,
-                            planNodeId);
                 }
 
                 OperatorFactory operatorFactory = FilterAndProjectOperator.createOperatorFactory(
@@ -2468,6 +2477,7 @@ public class LocalExecutionPlanner
                         node.getTable(),
                         tableCredentials,
                         columns.build(),
+                        DynamicFilter.EMPTY,
                         columnTypes.build());
                 return new PhysicalOperation(operatorFactory, makeLayout(node));
             }

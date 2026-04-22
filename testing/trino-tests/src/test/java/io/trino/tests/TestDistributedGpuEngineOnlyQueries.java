@@ -17,7 +17,6 @@ import io.trino.connector.MockConnectorFactory;
 import io.trino.connector.MockConnectorPlugin;
 import io.trino.plugin.memory.MemoryQueryRunner;
 import io.trino.sql.planner.plan.AggregationNode;
-import io.trino.sql.planner.plan.FilterNode;
 import io.trino.testing.AbstractDistributedEngineOnlyQueries;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.Test;
@@ -67,7 +66,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, CAST(i AS varchar)) AS s FROM (UNNEST(sequence(0, 1000, 13))) t(i))
                 WHERE s LIKE '%6%7%'
                 """))
-                .executesWithGpu(FilterNode.class);
+                .executesWithoutGpu();
 
         assertThat(query("SELECT name FROM nation WHERE comment LIKE '%a%a___a%'"))
                 .executesWithoutGpu();
@@ -83,7 +82,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
                 WHERE a < b
                 """))
-                .executesWithGpu(FilterNode.class);
+                .executesWithoutGpu();
 
         assertThat(query(
                 """
@@ -92,7 +91,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
                 WHERE a <= b
                 """))
-                .executesWithGpu(FilterNode.class);
+                .executesWithoutGpu();
 
         assertThat(query(
                 """
@@ -101,7 +100,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
                 WHERE a > b
                 """))
-                .executesWithGpu(FilterNode.class);
+                .executesWithoutGpu();
 
         assertThat(query(
                 """
@@ -110,7 +109,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
                 WHERE a >= b
                 """))
-                .executesWithGpu(FilterNode.class);
+                .executesWithoutGpu();
 
         assertThat(query(
                 """
@@ -119,7 +118,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
                 WHERE a = b
                 """))
-                .executesWithGpu(FilterNode.class);
+                .executesWithoutGpu();
     }
 
     @Test
@@ -132,7 +131,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10 + 1) AS b FROM (UNNEST(sequence(0, 100))) t(i))
                 WHERE a + b > 50
                 """))
-                .executesWithGpu(FilterNode.class);
+                .executesWithoutGpu();
 
         assertThat(query(
                 """
@@ -141,7 +140,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10 + 1) AS b FROM (UNNEST(sequence(0, 100))) t(i))
                 WHERE a - b > 50
                 """))
-                .executesWithGpu(FilterNode.class);
+                .executesWithoutGpu();
 
         assertThat(query(
                 """
@@ -150,7 +149,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10 + 1) AS b FROM (UNNEST(sequence(0, 100))) t(i))
                 WHERE a * b > 100
                 """))
-                .executesWithGpu(FilterNode.class);
+                .executesWithoutGpu();
 
         assertThat(query(
                 """
@@ -159,7 +158,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10 + 1) AS b FROM (UNNEST(sequence(0, 100))) t(i))
                 WHERE a / b > 10
                 """))
-                .executesWithGpu(FilterNode.class);
+                .executesWithoutGpu();
 
         assertThat(query(
                 """
@@ -168,7 +167,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10 + 1) AS b FROM (UNNEST(sequence(0, 100))) t(i))
                 WHERE a % b > 5
                 """))
-                .executesWithGpu(FilterNode.class);
+                .executesWithoutGpu();
     }
 
     @Test
@@ -181,7 +180,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
                 WHERE a > 50 AND b < 5 AND a < 99
                 """))
-                .executesWithGpu(FilterNode.class);
+                .executesWithoutGpu();
     }
 
     @Test
@@ -194,7 +193,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, i) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(0, 100))) t(i))
                 WHERE a > 90 OR b < 2
                 """))
-                .executesWithGpu(FilterNode.class);
+                .executesWithoutGpu();
     }
 
     @Test
@@ -207,7 +206,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, i) AS a FROM (UNNEST(sequence(0, 100))) t(i))
                 WHERE NOT(a > 50)
                 """))
-                .executesWithGpu(FilterNode.class);
+                .executesWithoutGpu();
     }
 
     @Test
@@ -220,7 +219,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, NULLIF(i % 10, 0)) AS a FROM (UNNEST(sequence(0, 100))) t(i))
                 WHERE a IS NULL
                 """))
-                .executesWithGpu(FilterNode.class);
+                .executesWithoutGpu();
 
         assertThat(query(
                 """
@@ -229,7 +228,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, NULLIF(i % 10, 0)) AS a FROM (UNNEST(sequence(0, 100))) t(i))
                 WHERE a IS NOT NULL
                 """))
-                .executesWithGpu(FilterNode.class);
+                .executesWithoutGpu();
     }
 
     @Test
@@ -242,7 +241,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, i) AS a FROM (UNNEST(sequence(0, 100))) t(i))
                 WHERE a BETWEEN 20 AND 80
                 """))
-                .executesWithGpu(FilterNode.class);
+                .executesWithoutGpu();
     }
 
     @Test
@@ -255,7 +254,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, NULLIF(i % 10, 0)) AS a, IF(rand()<42, NULLIF(i % 5, 0)) AS b FROM (UNNEST(sequence(0, 100))) t(i))
                 WHERE COALESCE(a, b) > 3
                 """))
-                .executesWithGpu(FilterNode.class);
+                .executesWithoutGpu();
     }
 
     @Test
@@ -268,7 +267,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, i) AS a FROM (UNNEST(sequence(0, 100))) t(i))
                 WHERE a IN (10, 20, 30, 40, 50)
                 """))
-                .executesWithGpu(FilterNode.class);
+                .executesWithoutGpu();
 
         assertThat(query(
                 """
@@ -277,7 +276,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, i) AS a FROM (UNNEST(sequence(0, 100))) t(i))
                 WHERE a IN (10, NULL, 50)
                 """))
-                .executesWithGpu(FilterNode.class);
+                .executesWithoutGpu();
 
         assertThat(query(
                 """
@@ -286,7 +285,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 FROM (SELECT IF(rand()<42, CAST(i AS varchar)) AS s FROM (UNNEST(sequence(0, 100))) t(i))
                 WHERE s IN ('10', '20', '30')
                 """))
-                .executesWithGpu(FilterNode.class);
+                .executesWithoutGpu();
 
         assertThat(query(
                 """
@@ -295,6 +294,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 WHERE a IN (ARRAY[10, 11], ARRAY[20, 21])
                 """))
                 .executesWithoutGpu();
+
         assertThat(query(
                 """
                 SELECT a
@@ -302,6 +302,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 WHERE a IN (ARRAY[10, 11], NULL)
                 """))
                 .executesWithoutGpu();
+
         assertThat(query(
                 """
                 SELECT a
@@ -317,6 +318,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 WHERE m IN (MAP(ARRAY[10], ARRAY[11]), MAP(ARRAY[20], ARRAY[21]))
                 """))
                 .executesWithoutGpu();
+
         assertThat(query(
                 """
                 SELECT m
@@ -324,6 +326,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 WHERE m IN (MAP(ARRAY[10], ARRAY[11]), NULL)
                 """))
                 .executesWithoutGpu();
+
         assertThat(query(
                 """
                 SELECT m
@@ -339,6 +342,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 WHERE r IN (ROW(10, 11), ROW(20, 21))
                 """))
                 .executesWithoutGpu();
+
         assertThat(query(
                 """
                 SELECT r
@@ -346,6 +350,7 @@ public class TestDistributedGpuEngineOnlyQueries
                 WHERE r IN (ROW(10, 11), NULL)
                 """))
                 .executesWithoutGpu();
+
         assertThat(query(
                 """
                 SELECT r

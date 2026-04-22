@@ -55,6 +55,7 @@ public class GpuConfig
     }
 
     // Default ASYNC as recommended by NVIDIA team https://starburstdata.slack.com/archives/C0AHAUL34CC/p1776804643112849?thread_ts=1776415978.579519&cid=C0AHAUL34CC
+    // according to https://starburstdata.slack.com/archives/C0AHAUL34CC/p1776889382679829?thread_ts=1776415978.579519&cid=C0AHAUL34CC, this does not need to be configurable
     private AllocationMode allocationMode = AllocationMode.ASYNC;
     private Optional<DataSize> poolSize = Optional.empty();
     private double allocFraction = 1.0;
