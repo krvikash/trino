@@ -56,6 +56,7 @@ final class TestOpenApiConnectorFactory
             "galaxy.json",
             "petstore.yaml",
             "openmeteo.yml",
+            "datadog.yaml",
     })
     public void testLoadsSpecification(String specification)
     {
@@ -68,7 +69,6 @@ final class TestOpenApiConnectorFactory
             "github-patched.json",
             "jira.json",
             "cloudflare.json",
-            "datadog.yaml",
     })
     public void testFailsSpecification(String specification)
     {

@@ -116,6 +116,26 @@ public class TypesServer
                 .put("string/none", "\"Hello World!\"")
                 .put("string/byte", "\"SGVsbG8gV29ybGQh\"")
                 .put("string/uuid", "\"687978a3-2c79-4a1f-81b9-e64dfe355737\"")
+                .put("string/date", "\"2024-01-15\"")
+                .put("string/date/early", "\"0001-01-01\"")
+                .put("string/date/late", "\"9999-12-31\"")
+                .put("string/date/epoch", "\"1970-01-01\"")
+                .put("string/date/pre-epoch", "\"1969-12-31\"")
+                .put("string/date-time", "\"2024-01-15T13:14:15Z\"")
+                .put("string/date-time/early", "\"0001-01-01T01:01:01.123456789123Z\"")
+                .put("string/date-time/late", "\"9999-12-31T01:01:01.123456000999Z\"")
+                .put("string/date-time/lowercase-t", "\"2024-03-15t10:30:00.123456789Z\"")
+                .put("string/date-time/lowercase-z", "\"2024-03-15T10:30:00.123456789z\"")
+                .put("string/date-time/positive/offset", "\"2024-03-15T10:30:00.123456789+05:30\"")
+                .put("string/date-time/negative/offset", "\"2024-03-15T10:30:00.123456789-04:30\"")
+                .put("string/date-time/precision0", "\"2024-03-15T10:30:00Z\"")
+                .put("string/date-time/precision3", "\"2024-03-15T10:30:00.123Z\"")
+                .put("string/date-time/precision6", "\"2024-03-15T10:30:00.123456Z\"")
+                .put("string/date-time/precision9", "\"2024-03-15T10:30:00.123456789Z\"")
+                .put("string/date-time/precision10", "\"2024-03-15T10:30:00.1234567895Z\"")
+                .put("string/date-time/precision11", "\"2024-03-15T10:30:00.12345678956Z\"")
+                .put("string/date-time/precision12", "\"2024-01-15T13:14:15.123456789012Z\"")
+                .put("string/date-time/precision-overflow", "\"2024-03-15T10:30:00.123456789012999Z\"")
                 .put("number/none", "4.9E-325") // Double.MIN_VALUE / 10
                 .put("integer/none", "9223372036854775808.0") // Long.MAX_VALUE + 1
                 .buildOrThrow();
@@ -143,6 +163,58 @@ public class TypesServer
         public String invalidUuid()
         {
             return "\"ZZZZ\"";
+        }
+
+        @Path("/string/date/invalid")
+        @GET
+        @Produces(APPLICATION_JSON)
+        public String invalidDate()
+        {
+            return "\"not-a-date\"";
+        }
+
+        @Path("/string/date/{path: .*}/invalid")
+        @GET
+        @Produces(APPLICATION_JSON)
+        public String invalidDate(@PathParam("path") String path)
+        {
+            return PATH_TO_INVALID_DATE_VALUE.get(path);
+        }
+
+        private static final Map<String, String> PATH_TO_INVALID_DATE_VALUE = ImmutableMap.<String, String>builder()
+                .put("negative-year", "\"-9999-12-31\"")
+                .put("incorrect-date-separator", "\"2024_02_03\"")
+                .put("incorrect-format", "\"02-03-2024\"")
+                .put("non-string", "20240203")
+                .buildOrThrow();
+
+        @Path("/string/date-time/{path: .*}/invalid")
+        @GET
+        @Produces(APPLICATION_JSON)
+        public String invalidDateTime(@PathParam("path") String path)
+        {
+            return PATH_TO_INVALID_DATE_TIME_VALUE.get(path);
+        }
+
+        private static final Map<String, String> PATH_TO_INVALID_DATE_TIME_VALUE = ImmutableMap.<String, String>builder()
+                .put("negative-year", "\"-0001-02-03T10:30:00.123456+05:30\"")
+                .put("no-t-separator", "\"2024-02-03 10:30:00.123456+05:30\"")
+                .put("no-offset", "\"2024-02-03T10:30:00.123456\"")
+                .put("no-seconds", "\"2024-02-03T10:30Z\"")
+                .put("incorrect-seconds", "\"2024-02-03T10:3Z\"")
+                .put("incorrect-date-separator", "\"2024_02_03T10:30:00.123456Z\"")
+                .put("incorrect-time-separator", "\"2024-02-03T10-30-00.123456+05:30\"")
+                .put("incorrect-format", "\"02-03-2024 10:30:00.123456\"")
+                .put("incorrect-fraction", "\"2024_02_03T10:30:00.Z\"")
+                .put("non-string", "20240203103000")
+                .buildOrThrow();
+
+        @Path("/string/date-time/invalid")
+        @GET
+        @Produces(APPLICATION_JSON)
+        public String invalidDateTime()
+        {
+            return "\"not-a-date-time\"";
         }
 
         @Path("/integer/none/invalid")

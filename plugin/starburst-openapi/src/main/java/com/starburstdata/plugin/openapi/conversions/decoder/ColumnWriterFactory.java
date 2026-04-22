@@ -30,6 +30,8 @@ import static com.starburstdata.plugin.openapi.conversions.decoder.IntegerColumn
 import static com.starburstdata.plugin.openapi.conversions.decoder.SimpleColumnWriters.BOOLEAN_COLUMN_WRITER;
 import static com.starburstdata.plugin.openapi.conversions.decoder.SimpleColumnWriters.STRING_COLUMN_WRITER;
 import static com.starburstdata.plugin.openapi.conversions.decoder.StringColumnWriters.BYTE_COLUMN_WRITER;
+import static com.starburstdata.plugin.openapi.conversions.decoder.StringColumnWriters.DATE_COLUMN_WRITER;
+import static com.starburstdata.plugin.openapi.conversions.decoder.StringColumnWriters.DATE_TIME_COLUMN_WRITER;
 import static com.starburstdata.plugin.openapi.conversions.decoder.StringColumnWriters.UUID_COLUMN_WRITER;
 import static io.trino.spi.type.StandardTypes.JSON;
 import static java.util.Objects.requireNonNull;
@@ -87,6 +89,8 @@ public class ColumnWriterFactory
             case NONE -> STRING_COLUMN_WRITER;
             case BYTE -> BYTE_COLUMN_WRITER;
             case UUID -> UUID_COLUMN_WRITER;
+            case DATE -> DATE_COLUMN_WRITER;
+            case DATE_TIME -> DATE_TIME_COLUMN_WRITER;
         };
     }
 

@@ -14,16 +14,27 @@ import com.starburstdata.plugin.openapi.conversions.ir.LeafIr;
 import com.starburstdata.plugin.openapi.conversions.ir.NumberIr;
 import com.starburstdata.plugin.openapi.conversions.ir.StringIr;
 import io.airlift.slice.Slice;
+import io.trino.spi.TrinoException;
+import io.trino.spi.type.LongTimestampWithTimeZone;
+import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.Type;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 
+import static io.trino.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
+import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_PICOS;
 import static io.trino.spi.type.UuidType.UUID;
 import static io.trino.spi.type.UuidType.trinoUuidToJavaUuid;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
@@ -138,6 +149,54 @@ public abstract class LeafTypeEncoder
         }
     };
 
+    public static final LeafTypeEncoder DATE_ENCODER = new LeafTypeEncoder("DATE_ENCODER", DATE)
+    {
+        @Override
+        public String serializeToString(Object value)
+        {
+            LocalDate date = LocalDate.ofEpochDay((Long) value);
+            int year = date.getYear();
+            if (year < 0 || year > 9999) {
+                throw new TrinoException(
+                        INVALID_FUNCTION_ARGUMENT,
+                        "Year %s must be greater than or equal to 0 and less than or equal to 9999".formatted(year));
+            }
+            return date.toString();
+        }
+    };
+
+    public static final LeafTypeEncoder DATE_TIME_ENCODER = new LeafTypeEncoder("DATE_TIME_ENCODER", TIMESTAMP_TZ_PICOS)
+    {
+        // Used only for the sub-nanosecond path; ISO_OFFSET_DATE_TIME handles the common case.
+        private static final DateTimeFormatter DATE_TIME_PREFIX = DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss");
+
+        @Override
+        public String serializeToString(Object value)
+        {
+            LongTimestampWithTimeZone lts = (LongTimestampWithTimeZone) value;
+            int subMilliNanos = lts.getPicosOfMilli() / 1_000;
+            int subNanoPicos = lts.getPicosOfMilli() % 1_000;
+            Instant instant = Instant.ofEpochMilli(lts.getEpochMillis()).plusNanos(subMilliNanos);
+            ZoneId zoneId = ZoneId.of(TimeZoneKey.getTimeZoneKey(lts.getTimeZoneKey()).getId());
+            ZonedDateTime zonedDateTime = instant.atZone(zoneId);
+
+            int year = zonedDateTime.getYear();
+            if (year < 0 || year > 9999) {
+                throw new TrinoException(
+                        INVALID_FUNCTION_ARGUMENT,
+                        "Year %s must be greater than or equal to 0 and less than or equal to 9999".formatted(year));
+            }
+
+            if (subNanoPicos == 0) {
+                // ISO_OFFSET_DATE_TIME handles up to 9 fractional digits and trims trailing zeros
+                return DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(zonedDateTime);
+            }
+            // Sub-nanosecond pico precision: format 12 fractional digits, trimming trailing zeros
+            String fraction = String.format("%09d%03d", zonedDateTime.getNano(), subNanoPicos);
+            return DATE_TIME_PREFIX.format(zonedDateTime) + '.' + fraction.substring(0, fraction.length()) + zonedDateTime.getOffset().getId();
+        }
+    };
+
     public static LeafTypeEncoder from(LeafIr leafIr)
     {
         return switch (leafIr) {
@@ -152,6 +211,8 @@ public abstract class LeafTypeEncoder
                 case NONE -> STRING_ENCODER;
                 case UUID -> UUID_ENCODER;
                 case BYTE -> BYTE_ENCODER;
+                case DATE -> DATE_ENCODER;
+                case DATE_TIME -> DATE_TIME_ENCODER;
             };
         };
     }

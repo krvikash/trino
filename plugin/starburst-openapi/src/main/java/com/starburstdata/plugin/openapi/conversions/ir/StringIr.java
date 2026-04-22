@@ -20,5 +20,7 @@ public record StringIr(Format format)
         NONE,
         BYTE, // B64 https://spec.openapis.org/registry/format/byte.html
         UUID, // https://spec.openapis.org/registry/format/uuid.html
+        DATE, // https://spec.openapis.org/registry/format/date.html
+        DATE_TIME, // https://spec.openapis.org/registry/format/date-time.html
     }
 }

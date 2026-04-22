@@ -60,6 +60,18 @@ public class TestOpenApiWithParametersServer
                 .add(Arguments.of("string_none", "'Goodbye World!'", "Goodbye World!"))
                 .add(Arguments.of("string_byte", "to_utf8('Encode me!')", "RW5jb2RlIG1lIQ=="))
                 .add(Arguments.of("string_uuid", "UUID '904046ea-90cd-4ffb-8a71-5b2ba0c8b74c'", "904046ea-90cd-4ffb-8a71-5b2ba0c8b74c"))
+                .add(Arguments.of("string_date", "DATE '0000-01-01'", "0000-01-01"))
+                .add(Arguments.of("string_date", "DATE '1970-01-01'", "1970-01-01"))
+                .add(Arguments.of("string_date", "DATE '1969-12-31'", "1969-12-31"))
+                .add(Arguments.of("string_date", "DATE '2024-01-15'", "2024-01-15"))
+                .add(Arguments.of("string_date", "DATE '9999-12-31'", "9999-12-31"))
+                .add(Arguments.of("string_date_time", "TIMESTAMP '0000-01-01 00:00:00 UTC'", "0000-01-01T00:00:00Z"))
+                .add(Arguments.of("string_date_time", "TIMESTAMP '1970-01-01 00:00:00.000000000000 UTC'", "1970-01-01T00:00:00Z"))
+                .add(Arguments.of("string_date_time", "TIMESTAMP '2024-01-15 13:14:15.000000000000 UTC'", "2024-01-15T13:14:15Z"))
+                .add(Arguments.of("string_date_time", "TIMESTAMP '2024-01-15 13:14:15.123456789000 UTC'", "2024-01-15T13:14:15.123456789Z"))
+                .add(Arguments.of("string_date_time", "TIMESTAMP '2024-01-15 13:14:15.123456789012 UTC'", "2024-01-15T13:14:15.123456789012Z"))
+                .add(Arguments.of("string_date_time", "TIMESTAMP '2024-01-15 13:14:15.000000000000 +05:30'", "2024-01-15T13:14:15+05:30"))
+                .add(Arguments.of("string_date_time", "TIMESTAMP '9999-12-31 23:59:59.999999999999 UTC'", "9999-12-31T23:59:59.999999999999Z"))
                 .add(Arguments.of("number_none", "1.0E-10", "0.00000000010"))
                 .add(Arguments.of("integer_none", "9223372036854775807", "9223372036854775807"))
                 .add(Arguments.of("integer_int32", "2147483647", "2147483647"))
@@ -97,5 +109,27 @@ public class TestOpenApiWithParametersServer
                         param_one => 'TEST',
                         param_two => 'ING'))"""))
                 .matches("VALUES (CAST('TEST' AS VARCHAR), CAST('ING' AS VARCHAR))");
+    }
+
+    @Test
+    public void testDateValidation()
+    {
+        assertQueryFails(
+                "SELECT * FROM TABLE(openapi.default.repeat_query_params(string_date => DATE '-0001-12-31'))",
+                "\\QYear -1 must be greater than or equal to 0 and less than or equal to 9999\\E");
+        assertQueryFails(
+                "SELECT * FROM TABLE(openapi.default.repeat_query_params(string_date => DATE '10000-12-31'))",
+                "\\QYear 10000 must be greater than or equal to 0 and less than or equal to 9999\\E");
+    }
+
+    @Test
+    public void testDateTimeValidation()
+    {
+        assertQueryFails(
+                "SELECT * FROM TABLE(openapi.default.repeat_query_params(string_date_time => TIMESTAMP '-0001-12-31 23:59:59.999999999 UTC'))",
+                "\\QYear -1 must be greater than or equal to 0 and less than or equal to 9999\\E");
+        assertQueryFails(
+                "SELECT * FROM TABLE(openapi.default.repeat_query_params(string_date_time => TIMESTAMP '10000-01-01 00:00:00 UTC'))",
+                "\\QYear 10000 must be greater than or equal to 0 and less than or equal to 9999\\E");
     }
 }

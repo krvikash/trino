@@ -57,6 +57,22 @@
                     }
                 },
                 {
+                    "name": "string_date",
+                    "in": "query",
+                    "schema": {
+                        "type": "string",
+                        "format": "date"
+                    }
+                },
+                {
+                    "name": "string_date_time",
+                    "in": "query",
+                    "schema": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                {
                     "name": "number_none",
                     "in": "query",
                     "schema": {

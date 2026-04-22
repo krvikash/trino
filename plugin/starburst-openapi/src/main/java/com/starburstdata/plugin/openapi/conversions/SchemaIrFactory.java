@@ -41,6 +41,8 @@ import static com.starburstdata.plugin.openapi.conversions.ir.NumberIr.Format.IN
 import static com.starburstdata.plugin.openapi.conversions.ir.NumberIr.Format.NONE_INTEGER;
 import static com.starburstdata.plugin.openapi.conversions.ir.NumberIr.Format.NONE_NUMBER;
 import static com.starburstdata.plugin.openapi.conversions.ir.StringIr.Format.BYTE;
+import static com.starburstdata.plugin.openapi.conversions.ir.StringIr.Format.DATE;
+import static com.starburstdata.plugin.openapi.conversions.ir.StringIr.Format.DATE_TIME;
 import static com.starburstdata.plugin.openapi.conversions.ir.StringIr.Format.NONE;
 import static com.starburstdata.plugin.openapi.conversions.ir.StringIr.Format.UUID;
 import static java.lang.Boolean.TRUE;
@@ -350,6 +352,8 @@ public class SchemaIrFactory
             case null -> new StringIr(NONE);
             case "byte" -> new StringIr(BYTE);
             case "uuid" -> new StringIr(UUID);
+            case "date" -> new StringIr(DATE);
+            case "date-time" -> new StringIr(DATE_TIME);
             case String other -> switch (castPolicy) {
                 case DROP, ERROR -> throw new SchemaException(
                         "Unsupported string format %s".formatted(other))

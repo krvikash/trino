@@ -25,6 +25,8 @@ import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastP
 import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy.ERROR;
 import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.CastPolicy.JSON;
 import static com.starburstdata.plugin.openapi.conversions.ir.StringIr.Format.BYTE;
+import static com.starburstdata.plugin.openapi.conversions.ir.StringIr.Format.DATE;
+import static com.starburstdata.plugin.openapi.conversions.ir.StringIr.Format.DATE_TIME;
 import static com.starburstdata.plugin.openapi.conversions.ir.StringIr.Format.NONE;
 import static com.starburstdata.plugin.openapi.conversions.ir.StringIr.Format.UUID;
 import static java.util.Collections.emptyMap;
@@ -59,6 +61,8 @@ public class TestSchemaIrFactoryWithStrings
         assertSupportedStringFormat(schemas.get("stringNoFormat"), NONE);
         assertSupportedStringFormat(schemas.get("stringByteFormat"), BYTE);
         assertSupportedStringFormat(schemas.get("stringUuidFormat"), UUID);
+        assertSupportedStringFormat(schemas.get("stringDateFormat"), DATE);
+        assertSupportedStringFormat(schemas.get("stringDateTimeFormat"), DATE_TIME);
     }
 
     private static void assertSupportedStringFormat(

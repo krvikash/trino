@@ -11,6 +11,8 @@
             "stringNoFormat": { "type": "string", "readOnly": true },
             "stringByteFormat": { "type": "string", "format": "byte", "readOnly": true },
             "stringUuidFormat": { "type": "string", "format": "uuid", "readOnly": true },
+            "stringDateFormat": { "type": "string", "format": "date", "readOnly": true },
+            "stringDateTimeFormat": { "type": "string", "format": "date-time", "readOnly": true },
             "stringUnknownFormat": { "type": "string", "format": "unknown", "readOnly": true }
         }
     }
