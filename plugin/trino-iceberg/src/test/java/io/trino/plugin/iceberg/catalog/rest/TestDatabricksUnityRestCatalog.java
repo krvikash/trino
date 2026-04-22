@@ -14,6 +14,7 @@
 package io.trino.plugin.iceberg.catalog.rest;
 
 import com.google.common.collect.ImmutableList;
+import io.trino.plugin.hive.metastore.unity.DatabricksSqlExecutor;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
@@ -87,6 +88,20 @@ final class TestDatabricksUnityRestCatalog
 
                 assertQueryFails("INSERT INTO default." + trinoTableName + " VALUES 2", ".*not a Managed Iceberg table.*");
             }
+        }
+    }
+
+    @Test
+    void testManagedIcebergTable()
+    {
+        try (TestTable table = new TestTable(
+                new DatabricksSqlExecutor(DATABRICKS_UNITY_JDBC_URL, DATABRICKS_LOGIN, DATABRICKS_TOKEN),
+                DATABRICKS_UNITY_CATALOG_NAME + ".default.test_managed_iceberg",
+                "(c1 INT) USING iceberg TBLPROPERTIES ('format-version' = 3)",
+                ImmutableList.of("1", "2", "3"))) {
+            String trinoTableName = table.getName().substring(table.getName().lastIndexOf('.') + 1);
+            assertThat(query("SELECT * FROM default." + trinoTableName))
+                    .matches("VALUES 1, 2, 3");
         }
     }
 
