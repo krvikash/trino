@@ -17,6 +17,7 @@ import com.google.inject.Binder;
 import com.starburstdata.plugin.openapi.authentication.AuthenticatorModule;
 import com.starburstdata.plugin.openapi.conversions.decoder.ColumnWriterFactory;
 import com.starburstdata.plugin.openapi.conversions.decoder.OpenApiDecoderFactory;
+import com.starburstdata.plugin.openapi.pagination.PaginationStrategyModule;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 
 import static com.google.inject.Scopes.SINGLETON;
@@ -42,5 +43,6 @@ public class OpenApiModule
         httpClientBinder(binder).bindHttpClient("openapi", ForOpenApi.class);
 
         install(new AuthenticatorModule());
+        install(new PaginationStrategyModule());
     }
 }

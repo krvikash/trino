@@ -55,7 +55,6 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.starburstdata.plugin.openapi.SpecUtil.getGetOperation;
 import static com.starburstdata.plugin.openapi.SpecUtil.getJsonResponseSchema;
 import static com.starburstdata.plugin.openapi.SpecUtil.getParameterSchema;
-import static com.starburstdata.plugin.openapi.pagination.OpenApiPaginationStrategy.READ_ONCE_STRATEGY;
 import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
 import static java.lang.String.join;
 import static java.util.Locale.ENGLISH;
@@ -76,7 +75,8 @@ public class OpenApiSpec
     public OpenApiSpec(
             OpenApiConfig config,
             OpenApiAuthenticator authenticator,
-            OpenApiDecoderFactory openApiDecoderFactory)
+            OpenApiDecoderFactory openApiDecoderFactory,
+            OpenApiPaginationStrategy<?> paginationStrategy)
     {
         OpenAPI openApi = parse(config.getSpecLocation());
         requireNonNull(openApi, "openApi is null");
@@ -100,7 +100,8 @@ public class OpenApiSpec
                 referenceableParameters,
                 CastPolicy.JSON,
                 openApiDecoderFactory,
-                authenticator);
+                authenticator,
+                paginationStrategy);
         this.tableFunctions = pathMetadata.entrySet().stream()
                 .map(entry -> new OpenApiRequestTableFunction(
                         config.getBaseUri(),
@@ -133,7 +134,8 @@ public class OpenApiSpec
             Map<String, Parameter> parameters,
             CastPolicy castPolicy,
             OpenApiDecoderFactory openApiDecoderFactory,
-            OpenApiAuthenticator authenticator)
+            OpenApiAuthenticator authenticator,
+            OpenApiPaginationStrategy<?> paginationStrategy)
     {
         SchemaIrFactory schemaIrFactory = new SchemaIrFactory(castPolicy, schemas);
         ImmutableMap.Builder<String, PathMetadata> pathMetadataBuilder = ImmutableMap.builder();
@@ -310,7 +312,7 @@ public class OpenApiSpec
                             description,
                             decoder,
                             identifierToParameterHandleBuilder.buildOrThrow(),
-                            READ_ONCE_STRATEGY,
+                            paginationStrategy,
                             authenticator));
         });
 

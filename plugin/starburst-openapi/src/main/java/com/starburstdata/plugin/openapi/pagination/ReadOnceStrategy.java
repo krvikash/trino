@@ -33,6 +33,9 @@ public class ReadOnceStrategy
     @Override
     public Request nextRequestFromState(Request currentRequest, Boolean state)
     {
+        if (isFinished(state)) {
+            throw new IllegalStateException("nextRequestFromState called on a finished state");
+        }
         return currentRequest;
     }
 
