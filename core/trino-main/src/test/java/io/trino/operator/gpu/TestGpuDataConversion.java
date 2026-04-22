@@ -39,11 +39,12 @@ import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
+import static io.trino.operator.gpu.GpuTestUtils.positions;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
@@ -122,7 +123,7 @@ public class TestGpuDataConversion
         List<Type> types = testTypes;
         List<Page> inputPages = createInputPages(List.of(16), nullsProvider, types);
         List<Page> outputPages = executeRoundTrip(inputPages, types, allChannels(types.size()));
-        assertSameData(outputPages, inputPages, types);
+        assertSameDataInOrder(outputPages, inputPages, types);
     }
 
     @ParameterizedTest
@@ -132,7 +133,7 @@ public class TestGpuDataConversion
         List<Type> types = testTypes;
         List<Page> inputPages = createInputPages(List.of(213748), nullsProvider, types);
         List<Page> outputPages = executeRoundTrip(inputPages, types, allChannels(types.size()));
-        assertSameData(outputPages, inputPages, types);
+        assertSameDataInOrder(outputPages, inputPages, types);
     }
 
     @ParameterizedTest
@@ -143,7 +144,7 @@ public class TestGpuDataConversion
         List<Type> types = testTypes;
         List<Page> inputPages = createInputPages(positionsCounts, nullsProvider, types);
         List<Page> outputPages = executeRoundTrip(inputPages, types, allChannels(types.size()));
-        assertSameData(outputPages, inputPages, types);
+        assertSameDataInOrder(outputPages, inputPages, types);
     }
 
     @ParameterizedTest
@@ -154,7 +155,7 @@ public class TestGpuDataConversion
         List<Type> types = testTypes;
         List<Page> inputPages = toRlePages(createInputPages(positionsCounts, nullsProvider, types));
         List<Page> outputPages = executeRoundTrip(inputPages, types, allChannels(types.size()));
-        assertSameData(outputPages, inputPages, types);
+        assertSameDataInOrder(outputPages, inputPages, types);
     }
 
     @ParameterizedTest
@@ -165,7 +166,7 @@ public class TestGpuDataConversion
         List<Type> types = testTypes;
         List<Page> inputPages = toDictionaryPages(createInputPages(positionsCounts, nullsProvider, types));
         List<Page> outputPages = executeRoundTrip(inputPages, types, allChannels(types.size()));
-        assertSameData(outputPages, inputPages, types);
+        assertSameDataInOrder(outputPages, inputPages, types);
     }
 
     private static List<Page> toRlePages(List<Page> pages)
@@ -238,12 +239,12 @@ public class TestGpuDataConversion
                 positions(output),
                 IntStream.range(0, values.length + 1).boxed(),
                 (actualPos, expectedIndex) -> {
-                    Block block = actualPos.page.getBlock(0);
+                    Block block = actualPos.page().getBlock(0);
                     if (expectedIndex == values.length) {
-                        assertThat(block.isNull(actualPos.position)).isTrue();
+                        assertThat(block.isNull(actualPos.position())).isTrue();
                         return;
                     }
-                    long actualBits = (Long) readNativeValue(REAL, block, actualPos.position);
+                    long actualBits = (Long) readNativeValue(REAL, block, actualPos.position());
                     long expectedBits = Float.isNaN(values[expectedIndex])
                             ? 0x7FC00000L
                             : Float.floatToIntBits(values[expectedIndex]) & 0xFFFFFFFFL;
@@ -281,12 +282,12 @@ public class TestGpuDataConversion
                 positions(output),
                 IntStream.range(0, values.length + 1).boxed(),
                 (actualPos, expectedIndex) -> {
-                    Block block = actualPos.page.getBlock(0);
+                    Block block = actualPos.page().getBlock(0);
                     if (expectedIndex == values.length) {
-                        assertThat(block.isNull(actualPos.position)).isTrue();
+                        assertThat(block.isNull(actualPos.position())).isTrue();
                         return;
                     }
-                    long actualBits = Double.doubleToRawLongBits((Double) readNativeValue(DOUBLE, block, actualPos.position));
+                    long actualBits = Double.doubleToRawLongBits((Double) readNativeValue(DOUBLE, block, actualPos.position()));
                     long expectedBits = Double.isNaN(values[expectedIndex])
                             ? 0x7FF8000000000000L
                             : Double.doubleToLongBits(values[expectedIndex]);
@@ -349,14 +350,14 @@ public class TestGpuDataConversion
                     positions(output),
                     IntStream.range(0, values.length + 1).boxed(),
                     (actualPos, expectedIndex) -> {
-                        Block block = actualPos.page.getBlock(0);
+                        Block block = actualPos.page().getBlock(0);
                         if (expectedIndex == finalValues.length) {
-                            assertThat(block.isNull(actualPos.position))
+                            assertThat(block.isNull(actualPos.position()))
                                     .as("type %s null position", finalType)
                                     .isTrue();
                             return;
                         }
-                        assertThat((Long) readNativeValue(finalType, block, actualPos.position))
+                        assertThat((Long) readNativeValue(finalType, block, actualPos.position()))
                                 .as("type %s position %d", finalType, expectedIndex)
                                 .isEqualTo(finalValues[expectedIndex]);
                     });
@@ -723,29 +724,6 @@ public class TestGpuDataConversion
                 .flatMap(List::stream);
     }
 
-    private void assertSameData(List<Page> actual, List<Page> expected, List<Type> types)
-    {
-        int actualRowCount = actual.stream().mapToInt(Page::getPositionCount).sum();
-        int expectedRowCount = expected.stream().mapToInt(Page::getPositionCount).sum();
-
-        assertThat(actualRowCount)
-                .as("total row count after round trip")
-                .isEqualTo(expectedRowCount);
-
-        // Compare row by row
-        Streams.forEachPair(
-                positions(actual),
-                positions(expected),
-                (actualPos, expectedPos) -> {
-                    List<Optional<Object>> actualValues = readValues(actualPos.page, actualPos.position, types);
-                    List<Optional<Object>> expectedValues = readValues(expectedPos.page, expectedPos.position, types);
-
-                    assertThat(actualValues)
-                            .as("row %d values", actualPos.position)
-                            .isEqualTo(expectedValues);
-                });
-    }
-
     private static Stream<Integer> randomInts(int minInclusive, int maxExclusive)
     {
         Random random = new Random(42); // Fixed seed for reproducibility
@@ -757,25 +735,4 @@ public class TestGpuDataConversion
     {
         return IntStream.range(0, size).boxed().collect(toImmutableSet());
     }
-
-    private static List<Optional<Object>> readValues(Page page, int position, List<Type> types)
-    {
-        checkArgument(page.getChannelCount() == types.size(), "page channel count mismatch");
-        return IntStream.range(0, types.size())
-                .mapToObj(column -> Optional.ofNullable(readNativeValue(types.get(column), page.getBlock(column), position)))
-                .collect(toImmutableList());
-    }
-
-    private static Stream<PagePosition> positions(List<Page> pages)
-    {
-        return pages.stream().flatMap(TestGpuDataConversion::positions);
-    }
-
-    private static Stream<PagePosition> positions(Page page)
-    {
-        return IntStream.range(0, page.getPositionCount())
-                .mapToObj(i -> new PagePosition(page, i));
-    }
-
-    private record PagePosition(Page page, int position) {}
 }

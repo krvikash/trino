@@ -51,10 +51,10 @@ import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Streams.stream;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
+import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
@@ -65,7 +65,6 @@ import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TinyintType.TINYINT;
-import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeSignatureProvider.fromTypes;
 import static io.trino.sql.relational.Expressions.call;
@@ -488,7 +487,7 @@ public class TestGpuExpressions
 
         List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, constantExpression, gpuExpression);
         List<Page> cpuResults = executeWithCpu(inputPages, constantExpression);
-        assertSameData(gpuResults, cpuResults, List.of(constantExpression.type()));
+        assertSameDataInOrder(gpuResults, cpuResults, List.of(constantExpression.type()));
     }
 
     private void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, RowExpression rowExpression, Set<Integer> expectedInputChannels)
@@ -501,7 +500,7 @@ public class TestGpuExpressions
 
         List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, rowExpression, gpuExpression);
         List<Page> cpuResults = executeWithCpu(inputPages, rowExpression);
-        assertSameData(gpuResults, cpuResults, List.of(rowExpression.type()));
+        assertSameDataInOrder(gpuResults, cpuResults, List.of(rowExpression.type()));
     }
 
     private List<Page> executeWithGpu(List<Page> inputPages, List<Type> inputTypes, RowExpression rowExpression, CompiledExpression gpuExpression)
@@ -584,45 +583,10 @@ public class TestGpuExpressions
                 .flatMap(List::stream);
     }
 
-    private void assertSameData(List<Page> actual, List<Page> expected, List<Type> types)
-    {
-        assertThat(actual.stream().mapToInt(Page::getPositionCount).sum()).as("actual position count (sum over all returned pages)")
-                .isEqualTo(expected.stream().mapToInt(Page::getPositionCount).sum());
-
-        Streams.forEachPair(
-                positions(actual),
-                positions(expected),
-                (left, right) -> {
-                    assertThat(readValues(left.page, left.position, types))
-                            .isEqualTo(readValues(right.page, right.position, types));
-                });
-    }
-
     private static Stream<Integer> randomInts(int minInclusive, int maxExclusive)
     {
         Random random = new Random(42); // Fixed seed for reproducibility
         return IntStream.generate(() -> random.nextInt(minInclusive, maxExclusive))
                 .boxed();
     }
-
-    private static List<Optional<Object>> readValues(Page page, int position, List<Type> types)
-    {
-        checkArgument(page.getChannelCount() == types.size());
-        return IntStream.range(0, types.size())
-                .mapToObj(column -> Optional.ofNullable(readNativeValue(types.get(column), page.getBlock(column), position)))
-                .collect(toImmutableList());
-    }
-
-    private static Stream<PagePosition> positions(List<Page> pages)
-    {
-        return pages.stream().flatMap(TestGpuExpressions::positions);
-    }
-
-    private static Stream<PagePosition> positions(Page page)
-    {
-        return IntStream.range(0, page.getPositionCount())
-                .mapToObj(i -> new PagePosition(page, i));
-    }
-
-    private record PagePosition(Page page, int position) {}
 }

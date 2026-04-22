@@ -14,6 +14,7 @@
 package io.trino.operator.gpu;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Streams;
 import io.airlift.slice.Slices;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
@@ -30,8 +31,11 @@ import java.util.Random;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -40,7 +44,9 @@ import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TinyintType.TINYINT;
+import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.VarcharType.VARCHAR;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public final class GpuTestUtils
 {
@@ -175,4 +181,43 @@ public final class GpuTestUtils
             }
         }
     }
+
+    public static void assertSameDataInOrder(List<Page> actual, List<Page> expected, List<Type> types)
+    {
+        assertThat(actual.stream().mapToInt(Page::getPositionCount).sum()).as("actual position count (sum over all returned pages)")
+                .isEqualTo(expected.stream().mapToInt(Page::getPositionCount).sum());
+
+        Streams.forEachPair(
+                positions(actual),
+                positions(expected),
+                (actualPos, expectedPos) -> {
+                    List<Optional<Object>> actualValues = readValues(actualPos.page, actualPos.position, types);
+                    List<Optional<Object>> expectedValues = readValues(expectedPos.page, expectedPos.position, types);
+
+                    assertThat(actualValues)
+                            .as("row %d values", actualPos.position)
+                            .isEqualTo(expectedValues);
+                });
+    }
+
+    private static List<Optional<Object>> readValues(Page page, int position, List<Type> types)
+    {
+        checkArgument(page.getChannelCount() == types.size());
+        return IntStream.range(0, types.size())
+                .mapToObj(column -> Optional.ofNullable(readNativeValue(types.get(column), page.getBlock(column), position)))
+                .collect(toImmutableList());
+    }
+
+    public static Stream<PagePosition> positions(List<Page> pages)
+    {
+        return pages.stream().flatMap(GpuTestUtils::positions);
+    }
+
+    private static Stream<PagePosition> positions(Page page)
+    {
+        return IntStream.range(0, page.getPositionCount())
+                .mapToObj(i -> new PagePosition(page, i));
+    }
+
+    public record PagePosition(Page page, int position) {}
 }
