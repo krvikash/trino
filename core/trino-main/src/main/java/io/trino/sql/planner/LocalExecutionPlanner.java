@@ -4338,16 +4338,11 @@ public class LocalExecutionPlanner
             }
             return GpuAggregationCompiler.compile(node, source.getLayout())
                     .map(gpuAggregation -> {
-                        ImmutableMap.Builder<Symbol, Integer> outputMappings = ImmutableMap.builder();
-                        int channel = 0;
-                        for (Symbol symbol : node.getOutputSymbols()) {
-                            outputMappings.put(symbol, channel++);
-                        }
                         return addGpuOperation(
                                 gpuAggregation,
                                 gpuAggregation.getOutputTypes(),
                                 source,
-                                outputMappings.buildOrThrow(),
+                                makeLayout(node),
                                 context,
                                 node.getId());
                     });
