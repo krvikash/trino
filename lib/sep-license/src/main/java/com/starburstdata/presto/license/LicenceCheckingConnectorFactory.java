@@ -15,6 +15,7 @@ import io.trino.spi.connector.ConnectorFactory;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
@@ -63,5 +64,11 @@ public class LicenceCheckingConnectorFactory
     {
         feature.ifPresentOrElse(licenseManager::checkFeature, licenseManager::checkLicense);
         return connectorFactory.create(catalogName, config, context);
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        return connectorFactory.getSecuritySensitivePropertyNames(catalogName, config, context);
     }
 }

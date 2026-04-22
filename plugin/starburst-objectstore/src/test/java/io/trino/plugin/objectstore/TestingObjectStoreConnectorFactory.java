@@ -17,7 +17,9 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.Multibinder;
+import io.airlift.bootstrap.Bootstrap;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.airlift.configuration.ConfigPropertyMetadata;
 import io.airlift.units.Duration;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.local.LocalFileSystemFactory;
@@ -25,6 +27,7 @@ import io.trino.metastore.HiveMetastore;
 import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.RawHiveMetastoreFactory;
 import io.trino.metastore.cache.CachingHiveMetastoreConfig;
+import io.trino.plugin.base.config.ConfigUtils;
 import io.trino.plugin.deltalake.DefaultDeltaLakeFileSystemFactory;
 import io.trino.plugin.deltalake.NoOpTableCredentialsProvider;
 import io.trino.plugin.deltalake.TestingDeltaLakeExtensionsModule;
@@ -38,6 +41,7 @@ import io.trino.plugin.iceberg.catalog.TrinoCatalogFactory;
 import io.trino.plugin.iceberg.catalog.file.FileMetastoreTableOperationsProvider;
 import io.trino.plugin.iceberg.catalog.hms.TrinoHiveCatalogFactory;
 import io.trino.plugin.iceberg.procedure.MigrateProcedure;
+import io.trino.spi.classloader.ThreadContextClassLoader;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
@@ -46,12 +50,15 @@ import io.trino.spi.procedure.Procedure;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.inject.multibindings.MapBinder.newMapBinder;
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.util.Modules.EMPTY_MODULE;
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.trino.plugin.objectstore.InternalStarburstObjectStoreConnectorFactory.buildConfig;
+import static io.trino.plugin.objectstore.InternalStarburstObjectStoreConnectorFactory.createBootstrap;
 import static io.trino.plugin.objectstore.StarburstObjectStoreConnectorFactory.STARBURST_OBJECTSTORE;
 import static java.util.Objects.requireNonNull;
 
@@ -108,9 +115,35 @@ public class TestingObjectStoreConnectorFactory
                         configBinder(binder).bindConfig(MetastoreTypeConfig.class);
                     },
                     additionalObjectStoreModule.orElse(EMPTY_MODULE),
-                    context);
+                    context,
+                    true);
             default -> throw new IllegalArgumentException("Unknown connector: " + connectorName);
         };
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        Map<String, String> objectStoreConfig = buildConfig(config);
+        ClassLoader classLoader = StarburstObjectStoreConnectorFactory.class.getClassLoader();
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
+            Bootstrap app = createBootstrap(
+                    catalogName,
+                    metastore,
+                    hiveModule.orElse(EMPTY_MODULE),
+                    Optional.empty(),
+                    Optional.empty(),
+                    EMPTY_MODULE,
+                    additionalObjectStoreModule.orElse(EMPTY_MODULE),
+                    objectStoreConfig,
+                    _ -> {},
+                    context,
+                    true);
+
+            Set<ConfigPropertyMetadata> usedProperties = app.configure();
+
+            return ConfigUtils.getSecuritySensitivePropertyNames(config, usedProperties);
+        }
     }
 
     private static class TestingIcebergFileMetastoreCatalogModule

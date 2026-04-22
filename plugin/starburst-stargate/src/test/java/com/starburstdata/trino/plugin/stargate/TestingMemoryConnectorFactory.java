@@ -9,6 +9,7 @@
  */
 package com.starburstdata.trino.plugin.stargate;
 
+import com.google.common.collect.ImmutableSet;
 import io.trino.plugin.base.ForwardingConnector;
 import io.trino.plugin.memory.MemoryConnectorFactory;
 import io.trino.spi.connector.Connector;
@@ -16,6 +17,7 @@ import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
 
 import java.util.Map;
+import java.util.Set;
 
 import static com.google.common.base.Verify.verify;
 
@@ -48,5 +50,12 @@ public class TestingMemoryConnectorFactory
                 return false;
             }
         };
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        // This connector is used for testing purposes only and does not have any security-sensitive properties.
+        return ImmutableSet.of();
     }
 }

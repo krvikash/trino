@@ -13,11 +13,13 @@
  */
 package io.trino.connector;
 
+import com.google.common.collect.ImmutableSet;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
 
 import java.util.Map;
+import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
@@ -43,5 +45,12 @@ public class StaticConnectorFactory
     public Connector create(String catalogName, Map<String, String> config, ConnectorContext context)
     {
         return connector;
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        // This connector is used for testing purposes only and does not have any security-sensitive properties.
+        return ImmutableSet.of();
     }
 }

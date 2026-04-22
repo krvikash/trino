@@ -116,6 +116,13 @@ public class IndexedTpchConnectorFactory
         };
     }
 
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        // This connector is used for testing purposes only and does not have any security-sensitive properties.
+        return ImmutableSet.of();
+    }
+
     private int getSplitsPerNode(Map<String, String> properties)
     {
         try {

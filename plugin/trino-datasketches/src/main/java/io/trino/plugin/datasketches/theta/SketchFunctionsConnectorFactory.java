@@ -19,6 +19,7 @@ import io.trino.spi.connector.ConnectorFactory;
 import io.trino.spi.function.FunctionBundle;
 
 import java.util.Map;
+import java.util.Set;
 
 public class SketchFunctionsConnectorFactory
         implements ConnectorFactory
@@ -39,5 +40,11 @@ public class SketchFunctionsConnectorFactory
                 .build();
 
         return new SketchFunctionsConnector(new SketchMetadata(bundle), bundle);
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        return Set.of();
     }
 }

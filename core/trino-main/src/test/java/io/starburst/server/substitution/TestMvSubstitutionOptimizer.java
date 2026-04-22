@@ -887,6 +887,12 @@ public class TestMvSubstitutionOptimizer
                     }
                 };
             }
+
+            @Override
+            public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+            {
+                return delegate.getSecuritySensitivePropertyNames(catalogName, config, context);
+            }
         };
     }
 

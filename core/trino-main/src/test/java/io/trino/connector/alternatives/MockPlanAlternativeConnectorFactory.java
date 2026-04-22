@@ -18,6 +18,7 @@ import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
 
 import java.util.Map;
+import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
@@ -41,5 +42,11 @@ public class MockPlanAlternativeConnectorFactory
     public Connector create(String catalogName, Map<String, String> config, ConnectorContext context)
     {
         return new MockPlanAlternativeConnector(delegate.create(catalogName, config, context));
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        return delegate.getSecuritySensitivePropertyNames(catalogName, config, context);
     }
 }

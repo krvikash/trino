@@ -368,6 +368,13 @@ public class MockConnectorFactory
         return builder().withName(name).build();
     }
 
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        // This connector is used for testing purposes only and does not have any security-sensitive properties.
+        return ImmutableSet.of();
+    }
+
     public static Builder builder()
     {
         return new Builder();

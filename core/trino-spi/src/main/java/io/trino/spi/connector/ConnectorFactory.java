@@ -35,8 +35,5 @@ public interface ConnectorFactory
      * The engine uses the properties returned by this method to mask the corresponding
      * values, preventing the leakage of security-sensitive information.
      */
-    default Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
-    {
-        return Set.copyOf(config.keySet());
-    }
+    Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context);
 }

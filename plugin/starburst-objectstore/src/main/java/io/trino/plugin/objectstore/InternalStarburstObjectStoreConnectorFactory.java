@@ -73,16 +73,63 @@ public final class InternalStarburstObjectStoreConnectorFactory
             Optional<Module> deltaMetastoreModule,
             Module deltaModule,
             Module additionalObjectStoreModule,
-            ConnectorContext context)
+            ConnectorContext context,
+            boolean quietBootstrap)
     {
         Map<String, String> objectStoreConfig = buildConfig(config);
         ClassLoader classLoader = InternalStarburstObjectStoreConnectorFactory.class.getClassLoader();
-        try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(classLoader);
-                // Having more than the number of connectors doesn't add value
-                ExecutorService executor = newFixedThreadPool(Math.min(4, Runtime.getRuntime().availableProcessors()), threadsNamed("objectstore-connector-factory-%s"))) {
+        try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(classLoader)) {
             Set<String> usedProperties = ConcurrentHashMap.newKeySet();
             Consumer<Set<String>> usedPropertiesConsumer = usedProperties::addAll;
 
+            return usingTracing(context.getTracer(), "build-objectstore-connector", () -> {
+                Bootstrap app = createBootstrap(
+                        catalogName,
+                        hiveMetastore,
+                        hiveModule,
+                        icebergCatalogModule,
+                        deltaMetastoreModule,
+                        deltaModule,
+                        additionalObjectStoreModule,
+                        objectStoreConfig,
+                        usedPropertiesConsumer,
+                        context,
+                        quietBootstrap);
+
+                app
+                        .doNotInitializeLogging()
+                        .disableSystemProperties()
+                        .setRequiredConfigurationProperties(ImmutableMap.of())
+                        .setOptionalConfigurationProperties(objectStoreConfig);
+
+                usedPropertiesConsumer.accept(app.configure().stream()
+                        .map(ConfigPropertyMetadata::name)
+                        .collect(Collectors.toSet()));
+
+                verifyUsedProperties(objectStoreConfig.keySet(), usedProperties);
+
+                Injector injector = app.initialize();
+
+                return injector.getInstance(ObjectStoreConnector.class);
+            }).get();
+        }
+    }
+
+    public static Bootstrap createBootstrap(
+            String catalogName,
+            Optional<HiveMetastore> hiveMetastore,
+            Module hiveModule,
+            Optional<Module> icebergCatalogModule,
+            Optional<Module> deltaMetastoreModule,
+            Module deltaModule,
+            Module additionalObjectStoreModule,
+            Map<String, String> objectStoreConfig,
+            Consumer<Set<String>> usedPropertiesConsumer,
+            ConnectorContext context,
+            boolean quietBootstrap)
+    {
+        // Having more than the number of connectors doesn't add value
+        try (ExecutorService executor = newFixedThreadPool(Math.min(4, Runtime.getRuntime().availableProcessors()), threadsNamed("objectstore-connector-factory-%s"))) {
             Future<Connector> hiveConnectorFuture = executor.submit(toCallable(usingTracing(
                     context.getTracer(),
                     "build-hive-connector",
@@ -105,38 +152,20 @@ public final class InternalStarburstObjectStoreConnectorFactory
             Connector deltaConnector = completeConnectorFuture(deltaConnectorFuture);
             Connector hudiConnector = completeConnectorFuture(hudiConnectorFuture);
 
-            return usingTracing(context.getTracer(), "build-objectstore-connector", () -> {
-                Bootstrap app = new Bootstrap(
-                        connectorModule(ForHive.class, hiveConnector),
-                        connectorModule(ForIceberg.class, icebergConnector),
-                        connectorModule(ForDelta.class, deltaConnector),
-                        connectorModule(ForHudi.class, hudiConnector),
-                        new ObjectStoreModule(),
-                        additionalObjectStoreModule,
-                        new GalaxyLocationSecurityModule(),
-                        new FileSystemModule(catalogName, context, false),
-                        new ConnectorContextModule(catalogName, context));
-
-                app
-                        .doNotInitializeLogging()
-                        .disableSystemProperties()
-                        .setRequiredConfigurationProperties(ImmutableMap.of())
-                        .setOptionalConfigurationProperties(objectStoreConfig);
-
-                usedPropertiesConsumer.accept(app.configure().stream()
-                        .map(ConfigPropertyMetadata::name)
-                        .collect(Collectors.toSet()));
-
-                verifyUsedProperties(objectStoreConfig.keySet(), usedProperties);
-
-                Injector injector = app.initialize();
-
-                return injector.getInstance(ObjectStoreConnector.class);
-            }).get();
+            return new Bootstrap(
+                    connectorModule(ForHive.class, hiveConnector),
+                    connectorModule(ForIceberg.class, icebergConnector),
+                    connectorModule(ForDelta.class, deltaConnector),
+                    connectorModule(ForHudi.class, hudiConnector),
+                    new ObjectStoreModule(),
+                    additionalObjectStoreModule,
+                    new GalaxyLocationSecurityModule(),
+                    new FileSystemModule(catalogName, context, false, quietBootstrap),
+                    new ConnectorContextModule(catalogName, context));
         }
     }
 
-    private static Map<String, String> buildConfig(Map<String, String> config)
+    public static Map<String, String> buildConfig(Map<String, String> config)
     {
         Map<String, String> newConfig = new HashMap<>(config);
 

@@ -13,14 +13,21 @@
  */
 package io.trino.plugin.objectstore;
 
+import io.airlift.bootstrap.Bootstrap;
+import io.airlift.configuration.ConfigPropertyMetadata;
+import io.trino.plugin.base.config.ConfigUtils;
+import io.trino.spi.classloader.ThreadContextClassLoader;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static com.google.inject.util.Modules.EMPTY_MODULE;
+import static io.trino.plugin.objectstore.InternalStarburstObjectStoreConnectorFactory.buildConfig;
+import static io.trino.plugin.objectstore.InternalStarburstObjectStoreConnectorFactory.createBootstrap;
 import static io.trino.plugin.objectstore.InternalStarburstObjectStoreConnectorFactory.createConnector;
 
 public class StarburstObjectStoreConnectorFactory
@@ -46,6 +53,32 @@ public class StarburstObjectStoreConnectorFactory
                 Optional.empty(),
                 EMPTY_MODULE,
                 EMPTY_MODULE,
-                context);
+                context,
+                false);
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        Map<String, String> objectStoreConfig = buildConfig(config);
+        ClassLoader classLoader = StarburstObjectStoreConnectorFactory.class.getClassLoader();
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
+            Bootstrap app = createBootstrap(
+                    catalogName,
+                    Optional.empty(),
+                    EMPTY_MODULE,
+                    Optional.empty(),
+                    Optional.empty(),
+                    EMPTY_MODULE,
+                    EMPTY_MODULE,
+                    objectStoreConfig,
+                    _ -> {},
+                    context,
+                    true);
+
+            Set<ConfigPropertyMetadata> usedProperties = app.configure();
+
+            return ConfigUtils.getSecuritySensitivePropertyNames(config, usedProperties);
+        }
     }
 }

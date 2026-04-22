@@ -15,6 +15,7 @@ package io.trino.execution;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import io.airlift.slice.Slice;
 import io.trino.Session;
 import io.trino.operator.RetryPolicy;
@@ -495,6 +496,13 @@ public abstract class AbstractTestCoordinatorDynamicFiltering
                 public Connector create(String catalogName, Map<String, String> config, ConnectorContext context)
                 {
                     return new TestConnector(metadata);
+                }
+
+                @Override
+                public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+                {
+                    // This connector is used for testing purposes only and does not have any security-sensitive properties.
+                    return ImmutableSet.of();
                 }
             });
         }

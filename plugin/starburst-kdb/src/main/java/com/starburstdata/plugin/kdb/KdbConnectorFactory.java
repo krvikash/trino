@@ -15,13 +15,16 @@ package com.starburstdata.plugin.kdb;
 
 import com.google.inject.Injector;
 import io.airlift.bootstrap.Bootstrap;
+import io.airlift.configuration.ConfigPropertyMetadata;
 import io.airlift.json.JsonModule;
 import io.trino.plugin.base.ConnectorContextModule;
+import io.trino.plugin.base.config.ConfigUtils;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
 
 import java.util.Map;
+import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
@@ -39,6 +42,29 @@ public class KdbConnectorFactory
     {
         requireNonNull(requiredConfig, "requiredConfig is null");
 
+        Bootstrap bootstrap = createBootstrap(catalogName, requiredConfig, context);
+
+        Injector injector = bootstrap
+                .initialize();
+
+        return injector.getInstance(KdbConnector.class);
+    }
+
+    @Override
+    public Set<String> getSecuritySensitivePropertyNames(String catalogName, Map<String, String> config, ConnectorContext context)
+    {
+        Bootstrap app = createBootstrap(catalogName, config, context);
+
+        Set<ConfigPropertyMetadata> usedProperties = app
+                .quiet()
+                .skipErrorReporting()
+                .configure();
+
+        return ConfigUtils.getSecuritySensitivePropertyNames(config, usedProperties);
+    }
+
+    private static Bootstrap createBootstrap(String catalogName, Map<String, String> requiredConfig, ConnectorContext context)
+    {
         Bootstrap app = new Bootstrap(
                 "io.trino.bootstrap.catalog." + catalogName,
                 new JsonModule(),
@@ -46,12 +72,9 @@ public class KdbConnectorFactory
                 new KdbAuthenticationModule(),
                 new KdbModule());
 
-        Injector injector = app
+        return app
                 .doNotInitializeLogging()
                 .disableSystemProperties()
-                .setRequiredConfigurationProperties(requiredConfig)
-                .initialize();
-
-        return injector.getInstance(KdbConnector.class);
+                .setRequiredConfigurationProperties(requiredConfig);
     }
 }

@@ -405,6 +405,12 @@
                                     <old>method io.trino.spi.connector.ConnectorMergeSink io.trino.spi.connector.ConnectorPageSinkProvider::createMergeSink(io.trino.spi.connector.ConnectorTransactionHandle, io.trino.spi.connector.ConnectorSession, io.trino.spi.connector.ConnectorMergeTableHandle, java.util.Optional&lt;io.trino.spi.connector.ConnectorTableCredentials&gt;, io.trino.spi.connector.ConnectorPageSinkId)</old>
                                     <new>method io.trino.spi.connector.ConnectorMergeSink io.trino.spi.connector.ConnectorPageSinkProvider::createMergeSink(io.trino.spi.connector.ConnectorTransactionHandle, io.trino.spi.connector.ConnectorSession, io.trino.spi.connector.ConnectorMergeTableHandle, java.util.Optional&lt;io.trino.spi.connector.ConnectorTableCredentials&gt;, io.trino.spi.connector.ConnectorPageSinkId, io.trino.spi.connector.MemoryContext)</new>
                                 </item>
+                                <item>
+                                    <ignore>true</ignore>
+                                    <code>java.method.addedToInterface</code>
+                                    <new>method java.util.Set&lt;java.lang.String&gt; io.trino.spi.connector.ConnectorFactory::getSecuritySensitivePropertyNames(java.lang.String, java.util.Map&lt;java.lang.String, java.lang.String&gt;, io.trino.spi.connector.ConnectorContext)</new>
+                                    <justification>This is a planned change to make method abstract to force user to implement getSecuritySensitivePropertyNames method(https://github.com/starburstdata/starburst-docs/pull/3635)</justification>
+                                </item>
                             </differences>
                         </revapi.differences>
                     </analysisConfiguration>
