@@ -197,7 +197,6 @@ public final class BenchmarkClickBench
     {
         CPU,
         GPU,
-        GPU_TS,
     }
 
     static DistributedQueryRunner setup(ExecutionMode executionMode, boolean bind8080)
@@ -209,8 +208,7 @@ public final class BenchmarkClickBench
                 .setSkipTimezoneSetup(true);
         switch (executionMode) {
             case CPU -> builder.addExtraProperty("gpu-acceleration.enabled", "false");
-            case GPU -> builder.addExtraProperty("gpu-acceleration.enabled", "true");
-            case GPU_TS -> builder
+            case GPU -> builder
                     .addExtraProperty("gpu-acceleration.enabled", "true")
                     .addExtraProperty("gpu-acceleration.table-scan-enabled", "true")
                     // Using larger splits than default 64 MB greatly improves GPU Parquet decoding performance.

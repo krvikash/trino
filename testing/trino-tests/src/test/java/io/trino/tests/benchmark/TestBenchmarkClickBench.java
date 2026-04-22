@@ -24,7 +24,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.util.stream.IntStream;
 
 import static io.trino.tests.benchmark.BenchmarkClickBench.ExecutionMode.CPU;
-import static io.trino.tests.benchmark.BenchmarkClickBench.ExecutionMode.GPU_TS;
+import static io.trino.tests.benchmark.BenchmarkClickBench.ExecutionMode.GPU;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
@@ -40,7 +40,7 @@ public class TestBenchmarkClickBench
     public void setup()
             throws Exception
     {
-        gpuRunner = BenchmarkClickBench.setup(GPU_TS, false);
+        gpuRunner = BenchmarkClickBench.setup(GPU, false);
         cpuRunner = BenchmarkClickBench.setup(CPU, false);
     }
 
