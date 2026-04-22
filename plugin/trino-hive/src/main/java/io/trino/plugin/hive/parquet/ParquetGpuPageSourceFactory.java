@@ -84,10 +84,14 @@ public final class ParquetGpuPageSourceFactory
                     memoryContext,
                     stats);
 
+            ParquetReaderOptions parquetReaderOptions = ParquetReaderOptions.builder()
+                    .withMaxFooterReadSize(options.getMaxFooterReadSize())
+                    .build();
+
             // Read footer and get schema
             ParquetMetadata parquetMetadata = MetadataReader.readFooter(
                     dataSource,
-                    Optional.of(options.getMaxFooterReadSize()),
+                    parquetReaderOptions,
                     Optional.empty(),
                     Optional.empty());
             FileMetadata fileMetadata = parquetMetadata.getFileMetaData();
