@@ -146,7 +146,7 @@ final class TestOpenApiConnectorFactory
         assertThat(exceptions)
                 .map(Exception::getMessage)
                 .containsExactlyInAnyOrderElementsOf(ImmutableList.<String>builder()
-                        .add("paths./circular.get.responses.200.$ref: Reference from response forms a cycle")
+                        .add("paths./circular.get.responses.200.$ref.circularSTART.$ref.circularEND.$ref: Reference from response forms a cycle")
                         .add("paths./badref.get.responses.200.$ref: Reference refers to response 'badref' that doesn't exist")
                         .build());
     }
@@ -163,9 +163,9 @@ final class TestOpenApiConnectorFactory
         assertThat(exceptions)
                 .map(Exception::getMessage)
                 .containsExactlyInAnyOrderElementsOf(ImmutableList.<String>builder()
-                        .add("paths./circular.$ref: Reference from path forms a cycle")
-                        .add("paths./circularSTART.$ref: Reference from path forms a cycle")
-                        .add("paths./circularEND.$ref: Reference from path forms a cycle")
+                        .add("paths./circular.$ref./circularSTART.$ref./circularEND.$ref: Reference from path forms a cycle")
+                        .add("paths./circularSTART.$ref./circularEND.$ref./circularSTART.$ref: Reference from path forms a cycle")
+                        .add("paths./circularEND.$ref./circularSTART.$ref./circularEND.$ref: Reference from path forms a cycle")
                         .add("paths./badref.$ref: Reference refers to path 'notreal' that doesn't exist")
                         .build());
     }
@@ -197,7 +197,7 @@ final class TestOpenApiConnectorFactory
                 .map(Exception::getMessage)
                 .containsExactlyInAnyOrderElementsOf(ImmutableList.<String>builder()
                         .add("paths./badref.get.parameters[0].$ref: Reference refers to parameter 'badref' that doesn't exist")
-                        .add("paths./circularref.get.parameters[0].$ref: Reference from parameter forms a cycle")
+                        .add("paths./circularref.get.parameters[0].$ref.circularSTART.$ref.circularEND.$ref: Reference from parameter forms a cycle")
                         .add("paths./badschema.get.parameters[0]: Must create a parameter from a primitive type (supported string/number format or boolean) or array of primitive type")
                         .add("paths./ambiguous/{param}.get.parameters[1].name: Cannot refer to parameter 'param' unambiguously, parameter with identifier 'PARAM' already exists")
                         .build());

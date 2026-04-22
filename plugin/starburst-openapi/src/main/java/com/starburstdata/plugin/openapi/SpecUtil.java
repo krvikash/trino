@@ -16,6 +16,7 @@ import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +57,26 @@ public final class SpecUtil
     public record SuccessfulResponse(String code, ApiResponse response) {}
 
     /**
+     * A value produced by resolving a chain of {@code $ref}s, along with the
+     * document-path segments that locate the resolved value relative to where
+     * resolution began. The {@code refPath} alternates {@code "$ref"} segments
+     * with the resolved reference key, e.g. {@code ["$ref", "Pet", "$ref", "BasePet"]}.
+     */
+    public record Resolved<T>(T value, List<String> refPath)
+    {
+        public Resolved
+        {
+            requireNonNull(value, "value is null");
+            refPath = ImmutableList.copyOf(requireNonNull(refPath, "refPath is null"));
+        }
+
+        public <R> Resolved<R> withValue(R newValue)
+        {
+            return new Resolved<>(newValue, refPath);
+        }
+    }
+
+    /**
      * <blockquote>A unique parameter is defined by a combination of
      * a name and location.</blockquote>
      * <a href="https://spec.openapis.org/oas/v3.0.4.html#fixed-fields-6">- OAS 3.0.4</a>
@@ -76,23 +97,27 @@ public final class SpecUtil
         return requireNonNull(parameter.getSchema(), "Expected parameter without content keyword has schema keyword");
     }
 
-    public static Optional<Schema<?>> getJsonResponseSchema(
+    public static Optional<Resolved<Schema<?>>> getJsonResponseSchema(
             ApiResponse response,
             Map<String, ApiResponse> referenceableResponses)
             throws SpecException
     {
-        return followReferencesUntil(
+        Optional<Resolved<ApiResponse>> resolvedResponse = followReferencesUntil(
                 responseOrRef -> responseOrRef.getContent() != null, "response",
                 response,
                 ApiResponse::get$ref,
                 ImmutableList.of("components", "responses"),
-                referenceableResponses)
-                .flatMap(resolvedResponse ->
-                        Optional.ofNullable(resolvedResponse.getContent().get(MIME_JSON)))
-                .flatMap(mediaType -> Optional.ofNullable((Schema<?>) mediaType.getSchema()));
+                referenceableResponses);
+        if (resolvedResponse.isEmpty()) {
+            return Optional.empty();
+        }
+        ApiResponse resolved = resolvedResponse.get().value();
+        return Optional.ofNullable(resolved.getContent().get(MIME_JSON))
+                .map(mediaType -> (Schema<?>) mediaType.getSchema())
+                .map(schema -> resolvedResponse.get().withValue(schema));
     }
 
-    public static Optional<Operation> getGetOperation(
+    public static Optional<Resolved<Operation>> getGetOperation(
             PathItem pathItem,
             Map<String, PathItem> paths)
             throws SpecException
@@ -105,15 +130,15 @@ public final class SpecUtil
                 pathItem,
                 PathItem::get$ref,
                 ImmutableList.of("paths"),
-                paths).map(PathItem::getGet);
+                paths).map(resolved -> resolved.withValue(resolved.value().getGet()));
     }
 
-    public static Parameter resolveParameter(
+    public static Resolved<Parameter> resolveParameter(
             Parameter parameter,
             Map<String, Parameter> parameters)
             throws SpecException
     {
-        Optional<Parameter> resolvedParameter = followReferencesUntil(
+        Optional<Resolved<Parameter>> resolvedParameter = followReferencesUntil(
                 parameterOrRef -> parameterOrRef.getName() != null,
                 "parameter",
                 parameter,
@@ -127,7 +152,7 @@ public final class SpecUtil
         return resolvedParameter.get();
     }
 
-    public static <T> Optional<T> followReferencesUntil(
+    public static <T> Optional<Resolved<T>> followReferencesUntil(
             Predicate<T> condition,
             String context,
             T start,
@@ -138,15 +163,15 @@ public final class SpecUtil
     {
         Set<String> encounteredReferences = new HashSet<>();
         T current = start;
+        List<String> refPath = new ArrayList<>();
         while (!condition.test(current)) {
             String ref = extractReference.apply(current);
             if (ref == null) {
                 return Optional.empty();
             }
             if (encounteredReferences.contains(ref)) {
-                throw new SpecException(
-                        "Reference from %s forms a cycle".formatted(context))
-                        .fromMember("$ref");
+                throw new SpecException("Reference from %s forms a cycle".formatted(context))
+                        .fromPath(atRef(refPath));
             }
             encounteredReferences.add(ref);
             final String key;
@@ -154,17 +179,27 @@ public final class SpecUtil
                 key = extractRefKey(referencePrefix, ref);
             }
             catch (IllegalArgumentException e) {
-                throw new SpecException(e.getMessage()).withCause(e).fromMember("$ref");
+                throw new SpecException(e.getMessage()).withCause(e).fromPath(atRef(refPath));
             }
             if (!referenceableObjects.containsKey(key)) {
                 throw new SpecException("Reference refers to %s '%s' that doesn't exist".formatted(
                         context,
                         key))
-                        .fromMember("$ref");
+                        .fromPath(atRef(refPath));
             }
             current = referenceableObjects.get(key);
+            refPath.add("$ref");
+            refPath.add(key);
         }
-        return Optional.of(current);
+        return Optional.of(new Resolved<>(current, refPath));
+    }
+
+    private static List<String> atRef(List<String> refPath)
+    {
+        return ImmutableList.<String>builderWithExpectedSize(refPath.size() + 1)
+                .addAll(refPath)
+                .add("$ref")
+                .build();
     }
 
     @SuppressWarnings("unchecked")

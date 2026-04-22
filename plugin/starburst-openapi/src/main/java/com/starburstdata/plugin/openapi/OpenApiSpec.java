@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.starburstdata.plugin.openapi.SpecUtil.ParameterIdentifier;
+import com.starburstdata.plugin.openapi.SpecUtil.Resolved;
 import com.starburstdata.plugin.openapi.SpecUtil.SuccessfulResponse;
 import com.starburstdata.plugin.openapi.authentication.OpenApiAuthenticator;
 import com.starburstdata.plugin.openapi.conversions.SchemaIrFactory;
@@ -155,15 +156,20 @@ public class OpenApiSpec
             }
 
             List<String> pathPrefix = ImmutableList.of("paths", path);
-            List<String> operationPrefix = ImmutableList.of("paths", path, "get");
 
             final Operation operation;
+            final List<String> operationPrefix;
             try {
-                Optional<Operation> operationOptional = getGetOperation(pathItem, paths);
+                Optional<Resolved<Operation>> operationOptional = getGetOperation(pathItem, paths);
                 if (operationOptional.isEmpty()) {
                     return;
                 }
-                operation = operationOptional.get();
+                operation = operationOptional.get().value();
+                operationPrefix = ImmutableList.<String>builder()
+                        .addAll(pathPrefix)
+                        .addAll(operationOptional.get().refPath())
+                        .add("get")
+                        .build();
             }
             catch (SpecException e) {
                 exceptionsBuilder.add(e.fromPath(pathPrefix));
@@ -179,28 +185,31 @@ public class OpenApiSpec
                     .add("responses")
                     .add(successfulResponse.get().code())
                     .build();
-            List<String> responseSchemaPrefix = ImmutableList.<String>builder()
-                    .addAll(responsePrefix)
-                    .add("content")
-                    .add(MIME_JSON)
-                    .add("schema")
-                    .build();
 
-            final Optional<Schema<?>> schema;
+            final Schema<?> schema;
+            final List<String> responseSchemaPrefix;
             try {
-                schema = getJsonResponseSchema(successfulResponse.get().response(), responses);
+                Optional<Resolved<Schema<?>>> resolvedSchema = getJsonResponseSchema(successfulResponse.get().response(), responses);
+                if (resolvedSchema.isEmpty()) {
+                    return;
+                }
+                schema = resolvedSchema.get().value();
+                responseSchemaPrefix = ImmutableList.<String>builder()
+                        .addAll(responsePrefix)
+                        .addAll(resolvedSchema.get().refPath())
+                        .add("content")
+                        .add(MIME_JSON)
+                        .add("schema")
+                        .build();
             }
             catch (SpecException e) {
                 exceptionsBuilder.add(e.fromPath(responsePrefix));
                 return;
             }
-            if (schema.isEmpty()) {
-                return;
-            }
 
             final OpenApiDecoder decoder;
             try {
-                SchemaIr schemaIr = schemaIrFactory.convert(schema.get());
+                SchemaIr schemaIr = schemaIrFactory.convert(schema);
                 decoder = openApiDecoderFactory.createFrom(schemaIr);
             }
             catch (SpecException e) {
@@ -219,12 +228,12 @@ public class OpenApiSpec
             for (int i = 0; i < rawParameters.size(); i++) {
                 List<String> parameterPrefix = parameterPrefix(operationPrefix, i);
                 try {
-                    Parameter resolvedParameter = SpecUtil.resolveParameter(rawParameters.get(i), parameters);
+                    Resolved<Parameter> resolvedParameter = SpecUtil.resolveParameter(rawParameters.get(i), parameters);
                     resolvedParametersByIdentifier.put(
                             new ParameterIdentifier(
-                                    resolvedParameter.getName(),
-                                    resolvedParameter.getIn()),
-                            new IndexedParameter(i, resolvedParameter));
+                                    resolvedParameter.value().getName(),
+                                    resolvedParameter.value().getIn()),
+                            new IndexedParameter(i, resolvedParameter.value(), resolvedParameter.refPath()));
                 }
                 catch (SpecException e) {
                     exceptionsBuilder.add(e.fromPath(parameterPrefix));
@@ -238,7 +247,10 @@ public class OpenApiSpec
             for (IndexedParameter indexed : resolvedParametersByIdentifier.values()) {
                 int i = indexed.index();
                 Parameter resolvedParameter = indexed.parameter();
-                List<String> parameterPrefix = parameterPrefix(operationPrefix, i);
+                List<String> parameterPrefix = ImmutableList.<String>builder()
+                        .addAll(parameterPrefix(operationPrefix, i))
+                        .addAll(indexed.refPath())
+                        .build();
                 String argumentName = getIdentifier(resolvedParameter.getName()).toUpperCase(ENGLISH);
                 if (!argumentNames.add(argumentName)) {
                     exceptionsBuilder.add(new SpecException(
@@ -322,7 +334,7 @@ public class OpenApiSpec
     {
     }
 
-    private record IndexedParameter(int index, Parameter parameter) {}
+    private record IndexedParameter(int index, Parameter parameter, List<String> refPath) {}
 
     private static List<String> parameterPrefix(List<String> operationPrefix, int index)
     {
