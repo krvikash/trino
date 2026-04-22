@@ -212,7 +212,12 @@ public final class BenchmarkClickBench
             case GPU -> builder.addExtraProperty("gpu-acceleration.enabled", "true");
             case GPU_TS -> builder
                     .addExtraProperty("gpu-acceleration.enabled", "true")
-                    .addExtraProperty("gpu-acceleration.table-scan-enabled", "true");
+                    .addExtraProperty("gpu-acceleration.table-scan-enabled", "true")
+                    // Using larger splits than default 64 MB greatly improves GPU Parquet decoding performance.
+                    // TODO we could use even larger splits. However, we get Q30 GPU OOM at 512 MB split size.
+                    //  This requires optimize trick to replace 90 aggregations with just one, or incremental preaggregations to reduce memory usage.
+                    .addHiveProperty("hive.max-initial-split-size", "256MB")
+                    .addHiveProperty("hive.max-split-size", "256MB");
         }
         if (bind8080) {
             builder.addCoordinatorProperty("http-server.http.port", "8080");
