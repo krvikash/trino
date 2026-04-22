@@ -132,7 +132,8 @@ public final class QueryExecutors
                     if (stackTrace.contains("closeStatement") || stackTrace.contains("CloseOperation")) {
                         return false;
                     }
-                    return stackTrace.contains("HTTP Response code: 502") || stackTrace.contains("The current cluster state is Pending") || stackTrace.contains("The current cluster state is Terminated") || stackTrace.contains("504 Gateway Timeout");
+                    return (stackTrace.contains("TOpenSessionReq") && stackTrace.contains("code: 502"))
+                            || stackTrace.contains("The current cluster state is Pending") || stackTrace.contains("The current cluster state is Terminated");
                 })
                 .withDelay(Duration.of(30, ChronoUnit.SECONDS))
                 .withMaxRetries(40)

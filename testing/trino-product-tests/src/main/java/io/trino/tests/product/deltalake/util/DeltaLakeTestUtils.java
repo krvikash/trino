@@ -45,15 +45,15 @@ public final class DeltaLakeTestUtils
     public static final String DATABRICKS_COMMUNICATION_FAILURE_ISSUE = "https://github.com/trinodb/trino/issues/14391";
     @Language("RegExp")
     public static final String DATABRICKS_COMMUNICATION_FAILURE_MATCH =
-            // Old proprietary JDBC driver format
             "\\Q[Databricks][\\E(DatabricksJDBCDriver|JDBCDriver)\\Q](500593) Communication link failure. Failed to connect to server. Reason: \\E" +
                     "(" +
                     "(HTTP retry after response received with no Retry-After header, error: HTTP Response code: 503|HTTP Response code: 504), Error message: Unknown." +
-                    "|java.net.SocketTimeoutException: Read timed out." +
                     ")" +
-                    // OSS JDBC driver format
                     "|504 Gateway Timeout" +
-                    "|SocketTimeoutException: Read timed out";
+                    "|SocketTimeoutException: Read timed out" +
+                    "|Error while closing operation" +
+                    "|HTTP request failed by code: 50[02]" +
+                    "|HTTP response code: 503";
     private static final RetryPolicy<QueryResult> DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY = RetryPolicy.<QueryResult>builder()
             .handleIf(throwable -> Throwables.getRootCause(throwable) instanceof SQLException)
             .handleIf(throwable -> Pattern.compile(DATABRICKS_COMMUNICATION_FAILURE_MATCH).matcher(Throwables.getRootCause(throwable).getMessage()).find())
