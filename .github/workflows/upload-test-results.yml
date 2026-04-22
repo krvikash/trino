@@ -19,7 +19,7 @@ jobs:
     runs-on: [self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest]
     steps:
       - name: 'Download artifact'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
